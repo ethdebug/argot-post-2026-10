@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>ethdebug in depth</title>
-<meta name="description" content="The details behind our post introducing ethdebug: demos, the published LLM contest, pointers in full, optimized code, compiler status, mainnet and measurements.">
+<meta name="description" content="The details behind our post introducing ethdebug: demos, pointers in full, optimized code, compiler status, mainnet and measurements.">
 <link rel="stylesheet" media="(prefers-color-scheme: light)"
   href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github.min.css">
 <link rel="stylesheet" media="(prefers-color-scheme: dark)"
@@ -39,7 +39,7 @@ nav.toc li { margin: 2px 0; }
 <header>
 <h1>ethdebug in depth</h1>
 <p class="lede">The details behind our post introducing ethdebug: the
-demos, the published contest, pointers in full, optimized code, where
+demos, pointers in full, optimized code, where
 each compiler stands, contracts on mainnet, and our measurements.</p>
 <p class="muted"><em>Draft: items tagged <span class="tag verify">to verify</span> are still being checked.</em></p>
 <p class="appendix-nav">Part of the ethdebug post appendix, with
@@ -62,7 +62,6 @@ progress, not done; we give no dates for those.</p>
 <strong>Contents</strong>
 <ol>
   <li><a href="#try">Try it</a></li>
-  <li><a href="#contest">The published contest</a></li>
   <li><a href="#pointers">Pointers, in full</a></li>
   <li><a href="#optimized">Optimized code</a></li>
   <li><a href="#compilers">Where each compiler stands</a></li>
@@ -288,260 +287,7 @@ calls yet (see <a href="#optimized">Optimized code</a>).</p>
 </ul>
 
 <!-- ============================================================ -->
-<h2 id="contest">2. The published contest</h2>
-
-<h3>The task, and why</h3>
-<p>We asked an LLM to build a command-line tool: given a transaction
-hash, print each storage value the transaction changed, by its Solidity
-name, old → new. We chose it because it is a question newcomers ask
-all the time ("what is in this storage slot?"), and because it needs
-the hard part of reading state: hashed mapping slots, packed values and
-long strings.</p>
-<p>There are two <em>arms</em>. The <strong>ethdebug arm</strong> must
-decode storage with solc's ethdebug pointer templates and
-<code>@ethdebug/pointers</code>. The <strong>control arm</strong> may
-use only solc's older outputs (storageLayout, the AST and source maps),
-and no ethdebug and no ready-made storage decoder. Both arms may use
-<code>storageLayout</code> for names and base slots, because solc's
-ethdebug output does not give them yet. Each arm ran on two models,
-Claude Sonnet 5.5 and Claude Opus 5.5.
-<span class="tag verify">to verify: confirm and publish the exact model IDs</span></p>
-<p>Round 1 builds the tool. Round 2, in the same session, extends it to
-new storage shapes. We expected a tie in Round 1. Round 2 measures how
-much each tool must change for new shapes.</p>
-
-<h3>The prompts, verbatim</h3>
-<p>Each run got this wrapper, then its arm's prompt:</p>
-<blockquote><p>This is a timed, published experiment. Your working
-directory is &lt;run dir&gt;; do all work there. Your task:</p></blockquote>
-
-<h4>Round 1, ethdebug arm (112 words)</h4>
-<blockquote>
-<p>Build a command-line tool that takes a transaction hash and prints
-each storage value the transaction changed, by its Solidity name, old →
-new (e.g. <code>x.y[0xab…]: 1 → 2</code>). Names and base slots come
-from solc's storageLayout. Decoding comes from ethdebug/format: solc's
-ethdebug output gives type-keyed pointer templates; evaluate them with
-@ethdebug/pointers. Entry point: <code>./diff &lt;file.sol&gt;
-&lt;txhash&gt;</code>.</p>
-<p>anvil runs at http://127.0.0.1:8545 (started with
-<code>--steps-tracing</code>). Test on ./Fixture.sol: deploy Fixture
-from anvil's first default account, then from that account call
-<code>transfer(0x70997970C51812dc3A010C7d01b50e0d17dc79C8, 25,
-"rent")</code>.</p>
-<p>Use only public material: https://ethdebug.github.io/format/,
-https://docs.soliditylang.org, public GitHub (incl.
-argotorg/solidity#16990), npm packages, anvil, and the solc build at
-&lt;SOLJSON_URL&gt;. Do not read files outside this directory. Time
-box: 30 minutes.</p>
-</blockquote>
-
-<h4>Round 1, control arm (112 words)</h4>
-<blockquote>
-<p>Build a command-line tool that takes a transaction hash and prints
-each storage value the transaction changed, by its Solidity name, old →
-new (e.g. <code>x.y[0xab…]: 1 → 2</code>). Names, base slots and
-decoding come only from solc's classic outputs (storageLayout, AST,
-source maps). Do not use ethdebug output, ethdebug packages or existing
-storage decoders. Entry point: <code>./diff &lt;file.sol&gt;
-&lt;txhash&gt;</code>.</p>
-<p>anvil runs at http://127.0.0.1:8545 (started with
-<code>--steps-tracing</code>). Test on ./Fixture.sol: deploy Fixture
-from anvil's first default account, then from that account call
-<code>transfer(0x70997970C51812dc3A010C7d01b50e0d17dc79C8, 25,
-"rent")</code>.</p>
-<p>Use only public material: https://docs.soliditylang.org, public
-GitHub, npm packages, anvil, and the solc build at &lt;SOLJSON_URL&gt;.
-Do not read files outside this directory. Time box: 30 minutes.</p>
-</blockquote>
-
-<h4>Round 2, both arms, in the same session (63 words)</h4>
-<blockquote>
-<p>Extend your tool. ./Fixture2.sol adds new storage shapes. anvil was
-restarted fresh with the same flags. Deploy Fixture from Fixture2.sol
-from the first default account, then from that account call
-<code>transfer(0x70997970C51812dc3A010C7d01b50e0d17dc79C8, 25,
-"rent")</code>, then <code>setProfile(7, "a name that is longer than
-thirty-one bytes", -42)</code>. <code>./diff</code> must print the
-named changes for both transactions. Same sources and rules as before.
-Time box: 20 minutes.</p>
-</blockquote>
-<p><code>&lt;SOLJSON_URL&gt;</code> was a CircleCI artifact of the
-#16990 build. Those links expire, so we host a copy:
-soljson-pr16990.js (coming before the post),
-sha256
-<code>71d919f15ebf6524385b36f25d0b1e0566a1e1e71d3b414108bcf2277292093f</code>.</p>
-
-<h3>The rules</h3>
-<ul>
-  <li><strong>Public material only.</strong> The prompt lists what the
-  model may read. It may install any npm package and use anvil and
-  cast. It may not read files outside its run folder.</li>
-  <li><strong>A fresh agent.</strong> Each run is a fresh Claude Code
-  agent (Claude Code 2.1.287, default effort, all tools). It has no
-  memory of our work. Its folder holds only the fixture. anvil 1.2.3
-  runs before the clock starts.</li>
-  <li><strong>Time box.</strong> 30 minutes for Round 1, 20 for Round
-  2. A run over the time box is still published, with its time.</li>
-  <li><strong>The stop time.</strong> The clock starts when the prompt
-  is sent. It stops at the first <code>./diff</code> run on the public
-  transaction whose output passes the judge. The model does not decide
-  when it is done; the timestamps in its transcript do.</li>
-  <li><strong>The judge.</strong> After the run, the full judge scores
-  the final tool on the public transaction and on hidden ones the model
-  never saw. It counts wrong, missing and extra lines. A run passes
-  only if all counts are 0. Printing a field that did not change counts
-  as extra.</li>
-  <li><strong>Formatting does not matter.</strong> Case, spaces, quotes
-  around strings, <code>-&gt;</code> for <code>→</code>, and addresses
-  shortened to at least 4 + 4 hex digits all count as equal.</li>
-  <li><strong>Every first run is published.</strong> We committed
-  before any run to publish the first official run of each arm, model
-  and round as it is. Any further run is published as a disclosed
-  re-run.</li>
-  <li><strong>Source review.</strong> The ethdebug arm must decode
-  through <code>@ethdebug/pointers</code> and solc's pointer
-  templates.</li>
-</ul>
-
-<h3>The fixtures</h3>
-<p>Fixture.sol (coming before the post) (Round 1): a
-mapping of addresses to an <code>Account</code> struct that packs into
-one slot, and a <code>string memo</code>.</p>
-<pre><code class="language-plaintext">contract Fixture {
-    struct Account {
-        uint128 balance;
-        uint64 nonce;
-        bool frozen;
-    }
-
-    mapping(address =&gt; Account) public accounts;
-    string public memo;
-    constructor() {
-        accounts[msg.sender].balance = 100;
-    }
-
-    function transfer(address to, uint128 amount, string calldata m) external {
-        Account storage from = accounts[msg.sender];
-        require(!from.frozen &amp;&amp; from.balance &gt;= amount, "denied");
-        from.balance -= amount;
-        from.nonce += 1;
-        accounts[to].balance += amount;
-        memo = m;
-    }
-}</code></pre>
-<p>Fixture2.sol (coming before the post) (Round 2) adds a
-nested mapping to a struct with a string and packed small integers, one
-of them signed:</p>
-<pre><code class="language-plaintext">struct Profile {
-    string name;
-    uint8 level;
-    int24 score;
-    bool active;
-}
-mapping(address =&gt; mapping(uint256 =&gt; Profile)) public profiles;
-
-function setProfile(uint256 id, string calldata n, int24 s) external {
-    Profile storage p = profiles[msg.sender][id];
-    p.name = n;
-    p.level += 1;
-    p.score = s;
-    p.active = true;
-}</code></pre>
-<p>The judge sends these transactions. T is public (in the prompt); H is
-hidden. L1 and L2 are strings longer than 31 bytes, which Solidity
-stores differently from short ones.</p>
-<div class="table-wrap"><table>
-<tr><th>Tx</th><th>Round</th><th>From</th><th>Call</th><th>Expected changes</th></tr>
-<tr><td>T1</td><td>1, 2</td><td>0</td><td><code>transfer(acct1, 25, "rent")</code></td><td><code>accounts[acct0].balance</code> 100→75, <code>.nonce</code> 0→1; <code>accounts[acct1].balance</code> 0→25; <code>memo</code> ""→"rent"</td></tr>
-<tr><td>H1</td><td>1</td><td>0</td><td><code>transfer(acct2, 5, L1)</code></td><td>acct0 balance 75→70, nonce 1→2; acct2 balance 0→5; <code>memo</code> "rent"→L1</td></tr>
-<tr><td>H2</td><td>1</td><td>1</td><td><code>transfer(acct0, 10, "")</code></td><td>acct1 balance 25→15, nonce 0→1; acct0 balance 70→80; <code>memo</code> L1→""</td></tr>
-<tr><td>T2</td><td>2</td><td>0</td><td><code>setProfile(7, L2, -42)</code></td><td><code>profiles[acct0][7]</code>: name ""→L2, level 0→1, score 0→-42, active false→true</td></tr>
-<tr><td>H3</td><td>2</td><td>1</td><td><code>setProfile(3, "bob", 17)</code></td><td><code>profiles[acct1][3]</code>: name ""→"bob", level 0→1, score 0→17, active false→true</td></tr>
-<tr><td>H4</td><td>2</td><td>0</td><td><code>setProfile(7, "carol", 5)</code></td><td><code>profiles[acct0][7]</code>: name L2→"carol", level 1→2, score -42→5 (active unchanged)</td></tr>
-</table></div>
-
-<h3>Run the judge</h3>
-<p>The judge is one script:
-judge-official.mjs (coming before the post)
-(sha256
-<code>1c9898b0e0c98e4db907f7248d47b4be291a802008fc5d3ca94923bad6889297</code>).
-It compiles the fixture with the hosted solc build, starts a fresh
-anvil, deploys the contract, sends the transactions, runs your tool on
-each one and scores the output. You need Node, anvil and cast on your
-<code>PATH</code>, port 8545 free, and <code>web-solc@0.7.0</code>.
-Put the judge, the fixtures and the solc build in one folder, with the
-build at <code>mirror/soljson-pr16990.js</code> (or set
-<code>SOLJSON</code> to its path).</p>
-<pre><code class="language-bash">npm install web-solc@0.7.0
-node judge-official.mjs 1 path/to/your/diff   # Round 1
-node judge-official.mjs 2 path/to/your/diff   # Round 2
-# score one saved output, as for the stop time:
-node judge-official.mjs check 1 T1 &lt; output.txt</code></pre>
-<p>The judge runs your tool from the tool's own folder, as
-<code>diff &lt;absolute path to .sol&gt; &lt;txhash&gt;</code>. Set
-<code>JUDGE_PORT</code> to use another port.</p>
-<p>One warning for anyone who builds a tool: do not find the contract
-by comparing exact bytecode. solc embeds metadata in the bytecode,
-including the source path and settings, so the same file compiled from
-another path gives different bytes. Strip the metadata, or match by
-address. This is what broke one of our runs (below).</p>
-
-<h3>Results</h3>
-<p>Every run, as it happened. Times are minutes:seconds to the stop
-time.</p>
-<h4>Round 1: build the tool</h4>
-<div class="table-wrap"><table>
-<tr><th>Model</th><th>Arm</th><th>Time</th><th>Judge (T1, H1, H2)</th><th>Notes</th></tr>
-<tr><td>Sonnet 5.5</td><td>ethdebug</td><td>3:39</td><td class="pass">PASS</td><td>0 wrong, missing or extra on every transaction.</td></tr>
-<tr><td>Sonnet 5.5</td><td>control</td><td>1:58</td><td class="pass">PASS</td><td>Walks storageLayout and the AST; finds mapping keys in the hash inputs of the trace.</td></tr>
-<tr><td>Opus 5.5</td><td>ethdebug</td><td>no stop time<br><span class="muted">(3:25 in its own test)</span></td><td class="fail">FAIL<br>missing 4 on each</td><td>Its decoding was right in its own tests, but the tool crashed under the judge. It found the contract by exact bytecode, and the judge compiles from another path, so the bytes differ ("no contract matches code"). Published as it is.</td></tr>
-<tr><td>Opus 5.5</td><td>control</td><td>2:24</td><td class="pass">PASS</td><td>A broad storageLayout walker. The model said "about 15 minutes"; the transcript says 2:24, and timestamps govern.</td></tr>
-</table></div>
-<p>After freezing the judge (<code>judge-official.mjs</code>), we
-re-scored every Round 1 run with it; each kept the result shown above.</p>
-
-<h4>Round 2: extend it</h4>
-<div class="table-wrap"><table>
-<tr><th>Model</th><th>Arm</th><th>Time</th><th>Judge (T1, T2, H3, H4)</th><th>Notes</th></tr>
-<tr><td>Sonnet 5.5</td><td>ethdebug</td><td>0:44</td><td class="pass">PASS</td><td>Worked around a bug in <code>@ethdebug/pointers</code>: names were lost when templates nest. We have since fixed it (ethdebug/format #315).</td></tr>
-<tr><td>Sonnet 5.5</td><td>control</td><td>0:16</td><td class="pass">PASS</td><td>No code change: its Round 1 tool already handled the new shapes.</td></tr>
-<tr><td>Opus 5.5</td><td>ethdebug</td><td colspan="3" class="muted">Not run yet. <span class="tag verify">to verify: run, or say why not</span></td></tr>
-<tr><td>Opus 5.5</td><td>control</td><td colspan="3" class="muted">Not run yet. <span class="tag verify">to verify: run, or say why not</span></td></tr>
-</table></div>
-
-<h3>What the results show: on par today</h3>
-<p>For storage on solc, ethdebug ties with the older outputs today. The
-control arm was at least as fast, and in Round 2 it needed no change
-at all. That is what we expected. solc's <code>storageLayout</code> is
-already a layout the compiler supplies, for storage. It gives each
-variable's slot, offset and encoding, and a model knows Solidity's
-storage rules well. The ethdebug arm also still needs
-<code>storageLayout</code> for names and base slots, because solc's
-ethdebug output gives one template per <em>type</em>, not per
-variable.</p>
-<p>What the contest does show: a model built a working tool from a
-written specification and its schemas, and an automatic judge could
-check it. What it does not test is where ethdebug is meant to differ:
-memory, the stack, calldata, local variables, and compilers that have
-no <code>storageLayout</code>. Those are the next stages of solc's
-support <span class="tag plan">plan</span>. Both arms also turn bytes
-into values with their own code, because the format does not yet say
-what the bytes mean (see <a href="#placement">Placement,
-interpretation, resolution</a>).</p>
-<p>The fixtures also leave out some shapes on purpose, because today's
-data or our library could not handle them when we designed the
-contest. solc writes no pointer for a top-level value such as a
-<code>uint256</code>; a nested mapping's template does not chain into
-the inner one, so a tool must chain it by hand; and two bugs in
-<code>@ethdebug/pointers</code> (top-level dynamic arrays and nested
-names) are now fixed on main (#315, #316). A re-run can add these
-shapes.</p>
-<p><strong>The prompt, rules and judge are published, so anyone can
-re-run this. We will too, once solc emits local variables.</strong></p>
-
-<!-- ============================================================ -->
-<h2 id="pointers">3. Pointers, in full</h2>
+<h2 id="pointers">2. Pointers, in full</h2>
 
 <p>A <strong>pointer</strong> is the compiler's own statement of where
 a value lives, and how to find it. In the docs' words: "Pointers are
@@ -806,9 +552,9 @@ later.</p>
 and type, and each type's <code>encoding</code>
 (<code>inplace</code>, <code>mapping</code>,
 <code>dynamic_array</code>, <code>bytes</code>), struct members and
-sizes. It is mature, simple and complete for state variables. Our
-contest showed that a tool built on it is as good as one built on
-ethdebug, for storage, today.</p>
+sizes. It is mature, simple and complete for state variables. For
+storage, today, a tool built on it does as well as one built on
+ethdebug.</p>
 <p>What it does not say is <em>how</em> to find a mapping entry or an
 array item. <code>"encoding": "mapping"</code> names the rule, and the
 reader must know it: the hash order, the key padding, string keys,
@@ -918,7 +664,7 @@ change. Vyper does not emit ethdebug; we wrote this from its rule.
 </ul>
 
 <!-- ============================================================ -->
-<h2 id="optimized">4. Optimized code</h2>
+<h2 id="optimized">3. Optimized code</h2>
 
 <p>An optimizer rewrites code to be smaller or cheaper. The result does
 what the source says, but the simple link "this instruction comes from
@@ -1027,7 +773,7 @@ for it yet. That is ethdebug/format issue #291, and settling it is our
 work. No real compiler emits local variables yet.</p>
 
 <!-- ============================================================ -->
-<h2 id="compilers">5. Where each compiler stands</h2>
+<h2 id="compilers">4. Where each compiler stands</h2>
 <p>As of October 2026. Four compilers emit ethdebug, for three source
 languages: Solidity (solc and Solar), Fe and BUG.</p>
 
@@ -1123,7 +869,7 @@ bugc does not emit local variables yet; a pull request for that
 (ethdebug/format #270) is open.</p>
 
 <!-- ============================================================ -->
-<h2 id="mainnet">6. Contracts already on mainnet</h2>
+<h2 id="mainnet">5. Contracts already on mainnet</h2>
 <p>Can you use ethdebug on contracts that are already deployed? With
 solc today, only on a small part of them.</p>
 <ul>
@@ -1160,7 +906,7 @@ will apply to new compilations; old contracts would need a recompile
 that matches.</p>
 
 <!-- ============================================================ -->
-<h2 id="measurements">7. Measurements</h2>
+<h2 id="measurements">6. Measurements</h2>
 <p>soldb's numbers are from Playwright engine builds (Chromium 153,
 Firefox 155, WebKit 26.6, and an iPhone 15 emulation), three runs each,
 medians, with no console errors.
