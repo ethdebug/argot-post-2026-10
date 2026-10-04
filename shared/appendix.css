@@ -1,0 +1,233 @@
+/* Shared look for the ethdebug post appendix: the storage inspector
+   (demos/inspector/), the companion page (companion/) and the soldb
+   demo (demos/soldb/). Design tokens first, then shared components.
+   Each page keeps a small stylesheet for what only it has. */
+
+:root {
+  --bg: #fbfaf7;
+  --fg: #1f2328;
+  --muted: #6a6f76;
+  --line: #dedbd3;
+  --panel: #ffffff;
+  --accent: #8a4b00;
+  --chg-bg: #fff1c7;
+  --chg-fg: #5c3b00;
+  --old: #8b2f2f;
+  --new: #1d6b38;
+  --mark: #ffe08a;
+  --code-bg: #f1eee7;
+  --plan-bg: #e6edf6;
+  --plan-fg: #27466e;
+  --mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #15171a;
+    --fg: #e6e4df;
+    --muted: #9a9ea5;
+    --line: #2e3238;
+    --panel: #1c1f23;
+    --accent: #f0b35a;
+    --chg-bg: #3b2f12;
+    --chg-fg: #ffd98a;
+    --old: #f08a8a;
+    --new: #7fd49a;
+    --mark: #6b5310;
+    --code-bg: #24282d;
+    --plan-bg: #1d2a3b;
+    --plan-fg: #a9c6ec;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #15171a;
+  --fg: #e6e4df;
+  --muted: #9a9ea5;
+  --line: #2e3238;
+  --panel: #1c1f23;
+  --accent: #f0b35a;
+  --chg-bg: #3b2f12;
+  --chg-fg: #ffd98a;
+  --old: #f08a8a;
+  --new: #7fd49a;
+  --mark: #6b5310;
+  --code-bg: #24282d;
+  --plan-bg: #1d2a3b;
+  --plan-fg: #a9c6ec;
+  color-scheme: dark;
+}
+
+/* Base */
+* { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--fg);
+  font: 16px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+main { max-width: 1180px; margin: 0 auto; padding: 24px 16px 48px; }
+h1 { font-size: 1.6rem; margin: 0 0 8px; }
+h2 { font-size: 1.1rem; }
+a { color: var(--accent); text-underline-offset: 2px; }
+a:hover { text-decoration-thickness: 2px; }
+
+/* Small uppercase section label, as in "Transaction" or "Storage". */
+h2.label {
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--muted);
+  margin: 20px 0 8px;
+  display: flex;
+  gap: 12px;
+  align-items: baseline;
+  flex-wrap: wrap;
+}
+
+/* Page header: title, intro, and the line that links the three pages */
+header p { max-width: 72ch; margin: 0 0 8px; }
+.appendix-nav {
+  font-size: 0.85rem;
+  color: var(--muted);
+  margin: 0 0 12px;
+}
+
+/* Code */
+code, pre, .mono, .hex, .val {
+  font-family: var(--mono);
+  font-size: 0.86em;
+}
+code {
+  background: var(--code-bg);
+  padding: 0 3px;
+  border-radius: 3px;
+  overflow-wrap: anywhere;
+}
+/* A code block on a panel, like the inspector's source view. */
+.code-block, .doc pre {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 10px;
+  margin: 0 0 1rem;
+  overflow: auto;
+  font-size: 0.78rem;
+  line-height: 1.45;
+}
+.doc pre code {
+  background: none;
+  padding: 0;
+  font-size: inherit;
+  overflow-wrap: normal;
+}
+
+/* Text helpers */
+.muted { color: var(--muted); }
+.small { font-size: 0.85rem; }
+.meta { font-size: 0.85rem; color: var(--muted); }
+.error { color: var(--old); }
+.pass, .status.ok { color: var(--new); font-weight: 600; }
+.fail, .status.bad { color: var(--old); font-weight: 600; }
+
+/* Buttons and pickers */
+.picker { display: flex; flex-wrap: wrap; gap: 8px; }
+.picker button, .btn {
+  font: inherit;
+  font-size: 0.95rem;
+  padding: 6px 12px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--panel);
+  color: var(--fg);
+  cursor: pointer;
+}
+.picker button[aria-checked="true"],
+.picker button[aria-selected="true"] {
+  border-color: var(--accent);
+  box-shadow: inset 0 0 0 1px var(--accent);
+  font-weight: 600;
+}
+.picker button:disabled, .btn:disabled { opacity: 0.5; cursor: default; }
+.btn:hover:not(:disabled) { border-color: var(--accent); }
+input[type="range"] { accent-color: var(--accent); }
+summary { cursor: pointer; color: var(--muted); }
+
+/* Tags. The base tag is an outline pill; "to verify" and "plan" are
+   filled, and may wrap when they carry a sentence. */
+.tag {
+  font-size: 0.72rem;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 0 6px;
+  color: var(--muted);
+  white-space: nowrap;
+}
+.tag.verify, .tag.plan {
+  font-weight: 600;
+  white-space: normal;
+  border-color: transparent;
+  box-decoration-break: clone;
+  -webkit-box-decoration-break: clone;
+}
+.tag.verify { background: var(--chg-bg); color: var(--chg-fg); }
+.tag.plan { background: var(--plan-bg); color: var(--plan-fg); }
+
+/* Notes: a panel with an accent edge, like the inspector's "show how". */
+.note, .how, .doc blockquote {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-left: 3px solid var(--accent);
+  border-radius: 6px;
+  padding: 8px 12px;
+  margin: 4px 0 8px;
+  font-size: 0.9rem;
+}
+.doc blockquote { margin: 1rem 0; }
+.doc blockquote p { margin: 0.5rem 0; }
+
+/* Tables */
+.table-wrap { overflow-x: auto; margin: 1rem 0; }
+table { border-collapse: collapse; font-size: 0.9rem; min-width: 100%; }
+th, td {
+  text-align: left;
+  vertical-align: top;
+  padding: 6px 10px 6px 0;
+  border-bottom: 1px solid var(--line);
+}
+th {
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--muted);
+  white-space: nowrap;
+}
+td.n { text-align: right; font-variant-numeric: tabular-nums;
+  white-space: nowrap; }
+
+/* Long-form text (companion, soldb). It sits left-aligned in the same
+   frame as the inspector, in a reading column. Sections open with a
+   rule, as the inspector's notes do. */
+.doc > * { max-width: 50rem; }
+.doc p, .doc li { max-width: 72ch; }
+.doc h2 {
+  font-size: 1.3rem;
+  margin: 40px 0 12px;
+  padding-top: 16px;
+  border-top: 1px solid var(--line);
+}
+.doc h3 { font-size: 1.05rem; margin: 28px 0 8px; }
+.doc h4 { font-size: 0.95rem; margin: 20px 0 6px; }
+.doc ul, .doc ol { padding-left: 20px; }
+.doc li { margin: 6px 0; }
+.doc figure { margin: 1rem 0; }
+.doc figure img {
+  width: 100%;
+  height: auto;
+  display: block;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+}
+.doc figcaption { color: var(--muted); font-size: 0.85rem; margin-top: 4px; }

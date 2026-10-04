@@ -1,0 +1,26 @@
+[
+  {
+    "id": "token-transfer",
+    "title": "Token: transfer 25",
+    "summary": "transfer(0x70997970C51812dc3A010C7d01b50e0d17dc79C8, 25) from the deployer, who holds 1000",
+    "contract": "Token"
+  },
+  {
+    "id": "shop-place",
+    "title": "Shop: place an order",
+    "summary": "place(\"widget\", 5, 3): a struct with a string, pushed array",
+    "contract": "Shop"
+  },
+  {
+    "id": "packed-set",
+    "title": "Packed: set packed values",
+    "summary": "set(7, 300, 123456789): small values share one slot",
+    "contract": "Packed"
+  },
+  {
+    "id": "strings-update",
+    "title": "Strings: one grows long, one shrinks short",
+    "summary": "update(\"a string longer than thirty-one bytes, stored long\", \"now short\")",
+    "contract": "Strings"
+  }
+]

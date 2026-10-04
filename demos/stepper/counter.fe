@@ -1,0 +1,37 @@
+msg CounterMsg {
+    #[selector = 0x01]
+    Bump { n: u256 } -> u256,
+    #[selector = 0x02]
+    Total -> u256,
+}
+
+pub struct Store {
+    total: u256,
+    last: u256,
+}
+
+fn scale(_ x: u256) -> u256 {
+    let doubled: u256 = x * 2
+    return doubled + 1
+}
+
+pub contract Counter {
+    mut store: Store
+
+    recv CounterMsg {
+        Bump { n } -> u256 uses (mut store) {
+            let step: u256 = scale(n)
+            if step > 10 {
+                store.total = store.total + step
+            } else {
+                store.total = store.total + 1
+            }
+            store.last = step
+            return store.total
+        }
+
+        Total -> u256 uses (store) {
+            store.total
+        }
+    }
+}

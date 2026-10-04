@@ -1,0 +1,29 @@
+{
+  "name": "soldb-wasm",
+  "type": "module",
+  "description": "WebAssembly bindings for SolDB: build traces and run host-driven debug sessions in a browser or Node.js host",
+  "version": "0.4.0",
+  "license": "GPL-3.0-only OR MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/walnuthq/soldb"
+  },
+  "files": [
+    "soldb_wasm_bg.wasm",
+    "soldb_wasm.js",
+    "soldb_wasm.d.ts"
+  ],
+  "main": "soldb_wasm.js",
+  "homepage": "https://github.com/walnuthq/soldb",
+  "types": "soldb_wasm.d.ts",
+  "sideEffects": [
+    "./snippets/*"
+  ],
+  "keywords": [
+    "solidity",
+    "evm",
+    "ethereum",
+    "debugger",
+    "ethdebug"
+  ]
+}

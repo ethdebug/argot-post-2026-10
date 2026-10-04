@@ -1,0 +1,1231 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ethdebug in depth</title>
+<meta name="description" content="The details behind our post introducing ethdebug: demos, the published LLM contest, pointers in full, optimized code, compiler status, mainnet and measurements.">
+<link rel="stylesheet" media="(prefers-color-scheme: light)"
+  href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github.min.css">
+<link rel="stylesheet" media="(prefers-color-scheme: dark)"
+  href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github-dark.min.css">
+<link rel="stylesheet" href="../shared/appendix.css">
+<style>
+/* Companion page only. Tokens and shared components: ../appendix.css. */
+pre code.hljs { background: none; padding: 0; }
+nav.toc {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 8px 12px;
+  margin: 20px 0;
+}
+nav.toc strong {
+  display: block;
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--muted);
+}
+nav.toc ol { margin: 4px 0; padding-left: 24px; }
+nav.toc li { margin: 2px 0; }
+.key { font-size: 0.85rem; color: var(--muted); }
+.demo-link { font-weight: 600; }
+</style>
+</head>
+<body>
+<main class="doc">
+
+<header>
+<h1>ethdebug in depth</h1>
+<p class="lede">The details behind our post introducing ethdebug: the
+demos, the published contest, pointers in full, optimized code, where
+each compiler stands, contracts on mainnet, and our measurements.</p>
+<p class="muted"><em>Draft: items tagged <span class="tag verify">to verify</span> are still being checked.</em></p>
+<p class="appendix-nav">Part of the ethdebug post appendix, with
+<a href="../demos/inspector/">Storage, by name</a> and
+<a href="../demos/soldb/">soldb-wasm in the browser</a>.</p>
+</header>
+
+<p><strong>ethdebug</strong> is an open specification for the debug
+data a compiler writes next to its EVM bytecode: what each instruction
+means in the source, and where each value lives. We, the ethdebug team
+at Argot, maintain it. This page holds what the post leaves out. Facts
+are as of October 2026.</p>
+
+<p class="key">Key: <span class="tag verify">to verify</span> means we
+have not yet checked this claim for publication.
+<span class="tag plan">plan</span> means a stage that is planned or in
+progress, not done; we give no dates for those.</p>
+
+<nav class="toc" aria-label="Contents">
+<strong>Contents</strong>
+<ol>
+  <li><a href="#try">Try it</a></li>
+  <li><a href="#contest">The published contest</a></li>
+  <li><a href="#pointers">Pointers, in full</a></li>
+  <li><a href="#optimized">Optimized code</a></li>
+  <li><a href="#compilers">Where each compiler stands</a></li>
+  <li><a href="#mainnet">Contracts already on mainnet</a></li>
+  <li><a href="#measurements">Measurements</a></li>
+</ol>
+</nav>
+
+<!-- ============================================================ -->
+<h2 id="try">1. Try it</h2>
+
+<p>Two pages run in your browser with nothing to install, and one
+small script runs in Node.</p>
+
+<h3>Step through a transaction with soldb</h3>
+<p><strong>soldb</strong> is Walnut's open-source Solidity debugger.
+Walnut is the team that builds solc's ethdebug support. soldb is written
+in Rust and also compiles to WebAssembly. On this page, soldb runs in
+your browser tab. It reads a saved transaction trace and the compiler's
+ethdebug output, and maps each EVM step to its source. The page only
+shows the source range soldb reports for each step. Use the slider or
+the line buttons to step. A <strong>Solidity | Fe</strong> switch loads
+a second transaction, compiled by Fe, a separate contract language.
+soldb is unchanged: the same debugger steps through both languages,
+because both compilers write the same format. The page adapts only the
+layout of Fe's file, and says so (details in
+<a href="#fe">Fe</a> below).
+<span class="tag verify">to verify: recheck soldb's claims against its current release</span></p>
+<p class="demo-link"><a href="../demos/soldb/">Open the soldb demo</a></p>
+<figure>
+  <picture>
+    <source srcset="../demos/soldb/screenshot-highlight-dark.png"
+      media="(prefers-color-scheme: dark)">
+    <img src="../demos/soldb/screenshot-highlight.png"
+      alt="soldb in the browser, highlighting the source span of one step in a Solidity contract" loading="lazy">
+  </picture>
+  <figcaption>soldb highlights the source span of one step of a real
+  Solidity transaction (3,736 steps).</figcaption>
+</figure>
+<figure>
+  <picture>
+    <source srcset="../demos/soldb/screenshot-fe-dark.png"
+      media="(prefers-color-scheme: dark)">
+    <img src="../demos/soldb/screenshot-fe.png"
+      alt="The same soldb page with the Fe tab selected, stepping through a Fe contract" loading="lazy">
+  </picture>
+  <figcaption>The same page, switched to Fe.</figcaption>
+</figure>
+
+<h3>See storage by name</h3>
+<p>This page shows a contract's storage by Solidity name, before and
+after a transaction, and marks what changed. Click any value
+("show how") to see the rule solc wrote for it, each expression
+evaluated, and the bytes it read. <code>@ethdebug/pointers</code>, our
+TypeScript reference library, finds each value's bytes from the
+<em>pointer templates</em> in solc's ethdebug output (see
+<a href="#pointers">Pointers, in full</a>). The page then decodes the
+values itself, with its own small decoder for each type: a stand-in
+for the format's planned interpretation layer (see
+<a href="#placement">Placement, interpretation, resolution</a>). The
+contracts are compiled
+with a solc build from an open pull request, argotorg/solidity #16990.
+The page lists what is not done yet: each variable's base
+slot still comes from solc's older <code>storageLayout</code> output,
+and it lists the other gaps at the bottom.</p>
+<p class="demo-link"><a href="../demos/inspector/">Open the storage inspector</a></p>
+<figure>
+  <img src="../demos/inspector/screenshots/desktop-packed.png"
+    alt="The storage inspector, showing a mapping entry and the steps that located its nonce field" loading="lazy">
+  <figcaption>"Show how" for <code>accounts[sender].nonce</code>: the
+  mapping rule hashes the key and slot, then the struct rule places
+  <code>nonce</code> in the next slot, at bytes 24 to 31.</figcaption>
+</figure>
+
+<h3>Ten lines that step through Solidity and Fe</h3>
+<p>This script prints the source lines a transaction ran. It takes an
+ethdebug program, a transaction trace and the source file. The trace
+comes from <code>debug_traceTransaction</code> on anvil, Foundry's
+local node, started with <code>--steps-tracing</code>. The script needs
+only Node's standard library. The core is 10 lines (lines 13 to 22);
+two more lines pick out Fe's program. Source:
+<a href="../demos/stepper/step.mjs">step.mjs</a>.</p>
+<pre><code class="language-javascript">import { readFileSync as read } from "fs";
+const [programFile, traceFile, sourceFile] = process.argv.slice(2);
+const json = (f) =&gt; JSON.parse(read(f, "utf8"));
+const source = read(sourceFile, "utf8");
+const trace = json(traceFile).structLogs;
+
+// Input step. solc: the file is the program. Fe's file wraps programs
+// differently today: pick its "call" program.
+let program = json(programFile);
+if (program.programs) program = program.programs.find((p) =&gt; p.environment === "call");
+
+// Core: pc -&gt; source range, then print each new source line.
+const range = new Map(program.instructions.map((i) =&gt; [i.offset, i.context?.code]));
+let last;
+for (const { pc } of trace) {
+  const code = range.get(pc);
+  if (code?.source.id !== 0) continue; // not in this file (Fe: std library)
+  if (code.range.length &gt; source.length * 0.8) continue; // compiler glue
+  const line = source.slice(0, code.range.offset).split("\n").length;
+  if (line !== last) console.log(line + ": " + source.split("\n")[line - 1].trim());
+  last = line;
+}</code></pre>
+
+<h4>Solidity</h4>
+<p>The contract has an external <code>run</code> that calls two
+internal functions:</p>
+<pre><code class="language-plaintext">// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.0;
+contract Calls {
+  uint256 public total;
+  function add(uint256 a, uint256 b) internal pure returns (uint256) {
+    require(a &lt; 1000, "too big");
+    return a + b;
+  }
+  function twice(uint256 x) internal pure returns (uint256) {
+    return add(x, x);
+  }
+  function run(uint256 x) external {
+    total = twice(x) + add(x, 1);
+  }
+}</code></pre>
+<p>We compiled it with via-IR, the optimizer off and ethdebug turned
+on, using the #16990 build. Released solc writes the same source
+ranges.
+<span class="tag verify">to verify: run the same script on solc 0.8.37 output</span>
+The full output for <code>run(5)</code>:</p>
+<pre><code class="language-plaintext">$ node step.mjs solc-program.json solc-trace.json Calls.sol
+12: function run(uint256 x) external {
+13: total = twice(x) + add(x, 1);
+12: function run(uint256 x) external {
+13: total = twice(x) + add(x, 1);
+9: function twice(uint256 x) internal pure returns (uint256) {
+10: return add(x, x);
+9: function twice(uint256 x) internal pure returns (uint256) {
+10: return add(x, x);
+5: function add(uint256 a, uint256 b) internal pure returns (uint256) {
+7: return a + b;
+5: function add(uint256 a, uint256 b) internal pure returns (uint256) {
+6: require(a &lt; 1000, "too big");
+7: return a + b;
+10: return add(x, x);
+13: total = twice(x) + add(x, 1);
+5: function add(uint256 a, uint256 b) internal pure returns (uint256) {
+7: return a + b;
+5: function add(uint256 a, uint256 b) internal pure returns (uint256) {
+6: require(a &lt; 1000, "too big");
+7: return a + b;
+13: total = twice(x) + add(x, 1);
+12: function run(uint256 x) external {</code></pre>
+<p>It enters <code>twice</code>, then <code>add</code>, returns, then
+calls <code>add</code> again, in source order.</p>
+
+<h4>Fe</h4>
+<p>The Fe contract (Fe v26.4.1, default optimizer level
+<code>-O1</code>):</p>
+<pre><code class="language-plaintext">msg CounterMsg {
+    #[selector = 0x01]
+    Bump { n: u256 } -&gt; u256,
+    #[selector = 0x02]
+    Total -&gt; u256,
+}
+
+pub struct Store {
+    total: u256,
+    last: u256,
+}
+
+fn scale(_ x: u256) -&gt; u256 {
+    let doubled: u256 = x * 2
+    return doubled + 1
+}
+
+pub contract Counter {
+    mut store: Store
+
+    recv CounterMsg {
+        Bump { n } -&gt; u256 uses (mut store) {
+            let step: u256 = scale(n)
+            if step &gt; 10 {
+                store.total = store.total + step
+            } else {
+                store.total = store.total + 1
+            }
+            store.last = step
+            return store.total
+        }
+
+        Total -&gt; u256 uses (store) {
+            store.total
+        }
+    }
+}</code></pre>
+<p>The full output for <code>Bump { n: 7 }</code>:</p>
+<pre><code class="language-plaintext">$ node step.mjs counter.ethdebug.json fe-trace.json counter.fe
+14: let doubled: u256 = x * 2
+15: return doubled + 1
+24: if step &gt; 10 {
+25: store.total = store.total + step
+29: store.last = step
+30: return store.total</code></pre>
+<p>It takes the <code>if</code> branch, as it should for 7. Line 23,
+the call to <code>scale</code>, does not appear: at <code>-O1</code>
+Fe inlines <code>scale</code>, and its output does not mark inlined
+calls yet (see <a href="#optimized">Optimized code</a>).</p>
+
+<h4>Why each extra line is there</h4>
+<ul>
+  <li><strong>Compiler glue.</strong> Most solc steps (about 85% here)
+  run compiler-generated code, such as the function dispatcher and ABI
+  decoding. solc gives that code a range covering the whole contract.
+  One line skips ranges longer than 80% of the file. Fe did not need
+  it here.</li>
+  <li><strong>Fe's wrapper.</strong> Fe puts its programs in a list of
+  its own. Two lines pick the one that runs on calls. Stepping needs no
+  other adapter.</li>
+  <li><strong>Other files.</strong> Fe also maps steps into its standard
+  library. One line skips other source files. A real tool would map
+  each source id to its file. solc always writes source id 0 today, even
+  for imported files (see
+  <a href="#mainnet">Contracts already on mainnet</a>).</li>
+</ul>
+
+<!-- ============================================================ -->
+<h2 id="contest">2. The published contest</h2>
+
+<h3>The task, and why</h3>
+<p>We asked an LLM to build a command-line tool: given a transaction
+hash, print each storage value the transaction changed, by its Solidity
+name, old → new. We chose it because it is a question newcomers ask
+all the time ("what is in this storage slot?"), and because it needs
+the hard part of reading state: hashed mapping slots, packed values and
+long strings.</p>
+<p>There are two <em>arms</em>. The <strong>ethdebug arm</strong> must
+decode storage with solc's ethdebug pointer templates and
+<code>@ethdebug/pointers</code>. The <strong>control arm</strong> may
+use only solc's older outputs (storageLayout, the AST and source maps),
+and no ethdebug and no ready-made storage decoder. Both arms may use
+<code>storageLayout</code> for names and base slots, because solc's
+ethdebug output does not give them yet. Each arm ran on two models,
+Claude Sonnet 5.5 and Claude Opus 5.5.
+<span class="tag verify">to verify: confirm and publish the exact model IDs</span></p>
+<p>Round 1 builds the tool. Round 2, in the same session, extends it to
+new storage shapes. We expected a tie in Round 1. Round 2 measures how
+much each tool must change for new shapes.</p>
+
+<h3>The prompts, verbatim</h3>
+<p>Each run got this wrapper, then its arm's prompt:</p>
+<blockquote><p>This is a timed, published experiment. Your working
+directory is &lt;run dir&gt;; do all work there. Your task:</p></blockquote>
+
+<h4>Round 1, ethdebug arm (112 words)</h4>
+<blockquote>
+<p>Build a command-line tool that takes a transaction hash and prints
+each storage value the transaction changed, by its Solidity name, old →
+new (e.g. <code>x.y[0xab…]: 1 → 2</code>). Names and base slots come
+from solc's storageLayout. Decoding comes from ethdebug/format: solc's
+ethdebug output gives type-keyed pointer templates; evaluate them with
+@ethdebug/pointers. Entry point: <code>./diff &lt;file.sol&gt;
+&lt;txhash&gt;</code>.</p>
+<p>anvil runs at http://127.0.0.1:8545 (started with
+<code>--steps-tracing</code>). Test on ./Fixture.sol: deploy Fixture
+from anvil's first default account, then from that account call
+<code>transfer(0x70997970C51812dc3A010C7d01b50e0d17dc79C8, 25,
+"rent")</code>.</p>
+<p>Use only public material: https://ethdebug.github.io/format/,
+https://docs.soliditylang.org, public GitHub (incl.
+argotorg/solidity#16990), npm packages, anvil, and the solc build at
+&lt;SOLJSON_URL&gt;. Do not read files outside this directory. Time
+box: 30 minutes.</p>
+</blockquote>
+
+<h4>Round 1, control arm (112 words)</h4>
+<blockquote>
+<p>Build a command-line tool that takes a transaction hash and prints
+each storage value the transaction changed, by its Solidity name, old →
+new (e.g. <code>x.y[0xab…]: 1 → 2</code>). Names, base slots and
+decoding come only from solc's classic outputs (storageLayout, AST,
+source maps). Do not use ethdebug output, ethdebug packages or existing
+storage decoders. Entry point: <code>./diff &lt;file.sol&gt;
+&lt;txhash&gt;</code>.</p>
+<p>anvil runs at http://127.0.0.1:8545 (started with
+<code>--steps-tracing</code>). Test on ./Fixture.sol: deploy Fixture
+from anvil's first default account, then from that account call
+<code>transfer(0x70997970C51812dc3A010C7d01b50e0d17dc79C8, 25,
+"rent")</code>.</p>
+<p>Use only public material: https://docs.soliditylang.org, public
+GitHub, npm packages, anvil, and the solc build at &lt;SOLJSON_URL&gt;.
+Do not read files outside this directory. Time box: 30 minutes.</p>
+</blockquote>
+
+<h4>Round 2, both arms, in the same session (63 words)</h4>
+<blockquote>
+<p>Extend your tool. ./Fixture2.sol adds new storage shapes. anvil was
+restarted fresh with the same flags. Deploy Fixture from Fixture2.sol
+from the first default account, then from that account call
+<code>transfer(0x70997970C51812dc3A010C7d01b50e0d17dc79C8, 25,
+"rent")</code>, then <code>setProfile(7, "a name that is longer than
+thirty-one bytes", -42)</code>. <code>./diff</code> must print the
+named changes for both transactions. Same sources and rules as before.
+Time box: 20 minutes.</p>
+</blockquote>
+<p><code>&lt;SOLJSON_URL&gt;</code> was a CircleCI artifact of the
+#16990 build. Those links expire, so we host a copy:
+soljson-pr16990.js (coming before the post),
+sha256
+<code>71d919f15ebf6524385b36f25d0b1e0566a1e1e71d3b414108bcf2277292093f</code>.</p>
+
+<h3>The rules</h3>
+<ul>
+  <li><strong>Public material only.</strong> The prompt lists what the
+  model may read. It may install any npm package and use anvil and
+  cast. It may not read files outside its run folder.</li>
+  <li><strong>A fresh agent.</strong> Each run is a fresh Claude Code
+  agent (Claude Code 2.1.287, default effort, all tools). It has no
+  memory of our work. Its folder holds only the fixture. anvil 1.2.3
+  runs before the clock starts.</li>
+  <li><strong>Time box.</strong> 30 minutes for Round 1, 20 for Round
+  2. A run over the time box is still published, with its time.</li>
+  <li><strong>The stop time.</strong> The clock starts when the prompt
+  is sent. It stops at the first <code>./diff</code> run on the public
+  transaction whose output passes the judge. The model does not decide
+  when it is done; the timestamps in its transcript do.</li>
+  <li><strong>The judge.</strong> After the run, the full judge scores
+  the final tool on the public transaction and on hidden ones the model
+  never saw. It counts wrong, missing and extra lines. A run passes
+  only if all counts are 0. Printing a field that did not change counts
+  as extra.</li>
+  <li><strong>Formatting does not matter.</strong> Case, spaces, quotes
+  around strings, <code>-&gt;</code> for <code>→</code>, and addresses
+  shortened to at least 4 + 4 hex digits all count as equal.</li>
+  <li><strong>Every first run is published.</strong> We committed
+  before any run to publish the first official run of each arm, model
+  and round as it is. Any further run is published as a disclosed
+  re-run.</li>
+  <li><strong>Source review.</strong> The ethdebug arm must decode
+  through <code>@ethdebug/pointers</code> and solc's pointer
+  templates.</li>
+</ul>
+
+<h3>The fixtures</h3>
+<p>Fixture.sol (coming before the post) (Round 1): a
+mapping of addresses to an <code>Account</code> struct that packs into
+one slot, and a <code>string memo</code>.</p>
+<pre><code class="language-plaintext">contract Fixture {
+    struct Account {
+        uint128 balance;
+        uint64 nonce;
+        bool frozen;
+    }
+
+    mapping(address =&gt; Account) public accounts;
+    string public memo;
+    constructor() {
+        accounts[msg.sender].balance = 100;
+    }
+
+    function transfer(address to, uint128 amount, string calldata m) external {
+        Account storage from = accounts[msg.sender];
+        require(!from.frozen &amp;&amp; from.balance &gt;= amount, "denied");
+        from.balance -= amount;
+        from.nonce += 1;
+        accounts[to].balance += amount;
+        memo = m;
+    }
+}</code></pre>
+<p>Fixture2.sol (coming before the post) (Round 2) adds a
+nested mapping to a struct with a string and packed small integers, one
+of them signed:</p>
+<pre><code class="language-plaintext">struct Profile {
+    string name;
+    uint8 level;
+    int24 score;
+    bool active;
+}
+mapping(address =&gt; mapping(uint256 =&gt; Profile)) public profiles;
+
+function setProfile(uint256 id, string calldata n, int24 s) external {
+    Profile storage p = profiles[msg.sender][id];
+    p.name = n;
+    p.level += 1;
+    p.score = s;
+    p.active = true;
+}</code></pre>
+<p>The judge sends these transactions. T is public (in the prompt); H is
+hidden. L1 and L2 are strings longer than 31 bytes, which Solidity
+stores differently from short ones.</p>
+<div class="table-wrap"><table>
+<tr><th>Tx</th><th>Round</th><th>From</th><th>Call</th><th>Expected changes</th></tr>
+<tr><td>T1</td><td>1, 2</td><td>0</td><td><code>transfer(acct1, 25, "rent")</code></td><td><code>accounts[acct0].balance</code> 100→75, <code>.nonce</code> 0→1; <code>accounts[acct1].balance</code> 0→25; <code>memo</code> ""→"rent"</td></tr>
+<tr><td>H1</td><td>1</td><td>0</td><td><code>transfer(acct2, 5, L1)</code></td><td>acct0 balance 75→70, nonce 1→2; acct2 balance 0→5; <code>memo</code> "rent"→L1</td></tr>
+<tr><td>H2</td><td>1</td><td>1</td><td><code>transfer(acct0, 10, "")</code></td><td>acct1 balance 25→15, nonce 0→1; acct0 balance 70→80; <code>memo</code> L1→""</td></tr>
+<tr><td>T2</td><td>2</td><td>0</td><td><code>setProfile(7, L2, -42)</code></td><td><code>profiles[acct0][7]</code>: name ""→L2, level 0→1, score 0→-42, active false→true</td></tr>
+<tr><td>H3</td><td>2</td><td>1</td><td><code>setProfile(3, "bob", 17)</code></td><td><code>profiles[acct1][3]</code>: name ""→"bob", level 0→1, score 0→17, active false→true</td></tr>
+<tr><td>H4</td><td>2</td><td>0</td><td><code>setProfile(7, "carol", 5)</code></td><td><code>profiles[acct0][7]</code>: name L2→"carol", level 1→2, score -42→5 (active unchanged)</td></tr>
+</table></div>
+
+<h3>Run the judge</h3>
+<p>The judge is one script:
+judge-official.mjs (coming before the post)
+(sha256
+<code>1c9898b0e0c98e4db907f7248d47b4be291a802008fc5d3ca94923bad6889297</code>).
+It compiles the fixture with the hosted solc build, starts a fresh
+anvil, deploys the contract, sends the transactions, runs your tool on
+each one and scores the output. You need Node, anvil and cast on your
+<code>PATH</code>, port 8545 free, and <code>web-solc@0.7.0</code>.
+Put the judge, the fixtures and the solc build in one folder, with the
+build at <code>mirror/soljson-pr16990.js</code> (or set
+<code>SOLJSON</code> to its path).</p>
+<pre><code class="language-bash">npm install web-solc@0.7.0
+node judge-official.mjs 1 path/to/your/diff   # Round 1
+node judge-official.mjs 2 path/to/your/diff   # Round 2
+# score one saved output, as for the stop time:
+node judge-official.mjs check 1 T1 &lt; output.txt</code></pre>
+<p>The judge runs your tool from the tool's own folder, as
+<code>diff &lt;absolute path to .sol&gt; &lt;txhash&gt;</code>. Set
+<code>JUDGE_PORT</code> to use another port.</p>
+<p>One warning for anyone who builds a tool: do not find the contract
+by comparing exact bytecode. solc embeds metadata in the bytecode,
+including the source path and settings, so the same file compiled from
+another path gives different bytes. Strip the metadata, or match by
+address. This is what broke one of our runs (below).</p>
+
+<h3>Results</h3>
+<p>Every run, as it happened. Times are minutes:seconds to the stop
+time.</p>
+<h4>Round 1: build the tool</h4>
+<div class="table-wrap"><table>
+<tr><th>Model</th><th>Arm</th><th>Time</th><th>Judge (T1, H1, H2)</th><th>Notes</th></tr>
+<tr><td>Sonnet 5.5</td><td>ethdebug</td><td>3:39</td><td class="pass">PASS</td><td>0 wrong, missing or extra on every transaction.</td></tr>
+<tr><td>Sonnet 5.5</td><td>control</td><td>1:58</td><td class="pass">PASS</td><td>Walks storageLayout and the AST; finds mapping keys in the hash inputs of the trace.</td></tr>
+<tr><td>Opus 5.5</td><td>ethdebug</td><td>no stop time<br><span class="muted">(3:25 in its own test)</span></td><td class="fail">FAIL<br>missing 4 on each</td><td>Its decoding was right in its own tests, but the tool crashed under the judge. It found the contract by exact bytecode, and the judge compiles from another path, so the bytes differ ("no contract matches code"). Published as it is.</td></tr>
+<tr><td>Opus 5.5</td><td>control</td><td>2:24</td><td class="pass">PASS</td><td>A broad storageLayout walker. The model said "about 15 minutes"; the transcript says 2:24, and timestamps govern.</td></tr>
+</table></div>
+<p>After freezing the judge (<code>judge-official.mjs</code>), we
+re-scored every Round 1 run with it; each kept the result shown above.</p>
+
+<h4>Round 2: extend it</h4>
+<div class="table-wrap"><table>
+<tr><th>Model</th><th>Arm</th><th>Time</th><th>Judge (T1, T2, H3, H4)</th><th>Notes</th></tr>
+<tr><td>Sonnet 5.5</td><td>ethdebug</td><td>0:44</td><td class="pass">PASS</td><td>Worked around a bug in <code>@ethdebug/pointers</code>: names were lost when templates nest. We have since fixed it (ethdebug/format #315).</td></tr>
+<tr><td>Sonnet 5.5</td><td>control</td><td>0:16</td><td class="pass">PASS</td><td>No code change: its Round 1 tool already handled the new shapes.</td></tr>
+<tr><td>Opus 5.5</td><td>ethdebug</td><td colspan="3" class="muted">Not run yet. <span class="tag verify">to verify: run, or say why not</span></td></tr>
+<tr><td>Opus 5.5</td><td>control</td><td colspan="3" class="muted">Not run yet. <span class="tag verify">to verify: run, or say why not</span></td></tr>
+</table></div>
+
+<h3>What the results show: on par today</h3>
+<p>For storage on solc, ethdebug ties with the older outputs today. The
+control arm was at least as fast, and in Round 2 it needed no change
+at all. That is what we expected. solc's <code>storageLayout</code> is
+already a layout the compiler supplies, for storage. It gives each
+variable's slot, offset and encoding, and a model knows Solidity's
+storage rules well. The ethdebug arm also still needs
+<code>storageLayout</code> for names and base slots, because solc's
+ethdebug output gives one template per <em>type</em>, not per
+variable.</p>
+<p>What the contest does show: a model built a working tool from a
+written specification and its schemas, and an automatic judge could
+check it. What it does not test is where ethdebug is meant to differ:
+memory, the stack, calldata, local variables, and compilers that have
+no <code>storageLayout</code>. Those are the next stages of solc's
+support <span class="tag plan">plan</span>. Both arms also turn bytes
+into values with their own code, because the format does not yet say
+what the bytes mean (see <a href="#placement">Placement,
+interpretation, resolution</a>).</p>
+<p>The fixtures also leave out some shapes on purpose, because today's
+data or our library could not handle them when we designed the
+contest. solc writes no pointer for a top-level value such as a
+<code>uint256</code>; a nested mapping's template does not chain into
+the inner one, so a tool must chain it by hand; and two bugs in
+<code>@ethdebug/pointers</code> (top-level dynamic arrays and nested
+names) are now fixed on main (#315, #316). A re-run can add these
+shapes.</p>
+<p><strong>The prompt, rules and judge are published, so anyone can
+re-run this. We will too, once solc emits local variables.</strong></p>
+
+<!-- ============================================================ -->
+<h2 id="pointers">3. Pointers, in full</h2>
+
+<p>A <strong>pointer</strong> is the compiler's own statement of where
+a value lives, and how to find it. In the docs' words: "Pointers are
+recipes for finding bytes." On the EVM, "where" is often not a fixed
+number. A mapping entry's slot is a hash of its key; an array's items
+start where a length stored elsewhere says. So a pointer can hold a
+small calculation, and a tool runs it against the machine state at one
+step of a transaction. A pointer is plain JSON data, checked by JSON
+Schema. It is not code a tool must trust and run.</p>
+
+<h3 id="placement">Placement, interpretation, resolution</h3>
+<p>To show you a variable's value, a tool must answer three questions.
+We use these names for them in the discussion of ethdebug's type
+descriptions (ethdebug/format issue #282, with the Solidity team):</p>
+<ul>
+  <li><strong>Placement:</strong> where are the value's bytes? Which
+  location, which slot, which bytes in it. Pointers answer this, and
+  compilers emit them today.</li>
+  <li><strong>Interpretation:</strong> what do the bytes mean? Signed
+  or unsigned, a decimal scale, byte order, a struct's field names, the
+  types of the parts.</li>
+  <li><strong>Resolution:</strong> what does an opaque value stand
+  for? Which key a mapping entry belongs to, which enum member a number
+  names, which function an internal function value refers to.</li>
+</ul>
+<p>Interpretation is the format's next big piece: a rewrite of its type
+descriptions (#282), planned right after this release
+<span class="tag plan">plan</span>. The decoding step of our planned
+<code>@ethdebug/codec</code> library (a type plus the bytes read gives
+a value) is designed, not built. So today there is no
+compiler-agnostic way to turn ethdebug data into displayed values. The
+storage inspector above decodes values with its own small decoder, by
+hand: exactly the missing layer. Local variables also need compilers
+to emit them: bugc in ethdebug/format pull request #270 (open), solc in
+a later stage <span class="tag plan">plan</span>.</p>
+
+<h3>The parts</h3>
+<ul>
+  <li><strong>Region:</strong> one range of bytes in one place. It has
+  a <code>location</code>: <code>stack</code>, <code>memory</code>,
+  <code>storage</code>, <code>calldata</code>, <code>returndata</code>,
+  <code>transient</code> (storage cleared after each transaction) or
+  <code>code</code> (the contract's own bytecode, where Solidity puts
+  <code>immutable</code> values). Storage, transient storage and the
+  stack use a <code>slot</code> (a 32-byte word) plus an optional
+  <code>offset</code> and <code>length</code> in bytes. The others use
+  a byte <code>offset</code> and <code>length</code>. A region can have
+  a <code>name</code>, so other parts can refer to it.</li>
+  <li><strong>Expressions:</strong> any slot, offset or length can be
+  computed: arithmetic (<code>$sum</code>, <code>$difference</code>,
+  <code>$product</code>, <code>$quotient</code>,
+  <code>$remainder</code>), <code>$read</code> (the bytes now in a named
+  region), <code>$keccak256</code>, <code>$concat</code>,
+  <code>$wordsized</code> (give a value an exact 32-byte width, as a
+  hash needs), and the <code>.slot</code>, <code>.offset</code> and
+  <code>.length</code> of a named region.</li>
+  <li><strong>Collections:</strong> <code>group</code> (several
+  pointers, such as a struct's fields), <code>list</code> (a number of
+  items, such as an array's), <code>if</code> / <code>then</code> /
+  <code>else</code>, and <code>define</code> / <code>in</code> (name a
+  value, then use it).</li>
+  <li><strong>Templates:</strong> a pointer with parameters.
+  <code>expect</code> lists the names it needs and <code>for</code> is
+  the pointer. Another pointer uses it with <code>template</code>, and
+  <code>yields</code> renames the regions it produces. Each layout is
+  written once and reused.</li>
+</ul>
+<p>Inside a slot, <code>offset</code> counts from the most significant
+byte. solc's <code>storageLayout</code> counts from the other end, so a
+converter must flip it.</p>
+<p>The expression keys start with <code>$</code> today. ethdebug/format
+issue #310 proposes <code>~</code> instead, because <code>$</code> can
+collide with identifiers.
+<span class="tag verify">to verify: the snippets must use the sigil of the release we link to</span></p>
+
+<h3>solc's mapping template</h3>
+<p>This is real output from the #16990 build, complete and unedited,
+for <code>mapping(address =&gt; Account) accounts</code> at slot 0, where
+<code>struct Account { uint256 balance; uint64 nonce; bool frozen;
+}</code>. The mapping's template refers only to the struct's, so these
+two are the whole set. They sit in the <em>resources</em> file, under
+<code>pointers</code>, keyed by solc's internal type ids.</p>
+<pre><code class="language-json">{
+  "t_mapping$_t_address_$_t_struct$_Account_$8_storage_$": {
+    "expect": ["slot", "key"],
+    "for": {
+      "define": {
+        "slot": {
+          "$keccak256": [
+            { "$wordsized": "key" },
+            { "$wordsized": "slot" }
+          ]
+        }
+      },
+      "in": {
+        "template": "t_struct$_Account_$8_storage",
+        "yields": {
+          "balance": "value-balance",
+          "frozen": "value-frozen",
+          "nonce": "value-nonce"
+        }
+      }
+    }
+  },
+  "t_struct$_Account_$8_storage": {
+    "expect": ["slot"],
+    "for": {
+      "group": [
+        { "location": "storage", "name": "balance", "slot": "slot" },
+        {
+          "location": "storage", "name": "nonce",
+          "slot": { "$sum": ["slot", "0x01"] },
+          "offset": "0x18", "length": "0x08"
+        },
+        {
+          "location": "storage", "name": "frozen",
+          "slot": { "$sum": ["slot", "0x01"] },
+          "offset": "0x17", "length": "0x01"
+        }
+      ]
+    }
+  }
+}</code></pre>
+<p>Next to them, under <code>types</code>, solc writes what each type
+is:</p>
+<pre><code class="language-json">{
+  "t_mapping$_t_address_$_t_struct$_Account_$8_storage_$": {
+    "kind": "mapping",
+    "contains": {
+      "key":   { "type": { "id": "t_address" } },
+      "value": { "type": { "id": "t_struct$_Account_$8_storage" } }
+    }
+  },
+  "t_struct$_Account_$8_storage": {
+    "kind": "struct",
+    "contains": [
+      { "name": "balance", "type": { "id": "t_uint256" } },
+      { "name": "nonce",   "type": { "id": "t_uint64" } },
+      { "name": "frozen",  "type": { "id": "t_bool" } }
+    ],
+    "definition": {
+      "name": "Account",
+      "location": {
+        "source": { "id": 0 },
+        "range": { "offset": 78, "length": 90 }
+      }
+    }
+  }
+}</code></pre>
+<h4>Walkthrough</h4>
+<ol>
+  <li>To read <code>accounts[k]</code>, a tool sets <code>slot = 0</code>
+  (from <code>storageLayout</code> today) and <code>key = k</code>, and
+  evaluates the mapping template.</li>
+  <li>The template redefines <code>slot</code> as the keccak256 hash of
+  the key and the old slot, each as a 32-byte word. That is the entry's
+  slot.</li>
+  <li>It hands that slot to the <code>Account</code> template, and
+  renames its regions (<code>balance</code> becomes
+  <code>value-balance</code>, and so on).</li>
+  <li>The struct template puts <code>balance</code> in the entry's
+  slot. It packs <code>nonce</code> (8 bytes) and <code>frozen</code> (1
+  byte) into the next slot, at offsets 0x18 and 0x17 from the top.</li>
+  <li>The tool reads those bytes, and uses the types to show them as
+  numbers and a boolean.</li>
+</ol>
+<p>The tool needs no Solidity knowledge: no hash order, no padding, no
+packing direction. Against a local anvil chain,
+<code>@ethdebug/pointers</code> decoded
+<code>accounts[0xf39f…]</code> as <code>{ balance: 975, nonce: 1,
+frozen: false }</code>. A draft reader in soldb (walnuthq/soldb #181)
+decoded the same layout for another key. That is two independent
+readers that agree on the same compiler output.</p>
+
+<h3>solc's string template</h3>
+<p>Solidity stores a string of 31 bytes or less inside its slot, with
+2 × length in the last byte. A longer string stores 2 × length + 1 in
+the slot, and its data at keccak256(slot). solc's
+<code>t_string_storage</code> template says this as data. This is real
+#16990 output for <code>string public name</code>, with unedited values
+and the keys reordered to read <code>if</code>, <code>then</code>,
+<code>else</code>:</p>
+<pre><code class="language-json">"t_string_storage": {
+  "expect": ["slot"],
+  "for": {
+    "group": [
+      {
+        "name": "length-flag", "location": "storage", "slot": "slot",
+        "offset": { "$difference": ["$wordsize", "0x01"] },
+        "length": "0x01"
+      },
+      {
+        "if": {
+          "$remainder": [
+            { "$sum": [{ "$read": "length-flag" }, "0x01"] },
+            "0x02"
+          ]
+        },
+        "then": {
+          "define": {
+            "length": { "$quotient": [{ "$read": "length-flag" }, "0x02"] }
+          },
+          "in": {
+            "name": "data", "location": "storage", "slot": "slot",
+            "length": "length"
+          }
+        },
+        "else": {
+          "group": [
+            { "name": "long-length", "location": "storage", "slot": "slot" },
+            {
+              "define": {
+                "length": {
+                  "$quotient": [
+                    { "$difference": [{ "$read": "long-length" }, "0x01"] },
+                    "0x02"
+                  ]
+                }
+              },
+              "in": {
+                "define": {
+                  "start": { "$keccak256": [{ "$wordsized": "slot" }] }
+                },
+                "in": {
+                  "name": "data", "location": "storage", "slot": "start",
+                  "length": "length"
+                }
+              }
+            }
+          ]
+        }
+      }
+    ]
+  }
+}</code></pre>
+<h4>Walkthrough</h4>
+<ol>
+  <li><code>length-flag</code> is the last byte of the slot (offset
+  <code>$wordsize</code> − 1, where <code>$wordsize</code> is 32).</li>
+  <li>The <code>if</code> reads that byte, adds 1 and takes the
+  remainder by 2. For an even byte (short string) the result is 1, so
+  <code>then</code> applies; for an odd byte (long string) it is 0, so
+  <code>else</code> applies.</li>
+  <li><strong>Short:</strong> the length is the byte divided by 2, and
+  the data starts at the top of the same slot.</li>
+  <li><strong>Long:</strong> the whole slot holds 2 × length + 1, so the
+  length is (word − 1) / 2. The data starts at keccak256 of the slot,
+  and runs as one region across as many slots as it needs.</li>
+</ol>
+<p>The type entry for this template is just <code>{ "kind": "string"
+}</code>. With <code>@ethdebug/pointers</code>, this template decoded a
+long string correctly; the <code>if</code> chose the long form. It is
+nearly the same text as the string example in our own schema. A
+single region that spans slots became legal in the spec in mid-September
+2026 (ethdebug/format #284), and Walnut's build used it about two weeks
+later.</p>
+
+<h3>Compared with storageLayout, source maps and DWARF</h3>
+
+<h4>solc's storageLayout</h4>
+<p><code>storageLayout</code> lists each state variable's slot, offset
+and type, and each type's <code>encoding</code>
+(<code>inplace</code>, <code>mapping</code>,
+<code>dynamic_array</code>, <code>bytes</code>), struct members and
+sizes. It is mature, simple and complete for state variables. Our
+contest showed that a tool built on it is as good as one built on
+ethdebug, for storage, today.</p>
+<p>What it does not say is <em>how</em> to find a mapping entry or an
+array item. <code>"encoding": "mapping"</code> names the rule, and the
+reader must know it: the hash order, the key padding, string keys,
+short and long strings, the packing direction. It covers storage only,
+so nothing for memory, calldata or the stack, and so nothing for local
+variables. And it is solc's own output; other compilers have their own,
+or none.</p>
+
+<h4>Source maps</h4>
+<p>solc's source map gives each instruction a source byte range, a file
+index and a jump marker. It is compact and works today. On solc,
+ethdebug's source ranges match it on every step we checked (six
+transactions). It says nothing about data: no variables and no
+locations. Pointers answer a different question.</p>
+
+<h4>Why not DWARF?</h4>
+<p><strong>DWARF</strong> is the debug format of native compilers (C,
+C++, Rust). It is a good format, and we learn from it. Its
+<em>location expressions</em> are a small stack-machine language for
+"where is this variable". Here is how it fits the EVM, case by case,
+with section numbers from DWARF 5:</p>
+<div class="table-wrap"><table>
+<tr><th>EVM case</th><th>DWARF 5</th><th>ethdebug pointer</th></tr>
+<tr><td>Dynamic array in memory</td><td>Possible (§5.18, the machinery for Fortran arrays)</td><td><code>$read</code> the length, then a <code>list</code></td></tr>
+<tr><td>Packed struct fields</td><td>Possible (§5.7.6)</td><td><code>offset</code> and <code>length</code> in a slot</td></tr>
+<tr><td>Hashed storage: mappings, storage arrays, long strings</td><td>No operation hashes. A vendor operation (§7.7.1) would work only in tools that add it; gdb, lldb and gimli (the Rust DWARF library) do not. No type for "the value at key k".</td><td><code>$keccak256</code></td></tr>
+<tr><td>Short-or-long strings</td><td>Variant parts (§5.7.10) fit only in part, since the long case needs a hash</td><td><code>if</code> / <code>then</code> / <code>else</code></td></tr>
+<tr><td>Several items packed per slot</td><td>One stride per array; cannot express it</td><td><code>list</code> with computed offsets</td></tr>
+<tr><td>Several data locations</td><td>Only <code>DW_OP_xderef</code>, with numbered address spaces that DWARF does not define (§2.5.1.3)</td><td>Seven named locations</td></tr>
+<tr><td>256-bit words</td><td>The generic type is address-sized (§2.5.1); gimli handles at most 64 bits</td><td>Values of any width</td></tr>
+</table></div>
+<p><strong>What DWARF does better.</strong> DWARF is compact and
+mature. Its location lists (where a variable lives over a range of
+code) and call-frame data are proven. It also has
+<code>DW_OP_stack_value</code>: "the value is this expression, not at
+an address". ethdebug has no equivalent of that yet (ethdebug/format
+issue #291). DWARF's type entries also give reuse similar to our
+templates. And pointers are more verbose: solc's string template is
+about 100 lines of pretty-printed JSON.</p>
+<p><strong>Credit where due.</strong> solx, an LLVM-based Solidity
+compiler now maintained by Nomic Foundation, emits DWARF, and Hardhat's
+EDR reads it for stack traces since July 2026. It uses line tables and
+inlined-call records, not variables.
+<span class="tag verify">to verify: solx appears to emit no variable locations</span>
+It shows DWARF works for stack traces on the EVM. Where storage and
+memory values live is the open part, and that is what pointers are
+for.</p>
+<p><strong>Background.</strong> Our repository's README (2022)
+names DWARF and says no existing format covers smart contracts'
+differences, and the docs' challenges page (2023) explains the
+storage-packing gap.</p>
+<p>In short: <code>storageLayout</code>, source maps and solc's
+<code>immutableReferences</code> each give one kind of fact. DWARF gives
+a general mechanism, but not the operations the EVM needs. A pointer
+lets the compiler state the rule, and a generic evaluator apply it.</p>
+
+<h3>Another language's layout</h3>
+<p>Vyper, another contract language, hashes a mapping's key and slot in
+the opposite order, a perfectly good choice. As a pointer, that is just
+the two operands swapped:</p>
+<pre><code class="language-json">{ "$keccak256": [{ "$wordsized": "slot" }, { "$wordsized": "key" }] }</code></pre>
+<p>Vyper does not pack values into slots either, so its regions would
+simply have no <code>offset</code>. The tool reading them would not
+change. Vyper does not emit ethdebug; we wrote this from its rule.
+<span class="tag verify">to verify: inferred from the two rules, not run</span></p>
+
+<h3>Who writes and reads pointers today</h3>
+<ul>
+  <li><strong>solc</strong>, on the #16990 build: one template per
+  composite storage type (mapping, struct, dynamic array, string or
+  bytes). Value types get none. Its description also names transient
+  storage.
+  <span class="tag verify">to verify: transient storage templates in real output</span></li>
+  <li><strong>Walnut's next stage</strong> (walnuthq/solidity #5): a
+  pointer for every state variable, and <code>code</code> pointers for
+  immutables. Their offsets match solc's <code>immutableReferences</code>.
+  <span class="tag plan">plan</span> for upstream solc.</li>
+  <li><strong>bugc</strong>, our reference compiler: a pointer per
+  storage variable, built from its own storage analysis.</li>
+  <li><strong>Fe and Solar</strong> emit no pointers yet.</li>
+  <li><strong>Readers:</strong> <code>@ethdebug/pointers</code> (ours,
+  TypeScript), soldb's draft reader (Rust, #181), and Runtime
+  Verification's <code>ethdebug.py</code> (Python, from their Simbolik
+  debugger).
+  <span class="tag verify">to verify: run ethdebug.py on #16990 output</span></li>
+</ul>
+
+<h3>Known gaps</h3>
+<ul>
+  <li><strong>No sub-byte addressing.</strong> Offsets and lengths are
+  whole bytes. Solidity packs whole bytes, so solc is not affected.</li>
+  <li><strong>Base slots still come from storageLayout</strong> on the
+  #16990 build, and value types have no template. Walnut's next stage
+  fixes both <span class="tag plan">plan</span>.</li>
+  <li><strong>Nested mappings need chaining by hand.</strong> The outer
+  template yields only the inner mapping's slot. A tool must look up the
+  inner template itself.</li>
+  <li><strong>Mapping variables link to their template by type
+  id</strong>, a convention, not a reference in the pointer.</li>
+  <li><strong>No form yet for "the value is this expression"</strong>
+  (issue #291).</li>
+  <li><strong>Four bugs fixed.</strong> This work found four bugs in
+  our packages, each fixed on main within days: lost names in nested
+  templates (#315), a crash on a region named <code>length</code>
+  (#316), an old hardfork in <code>@ethdebug/evm</code> (#314), and a
+  <code>define</code> visible outside its scope (#317).</li>
+</ul>
+
+<!-- ============================================================ -->
+<h2 id="optimized">4. Optimized code</h2>
+
+<p>An optimizer rewrites code to be smaller or cheaper. The result does
+what the source says, but the simple link "this instruction comes from
+that line" breaks. <em>Inlining</em> copies a function's body into its
+caller, so no call happens. Shared code, such as one block that reverts
+on overflow, has several possible origins. And one instruction can
+belong to two places at once. Most contracts on mainnet are optimized:
+81% of verified Solidity deployments, from Sourcify's export of
+2026-01-05.</p>
+<p>So for years, debuggers have asked you to turn the optimizer off.
+That means debugging code that is not what runs on chain.</p>
+
+<h3>What the format says</h3>
+<p>In ethdebug, each instruction has a <em>context</em>: what holds in
+the source after it runs. Contexts are per instruction, so no fact
+assumes code runs in source order. Three keys exist for what an
+optimizer does:</p>
+<ul>
+  <li><strong><code>transform</code></strong> says how the instruction
+  was made: <code>"inline"</code> (part of an inlined body),
+  <code>"tailcall"</code> (a final call turned into a jump),
+  <code>"fold"</code> (a constant computed at compile time), or
+  <code>"coalesce"</code> (added to merge reads or writes). It is extra
+  information: a tool that ignores it still gets a correct view.</li>
+  <li><strong><code>gather</code></strong> says "all of these hold at
+  once". One instruction can be the inlined body <em>and</em> the call
+  site.</li>
+  <li><strong><code>pick</code></strong> says "one of these holds".
+  Shared code lists its possible origins, and a debugger can choose by
+  what ran before.</li>
+</ul>
+<p>Two more help. An inlined call keeps an <code>invoke</code> marker
+with no jump target, and a matching <code>return</code>, so the
+debugger can still show the function on its call stack (the spec calls
+this a <em>virtual activation</em>). And <code>frame</code> says which
+level a fact belongs to, such as the source or the compiler's
+intermediate code; no compiler emits it yet.</p>
+
+<h3>bugc inlining, as data</h3>
+<p><strong>bugc</strong> compiles BUG, a small language we built to
+teach and test the format. It is our reference compiler. Take:</p>
+<pre><code class="language-plaintext">function dbl(x: uint256) -&gt; uint256 { return x + x; }
+code { r = dbl(src); }</code></pre>
+<p>At optimizer level 2, bugc inlines <code>dbl</code>, and the program
+shrinks from 85 to 33 runtime instructions. The <code>ADD</code> at
+offset 29 still says where it came from (trimmed):</p>
+<pre><code class="language-json">{ "gather": [
+    { "code": { "source": { "id": "0" },
+                "range": { "offset": 150, "length": 8 } } },
+    { "code": { "source": { "id": "0" },
+                "range": { "offset": 70, "length": 5 } },
+      "transform": ["inline"] } ] }</code></pre>
+<p>Range 150+8 is <code>dbl(src)</code>, the call site; 70+5 is
+<code>x + x</code>, in <code>dbl</code>. The first inlined instruction
+(offset 23) carries an <code>invoke</code> of <code>dbl</code> with no
+target, and the last (offset 34) its <code>return</code>. A tail-recursive
+function shows the same idea: the jump back carries a
+<code>return</code>, an <code>invoke</code> and
+<code>transform: ["tailcall"]</code>, so the call stack stays right.</p>
+<p>bugc's tests check this: 63 tests in four files pass. They check
+that calls and returns survive every optimizer level, that each
+transform name appears at the right levels, and that the code still
+runs correctly. BUG is our own language, so this shows the format
+works, not that others use it.</p>
+
+<h3>Solar and Fe</h3>
+<p><strong>Solar</strong>, a second Solidity compiler written by
+Paradigm, emits ethdebug with its optimizer on. Its bytecode is
+identical with or without the debug data, so there is no special debug
+build. In its optimized test contracts it emits 106 <code>pick</code>
+contexts; for example, its overflow revert lists the three arithmetic
+statements that can reach it. Its <code>invoke</code> markers do not
+fire yet; the fix needs no format change.</p>
+<p><strong>Fe</strong> steps through optimized code at its default
+level, <code>-O1</code>, at expression level. Inlining hides the call
+site there: line 23 of the counter example above has no instruction.
+Fe's compiler records inlining internally (caller, callee and call
+site), but its export writes only source ranges today. It could use
+<code>transform</code> and <code>invoke</code> with no format change.
+What to export is the Fe team's call.</p>
+
+<h3>solc's status</h3>
+<p>solc refuses ethdebug with the optimizer on: "Optimization is not
+yet supported with ethdebug." So today it has the same limit as every
+earlier debugger. No open pull request lifts it.</p>
+<p>solc's design page defers the optimizer on purpose, as a staging
+limit. It also plans how: every Yul optimizer pass must declare how it
+keeps the debug data right, with six strategies.
+<span class="tag plan">plan</span></p>
+<div class="table-wrap"><table>
+<tr><th>Strategy</th><th>Meaning</th><th>Where it would land in ethdebug</th></tr>
+<tr><td>Preserve</td><td>Copy unchanged</td><td>The same contexts</td></tr>
+<tr><td>Merge</td><td>Two values become one; both names stay visible</td><td><code>gather</code></td></tr>
+<tr><td>Remap</td><td>Rewrite the location when a value is renamed or moved</td><td>A different variable pointer on later instructions</td></tr>
+<tr><td>Recompute</td><td>The value is recomputed where it is used</td><td>Needs issue #291</td></tr>
+<tr><td>Clone</td><td>Copy the entry for each generated copy (inlining)</td><td>One virtual <code>invoke</code> per site, with <code>transform: ["inline"]</code></td></tr>
+<tr><td>Drop</td><td>Mark the value unavailable</td><td>Leave the variable out</td></tr>
+</table></div>
+<p>A pass with no declared rule counts as Drop: marking a value
+unavailable is always sound. The right-hand column is our reading; the
+design page itself covers variables, not calls.</p>
+<p><strong>The open gap</strong> is values in optimized code. When a
+variable has no location and is only an expression (a constant, or
+<code>a + 1</code> while <code>a</code> is live), ethdebug has no form
+for it yet. That is ethdebug/format issue #291, and settling it is our
+work. No real compiler emits local variables yet.</p>
+
+<!-- ============================================================ -->
+<h2 id="compilers">5. Where each compiler stands</h2>
+<p>As of October 2026. Four compilers emit ethdebug, for three source
+languages: Solidity (solc and Solar), Fe and BUG.</p>
+
+<h3>solc</h3>
+<p>solc is the main Solidity compiler. Walnut builds its ethdebug
+support, one stage at a time, in public pull requests.</p>
+<div class="table-wrap"><table>
+<tr><th>Stage</th><th>Status</th><th>What it adds</th></tr>
+<tr><td>Source ranges</td><td>Released, experimental (first in 0.8.29; 0.8.37 is the latest release)</td><td>A <code>code</code> range on every instruction. Needs via-IR, the optimizer off, and from 0.8.35 the <code>experimental</code> setting.</td></tr>
+<tr><td>Explicit settings (#16961)</td><td>Merged, on the development branch</td><td>Nothing new in the output. Selecting ethdebug output now also requires <code>ethdebug</code> and <code>ast-id</code> in <code>debugInfo</code>.</td></tr>
+<tr><td>Types and storage templates (#16990)</td><td>Open, in review, CI green</td><td>Type documents, and one pointer template per composite storage type. <span class="tag plan">plan</span></td></tr>
+<tr><td>Schema test cleanup (#17055)</td><td>Open</td><td>Tests only.</td></tr>
+<tr><td>Every state variable (walnuthq/solidity #5)</td><td>Open on Walnut's fork of solc; not yet proposed upstream. We built it and ran it.</td><td>Every state variable and immutable listed as data: name, declaration, type and pointer. No <code>storageLayout</code> needed to find the bytes; showing values still needs the format's interpretation layer (<a href="#placement">above</a>). <span class="tag plan">plan</span></td></tr>
+<tr><td>Design and Yul sidecar (#16954, and the design page #16780)</td><td>#16780 merged (docs); #16954 a draft</td><td>The design for later stages, including local variables and the optimizer rules above.</td></tr>
+<tr><td>Local variables</td><td>Designed; no pull request yet</td><td>Pointers for variables in memory and on the stack. <span class="tag plan">plan</span></td></tr>
+<tr><td>Function call markers</td><td>In no plan we found</td><td><code>invoke</code> and <code>return</code>.</td></tr>
+<tr><td>Optimized code</td><td>Deferred; planned after local variables</td><td>ethdebug for optimized builds. <span class="tag plan">plan</span></td></tr>
+</table></div>
+<p>The settings for released solc and the development branch differ.
+<span class="tag verify">to verify: check source ranges and settings on 0.8.37</span>
+Three facts about today's output: 77% to 93% of runtime instructions
+carry a range over the whole contract (compiler-generated code);
+every instruction says <code>source.id: 0</code>, even code from
+imported files; and no build writes the new <em>stamp</em>
+field that names a file's schema and version. Output from both the
+nightly and the #16990 build validates against our schemas, 45 checks
+of 45.</p>
+
+<h3 id="fe">Fe</h3>
+<p>Fe is a separate contract language, also run by Argot. ethdebug is
+its only debug output. With Fe v26.4.1, three commands build a contract
+and write its debug data:</p>
+<pre><code class="language-bash">fe build counter.fe --out-dir out -e bytecode,runtime-bytecode,abi
+fe dev trace emit counter.fe --out counter.trace.jsonl
+fe dev debug emit --format ethdebug --from counter.trace.jsonl --out counter.ethdebug.json</code></pre>
+<p>The second command records the compiler's own facts (no transaction
+is needed); the third turns them into ethdebug. Fe's docs call the
+format experimental.</p>
+<p><strong>The adapter.</strong> Fe's file is a Fe-specific view, and
+not stock ethdebug yet. It wraps its programs in its own list, adds
+three Fe-only fields to each instruction (<code>fe_origin_key</code>,
+<code>confidence</code>, <code>classification</code>), has no contract
+definition, and lists sources by path and hash, without their text.
+Dropping the three fields and adding a stub definition makes each
+program valid. For stepping, none of that matters: the stepper above
+only picks the program, and the soldb demo also supplies the source
+files (their hashes match Fe's).</p>
+<p><strong>Coverage,</strong> at <code>-O1</code>: 64% of executed
+steps carry a source range, at expression level. The rest are
+dispatcher code (which Fe marks as <code>synthetic</code>), jump
+targets and creation code, which has no ranges. Inlined calls hide
+their call site. Fe exports no variables, pointers or call markers
+yet, though its compiler models variables, scopes and inlining inside.
+Two of its ideas are not in the format yet, and we are looking at
+them: marking instructions as compiler-generated, and naming sources
+by hash instead of including their text.</p>
+
+<h3>Solar</h3>
+<p>Solar is a second Solidity compiler, written in Rust by Paradigm.
+Its main branch emits ethdebug; Djordje of Walnut (djolertrk on
+GitHub), who also leads solc's ethdebug work, wrote that support. It is
+not in a release yet: the latest, v0.2.0, has none. You ask for it with <code>--emit=ethdebug,ethdebug-runtime,ethdebug-resources</code>,
+with no via-IR or experimental setting.</p>
+<ul>
+  <li>It works with the optimizer on, and its bytecode is identical with
+  or without debug data.</li>
+  <li>It emits statement-level <code>code</code> ranges, plus
+  <code>pick</code>, <code>return</code> and <code>revert</code>. Its
+  ranges are statements (a median of 13 to 37 bytes); none covers the
+  whole contract.</li>
+  <li>About half of instructions carry no context (52% have one
+  unoptimized, 45% optimized). Some <code>return</code> markers sit on
+  jumps into shared revert code; <code>invoke</code> markers do not fire yet.</li>
+  <li>No variables; <code>types</code> and <code>pointers</code> are
+  empty.</li>
+  <li>Its output is smaller than solc's: Token's runtime program is 41
+  KB (25 KB optimized), against 138 KB from solc.</li>
+  <li>All 60 documents validated against our schemas before the stamp
+  field; against main today, only the resources documents fail, for the
+  missing stamp.</li>
+  <li>soldb steps through it, in source order.</li>
+</ul>
+
+<h3>bugc</h3>
+<p>bugc is our reference compiler for BUG. It is where the format's
+features are tried first: per-variable storage pointers, and the
+optimizer contexts above, at four optimizer levels. You can write BUG
+and see its ethdebug output in the
+<a href="https://ethdebug.github.io/format/docs/explore/bug-playground">playground</a>
+on the ethdebug site, with nothing to install.
+<span class="tag verify">to verify: check that the playground works on the live site</span>
+bugc does not emit local variables yet; a pull request for that
+(ethdebug/format #270) is open.</p>
+
+<!-- ============================================================ -->
+<h2 id="mainnet">6. Contracts already on mainnet</h2>
+<p>Can you use ethdebug on contracts that are already deployed? With
+solc today, only on a small part of them.</p>
+<ul>
+  <li><strong>Which ones.</strong> solc's ethdebug output can match a
+  deployed contract only if that contract was built with via-IR and the
+  optimizer off. In Sourcify's export of 2026-01-05, that is 1,127 of
+  2.04 million verified mainnet deployments (0.06%), or 0.15% for solc
+  0.8.29 and later: about 0.1%. Sourcify is the open contract
+  verification service.</li>
+  <li><strong>The check.</strong> We took three verified mainnet
+  contracts from Sourcify and recompiled them with ethdebug on. One,
+  LaunchList (solc 0.8.30, via-IR, optimizer off), matched exactly,
+  both code and metadata hash. A real 829-step transaction on it mapped
+  to source on every step. The two optimized contracts cannot match,
+  because solc refuses ethdebug with the optimizer on.</li>
+  <li><strong>What changes the metadata hash.</strong> Turning on
+  ethdebug changes nothing in the bytecode. But from solc 0.8.35,
+  ethdebug output also requires the <code>experimental</code> setting,
+  and that setting changes the metadata hash at the end of the
+  bytecode. The code itself still matches.</li>
+  <li><strong>Where the data would come from.</strong> No verifier
+  stores ethdebug data. Sourcify stores each contract's compiler input,
+  so a debugger can recompile and get it. Runtime Verification is
+  building a tool that adds ethdebug to existing solc output, with the
+  optimizer off; it is a work in progress.</li>
+  <li><strong>Source ids.</strong> In LaunchList, about 15% of
+  instructions come from imported files, but solc labels them all
+  <code>source.id: 0</code>. A stepper then shows the wrong file for
+  that code. We see it in 0.8.30, 0.8.37 and the #16990 build.</li>
+</ul>
+<p>Fe and Solar already emit ethdebug for optimized code. For solc,
+optimized code comes later <span class="tag plan">plan</span>, and it
+will apply to new compilations; old contracts would need a recompile
+that matches.</p>
+
+<!-- ============================================================ -->
+<h2 id="measurements">7. Measurements</h2>
+<p>soldb's numbers are from Playwright engine builds (Chromium 153,
+Firefox 155, WebKit 26.6, and an iPhone 15 emulation), three runs each,
+medians, with no console errors.
+<span class="tag verify">to verify: recheck against soldb's current release</span></p>
+
+<h3>soldb in the browser</h3>
+<p>The lean build steps a saved trace: the Shop <code>place</code>
+transaction, 3,736 steps, a 9.8 MB trace. soldb maps 3,734 of them to a
+line in Shop.sol.</p>
+<div class="table-wrap"><table>
+<tr><th>Stage</th><th>Chromium</th><th>Firefox</th></tr>
+<tr><td>Fetch and compile the WebAssembly</td><td>3.0 ms</td><td>15 ms</td></tr>
+<tr><td>Parse the trace</td><td>39 ms</td><td>40 ms</td></tr>
+<tr><td>Read the ethdebug program</td><td>10 ms</td><td>11 ms</td></tr>
+<tr><td>Map all 3,736 steps</td><td>30 ms</td><td>42 ms</td></tr>
+<tr><td>Whole page (both builds)</td><td>145 ms</td><td>169 ms</td></tr>
+</table></div>
+<p>Parse, map and step together take about 80 to 95 ms. The replay
+build re-runs a transaction itself, with no node contacted, from the
+command-line tool's own 6.5 KB replay file (<code>Token.transfer</code>,
+960 steps):</p>
+<div class="table-wrap"><table>
+<tr><th>Stage</th><th>Chromium</th><th>Firefox</th></tr>
+<tr><td>WebAssembly</td><td>3.5 ms</td><td>7 ms</td></tr>
+<tr><td>Run the EVM</td><td>7.6 ms</td><td>5 ms</td></tr>
+<tr><td>Map 960 steps</td><td>7.2 ms</td><td>8 ms</td></tr>
+</table></div>
+<p>The Fe data set (769 steps): fetch 5 to 7 ms, load the transaction 2
+to 3 ms, read the ethdebug program 8 ms, map all steps 7 to 16 ms.</p>
+
+<h3>Build sizes</h3>
+<div class="table-wrap"><table>
+<tr><th>soldb WebAssembly build</th><th>Size</th><th>Gzipped</th><th>Can do</th></tr>
+<tr><td>Lean</td><td>321 KB</td><td>141 KB</td><td>Step a trace a node already made</td></tr>
+<tr><td>Replay</td><td>887 KB</td><td>382 KB</td><td>Also re-run the transaction offline</td></tr>
+</table></div>
+<p>Other costs on the demo page: the syntax highlighter adds about 60
+requests and 410 to 430 ms to the load (display only). The 10 MB trace
+is sent uncompressed, which is the main cost on a phone. WebAssembly
+memory peaks at 16.5 MB for that trace.</p>
+
+<h3>The stepper's line counts</h3>
+<div class="table-wrap"><table>
+<tr><th>What</th><th>Lines of code</th></tr>
+<tr><td>Core: instruction offset → source range → printed line</td><td>10</td></tr>
+<tr><td>Input step to pick Fe's program</td><td>2 (plus 2 comment lines)</td></tr>
+<tr><td>Filters (inside the core): other files, compiler glue</td><td>1 each</td></tr>
+<tr><td>Minimal stepper on solc's ethdebug</td><td>8</td></tr>
+<tr><td>The same on solc's classic source map</td><td>19</td></tr>
+</table></div>
+<p>The classic source map must be decompressed and matched to program
+counters through the bytecode, where an off-by-one silently shifts
+every later mapping. Both steppers gave the same source range on every
+step of six transactions (472 to 20,405 steps each, three of them
+reverts). On solc today the gain is shape, not information: the classic
+map also marks function jumps, which solc's ethdebug output does not do
+yet.</p>
+
+</main>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+<script>
+  if (window.hljs) {
+    document.querySelectorAll("pre code:not(.language-plaintext)")
+      .forEach((el) => window.hljs.highlightElement(el));
+  }
+</script>
+</body>
+</html>

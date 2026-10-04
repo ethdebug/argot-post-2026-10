@@ -1,0 +1,320 @@
+# Storage, by name
+
+A browser demo for the ethdebug/format blog post. Pick a transaction and
+see the contract's storage by Solidity name, before and after, with
+changed values marked. Click any value, changed or not, to see how it
+was found: the template solc wrote, each expression evaluated, and the
+final regions.
+
+Values are decoded by `@ethdebug/pointers` (ethdebug's reference
+TypeScript library) from solc's ethdebug pointer templates. This page
+does not use soldb.
+
+Serve the repo root over HTTP and open `demos/inspector/`. The page needs no
+node: everything comes from `fixtures/`.
+
+## Files
+
+- `index.html`, `main.js`, `style.css`: the page.
+- `decode.js`: the decoding, shared by the page and the fixture script.
+- `panel.js`: the words panel (below).
+- `vendor/pointers.js`: `@ethdebug/pointers` bundled with esbuild from
+  ethdebug/format `origin/main` at commit
+  `ec7a81386` (includes #317, the scoping fix, not yet released). Rebuild with `bin/build-pointers.sh <checkout>` after
+  `yarn install` and building `packages/format` and `packages/pointers`.
+- `bin/make-fixtures.mjs`: compiles, deploys, runs the transactions and
+  writes `fixtures/`.
+- `bin/run.mjs`: Playwright check in Chromium, Firefox and WebKit;
+  writes `screenshots/` (only `desktop-packed.png` is committed;
+  `desktop-packed.png`: Packed, `b` selected;
+  `desktop-dark.png`: Token, the sender's nonce selected, with "How
+  this was found"; `insets.png`: Token, After, the sender's `Account` (a
+  run of two slots) lit, with its "before" card;
+  `memory.png`: the memory section, frames lit, A = first call, B =
+  deepest call; `memory-phone.png`: the memory section on a phone, `a`
+  selected; `phone.png`: Strings, `grows` (short → long) selected, the
+  panel saying the before and after derivations differ).
+- `mem.js`, `bug/gcd.bug`, `bin/make-memory-fixture.mjs`,
+  `fixtures/memory.json`: the memory section (below).
+- `contracts/`: Token, Shop and Packed (also used by the soldb demo)
+  and Strings (written for this page).
+
+## How the fixtures were made
+
+1. `anvil --steps-tracing --port 8547 --silent`
+2. `RPC_URL=http://127.0.0.1:8547 node bin/make-fixtures.mjs`. It compiles each contract with the solc
+   PR #16990 build (`soljson-pr16990.js`, reports
+   `0.8.38-ci.2026.10.1+commit.b3b7db6a`) with viaIR, optimizer off,
+   `experimental: true`, `debug.debugInfo: ["ethdebug", "ast-id"]`, and
+   output `ethdebug.resources`, `storageLayout`, bytecode and the AST.
+3. Transactions (from anvil account 0):
+   - Token: deploy with supply 1000; `transfer(0x7099…79C8, 25)`.
+   - Shop: deploy; `place("widget", 5, 3)` (fixture made, not shown;
+     see below).
+   - Packed: deploy; `set(7, 300, 123456789)`.
+   - Strings: deploy; `setAll("short", "this one starts long, then
+     becomes a short one", "exactly thirty-one bytes, short",
+     "thirty-two bytes, the least long")` (setup, not shown);
+     `update("a string longer than thirty-one bytes, stored long",
+     "now short")`. In one transaction `grows` goes short → long and
+     `shrinks` long → short (solc zeroes its two old data slots, which
+     the page shows); `most` (31 bytes, the longest short string) and
+     `least` (32 bytes, the shortest long string) do not change.
+4. For each transaction the script saves:
+   - the trace steps the page needs from `debug_traceTransaction`
+     (with memory): KECCAK256 steps with memory (mapping keys), SLOAD
+     with the loaded value, SSTORE. The full trace is not kept; the
+     fixture records its step count.
+   - every storage word the decoder reads, before (block − 1) and after
+     (block), from `eth_getStorageAt`, plus every slot the trace
+     touched. The script checks that the first SLOAD and last SSTORE of
+     each slot agree with the node.
+   - the source, storageLayout, ethdebug `resources` (types, pointers),
+     and state variable source ranges from the AST.
+
+Cross-check before anvil stopped: `cast storage` on the Token at
+`keccak256(sender . 0)` gave `0x…03cf` (975) and the next slot `0x…01`
+(nonce 1), as the page shows. `cast call` gave the same `name()`,
+`xs(0)` = 307 and `b()` = 300 for Packed. `bin/run.mjs` checks the
+decoded values against the values the calls wrote.
+
+## Which data is ethdebug, which is not
+
+From ethdebug (`resources`, emitted by solc #16990):
+
+- types: kinds, bit widths, struct members, enum values, and
+  `definition.location` (used to mark a struct in the source).
+- pointer templates: the rule for each non-value type (mapping, struct,
+  dynamic array, string), with slot arithmetic, keccak256, packed
+  offsets and lengths, and the short/long string condition.
+
+Not from ethdebug:
+
+- base slots of state variables: storageLayout.
+- regions for top-level value types (`totalSupply`, `a`, `owner`, …):
+  built by the page from storageLayout (slot, offset, size), then read by
+  the library. storageLayout counts offsets from the low end of the
+  word; ethdebug counts from the high end, so offset = 32 − offset − size.
+- mapping keys: from KECCAK256 inputs in the trace.
+- variable declarations marked in the source: solc's AST.
+
+## The words panel
+
+Beside the tree (under it, on a narrow screen), the panel shows one
+dump of storage: before or after the transaction (the Before | After
+toggle; After by default). A dump is one column of words in address order, one
+32-byte word to a line, as
+in a hex dump. Relevant slots: every slot a value on the page lives in,
+and every slot the transaction read or wrote (SLOAD/SSTORE in the
+trace). Byte 0 is the most significant byte, as ethdebug counts
+offsets.
+
+- Lines: each word is one line of 32 bytes, in four groups of eight.
+  The byte size follows the panel's width; on a phone the words scroll
+  sideways inside the panel, the address gutter
+  stays in view, and the page does not scroll sideways.
+- Order and gaps: slots by numeric address, ascending, so a run of
+  hashed slots (a long string's data) reads as one block. A "⋯" gap
+  line comes first and wherever the next slot is not the address + 1,
+  and last.
+- Gutter: only the end of the slot's address (`…0002`), right-aligned
+  against the bytes like a hex dump's line labels. The one mark at rest
+  is a small ring beside the address for a slot the transaction wrote
+  without changing it (nothing else would show that; none of the
+  current fixtures has one). The full address and what the transaction
+  did to the slot are in the address's tooltip.
+- No names in the dump: names stay in the tree, and the two relate by
+  highlighting only.
+- Popover: for each run of lit slots (below), and for a run the value
+  uses only in the other state, a dark label with an arrow says how
+  the slots were found, what the transaction did to them ("read only",
+  "written", "read, written", "written, same value", "cleared (written
+  to zero)"), and the full address, e.g. `keccak(0xf39f…2266, slot 0) +
+  1 · read, written`. It sits over the run in Before and under it in
+  After, its left edge at the gutter's, its arrow on the address. Like
+  a card, it may cover unlit rows (addresses included), never a lit
+  row, a lit row's address or another annotation; nothing shows at
+  rest. The name comes from
+  the `$keccak256` defines in the replayed steps, not from new hashing.
+- Bytes: each byte belongs to the value whose region covers it. Regions
+  are the ones the library returned (`value.region`); for a string,
+  also its `length-flag` and `long-length` regions (`value.parts`,
+  added in `decode.js`). A region longer than the rest of its word goes
+  on into the next slots. Each value in a slot has a subtle tint, the
+  same in both states; bytes no shown value owns are dim; changed bytes
+  are underlined (red in Before, green in After); a word that did not
+  change is muted.
+- Zebra: every other word line has a very light stripe, which fades
+  further while something is lit.
+- Linking: hover or focus a tree row, a byte, an address, or a region
+  step of "How this was found", and the value's bytes light up
+  (`--mark`), with its tree row. A byte outlines its byte positions;
+  an address outlines its whole word. A lit run's addresses get one
+  soft rounded tint in the gutter (the slot popover points at it).
+- Details: under the dump, a short list for what is lit (selected, or
+  hovered with nothing selected): Value (path and type), Where (slot
+  and bytes, per state when they differ), Before and After (value and
+  hex); for a byte, the bytes pointed at. It grows with its content and
+  never scrolls; at rest it shows a hint.
+
+## Selecting, and the mode
+
+- Selection lives on the variable. Click a tree row (or Enter or Space
+  on a focused row) to select it, changed or not; click it again,
+  press Escape, or click empty space to clear it. Clicking a byte
+  selects the variable that owns it (a byte no value owns clears).
+- While a variable is selected, the view stays on it: hovering other
+  bytes, rows or addresses changes nothing. Hovering its own bytes
+  only puts byte detail in the details; a chip beside the Before |
+  After toggle says "viewing … · Esc to clear". Clicking another
+  variable's byte
+  switches the selection. With nothing selected, hover previews.
+- Show: Before | After (After by default), under the transaction
+  picker. It picks the dump shown, the values in the tree (a row still
+  says whether it changed), and the state every derivation is for.
+- "show other state" (on by default), beside the toggle, turns all the
+  cards off and on: those in the dump and those in the tree. While a
+  changed value is lit, a card by its tree row gives its value in the
+  other state (under the row, or under a parent's members, in Before;
+  over the row in After); a lit parent gets one card with its changed
+  members. There is never a card for what did not change, in the tree
+  or the dump. Highlighting works the same with the cards off.
+- The URL hash keeps the view, e.g.
+  `#ex=strings&mode=after&sel=grows&a=before&b=loop&mmode=after`
+  (`insets=0` when the cards are off)
+  (`ex`: the fixture id's first word; `sel`: the tree path; `a`, `b`,
+  `mmode`, `msel`: the memory section). It is updated with
+  `history.replaceState`, only when it changes; a stale hash falls
+  back to the defaults (an old `mode=compare` shows After).
+  `#storage` and `#memory` link to the sections.
+
+## How this was found
+
+One panel, under the tree (on a phone: between the tree and the
+words), shows the selected variable's derivation: where it starts, the
+template, each define with its inputs and value, the branch each `if`
+took, the list item and count, and each region (a string's
+`length-flag` and `long-length` regions go in where the template
+reaches them). Hover or focus a region step to light its bytes.
+
+The panel follows the toggle and says whose derivation it is. With
+"show other state" on, it also shows the other state's derivation:
+steps the two share appear once; a step that evaluates differently
+shows both evaluations on two lines ("before …", "after …"); and where
+the two take different branches (for `grows` and `shrinks`, the If on
+the length flag), the rest splits into two lists, one per branch,
+labeled with state and branch (e.g. "after · then (short-string
+layout)"), this state's first and the other muted. Step numbers go on
+in each list, and each list's region steps light their bytes. When
+the two are the same, one list says so. The toggle is the switch
+between the two states. A value that exists in one
+state only says so
+(e.g. `xs[0]` before: "no such value (xs has 0 items)").
+
+## Annotations in the dumps
+
+Lit rows are grouped into runs (consecutive addresses; a gap ends a
+run). Each run gets two annotations, which float over the neighboring
+rows. They never move the rows, grow a box or add a scrollbar (on a
+wide page the words column has no scroll box of its own; on a phone
+annotations stay inside the words' sideways scroll):
+
+- The slot popover (dark, with an arrow on the address): how the slots
+  were found and what the transaction did to them, e.g.
+  `keccak(0xf39f…2266, slot 0) + 0 … + 1 · read, written`. Over the run
+  in Before, under it in After.
+- The card (light, labeled "after" or "before"): a picture of the same
+  whole words in the other state, made by cloning those rows of the
+  hidden dump (addresses, tints, highlight, change marks), muted a
+  little, gutter plus all 32 bytes, at the same size and in the same
+  columns; its addresses sit in a tinted strip of their own. Only words
+  where a lit byte differs in the other state are in a card; a run
+  with none gets no card. The "after" card goes under the run in Before; the
+  "before" card over it in After.
+- A word the value uses only in the other state (`grows`' new data in
+  Before, `shrinks`' old data in After) is in the dump too, and gets a
+  card, with no other mark.
+- Fallback: an annotation may cover rows that are not lit (they are
+  dimmed), but not lit bytes or another annotation, and it may not
+  leave the content of a box that scrolls. One that cannot be placed
+  is not moved around: it goes, labeled, to a tray fixed at the bottom
+  of the window, which takes no room in the page. The tray is the same
+  in Before and After: if a run's card cannot be placed in one state,
+  it goes to the tray in both (the page lays the hidden dump out for a
+  moment to find out).
+
+Highlights that still use the tray (desktop and phone): two lit runs
+with only a "⋯" line between them, where one run's popover and the
+next run's card need the same space. Token `accounts` (both entries);
+Shop `orders`, `orders[1]` (its struct and its string data) and
+`orders[1].quantities`; Packed `xs` (length slot and data slot); in
+the memory section, `frames` (0x80 and the frames). Strings `grows`
+and `shrinks`, and memory `a` and `b`, render in place.
+
+## How the derivation is found
+
+`dereference()` gives the regions and `view.read()` the bytes; those are
+the values on the page. The library does not report the steps it took,
+so `decode.js` `replay()` walks the same template (group, list, if,
+define, template reference) and calls the library's own `evaluate()` for
+each expression. Each replayed region must equal the region
+`dereference()` returned, or decoding stops with an error. `evaluate()`
+is imported from the package's dist (it is not a public export).
+
+## Known gaps (also on the page)
+
+- Base slots come from storageLayout; #16990 does not emit them.
+- Value types have no template; the page builds their region from
+  storageLayout.
+- Only mapping keys hashed in the transaction are shown.
+- Nested mappings need chaining templates (one per level); not done.
+  These contracts have none.
+- Shop was held back until a scoping bug in `@ethdebug/pointers` was fixed
+  (ethdebug/format #317, merged 2026-10-03): a `define` inside a group
+  member leaked into later members. The page now bundles a build with
+  the fix, and Shop decodes correctly.
+
+## Memory, with BUG (preview: needs ethdebug/format PR #270)
+
+A separate section under the storage demo shows memory at two points
+of one run of a BUG program, as the same kind of dumps (A, then B), with
+a list of the values. Its own Show control (A | B, B by default) works
+like the storage one, and its selection, lock, cards and URL keys
+(`a`, `b`, `mmode`, `msel`) work the same way; it has no derivation
+panel. bugc on `main` emits no memory pointers (its `variables`
+contexts carry storage pointers only). PR #270 (branch
+`ui-local-value-reduce`, commit `c3d592832`, not merged) emits, for
+each instruction, a memory pointer for each local or parameter that
+has a home in memory; a function's parameters are a group that reads a
+frame pointer at 0x80 and adds an offset (`{"$sum": [{"$read":
+"frame"}, 96]}`). We know of no bugs in #270 at that commit in the
+parts this section uses.
+
+The program, `bug/gcd.bug`, is recursive: `result = gcd(1071, 462)`
+calls gcd(462, 147), gcd(147, 21) and gcd(21, 0), and stores 21. Each
+call has its own frame with its own `a` and `b`; each frame's first
+word holds the caller's frame pointer, so at the deepest call the chain
+is 0x340 → 0x280 → 0x1c0 → 0x100 → 0. The points: first call, deepest
+call, unwinding (back in gcd(462, 147)), result stored.
+
+How the fixture was made:
+
+1. A detached worktree of PR #270 at `c3d592832`, `yarn install
+   --frozen-lockfile && yarn build`.
+2. `anvil --steps-tracing --port 8547 --silent`
+3. `BUGC=<worktree>/packages/bugc RPC_URL=http://127.0.0.1:8547 node
+   bin/make-memory-fixture.mjs`. It compiles `bug/gcd.bug`, deploys it,
+   calls it once, traces with memory, and saves four points: the step,
+   its instruction's `variables` context (as bugc emitted it), its code
+   range, memory after the step (a context describes the state after
+   its instruction), and storage slot 0.
+
+The page dereferences each memory pointer with `@ethdebug/pointers`
+against that point's memory (`decode.js` `decodeLocals`), and lays the
+returned regions over the words; the frame pointer region is shown as a
+part of `a` and `b`. `result` has a storage pointer; the library reads
+it from the point's storage (`decodeStored`), and it is listed with no
+bytes in the dumps. "frames" is the page's own: it follows the chain
+from 0x80 through each frame's first word, and lights those words.
+Shown words: those a value lives in at A or B, and those that changed;
+other words are a "⋯" gap.

@@ -1,0 +1,11 @@
+{
+  "name": "inspect-demo",
+  "private": true,
+  "type": "module",
+  "description": "Storage inspection demo: ethdebug pointer templates decoded by @ethdebug/pointers",
+  "devDependencies": {
+    "esbuild": "^0.25.0",
+    "playwright": "1.63.0",
+    "solc": "0.8.37"
+  }
+}

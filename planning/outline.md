@@ -1,0 +1,305 @@
+# Outline
+
+Working plan for the post; [verify] marks claims still to check.
+
+**Structure:** get it, read it, build on it, covering all four goals
+from the ethdebug docs' goals page.
+
+**Framing,** quoted from that goals page: *"Reading the blockchain
+shouldn't require manually working backwards through those layers"*
+(the layers are optimization and compilation).
+
+**Lens:** on par today, and improving.
+
+**Written for people:** each section opens with why the reader should
+care, then shows the proof. Numbers only where they persuade; the rest
+goes to the companion page. Short sentences, plain words.
+
+**Key:** **[verify]** = verify before publishing · **[P]** = planned work;
+no dates given · (~N) = prose word budget
+
+---
+
+- **Standfirst** (one line, italic, under the title): what the post
+  is about, in plain words. It carries the main claim: compilers now
+  tell tools what their bytecode means. It also says what you can
+  build on it today, and what comes next.
+- **Opening** (~90, untitled, before section 1): the reader's first
+  paragraph. It welcomes the reader; it does not summarize the post.
+  - What ethdebug is, in one line: an open specification for the debug
+    data a compiler writes next to its EVM bytecode (what each
+    instruction means in the source, and where each value lives). It
+    does for the EVM what DWARF does for native code.
+  - Who we are: the ethdebug team at Argot maintains it. This is its
+    first introduction on this blog.
+  - Momentum, for readers who stop here: three compilers write it
+    today (solc experimentally, Fe, and Solar on its main branch).
+    Independent tools already read it (Walnut's debugger, soldb).
+  - Who the post is for: anyone who builds tools, or wants to.
+
+1. **Tools have always worked backwards** (~400, incl. "What ethdebug
+   is")
+   - *Why you care:* every tool that shows you a transaction in
+     Solidity terms guesses what the compiler meant. When it guesses
+     wrong, it does not tell you.
+   - What a tool guesses: where each variable lives in storage, and
+     which bytes came from which source line. The answers change with
+     every compiler and version.
+   - A wrong guess looks like a correct one. Vyper (another contract
+     language) builds mapping slots in the opposite order from
+     Solidity. Both rules are valid. A tool that assumes Solidity's
+     rule reads the wrong slot and prints a plausible number. The
+     fault is the tool's assumption, not either language. **[verify:
+     inferred from the two rules; show with a real run]**
+   - So every team built its own decoder: Remix, Truffle, hevm,
+     Tenderly, Foundry. Truffle's decoder is about 24,000 lines,
+     written over five years. *(Disclose it in one of two forms,
+     an open choice: within "we", "we know this first-hand: one of us
+     architected the Truffle Debugger and led the design of its
+     decoder"; or third person, "the ethdebug lead architected the
+     Truffle Debugger and designed the interfaces of its decoder".)*
+     **[verify: recount]**
+   - These decoders hit limits. Tenderly's docs say that solc's newer
+     pipeline ("via-IR") leaves tools "heuristics and educated
+     guesses". **[verify: cite the archived copy, with its date]**
+   - The common workaround is to turn the optimizer off. Then you
+     debug code that is not the code that runs on chain.
+   - With ethdebug, the compiler writes the answers down, in a shared,
+     specified format.
+   - **What ethdebug is** (~100 words; first introduction on this
+     blog): a specification, as JSON schemas, for the debug data a
+     compiler writes next to the bytecode:
+     - a *program* for each piece of bytecode: its instructions, each
+       with *contexts* that say what the instruction means in the
+       source (source ranges, variables, function calls and returns,
+       ...);
+     - shared *resources*: *types* (what the program's values are) and
+       *pointers* (where each value lives, and how to compute it);
+     - versioned and validated by its schemas, so compilers and tools
+       can check each other. Today's compilers emit parts of it (see
+       below). The format covers more than any one compiler uses yet.
+
+2. **You can get the data today, from three compilers** (~350)
+   - *Why you care:* you can try this now, in a few minutes, with
+     tools you already have.
+   - It answers a common question on Ethereum StackExchange: "what is
+     in this storage slot?"
+   - **Solidity:** a short solc settings snippet. A second Solidity
+     compiler, Solar (by Paradigm), also emits it on its main branch
+     (unreleased). **[verify: the settings differ between solc 0.8.37
+     and its development branch]**
+     - Source ranges for every instruction: in released solc. **[verify:
+       check 0.8.37]**
+     - Storage layouts: a solc build from an open pull request by
+       Walnut (the team building solc's ethdebug support),
+       argotorg/solidity #16990. We link it.
+   - **Fe** (a separate contract language): three commands. ethdebug is
+     Fe's only debug output.
+   - **BUG** (our small teaching language): the playground on the
+     ethdebug docs site, with nothing to install. bugc, its compiler,
+     is our reference implementation. One clause says that BUG also
+     previews what comes next (section 7).
+   - solc adds support in steps, one pull request at a time. Source
+     ranges are released. Storage is in an open pull request. Every
+     state variable is written **[P]**. Local variables are designed
+     **[P]**.
+
+3. **Ten lines of code step through Solidity and Fe alike** (~300)
+   - *Why you care:* one small piece of code works across languages.
+     You do not write a new decoder for each compiler.
+   - The snippet: for each step of a transaction, look up the source
+     range the compiler recorded and print that line.
+   - Tested 10-03: one script, unchanged, steps through a real solc
+     transaction and a real Fe transaction. The core is 10 lines. A
+     2-line input step picks Fe's program out of its wrapper. A
+     one-line check skips Fe's standard-library sources.
+   - Real output from both languages, side by side.
+   - Notes, briefly:
+     - On solc, this gives the same result as the older source map, in
+       a simpler shape (8 lines of code instead of 19).
+     - Most solc steps point at the whole contract (compiler-generated
+       code), so the stepper skips them with one line. Fe already
+       labels that code.
+     - Fe's file wraps its program differently today. The two-line
+       input step handles it; stepping needs no adapter.
+   - The goals page names Solidity, Vyper and Fe. Two work today.
+
+4. **Pointers: the compiler states the rule, and any tool applies it**
+   (~220)
+   *(Own section for now. Later, it can be cut and folded into section
+   3 as one paragraph.)*
+   - *Why you care:* finding where each value lives is the hardest
+     part of reading a contract's state. With pointers, tools no longer
+     re-derive it for every compiler.
+   - This is the plainest evidence for the post's main claim: the
+     compiler states the layout it intended, and tools only apply it.
+   - A pointer is a small, declarative description of where a value
+     lives (storage, memory, calldata, the stack, and so on), including
+     how to compute the location. So far, solc uses pointers for
+     storage. Walnut's next-stage branch also emits `code` pointers for
+     immutables. Memory, calldata and the stack come with local
+     variables **[P]**.
+   - The example: solc's real mapping template (from Walnut's #16990
+     build). The slot is the keccak256 hash of the key and the base
+     slot. Then the struct's own layout applies. Our
+     `@ethdebug/pointers` package and soldb's draft reader both decode
+     it. Show the snippet, about six lines. **[verify: snippets must
+     use the expression sigil of the release we link to (`$` today;
+     `~` if ethdebug/format issue #310 lands first)]**
+   - One evaluator works for every compiler. A compiler with different
+     rules describes its own layout, and tools do not change. For
+     example, once Vyper emits ethdebug, its different mapping order is
+     only a different pointer.
+   - This answers "why not DWARF, storageLayout or source maps?". Each
+     of those gives one kind of fact; a pointer gives the rule. One
+     line here; the full comparison goes on the companion page.
+   - Pointers say where a value's bytes are. They do not yet say what
+     the bytes mean (signed or not, field names, and so on). That is
+     the format's next piece (section 7).
+   - On par today: for solc's storage, storageLayout gives the same
+     facts. Pointers give more when they cover every variable, and then
+     local variables in memory and on the stack **[P]**.
+   - Gaps today: no bit-level addressing. Nested mappings need
+     chaining by hand. Value types get no template yet. Base slots
+     still come from storageLayout until Walnut's next stage **[P]**.
+
+5. **An LLM builds a working tool from it in minutes** (~250, plus
+   appendix)
+   - *Why you care:* the idea you have put off may now be an
+     afternoon's work.
+   - The task: a command-line tool that shows each storage value a
+     transaction changed, by its Solidity name, from public material
+     only.
+   - Claude Sonnet built one that passed our hidden tests in under four
+     minutes, and extended it in under a minute. (A second model's tool
+     failed our hidden tests; we report every run.)
+   - Without ethdebug, using solc's older outputs, the model was just
+     as fast. For storage on solc, those outputs carry the same
+     information. Today, ethdebug ties.
+   - Why this is still good news: with a specification, schemas and an
+     automatic judge, you can check an LLM-built tool. This matters
+     because 45% of Solidity developers distrust AI output (Solidity
+     Developer Survey 2025). **[verify]**
+   - Where ethdebug gives more **[P]**: once solc emits every state
+     variable, the tool needs no Solidity storage rules. Once solc
+     emits local variables, the older outputs have nothing to offer.
+   - So we publish the contest now: "The prompt, rules and judge are
+     published, so anyone can re-run this. We will too, once solc emits
+     local variables." We give no date; the re-run follows the
+     milestone. The contest measures time, how many compiler rules the
+     tool has to hardcode, and how much changes per new language.
+     *(Full design in the appendix, outside the word budget.)*
+
+6. **A real debugger already runs on it, offline, in your browser**
+   (~270)
+   - *Why you care:* you can replay and step through a transaction
+     without a node. You can send someone a file that lets them do the
+     same.
+   - soldb is the open-source debugger Walnut built on ethdebug. Its
+     command-line tool steps backward and stops when a value changes.
+     Its WebAssembly build runs in the browser and steps through a real
+     transaction in well under a tenth of a second.
+   - Its replay file is a few kilobytes. Attach it to an audit finding,
+     and anyone can step through it.
+   - The same demo switches to Fe: soldb, unchanged, steps through a
+     Fe transaction too, because both compilers emit ethdebug. The page
+     only adapts Fe's file layout, and says so.
+   - Three independent teams read the format: our TypeScript packages,
+     soldb (Rust), and Runtime Verification's Python reader, used by
+     their Simbolik debugger (ethdebug.py's README says so). **[verify:
+     run RV's reader on #16990 output]**
+   - Link the storage inspector, with one clause: the page decodes
+     values itself, a stand-in for the format's planned interpretation
+     layer.
+   - The limit: with solc today, this works only for contracts
+     compiled with via-IR and with the optimizer off. That is about
+     0.1% of what is on mainnet. Fe and Solar already handle optimized
+     code; solc's optimizer support comes later **[P]**.
+
+7. **Today it matches the old outputs; next, it goes where they can't**
+   (~380)
+   - *Why you care:* facts that tools have long struggled to show you,
+     like local variables in optimized code, become data that any tool
+     can read.
+   - Next for solc **[P]**:
+     - every state variable as data: the compiler gives each
+       variable's location (the code is written, and we have run it)
+     - local variables: Foundry's request to show them has been open
+       since 2022 **[verify: issue link]**
+     - optimized code: 81% of verified mainnet deployments are
+       optimized
+   - **Next for the format: what the bytes mean** (~60): to show a
+     value, a tool needs two things. It needs where the bytes are
+     (pointers, from compilers). It needs what they mean (signed or
+     not, scale, byte order, field names). The second part is the type
+     schema rewrite (ethdebug/format issue #282), right after this
+     release **[P]**. Until then, no tool can show values from ethdebug
+     in a way that works for every compiler. Demos decode values with
+     their own code.
+   - **The format is ready for optimized code; solc is catching up**
+     (~80): most mainnet contracts are optimized (81% of verified
+     deployments). Debuggers have asked you to turn the optimizer off,
+     because inlining and shared code cut the link to the source.
+     ethdebug's instructions can say "I came from an inlined function"
+     (`transform`), "I map to two places" (`gather`), or "I'm shared by
+     several callers" (`pick`). Solar and Fe emit ethdebug for
+     optimized builds today. Gaps: values in optimized code
+     (ethdebug/format issue #291), and no real compiler emits local
+     variables yet.
+   - **BUG already shows what this looks like** (~90): a preview of
+     Solidity debugging after solc's next stages, for functions and
+     optimization.
+     - bugc, our reference compiler, gives a real call stack from its
+       `invoke` and `return` markers. It does not guess from jump
+       markers.
+     - It marks inlined code `transform: ["inline"]`, still linked to
+       its call. The inlined `ADD` still says it is `x + x` in `dbl`,
+       called from `dbl(src)`. All of this is tested.
+     - This part says nothing about variable values.
+     - BUG is a small teaching language and bugc is not a production
+       compiler. So this previews the format, not any compiler's
+       plans.
+     - Link: ethdebug's own reference debugger, the docs site's trace
+       playground. One clause says that soldb tracks what solc emits
+       today. (Checked 10-04: the live viewer shows
+       `weight(i: 0, n: 4) › dbl()`, marked inline.)
+   - Fe's compiler already has more information than it exports
+     (variables, inlining). Whether to export it is the Fe team's
+     decision. With it, Fe could give the call stack and inlining with
+     no format change.
+   - The format changes as more people implement it. This work found
+     four bugs in our own packages, and each was fixed within days.
+     Every change is logged with who has to act on it.
+   - When solc emits local variables, we re-run the published contest
+     unchanged. Anyone can run it before then.
+
+- **Close: pick one guess, and replace it with data** (~150)
+  - Pick one thing your tool guesses today, and replace the guess with
+    data the compiler wrote down. Then tell us what you built.
+  - Links: the specification, the packages, the Matrix chat, the
+    companion page.
+  - Who "we" are, said once: the ethdebug team at Argot (the
+    collective, funded by the Ethereum Foundation, that runs ethdebug,
+    Solidity and Fe).
+  - Thanks to the outside teams: Walnut, the Fe team, Runtime
+    Verification, and Paradigm's Solar team.
+
+---
+
+**Hook options** for the first line of section 1:
+- (a) The Solidity Developer Survey 2025: 33% of developers name
+  debugging as a recurring problem, at every level of experience.
+  **[verify]**
+- (b) Tenderly's docs: via-IR leaves tools "heuristics and educated
+  guesses".
+- (c) The Vyper example: a tool built on one compiler's assumptions
+  reads another's storage wrong and prints a plausible number.
+
+**Moved to the companion page:** exact timings and build sizes, the
+per-model challenge table, the solc pull-request stages in detail, the
+mainnet check, Fe's adapter details, the format changes ahead (`~`,
+types, modifiers).
+
+**Open:** follow the post's own order, or the goals page's order
+(universal format, real-life debugging, adoption, understanding
+deployed code)?

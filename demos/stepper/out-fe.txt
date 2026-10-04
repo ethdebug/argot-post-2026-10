@@ -1,0 +1,6 @@
+14: let doubled: u256 = x * 2
+15: return doubled + 1
+24: if step > 10 {
+25: store.total = store.total + step
+29: store.last = step
+30: return store.total

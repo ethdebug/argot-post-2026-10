@@ -1,0 +1,10 @@
+const fs=require("fs");
+const solc=require("solc/wrapper")(require(process.env.SOLJSON ?? "./soljson-pr16990.js"));
+const [,,file,name]=process.argv;
+const src=fs.readFileSync(file,"utf8");
+const inp={language:"Solidity",sources:{[file]:{content:src}},settings:{viaIR:true,optimizer:{enabled:false},experimental:true,debug:{debugInfo:["ethdebug","ast-id"]},outputSelection:{"*":{"*":["evm.bytecode.object","evm.deployedBytecode.ethdebug","evm.deployedBytecode.sourceMap","evm.deployedBytecode.object","evm.bytecode.ethdebug"]}}}};
+const out=JSON.parse(solc.compile(JSON.stringify(inp)));
+(out.errors||[]).forEach(e=>console.error(e.severity,e.message.slice(0,300)));
+const c=out.contracts[file][name];
+fs.writeFileSync(name+".out.json",JSON.stringify({src,file,init:c.evm.bytecode.object,deployed:c.evm.deployedBytecode.object,sourceMap:c.evm.deployedBytecode.sourceMap,ethdebug:c.evm.deployedBytecode.ethdebug,initEthdebug:c.evm.bytecode.ethdebug},null,1));
+console.log(Object.keys(c.evm.deployedBytecode.ethdebug||{}), Object.keys(out));

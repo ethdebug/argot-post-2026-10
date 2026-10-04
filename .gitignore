@@ -1,0 +1,17 @@
+node_modules
+*.log
+*.bak*
+.DS_Store
+demos/*/screenshots/*
+!demos/inspector/screenshots/desktop-packed.png
+demos/soldb/screenshot-*.png
+!demos/soldb/screenshot-highlight.png
+!demos/soldb/screenshot-fe.png
+demos/soldb/results.json
+demos/soldb/run.log
+demos/stepper/fe-bin
+demos/inspector/.solc/
+demos/soldb/findings.md
+demos/stepper/counter.trace.jsonl
+!demos/soldb/screenshot-highlight-dark.png
+!demos/soldb/screenshot-fe-dark.png

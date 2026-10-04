@@ -1,0 +1,22 @@
+12: function run(uint256 x) external {
+13: total = twice(x) + add(x, 1);
+12: function run(uint256 x) external {
+13: total = twice(x) + add(x, 1);
+9: function twice(uint256 x) internal pure returns (uint256) {
+10: return add(x, x);
+9: function twice(uint256 x) internal pure returns (uint256) {
+10: return add(x, x);
+5: function add(uint256 a, uint256 b) internal pure returns (uint256) {
+7: return a + b;
+5: function add(uint256 a, uint256 b) internal pure returns (uint256) {
+6: require(a < 1000, "too big");
+7: return a + b;
+10: return add(x, x);
+13: total = twice(x) + add(x, 1);
+5: function add(uint256 a, uint256 b) internal pure returns (uint256) {
+7: return a + b;
+5: function add(uint256 a, uint256 b) internal pure returns (uint256) {
+6: require(a < 1000, "too big");
+7: return a + b;
+13: total = twice(x) + add(x, 1);
+12: function run(uint256 x) external {
