@@ -1,0 +1,41 @@
+msg TallyMsg {
+    #[selector = 0x01]
+    Add { n: u256 } -> u256,
+}
+
+pub struct Store {
+    total: u256,
+    last: u256,
+}
+
+fn weight(_ i: u256, _ scale: u256) -> u256 {
+    if i % 2 == 0 {
+        return i * scale
+    }
+    return i + 1
+}
+
+pub contract Tally {
+    mut store: Store
+
+    recv TallyMsg {
+        Add { n } -> u256 uses (mut store) {
+            let mut sum: u256 = 0
+            let mut i: u256 = 0
+            while i < n {
+                sum = sum + weight(
+                    i,
+                    n,
+                )
+                i = i + 1
+            }
+            if sum > 10 {
+                store.total = store.total + sum
+            } else {
+                store.total = store.total + 1
+            }
+            store.last = sum
+            return store.total
+        }
+    }
+}

@@ -1,0 +1,729 @@
+/* Storage inspector. Tokens and shared components (header, code,
+   picker, tags, notes) are in ../appendix.css. */
+.summary {
+  font-family: ui-monospace, Menlo, monospace;
+  font-size: 0.85rem;
+  color: var(--muted);
+  overflow-wrap: anywhere;
+  margin: 8px 0 0;
+}
+
+/* A wider frame than the other appendix pages: the words want room */
+main { max-width: 1440px; }
+
+/* Narrow: tree, "How this was found", words, source, one under the
+   other. Wide: the tree, the derivation and the source on the left, the
+   words beside them, held in view. */
+.cols { display: grid; grid-template-columns: minmax(0, 1fr); gap: 0 28px; }
+@media (min-width: 1100px) {
+  .cols {
+    grid-template-columns: minmax(0, 5fr) minmax(0, 7fr);
+    grid-template-rows: auto auto 1fr;
+  }
+  .mcols { grid-template-rows: auto 1fr; }
+  .storage { grid-column: 1; grid-row: 1; font-size: 1.05rem; }
+  .howbox { grid-column: 1; grid-row: 2; }
+  .source { grid-column: 1; grid-row: 3; }
+  .mcols .source { grid-row: 2; }
+  .mcols .words { grid-row: 1 / span 2; }
+  .words {
+    grid-column: 2;
+    grid-row: 1 / span 3;
+    position: sticky;
+    top: 0;
+    align-self: start;
+    /* no scroll box of its own: annotations overflow it visibly, so a
+       highlight never adds a scrollbar */
+    padding-bottom: 12px;
+  }
+}
+
+.legend { text-transform: none; letter-spacing: 0; font-size: 0.8rem; }
+.legend .chg {
+  background: var(--chg-bg);
+  color: var(--chg-fg);
+  padding: 0 6px;
+  border-radius: 3px;
+}
+.legend .same { opacity: 0.55; }
+
+.tree ul { list-style: none; margin: 0; padding: 0 0 0 16px; }
+.tree > ul { padding: 0; }
+.tree li { margin: 0; }
+.tree li.top { border-top: 1px solid var(--line); padding: 4px 0; }
+.row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 2px 10px;
+  padding: 3px 0;
+}
+.name { font-weight: 600; overflow-wrap: anywhere; }
+.type { color: var(--muted); font-size: 0.8rem; }
+li.same > .row .name, li.same > .row .type { opacity: 0.55; }
+.val {
+  margin-left: auto;
+  text-align: right;
+  border: 1px solid transparent;
+  border-radius: 5px;
+  padding: 2px 8px;
+  max-width: 100%;
+  overflow-wrap: anywhere;
+}
+/* A whole row selects its variable, changed or not */
+#tree .row { cursor: pointer; border-radius: 4px; }
+#tree .row:focus-visible { outline: 2px solid var(--accent);
+  outline-offset: 1px; }
+#tree .row:hover .val, #tree .row.sel .val { border-color: var(--accent); }
+.val.same { opacity: 0.6; }
+.val.chg { background: var(--chg-bg); color: var(--chg-fg); }
+.val .old { color: var(--old); text-decoration: line-through; }
+.val .new { color: var(--new); font-weight: 700; }
+.val .arrow { margin: 0 6px; }
+.empty { margin: 0; font-size: 0.85rem; }
+
+/* The steps read a little like table rows: number | kind | content,
+   with a hairline between steps */
+.steps { margin: 0; padding-left: 0; list-style: none;
+  counter-reset: step; }
+.steps li {
+  display: grid;
+  grid-template-columns: 2em 6.2em minmax(0, 1fr);
+  align-items: baseline;
+  margin: 0;
+  padding: 5px 0;
+  border-top: 1px solid color-mix(in srgb, var(--line) 70%, transparent);
+  overflow-wrap: anywhere;
+}
+.steps li:first-child { border-top: none; }
+.steps li::before {
+  counter-increment: step;
+  content: counter(step) ".";
+  color: var(--muted);
+  font-size: 0.85em;
+  text-align: right;
+  padding-right: 0.6em;
+}
+.steps .c { min-width: 0; }
+.steps .k {
+  display: block;
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--accent);
+  font-weight: 700;
+}
+.steps .final { font-weight: 400; }
+.args { color: var(--muted); font-size: 0.85rem; margin-left: 1em; }
+/* "How this was found": the selected variable's derivation */
+.howbox .how { margin-top: 0; }
+.howrest { margin: 0; }
+.howhead { margin: 0 0 4px; display: flex; flex-wrap: wrap; gap: 4px 10px;
+  align-items: baseline; }
+.howhead code { font-weight: 700; background: none; padding: 0; }
+.howside { margin: 0 0 8px; color: var(--muted); }
+.howside b { color: var(--fg); font-weight: 600; }
+/* Where the two states' derivations differ: a step's two evaluations,
+   and after the fork, one list per branch (this state's first; the
+   other muted, like the cards) */
+.evals {
+  margin: 4px 0 0;
+  font-size: 0.85rem;
+  display: grid;
+  gap: 1px;
+}
+.ev-tag {
+  display: inline-block;
+  min-width: 3.6em;
+  padding: 0 6px;
+  border-radius: 5px;
+  font: 600 0.62rem/1.6 system-ui, -apple-system, "Segoe UI", sans-serif;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  text-align: center;
+  color: var(--panel);
+  background: var(--accent);
+}
+.branch { margin: 6px 0 0; }
+.branch-head { margin: 0 0 2px; }
+.branch-head .ev-tag { min-width: 0; }
+.branch-head { padding-left: 2em; }
+.branch.theirs {
+  padding: 4px 0 2px;
+  border-radius: 6px;
+  background: color-mix(in srgb, var(--accent) 7%, var(--panel));
+  opacity: 0.75;
+}
+.branch.theirs .ev-tag {
+  color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 16%, var(--panel));
+}
+.mode button { font-size: 0.85rem; padding: 3px 12px; }
+.mode button:not(:first-child) {
+  border-top-left-radius: 0; border-bottom-left-radius: 0;
+  margin-left: -1px;
+}
+.mode button:not(:last-child) {
+  border-top-right-radius: 0; border-bottom-right-radius: 0;
+}
+.mode button[aria-checked="true"] { position: relative; }
+.mode { gap: 0; }
+.moderow { display: flex; align-items: center; gap: 10px; margin: 10px 0 0; }
+.modelabel { font-size: 0.8rem; color: var(--muted); }
+.mpicks .moderow { margin: 0 0 6px; }
+.mpicks .modelabel { min-width: 1.2em; }
+.how details { margin-top: 4px; }
+.how summary { cursor: pointer; color: var(--muted); font-size: 0.85rem; }
+.how pre {
+  max-height: 260px;
+  overflow: auto;
+  background: var(--code-bg);
+  padding: 8px;
+  border-radius: 4px;
+  font-size: 0.75rem;
+}
+.hex.short { cursor: pointer; border-bottom: 1px dotted var(--muted); }
+.hex.full { overflow-wrap: anywhere; }
+
+
+.source .src { max-height: 60vh; }
+.src {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 10px;
+  margin: 0;
+  max-height: 70vh;
+  overflow: auto;
+  font-size: 0.78rem;
+  line-height: 1.45;
+  white-space: pre;
+}
+.src mark { background: var(--mark); color: inherit; border-radius: 2px; }
+#srcnote { font-size: 0.85rem; margin: 0 0 6px; }
+
+.notes { margin-top: 32px; border-top: 1px solid var(--line); }
+.notes ul { padding-left: 20px; max-width: 80ch; }
+.notes li { margin: 6px 0; }
+.val span { overflow-wrap: anywhere; }
+
+/* ------------------------------------------------- the words panel */
+
+/* Subtle tints, one per value in a slot, so packed values read as
+   bands. The strong highlight is --mark, from the "changed" family. */
+:root {
+  --t0: #e4ecf6; --t1: #e3f0e3; --t2: #efe6f4; --t3: #f6e7df;
+  --t4: #dff0ef;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --t0: #1f2a38; --t1: #1f2e23; --t2: #2b2333; --t3: #35261f;
+    --t4: #1c302f;
+  }
+}
+:root[data-theme="dark"] {
+  --t0: #1f2a38; --t1: #1f2e23; --t2: #2b2333; --t3: #35261f;
+  --t4: #1c302f;
+}
+.t0 { --tint: var(--t0); }
+.t1 { --tint: var(--t1); }
+.t2 { --tint: var(--t2); }
+.t3 { --tint: var(--t3); }
+.t4 { --tint: var(--t4); }
+
+.words .intro { margin: 0 0 8px; max-width: 70ch; }
+.legend .bchg {
+  font-family: var(--mono);
+  color: var(--new);
+  font-weight: 700;
+  box-shadow: inset 0 -2px 0 var(--new);
+}
+.legend .bfree { opacity: 0.45; }
+
+/* The details of what is lit, under the dump: a short list of terms
+   and values. It grows with its content; it never scrolls. */
+.details {
+  /* room above for a card under the dump's last rows */
+  margin: 2.6em 0 0;
+  padding: 8px 12px;
+  min-height: calc(4 * 1.5em + 16px);
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-left: 3px solid var(--accent);
+  border-radius: 6px;
+  font-size: 0.85rem;
+  line-height: 1.5;
+}
+.details p { margin: 0; }
+.details dl {
+  display: grid;
+  grid-template-columns: max-content minmax(0, 1fr);
+  gap: 2px 14px;
+  margin: 0;
+}
+.details dt { color: var(--muted); }
+.details dd { margin: 0; overflow-wrap: anywhere; }
+
+/* The locked state: what the view is on while a value is selected,
+   beside the Before | After toggle */
+.viewing {
+  padding: 0 8px;
+  border-radius: 9px;
+  font: 600 0.7rem/1.6 system-ui, -apple-system, "Segoe UI", sans-serif;
+  color: var(--panel);
+  background: var(--accent);
+  overflow-wrap: anywhere;
+}
+.moderow { flex-wrap: wrap; }
+/* "show other state": a checkbox chip, like the toggle's buttons */
+.chipcheck {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 10px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--panel);
+  font-size: 0.85rem;
+  cursor: pointer;
+}
+.chipcheck input { accent-color: var(--accent); margin: 0; }
+
+/* In the tree, while a value is lit: its value in the other state,
+   in a card like the dump's (under in Before, over in After) */
+.tree li, .tree .row { position: relative; }
+.tcard {
+  position: absolute;
+  right: 0;
+  z-index: 5;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 1px;
+  max-width: 90%;
+  padding: 5px 10px;
+  border-radius: 6px;
+  background: color-mix(in srgb, var(--accent) 11%, var(--panel));
+  border: 1px solid color-mix(in srgb, var(--accent) 40%, transparent);
+  box-shadow: 0 3px 10px rgb(0 0 0 / 0.16);
+  font-family: var(--mono);
+  font-size: 0.8rem;
+  color: var(--muted);
+  pointer-events: none;
+  animation: cmp-in 0.14s ease-out;
+  overflow-wrap: anywhere;
+  text-align: right;
+}
+.tcard.before { top: calc(100% + 2px); }
+.tcard.after { bottom: calc(100% + 2px); }
+.tcard .cmp-tag { left: auto; right: 8px; }
+.tcard.before .cmp-tag { top: calc(100% - 6px); border-radius: 5px; }
+.tcard.after .cmp-tag { bottom: calc(100% - 6px); border-radius: 5px; }
+.tcard .tval b { font-weight: 600; color: var(--fg); }
+
+/* Two dumps, before and after, one under the other. A dump is one
+   column of words in address order, each word one line of 32 bytes in
+   four groups of eight, the address in a narrow gutter, and a gap line
+   where the addresses jump. The byte size follows the panel's width; on
+   a panel too narrow for that (a phone), the words scroll sideways in
+   the panel, both dumps together, and the gutter stays in view. */
+.dump {
+  container-type: inline-size;
+  --cell: 2.4ch;
+  --gutter: 8ch;
+}
+.views {
+  display: grid;
+  row-gap: 16px;
+  font-family: var(--mono);
+  font-variant-numeric: tabular-nums;
+  /* gutter, 32 cells and three gaps: about 52 em of monospace,
+     more in some fonts */
+  font-size: clamp(0.66rem, calc(100cqi / 56), 0.95rem);
+}
+.swipe { display: none; margin: 0 0 6px; }
+@container (max-width: 559.98px) {
+  .swipe { display: block; }
+  /* room under the last word for a popover under it */
+  .views { overflow-x: auto; overflow-y: hidden; padding-bottom: 3.2em; }
+  .view-name { position: sticky; left: 0; }
+}
+.view-head {
+  position: sticky;
+  top: 0;
+  z-index: 4;
+  background: var(--bg);
+  padding-top: 2px;
+}
+@container (max-width: 559.98px) {
+  .view-head { position: static; }
+}
+.view-name {
+  display: block;
+  font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--muted);
+  margin-bottom: 2px;
+}
+.view[data-side="after"] .view-name { color: var(--accent); }
+.rows {
+  width: max-content;
+  min-width: 100%;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 4px 8px 4px 0;
+}
+.wrow {
+  display: grid;
+  grid-template-columns: var(--gutter) max-content;
+  align-items: start;
+  column-gap: 1ch;
+}
+
+.wrow.head { padding-right: 8px; }
+.addr {
+  position: sticky;
+  left: 0;
+  /* above byte cells, which paint as layers when dimmed (opacity) */
+  z-index: 2;
+  align-self: stretch;
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 4px;
+  padding: 0 1ch 0 8px;
+  border-right: 1px solid var(--line);
+  background: var(--panel);
+  color: var(--muted);
+  white-space: nowrap;
+}
+.wrow.head .addr { background: var(--bg); border-right-color: transparent; }
+.addr:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+/* the address reads as a row label: right-aligned against the bytes,
+   like line numbers in a hex dump */
+.addr .a {
+  line-height: 1.85;
+  font-size: 0.92em;
+  letter-spacing: -0.01em;
+}
+/* written, same value: the one mark at rest */
+.ring {
+  width: 0.55em;
+  height: 0.55em;
+  border: 1.5px solid var(--accent);
+  border-radius: 50%;
+  flex: none;
+}
+/* How a lit slot was found, over its address */
+.pop {
+  position: absolute;
+  left: 0;
+  bottom: calc(100% + 6px);
+  z-index: 3;
+  padding: 1px 7px;
+  border-radius: 4px;
+  background: var(--fg);
+  color: var(--bg);
+  font-size: 0.68rem;
+  line-height: 1.5;
+  pointer-events: none;
+  box-shadow: 0 1px 3px rgb(0 0 0 / 0.2);
+  width: max-content;
+}
+.pop .pop-how { display: block; white-space: nowrap; }
+.pop .full {
+  display: block;
+  font-size: 0.9em;
+  opacity: 0.75;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  word-break: break-all;
+}
+/* its arrow, pointing down at the address */
+.pop::after {
+  content: "";
+  position: absolute;
+  top: 100%;
+  left: var(--ax, 50%);
+  transform: translateX(-50%);
+  border: 5px solid transparent;
+  border-top-color: var(--fg);
+}
+.wrow:hover .addr, .wrow.on .addr { color: var(--fg); }
+.gap {
+  display: grid;
+  grid-template-columns: var(--gutter) 1fr;
+  align-items: center;
+  column-gap: 1ch;
+  height: 2.2em;
+  color: var(--muted);
+  opacity: 0.7;
+}
+.gap span {
+  justify-self: end;
+  padding-right: calc(1ch + 1px);
+  line-height: 1;
+}
+.gap::after { content: ""; border-top: 1px dashed var(--line); }
+
+.bytes {
+  display: flex;
+  gap: 0.8ch;
+  width: max-content;
+  line-height: 1.85;
+}
+.oct {
+  display: grid;
+  grid-template-columns: repeat(8, var(--cell));
+  flex: none;
+}
+.b {
+  text-align: center;
+  background: var(--tint, transparent);
+  outline-offset: -1px;
+}
+.b.gs { border-top-left-radius: 3px; border-bottom-left-radius: 3px; }
+.b.ge { border-top-right-radius: 3px; border-bottom-right-radius: 3px; }
+.b.z { color: var(--muted); }
+.b.free { opacity: 0.4; }
+.same .b:not(.hl) { color: var(--muted); }
+.word[data-side="before"] .b.chg { color: var(--old);
+  box-shadow: inset 0 -2px 0 var(--old); }
+.word[data-side="after"] .b.chg { color: var(--new); font-weight: 700;
+  box-shadow: inset 0 -2px 0 var(--new); }
+.b[data-owners] { cursor: pointer; }
+.b.hl { background: var(--mark); color: var(--chg-fg); opacity: 1; }
+.word[data-side="after"] .b.hl.chg { color: var(--new); }
+/* A subtle zebra stripe on every other word row; it fades with the
+   rest while something is lit */
+.wrow { --zebra: transparent; background: var(--zebra);
+  transition: background-color 0.12s; }
+.wrow.zb { --zebra: color-mix(in srgb, var(--fg) 4%, transparent); }
+.wrow.zb .addr { background: color-mix(in srgb, var(--fg) 4%, var(--panel)); }
+.active .wrow.zb { --zebra: color-mix(in srgb, var(--fg) 2%, transparent); }
+.active .wrow.zb .addr {
+  background: color-mix(in srgb, var(--fg) 2%, var(--panel));
+}
+/* Lit bytes say so without color too: a line over them */
+.b.hl { box-shadow: inset 0 2px 0 var(--accent); }
+.word[data-side="before"] .b.hl.chg {
+  box-shadow: inset 0 2px 0 var(--accent), inset 0 -2px 0 var(--old);
+}
+.word[data-side="after"] .b.hl.chg {
+  box-shadow: inset 0 2px 0 var(--accent), inset 0 -2px 0 var(--new);
+}
+/* While something is lit, everything else steps back: tints, change
+   marks and other tree rows fade, so the highlight dominates */
+.b, .tree .row { transition: opacity 0.12s, filter 0.12s; }
+.active .b:not(.hl):not(.at) { opacity: 0.3; filter: saturate(0.2); }
+.tree.active .row:not(.hl) { opacity: 0.45; }
+/* The byte under the pointer, at the same place in both views */
+.b.at { outline: 1px solid var(--accent); opacity: 1; }
+.b:focus-visible { outline: 2px solid var(--accent); }
+.ruler .bytes { line-height: 1.3; }
+.ruler .b { color: var(--muted); font-size: 0.85em; text-align: left; }
+
+/* The tree side of a link */
+.row.hl { background: var(--mark); border-radius: 4px;
+  box-shadow: -4px 0 0 var(--mark), 4px 0 0 var(--mark); }
+.row.sel { box-shadow: -7px 0 0 var(--accent); }
+.row.hl.sel { box-shadow: -4px 0 0 var(--mark), 4px 0 0 var(--mark),
+  -7px 0 0 var(--accent); }
+.how li[data-region] { cursor: default; border-radius: 4px; }
+.how li[data-region]:hover, .how li[data-region]:focus-visible {
+  background: var(--code-bg);
+}
+.how li[data-region]:focus-visible { outline: 2px solid var(--accent); }
+
+/* Compare: beside each run of lit words, a picture of the same words
+   in the other dump (cloned rows, drawn as there), muted a little, in a
+   light card that floats over the neighboring rows: under the run in
+   Before, over it in After. Same size, same columns as the run. */
+.wrow { position: relative; }
+.cmp {
+  position: absolute;
+  z-index: 5; /* over the sticky dump heads */
+  pointer-events: none;
+  animation: cmp-in 0.14s ease-out;
+}
+.cmp.before { top: calc(100% + 1px); }
+.cmp.after { bottom: calc(100% + 1px); }
+/* a fade only: a moving card would be measured where it starts */
+@keyframes cmp-in { from { opacity: 0; } }
+.cmp-frame {
+  position: relative;
+  margin-left: -6px; /* room left of the addresses, as on the right */
+  overflow: clip;
+  padding: 3px 0;
+  border-radius: 6px;
+  background: color-mix(in srgb, var(--accent) 11%, var(--panel));
+  border: 1px solid color-mix(in srgb, var(--accent) 40%, transparent);
+  box-shadow: 0 3px 10px rgb(0 0 0 / 0.16);
+}
+.cmp-photo {
+  position: relative;
+  left: 5px; /* the frame's 6px of room, less its 1px border */
+  filter: saturate(0.55) contrast(0.88);
+  opacity: 0.85;
+}
+/* the card's addresses: one label column, a tinted strip with the
+   gutter's hairline against the bytes */
+.cmp-photo .addr {
+  position: static;
+  background: color-mix(in srgb, var(--accent) 9%, transparent);
+  border-right-color: color-mix(in srgb, var(--accent) 35%, var(--line));
+}
+.cmp-photo .wrow:first-child .addr { border-top-left-radius: 4px; }
+.cmp-photo .wrow:last-child .addr { border-bottom-left-radius: 4px; }
+.cmp-photo .b { transition: none; }
+/* in the card, the rest of the word is not dimmed: the card's own
+   muting is enough, and the value's bytes keep their highlight */
+.active .cmp-photo .b:not(.hl):not(.at) { opacity: 1; filter: none; }
+.active .cmp-photo .b.free:not(.hl) { opacity: 0.4; }
+/* its label, a tab on the edge away from the run */
+.cmp-tag {
+  position: absolute;
+  left: 8px;
+  z-index: 1;
+  font: 600 0.58rem/1.45 system-ui, -apple-system, "Segoe UI", sans-serif;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  white-space: nowrap;
+  padding: 0 6px;
+  color: var(--panel);
+  background: var(--accent);
+}
+/* half over the card's edge, to take little room */
+.cmp.before .cmp-tag { top: calc(100% - 6px); border-radius: 5px; }
+.cmp.after .cmp-tag { bottom: calc(100% - 6px); border-radius: 5px; }
+.cmp.pinned .cmp-tag { display: none; }
+/* the slot popover under its address (in After), arrow up */
+.addr.popped { z-index: 3; }
+/* a lit run's addresses, as one group: a soft rounded tint behind
+   them, which the slot popover points at (not in the cards) */
+.addr.grp::before {
+  content: "";
+  position: absolute;
+  inset: 0 4px 0 3px;
+  z-index: -1;
+  background: color-mix(in srgb, var(--mark) 55%, var(--panel));
+}
+.addr.grp-top::before { top: 2px; border-top-left-radius: 6px;
+  border-top-right-radius: 6px; }
+.addr.grp-end::before { bottom: 2px; border-bottom-left-radius: 6px;
+  border-bottom-right-radius: 6px; }
+.cmp-photo .addr.grp::before { display: none; }
+.pop.under { bottom: auto; top: calc(100% + 6px); }
+.pop.under::after {
+  top: auto;
+  bottom: 100%;
+  border-top-color: transparent;
+  border-bottom-color: var(--fg);
+}
+
+/* An annotation with no room beside its rows (it would cover lit
+   bytes or the other annotation) waits, labeled, in a tray under the
+   dumps instead */
+/* fixed at the bottom of the window, over the words: it takes no room
+   in the page, so it moves nothing */
+.tray {
+  position: fixed;
+  bottom: 8px;
+  z-index: 7;
+  display: grid;
+  gap: 6px;
+  max-height: 45vh;
+  overflow: auto;
+  padding: 6px;
+  border-radius: 8px;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  box-shadow: 0 4px 16px rgb(0 0 0 / 0.18);
+}
+.pin {
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 4px 0 6px;
+  animation: cmp-in 0.14s ease-out;
+}
+.pin-head {
+  margin: 0 0 4px;
+  padding: 0 8px;
+  font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+  font-size: 0.72rem;
+  color: var(--muted);
+}
+.cmp.pinned { position: relative; top: auto; bottom: auto; margin-top: 2px;
+  animation: none; }
+.pop.pinned { position: static; display: inline-block; margin: 0 8px;
+  pointer-events: auto; }
+.pop.pinned::after { display: none; }
+
+
+/* ------------------------------------------- memory, with BUG */
+
+/* Set apart from the storage demo above: a tinted band, its own
+   frame. */
+.ahead {
+  margin-top: 40px;
+  padding: 20px 20px 24px;
+  border: 1px solid var(--line);
+  border-top: 4px solid var(--plan-fg);
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--plan-bg) 35%, var(--bg));
+}
+.ahead > h2 { margin: 0 0 8px; font-size: 1.3rem; }
+.tag.preview {
+  display: inline-block;
+  white-space: normal;
+  font-size: 0.75rem;
+  font-weight: 400;
+  vertical-align: middle;
+  border-color: var(--plan-fg);
+  color: var(--plan-fg);
+  background: var(--plan-bg);
+}
+.ahead .lede { max-width: 78ch; margin: 0 0 8px; }
+.ahead .dump .view-head,
+.ahead .wrow.head .addr { background: transparent; }
+.ahead .view-head {
+  background: color-mix(in srgb, var(--plan-bg) 35%, var(--bg));
+}
+.mpicks { margin: 12px 0 8px; }
+.mpickrow {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  margin: 0 0 6px;
+}
+.mpickrow .label {
+  font-weight: 700;
+  min-width: 1.2em;
+  color: var(--plan-fg);
+}
+.mpick button[disabled] { opacity: 0.4; cursor: not-allowed; }
+.mval { margin-left: auto; text-align: right; font-family: var(--mono);
+  font-size: 0.9rem; overflow-wrap: anywhere; }
+.mval .old { color: var(--old); text-decoration: line-through; }
+.mval .new { color: var(--new); font-weight: 700; }
+.mval .arrow { margin: 0 6px; }
+.mval.same { color: var(--muted); }
+.mwhere { font-family: var(--mono); padding: 0 0 4px; }
+#mtree .row { cursor: pointer; border-radius: 4px; }
+#mtree .row.sel .mval { box-shadow: inset 0 -1px 0 var(--accent); }
+#mtree .row:focus-visible { outline: 2px solid var(--accent); }
+.b.past { color: var(--muted); opacity: 0.35; }
+#msrc mark.ma { background: var(--plan-bg); color: var(--plan-fg);
+  border-radius: 2px; }
+#msrc mark.mb, #msrc mark.mab { background: var(--mark); color: inherit;
+  border-radius: 2px; }
+#msrc mark.mab { box-shadow: 0 2px 0 var(--plan-fg); }
+.legend mark { padding: 0 6px; border-radius: 3px; }
+.legend mark.ma { background: var(--plan-bg); color: var(--plan-fg); }
+.legend mark.mb { background: var(--mark); color: inherit; }
+.mknown { margin: 16px 0 0; padding-left: 20px; max-width: 80ch; }
+.mknown li { margin: 4px 0; }

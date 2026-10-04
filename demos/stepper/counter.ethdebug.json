@@ -1,0 +1,2197 @@
+{
+  "schema_version": "ethdebug/format/draft-2020-12+fe-instruction-source-v2",
+  "compilation": {
+    "id": "blake3:af17c45825332354e77b1dd814c61f84b11adbe97c2fd5ab28421c2162c572e5",
+    "compiler": {
+      "name": "fe",
+      "version": "dbb291dbc36e8095c9efefc6af45e35ef9b12539"
+    },
+    "sources": [
+      {
+        "id": 0,
+        "path": "/work/counter.fe",
+        "uri": "file:///work/counter.fe",
+        "language": "Fe",
+        "content_hash": "blake3:ad375edf1d6a248e03034bc52dc7b07ebb40f26c5c89b9fbf4b2f6e41d130d04"
+      },
+      {
+        "id": 1,
+        "path": "abi.fe",
+        "uri": "builtin-core:/src/abi.fe",
+        "language": "Fe",
+        "content_hash": "blake3:bdd3041eeddc439c538f18ea4e780567e3a0e4cccca64e13efb19f9751f9afb9"
+      },
+      {
+        "id": 2,
+        "path": "ptr.fe",
+        "uri": "builtin-core:/src/ptr.fe",
+        "language": "Fe",
+        "content_hash": "blake3:411cbba2844bb6c6c26f4b5ec563f64562509b785c95df9652ad9520867ffb13"
+      },
+      {
+        "id": 3,
+        "path": "sol.fe",
+        "uri": "builtin-std:/src/abi/sol.fe",
+        "language": "Fe",
+        "content_hash": "blake3:31226e3a73c1969e44a4cbe3e239e8b94a9a647537cc56039df6cc04a408fc59"
+      },
+      {
+        "id": 4,
+        "path": "contracts.fe",
+        "uri": "builtin-core:/src/contracts.fe",
+        "language": "Fe",
+        "content_hash": "blake3:50b5b01745582e4928986926cf02cb82989f7b2ade0e0fb3bd95cab9f204c84b"
+      },
+      {
+        "id": 5,
+        "path": "num.fe",
+        "uri": "builtin-core:/src/num.fe",
+        "language": "Fe",
+        "content_hash": "blake3:11b3bf1fc0f77c0a47a884ed6dd99b99c0a7cce7de7e4980ca00e8fd5360796b"
+      },
+      {
+        "id": 6,
+        "path": "effects.fe",
+        "uri": "builtin-std:/src/evm/effects.fe",
+        "language": "Fe",
+        "content_hash": "blake3:8efe39e1592b0a013dccc9d49a7eed1d5472c4a5c32470e4903bc35dc8e0602c"
+      },
+      {
+        "id": 7,
+        "path": "calldata.fe",
+        "uri": "builtin-std:/src/evm/calldata.fe",
+        "language": "Fe",
+        "content_hash": "blake3:5622a82fb04cd07cddd28db8934da2a71f40d38f345fefee347676e4c35b08c4"
+      }
+    ],
+    "fe_origin_attribution_hash": "blake3:7188d6622116a9b0145887f313d5cca9f451c538fe20ec79e5def0a077709ed9"
+  },
+  "programs": [
+    {
+      "id": "code.object\u001fpackage:file:///work/counter.fe:module:counter:contract:Counter:section:runtime\u001fruntime",
+      "environment": "call",
+      "contract": {
+        "name": "Counter"
+      },
+      "bytecode_hash": "blake3:b79468f4f7524ba9dd8b35b0c0dff14d51a094fc0dc1c220ba19f8daa98e0ca0",
+      "instructions": [
+        {
+          "offset": 0,
+          "operation": {
+            "mnemonic": "CALLDATASIZE"
+          },
+          "fe_origin_key": "bytecode.pc\u001fpackage:file:///work/counter.fe:module:counter:contract:Counter:section:runtime\u001fpc:0",
+          "confidence": "unmapped",
+          "classification": "synthetic"
+        },
+        {
+          "offset": 1,
+          "operation": {
+            "mnemonic": "PUSH1"
+          },
+          "fe_origin_key": "bytecode.pc\u001fpackage:file:///work/counter.fe:module:counter:contract:Counter:section:runtime\u001fpc:1",
+          "confidence": "unmapped",
+          "classification": "synthetic"
+        },
+        {
+          "offset": 3,
+          "operation": {
+            "mnemonic": "SWAP1"
+          },
+          "fe_origin_key": "bytecode.pc\u001fpackage:file:///work/counter.fe:module:counter:contract:Counter:section:runtime\u001fpc:3",
+          "confidence": "unmapped",
+          "classification": "synthetic"
+        },
+        {
+          "offset": 4,
+          "operation": {
+            "mnemonic": "LT"
+          },
+          "fe_origin_key": "bytecode.pc\u001fpackage:file:///work/counter.fe:module:counter:contract:Counter:section:runtime\u001fpc:4",
+          "confidence": "unmapped",
+          "classification": "synthetic"
+        },
+        {
+          "offset": 5,
+          "operation": {
+            "mnemonic": "PUSH1"
+          },
+          "fe_origin_key": "bytecode.pc\u001fpackage:file:///work/counter.fe:module:counter:contract:Counter:section:runtime\u001fpc:5",
+          "confidence": "unmapped",
+          "classification": "synthetic"
+        },
+        {
+          "offset": 7,
+          "operation": {
+            "mnemonic": "JUMPI"
+          },
+          "fe_origin_key": "bytecode.pc\u001fpackage:file:///work/counter.fe:module:counter:contract:Counter:section:runtime\u001fpc:7",
+          "confidence": "unmapped",
+          "classification": "synthetic"
+        },
+        {
+          "offset": 8,
+          "operation": {
+            "mnemonic": "PUSH0"
+          },
+          "fe_origin_key": "bytecode.pc\u001fpackage:file:///work/counter.fe:module:counter:contract:Counter:section:runtime\u001fpc:8",
+          "confidence": "unmapped",
+          "classification": "synthetic"
+        },
+        {
+          "offset": 9,
+          "operation": {
+            "mnemonic": "CALLDATALOAD"
+          },
+          "fe_origin_key": "bytecode.pc\u001fpackage:file:///work/counter.fe:module:counter:contract:Counter:section:runtime\u001fpc:9",
+          "confidence": "unmapped",
+          "classification": "synthetic"
+        },
+        {
+          "offset": 10,
+          "operation": {
+            "mnemonic": "PUSH1"
+          },
+          "fe_origin_key": "bytecode.pc\u001fpackage:file:///work/counter.fe:module:counter:contract:Counter:section:runtime\u001fpc:10",
+          "confidence": "unmapped",
+          "classification": "synthetic"
+        },
+        {
+          "offset": 12,
+          "operation": {
+            "mnemonic": "SHR"
+          },
+          "fe_origin_key": "bytecode.pc\u001fpackage:file:///work/counter.fe:module:counter:contract:Counter:section:runtime\u001fpc:12",
+          "confidence": "unmapped",
+          "classification": "synthetic"
+        },
+        {
+          "offset": 13,
+          "operation": {
+            "mnemonic": "PUSH1"
+          },
+          "fe_origin_key": "bytecode.pc\u001fpackage:file:///work/counter.fe:module:counter:contract:Counter:section:runtime\u001fpc:13",
+          "confidence": "unmapped",
+          "classification": "synthetic"
+        },
+        {
+          "offset": 15,
+          "operation": {
+            "mnemonic": "DUP2"
+          },
+          "fe_origin_key": "bytecode.pc\u001fpackage:file:///work/counter.fe:module:counter:contract:Counter:section:runtime\u001fpc:15",
+          "confidence": "unmapped",
+          "classification": "synthetic"
+        },
+        {
+          "offset": 16,
+          "operation": {
+            "mnemonic": "EQ"
+          },
+          "fe_origin_key": "bytecode.pc\u001fpackage:file:///work/counter.fe:module:counter:contract:Counter:section:runtime\u001fpc:16",
+          "confidence": "unmapped",
+          "classification": "synthetic"
+        },
+        {
+          "offset": 17,
+          "operation": {
+            "mnemonic": "PUSH1"
+          },
+          "fe_origin_key": "bytecode.pc\u001fpackage:file:///work/counter.fe:module:counter:contract:Counter:section:runtime\u001fpc:17",
+          "confidence": "unmapped",
+          "classification": "synthetic"
+        },
+        {
+          "offset": 19,
+          "operation": {
+            "mnemonic": "JUMPI"
+          },
+          "fe_origin_key": "bytecode.pc\u001fpackage:file:///work/counter.fe:module:counter:contract:Counter:section:runtime\u001fpc:19",
+          "confidence": "unmapped",
+          "classification": "synthetic"
+        },
+        {
+          "offset": 20,
+          "operation": {
+            "mnemonic": "PUSH1"
+          },
+          "fe_origin_key": "bytecode.pc\u001fpackage:file:///work/counter.fe:module:counter:contract:Counter:section:runtime\u001fpc:20",
+          "confidence": "unmapped",
+          "classification": "synthetic"
+        },
+        {
+          "offset": 22,
+          "operation": {
+            "mnemonic": "DUP2"
+          },
+          "fe_origin_key": "bytecode.pc\u001fpackage:file:///work/counter.fe:module:counter:contract:Counter:section:runtime\u001fpc:22",
+          "confidence": "unmapped",
+          "classification": "synthetic"
+        },
+        {
+          "offset": 23,
+          "operation": {
+            "mnemonic": "EQ"
+          },
+          "fe_origin_key": "bytecode.pc\u001fpackage:file:///work/counter.fe:module:counter:contract:Counter:section:runtime\u001fpc:23",
+          "confidence": "unmapped",
+          "classification": "synthetic"
+        },
+        {
+          "offset": 24,
+          "operation": {
+            "mnemonic": "PUSH1"
+          },
+          "fe_origin_key": "bytecode.pc\u001fpackage:file:///work/counter.fe:module:counter:contract:Counter:section:runtime\u001fpc:24",
+          "confidence": "unmapped",
+          "classification": "synthetic"
+        },
+        {
+          "offset": 26,
+          "operation": {
+            "mnemonic": "JUMPI"
+          },
+          "fe_origin_key": "bytecode.pc\u001fpackage:file:///work/counter.fe:module:counter:contract:Counter:section:runtime\u001fpc:26",
+          "confidence": "unmapped",
+          "classification": "synthetic"
+        },
+        {
+          "offset": 27,
+          "operation": {
+            "mnemonic": "PUSH1"
+          },
+          "fe_origin_key": "bytecode.pc\u001fpackage:file:///work/counter.fe:module:counter:contract:Counter:section:runtime\u001fpc:27",
+          "confidence": "unmapped",
+          "classification": "synthetic"
+        },
+        {
+          "offset": 29,
+          "operation": {
+            "mnemonic": "JUMP"
+          },
+          "fe_origin_key": "bytecode.pc\u001fpackage:file:///work/counter.fe:module:counter:contract:Counter:section:runtime\u001fpc:29",
+          "confidence": "unmapped",
+          "classification": "synthetic"
+        },
+        {
+          "offset": 30,
+          "operation": {
+            "mnemonic": "JUMPDEST"
+          },
+          "fe_origin_key": "bytecode.pc\u001fpackage:file:///work/counter.fe:module:counter:contract:Counter:section:runtime\u001fpc:30",
+          "confidence": "unmapped",
+          "classification": "unmapped"
+        },
+        {
+          "offset": 31,
+          "operation": {
+            "mnemonic": "POP"
+          },
+          "fe_origin_key": "bytecode.pc\u001fpackage:file:///work/counter.fe:module:counter:contract:Counter:section:runtime\u001fpc:31",
+          "confidence": "unmapped",
+          "classification": "synthetic"
+        },
+        {
+          "offset": 32,
+          "operation": {
+            "mnemonic": "CALLVALUE"
+          },
+          "fe_origin_key": "bytecode.pc\u001fpackage:file:///work/counter.fe:module:counter:contract:Counter:section:runtime\u001fpc:32",
+          "confidence": "unmapped",
+          "classification": "synthetic"
+        },
+        {
+          "offset": 33,
+          "operation": {
+            "mnemonic": "ISZERO"
+          },
+          "fe_origin_key": "bytecode.pc\u001fpackage:file:///work/counter.fe:module:counter:contract:Counter:section:runtime\u001fpc:33",
+          "confidence": "unmapped",
+          "classification": "synthetic"
+        },
+        {
+          "offset": 34,
+          "operation": {
+            "mnemonic": "PUSH1"
+          },
+          "fe_origin_key": "bytecode.pc\u001fpackage:file:///work/counter.fe:module:counter:contract:Counter:section:runtime\u001fpc:34",
+          "confidence": "unmapped",
+          "classification": "synthetic"
+        },
+        {
+          "offset": 36,
+          "operation": {
+            "mnemonic": "JUMPI"
+          },
+          "fe_origin_key": "bytecode.pc\u001fpackage:file:///work/counter.fe:module:counter:contract:Counter:section:runtime\u001fpc:36",
+          "confidence": "unmapped",
+          "classification": "synthetic"
+        },
+        {
+          "offset": 37,
+          "operation": {
+            "mnemonic": "JUMPDEST"
+          },
+          "fe_origin_key": "bytecode.pc\u001fpackage:file:///work/counter.fe:module:counter:contract:Counter:section:runtime\u001fpc:37",
+          "confidence": "unmapped",
+          "classification": "unmapped"
+        },
+        {
+          "offset": 38,
+          "operation": {
+            "mnemonic": "PUSH0"
+          },
+          "fe_origin_key": "bytecode.pc\u001fpackage:file:///work/counter.fe:module:counter:contract:Counter:section:runtime\u001fpc:38",
+          "confidence": "unmapped",
+          "classification": "synthetic"
+        },
+        {
+          "offset": 39,
+          "operation": {
+            "mnemonic": "PUSH0"
+          },
+          "fe_origin_key": "bytecode.pc\u001fpackage:file:///work/counter.fe:module:counter:contract:Counter:section:runtime\u001fpc:39",
+          "confidence": "unmapped",
+          "classification": "synthetic"
+        },
+        {
+          "offset": 40,
+          "operation": {
+            "mnemonic": "REVERT"
+          },
+          "fe_origin_key": "bytecode.pc\u001fpackage:file:///work/counter.fe:module:counter:contract:Counter:section:runtime\u001fpc:40",
+          "confidence": "unmapped",
+          "classification": "synthetic"
+        },
+        {
+          "offset": 41,
+          "operation": {
+            "mnemonic": "JUMPDEST"
+          },
+          "fe_origin_key": "bytecode.pc\u001fpackage:file:///work/counter.fe:module:counter:contract:Counter:section:runtime\u001fpc:41",
+          "confidence": "unmapped",
+          "classification": "unmapped"
+        },
+        {
+          "offset": 42,
+          "operation": {
+            "mnemonic": "CALLDATASIZE"
+          },
+          "context": {
+            "code": {
+              "source": {
+                "id": 7
+              },
+              "range": {
+                "offset": 1039,
+                "length": 14
+              }
+            }
+          },
+          "fe_origin_key": "bytecode.pc\u001fpackage:file:///work/counter.fe:module:counter:contract:Counter:section:runtime\u001fpc:42",
+          "confidence": "high",
+          "classification": "source_mapped"
+        },
+        {
+          "offset": 43,
+          "operation": {
+            "mnemonic": "PUSH1"
+          },
+          "context": {
+            "code": {
+              "source": {
+                "id": 3
+              },
+              "range": {
+                "offset": 4112,
+                "length": 16
+              }
+            }
+          },
+          "fe_origin_key": "bytecode.pc\u001fpackage:file:///work/counter.fe:module:counter:contract:Counter:section:runtime\u001fpc:43",
+          "confidence": "high",
+          "classification": "source_mapped"
+        },
+        {
+          "offset": 45,
+          "operation": {
+            "mnemonic": "SWAP1"
+          },
+          "context": {
+            "code": {
+              "source": {
+                "id": 3
+              },
+              "range": {
+                "offset": 4112,
+                "length": 16
+              }
+            }
+          },
+          "fe_origin_key": "bytecode.pc\u001fpackage:file:///work/counter.fe:module:counter:contract:Counter:section:runtime\u001fpc:45",
+          "confidence": "high",
+          "classification": "source_mapped"
+        },
+        {
+          "offset": 46,
+          "operation": {
+            "mnemonic": "SUB"
+          },
+          "context": {
+            "code": {
+              "source": {
+                "id": 3
+              },
+              "range": {
+                "offset": 4112,
+                "length": 16
+              }
+            }
+          },
+          "fe_origin_key": "bytecode.pc\u001fpackage:file:///work/counter.fe:module:counter:contract:Counter:section:runtime\u001fpc:46",
+          "confidence": "high",
+          "classification": "source_mapped"
+        },
+        {
+          "offset": 47,
+          "operation": {
+            "mnemonic": "PUSH1"
+          },
+          "context": {
+            "code": {
+              "source": {
+                "id": 3
+              },
+              "range": {
+                "offset": 4145,
+                "length": 37
+              }
+            }
+          },
+          "fe_origin_key": "bytecode.pc\u001fpackage:file:///work/counter.fe:module:counter:contract:Counter:section:runtime\u001fpc:47",
+          "confidence": "high",
+          "classification": "source_mapped"
+        },
+        {
+          "offset": 49,
+          "operation": {
+            "mnemonic": "SWAP1"
+          },
+          "context": {
+            "code": {
+              "source": {
+                "id": 3
+              },
+              "range": {
+                "offset": 4145,
+                "length": 37
+              }
+            }
+          },
+          "fe_origin_key": "bytecode.pc\u001fpackage:file:///work/counter.fe:module:counter:contract:Counter:section:runtime\u001fpc:49",
+          "confidence": "high",
+          "classification": "source_mapped"
+        },
+        {
+          "offset": 50,
+          "operation": {
+            "mnemonic": "SLT"
+          },
+          "context": {
+            "code": {
+              "source": {
+                "id": 3
+              },
+              "range": {
+                "offset": 4145,
+                "length": 37
+              }
+            }
+          },
+          "fe_origin_key": "bytecode.pc\u001fpackage:file:///work/counter.fe:module:counter:contract:Counter:section:runtime\u001fpc:50",
+          "confidence": "high",
+          "classification": "source_mapped"
+        },
+        {
+          "offset": 51,
+          "operation": {
+            "mnemonic": "PUSH1"
+          },
+          "fe_origin_key": "bytecode.pc\u001fpackage:file:///work/counter.fe:module:counter:contract:Counter:section:runtime\u001fpc:51",
+          "confidence": "unmapped",
+          "classification": "synthetic"
+        },
+        {
+          "offset": 53,
+          "operation": {
+            "mnemonic": "JUMPI"
+          },
+          "fe_origin_key": "bytecode.pc\u001fpackage:file:///work/counter.fe:module:counter:contract:Counter:section:runtime\u001fpc:53",
+          "confidence": "unmapped",
+          "classification": "synthetic"
+        },
+        {
+          "offset": 54,
+          "operation": {
+            "mnemonic": "PUSH1"
+          },
+          "context": {
+            "code": {
+              "source": {
+                "id": 7
+              },
+              "range": {
+                "offset": 1274,
+                "length": 37
+              }
+            }
+          },
+          "fe_origin_key": "bytecode.pc\u001fpackage:file:///work/counter.fe:module:counter:contract:Counter:section:runtime\u001fpc:54",
+          "confidence": "high",
+          "classification": "source_mapped"
+        },
+        {
+          "offset": 56,
+          "operation": {
+            "mnemonic": "CALLDATALOAD"
+          },
+          "context": {
+            "code": {
+              "source": {
+                "id": 7
+              },
+              "range": {
+                "offset": 1274,
+                "length": 37
+              }
+            }
+          },
+          "fe_origin_key": "bytecode.pc\u001fpackage:file:///work/counter.fe:module:counter:contract:Counter:section:runtime\u001fpc:56",
+          "confidence": "high",
+          "classification": "source_mapped"
+        },
+        {
+          "offset": 57,
+          "operation": {
+            "mnemonic": "DUP1"
+          },
+          "context": {
+            "code": {
+              "source": {
+                "id": 0
+              },
+              "range": {
+                "offset": 224,
+                "length": 5
+              }
+            }
+          },
+          "fe_origin_key": "bytecode.pc\u001fpackage:file:///work/counter.fe:module:counter:contract:Counter:section:runtime\u001fpc:57",
+          "confidence": "high",
+          "classification": "source_mapped"
+        },
+        {
+          "offset": 58,
+          "operation": {
+            "mnemonic": "PUSH1"
+          },
+          "context": {
+            "code": {
+              "source": {
+                "id": 0
+              },
+              "range": {
+                "offset": 224,
+                "length": 5
+              }
+            }
+          },
+          "fe_origin_key": "bytecode.pc\u001fpackage:file:///work/counter.fe:module:counter:contract:Counter:section:runtime\u001fpc:58",
+          "confidence": "high",
+          "classification": "source_mapped"
+        },
+        {
+          "offset": 60,
+          "operation": {
+            "mnemonic": "SHL"
+          },
+          "context": {
+            "code": {
+              "source": {
+                "id": 0
+              },
+              "range": {
+                "offset": 224,
+                "length": 5
+              }
+            }
+          },
+          "fe_origin_key": "bytecode.pc\u001fpackage:file:///work/counter.fe:module:counter:contract:Counter:section:runtime\u001fpc:60",
+          "confidence": "high",
+          "classification": "source_mapped"
+        },
+        {
+          "offset": 61,
+          "operation": {
+            "mnemonic": "DUP1"
+          },
+          "context": {
+            "code": {
+              "source": {
+                "id": 0
+              },
+              "range": {
+                "offset": 224,
+                "length": 5
+              }
+            }
+          },
+          "fe_origin_key": "bytecode.pc\u001fpackage:file:///work/counter.fe:module:counter:contract:Counter:section:runtime\u001fpc:61",
+          "confidence": "high",
+          "classification": "source_mapped"
+        },
+        {
+          "offset": 62,
+          "operation": {
+            "mnemonic": "PUSH1"
+          },
+          "context": {
+            "code": {
+              "source": {
+                "id": 0
+              },
+              "range": {
+                "offset": 224,
+                "length": 5
+              }
+            }
+          },
+          "fe_origin_key": "bytecode.pc\u001fpackage:file:///work/counter.fe:module:counter:contract:Counter:section:runtime\u001fpc:62",
+          "confidence": "high",
+          "classification": "source_mapped"
+        },
+        {
+          "offset": 64,
+          "operation": {
+            "mnemonic": "SHR"
+          },
+          "context": {
+            "code": {
+              "source": {
+                "id": 0
+              },
+              "range": {
+                "offset": 224,
+                "length": 5
+              }
+            }
+          },
+          "fe_origin_key": "bytecode.pc\u001fpackage:file:///work/counter.fe:module:counter:contract:Counter:section:runtime\u001fpc:64",
+          "confidence": "high",
+          "classification": "source_mapped"
+        },
+        {
+          "offset": 65,
+          "operation": {
+            "mnemonic": "SWAP1"
+          },
+          "context": {
+            "code": {
+              "source": {
+                "id": 0
+              },
+              "range": {
+                "offset": 224,
+                "length": 5
+              }
+            }
+          },
+          "fe_origin_key": "bytecode.pc\u001fpackage:file:///work/counter.fe:module:counter:contract:Counter:section:runtime\u001fpc:65",
+          "confidence": "high",
+          "classification": "source_mapped"
+        },
+        {
+          "offset": 66,
+          "operation": {
+            "mnemonic": "SWAP2"
+          },
+          "context": {
+            "code": {
+              "source": {
+                "id": 0
+              },
+              "range": {
+                "offset": 224,
+                "length": 5
+              }
+            }
+          },
+          "fe_origin_key": "bytecode.pc\u001fpackage:file:///work/counter.fe:module:counter:contract:Counter:section:runtime\u001fpc:66",
+          "confidence": "high",
+          "classification": "source_mapped"
+        },
+        {
+          "offset": 67,
+          "operation": {
+            "mnemonic": "EQ"
+          },
+          "context": {
+            "code": {
+              "source": {
+                "id": 0
+              },
+              "range": {
+                "offset": 224,
+                "length": 5
+              }
+            }
+          },
+          "fe_origin_key": "bytecode.pc\u001fpackage:file:///work/counter.fe:module:counter:contract:Counter:section:runtime\u001fpc:67",
+          "confidence": "high",
+          "classification": "source_mapped"
+        },
+        {
+          "offset": 68,
+          "operation": {
+            "mnemonic": "ISZERO"
+          },
+          "context": {
+            "code": {
+              "source": {
+                "id": 0
+              },
+              "range": {
+                "offset": 224,
+                "length": 5
+              }
+            }
+          },
+          "fe_origin_key": "bytecode.pc\u001fpackage:file:///work/counter.fe:module:counter:contract:Counter:section:runtime\u001fpc:68",
+          "confidence": "high",
+          "classification": "source_mapped"
+        },
+        {
+          "offset": 69,
+          "operation": {
+            "mnemonic": "PUSH1"
+          },
+          "context": {
+            "code": {
+              "source": {
+                "id": 0
+              },
+              "range": {
+                "offset": 224,
+                "length": 5
+              }
+            }
+          },
+          "fe_origin_key": "bytecode.pc\u001fpackage:file:///work/counter.fe:module:counter:contract:Counter:section:runtime\u001fpc:69",
+          "confidence": "high",
+          "classification": "source_mapped"
+        },
+        {
+          "offset": 71,
+          "operation": {
+            "mnemonic": "JUMPI"
+          },
+          "context": {
+            "code": {
+              "source": {
+                "id": 0
+              },
+              "range": {
+                "offset": 224,
+                "length": 5
+              }
+            }
+          },
+          "fe_origin_key": "bytecode.pc\u001fpackage:file:///work/counter.fe:module:counter:contract:Counter:section:runtime\u001fpc:71",
+          "confidence": "high",
+          "classification": "source_mapped"
+        },
+        {
+          "offset": 72,
+          "operation": {
+            "mnemonic": "PUSH1"
+          },
+          "context": {
+            "code": {
+              "source": {
+                "id": 0
+              },
+              "range": {
+                "offset": 241,
+                "length": 11
+              }
+            }
+          },
+          "fe_origin_key": "bytecode.pc\u001fpackage:file:///work/counter.fe:module:counter:contract:Counter:section:runtime\u001fpc:72",
+          "confidence": "high",
+          "classification": "source_mapped"
+        },
+        {
+          "offset": 74,
+          "operation": {
+            "mnemonic": "DUP2"
+          },
+          "context": {
+            "code": {
+              "source": {
+                "id": 0
+              },
+              "range": {
+                "offset": 241,
+                "length": 11
+              }
+            }
+          },
+          "fe_origin_key": "bytecode.pc\u001fpackage:file:///work/counter.fe:module:counter:contract:Counter:section:runtime\u001fpc:74",
+          "confidence": "high",
+          "classification": "source_mapped"
+        },
+        {
+          "offset": 75,
+          "operation": {
+            "mnemonic": "ADD"
+          },
+          "context": {
+            "code": {
+              "source": {
+                "id": 0
+              },
+              "range": {
+                "offset": 241,
+                "length": 11
+              }
+            }
+          },
+          "fe_origin_key": "bytecode.pc\u001fpackage:file:///work/counter.fe:module:counter:contract:Counter:section:runtime\u001fpc:75",
+          "confidence": "high",
+          "classification": "source_mapped"
+        },
+        {
+          "offset": 76,
+          "operation": {
+            "mnemonic": "SWAP1"
+          },
+          "context": {
+            "code": {
+              "source": {
+                "id": 0
+              },
+              "range": {
+                "offset": 241,
+                "length": 11
+              }
+            }
+          },
+          "fe_origin_key": "bytecode.pc\u001fpackage:file:///work/counter.fe:module:counter:contract:Counter:section:runtime\u001fpc:76",
+          "confidence": "high",
+          "classification": "source_mapped"
+        },
+        {
+          "offset": 77,
+          "operation": {
+            "mnemonic": "DUP2"
+          },
+          "context": {
+            "code": {
+              "source": {
+                "id": 0
+              },
+              "range": {
+                "offset": 241,
+                "length": 11
+              }
+            }
+          },
+          "fe_origin_key": "bytecode.pc\u001fpackage:file:///work/counter.fe:module:counter:contract:Counter:section:runtime\u001fpc:77",
+          "confidence": "high",
+          "classification": "source_mapped"
+        },
+        {
+          "offset": 78,
+          "operation": {
+            "mnemonic": "LT"
+          },
+          "context": {
+            "code": {
+              "source": {
+                "id": 0
+              },
+              "range": {
+                "offset": 241,
+                "length": 11
+              }
+            }
+          },
+          "fe_origin_key": "bytecode.pc\u001fpackage:file:///work/counter.fe:module:counter:contract:Counter:section:runtime\u001fpc:78",
+          "confidence": "high",
+          "classification": "source_mapped"
+        },
+        {
+          "offset": 79,
+          "operation": {
+            "mnemonic": "PUSH1"
+          },
+          "context": {
+            "code": {
+              "source": {
+                "id": 0
+              },
+              "range": {
+                "offset": 241,
+                "length": 11
+              }
+            }
+          },
+          "fe_origin_key": "bytecode.pc\u001fpackage:file:///work/counter.fe:module:counter:contract:Counter:section:runtime\u001fpc:79",
+          "confidence": "high",
+          "classification": "source_mapped"
+        },
+        {
+          "offset": 81,
+          "operation": {
+            "mnemonic": "JUMPI"
+          },
+          "context": {
+            "code": {
+              "source": {
+                "id": 0
+              },
+              "range": {
+                "offset": 241,
+                "length": 11
+              }
+            }
+          },
+          "fe_origin_key": "bytecode.pc\u001fpackage:file:///work/counter.fe:module:counter:contract:Counter:section:runtime\u001fpc:81",
+          "confidence": "high",
+          "classification": "source_mapped"
+        },
+        {
+          "offset": 82,
+          "operation": {
+            "mnemonic": "PUSH1"
+          },
+          "context": {
+            "code": {
+              "source": {
+                "id": 0
+              },
+              "range": {
+                "offset": 422,
+                "length": 9
+              }
+            }
+          },
+          "fe_origin_key": "bytecode.pc\u001fpackage:file:///work/counter.fe:module:counter:contract:Counter:section:runtime\u001fpc:82",
+          "confidence": "high",
+          "classification": "source_mapped"
+        },
+        {
+          "offset": 84,
+          "operation": {
+            "mnemonic": "DUP2"
+          },
+          "context": {
+            "code": {
+              "source": {
+                "id": 0
+              },
+              "range": {
+                "offset": 422,
+                "length": 9
+              }
+            }
+          },
+          "fe_origin_key": "bytecode.pc\u001fpackage:file:///work/counter.fe:module:counter:contract:Counter:section:runtime\u001fpc:84",
+          "confidence": "high",
+          "classification": "source_mapped"
+        },
+        {
+          "offset": 85,
+          "operation": {
+            "mnemonic": "GT"
+          },
+          "context": {
+            "code": {
+              "source": {
+                "id": 0
+              },
+              "range": {
+                "offset": 422,
+                "length": 9
+              }
+            }
+          },
+          "fe_origin_key": "bytecode.pc\u001fpackage:file:///work/counter.fe:module:counter:contract:Counter:section:runtime\u001fpc:85",
+          "confidence": "high",
+          "classification": "source_mapped"
+        },
+        {
+          "offset": 86,
+          "operation": {
+            "mnemonic": "ISZERO"
+          },
+          "fe_origin_key": "bytecode.pc\u001fpackage:file:///work/counter.fe:module:counter:contract:Counter:section:runtime\u001fpc:86",
+          "confidence": "unmapped",
+          "classification": "synthetic"
+        },
+        {
+          "offset": 87,
+          "operation": {
+            "mnemonic": "PUSH1"
+          },
+          "fe_origin_key": "bytecode.pc\u001fpackage:file:///work/counter.fe:module:counter:contract:Counter:section:runtime\u001fpc:87",
+          "confidence": "unmapped",
+          "classification": "synthetic"
+        },
+        {
+          "offset": 89,
+          "operation": {
+            "mnemonic": "JUMPI"
+          },
+          "fe_origin_key": "bytecode.pc\u001fpackage:file:///work/counter.fe:module:counter:contract:Counter:section:runtime\u001fpc:89",
+          "confidence": "unmapped",
+          "classification": "synthetic"
+        },
+        {
+          "offset": 90,
+          "operation": {
+            "mnemonic": "PUSH0"
+          },
+          "context": {
+            "code": {
+              "source": {
+                "id": 0
+              },
+              "range": {
+                "offset": 464,
+                "length": 11
+              }
+            }
+          },
+          "fe_origin_key": "bytecode.pc\u001fpackage:file:///work/counter.fe:module:counter:contract:Counter:section:runtime\u001fpc:90",
+          "confidence": "high",
+          "classification": "source_mapped"
+        },
+        {
+          "offset": 91,
+          "operation": {
+            "mnemonic": "SLOAD"
+          },
+          "context": {
+            "code": {
+              "source": {
+                "id": 0
+              },
+              "range": {
+                "offset": 464,
+                "length": 11
+              }
+            }
+          },
+          "fe_origin_key": "bytecode.pc\u001fpackage:file:///work/counter.fe:module:counter:contract:Counter:section:runtime\u001fpc:91",
+          "confidence": "high",
+          "classification": "source_mapped"
+        },
+        {
+          "offset": 92,
+          "operation": {
+            "mnemonic": "DUP2"
+          },
+          "context": {
+            "code": {
+              "source": {
+                "id": 0
+              },
+              "range": {
+                "offset": 464,
+                "length": 18
+              }
+            }
+          },
+          "fe_origin_key": "bytecode.pc\u001fpackage:file:///work/counter.fe:module:counter:contract:Counter:section:runtime\u001fpc:92",
+          "confidence": "high",
+          "classification": "source_mapped"
+        },
+        {
+          "offset": 93,
+          "operation": {
+            "mnemonic": "DUP2"
+          },
+          "context": {
+            "code": {
+              "source": {
+                "id": 0
+              },
+              "range": {
+                "offset": 464,
+                "length": 18
+              }
+            }
+          },
+          "fe_origin_key": "bytecode.pc\u001fpackage:file:///work/counter.fe:module:counter:contract:Counter:section:runtime\u001fpc:93",
+          "confidence": "high",
+          "classification": "source_mapped"
+        },
+        {
+          "offset": 94,
+          "operation": {
+            "mnemonic": "ADD"
+          },
+          "context": {
+            "code": {
+              "source": {
+                "id": 0
+              },
+              "range": {
+                "offset": 464,
+                "length": 18
+              }
+            }
+          },
+          "fe_origin_key": "bytecode.pc\u001fpackage:file:///work/counter.fe:module:counter:contract:Counter:section:runtime\u001fpc:94",
+          "confidence": "high",
+          "classification": "source_mapped"
+        },
+        {
+          "offset": 95,
+          "operation": {
+            "mnemonic": "SWAP1"
+          },
+          "context": {
+            "code": {
+              "source": {
+                "id": 0
+              },
+              "range": {
+                "offset": 464,
+                "length": 18
+              }
+            }
+          },
+          "fe_origin_key": "bytecode.pc\u001fpackage:file:///work/counter.fe:module:counter:contract:Counter:section:runtime\u001fpc:95",
+          "confidence": "high",
+          "classification": "source_mapped"
+        },
+        {
+          "offset": 96,
+          "operation": {
+            "mnemonic": "DUP2"
+          },
+          "context": {
+            "code": {
+              "source": {
+                "id": 0
+              },
+              "range": {
+                "offset": 464,
+                "length": 18
+              }
+            }
+          },
+          "fe_origin_key": "bytecode.pc\u001fpackage:file:///work/counter.fe:module:counter:contract:Counter:section:runtime\u001fpc:96",
+          "confidence": "high",
+          "classification": "source_mapped"
+        },
+        {
+          "offset": 97,
+          "operation": {
+            "mnemonic": "LT"
+          },
+          "context": {
+            "code": {
+              "source": {
+                "id": 0
+              },
+              "range": {
+                "offset": 464,
+                "length": 18
+              }
+            }
+          },
+          "fe_origin_key": "bytecode.pc\u001fpackage:file:///work/counter.fe:module:counter:contract:Counter:section:runtime\u001fpc:97",
+          "confidence": "high",
+          "classification": "source_mapped"
+        },
+        {
+          "offset": 98,
+          "operation": {
+            "mnemonic": "PUSH1"
+          },
+          "context": {
+            "code": {
+              "source": {
+                "id": 0
+              },
+              "range": {
+                "offset": 464,
+                "length": 18
+              }
+            }
+          },
+          "fe_origin_key": "bytecode.pc\u001fpackage:file:///work/counter.fe:module:counter:contract:Counter:section:runtime\u001fpc:98",
+          "confidence": "high",
+          "classification": "source_mapped"
+        },
+        {
+          "offset": 100,
+          "operation": {
+            "mnemonic": "JUMPI"
+          },
+          "context": {
+            "code": {
+              "source": {
+                "id": 0
+              },
+              "range": {
+                "offset": 464,
+                "length": 18
+              }
+            }
+          },
+          "fe_origin_key": "bytecode.pc\u001fpackage:file:///work/counter.fe:module:counter:contract:Counter:section:runtime\u001fpc:100",
+          "confidence": "high",
+          "classification": "source_mapped"
+        },
+        {
+          "offset": 101,
+          "operation": {
+            "mnemonic": "PUSH0"
+          },
+          "context": {
+            "code": {
+              "source": {
+                "id": 0
+              },
+              "range": {
+                "offset": 450,
+                "length": 32
+              }
+            }
+          },
+          "fe_origin_key": "bytecode.pc\u001fpackage:file:///work/counter.fe:module:counter:contract:Counter:section:runtime\u001fpc:101",
+          "confidence": "high",
+          "classification": "source_mapped"
+        },
+        {
+          "offset": 102,
+          "operation": {
+            "mnemonic": "SSTORE"
+          },
+          "context": {
+            "code": {
+              "source": {
+                "id": 0
+              },
+              "range": {
+                "offset": 450,
+                "length": 32
+              }
+            }
+          },
+          "fe_origin_key": "bytecode.pc\u001fpackage:file:///work/counter.fe:module:counter:contract:Counter:section:runtime\u001fpc:102",
+          "confidence": "high",
+          "classification": "source_mapped"
+        },
+        {
+          "offset": 103,
+          "operation": {
+            "mnemonic": "PUSH1"
+          },
+          "fe_origin_key": "bytecode.pc\u001fpackage:file:///work/counter.fe:module:counter:contract:Counter:section:runtime\u001fpc:103",
+          "confidence": "unmapped",
+          "classification": "synthetic"
+        },
+        {
+          "offset": 105,
+          "operation": {
+            "mnemonic": "JUMP"
+          },
+          "fe_origin_key": "bytecode.pc\u001fpackage:file:///work/counter.fe:module:counter:contract:Counter:section:runtime\u001fpc:105",
+          "confidence": "unmapped",
+          "classification": "synthetic"
+        },
+        {
+          "offset": 106,
+          "operation": {
+            "mnemonic": "JUMPDEST"
+          },
+          "fe_origin_key": "bytecode.pc\u001fpackage:file:///work/counter.fe:module:counter:contract:Counter:section:runtime\u001fpc:106",
+          "confidence": "unmapped",
+          "classification": "unmapped"
+        },
+        {
+          "offset": 107,
+          "operation": {
+            "mnemonic": "PUSH0"
+          },
+          "context": {
+            "code": {
+              "source": {
+                "id": 0
+              },
+              "range": {
+                "offset": 534,
+                "length": 11
+              }
+            }
+          },
+          "fe_origin_key": "bytecode.pc\u001fpackage:file:///work/counter.fe:module:counter:contract:Counter:section:runtime\u001fpc:107",
+          "confidence": "high",
+          "classification": "source_mapped"
+        },
+        {
+          "offset": 108,
+          "operation": {
+            "mnemonic": "SLOAD"
+          },
+          "context": {
+            "code": {
+              "source": {
+                "id": 0
+              },
+              "range": {
+                "offset": 534,
+                "length": 11
+              }
+            }
+          },
+          "fe_origin_key": "bytecode.pc\u001fpackage:file:///work/counter.fe:module:counter:contract:Counter:section:runtime\u001fpc:108",
+          "confidence": "high",
+          "classification": "source_mapped"
+        },
+        {
+          "offset": 109,
+          "operation": {
+            "mnemonic": "PUSH1"
+          },
+          "context": {
+            "code": {
+              "source": {
+                "id": 0
+              },
+              "range": {
+                "offset": 534,
+                "length": 15
+              }
+            }
+          },
+          "fe_origin_key": "bytecode.pc\u001fpackage:file:///work/counter.fe:module:counter:contract:Counter:section:runtime\u001fpc:109",
+          "confidence": "high",
+          "classification": "source_mapped"
+        },
+        {
+          "offset": 111,
+          "operation": {
+            "mnemonic": "DUP2"
+          },
+          "context": {
+            "code": {
+              "source": {
+                "id": 0
+              },
+              "range": {
+                "offset": 534,
+                "length": 15
+              }
+            }
+          },
+          "fe_origin_key": "bytecode.pc\u001fpackage:file:///work/counter.fe:module:counter:contract:Counter:section:runtime\u001fpc:111",
+          "confidence": "high",
+          "classification": "source_mapped"
+        },
+        {
+          "offset": 112,
+          "operation": {
+            "mnemonic": "ADD"
+          },
+          "context": {
+            "code": {
+              "source": {
+                "id": 0
+              },
+              "range": {
+                "offset": 534,
+                "length": 15
+              }
+            }
+          },
+          "fe_origin_key": "bytecode.pc\u001fpackage:file:///work/counter.fe:module:counter:contract:Counter:section:runtime\u001fpc:112",
+          "confidence": "high",
+          "classification": "source_mapped"
+        },
+        {
+          "offset": 113,
+          "operation": {
+            "mnemonic": "SWAP1"
+          },
+          "context": {
+            "code": {
+              "source": {
+                "id": 0
+              },
+              "range": {
+                "offset": 534,
+                "length": 15
+              }
+            }
+          },
+          "fe_origin_key": "bytecode.pc\u001fpackage:file:///work/counter.fe:module:counter:contract:Counter:section:runtime\u001fpc:113",
+          "confidence": "high",
+          "classification": "source_mapped"
+        },
+        {
+          "offset": 114,
+          "operation": {
+            "mnemonic": "DUP2"
+          },
+          "context": {
+            "code": {
+              "source": {
+                "id": 0
+              },
+              "range": {
+                "offset": 534,
+                "length": 15
+              }
+            }
+          },
+          "fe_origin_key": "bytecode.pc\u001fpackage:file:///work/counter.fe:module:counter:contract:Counter:section:runtime\u001fpc:114",
+          "confidence": "high",
+          "classification": "source_mapped"
+        },
+        {
+          "offset": 115,
+          "operation": {
+            "mnemonic": "LT"
+          },
+          "context": {
+            "code": {
+              "source": {
+                "id": 0
+              },
+              "range": {
+                "offset": 534,
+                "length": 15
+              }
+            }
+          },
+          "fe_origin_key": "bytecode.pc\u001fpackage:file:///work/counter.fe:module:counter:contract:Counter:section:runtime\u001fpc:115",
+          "confidence": "high",
+          "classification": "source_mapped"
+        },
+        {
+          "offset": 116,
+          "operation": {
+            "mnemonic": "PUSH1"
+          },
+          "context": {
+            "code": {
+              "source": {
+                "id": 0
+              },
+              "range": {
+                "offset": 534,
+                "length": 15
+              }
+            }
+          },
+          "fe_origin_key": "bytecode.pc\u001fpackage:file:///work/counter.fe:module:counter:contract:Counter:section:runtime\u001fpc:116",
+          "confidence": "high",
+          "classification": "source_mapped"
+        },
+        {
+          "offset": 118,
+          "operation": {
+            "mnemonic": "JUMPI"
+          },
+          "context": {
+            "code": {
+              "source": {
+                "id": 0
+              },
+              "range": {
+                "offset": 534,
+                "length": 15
+              }
+            }
+          },
+          "fe_origin_key": "bytecode.pc\u001fpackage:file:///work/counter.fe:module:counter:contract:Counter:section:runtime\u001fpc:118",
+          "confidence": "high",
+          "classification": "source_mapped"
+        },
+        {
+          "offset": 119,
+          "operation": {
+            "mnemonic": "PUSH0"
+          },
+          "context": {
+            "code": {
+              "source": {
+                "id": 0
+              },
+              "range": {
+                "offset": 520,
+                "length": 29
+              }
+            }
+          },
+          "fe_origin_key": "bytecode.pc\u001fpackage:file:///work/counter.fe:module:counter:contract:Counter:section:runtime\u001fpc:119",
+          "confidence": "high",
+          "classification": "source_mapped"
+        },
+        {
+          "offset": 120,
+          "operation": {
+            "mnemonic": "SSTORE"
+          },
+          "context": {
+            "code": {
+              "source": {
+                "id": 0
+              },
+              "range": {
+                "offset": 520,
+                "length": 29
+              }
+            }
+          },
+          "fe_origin_key": "bytecode.pc\u001fpackage:file:///work/counter.fe:module:counter:contract:Counter:section:runtime\u001fpc:120",
+          "confidence": "high",
+          "classification": "source_mapped"
+        },
+        {
+          "offset": 121,
+          "operation": {
+            "mnemonic": "JUMPDEST"
+          },
+          "fe_origin_key": "bytecode.pc\u001fpackage:file:///work/counter.fe:module:counter:contract:Counter:section:runtime\u001fpc:121",
+          "confidence": "unmapped",
+          "classification": "unmapped"
+        },
+        {
+          "offset": 122,
+          "operation": {
+            "mnemonic": "PUSH1"
+          },
+          "context": {
+            "code": {
+              "source": {
+                "id": 0
+              },
+              "range": {
+                "offset": 576,
+                "length": 17
+              }
+            }
+          },
+          "fe_origin_key": "bytecode.pc\u001fpackage:file:///work/counter.fe:module:counter:contract:Counter:section:runtime\u001fpc:122",
+          "confidence": "high",
+          "classification": "source_mapped"
+        },
+        {
+          "offset": 124,
+          "operation": {
+            "mnemonic": "SSTORE"
+          },
+          "context": {
+            "code": {
+              "source": {
+                "id": 0
+              },
+              "range": {
+                "offset": 576,
+                "length": 17
+              }
+            }
+          },
+          "fe_origin_key": "bytecode.pc\u001fpackage:file:///work/counter.fe:module:counter:contract:Counter:section:runtime\u001fpc:124",
+          "confidence": "high",
+          "classification": "source_mapped"
+        },
+        {
+          "offset": 125,
+          "operation": {
+            "mnemonic": "PUSH0"
+          },
+          "context": {
+            "code": {
+              "source": {
+                "id": 0
+              },
+              "range": {
+                "offset": 613,
+                "length": 11
+              }
+            }
+          },
+          "fe_origin_key": "bytecode.pc\u001fpackage:file:///work/counter.fe:module:counter:contract:Counter:section:runtime\u001fpc:125",
+          "confidence": "high",
+          "classification": "source_mapped"
+        },
+        {
+          "offset": 126,
+          "operation": {
+            "mnemonic": "SLOAD"
+          },
+          "context": {
+            "code": {
+              "source": {
+                "id": 0
+              },
+              "range": {
+                "offset": 613,
+                "length": 11
+              }
+            }
+          },
+          "fe_origin_key": "bytecode.pc\u001fpackage:file:///work/counter.fe:module:counter:contract:Counter:section:runtime\u001fpc:126",
+          "confidence": "high",
+          "classification": "source_mapped"
+        },
+        {
+          "offset": 127,
+          "operation": {
+            "mnemonic": "PUSH0"
+          },
+          "context": {
+            "code": {
+              "source": {
+                "id": 1
+              },
+              "range": {
+                "offset": 6818,
+                "length": 33
+              }
+            }
+          },
+          "fe_origin_key": "bytecode.pc\u001fpackage:file:///work/counter.fe:module:counter:contract:Counter:section:runtime\u001fpc:127",
+          "confidence": "high",
+          "classification": "source_mapped"
+        },
+        {
+          "offset": 128,
+          "operation": {
+            "mnemonic": "MSTORE"
+          },
+          "context": {
+            "code": {
+              "source": {
+                "id": 1
+              },
+              "range": {
+                "offset": 6818,
+                "length": 33
+              }
+            }
+          },
+          "fe_origin_key": "bytecode.pc\u001fpackage:file:///work/counter.fe:module:counter:contract:Counter:section:runtime\u001fpc:128",
+          "confidence": "high",
+          "classification": "source_mapped"
+        },
+        {
+          "offset": 129,
+          "operation": {
+            "mnemonic": "PUSH1"
+          },
+          "context": {
+            "code": {
+              "source": {
+                "id": 6
+              },
+              "range": {
+                "offset": 32380,
+                "length": 53
+              }
+            }
+          },
+          "fe_origin_key": "bytecode.pc\u001fpackage:file:///work/counter.fe:module:counter:contract:Counter:section:runtime\u001fpc:129",
+          "confidence": "high",
+          "classification": "source_mapped"
+        },
+        {
+          "offset": 131,
+          "operation": {
+            "mnemonic": "PUSH0"
+          },
+          "context": {
+            "code": {
+              "source": {
+                "id": 6
+              },
+              "range": {
+                "offset": 32380,
+                "length": 53
+              }
+            }
+          },
+          "fe_origin_key": "bytecode.pc\u001fpackage:file:///work/counter.fe:module:counter:contract:Counter:section:runtime\u001fpc:131",
+          "confidence": "high",
+          "classification": "source_mapped"
+        },
+        {
+          "offset": 132,
+          "operation": {
+            "mnemonic": "RETURN"
+          },
+          "context": {
+            "code": {
+              "source": {
+                "id": 6
+              },
+              "range": {
+                "offset": 32380,
+                "length": 53
+              }
+            }
+          },
+          "fe_origin_key": "bytecode.pc\u001fpackage:file:///work/counter.fe:module:counter:contract:Counter:section:runtime\u001fpc:132",
+          "confidence": "high",
+          "classification": "source_mapped"
+        },
+        {
+          "offset": 133,
+          "operation": {
+            "mnemonic": "JUMPDEST"
+          },
+          "fe_origin_key": "bytecode.pc\u001fpackage:file:///work/counter.fe:module:counter:contract:Counter:section:runtime\u001fpc:133",
+          "confidence": "unmapped",
+          "classification": "unmapped"
+        },
+        {
+          "offset": 134,
+          "operation": {
+            "mnemonic": "PUSH4"
+          },
+          "fe_origin_key": "bytecode.pc\u001fpackage:file:///work/counter.fe:module:counter:contract:Counter:section:runtime\u001fpc:134",
+          "confidence": "unmapped",
+          "classification": "unmapped"
+        },
+        {
+          "offset": 139,
+          "operation": {
+            "mnemonic": "PUSH1"
+          },
+          "fe_origin_key": "bytecode.pc\u001fpackage:file:///work/counter.fe:module:counter:contract:Counter:section:runtime\u001fpc:139",
+          "confidence": "unmapped",
+          "classification": "unmapped"
+        },
+        {
+          "offset": 141,
+          "operation": {
+            "mnemonic": "SHL"
+          },
+          "fe_origin_key": "bytecode.pc\u001fpackage:file:///work/counter.fe:module:counter:contract:Counter:section:runtime\u001fpc:141",
+          "confidence": "unmapped",
+          "classification": "unmapped"
+        },
+        {
+          "offset": 142,
+          "operation": {
+            "mnemonic": "PUSH0"
+          },
+          "fe_origin_key": "bytecode.pc\u001fpackage:file:///work/counter.fe:module:counter:contract:Counter:section:runtime\u001fpc:142",
+          "confidence": "unmapped",
+          "classification": "unmapped"
+        },
+        {
+          "offset": 143,
+          "operation": {
+            "mnemonic": "MSTORE"
+          },
+          "fe_origin_key": "bytecode.pc\u001fpackage:file:///work/counter.fe:module:counter:contract:Counter:section:runtime\u001fpc:143",
+          "confidence": "unmapped",
+          "classification": "unmapped"
+        },
+        {
+          "offset": 144,
+          "operation": {
+            "mnemonic": "PUSH1"
+          },
+          "fe_origin_key": "bytecode.pc\u001fpackage:file:///work/counter.fe:module:counter:contract:Counter:section:runtime\u001fpc:144",
+          "confidence": "unmapped",
+          "classification": "unmapped"
+        },
+        {
+          "offset": 146,
+          "operation": {
+            "mnemonic": "PUSH1"
+          },
+          "fe_origin_key": "bytecode.pc\u001fpackage:file:///work/counter.fe:module:counter:contract:Counter:section:runtime\u001fpc:146",
+          "confidence": "unmapped",
+          "classification": "unmapped"
+        },
+        {
+          "offset": 148,
+          "operation": {
+            "mnemonic": "MSTORE"
+          },
+          "fe_origin_key": "bytecode.pc\u001fpackage:file:///work/counter.fe:module:counter:contract:Counter:section:runtime\u001fpc:148",
+          "confidence": "unmapped",
+          "classification": "unmapped"
+        },
+        {
+          "offset": 149,
+          "operation": {
+            "mnemonic": "PUSH1"
+          },
+          "fe_origin_key": "bytecode.pc\u001fpackage:file:///work/counter.fe:module:counter:contract:Counter:section:runtime\u001fpc:149",
+          "confidence": "unmapped",
+          "classification": "unmapped"
+        },
+        {
+          "offset": 151,
+          "operation": {
+            "mnemonic": "PUSH0"
+          },
+          "fe_origin_key": "bytecode.pc\u001fpackage:file:///work/counter.fe:module:counter:contract:Counter:section:runtime\u001fpc:151",
+          "confidence": "unmapped",
+          "classification": "unmapped"
+        },
+        {
+          "offset": 152,
+          "operation": {
+            "mnemonic": "REVERT"
+          },
+          "fe_origin_key": "bytecode.pc\u001fpackage:file:///work/counter.fe:module:counter:contract:Counter:section:runtime\u001fpc:152",
+          "confidence": "unmapped",
+          "classification": "unmapped"
+        },
+        {
+          "offset": 153,
+          "operation": {
+            "mnemonic": "JUMPDEST"
+          },
+          "fe_origin_key": "bytecode.pc\u001fpackage:file:///work/counter.fe:module:counter:contract:Counter:section:runtime\u001fpc:153",
+          "confidence": "unmapped",
+          "classification": "unmapped"
+        },
+        {
+          "offset": 154,
+          "operation": {
+            "mnemonic": "CALLVALUE"
+          },
+          "fe_origin_key": "bytecode.pc\u001fpackage:file:///work/counter.fe:module:counter:contract:Counter:section:runtime\u001fpc:154",
+          "confidence": "unmapped",
+          "classification": "synthetic"
+        },
+        {
+          "offset": 155,
+          "operation": {
+            "mnemonic": "PUSH1"
+          },
+          "fe_origin_key": "bytecode.pc\u001fpackage:file:///work/counter.fe:module:counter:contract:Counter:section:runtime\u001fpc:155",
+          "confidence": "unmapped",
+          "classification": "synthetic"
+        },
+        {
+          "offset": 157,
+          "operation": {
+            "mnemonic": "JUMPI"
+          },
+          "fe_origin_key": "bytecode.pc\u001fpackage:file:///work/counter.fe:module:counter:contract:Counter:section:runtime\u001fpc:157",
+          "confidence": "unmapped",
+          "classification": "synthetic"
+        },
+        {
+          "offset": 158,
+          "operation": {
+            "mnemonic": "PUSH0"
+          },
+          "context": {
+            "code": {
+              "source": {
+                "id": 0
+              },
+              "range": {
+                "offset": 685,
+                "length": 11
+              }
+            }
+          },
+          "fe_origin_key": "bytecode.pc\u001fpackage:file:///work/counter.fe:module:counter:contract:Counter:section:runtime\u001fpc:158",
+          "confidence": "high",
+          "classification": "source_mapped"
+        },
+        {
+          "offset": 159,
+          "operation": {
+            "mnemonic": "SLOAD"
+          },
+          "context": {
+            "code": {
+              "source": {
+                "id": 0
+              },
+              "range": {
+                "offset": 685,
+                "length": 11
+              }
+            }
+          },
+          "fe_origin_key": "bytecode.pc\u001fpackage:file:///work/counter.fe:module:counter:contract:Counter:section:runtime\u001fpc:159",
+          "confidence": "high",
+          "classification": "source_mapped"
+        },
+        {
+          "offset": 160,
+          "operation": {
+            "mnemonic": "PUSH0"
+          },
+          "context": {
+            "code": {
+              "source": {
+                "id": 1
+              },
+              "range": {
+                "offset": 6818,
+                "length": 33
+              }
+            }
+          },
+          "fe_origin_key": "bytecode.pc\u001fpackage:file:///work/counter.fe:module:counter:contract:Counter:section:runtime\u001fpc:160",
+          "confidence": "high",
+          "classification": "source_mapped"
+        },
+        {
+          "offset": 161,
+          "operation": {
+            "mnemonic": "MSTORE"
+          },
+          "context": {
+            "code": {
+              "source": {
+                "id": 1
+              },
+              "range": {
+                "offset": 6818,
+                "length": 33
+              }
+            }
+          },
+          "fe_origin_key": "bytecode.pc\u001fpackage:file:///work/counter.fe:module:counter:contract:Counter:section:runtime\u001fpc:161",
+          "confidence": "high",
+          "classification": "source_mapped"
+        },
+        {
+          "offset": 162,
+          "operation": {
+            "mnemonic": "PUSH1"
+          },
+          "context": {
+            "code": {
+              "source": {
+                "id": 6
+              },
+              "range": {
+                "offset": 32380,
+                "length": 53
+              }
+            }
+          },
+          "fe_origin_key": "bytecode.pc\u001fpackage:file:///work/counter.fe:module:counter:contract:Counter:section:runtime\u001fpc:162",
+          "confidence": "high",
+          "classification": "source_mapped"
+        },
+        {
+          "offset": 164,
+          "operation": {
+            "mnemonic": "PUSH0"
+          },
+          "context": {
+            "code": {
+              "source": {
+                "id": 6
+              },
+              "range": {
+                "offset": 32380,
+                "length": 53
+              }
+            }
+          },
+          "fe_origin_key": "bytecode.pc\u001fpackage:file:///work/counter.fe:module:counter:contract:Counter:section:runtime\u001fpc:164",
+          "confidence": "high",
+          "classification": "source_mapped"
+        },
+        {
+          "offset": 165,
+          "operation": {
+            "mnemonic": "RETURN"
+          },
+          "context": {
+            "code": {
+              "source": {
+                "id": 6
+              },
+              "range": {
+                "offset": 32380,
+                "length": 53
+              }
+            }
+          },
+          "fe_origin_key": "bytecode.pc\u001fpackage:file:///work/counter.fe:module:counter:contract:Counter:section:runtime\u001fpc:165",
+          "confidence": "high",
+          "classification": "source_mapped"
+        }
+      ]
+    },
+    {
+      "id": "code.object\u001fpackage:file:///work/counter.fe:module:counter:contract:Counter:section:creation\u001fcreation",
+      "environment": "create",
+      "contract": {
+        "name": "Counter"
+      },
+      "bytecode_hash": "blake3:1828b3a1440aa68fef049283b52f18150154bec092dbd84cae49c9c6d372a671",
+      "instructions": [
+        {
+          "offset": 0,
+          "operation": {
+            "mnemonic": "CALLVALUE"
+          },
+          "fe_origin_key": "bytecode.pc\u001fpackage:file:///work/counter.fe:module:counter:contract:Counter:section:creation\u001fpc:0",
+          "confidence": "unmapped",
+          "classification": "unmapped"
+        },
+        {
+          "offset": 1,
+          "operation": {
+            "mnemonic": "ISZERO"
+          },
+          "fe_origin_key": "bytecode.pc\u001fpackage:file:///work/counter.fe:module:counter:contract:Counter:section:creation\u001fpc:1",
+          "confidence": "unmapped",
+          "classification": "unmapped"
+        },
+        {
+          "offset": 2,
+          "operation": {
+            "mnemonic": "PUSH1"
+          },
+          "fe_origin_key": "bytecode.pc\u001fpackage:file:///work/counter.fe:module:counter:contract:Counter:section:creation\u001fpc:2",
+          "confidence": "unmapped",
+          "classification": "unmapped"
+        },
+        {
+          "offset": 4,
+          "operation": {
+            "mnemonic": "JUMPI"
+          },
+          "fe_origin_key": "bytecode.pc\u001fpackage:file:///work/counter.fe:module:counter:contract:Counter:section:creation\u001fpc:4",
+          "confidence": "unmapped",
+          "classification": "unmapped"
+        },
+        {
+          "offset": 5,
+          "operation": {
+            "mnemonic": "PUSH0"
+          },
+          "fe_origin_key": "bytecode.pc\u001fpackage:file:///work/counter.fe:module:counter:contract:Counter:section:creation\u001fpc:5",
+          "confidence": "unmapped",
+          "classification": "unmapped"
+        },
+        {
+          "offset": 6,
+          "operation": {
+            "mnemonic": "PUSH0"
+          },
+          "fe_origin_key": "bytecode.pc\u001fpackage:file:///work/counter.fe:module:counter:contract:Counter:section:creation\u001fpc:6",
+          "confidence": "unmapped",
+          "classification": "unmapped"
+        },
+        {
+          "offset": 7,
+          "operation": {
+            "mnemonic": "REVERT"
+          },
+          "fe_origin_key": "bytecode.pc\u001fpackage:file:///work/counter.fe:module:counter:contract:Counter:section:creation\u001fpc:7",
+          "confidence": "unmapped",
+          "classification": "unmapped"
+        },
+        {
+          "offset": 8,
+          "operation": {
+            "mnemonic": "JUMPDEST"
+          },
+          "fe_origin_key": "bytecode.pc\u001fpackage:file:///work/counter.fe:module:counter:contract:Counter:section:creation\u001fpc:8",
+          "confidence": "unmapped",
+          "classification": "unmapped"
+        },
+        {
+          "offset": 9,
+          "operation": {
+            "mnemonic": "PUSH1"
+          },
+          "fe_origin_key": "bytecode.pc\u001fpackage:file:///work/counter.fe:module:counter:contract:Counter:section:creation\u001fpc:9",
+          "confidence": "unmapped",
+          "classification": "unmapped"
+        },
+        {
+          "offset": 11,
+          "operation": {
+            "mnemonic": "PUSH1"
+          },
+          "fe_origin_key": "bytecode.pc\u001fpackage:file:///work/counter.fe:module:counter:contract:Counter:section:creation\u001fpc:11",
+          "confidence": "unmapped",
+          "classification": "unmapped"
+        },
+        {
+          "offset": 13,
+          "operation": {
+            "mnemonic": "DUP1"
+          },
+          "fe_origin_key": "bytecode.pc\u001fpackage:file:///work/counter.fe:module:counter:contract:Counter:section:creation\u001fpc:13",
+          "confidence": "unmapped",
+          "classification": "unmapped"
+        },
+        {
+          "offset": 14,
+          "operation": {
+            "mnemonic": "SWAP2"
+          },
+          "fe_origin_key": "bytecode.pc\u001fpackage:file:///work/counter.fe:module:counter:contract:Counter:section:creation\u001fpc:14",
+          "confidence": "unmapped",
+          "classification": "unmapped"
+        },
+        {
+          "offset": 15,
+          "operation": {
+            "mnemonic": "PUSH0"
+          },
+          "fe_origin_key": "bytecode.pc\u001fpackage:file:///work/counter.fe:module:counter:contract:Counter:section:creation\u001fpc:15",
+          "confidence": "unmapped",
+          "classification": "unmapped"
+        },
+        {
+          "offset": 16,
+          "operation": {
+            "mnemonic": "CODECOPY"
+          },
+          "fe_origin_key": "bytecode.pc\u001fpackage:file:///work/counter.fe:module:counter:contract:Counter:section:creation\u001fpc:16",
+          "confidence": "unmapped",
+          "classification": "unmapped"
+        },
+        {
+          "offset": 17,
+          "operation": {
+            "mnemonic": "PUSH0"
+          },
+          "fe_origin_key": "bytecode.pc\u001fpackage:file:///work/counter.fe:module:counter:contract:Counter:section:creation\u001fpc:17",
+          "confidence": "unmapped",
+          "classification": "unmapped"
+        },
+        {
+          "offset": 18,
+          "operation": {
+            "mnemonic": "RETURN"
+          },
+          "fe_origin_key": "bytecode.pc\u001fpackage:file:///work/counter.fe:module:counter:contract:Counter:section:creation\u001fpc:18",
+          "confidence": "unmapped",
+          "classification": "unmapped"
+        }
+      ]
+    }
+  ]
+}

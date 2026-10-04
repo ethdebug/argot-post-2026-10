@@ -1,0 +1,10194 @@
+{
+ "src": "// SPDX-License-Identifier: MIT\npragma solidity ^0.8.0;\ncontract Calls {\n  uint256 public total;\n  function add(uint256 a, uint256 b) internal pure returns (uint256) {\n    require(a < 1000, \"too big\");\n    return a + b;\n  }\n  function twice(uint256 x) internal pure returns (uint256) {\n    return add(x, x);\n  }\n  function run(uint256 x) external {\n    total = twice(x) + add(x, 1);\n  }\n}\n",
+ "file": "Calls.sol",
+ "init": "608060405234601c57600e6020565b6103b561002b82396103b590f35b6026565b60405190565b5f80fdfe60806040526004361015610013575b61016d565b61001d5f3561003c565b80632ddbd13a146100375763a444f5e90361000e5761013a565b6100bf565b60e01c90565b60405190565b5f80fd5b5f80fd5b5f91031261005a57565b61004c565b1c90565b90565b61007690600861007b930261005f565b610063565b90565b906100899154610066565b90565b6100975f5f9061007e565b90565b90565b6100a69061009a565b9052565b91906100bd905f6020850194019061009d565b565b346100ef576100cf366004610050565b6100eb6100da61008c565b6100e2610042565b918291826100aa565b0390f35b610048565b6100fd8161009a565b0361010457565b5f80fd5b90503590610115826100f4565b565b906020828203126101305761012d915f01610108565b90565b61004c565b5f0190565b346101685761015261014d366004610117565b610226565b61015a610042565b8061016481610135565b0390f35b610048565b5f80fd5b90565b90565b61018b61018661019092610171565b610174565b61009a565b90565b634e487b7160e01b5f52601160045260245ffd5b6101b66101bc9193929361009a565b9261009a565b82018092116101c757565b610193565b5f1b90565b906101dd5f19916101cc565b9181191691161790565b6101fb6101f66102009261009a565b610174565b61009a565b90565b90565b9061021b610216610222926101e7565b610203565b82546101d1565b9055565b6102506102569161024a6102398261025c565b916102446001610177565b9061031c565b906101a7565b5f610206565b565b5f90565b61026f90610268610258565b508061031c565b90565b90565b61028961028461028e92610272565b610174565b61009a565b90565b60209181520190565b5f7f746f6f2062696700000000000000000000000000000000000000000000000000910152565b6102ce6007602092610291565b6102d78161029a565b0190565b6102f09060208101905f8183039101526102c1565b90565b156102fa57565b610302610042565b62461bcd60e51b815280610318600482016102db565b0390fd5b9061034d91610329610258565b506103488161034261033c6103e8610275565b9161009a565b106102f3565b6101a7565b9056fea3646970667358221220744dd90c9ed10b2c5cff3338cb9c424cfab3fd93864ad5acf0957b2ca16b872f6c6578706572696d656e74616cf564736f6c637823302e382e33382d63692e323032362e31302e312b636f6d6d69742e62336237646236610062",
+ "deployed": "60806040526004361015610013575b61016d565b61001d5f3561003c565b80632ddbd13a146100375763a444f5e90361000e5761013a565b6100bf565b60e01c90565b60405190565b5f80fd5b5f80fd5b5f91031261005a57565b61004c565b1c90565b90565b61007690600861007b930261005f565b610063565b90565b906100899154610066565b90565b6100975f5f9061007e565b90565b90565b6100a69061009a565b9052565b91906100bd905f6020850194019061009d565b565b346100ef576100cf366004610050565b6100eb6100da61008c565b6100e2610042565b918291826100aa565b0390f35b610048565b6100fd8161009a565b0361010457565b5f80fd5b90503590610115826100f4565b565b906020828203126101305761012d915f01610108565b90565b61004c565b5f0190565b346101685761015261014d366004610117565b610226565b61015a610042565b8061016481610135565b0390f35b610048565b5f80fd5b90565b90565b61018b61018661019092610171565b610174565b61009a565b90565b634e487b7160e01b5f52601160045260245ffd5b6101b66101bc9193929361009a565b9261009a565b82018092116101c757565b610193565b5f1b90565b906101dd5f19916101cc565b9181191691161790565b6101fb6101f66102009261009a565b610174565b61009a565b90565b90565b9061021b610216610222926101e7565b610203565b82546101d1565b9055565b6102506102569161024a6102398261025c565b916102446001610177565b9061031c565b906101a7565b5f610206565b565b5f90565b61026f90610268610258565b508061031c565b90565b90565b61028961028461028e92610272565b610174565b61009a565b90565b60209181520190565b5f7f746f6f2062696700000000000000000000000000000000000000000000000000910152565b6102ce6007602092610291565b6102d78161029a565b0190565b6102f09060208101905f8183039101526102c1565b90565b156102fa57565b610302610042565b62461bcd60e51b815280610318600482016102db565b0390fd5b9061034d91610329610258565b506103488161034261033c6103e8610275565b9161009a565b106102f3565b6101a7565b9056fea3646970667358221220744dd90c9ed10b2c5cff3338cb9c424cfab3fd93864ad5acf0957b2ca16b872f6c6578706572696d656e74616cf564736f6c637823302e382e33382d63692e323032362e31302e312b636f6d6d69742e62336237646236610062",
+ "sourceMap": "56:332:0:-:0;;;;;;;;;-1:-1:-1;56:332:0;:::i;:::-;;;;;:::i;:::-;;;;;;;;;;;:::i;:::-;;:::i;:::-;;;;:::o;:::-;;;;:::o;:::-;;;;;;;;;;;;;;;:::o;:::-;;:::i;:::-;;;:::o;:::-;;:::o;:::-;;;;;;;;:::i;:::-;;:::i;:::-;;:::o;:::-;;;;;;:::i;:::-;;:::o;75:20::-;;;;;;:::i;:::-;;:::o;56:332::-;;:::o;:::-;;;;:::i;:::-;;;:::o;:::-;;;;;;;;;;;;;:::i;:::-;:::o;:::-;;;;;;;;:::i;:::-;;;;:::i;:::-;;;:::i;:::-;;;;;;:::i;:::-;;;;;;:::i;:::-;;;;:::i;:::-;;;;:::o;:::-;;;;;;;;;;;;:::i;:::-;:::o;:::-;;;;;;;;;;;;;;:::i;:::-;;:::o;:::-;;:::i;:::-;;;;:::o;:::-;;;;;;;;;:::i;:::-;;:::i;:::-;;;:::i;:::-;;;;;:::i;:::-;;;;;;:::i;:::-;;;;;;:::o;:::-;;:::o;:::-;;;;;;:::i;:::-;;:::i;:::-;;:::i;:::-;;:::o;:::-;;;;;;;;;;;;;;;;;;;;:::i;:::-;;;:::i;:::-;;;;;;;;:::o;:::-;;:::i;:::-;;;;:::o;:::-;;;;;;;:::i;:::-;;;;;;;;;:::o;:::-;;;;;;:::i;:::-;;:::i;:::-;;:::i;:::-;;:::o;:::-;;:::o;:::-;;;;;;;:::i;:::-;;:::i;:::-;;;;:::i;:::-;;;:::o;314:72::-;361:20;353:28;314:72;372:9;361:8;367:1;361:8;:::i;:::-;376:1;372:9;379:1;372:9;:::i;:::-;;;:::i;:::-;361:20;;:::i;:::-;353:28;;:::i;:::-;314:72::o;56:332::-;;;:::o;226:85::-;297:9;226:85;275:7;;:::i;:::-;301:1;;297:9;:::i;:::-;290:16;:::o;56:332::-;;:::o;:::-;;;;;;:::i;:::-;;:::i;:::-;;:::i;:::-;;:::o;:::-;;;;;;;:::o;:::-;;;;;;:::o;:::-;;;;;;:::i;:::-;;;;:::i;:::-;;;:::o;:::-;;;;;;;;;;;;;;;:::i;:::-;;:::o;:::-;;;;:::o;:::-;;;:::i;:::-;;;;;;;;;;;;:::i;:::-;;;;99:124;;213:5;99:124;157:7;;:::i;:::-;180:1;172:28;180:1;:8;;184:4;180:8;:::i;:::-;;;:::i;:::-;;172:28;:::i;:::-;213:5;:::i;:::-;206:12;:::o",
+ "ethdebug": {
+  "contract": {
+   "definition": {
+    "source": {
+     "id": 0
+    }
+   },
+   "name": "Calls"
+  },
+  "environment": "call",
+  "instructions": [
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 0,
+    "operation": {
+     "arguments": [
+      "0x80"
+     ],
+     "mnemonic": "PUSH1"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 2,
+    "operation": {
+     "arguments": [
+      "0x40"
+     ],
+     "mnemonic": "PUSH1"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 4,
+    "operation": {
+     "mnemonic": "MSTORE"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 5,
+    "operation": {
+     "arguments": [
+      "0x04"
+     ],
+     "mnemonic": "PUSH1"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 7,
+    "operation": {
+     "mnemonic": "CALLDATASIZE"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 8,
+    "operation": {
+     "mnemonic": "LT"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 9,
+    "operation": {
+     "mnemonic": "ISZERO"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 10,
+    "operation": {
+     "arguments": [
+      "0x0013"
+     ],
+     "mnemonic": "PUSH2"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 13,
+    "operation": {
+     "mnemonic": "JUMPI"
+    }
+   },
+   {
+    "offset": 14,
+    "operation": {
+     "mnemonic": "JUMPDEST"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 15,
+    "operation": {
+     "arguments": [
+      "0x016d"
+     ],
+     "mnemonic": "PUSH2"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 18,
+    "operation": {
+     "mnemonic": "JUMP"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 19,
+    "operation": {
+     "mnemonic": "JUMPDEST"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 20,
+    "operation": {
+     "arguments": [
+      "0x001d"
+     ],
+     "mnemonic": "PUSH2"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 23,
+    "operation": {
+     "mnemonic": "PUSH0"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 24,
+    "operation": {
+     "mnemonic": "CALLDATALOAD"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 25,
+    "operation": {
+     "arguments": [
+      "0x003c"
+     ],
+     "mnemonic": "PUSH2"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 28,
+    "operation": {
+     "mnemonic": "JUMP"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 29,
+    "operation": {
+     "mnemonic": "JUMPDEST"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 30,
+    "operation": {
+     "mnemonic": "DUP1"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 31,
+    "operation": {
+     "arguments": [
+      "0x2ddbd13a"
+     ],
+     "mnemonic": "PUSH4"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 36,
+    "operation": {
+     "mnemonic": "EQ"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 37,
+    "operation": {
+     "arguments": [
+      "0x0037"
+     ],
+     "mnemonic": "PUSH2"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 40,
+    "operation": {
+     "mnemonic": "JUMPI"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 41,
+    "operation": {
+     "arguments": [
+      "0xa444f5e9"
+     ],
+     "mnemonic": "PUSH4"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 46,
+    "operation": {
+     "mnemonic": "SUB"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 47,
+    "operation": {
+     "arguments": [
+      "0x000e"
+     ],
+     "mnemonic": "PUSH2"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 50,
+    "operation": {
+     "mnemonic": "JUMPI"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 51,
+    "operation": {
+     "arguments": [
+      "0x013a"
+     ],
+     "mnemonic": "PUSH2"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 54,
+    "operation": {
+     "mnemonic": "JUMP"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 55,
+    "operation": {
+     "mnemonic": "JUMPDEST"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 56,
+    "operation": {
+     "arguments": [
+      "0x00bf"
+     ],
+     "mnemonic": "PUSH2"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 59,
+    "operation": {
+     "mnemonic": "JUMP"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 60,
+    "operation": {
+     "mnemonic": "JUMPDEST"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 61,
+    "operation": {
+     "arguments": [
+      "0xe0"
+     ],
+     "mnemonic": "PUSH1"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 63,
+    "operation": {
+     "mnemonic": "SHR"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 64,
+    "operation": {
+     "mnemonic": "SWAP1"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 65,
+    "operation": {
+     "mnemonic": "JUMP"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 66,
+    "operation": {
+     "mnemonic": "JUMPDEST"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 67,
+    "operation": {
+     "arguments": [
+      "0x40"
+     ],
+     "mnemonic": "PUSH1"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 69,
+    "operation": {
+     "mnemonic": "MLOAD"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 70,
+    "operation": {
+     "mnemonic": "SWAP1"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 71,
+    "operation": {
+     "mnemonic": "JUMP"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 72,
+    "operation": {
+     "mnemonic": "JUMPDEST"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 73,
+    "operation": {
+     "mnemonic": "PUSH0"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 74,
+    "operation": {
+     "mnemonic": "DUP1"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 75,
+    "operation": {
+     "mnemonic": "REVERT"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 76,
+    "operation": {
+     "mnemonic": "JUMPDEST"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 77,
+    "operation": {
+     "mnemonic": "PUSH0"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 78,
+    "operation": {
+     "mnemonic": "DUP1"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 79,
+    "operation": {
+     "mnemonic": "REVERT"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 80,
+    "operation": {
+     "mnemonic": "JUMPDEST"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 81,
+    "operation": {
+     "mnemonic": "PUSH0"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 82,
+    "operation": {
+     "mnemonic": "SWAP2"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 83,
+    "operation": {
+     "mnemonic": "SUB"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 84,
+    "operation": {
+     "mnemonic": "SLT"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 85,
+    "operation": {
+     "arguments": [
+      "0x005a"
+     ],
+     "mnemonic": "PUSH2"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 88,
+    "operation": {
+     "mnemonic": "JUMPI"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 89,
+    "operation": {
+     "mnemonic": "JUMP"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 90,
+    "operation": {
+     "mnemonic": "JUMPDEST"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 91,
+    "operation": {
+     "arguments": [
+      "0x004c"
+     ],
+     "mnemonic": "PUSH2"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 94,
+    "operation": {
+     "mnemonic": "JUMP"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 95,
+    "operation": {
+     "mnemonic": "JUMPDEST"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 96,
+    "operation": {
+     "mnemonic": "SHR"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 97,
+    "operation": {
+     "mnemonic": "SWAP1"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 98,
+    "operation": {
+     "mnemonic": "JUMP"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 99,
+    "operation": {
+     "mnemonic": "JUMPDEST"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 100,
+    "operation": {
+     "mnemonic": "SWAP1"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 101,
+    "operation": {
+     "mnemonic": "JUMP"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 102,
+    "operation": {
+     "mnemonic": "JUMPDEST"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 103,
+    "operation": {
+     "arguments": [
+      "0x0076"
+     ],
+     "mnemonic": "PUSH2"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 106,
+    "operation": {
+     "mnemonic": "SWAP1"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 107,
+    "operation": {
+     "arguments": [
+      "0x08"
+     ],
+     "mnemonic": "PUSH1"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 109,
+    "operation": {
+     "arguments": [
+      "0x007b"
+     ],
+     "mnemonic": "PUSH2"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 112,
+    "operation": {
+     "mnemonic": "SWAP4"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 113,
+    "operation": {
+     "mnemonic": "MUL"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 114,
+    "operation": {
+     "arguments": [
+      "0x005f"
+     ],
+     "mnemonic": "PUSH2"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 117,
+    "operation": {
+     "mnemonic": "JUMP"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 118,
+    "operation": {
+     "mnemonic": "JUMPDEST"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 119,
+    "operation": {
+     "arguments": [
+      "0x0063"
+     ],
+     "mnemonic": "PUSH2"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 122,
+    "operation": {
+     "mnemonic": "JUMP"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 123,
+    "operation": {
+     "mnemonic": "JUMPDEST"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 124,
+    "operation": {
+     "mnemonic": "SWAP1"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 125,
+    "operation": {
+     "mnemonic": "JUMP"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 126,
+    "operation": {
+     "mnemonic": "JUMPDEST"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 127,
+    "operation": {
+     "mnemonic": "SWAP1"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 128,
+    "operation": {
+     "arguments": [
+      "0x0089"
+     ],
+     "mnemonic": "PUSH2"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 131,
+    "operation": {
+     "mnemonic": "SWAP2"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 132,
+    "operation": {
+     "mnemonic": "SLOAD"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 133,
+    "operation": {
+     "arguments": [
+      "0x0066"
+     ],
+     "mnemonic": "PUSH2"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 136,
+    "operation": {
+     "mnemonic": "JUMP"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 137,
+    "operation": {
+     "mnemonic": "JUMPDEST"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 138,
+    "operation": {
+     "mnemonic": "SWAP1"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 139,
+    "operation": {
+     "mnemonic": "JUMP"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 20,
+       "offset": 75
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 140,
+    "operation": {
+     "mnemonic": "JUMPDEST"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 20,
+       "offset": 75
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 141,
+    "operation": {
+     "arguments": [
+      "0x0097"
+     ],
+     "mnemonic": "PUSH2"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 20,
+       "offset": 75
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 144,
+    "operation": {
+     "mnemonic": "PUSH0"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 20,
+       "offset": 75
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 145,
+    "operation": {
+     "mnemonic": "PUSH0"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 20,
+       "offset": 75
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 146,
+    "operation": {
+     "mnemonic": "SWAP1"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 20,
+       "offset": 75
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 147,
+    "operation": {
+     "arguments": [
+      "0x007e"
+     ],
+     "mnemonic": "PUSH2"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 20,
+       "offset": 75
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 150,
+    "operation": {
+     "mnemonic": "JUMP"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 20,
+       "offset": 75
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 151,
+    "operation": {
+     "mnemonic": "JUMPDEST"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 20,
+       "offset": 75
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 152,
+    "operation": {
+     "mnemonic": "SWAP1"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 20,
+       "offset": 75
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 153,
+    "operation": {
+     "mnemonic": "JUMP"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 154,
+    "operation": {
+     "mnemonic": "JUMPDEST"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 155,
+    "operation": {
+     "mnemonic": "SWAP1"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 156,
+    "operation": {
+     "mnemonic": "JUMP"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 157,
+    "operation": {
+     "mnemonic": "JUMPDEST"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 158,
+    "operation": {
+     "arguments": [
+      "0x00a6"
+     ],
+     "mnemonic": "PUSH2"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 161,
+    "operation": {
+     "mnemonic": "SWAP1"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 162,
+    "operation": {
+     "arguments": [
+      "0x009a"
+     ],
+     "mnemonic": "PUSH2"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 165,
+    "operation": {
+     "mnemonic": "JUMP"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 166,
+    "operation": {
+     "mnemonic": "JUMPDEST"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 167,
+    "operation": {
+     "mnemonic": "SWAP1"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 168,
+    "operation": {
+     "mnemonic": "MSTORE"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 169,
+    "operation": {
+     "mnemonic": "JUMP"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 170,
+    "operation": {
+     "mnemonic": "JUMPDEST"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 171,
+    "operation": {
+     "mnemonic": "SWAP2"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 172,
+    "operation": {
+     "mnemonic": "SWAP1"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 173,
+    "operation": {
+     "arguments": [
+      "0x00bd"
+     ],
+     "mnemonic": "PUSH2"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 176,
+    "operation": {
+     "mnemonic": "SWAP1"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 177,
+    "operation": {
+     "mnemonic": "PUSH0"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 178,
+    "operation": {
+     "arguments": [
+      "0x20"
+     ],
+     "mnemonic": "PUSH1"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 180,
+    "operation": {
+     "mnemonic": "DUP6"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 181,
+    "operation": {
+     "mnemonic": "ADD"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 182,
+    "operation": {
+     "mnemonic": "SWAP5"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 183,
+    "operation": {
+     "mnemonic": "ADD"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 184,
+    "operation": {
+     "mnemonic": "SWAP1"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 185,
+    "operation": {
+     "arguments": [
+      "0x009d"
+     ],
+     "mnemonic": "PUSH2"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 188,
+    "operation": {
+     "mnemonic": "JUMP"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 189,
+    "operation": {
+     "mnemonic": "JUMPDEST"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 190,
+    "operation": {
+     "mnemonic": "JUMP"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 191,
+    "operation": {
+     "mnemonic": "JUMPDEST"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 192,
+    "operation": {
+     "mnemonic": "CALLVALUE"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 193,
+    "operation": {
+     "arguments": [
+      "0x00ef"
+     ],
+     "mnemonic": "PUSH2"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 196,
+    "operation": {
+     "mnemonic": "JUMPI"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 197,
+    "operation": {
+     "arguments": [
+      "0x00cf"
+     ],
+     "mnemonic": "PUSH2"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 200,
+    "operation": {
+     "mnemonic": "CALLDATASIZE"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 201,
+    "operation": {
+     "arguments": [
+      "0x04"
+     ],
+     "mnemonic": "PUSH1"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 203,
+    "operation": {
+     "arguments": [
+      "0x0050"
+     ],
+     "mnemonic": "PUSH2"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 206,
+    "operation": {
+     "mnemonic": "JUMP"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 207,
+    "operation": {
+     "mnemonic": "JUMPDEST"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 208,
+    "operation": {
+     "arguments": [
+      "0x00eb"
+     ],
+     "mnemonic": "PUSH2"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 211,
+    "operation": {
+     "arguments": [
+      "0x00da"
+     ],
+     "mnemonic": "PUSH2"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 214,
+    "operation": {
+     "arguments": [
+      "0x008c"
+     ],
+     "mnemonic": "PUSH2"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 217,
+    "operation": {
+     "mnemonic": "JUMP"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 218,
+    "operation": {
+     "mnemonic": "JUMPDEST"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 219,
+    "operation": {
+     "arguments": [
+      "0x00e2"
+     ],
+     "mnemonic": "PUSH2"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 222,
+    "operation": {
+     "arguments": [
+      "0x0042"
+     ],
+     "mnemonic": "PUSH2"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 225,
+    "operation": {
+     "mnemonic": "JUMP"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 226,
+    "operation": {
+     "mnemonic": "JUMPDEST"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 227,
+    "operation": {
+     "mnemonic": "SWAP2"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 228,
+    "operation": {
+     "mnemonic": "DUP3"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 229,
+    "operation": {
+     "mnemonic": "SWAP2"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 230,
+    "operation": {
+     "mnemonic": "DUP3"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 231,
+    "operation": {
+     "arguments": [
+      "0x00aa"
+     ],
+     "mnemonic": "PUSH2"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 234,
+    "operation": {
+     "mnemonic": "JUMP"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 235,
+    "operation": {
+     "mnemonic": "JUMPDEST"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 236,
+    "operation": {
+     "mnemonic": "SUB"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 237,
+    "operation": {
+     "mnemonic": "SWAP1"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 238,
+    "operation": {
+     "mnemonic": "RETURN"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 239,
+    "operation": {
+     "mnemonic": "JUMPDEST"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 240,
+    "operation": {
+     "arguments": [
+      "0x0048"
+     ],
+     "mnemonic": "PUSH2"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 243,
+    "operation": {
+     "mnemonic": "JUMP"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 244,
+    "operation": {
+     "mnemonic": "JUMPDEST"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 245,
+    "operation": {
+     "arguments": [
+      "0x00fd"
+     ],
+     "mnemonic": "PUSH2"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 248,
+    "operation": {
+     "mnemonic": "DUP2"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 249,
+    "operation": {
+     "arguments": [
+      "0x009a"
+     ],
+     "mnemonic": "PUSH2"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 252,
+    "operation": {
+     "mnemonic": "JUMP"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 253,
+    "operation": {
+     "mnemonic": "JUMPDEST"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 254,
+    "operation": {
+     "mnemonic": "SUB"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 255,
+    "operation": {
+     "arguments": [
+      "0x0104"
+     ],
+     "mnemonic": "PUSH2"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 258,
+    "operation": {
+     "mnemonic": "JUMPI"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 259,
+    "operation": {
+     "mnemonic": "JUMP"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 260,
+    "operation": {
+     "mnemonic": "JUMPDEST"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 261,
+    "operation": {
+     "mnemonic": "PUSH0"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 262,
+    "operation": {
+     "mnemonic": "DUP1"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 263,
+    "operation": {
+     "mnemonic": "REVERT"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 264,
+    "operation": {
+     "mnemonic": "JUMPDEST"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 265,
+    "operation": {
+     "mnemonic": "SWAP1"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 266,
+    "operation": {
+     "mnemonic": "POP"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 267,
+    "operation": {
+     "mnemonic": "CALLDATALOAD"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 268,
+    "operation": {
+     "mnemonic": "SWAP1"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 269,
+    "operation": {
+     "arguments": [
+      "0x0115"
+     ],
+     "mnemonic": "PUSH2"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 272,
+    "operation": {
+     "mnemonic": "DUP3"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 273,
+    "operation": {
+     "arguments": [
+      "0x00f4"
+     ],
+     "mnemonic": "PUSH2"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 276,
+    "operation": {
+     "mnemonic": "JUMP"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 277,
+    "operation": {
+     "mnemonic": "JUMPDEST"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 278,
+    "operation": {
+     "mnemonic": "JUMP"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 279,
+    "operation": {
+     "mnemonic": "JUMPDEST"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 280,
+    "operation": {
+     "mnemonic": "SWAP1"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 281,
+    "operation": {
+     "arguments": [
+      "0x20"
+     ],
+     "mnemonic": "PUSH1"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 283,
+    "operation": {
+     "mnemonic": "DUP3"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 284,
+    "operation": {
+     "mnemonic": "DUP3"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 285,
+    "operation": {
+     "mnemonic": "SUB"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 286,
+    "operation": {
+     "mnemonic": "SLT"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 287,
+    "operation": {
+     "arguments": [
+      "0x0130"
+     ],
+     "mnemonic": "PUSH2"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 290,
+    "operation": {
+     "mnemonic": "JUMPI"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 291,
+    "operation": {
+     "arguments": [
+      "0x012d"
+     ],
+     "mnemonic": "PUSH2"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 294,
+    "operation": {
+     "mnemonic": "SWAP2"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 295,
+    "operation": {
+     "mnemonic": "PUSH0"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 296,
+    "operation": {
+     "mnemonic": "ADD"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 297,
+    "operation": {
+     "arguments": [
+      "0x0108"
+     ],
+     "mnemonic": "PUSH2"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 300,
+    "operation": {
+     "mnemonic": "JUMP"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 301,
+    "operation": {
+     "mnemonic": "JUMPDEST"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 302,
+    "operation": {
+     "mnemonic": "SWAP1"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 303,
+    "operation": {
+     "mnemonic": "JUMP"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 304,
+    "operation": {
+     "mnemonic": "JUMPDEST"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 305,
+    "operation": {
+     "arguments": [
+      "0x004c"
+     ],
+     "mnemonic": "PUSH2"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 308,
+    "operation": {
+     "mnemonic": "JUMP"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 309,
+    "operation": {
+     "mnemonic": "JUMPDEST"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 310,
+    "operation": {
+     "mnemonic": "PUSH0"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 311,
+    "operation": {
+     "mnemonic": "ADD"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 312,
+    "operation": {
+     "mnemonic": "SWAP1"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 313,
+    "operation": {
+     "mnemonic": "JUMP"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 314,
+    "operation": {
+     "mnemonic": "JUMPDEST"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 315,
+    "operation": {
+     "mnemonic": "CALLVALUE"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 316,
+    "operation": {
+     "arguments": [
+      "0x0168"
+     ],
+     "mnemonic": "PUSH2"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 319,
+    "operation": {
+     "mnemonic": "JUMPI"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 320,
+    "operation": {
+     "arguments": [
+      "0x0152"
+     ],
+     "mnemonic": "PUSH2"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 323,
+    "operation": {
+     "arguments": [
+      "0x014d"
+     ],
+     "mnemonic": "PUSH2"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 326,
+    "operation": {
+     "mnemonic": "CALLDATASIZE"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 327,
+    "operation": {
+     "arguments": [
+      "0x04"
+     ],
+     "mnemonic": "PUSH1"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 329,
+    "operation": {
+     "arguments": [
+      "0x0117"
+     ],
+     "mnemonic": "PUSH2"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 332,
+    "operation": {
+     "mnemonic": "JUMP"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 333,
+    "operation": {
+     "mnemonic": "JUMPDEST"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 334,
+    "operation": {
+     "arguments": [
+      "0x0226"
+     ],
+     "mnemonic": "PUSH2"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 337,
+    "operation": {
+     "mnemonic": "JUMP"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 338,
+    "operation": {
+     "mnemonic": "JUMPDEST"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 339,
+    "operation": {
+     "arguments": [
+      "0x015a"
+     ],
+     "mnemonic": "PUSH2"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 342,
+    "operation": {
+     "arguments": [
+      "0x0042"
+     ],
+     "mnemonic": "PUSH2"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 345,
+    "operation": {
+     "mnemonic": "JUMP"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 346,
+    "operation": {
+     "mnemonic": "JUMPDEST"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 347,
+    "operation": {
+     "mnemonic": "DUP1"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 348,
+    "operation": {
+     "arguments": [
+      "0x0164"
+     ],
+     "mnemonic": "PUSH2"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 351,
+    "operation": {
+     "mnemonic": "DUP2"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 352,
+    "operation": {
+     "arguments": [
+      "0x0135"
+     ],
+     "mnemonic": "PUSH2"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 355,
+    "operation": {
+     "mnemonic": "JUMP"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 356,
+    "operation": {
+     "mnemonic": "JUMPDEST"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 357,
+    "operation": {
+     "mnemonic": "SUB"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 358,
+    "operation": {
+     "mnemonic": "SWAP1"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 359,
+    "operation": {
+     "mnemonic": "RETURN"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 360,
+    "operation": {
+     "mnemonic": "JUMPDEST"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 361,
+    "operation": {
+     "arguments": [
+      "0x0048"
+     ],
+     "mnemonic": "PUSH2"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 364,
+    "operation": {
+     "mnemonic": "JUMP"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 365,
+    "operation": {
+     "mnemonic": "JUMPDEST"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 366,
+    "operation": {
+     "mnemonic": "PUSH0"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 367,
+    "operation": {
+     "mnemonic": "DUP1"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 368,
+    "operation": {
+     "mnemonic": "REVERT"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 369,
+    "operation": {
+     "mnemonic": "JUMPDEST"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 370,
+    "operation": {
+     "mnemonic": "SWAP1"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 371,
+    "operation": {
+     "mnemonic": "JUMP"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 372,
+    "operation": {
+     "mnemonic": "JUMPDEST"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 373,
+    "operation": {
+     "mnemonic": "SWAP1"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 374,
+    "operation": {
+     "mnemonic": "JUMP"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 375,
+    "operation": {
+     "mnemonic": "JUMPDEST"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 376,
+    "operation": {
+     "arguments": [
+      "0x018b"
+     ],
+     "mnemonic": "PUSH2"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 379,
+    "operation": {
+     "arguments": [
+      "0x0186"
+     ],
+     "mnemonic": "PUSH2"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 382,
+    "operation": {
+     "arguments": [
+      "0x0190"
+     ],
+     "mnemonic": "PUSH2"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 385,
+    "operation": {
+     "mnemonic": "SWAP3"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 386,
+    "operation": {
+     "arguments": [
+      "0x0171"
+     ],
+     "mnemonic": "PUSH2"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 389,
+    "operation": {
+     "mnemonic": "JUMP"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 390,
+    "operation": {
+     "mnemonic": "JUMPDEST"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 391,
+    "operation": {
+     "arguments": [
+      "0x0174"
+     ],
+     "mnemonic": "PUSH2"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 394,
+    "operation": {
+     "mnemonic": "JUMP"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 395,
+    "operation": {
+     "mnemonic": "JUMPDEST"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 396,
+    "operation": {
+     "arguments": [
+      "0x009a"
+     ],
+     "mnemonic": "PUSH2"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 399,
+    "operation": {
+     "mnemonic": "JUMP"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 400,
+    "operation": {
+     "mnemonic": "JUMPDEST"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 401,
+    "operation": {
+     "mnemonic": "SWAP1"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 402,
+    "operation": {
+     "mnemonic": "JUMP"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 403,
+    "operation": {
+     "mnemonic": "JUMPDEST"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 404,
+    "operation": {
+     "arguments": [
+      "0x4e487b71"
+     ],
+     "mnemonic": "PUSH4"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 409,
+    "operation": {
+     "arguments": [
+      "0xe0"
+     ],
+     "mnemonic": "PUSH1"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 411,
+    "operation": {
+     "mnemonic": "SHL"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 412,
+    "operation": {
+     "mnemonic": "PUSH0"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 413,
+    "operation": {
+     "mnemonic": "MSTORE"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 414,
+    "operation": {
+     "arguments": [
+      "0x11"
+     ],
+     "mnemonic": "PUSH1"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 416,
+    "operation": {
+     "arguments": [
+      "0x04"
+     ],
+     "mnemonic": "PUSH1"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 418,
+    "operation": {
+     "mnemonic": "MSTORE"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 419,
+    "operation": {
+     "arguments": [
+      "0x24"
+     ],
+     "mnemonic": "PUSH1"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 421,
+    "operation": {
+     "mnemonic": "PUSH0"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 422,
+    "operation": {
+     "mnemonic": "REVERT"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 423,
+    "operation": {
+     "mnemonic": "JUMPDEST"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 424,
+    "operation": {
+     "arguments": [
+      "0x01b6"
+     ],
+     "mnemonic": "PUSH2"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 427,
+    "operation": {
+     "arguments": [
+      "0x01bc"
+     ],
+     "mnemonic": "PUSH2"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 430,
+    "operation": {
+     "mnemonic": "SWAP2"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 431,
+    "operation": {
+     "mnemonic": "SWAP4"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 432,
+    "operation": {
+     "mnemonic": "SWAP3"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 433,
+    "operation": {
+     "mnemonic": "SWAP4"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 434,
+    "operation": {
+     "arguments": [
+      "0x009a"
+     ],
+     "mnemonic": "PUSH2"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 437,
+    "operation": {
+     "mnemonic": "JUMP"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 438,
+    "operation": {
+     "mnemonic": "JUMPDEST"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 439,
+    "operation": {
+     "mnemonic": "SWAP3"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 440,
+    "operation": {
+     "arguments": [
+      "0x009a"
+     ],
+     "mnemonic": "PUSH2"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 443,
+    "operation": {
+     "mnemonic": "JUMP"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 444,
+    "operation": {
+     "mnemonic": "JUMPDEST"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 445,
+    "operation": {
+     "mnemonic": "DUP3"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 446,
+    "operation": {
+     "mnemonic": "ADD"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 447,
+    "operation": {
+     "mnemonic": "DUP1"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 448,
+    "operation": {
+     "mnemonic": "SWAP3"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 449,
+    "operation": {
+     "mnemonic": "GT"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 450,
+    "operation": {
+     "arguments": [
+      "0x01c7"
+     ],
+     "mnemonic": "PUSH2"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 453,
+    "operation": {
+     "mnemonic": "JUMPI"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 454,
+    "operation": {
+     "mnemonic": "JUMP"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 455,
+    "operation": {
+     "mnemonic": "JUMPDEST"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 456,
+    "operation": {
+     "arguments": [
+      "0x0193"
+     ],
+     "mnemonic": "PUSH2"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 459,
+    "operation": {
+     "mnemonic": "JUMP"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 460,
+    "operation": {
+     "mnemonic": "JUMPDEST"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 461,
+    "operation": {
+     "mnemonic": "PUSH0"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 462,
+    "operation": {
+     "mnemonic": "SHL"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 463,
+    "operation": {
+     "mnemonic": "SWAP1"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 464,
+    "operation": {
+     "mnemonic": "JUMP"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 465,
+    "operation": {
+     "mnemonic": "JUMPDEST"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 466,
+    "operation": {
+     "mnemonic": "SWAP1"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 467,
+    "operation": {
+     "arguments": [
+      "0x01dd"
+     ],
+     "mnemonic": "PUSH2"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 470,
+    "operation": {
+     "mnemonic": "PUSH0"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 471,
+    "operation": {
+     "mnemonic": "NOT"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 472,
+    "operation": {
+     "mnemonic": "SWAP2"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 473,
+    "operation": {
+     "arguments": [
+      "0x01cc"
+     ],
+     "mnemonic": "PUSH2"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 476,
+    "operation": {
+     "mnemonic": "JUMP"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 477,
+    "operation": {
+     "mnemonic": "JUMPDEST"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 478,
+    "operation": {
+     "mnemonic": "SWAP2"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 479,
+    "operation": {
+     "mnemonic": "DUP2"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 480,
+    "operation": {
+     "mnemonic": "NOT"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 481,
+    "operation": {
+     "mnemonic": "AND"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 482,
+    "operation": {
+     "mnemonic": "SWAP2"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 483,
+    "operation": {
+     "mnemonic": "AND"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 484,
+    "operation": {
+     "mnemonic": "OR"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 485,
+    "operation": {
+     "mnemonic": "SWAP1"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 486,
+    "operation": {
+     "mnemonic": "JUMP"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 487,
+    "operation": {
+     "mnemonic": "JUMPDEST"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 488,
+    "operation": {
+     "arguments": [
+      "0x01fb"
+     ],
+     "mnemonic": "PUSH2"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 491,
+    "operation": {
+     "arguments": [
+      "0x01f6"
+     ],
+     "mnemonic": "PUSH2"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 494,
+    "operation": {
+     "arguments": [
+      "0x0200"
+     ],
+     "mnemonic": "PUSH2"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 497,
+    "operation": {
+     "mnemonic": "SWAP3"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 498,
+    "operation": {
+     "arguments": [
+      "0x009a"
+     ],
+     "mnemonic": "PUSH2"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 501,
+    "operation": {
+     "mnemonic": "JUMP"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 502,
+    "operation": {
+     "mnemonic": "JUMPDEST"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 503,
+    "operation": {
+     "arguments": [
+      "0x0174"
+     ],
+     "mnemonic": "PUSH2"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 506,
+    "operation": {
+     "mnemonic": "JUMP"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 507,
+    "operation": {
+     "mnemonic": "JUMPDEST"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 508,
+    "operation": {
+     "arguments": [
+      "0x009a"
+     ],
+     "mnemonic": "PUSH2"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 511,
+    "operation": {
+     "mnemonic": "JUMP"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 512,
+    "operation": {
+     "mnemonic": "JUMPDEST"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 513,
+    "operation": {
+     "mnemonic": "SWAP1"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 514,
+    "operation": {
+     "mnemonic": "JUMP"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 515,
+    "operation": {
+     "mnemonic": "JUMPDEST"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 516,
+    "operation": {
+     "mnemonic": "SWAP1"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 517,
+    "operation": {
+     "mnemonic": "JUMP"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 518,
+    "operation": {
+     "mnemonic": "JUMPDEST"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 519,
+    "operation": {
+     "mnemonic": "SWAP1"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 520,
+    "operation": {
+     "arguments": [
+      "0x021b"
+     ],
+     "mnemonic": "PUSH2"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 523,
+    "operation": {
+     "arguments": [
+      "0x0216"
+     ],
+     "mnemonic": "PUSH2"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 526,
+    "operation": {
+     "arguments": [
+      "0x0222"
+     ],
+     "mnemonic": "PUSH2"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 529,
+    "operation": {
+     "mnemonic": "SWAP3"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 530,
+    "operation": {
+     "arguments": [
+      "0x01e7"
+     ],
+     "mnemonic": "PUSH2"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 533,
+    "operation": {
+     "mnemonic": "JUMP"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 534,
+    "operation": {
+     "mnemonic": "JUMPDEST"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 535,
+    "operation": {
+     "arguments": [
+      "0x0203"
+     ],
+     "mnemonic": "PUSH2"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 538,
+    "operation": {
+     "mnemonic": "JUMP"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 539,
+    "operation": {
+     "mnemonic": "JUMPDEST"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 540,
+    "operation": {
+     "mnemonic": "DUP3"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 541,
+    "operation": {
+     "mnemonic": "SLOAD"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 542,
+    "operation": {
+     "arguments": [
+      "0x01d1"
+     ],
+     "mnemonic": "PUSH2"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 545,
+    "operation": {
+     "mnemonic": "JUMP"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 546,
+    "operation": {
+     "mnemonic": "JUMPDEST"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 547,
+    "operation": {
+     "mnemonic": "SWAP1"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 548,
+    "operation": {
+     "mnemonic": "SSTORE"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 549,
+    "operation": {
+     "mnemonic": "JUMP"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 72,
+       "offset": 314
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 550,
+    "operation": {
+     "mnemonic": "JUMPDEST"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 20,
+       "offset": 361
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 551,
+    "operation": {
+     "arguments": [
+      "0x0250"
+     ],
+     "mnemonic": "PUSH2"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 28,
+       "offset": 353
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 554,
+    "operation": {
+     "arguments": [
+      "0x0256"
+     ],
+     "mnemonic": "PUSH2"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 72,
+       "offset": 314
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 557,
+    "operation": {
+     "mnemonic": "SWAP2"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 9,
+       "offset": 372
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 558,
+    "operation": {
+     "arguments": [
+      "0x024a"
+     ],
+     "mnemonic": "PUSH2"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 8,
+       "offset": 361
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 561,
+    "operation": {
+     "arguments": [
+      "0x0239"
+     ],
+     "mnemonic": "PUSH2"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 1,
+       "offset": 367
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 564,
+    "operation": {
+     "mnemonic": "DUP3"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 8,
+       "offset": 361
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 565,
+    "operation": {
+     "arguments": [
+      "0x025c"
+     ],
+     "mnemonic": "PUSH2"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 8,
+       "offset": 361
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 568,
+    "operation": {
+     "mnemonic": "JUMP"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 8,
+       "offset": 361
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 569,
+    "operation": {
+     "mnemonic": "JUMPDEST"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 1,
+       "offset": 376
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 570,
+    "operation": {
+     "mnemonic": "SWAP2"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 9,
+       "offset": 372
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 571,
+    "operation": {
+     "arguments": [
+      "0x0244"
+     ],
+     "mnemonic": "PUSH2"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 1,
+       "offset": 379
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 574,
+    "operation": {
+     "arguments": [
+      "0x01"
+     ],
+     "mnemonic": "PUSH1"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 9,
+       "offset": 372
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 576,
+    "operation": {
+     "arguments": [
+      "0x0177"
+     ],
+     "mnemonic": "PUSH2"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 9,
+       "offset": 372
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 579,
+    "operation": {
+     "mnemonic": "JUMP"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 9,
+       "offset": 372
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 580,
+    "operation": {
+     "mnemonic": "JUMPDEST"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 9,
+       "offset": 372
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 581,
+    "operation": {
+     "mnemonic": "SWAP1"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 9,
+       "offset": 372
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 582,
+    "operation": {
+     "arguments": [
+      "0x031c"
+     ],
+     "mnemonic": "PUSH2"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 9,
+       "offset": 372
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 585,
+    "operation": {
+     "mnemonic": "JUMP"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 9,
+       "offset": 372
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 586,
+    "operation": {
+     "mnemonic": "JUMPDEST"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 20,
+       "offset": 361
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 587,
+    "operation": {
+     "mnemonic": "SWAP1"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 20,
+       "offset": 361
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 588,
+    "operation": {
+     "arguments": [
+      "0x01a7"
+     ],
+     "mnemonic": "PUSH2"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 20,
+       "offset": 361
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 591,
+    "operation": {
+     "mnemonic": "JUMP"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 20,
+       "offset": 361
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 592,
+    "operation": {
+     "mnemonic": "JUMPDEST"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 28,
+       "offset": 353
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 593,
+    "operation": {
+     "mnemonic": "PUSH0"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 28,
+       "offset": 353
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 594,
+    "operation": {
+     "arguments": [
+      "0x0206"
+     ],
+     "mnemonic": "PUSH2"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 28,
+       "offset": 353
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 597,
+    "operation": {
+     "mnemonic": "JUMP"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 28,
+       "offset": 353
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 598,
+    "operation": {
+     "mnemonic": "JUMPDEST"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 72,
+       "offset": 314
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 599,
+    "operation": {
+     "mnemonic": "JUMP"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 600,
+    "operation": {
+     "mnemonic": "JUMPDEST"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 601,
+    "operation": {
+     "mnemonic": "PUSH0"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 602,
+    "operation": {
+     "mnemonic": "SWAP1"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 603,
+    "operation": {
+     "mnemonic": "JUMP"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 85,
+       "offset": 226
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 604,
+    "operation": {
+     "mnemonic": "JUMPDEST"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 9,
+       "offset": 297
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 605,
+    "operation": {
+     "arguments": [
+      "0x026f"
+     ],
+     "mnemonic": "PUSH2"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 85,
+       "offset": 226
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 608,
+    "operation": {
+     "mnemonic": "SWAP1"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 7,
+       "offset": 275
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 609,
+    "operation": {
+     "arguments": [
+      "0x0268"
+     ],
+     "mnemonic": "PUSH2"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 7,
+       "offset": 275
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 612,
+    "operation": {
+     "arguments": [
+      "0x0258"
+     ],
+     "mnemonic": "PUSH2"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 7,
+       "offset": 275
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 615,
+    "operation": {
+     "mnemonic": "JUMP"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 7,
+       "offset": 275
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 616,
+    "operation": {
+     "mnemonic": "JUMPDEST"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 1,
+       "offset": 301
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 617,
+    "operation": {
+     "mnemonic": "POP"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 1,
+       "offset": 301
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 618,
+    "operation": {
+     "mnemonic": "DUP1"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 9,
+       "offset": 297
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 619,
+    "operation": {
+     "arguments": [
+      "0x031c"
+     ],
+     "mnemonic": "PUSH2"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 9,
+       "offset": 297
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 622,
+    "operation": {
+     "mnemonic": "JUMP"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 9,
+       "offset": 297
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 623,
+    "operation": {
+     "mnemonic": "JUMPDEST"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 16,
+       "offset": 290
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 624,
+    "operation": {
+     "mnemonic": "SWAP1"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 16,
+       "offset": 290
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 625,
+    "operation": {
+     "mnemonic": "JUMP"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 626,
+    "operation": {
+     "mnemonic": "JUMPDEST"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 627,
+    "operation": {
+     "mnemonic": "SWAP1"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 628,
+    "operation": {
+     "mnemonic": "JUMP"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 629,
+    "operation": {
+     "mnemonic": "JUMPDEST"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 630,
+    "operation": {
+     "arguments": [
+      "0x0289"
+     ],
+     "mnemonic": "PUSH2"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 633,
+    "operation": {
+     "arguments": [
+      "0x0284"
+     ],
+     "mnemonic": "PUSH2"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 636,
+    "operation": {
+     "arguments": [
+      "0x028e"
+     ],
+     "mnemonic": "PUSH2"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 639,
+    "operation": {
+     "mnemonic": "SWAP3"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 640,
+    "operation": {
+     "arguments": [
+      "0x0272"
+     ],
+     "mnemonic": "PUSH2"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 643,
+    "operation": {
+     "mnemonic": "JUMP"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 644,
+    "operation": {
+     "mnemonic": "JUMPDEST"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 645,
+    "operation": {
+     "arguments": [
+      "0x0174"
+     ],
+     "mnemonic": "PUSH2"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 648,
+    "operation": {
+     "mnemonic": "JUMP"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 649,
+    "operation": {
+     "mnemonic": "JUMPDEST"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 650,
+    "operation": {
+     "arguments": [
+      "0x009a"
+     ],
+     "mnemonic": "PUSH2"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 653,
+    "operation": {
+     "mnemonic": "JUMP"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 654,
+    "operation": {
+     "mnemonic": "JUMPDEST"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 655,
+    "operation": {
+     "mnemonic": "SWAP1"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 656,
+    "operation": {
+     "mnemonic": "JUMP"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 657,
+    "operation": {
+     "mnemonic": "JUMPDEST"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 658,
+    "operation": {
+     "arguments": [
+      "0x20"
+     ],
+     "mnemonic": "PUSH1"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 660,
+    "operation": {
+     "mnemonic": "SWAP2"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 661,
+    "operation": {
+     "mnemonic": "DUP2"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 662,
+    "operation": {
+     "mnemonic": "MSTORE"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 663,
+    "operation": {
+     "mnemonic": "ADD"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 664,
+    "operation": {
+     "mnemonic": "SWAP1"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 665,
+    "operation": {
+     "mnemonic": "JUMP"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 666,
+    "operation": {
+     "mnemonic": "JUMPDEST"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 667,
+    "operation": {
+     "mnemonic": "PUSH0"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 668,
+    "operation": {
+     "arguments": [
+      "0x746f6f2062696700000000000000000000000000000000000000000000000000"
+     ],
+     "mnemonic": "PUSH32"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 701,
+    "operation": {
+     "mnemonic": "SWAP2"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 702,
+    "operation": {
+     "mnemonic": "ADD"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 703,
+    "operation": {
+     "mnemonic": "MSTORE"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 704,
+    "operation": {
+     "mnemonic": "JUMP"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 705,
+    "operation": {
+     "mnemonic": "JUMPDEST"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 706,
+    "operation": {
+     "arguments": [
+      "0x02ce"
+     ],
+     "mnemonic": "PUSH2"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 709,
+    "operation": {
+     "arguments": [
+      "0x07"
+     ],
+     "mnemonic": "PUSH1"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 711,
+    "operation": {
+     "arguments": [
+      "0x20"
+     ],
+     "mnemonic": "PUSH1"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 713,
+    "operation": {
+     "mnemonic": "SWAP3"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 714,
+    "operation": {
+     "arguments": [
+      "0x0291"
+     ],
+     "mnemonic": "PUSH2"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 717,
+    "operation": {
+     "mnemonic": "JUMP"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 718,
+    "operation": {
+     "mnemonic": "JUMPDEST"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 719,
+    "operation": {
+     "arguments": [
+      "0x02d7"
+     ],
+     "mnemonic": "PUSH2"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 722,
+    "operation": {
+     "mnemonic": "DUP2"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 723,
+    "operation": {
+     "arguments": [
+      "0x029a"
+     ],
+     "mnemonic": "PUSH2"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 726,
+    "operation": {
+     "mnemonic": "JUMP"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 727,
+    "operation": {
+     "mnemonic": "JUMPDEST"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 728,
+    "operation": {
+     "mnemonic": "ADD"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 729,
+    "operation": {
+     "mnemonic": "SWAP1"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 730,
+    "operation": {
+     "mnemonic": "JUMP"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 731,
+    "operation": {
+     "mnemonic": "JUMPDEST"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 732,
+    "operation": {
+     "arguments": [
+      "0x02f0"
+     ],
+     "mnemonic": "PUSH2"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 735,
+    "operation": {
+     "mnemonic": "SWAP1"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 736,
+    "operation": {
+     "arguments": [
+      "0x20"
+     ],
+     "mnemonic": "PUSH1"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 738,
+    "operation": {
+     "mnemonic": "DUP2"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 739,
+    "operation": {
+     "mnemonic": "ADD"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 740,
+    "operation": {
+     "mnemonic": "SWAP1"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 741,
+    "operation": {
+     "mnemonic": "PUSH0"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 742,
+    "operation": {
+     "mnemonic": "DUP2"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 743,
+    "operation": {
+     "mnemonic": "DUP4"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 744,
+    "operation": {
+     "mnemonic": "SUB"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 745,
+    "operation": {
+     "mnemonic": "SWAP2"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 746,
+    "operation": {
+     "mnemonic": "ADD"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 747,
+    "operation": {
+     "mnemonic": "MSTORE"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 748,
+    "operation": {
+     "arguments": [
+      "0x02c1"
+     ],
+     "mnemonic": "PUSH2"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 751,
+    "operation": {
+     "mnemonic": "JUMP"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 752,
+    "operation": {
+     "mnemonic": "JUMPDEST"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 753,
+    "operation": {
+     "mnemonic": "SWAP1"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 754,
+    "operation": {
+     "mnemonic": "JUMP"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 755,
+    "operation": {
+     "mnemonic": "JUMPDEST"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 756,
+    "operation": {
+     "mnemonic": "ISZERO"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 757,
+    "operation": {
+     "arguments": [
+      "0x02fa"
+     ],
+     "mnemonic": "PUSH2"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 760,
+    "operation": {
+     "mnemonic": "JUMPI"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 761,
+    "operation": {
+     "mnemonic": "JUMP"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 762,
+    "operation": {
+     "mnemonic": "JUMPDEST"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 763,
+    "operation": {
+     "arguments": [
+      "0x0302"
+     ],
+     "mnemonic": "PUSH2"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 766,
+    "operation": {
+     "arguments": [
+      "0x0042"
+     ],
+     "mnemonic": "PUSH2"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 769,
+    "operation": {
+     "mnemonic": "JUMP"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 770,
+    "operation": {
+     "mnemonic": "JUMPDEST"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 771,
+    "operation": {
+     "arguments": [
+      "0x461bcd"
+     ],
+     "mnemonic": "PUSH3"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 775,
+    "operation": {
+     "arguments": [
+      "0xe5"
+     ],
+     "mnemonic": "PUSH1"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 777,
+    "operation": {
+     "mnemonic": "SHL"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 778,
+    "operation": {
+     "mnemonic": "DUP2"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 779,
+    "operation": {
+     "mnemonic": "MSTORE"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 780,
+    "operation": {
+     "mnemonic": "DUP1"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 781,
+    "operation": {
+     "arguments": [
+      "0x0318"
+     ],
+     "mnemonic": "PUSH2"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 784,
+    "operation": {
+     "arguments": [
+      "0x04"
+     ],
+     "mnemonic": "PUSH1"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 786,
+    "operation": {
+     "mnemonic": "DUP3"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 787,
+    "operation": {
+     "mnemonic": "ADD"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 788,
+    "operation": {
+     "arguments": [
+      "0x02db"
+     ],
+     "mnemonic": "PUSH2"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 791,
+    "operation": {
+     "mnemonic": "JUMP"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 792,
+    "operation": {
+     "mnemonic": "JUMPDEST"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 793,
+    "operation": {
+     "mnemonic": "SUB"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 794,
+    "operation": {
+     "mnemonic": "SWAP1"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 795,
+    "operation": {
+     "mnemonic": "REVERT"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 124,
+       "offset": 99
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 796,
+    "operation": {
+     "mnemonic": "JUMPDEST"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 124,
+       "offset": 99
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 797,
+    "operation": {
+     "mnemonic": "SWAP1"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 5,
+       "offset": 213
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 798,
+    "operation": {
+     "arguments": [
+      "0x034d"
+     ],
+     "mnemonic": "PUSH2"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 124,
+       "offset": 99
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 801,
+    "operation": {
+     "mnemonic": "SWAP2"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 7,
+       "offset": 157
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 802,
+    "operation": {
+     "arguments": [
+      "0x0329"
+     ],
+     "mnemonic": "PUSH2"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 7,
+       "offset": 157
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 805,
+    "operation": {
+     "arguments": [
+      "0x0258"
+     ],
+     "mnemonic": "PUSH2"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 7,
+       "offset": 157
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 808,
+    "operation": {
+     "mnemonic": "JUMP"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 7,
+       "offset": 157
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 809,
+    "operation": {
+     "mnemonic": "JUMPDEST"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 1,
+       "offset": 180
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 810,
+    "operation": {
+     "mnemonic": "POP"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 28,
+       "offset": 172
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 811,
+    "operation": {
+     "arguments": [
+      "0x0348"
+     ],
+     "mnemonic": "PUSH2"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 1,
+       "offset": 180
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 814,
+    "operation": {
+     "mnemonic": "DUP2"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 8,
+       "offset": 180
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 815,
+    "operation": {
+     "arguments": [
+      "0x0342"
+     ],
+     "mnemonic": "PUSH2"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 8,
+       "offset": 180
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 818,
+    "operation": {
+     "arguments": [
+      "0x033c"
+     ],
+     "mnemonic": "PUSH2"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 4,
+       "offset": 184
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 821,
+    "operation": {
+     "arguments": [
+      "0x03e8"
+     ],
+     "mnemonic": "PUSH2"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 8,
+       "offset": 180
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 824,
+    "operation": {
+     "arguments": [
+      "0x0275"
+     ],
+     "mnemonic": "PUSH2"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 8,
+       "offset": 180
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 827,
+    "operation": {
+     "mnemonic": "JUMP"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 8,
+       "offset": 180
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 828,
+    "operation": {
+     "mnemonic": "JUMPDEST"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 8,
+       "offset": 180
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 829,
+    "operation": {
+     "mnemonic": "SWAP2"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 8,
+       "offset": 180
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 830,
+    "operation": {
+     "arguments": [
+      "0x009a"
+     ],
+     "mnemonic": "PUSH2"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 8,
+       "offset": 180
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 833,
+    "operation": {
+     "mnemonic": "JUMP"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 8,
+       "offset": 180
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 834,
+    "operation": {
+     "mnemonic": "JUMPDEST"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 8,
+       "offset": 180
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 835,
+    "operation": {
+     "mnemonic": "LT"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 28,
+       "offset": 172
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 836,
+    "operation": {
+     "arguments": [
+      "0x02f3"
+     ],
+     "mnemonic": "PUSH2"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 28,
+       "offset": 172
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 839,
+    "operation": {
+     "mnemonic": "JUMP"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 28,
+       "offset": 172
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 840,
+    "operation": {
+     "mnemonic": "JUMPDEST"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 5,
+       "offset": 213
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 841,
+    "operation": {
+     "arguments": [
+      "0x01a7"
+     ],
+     "mnemonic": "PUSH2"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 5,
+       "offset": 213
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 844,
+    "operation": {
+     "mnemonic": "JUMP"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 5,
+       "offset": 213
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 845,
+    "operation": {
+     "mnemonic": "JUMPDEST"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 12,
+       "offset": 206
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 846,
+    "operation": {
+     "mnemonic": "SWAP1"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 12,
+       "offset": 206
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 847,
+    "operation": {
+     "mnemonic": "JUMP"
+    }
+   }
+  ]
+ },
+ "initEthdebug": {
+  "contract": {
+   "definition": {
+    "source": {
+     "id": 0
+    }
+   },
+   "name": "Calls"
+  },
+  "environment": "create",
+  "instructions": [
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 0,
+    "operation": {
+     "arguments": [
+      "0x80"
+     ],
+     "mnemonic": "PUSH1"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 2,
+    "operation": {
+     "arguments": [
+      "0x40"
+     ],
+     "mnemonic": "PUSH1"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 4,
+    "operation": {
+     "mnemonic": "MSTORE"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 5,
+    "operation": {
+     "mnemonic": "CALLVALUE"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 6,
+    "operation": {
+     "arguments": [
+      "0x1c"
+     ],
+     "mnemonic": "PUSH1"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 8,
+    "operation": {
+     "mnemonic": "JUMPI"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 9,
+    "operation": {
+     "arguments": [
+      "0x0e"
+     ],
+     "mnemonic": "PUSH1"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 11,
+    "operation": {
+     "arguments": [
+      "0x20"
+     ],
+     "mnemonic": "PUSH1"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 13,
+    "operation": {
+     "mnemonic": "JUMP"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 14,
+    "operation": {
+     "mnemonic": "JUMPDEST"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 15,
+    "operation": {
+     "arguments": [
+      "0x03b5"
+     ],
+     "mnemonic": "PUSH2"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 18,
+    "operation": {
+     "arguments": [
+      "0x002b"
+     ],
+     "mnemonic": "PUSH2"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 21,
+    "operation": {
+     "mnemonic": "DUP3"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 22,
+    "operation": {
+     "mnemonic": "CODECOPY"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 23,
+    "operation": {
+     "arguments": [
+      "0x03b5"
+     ],
+     "mnemonic": "PUSH2"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 26,
+    "operation": {
+     "mnemonic": "SWAP1"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 27,
+    "operation": {
+     "mnemonic": "RETURN"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 28,
+    "operation": {
+     "mnemonic": "JUMPDEST"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 29,
+    "operation": {
+     "arguments": [
+      "0x26"
+     ],
+     "mnemonic": "PUSH1"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 31,
+    "operation": {
+     "mnemonic": "JUMP"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 32,
+    "operation": {
+     "mnemonic": "JUMPDEST"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 33,
+    "operation": {
+     "arguments": [
+      "0x40"
+     ],
+     "mnemonic": "PUSH1"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 35,
+    "operation": {
+     "mnemonic": "MLOAD"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 36,
+    "operation": {
+     "mnemonic": "SWAP1"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 37,
+    "operation": {
+     "mnemonic": "JUMP"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 38,
+    "operation": {
+     "mnemonic": "JUMPDEST"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 39,
+    "operation": {
+     "mnemonic": "PUSH0"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 40,
+    "operation": {
+     "mnemonic": "DUP1"
+    }
+   },
+   {
+    "context": {
+     "code": {
+      "range": {
+       "length": 332,
+       "offset": 56
+      },
+      "source": {
+       "id": 0
+      }
+     }
+    },
+    "offset": 41,
+    "operation": {
+     "mnemonic": "REVERT"
+    }
+   }
+  ]
+ }
+}

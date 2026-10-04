@@ -1,0 +1,29 @@
+name Tally;
+
+define {
+  function dbl(x: uint256) -> uint256 {
+    return x + x;
+  };
+
+  function weight(i: uint256, n: uint256) -> uint256 {
+    if (i < 2) {
+      return dbl(i) + n;
+    }
+    return i * n;
+  };
+}
+
+storage {
+  [0] total: uint256;
+  [1] calls: uint256;
+}
+
+code {
+  let n = 4;
+  let sum = 0;
+  for (let i = 0; i < n; i = i + 1) {
+    sum = sum + weight(i, n);
+  }
+  total = total + sum;
+  calls = calls + 1;
+}

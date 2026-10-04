@@ -1,0 +1,65 @@
+use super::abi::{Abi, AbiDecoder, AbiSize, ByteInput, Decode, Encode, encode_return_alloc}
+use super::ptr::MemSpan
+
+/// Host interface required by compiler-generated contract entrypoints.
+///
+/// This trait is implemented by the target's root effect type (e.g. `std::evm::effects::Evm`).
+pub trait ContractHost {
+    /// ABI input source (e.g. EVM calldata).
+    type Input: ByteInput
+
+    /// ABI input source for contract initialization (e.g. constructor args).
+    type InitInput: ByteInput
+
+    fn input(self) -> Self::Input
+    fn init_input<F>(mut self, _: F) -> Self::InitInput
+
+    fn create_contract<F>(mut self, _: F) -> !
+    fn abort(self) -> !
+
+    fn return_bytes(self, data: MemSpan) -> !
+    fn return_unit(self) -> ! {
+        self.return_bytes(data: MemSpan::empty())
+    }
+
+    fn runtime_selector<A: Abi>(self) -> A::Selector {
+        let input = self.input()
+        if input.len() < A::SELECTOR_SIZE {
+            self.abort()
+        }
+        A::selector_from_prefix(input.word_at(0))
+    }
+
+    #[inline(always)]
+    fn runtime_decoder<A: Abi>(mut self) -> A::Decoder<Self::Input> {
+        A::decoder_with_base(self.input(), A::SELECTOR_SIZE)
+    }
+
+    fn return_value<A: Abi, T>(mut self, _ value: own T) -> !
+        where T: Encode<A> + AbiSize
+    {
+        let out = encode_return_alloc<A, T>(value)
+        self.return_bytes(data: out.span())
+    }
+}
+
+#[inline(always)]
+pub fn decode_runtime_args<H, A, T>(_ host: mut H) -> T
+    where H: ContractHost,
+          A: Abi,
+          T: Decode<A> + AbiSize,
+          A::Decoder<H::Input>: AbiDecoder<A>
+{
+    let input = host.input()
+    let base = A::SELECTOR_SIZE
+    let len = input.len()
+    A::validate_runtime_head(input_len: len, base, head_size: T::HEAD_SIZE)
+
+    T::decode_from_prechecked_head(input, base, len)
+}
+
+/// Target configuration used by compiler-generated contract entrypoints.
+pub trait Target {
+    type RootEffect: ContractHost
+    type DefaultAbi: Abi
+}
