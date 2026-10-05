@@ -60,10 +60,9 @@ no dates given · (~N) = prose word budget
      architected the Truffle Debugger and led the design of its
      decoder"; or third person, "the ethdebug lead architected the
      Truffle Debugger and designed the interfaces of its decoder".)*
-     **[verify: recount]**
-   - These decoders hit limits. Tenderly's docs say that solc's newer
-     pipeline ("via-IR") leaves tools "heuristics and educated
-     guesses". **[verify: cite the archived copy, with its date]**
+   - These decoders hit limits. Tenderly's via-IR docs page said
+     solc's AST and source maps force tools "to rely on heuristics and
+     educated guesses" (Wayback copy, 2026-06-08).
    - The common workaround is to turn the optimizer off. Then you
      debug code that is not the code that runs on chain.
    - With ethdebug, the compiler writes the answers down, in a shared,
@@ -185,7 +184,7 @@ no dates given · (~N) = prose word budget
    - Why this is still good news: with a specification, schemas and an
      automatic judge, you can check an LLM-built tool. This matters
      because 45% of Solidity developers distrust AI output (Solidity
-     Developer Survey 2025). **[verify]**
+     Developer Survey 2025).
    - Where ethdebug gives more **[P]**: once solc emits every state
      variable, the tool needs no Solidity storage rules. Once solc
      emits local variables, the older outputs have nothing to offer.
@@ -241,8 +240,9 @@ no dates given · (~N) = prose word budget
      - every state variable as data: the compiler gives each
        variable's location (open on Walnut's fork, walnuthq/solidity
        #10; we built it, and soldb reads state through it)
-     - local variables: Foundry's request to show them has been open
-       since 2022 **[verify: issue link]**
+     - local variables: Foundry's debugger lists them by name without
+       values; that request has been open since 2022
+       (foundry-rs/foundry #927)
      - optimized code: 81% of verified mainnet deployments are
        optimized
    - **Next for the format: what the bytes mean** (~60): to show a

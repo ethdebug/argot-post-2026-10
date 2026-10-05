@@ -110,7 +110,7 @@ it** (~220)
 - **So we publish the contest now, with its rules and judge: anyone
   can re-run it, and we will too, once solc emits local variables.**
   *(Why a checkable tool matters: 45% of Solidity developers distrust
-  AI output [verify]. No date; the re-run follows the milestone. ~100)*
+  AI output. No date; the re-run follows the milestone. ~100)*
 
 **6. A real debugger already runs on it, offline, in your browser**
 (~270)
@@ -150,8 +150,8 @@ can't** (~380)
   which tools have long struggled to show.** *(Compilers give where
   each variable lives. Every state variable works on Walnut's fork
   (walnuthq/solidity #10), and soldb reads state through it;
-  local variables are designed; Foundry's request has been open since
-  2022 [verify]. ~90)*
+  local variables are designed; Foundry lists them by name without
+  values, and the request is open since 2022 (#927). ~90)*
 - **To show values, the format must also say what the bytes mean, and
   that is its next big piece.** *(Signed or not, scale, byte order,
   field names: the type schema rewrite, issue #282, right after this
