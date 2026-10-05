@@ -30,14 +30,14 @@ no dates given · (~N) = prose word budget
   tell tools what their bytecode means. It also says what you can
   build on it today, and what comes next.
 - **Opening** (~90, untitled, before section 1): the reader's first
-  paragraph. It welcomes the reader; it does not summarize the post.
+  paragraph. It introduces ethdebug; it does not summarize the post.
   - What ethdebug is, in one line: an open specification for the debug
     data a compiler writes next to its EVM bytecode (what each
     instruction means in the source, and where each value lives). It
     does for the EVM what DWARF does for native code.
   - Who we are: the ethdebug team at Argot maintains it. This is its
     first introduction on this blog.
-  - Momentum, for readers who stop here: three compilers write it
+  - Adoption, for readers who stop here: three compilers write it
     today (solc experimentally, Fe, and Solar on its main branch).
     Independent tools already read it (Walnut's debugger, soldb).
   - Who the post is for: anyone who builds tools, or wants to, and
@@ -90,8 +90,8 @@ no dates given · (~N) = prose word budget
        below). The format covers more than any one compiler uses yet.
 
 2. **You can get the data today, from three compilers** (~350)
-   - *Why you care:* you can try this now, in a few minutes, with
-     tools you already have.
+   - *Why you care:* three compilers emit the data today. No new
+     tools are needed to get it.
    - **Exhibit:** one instruction, explained: about six lines of solc
      0.8.37 output (offset, opcode, its source range) next to the
      highlighted source line. The settings snippet moves to the companion
@@ -192,18 +192,18 @@ no dates given · (~N) = prose word budget
 
 5. **An LLM builds a working tool from it in minutes** (~250, plus
    appendix)
-   - *Why you care:* the idea you have put off may now be an
-     afternoon's work.
+   - *Why you care:* an LLM can build a tool on this data, and the
+     specification lets you check that tool.
    - The task: a command-line tool that shows each storage value a
      transaction changed, by its Solidity name, from public material
      only.
    - Claude Sonnet built one that passed our hidden tests in under four
      minutes, and extended it in under a minute. (A second model's tool
      failed our hidden tests; we report every run.)
-   - Without ethdebug, using solc's older outputs, the model was just
-     as fast. For storage on solc, those outputs carry the same
+   - Without ethdebug, using solc's older outputs, the model was as
+     fast. For storage on solc, those outputs carry the same
      information. Today, ethdebug ties.
-   - Why this is still good news: with a specification, schemas and an
+   - Why it still matters: with a specification, schemas and an
      automatic judge, you can check an LLM-built tool. This matters
      because 45% of Solidity developers distrust AI output (Solidity
      Developer Survey 2025).
@@ -230,7 +230,7 @@ no dates given · (~N) = prose word budget
      command-line tool steps backward and stops when the program writes
      to a storage slot.
      Its WebAssembly build runs in the browser and steps through a real
-     transaction in well under a tenth of a second.
+     transaction in under a tenth of a second.
    - Its replay file is a few kilobytes. Attach it to an audit finding,
      and anyone can step through it, and see the contract's state at
      each step (next bullet).
@@ -259,7 +259,7 @@ no dates given · (~N) = prose word budget
      code; solc's optimizer support comes later **[P]**.
 
 7. **Today it matches the old outputs; next, it goes where they can't**
-   (~380)
+   (~450)
    - *Why you care:* facts that tools have long struggled to show you,
      like local variables in optimized code, become data that any tool
      can read.
@@ -293,6 +293,19 @@ no dates given · (~N) = prose word budget
      optimized builds today. Gaps: values in optimized code
      (ethdebug/format issue #291), and no real compiler emits local
      variables yet.
+   - **Contracts already on chain: backfilling** (~70): this answers
+     the reader's question after section 6's "about 0.1% of mainnet":
+     what about contracts that older compilers built? ethdebug does not
+     have to wait for every compiler to emit it. A backfill tool can
+     generate it from what older compiler versions already write
+     (source maps, storageLayout, the AST), so tools can adopt one
+     format for old and new code. Runtime Verification is building one
+     for solc, as a work in progress (ethdebug.py pull request #15,
+     open); like solc's own output, it needs the optimizer off. Present
+     it as a direction with an early example, not as working today:
+     their reader does not yet read solc's output (our run,
+     2026-10-05). A debugger can also recompile a verified contract
+     from the compiler input that Sourcify stores.
    - **BUG already shows what this looks like** (~90): a preview of
      Solidity debugging after solc's next stages, for functions and
      optimization.

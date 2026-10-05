@@ -10,8 +10,8 @@ evidence) and its rough length.
 ---
 
 **Standfirst** (one italic line)
-- **Compilers can now tell tools what their bytecode means. Here is
-  what that looks like today, what you can build on it, and what comes
+- **Compilers can now tell tools what their bytecode means. This
+  post shows what tools can build on that data today, and what comes
   next.** *(Carries the post's main claim.)*
 
 **Opening** (~90, untitled)
@@ -19,7 +19,7 @@ evidence) and its rough length.
   data a compiler writes next to its EVM bytecode.** *(What each
   instruction means in the source, and where each value lives; the
   role DWARF plays for native code. Who we are: the ethdebug team at
-  Argot; first introduction here. Momentum: three compilers write it,
+  Argot; first introduction here. Adoption: three compilers write it,
   independent tools read it. Who it's for: anyone who builds tools,
   or wants to, and auditors.)*
 
@@ -58,8 +58,8 @@ output (offset, opcode, its source range) next to the highlighted source
 line. The settings snippet moves to the companion or a collapsible
 block. Hook: the companion's settings and the hosted builds.*
 
-- **You can get this data in a few minutes, from three compilers, with
-  tools you already have.** *(Answers a common newcomer question: "what
+- **Three compilers emit this data today, and you need no new tools to
+  get it.** *(Answers a common newcomer question: "what
   is in this storage slot?" ~60)*
 - **For Solidity, a few lines of compiler settings turn it on; storage
   layouts need a preview build, which we host.** *(Exhibit: the solc
@@ -83,8 +83,7 @@ Hook: "step it yourself" on the soldb demo.*
 - **Reading the data takes about ten lines of code, and the same ten
   lines work for Solidity and Fe.** *(Exhibit: step.mjs, and its real
   output from both languages side by side. ~150 plus code)*
-- **Before you try it, know two details; each needs one or two more
-  lines of code.** *(Most solc steps point at compiler-generated code;
+- **Two details each need one or two more lines of code.** *(Most solc steps point at compiler-generated code;
   Fe wraps its file a little differently today. ~90)*
 - **On solc, this gives what the older source map already gave, in a
   simpler form; what is new is that the same code also reads another
@@ -103,8 +102,8 @@ derivation" in the inspector.*
 - **Pointers do the main work in ethdebug: a pointer is the compiler's
   own statement of where each value lives, and how to find it.**
   *(The post's main claim in its plainest form. ~50)*
-- **Here is solc's actual rule for finding an entry of a mapping, and
-  two independent tools read it the same way.** *(Exhibit: the mapping
+- **solc writes its rule for finding an entry of a mapping as data,
+  and two independent tools read it the same way.** *(Exhibit: the mapping
   template, about six lines; @ethdebug/pointers and soldb's draft
   reader. ~70 plus snippet)*
 - **Because the rule is data, a tool needs no knowledge of a
@@ -124,7 +123,7 @@ derivation" in the inspector.*
   one in under four minutes.** *(The task: show each storage value a
   transaction changed, by name; passed hidden tests; we report every
   run, including the one that failed. ~90)*
-- **Without ethdebug, the same model was just as fast, because for
+- **Without ethdebug, the same model was as fast, because for
   storage on solc the older outputs say the same thing; today,
   ethdebug ties.** *(Said plainly. ~60)*
 - **So we publish the contest now, with its rules and judge: anyone
@@ -168,7 +167,7 @@ finding.*
   and later. Fe and Solar already handle optimized code. ~70)*
 
 **7. Today it matches the old outputs; next, it goes where they
-can't** (~380)
+can't** (~450)
 
 *Exhibit: the BUG trace playground: a call stack from `invoke`/`return`,
 and an inlined `ADD` still naming `dbl(src)`. Hook: the BUG playground,
@@ -191,6 +190,16 @@ editable in the browser.*
   still catching up.** *(81% of verified mainnet deployments are
   optimized; `transform`, `gather` and `pick`; Solar and Fe emit
   ethdebug for optimized builds; gap: values in optimized code. ~70)*
+- **ethdebug does not have to wait for every compiler: a backfill tool
+  can generate it from what older compiler versions already write.**
+  *(Answers section 6's "about 0.1% of mainnet": contracts already on
+  chain, built by older compilers. Inputs: source maps, storageLayout,
+  the AST; tools adopt one format for old and new code. Runtime
+  Verification is building one for solc (ethdebug.py pull request #15,
+  open, work in progress; optimizer off, like solc). A direction with
+  an early example, not working today: their reader does not yet read
+  solc's output (our run, 2026-10-05). A debugger can also recompile
+  verified contracts from the inputs Sourcify stores. ~70)*
 - **BUG already shows what calls and optimized code can look like
   after solc's next stages.** *(A real call stack from `invoke` and
   `return`, with no guessing from jump markers. Inlined code is marked
@@ -200,8 +209,8 @@ editable in the browser.*
   this previews the format. Link: ethdebug's own reference debugger
   (the trace playground); soldb tracks what solc emits today. ~90)*
 - **Fe's compiler already models variables, scopes and inlining
-  internally, so a second language is within reach for these too.**
-  *(~25)*
+  internally, so Fe could export them with no format change; that is
+  the Fe team's decision.** *(~25)*
 - **The format changes as more people implement it, and every change
   says who has to act on it.** *(Four bugs found and fixed within
   days; a spec change used in Walnut's solc build within two weeks.
