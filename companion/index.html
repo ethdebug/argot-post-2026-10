@@ -599,8 +599,7 @@ about 100 lines of pretty-printed JSON.</p>
 <p><strong>Credit where due.</strong> solx, an LLVM-based Solidity
 compiler now maintained by Nomic Foundation, emits DWARF, and Hardhat's
 EDR reads it for stack traces since July 2026. It uses line tables and
-inlined-call records, not variables.
-<span class="tag verify">to verify: solx appears to emit no variable locations</span>
+inlined-call records; solx writes no variable entries.
 It shows DWARF works for stack traces on the EVM. Where storage and
 memory values live is the open part, and that is what pointers are
 for.</p>
