@@ -92,8 +92,7 @@ layout of Fe's file, and says so (details in
 contract's state at each step, read by soldb from ethdebug alone:
 solc's pointers for storage and the deployed code for immutables, with
 no storage layout. This uses Walnut's next solc stage
-(walnuthq/solidity #10) and soldb pull request #181, both open.
-<span class="tag verify">to verify: recheck soldb's claims against its current release</span></p>
+(walnuthq/solidity #10) and soldb pull request #181, both open.</p>
 <p class="demo-link"><a href="../demos/soldb/">Open the soldb demo</a></p>
 <figure>
   <picture>
@@ -363,8 +362,7 @@ byte. solc's <code>storageLayout</code> counts from the other end, so a
 converter must flip it.</p>
 <p>The expression keys start with <code>$</code> today. ethdebug/format
 issue #310 proposes <code>~</code> instead, because <code>$</code> can
-collide with identifiers.
-<span class="tag verify">to verify: the snippets must use the sigil of the release we link to</span></p>
+collide with identifiers.</p>
 
 <h3>solc's mapping template</h3>
 <p>This is real output from the #16990 build, complete and unedited,
@@ -871,7 +869,6 @@ optimizer contexts above, at four optimizer levels. You can write BUG
 and see its ethdebug output in the
 <a href="https://ethdebug.github.io/format/docs/explore/bug-playground">playground</a>
 on the ethdebug site, with nothing to install.
-<span class="tag verify">to verify: check that the playground works on the live site</span>
 bugc does not emit local variables yet; a pull request for that
 (ethdebug/format #270) is open.</p>
 
@@ -916,8 +913,7 @@ that matches.</p>
 <h2 id="measurements">6. Measurements</h2>
 <p>soldb's numbers are from Playwright engine builds (Chromium 153,
 Firefox 155, WebKit 26.6, and an iPhone 15 emulation), three runs each,
-medians, with no console errors.
-<span class="tag verify">to verify: recheck against soldb's current release</span></p>
+medians, with no console errors.</p>
 
 <h3>soldb in the browser</h3>
 <p>The lean build steps a saved trace: the Shop <code>place</code>
