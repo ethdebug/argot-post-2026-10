@@ -632,7 +632,8 @@ change. Vyper does not emit ethdebug; we wrote this from its rule.
   bytes). Value types get none. Its description also names transient
   storage.
   <span class="tag verify">to verify: transient storage templates in real output</span></li>
-  <li><strong>Walnut's next stage</strong> (walnuthq/solidity #5): a
+  <li><strong>Walnut's next stage</strong> (walnuthq/solidity #5, with
+  #7–#10 on top; we built #10): a
   pointer for every state variable, and <code>code</code> pointers for
   immutables. Their offsets match solc's <code>immutableReferences</code>.
   <span class="tag plan">plan</span> for upstream solc.</li>
@@ -802,8 +803,9 @@ support, one stage at a time, in public pull requests.</p>
 Three facts about today's output: 77% to 93% of runtime instructions
 carry a range over the whole contract (compiler-generated code);
 every instruction says <code>source.id: 0</code>, even code from
-imported files; and no build writes the new <em>stamp</em>
-field that names a file's schema and version. Output from both the
+imported files; and neither writes the new <em>stamp</em>
+field that names a file's schema and version (Walnut's #10 build
+does). Output from both the
 nightly and the #16990 build validates against our schemas, 45 checks
 of 45.</p>
 
