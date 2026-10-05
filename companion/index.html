@@ -122,11 +122,10 @@ TypeScript reference library, finds each value's bytes from the
 values itself, with its own small decoder for each type: a stand-in
 for the format's planned interpretation layer (see
 <a href="#placement">Placement, interpretation, resolution</a>). The
-contracts are compiled
-with a solc build from an open pull request, argotorg/solidity #16990.
-The page lists what is not done yet: each variable's base
-slot still comes from solc's older <code>storageLayout</code> output,
-and it lists the other gaps at the bottom.</p>
+contracts are compiled with Walnut's next solc stage, open on their fork
+(walnuthq/solidity #10). Each variable's base slot comes from the
+program context it writes, so the page needs no <code>storageLayout</code>.
+The page lists the remaining gaps at the bottom.</p>
 <p class="demo-link"><a href="../demos/inspector/">Open the storage inspector</a></p>
 <figure>
   <img src="../demos/inspector/screenshots/desktop-packed.png"
@@ -440,7 +439,8 @@ is:</p>
 <h4>Walkthrough</h4>
 <ol>
   <li>To read <code>accounts[k]</code>, a tool sets <code>slot = 0</code>
-  (from <code>storageLayout</code> today) and <code>key = k</code>, and
+  (from the program context, or <code>storageLayout</code> on released
+  solc) and <code>key = k</code>, and
   evaluates the mapping template.</li>
   <li>The template redefines <code>slot</code> as the keccak256 hash of
   the key and the old slot, each as a 32-byte word. That is the entry's
@@ -646,9 +646,10 @@ change. Vyper does not emit ethdebug; we wrote this from its rule.
 <ul>
   <li><strong>No sub-byte addressing.</strong> Offsets and lengths are
   whole bytes. Solidity packs whole bytes, so solc is not affected.</li>
-  <li><strong>Base slots still come from storageLayout</strong> on the
+  <li><strong>Base slots come from storageLayout</strong> on the
   #16990 build, and value types have no template. Walnut's next stage
-  fixes both <span class="tag plan">plan</span>.</li>
+  (walnuthq/solidity #10) fixes both; the storage inspector uses it
+  <span class="tag plan">plan</span>.</li>
   <li><strong>Nested mappings need chaining by hand.</strong> The outer
   template yields only the inner mapping's slot. A tool must look up the
   inner template itself.</li>
@@ -786,7 +787,7 @@ support, one stage at a time, in public pull requests.</p>
 <tr><td>Explicit settings (#16961)</td><td>Merged, on the development branch</td><td>Nothing new in the output. Selecting ethdebug output now also requires <code>ethdebug</code> and <code>ast-id</code> in <code>debugInfo</code>.</td></tr>
 <tr><td>Types and storage templates (#16990)</td><td>Open, in review, CI green</td><td>Type documents, and one pointer template per composite storage type. <span class="tag plan">plan</span></td></tr>
 <tr><td>Schema test cleanup (#17055)</td><td>Open</td><td>Tests only.</td></tr>
-<tr><td>Every state variable (walnuthq/solidity #5)</td><td>Open on Walnut's fork of solc; not yet proposed upstream. We built it and ran it.</td><td>Every state variable and immutable listed as data: name, declaration, type and pointer. No <code>storageLayout</code> needed to find the bytes; showing values still needs the format's interpretation layer (<a href="#placement">above</a>). <span class="tag plan">plan</span></td></tr>
+<tr><td>Every state variable (walnuthq/solidity #5, and #7–#10 on top)</td><td>Open on Walnut's fork of solc; not yet proposed upstream. We built #10 and ran it: its slots and offsets match <code>storageLayout</code> for every variable we tested, and soldb (pull request #181) reads state through it.</td><td>Every state variable and immutable listed as data: name, declaration, type and pointer. No <code>storageLayout</code> needed to find the bytes; showing values still needs the format's interpretation layer (<a href="#placement">above</a>). <span class="tag plan">plan</span></td></tr>
 <tr><td>Design and Yul sidecar (#16954, and the design page #16780)</td><td>#16780 merged (docs); #16954 a draft</td><td>The design for later stages, including local variables and the optimizer rules above.</td></tr>
 <tr><td>Local variables</td><td>Designed; no pull request yet</td><td>Pointers for variables in memory and on the stack. <span class="tag plan">plan</span></td></tr>
 <tr><td>Function call markers</td><td>In no plan we found</td><td><code>invoke</code> and <code>return</code>.</td></tr>

@@ -20,8 +20,10 @@ templates by ethdebug's reference library.">
     Solidity name, before and after, and marks what changed. Click any
     value, changed or not, to see how it was found.</p>
     <p>Decoded by ethdebug's reference library from solc's ethdebug
-    pointer templates (solc PR #16990 preview build); base slots still
-    come from solc's storageLayout today.</p>
+    output (a preview build of Walnut's solc fork, walnuthq/solidity
+    PR #10). Each variable's base slot, offset and type come from the
+    program context; the rules for mappings, structs, arrays and strings
+    come from the pointer templates in the resources.</p>
     <p class="meta" id="meta"></p>
     <p class="appendix-nav">Part of the ethdebug post appendix, with
     <a href="../../companion/">ethdebug in depth</a> and
@@ -83,13 +85,6 @@ templates by ethdebug's reference library.">
   <section class="notes" aria-label="Notes">
     <h2>What is not done yet</h2>
     <ul>
-      <li><b>Base slots.</b> solc PR #16990 emits a template for each
-      type, but not where each variable starts. The page takes each
-      variable's first slot from solc's storageLayout output.</li>
-      <li><b>Value types.</b> solc emits no template for a top-level
-      value such as a <code>uint256</code>. For these, the page builds
-      the region itself from storageLayout. Such values say so under
-      "How this was found".</li>
       <li><b>Mapping keys.</b> A mapping does not list its keys. The page
       shows only the keys this transaction hashed (read from the
       KECCAK256 inputs in its trace). Other entries exist but are not

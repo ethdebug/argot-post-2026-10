@@ -4,6 +4,7 @@
 import { chromium, firefox, webkit, devices } from "playwright";
 import { fileURLToPath } from "node:url";
 import path from "node:path";
+import fs from "node:fs";
 
 const PAGE = process.env.PAGE ?? "http://localhost:8000/demos/inspector/";
 const root = path.dirname(path.dirname(fileURLToPath(import.meta.url)));
@@ -53,6 +54,16 @@ const same = (a, b) => {
 };
 
 let failed = 0;
+// The base slots come from the program context: no fixture has
+// storageLayout (by name, or as a contract's `layout`)
+for (const file of fs.readdirSync(path.join(root, "fixtures"))) {
+  const text = fs.readFileSync(path.join(root, "fixtures", file), "utf8");
+  if (text.includes("storageLayout") ||
+    JSON.parse(text).contract?.layout !== undefined) {
+    console.log(`fixtures/${file} has storageLayout`);
+    failed++;
+  }
+}
 for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
   ["webkit", webkit]]) {
   const browser = await type.launch();
@@ -749,7 +760,7 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
   await row(`${SENDER}.frozen`).click();
   let text = await how();
   for (const want of ["Template", "$keccak256", "Region", "offset",
-    "from storageLayout", "from the trace", "same bytes in both"]) {
+    "from the program context", "from the trace", "same bytes in both"]) {
     if (!text.includes(want)) problems.push(`frozen how lacks "${want}"`);
   }
   // nonce did change; its source mark and region step
@@ -776,9 +787,14 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
     await page.screenshot({ path: shot("desktop-dark.png") });
     await page.emulateMedia({ colorScheme: "light" });
   }
-  // a value with no template, unchanged
+  // a value with no template, unchanged: the program context gives its
+  // region
   await row("totalSupply").click();
-  if (!(await how()).includes("No template")) problems.push("totalSupply how");
+  text = await how();
+  if (!text.includes("from the program context") ||
+    !text.includes("no template")) {
+    problems.push("totalSupply how");
+  }
 
   // The mode: Before or After shows that dump only, and the derivation
   // and the tree follow it (After by default)

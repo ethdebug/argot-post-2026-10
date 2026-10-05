@@ -7,8 +7,10 @@ was found: the template solc wrote, each expression evaluated, and the
 final regions.
 
 Values are decoded by `@ethdebug/pointers` (ethdebug's reference
-TypeScript library) from solc's ethdebug pointer templates. This page
-does not use soldb.
+TypeScript library) from the ethdebug output of Walnut's solc fork
+(walnuthq/solidity PR #10): each state variable's base slot, offset and
+type from the program context, and the rules for non-value types from
+the pointer templates. This page does not use soldb.
 
 Serve the repo root over HTTP and open `demos/inspector/`. The page needs no
 node: everything comes from `fixtures/`.
@@ -41,12 +43,18 @@ node: everything comes from `fixtures/`.
 
 ## How the fixtures were made
 
-1. `anvil --steps-tracing --port 8547 --silent`
-2. `RPC_URL=http://127.0.0.1:8547 node bin/make-fixtures.mjs`. It compiles each contract with the solc
-   PR #16990 build (`soljson-pr16990.js`, reports
-   `0.8.38-ci.2026.10.1+commit.b3b7db6a`) with viaIR, optimizer off,
+1. `anvil --steps-tracing --port 8548 --silent`
+2. `SOLC=<solc> RPC_URL=http://127.0.0.1:8548 node
+   bin/make-fixtures.mjs`. `<solc>` is a native solc built from Walnut's
+   fork, walnuthq/solidity PR #10 (head `c434b2ea`, reports
+   `0.8.38-develop.2026.10.5+commit.c434b2ea`); without `SOLC`, the
+   script runs `solc` from your PATH. It
+   compiles each contract with `--standard-json`, viaIR, optimizer off,
    `experimental: true`, `debug.debugInfo: ["ethdebug", "ast-id"]`, and
-   output `ethdebug.resources`, `storageLayout`, bytecode and the AST.
+   outputs `ethdebug.resources` and `ethdebug.compilation` (together
+   they give the global `ethdebug.resources`),
+   `evm.deployedBytecode.ethdebug` (the program, with the program-level
+   context), bytecode and the AST. No storageLayout.
 3. Transactions (from anvil account 0):
    - Token: deploy with supply 1000; `transfer(0x7099…79C8, 25)`.
    - Shop: deploy; `place("widget", 5, 3)` (fixture made, not shown;
@@ -69,8 +77,9 @@ node: everything comes from `fixtures/`.
      (block), from `eth_getStorageAt`, plus every slot the trace
      touched. The script checks that the first SLOAD and last SSTORE of
      each slot agree with the node.
-   - the source, storageLayout, ethdebug `resources` (types, pointers),
-     and state variable source ranges from the AST.
+   - the source, the program-level context's `variables` (one per
+     state variable: name, pointer, type id), ethdebug `resources`
+     (types, pointers), and state variable source ranges from the AST.
 
 Cross-check before anvil stopped: `cast storage` on the Token at
 `keccak256(sender . 0)` gave `0x…03cf` (975) and the next slot `0x…01`
@@ -80,21 +89,24 @@ decoded values against the values the calls wrote.
 
 ## Which data is ethdebug, which is not
 
-From ethdebug (`resources`, emitted by solc #16990):
+From ethdebug (emitted by Walnut's solc fork, walnuthq/solidity #10):
 
-- types: kinds, bit widths, struct members, enum values, and
+- state variables (the program-level context, `context.variables` of
+  the deployed code's program): for each one, its name, its type id,
+  and a pointer. A value type's pointer is its region (slot, and for a
+  value narrower than the word its offset and length, counted from the
+  high end of the word); with no offset it starts at byte 0, and with no
+  length it fills the word. A mapping's pointer is its base slot; a string's or dynamic
+  array's gives the base slot to its type's template.
+- types (`resources`): kinds, bit widths, struct members, enum values, and
   `definition.location` (used to mark a struct in the source).
-- pointer templates: the rule for each non-value type (mapping, struct,
-  dynamic array, string), with slot arithmetic, keccak256, packed
-  offsets and lengths, and the short/long string condition.
+- pointer templates (`resources`): the rule for each non-value type
+  (mapping, struct, dynamic array, string), with slot arithmetic,
+  keccak256, packed offsets and lengths, and the short/long string
+  condition.
 
 Not from ethdebug:
 
-- base slots of state variables: storageLayout.
-- regions for top-level value types (`totalSupply`, `a`, `owner`, …):
-  built by the page from storageLayout (slot, offset, size), then read by
-  the library. storageLayout counts offsets from the low end of the
-  word; ethdebug counts from the high end, so offset = 32 − offset − size.
 - mapping keys: from KECCAK256 inputs in the trace.
 - variable declarations marked in the source: solc's AST.
 
@@ -263,9 +275,6 @@ is imported from the package's dist (it is not a public export).
 
 ## Known gaps (also on the page)
 
-- Base slots come from storageLayout; #16990 does not emit them.
-- Value types have no template; the page builds their region from
-  storageLayout.
 - Only mapping keys hashed in the transaction are shown.
 - Nested mappings need chaining templates (one per level); not done.
   These contracts have none.

@@ -1,20 +1,20 @@
-// Makes the page's fixtures: compiles the contracts with the solc PR
-// #16990 build, deploys them on anvil, runs the transactions, and saves
-// for each one the trace steps the page needs, the storage words the
-// decoder reads (before and after), and the compiler output.
+// Makes the page's fixtures: compiles the contracts with a native solc
+// built from Walnut's fork (walnuthq/solidity PR #10), deploys them on
+// anvil, runs the transactions, and saves for each one the trace steps
+// the page needs, the storage words the decoder reads (before and
+// after), and the compiler output.
 //
-// Needs anvil on RPC (default http://127.0.0.1:8548) and `cast`.
-// Usage: node bin/make-fixtures.mjs
+// Needs anvil on RPC (default http://127.0.0.1:8548), `cast`, and the
+// solc binary at SOLC (default: `solc` on PATH; see README.md).
+// Usage: SOLC=<solc> node bin/make-fixtures.mjs
 import fs from "node:fs";
 import path from "node:path";
 import { execFileSync } from "node:child_process";
-import { createRequire } from "node:module";
 import { fileURLToPath } from "node:url";
 import {
   storageState, mappingKeys, touchedSlots, decodeStorage,
 } from "../decode.js";
 
-const require = createRequire(import.meta.url);
 const root = path.dirname(path.dirname(fileURLToPath(import.meta.url)));
 const RPC = process.env.RPC_URL ?? "http://127.0.0.1:8548";
 const TO = "0x70997970C51812dc3A010C7d01b50e0d17dc79C8";
@@ -35,8 +35,9 @@ const hex = (n) => "0x" + n.toString(16);
 
 // ------------------------------------------------------------ compile
 
-const soljson = require(path.join(root, ".solc/soljson.cjs"));
-const solc = require("solc/wrapper")(soljson);
+const SOLC = process.env.SOLC ?? "solc";
+const solcVersion = execFileSync(SOLC, ["--version"], { encoding: "utf8" })
+  .match(/Version: (\S+)/)[1];
 
 function compile(name) {
   const file = `${name}.sol`;
@@ -51,19 +52,27 @@ function compile(name) {
       debug: { debugInfo: ["ethdebug", "ast-id"] },
       outputSelection: {
         "*": {
-          // selecting ethdebug.resources for contracts gives the global
-          // `ethdebug` output (resources.types, resources.pointers)
-          "*": ["storageLayout", "evm.bytecode.object", "ethdebug.resources"],
+          // selecting ethdebug.resources and ethdebug.compilation for
+          // contracts gives the global `ethdebug` output
+          // (resources.types, resources.pointers); the program for the
+          // deployed code has the program-level context (`variables`)
+          "*": ["evm.bytecode.object", "evm.deployedBytecode.ethdebug",
+            "ethdebug.resources", "ethdebug.compilation"],
           "": ["ast"],
         },
       },
     },
   };
-  const out = JSON.parse(solc.compile(JSON.stringify(input)));
+  const out = JSON.parse(execFileSync(SOLC, ["--standard-json"], {
+    input: JSON.stringify(input), encoding: "utf8",
+    maxBuffer: 1 << 28,
+  }));
   const errors = (out.errors ?? []).filter((e) => e.severity === "error");
   if (errors.length) throw new Error(errors.map((e) => e.message).join("\n"));
   if (!out.ethdebug?.resources) throw new Error("no ethdebug.resources");
   const c = out.contracts[file][name];
+  const variables = c.evm.deployedBytecode.ethdebug?.context?.variables;
+  if (!variables) throw new Error(`${name}: no program-level variables`);
   // state variable declarations, by name, from the AST
   const declarations = {};
   const visit = (n) => {
@@ -82,9 +91,10 @@ function compile(name) {
     name,
     file,
     source: content,
-    compiler: solc.version(),
+    compiler: solcVersion,
     bytecode: "0x" + c.evm.bytecode.object,
-    layout: c.storageLayout,
+    // state variables: base slot, offset, type (program-level context)
+    variables,
     types: out.ethdebug.resources.types,
     pointers: out.ethdebug.resources.pointers,
     declarations,
