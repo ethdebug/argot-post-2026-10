@@ -174,6 +174,36 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
     });
     r.ui = ui; r.shikiInfo = r.shiki;
     if (name === "chromium" && i === 0) {
+      // Show the state panel where it says the most: a step in user code
+      // that changes a value, with as few unknowns as possible.
+      const showcase = () => page.evaluate(() => {
+        const box = document.getElementById("stepper");
+        const range = box.querySelector("input");
+        const go = (i) => {
+          range.value = String(i);
+          range.dispatchEvent(new Event("input"));
+        };
+        // Score: values known, plus one if a value differs from the step
+        // before; only steps with a highlighted source line count.
+        const vals = () => [...box.querySelectorAll(".state .val")]
+          .map((v) => v.textContent).join("|");
+        let best = 0, bestScore = -1, prev = "";
+        for (let s = 0; s <= +range.max; s++) {
+          go(s);
+          const now = vals();
+          const changed = s > 0 && now !== prev;
+          prev = now;
+          if (!box.querySelector(".hl")) continue;
+          const known = box.querySelectorAll(".state .val:not(.unk)").length;
+          const score = known * 2 + (changed ? 1 : 0);
+          if (score >= bestScore) { bestScore = score; best = s; }
+        }
+        go(best - 1); go(best);
+        console.log("showcase step", best);
+        return best;
+      });
+      await page.evaluate(() => window.select("sol"));
+      r.showcaseStep = await showcase();
       await page.screenshot({ path: "screenshot-highlight.png",
         fullPage: true });
       await page.evaluate(async (i) => {
@@ -187,6 +217,7 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
       await page.screenshot({ path: "screenshot-fe-dark.png",
         fullPage: true });
       await page.evaluate(() => window.select("sol"));
+      await showcase();
       await page.screenshot({ path: "screenshot-highlight-dark.png",
         fullPage: true });
       await page.emulateMedia({ colorScheme: "light" });
