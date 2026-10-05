@@ -20,8 +20,8 @@ evidence) and its rough length.
   instruction means in the source, and where each value lives; the
   role DWARF plays for native code. Who we are: the ethdebug team at
   Argot; first introduction here. Momentum: three compilers write it,
-  independent tools read it. Who it's for: anyone who builds tools, or
-  wants to.)*
+  independent tools read it. Who it's for: anyone who builds tools,
+  or wants to, and auditors.)*
 
 ---
 
@@ -31,7 +31,8 @@ evidence) and its rough length.
   what the compiler meant, and nothing tells you when it guesses
   wrong.** *(Where variables live in storage, which bytes came from
   which line; the rules change by compiler and version; the Vyper
-  example of a plausible wrong number. ~100)*
+  example of a plausible wrong number; for an auditor, a wrong
+  conclusion in a finding. ~100)*
 - **For years, each team wrote its own guessing code, and each team
   hit the same limits.** *(Remix, Truffle with the disclosure, hevm,
   Tenderly, Foundry; Tenderly's "heuristics and educated guesses";
@@ -124,7 +125,8 @@ it** (~220)
   storageLayout.** *(Exhibit: the demo's state panel. Pointers for
   storage, the deployed code for immutables. Say plainly: reading one
   value by path still uses the layout, and both pull requests are
-  open. ~60)*
+  open. For auditors: the state at each step of a finding comes from
+  the compiler's own data. ~60)*
 - **Switch the demo to Fe, and the same debugger steps through a
   contract in a different language, because both compilers emit the
   same format.** *(Exhibit: the Solidity | Fe switch; say plainly that

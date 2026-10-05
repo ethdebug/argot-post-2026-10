@@ -35,13 +35,15 @@ no dates given · (~N) = prose word budget
   - Momentum, for readers who stop here: three compilers write it
     today (solc experimentally, Fe, and Solar on its main branch).
     Independent tools already read it (Walnut's debugger, soldb).
-  - Who the post is for: anyone who builds tools, or wants to.
+  - Who the post is for: anyone who builds tools, or wants to, and
+    auditors, who must explain what a transaction did.
 
 1. **Tools have always worked backwards** (~400, incl. "What ethdebug
    is")
    - *Why you care:* every tool that shows you a transaction in
      Solidity terms guesses what the compiler meant. When it guesses
-     wrong, it does not tell you.
+     wrong, it does not tell you. For an auditor, that is a wrong
+     conclusion in a finding.
    - What a tool guesses: where each variable lives in storage, and
      which bytes came from which source line. The answers change with
      every compiler and version.
@@ -204,7 +206,8 @@ no dates given · (~N) = prose word budget
      Its WebAssembly build runs in the browser and steps through a real
      transaction in well under a tenth of a second.
    - Its replay file is a few kilobytes. Attach it to an audit finding,
-     and anyone can step through it.
+     and anyone can step through it, and see the contract's state at
+     each step (next bullet).
    - With Walnut's next solc stage, soldb shows the contract's state
      from ethdebug alone: every state variable through solc's pointers,
      immutables from the deployed code, no storage layout. The values
