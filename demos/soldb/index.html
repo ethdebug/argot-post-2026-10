@@ -58,6 +58,17 @@
   kbd { font-family: var(--mono); font-size: 0.8rem; padding: 0 4px;
     border: 1px solid var(--line); border-radius: 3px;
     background: var(--panel); }
+  /* Contract state at the step (Solidity). A changed value takes the
+     inspector's "changed" colour. */
+  .state { margin-top: 12px; }
+  .state p { margin: 4px 0; font-size: 0.9rem; }
+  .state table { min-width: 0; }
+  .state td { font-family: var(--mono); font-size: 0.8rem;
+    overflow-wrap: anywhere; }
+  .state td:first-child { white-space: nowrap; }
+  .state .val { padding: 0 3px; border-radius: 3px; }
+  .state .val.unk { color: var(--muted); }
+  .state .val.chg { background: var(--chg-bg); color: var(--chg-fg); }
 </style>
 </head>
 <body>
@@ -87,10 +98,12 @@ ethdebug.</strong></p>
 
 <div class="about" data-about="sol">
 <p><code>Shop.place</code>: a saved trace of a real transaction (10 MB,
-3,736 EVM steps), with solc's ethdebug output (solc PR #16990). soldb
-parses the trace (<code>Trace.fromJson</code>), reads solc's ethdebug
-(<code>attachEthdebug</code>) and maps each step to its source
-(<code>step(i)</code>).</p>
+3,736 EVM steps), with solc's ethdebug output (Walnut's solc,
+walnuthq/solidity PR #10). soldb parses the trace
+(<code>Trace.fromJson</code>), reads solc's ethdebug
+(<code>attachEthdebug</code>), maps each step to its source
+(<code>step(i)</code>) and reads the contract's state
+(<code>state(i)</code>).</p>
 </div>
 
 <div class="about" data-about="fe" hidden>
@@ -153,6 +166,14 @@ this transaction is under Details.</p>
   <p id="msg"></p>
   <p class="gen-note"></p>
   <div class="src"></div>
+  <div class="state" hidden>
+    <p>State from ethdebug alone: solc's pointers for storage, the
+    deployed code for immutables; no storage layout.</p>
+    <table aria-label="contract state"></table>
+    <p class="muted">A trace holds only the storage a transaction reads
+    or writes, so a value shows as unknown until the transaction reads or
+    writes it, and stays unknown if it never does.</p>
+  </div>
   <p class="muted">The page computes these steps from two fields that
   soldb reports per step: the source span and the EVM call depth.
   "into" goes to the next new span; "over" to the next new span at the
@@ -210,7 +231,7 @@ numeric ids only), so the second row gives it as <code>0</code>.</p>
 <table id="bug-times"></table>
 
 <h3>B. Replay build: re-execute a transaction offline</h3>
-<p>The replay module (887 KB) contains an EVM. It re-executes a
+<p>The replay module (1,092 KB) contains an EVM. It re-executes a
 <code>Token.transfer</code> transaction from a 6.5 KB replay file and
 contacts no node: soldb's only requests are for static files from this
 server.</p>

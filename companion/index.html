@@ -88,7 +88,11 @@ a second transaction, compiled by Fe, a separate contract language.
 soldb is unchanged: the same debugger steps through both languages,
 because both compilers write the same format. The page adapts only the
 layout of Fe's file, and says so (details in
-<a href="#fe">Fe</a> below).
+<a href="#fe">Fe</a> below). For Solidity, a state panel shows the
+contract's state at each step, read by soldb from ethdebug alone:
+solc's pointers for storage and the deployed code for immutables, with
+no storage layout. This uses Walnut's next solc stage
+(walnuthq/solidity #10) and soldb pull request #181, both open.
 <span class="tag verify">to verify: recheck soldb's claims against its current release</span></p>
 <p class="demo-link"><a href="../demos/soldb/">Open the soldb demo</a></p>
 <figure>

@@ -111,6 +111,42 @@ export class Trace {
         return ret !== 0;
     }
     /**
+     * Supplies the deployed code of `address`, as `eth_getCode` returns it, which holds
+     * the values of the contract's immutables. Call it before `state`.
+     * @param {string} address
+     * @param {string} code
+     */
+    provideCode(address, code) {
+        const ptr0 = passStringToWasm0(address, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len0 = WASM_VECTOR_LEN;
+        const ptr1 = passStringToWasm0(code, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len1 = WASM_VECTOR_LEN;
+        const ret = wasm.trace_provideCode(this.__wbg_ptr, ptr0, len0, ptr1, len1);
+        if (ret[1]) {
+            throw takeFromExternrefTable0(ret[0]);
+        }
+    }
+    /**
+     * The attached contract's state at one step as JSON (see [`pipeline::StateDocument`]):
+     * its state variables with their values, read through the pointers of the
+     * program-level context when the compiler gave one, through the storage layout
+     * otherwise. `undefined` past the end of the trace.
+     * @param {number} index
+     * @returns {string | undefined}
+     */
+    state(index) {
+        const ret = wasm.trace_state(this.__wbg_ptr, index);
+        if (ret[3]) {
+            throw takeFromExternrefTable0(ret[2]);
+        }
+        let v1;
+        if (ret[0] !== 0) {
+            v1 = getStringFromWasm0(ret[0], ret[1]).slice();
+            wasm.__wbindgen_free(ret[0], ret[1] * 1, 1);
+        }
+        return v1;
+    }
+    /**
      * One step as JSON: program counter, opcode, gas, source span, enclosing function,
      * machine state, and decoded variables. `undefined` past the end of the trace.
      * @param {number} index

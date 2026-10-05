@@ -150,9 +150,39 @@ const viewer = (() => {
   const note = box.querySelector(".gen-note");
   const where = $("where");
   const msg = $("msg");
+  const stateBox = box.querySelector(".state");
+  const stateTable = stateBox.querySelector("table");
   const buttons = [...box.querySelectorAll("button[data-go]")];
   const cache = new Map();
-  let hl = null, ds = null, shown = null;
+  let hl = null, ds = null, shown = null, before = null;
+  // The contract's state at step i, from soldb's state(i) (Solidity
+  // only). A value that differs from the step shown before is marked.
+  const showState = (i) => {
+    stateBox.hidden = !ds.state;
+    if (!ds.state) return;
+    const vars = ds.state(i);
+    stateTable.innerHTML = "";
+    for (const v of vars) {
+      const tr = stateTable.insertRow();
+      const name = tr.insertCell();
+      name.textContent = v.name;
+      name.title = v.type;
+      const val = document.createElement("span");
+      val.textContent = v.value.startsWith("<unknown") ? "<unknown>"
+        : v.value;
+      val.title = v.value;
+      val.className = "val";
+      // soldb's placeholders (unknown, a mapping) are muted, never marked.
+      const placeholder = v.value.startsWith("<");
+      if (placeholder) val.classList.add("unk");
+      const old = before && before.get(v.name);
+      if (!placeholder && old !== undefined && old !== v.value) {
+        val.classList.add("chg");
+      }
+      tr.insertCell().append(val);
+    }
+    before = new Map(vars.map((v) => [v.name, v.value]));
+  };
   const render = (src, span) => {
     const key = `${ds.key}:${src.id}:${span ? span.join(":") : ""}`;
     let html = cache.get(key);
@@ -191,6 +221,7 @@ const viewer = (() => {
         ? "Every step here is at EVM call depth 1" : "";
     }
     srcEl.innerHTML = hl ? render(src, span) : `<pre>${esc(src.text)}</pre>`;
+    showState(i);
     srcEl.classList.toggle("faded", !span);
     note.textContent = !span
       ? "compiler-generated code (no specific source)"
@@ -249,6 +280,7 @@ const viewer = (() => {
       hl = await shikiReady;
       save();
       ds = next;
+      before = null;
       range.max = String(ds.walked.n - 1);
       box.hidden = false;
       // Open at the first step in the contract's own file.
@@ -290,28 +322,36 @@ const lean = (async () => {
   return { mod, out, times };
 })();
 
-// Solidity: Shop `place`, saved native trace, solc's ethdebug (#16990).
+// Solidity: Shop `place`, saved native trace, solc's ethdebug (Walnut's
+// solidity PR #10). The deployed code gives soldb the immutables.
 async function loadSolidity() {
   const { mod, out, times } = await lean;
   const traceText = await timed(times, "fetch saved trace", () =>
     text("./shop-debug-rpc.trace.json"));
   const trace = await timed(times, "Trace.fromJson (parse)", () =>
     mod.Trace.fromJson(traceText));
-  const dir = "./art/pr16990-Shop";
-  const [metadata, program, sol] = await timed(times,
-    "fetch ethdebug artifacts", () => Promise.all([
+  const dir = "./art/walnut10-Shop";
+  const [metadata, program, sol, code] = await timed(times,
+    "fetch ethdebug artifacts + code", () => Promise.all([
       json(`${dir}/ethdebug_resources.json`),
       json(`${dir}/Shop_ethdebug-runtime.json`),
       text(`${dir}/Shop.sol`),
+      json("./shop-code.json"),
     ]));
   await timed(times, "attachEthdebug", () => trace.attachEthdebug(
-    JSON.stringify({ name: "Shop", metadata, program, sources: { 0: sol } })));
+    JSON.stringify({ name: "Shop", metadata, program, sources: { 0: sol },
+      address: code.address })));
+  trace.provideCode(code.address, code.code);
+  const state = (i) => JSON.parse(trace.state(i)).variables;
   const sources = { 0: source(0, sol) };
   const walked = await timed(times, "step() every step + JSON.parse", () =>
     walk(trace, sources));
   const summary = JSON.parse(trace.summary());
+  const values = (i) => Object.fromEntries(state(i)
+    .map((v) => [v.name, v.value]));
   const r = {
     ok: true, times: Object.fromEntries(times),
+    stateFirst: values(0), stateLast: values(walked.n - 1),
     replayAvailable: mod.replayAvailable(), version: mod.version(),
     traceBytes: traceText.length, steps: walked.n, mapped: walked.mapped,
     lineChanges: walked.changes.length, generated: walked.generated,
@@ -327,7 +367,8 @@ async function loadSolidity() {
       `whole-contract span), ${r.lineChanges} line changes`],
     ["wasm memory after", kb(r.wasmMemory)],
   ]);
-  return { key: "sol", trace, sources, main: 0, lang: "solidity", walked };
+  return { key: "sol", trace, sources, main: 0, lang: "solidity", walked,
+    state };
 }
 
 // Fe: Tally `Add{n: 4}` on anvil, Fe 26.4.1's ethdebug. The page adapts
@@ -485,7 +526,7 @@ async function partB() {
   });
   if (status.status !== "complete") throw new Error(s(status));
   const trace = await timed(times, "finish", () => replay.finish());
-  const dir = "./art/pr16990-Token";
+  const dir = "./art/walnut10-Token";
   const [metadata, program, sol] = await timed(times,
     "fetch ethdebug artifacts", () => Promise.all([
       json(`${dir}/ethdebug_resources.json`),

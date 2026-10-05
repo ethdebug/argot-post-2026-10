@@ -33,7 +33,8 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
     const r = await page.evaluate(() => window.results);
     r.foreign = foreign; r.logs = logs;
     if (i === 0 && name === "chromium") {
-      await page.screenshot({ path: "screenshot-chromium.png", fullPage: true });
+      await page.screenshot({ path: "screenshot-chromium.png",
+        fullPage: true });
     }
     // Step through the display, per data set: line buttons, a multi-line
     // span, a compiler-generated step, and (Fe) a std-library step.
@@ -51,9 +52,39 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
       const key = (w, i) => w.spans[i] && w.spans[i].join(":");
       const press = (k, shiftKey = false) => document.dispatchEvent(
         new KeyboardEvent("keydown", { key: k, shiftKey, bubbles: true }));
+      // The state panel (Solidity only): soldb's state(i) at a step.
+      const panel = box.querySelector(".state");
+      const table = () => Object.fromEntries([...panel.querySelectorAll(
+        "tr")].map((tr) => [tr.cells[0].textContent, tr.cells[1]
+        .textContent]));
+      const marked = () => [...panel.querySelectorAll(".chg")]
+        .map((e) => e.closest("tr").cells[0].textContent);
       for (const p of ["sol", "fe"]) {
         await window.select(p);
         const w = window.walked[p];
+        if (p === "fe") out.feStateHidden = panel.hidden;
+        if (p === "sol") {
+          // First and last steps, then step into until a value changes.
+          go(0);
+          const first = table();
+          go(w.n - 1);
+          const last = table();
+          go(0);
+          let from = 0, changed = [], row = null;
+          while (!changed.length && at() < w.n - 1) {
+            from = at();
+            btn("into", 1).click();
+            changed = marked();
+            row = table();
+          }
+          const to = at();
+          btn("into", 1).click();
+          out.state = { shown: !panel.hidden, first, last,
+            change: { from, to, changed, row }, afterNext: marked(),
+            lines: [...panel.querySelectorAll("p")]
+              .map((e) => e.textContent.replace(/\s+/g, " ")) };
+          go(0);
+        }
         // Step into, 20 times: each lands on a new span, further on.
         const fwd = btn("into", 1);
         const t = performance.now();
@@ -193,6 +224,16 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
   console.log("phone", JSON.stringify(w), logs);
   await browser.close();
 }
+// The state panel's expected values (Shop.place on a fresh contract).
+const MAP = "<mapping; index it with [key]>", UNK = "<unknown>";
+const want = {
+  first: { orders: MAP, nextId: UNK, revenue: UNK, owner: UNK },
+  last: { orders: MAP, nextId: "1", revenue: "30", owner: UNK },
+};
+const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
+const stateOk = (st, fe) => st?.shown && fe && same(st.first, want.first)
+  && same(st.last, want.last) && same(st.change.changed, ["nextId"])
+  && st.change.row.nextId === "1" && st.afterNext.length === 0;
 const med = (xs) => xs.slice().sort((a, b) => a - b)[Math.floor(xs.length / 2)];
 for (const [name, b] of Object.entries(all)) {
   console.log(`\n== ${name} ${b.version ?? ""} ${b.error ?? ""}`);
@@ -213,6 +254,10 @@ for (const [name, b] of Object.entries(all)) {
     console.log("  ", JSON.stringify(rest));
   }
   console.log("ui", JSON.stringify(r0.ui), "shiki", JSON.stringify(r0.shiki));
+  console.log("state panel", b.runs.map((r) =>
+    stateOk(r.ui.state, r.ui.feStateHidden) ? "ok" : "FAIL").join(","));
+  console.log("console errors", b.runs.flatMap((r) => r.logs)
+    .filter((l) => /^(error|pageerror)/.test(l)).length);
   console.log("total median ms", med(b.runs.map((r) => r.totalMs)).toFixed(0));
   console.log("foreign requests", b.runs.flatMap((r) => r.foreign));
   console.log("requests", r0.requests.map((u) => new URL(u).pathname));
