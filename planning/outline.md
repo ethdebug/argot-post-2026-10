@@ -307,9 +307,10 @@ no dates given · (~N) = prose word budget
 **Hook options** for the first line of section 1:
 - (a) The Solidity Developer Survey 2025: 33% of developers name
   debugging as a recurring problem, at every level of experience.
-  **[verify]**
-- (b) Tenderly's docs: via-IR leaves tools "heuristics and educated
-  guesses".
+- (b) Tenderly's via-IR docs page: solc's AST and source maps force
+  tools "to rely on heuristics and educated guesses"; "Evaluate
+  Expression is disabled for IR-compiled contracts" (Wayback copy,
+  2026-06-08).
 - (c) The Vyper example: a tool built on one compiler's assumptions
   reads another's storage wrong and prints a plausible number.
 
