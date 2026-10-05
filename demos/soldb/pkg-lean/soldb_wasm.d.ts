@@ -39,6 +39,18 @@ export class Trace {
      */
     hasEthdebug(): boolean;
     /**
+     * Supplies the deployed code of `address`, as `eth_getCode` returns it, which holds
+     * the values of the contract's immutables. Call it before `state`.
+     */
+    provideCode(address: string, code: string): void;
+    /**
+     * The attached contract's state at one step as JSON (see [`pipeline::StateDocument`]):
+     * its state variables with their values, read through the pointers of the
+     * program-level context when the compiler gave one, through the storage layout
+     * otherwise. `undefined` past the end of the trace.
+     */
+    state(index: number): string | undefined;
+    /**
      * One step as JSON: program counter, opcode, gas, source span, enclosing function,
      * machine state, and decoded variables. `undefined` past the end of the trace.
      */
@@ -80,6 +92,8 @@ export interface InitOutput {
     readonly trace_fromSimulation: (a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: number, i: number, j: number) => [number, number, number];
     readonly trace_fromTransaction: (a: number, b: number, c: number, d: number, e: number, f: number) => [number, number, number];
     readonly trace_hasEthdebug: (a: number) => number;
+    readonly trace_provideCode: (a: number, b: number, c: number, d: number, e: number) => [number, number];
+    readonly trace_state: (a: number, b: number) => [number, number, number, number];
     readonly trace_step: (a: number, b: number) => [number, number, number, number];
     readonly trace_stepCount: (a: number) => number;
     readonly trace_summary: (a: number) => [number, number, number, number];
