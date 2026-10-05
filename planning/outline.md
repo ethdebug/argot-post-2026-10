@@ -202,7 +202,8 @@ no dates given · (~N) = prose word budget
      without a node. You can send someone a file that lets them do the
      same.
    - soldb is the open-source debugger Walnut built on ethdebug. Its
-     command-line tool steps backward and stops when a value changes.
+     command-line tool steps backward and stops when the program writes
+     to a storage slot.
      Its WebAssembly build runs in the browser and steps through a real
      transaction in well under a tenth of a second.
    - Its replay file is a few kilobytes. Attach it to an audit finding,
