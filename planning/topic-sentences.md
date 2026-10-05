@@ -27,6 +27,11 @@ evidence) and its rough length.
 
 **1. Tools have always worked backwards** (~400)
 
+*Exhibit: one slot, two answers. A real Vyper contract holds a balance
+of 1234; Solidity's rule reads another slot and prints 0. Three-row
+table; caption states the 0. Hook: the storage inspector, where the
+compiler's own rule is visible.*
+
 - **Every tool that shows you a transaction in Solidity terms guesses
   what the compiler meant, and nothing tells you when it guesses
   wrong.** *(Where variables live in storage, which bytes came from
@@ -48,6 +53,11 @@ evidence) and its rough length.
 
 **2. You can get the data today, from three compilers** (~350)
 
+*Exhibit: one instruction, explained: about six lines of solc 0.8.37
+output (offset, opcode, its source range) next to the highlighted source
+line. The settings snippet moves to the companion or a collapsible
+block. Hook: the companion's settings and the hosted builds.*
+
 - **You can get this data in a few minutes, from three compilers, with
   tools you already have.** *(Answers a common newcomer question: "what
   is in this storage slot?" ~60)*
@@ -66,6 +76,10 @@ evidence) and its rough length.
 
 **3. Ten lines of code step through Solidity and Fe alike** (~300)
 
+*Exhibit: the soldb demo stepping `Shop.place` in Solidity, then the
+same page in Fe (a GIF, or two screenshots); step.mjs stays as code.
+Hook: "step it yourself" on the soldb demo.*
+
 - **Reading the data takes about ten lines of code, and the same ten
   lines work for Solidity and Fe.** *(Exhibit: step.mjs, and its real
   output from both languages side by side. ~150 plus code)*
@@ -79,6 +93,12 @@ evidence) and its rough length.
 
 **4. Pointers: the compiler states the rule, and any tool applies
 it** (~220)
+
+*Exhibit: the inspector's "How this was found" for
+`accounts[sender].nonce`: keccak256(key, slot 0) = `0x7230…a722`, then
+bytes 24–31. A second option: the Strings example, one variable in two
+layouts, both found by one rule. Hook: "click any value to see its
+derivation" in the inspector.*
 
 - **Pointers do the main work in ethdebug: a pointer is the compiler's
   own statement of where each value lives, and how to find it.**
@@ -115,6 +135,11 @@ it** (~220)
 **6. A real debugger already runs on it, offline, in your browser**
 (~270)
 
+*Exhibit: a GIF of soldb stepping `Shop.place` while its state panel
+fills in (`nextId 1`, `revenue 30`), from ethdebug alone. Hook: "step it
+yourself", and the 6.5 KB replay file an auditor can attach to a
+finding.*
+
 - **soldb, Walnut's open-source debugger, already reads ethdebug: it
   replays transactions offline and steps through them in your
   browser.** *(Exhibit: the demo page; a replay file of a few
@@ -144,6 +169,10 @@ it** (~220)
 
 **7. Today it matches the old outputs; next, it goes where they
 can't** (~380)
+
+*Exhibit: the BUG trace playground: a call stack from `invoke`/`return`,
+and an inlined `ADD` still naming `dbl(src)`. Hook: the BUG playground,
+editable in the browser.*
 
 - **Today, solc's ethdebug output matches what tools already had; the
   next stages give them what they never had.** *(~50)*

@@ -11,6 +11,11 @@ shouldn't require manually working backwards through those layers"*
 
 **Lens:** on par today, and improving.
 
+**Exhibits and hooks:** each section carries one exhibit (a picture
+or a few lines, with the punchline in the caption) for the casual
+reader, and one hook (something to do on a demo or the matching
+companion section) for the technical reader.
+
 **Written for people:** each section opens with why the reader should
 care, then shows the proof. Numbers only where they persuade; the rest
 goes to the companion page. Short sentences, plain words.
@@ -44,6 +49,10 @@ no dates given · (~N) = prose word budget
      Solidity terms guesses what the compiler meant. When it guesses
      wrong, it does not tell you. For an auditor, that is a wrong
      conclusion in a finding.
+   - **Exhibit:** one slot, two answers. A real Vyper contract holds a
+     balance of 1234; Solidity's rule reads another slot and prints 0.
+     Three-row table; caption states the 0. **Hook:** the storage
+     inspector, where the compiler's own rule is visible.
    - What a tool guesses: where each variable lives in storage, and
      which bytes came from which source line. The answers change with
      every compiler and version.
@@ -83,6 +92,11 @@ no dates given · (~N) = prose word budget
 2. **You can get the data today, from three compilers** (~350)
    - *Why you care:* you can try this now, in a few minutes, with
      tools you already have.
+   - **Exhibit:** one instruction, explained: about six lines of solc
+     0.8.37 output (offset, opcode, its source range) next to the
+     highlighted source line. The settings snippet moves to the companion
+     or a collapsible block. **Hook:** the companion's settings and the
+     hosted builds.
    - It answers a common question on Ethereum StackExchange: "what is
      in this storage slot?"
    - **Solidity:** a short solc settings snippet. A second Solidity
@@ -108,6 +122,9 @@ no dates given · (~N) = prose word budget
 3. **Ten lines of code step through Solidity and Fe alike** (~300)
    - *Why you care:* one small piece of code works across languages.
      You do not write a new decoder for each compiler.
+   - **Exhibit:** the soldb demo stepping `Shop.place` in Solidity, then
+     the same page in Fe (a GIF, or two screenshots); step.mjs stays as
+     code. **Hook:** "step it yourself" on the soldb demo.
    - The snippet: for each step of a transaction, look up the source
      range the compiler recorded and print that line.
    - Tested 10-03: one script, unchanged, steps through a real solc
@@ -132,6 +149,11 @@ no dates given · (~N) = prose word budget
    - *Why you care:* finding where each value lives is the hardest
      part of reading a contract's state. With pointers, tools no longer
      re-derive it for every compiler.
+   - **Exhibit:** the inspector's "How this was found" for
+     `accounts[sender].nonce`: keccak256(key, slot 0) = `0x7230…a722`,
+     then bytes 24–31. A second option: the Strings example, one variable
+     in two layouts, both found by one rule. **Hook:** "click any value
+     to see its derivation" in the inspector.
    - This is the plainest evidence for the post's main claim: the
      compiler states the layout it intended, and tools only apply it.
    - A pointer is a small, declarative description of where a value
@@ -200,6 +222,10 @@ no dates given · (~N) = prose word budget
    - *Why you care:* you can replay and step through a transaction
      without a node. You can send someone a file that lets them do the
      same.
+   - **Exhibit:** a GIF of soldb stepping `Shop.place` while its state
+     panel fills in (`nextId 1`, `revenue 30`), from ethdebug alone.
+     **Hook:** "step it yourself", and the 6.5 KB replay file an auditor
+     can attach to a finding.
    - soldb is the open-source debugger Walnut built on ethdebug. Its
      command-line tool steps backward and stops when the program writes
      to a storage slot.
@@ -237,6 +263,9 @@ no dates given · (~N) = prose word budget
    - *Why you care:* facts that tools have long struggled to show you,
      like local variables in optimized code, become data that any tool
      can read.
+   - **Exhibit:** the BUG trace playground: a call stack from
+     `invoke`/`return`, and an inlined `ADD` still naming `dbl(src)`.
+     **Hook:** the BUG playground, editable in the browser.
    - Next for solc **[P]**:
      - every state variable as data: the compiler gives each
        variable's location (open on Walnut's fork, walnuthq/solidity
