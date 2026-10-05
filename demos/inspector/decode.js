@@ -97,10 +97,16 @@ export function touchedSlots(steps) {
 
 // --------------------------------------------------------------- types
 
-// storageLayout type name -> ethdebug type id, e.g.
-// t_mapping(t_address,t_uint256) -> t_mapping$_t_address_$_t_uint256_$
-export const typeIdOf = (layoutType) =>
-  layoutType.replace(/\(/g, "$_").replace(/,/g, "_$_").replace(/\)/g, "_$");
+// A state variable's base slot, from its pointer in the program-level
+// context: a region's `slot`, or the `slot` a template is given
+export const baseSlot = (variable) => {
+  const p = variable.pointer;
+  return word(BigInt(p.slot ?? p.define?.slot));
+};
+const inStorage = (variable) => {
+  const p = variable.pointer;
+  return p.location === "storage" || p.define?.slot !== undefined;
+};
 
 const resolve = (type, types) =>
   type.kind === "alias" ? resolve(types[type.contains.type.id], types) : type;
@@ -368,26 +374,29 @@ const join = (prefix, n) => (prefix ? `${prefix}-${n}` : n);
 const memberRegion = (m) => (m.startsWith("$") ? "_" + m : m);
 
 // Decode one contract's storage in one state. `keys` is mappingKeys().
+// The state variables, with each one's base slot, offset and type, come
+// from the program-level context (`contract.variables`).
 // Returns a list of nodes:
 //   { label, path, type, value?: { text, hex, region, how }, children? }
 export async function decodeStorage(contract, state, keys) {
-  const { layout, types, pointers: templates } = contract;
+  const { types, pointers: templates } = contract;
   const nodes = [];
-  for (const variable of layout.storage) {
-    const typeId = typeIdOf(variable.type);
+  for (const variable of contract.variables.filter(inStorage)) {
+    const label = variable.identifier;
+    const typeId = variable.type.id;
     const type = types[typeId];
-    const base = word(BigInt(variable.slot));
-    const node = { label: variable.label, path: variable.label, typeId };
+    const base = baseSlot(variable);
+    const node = { label, path: label, typeId };
     if (!type) {
-      node.note = `no ethdebug type for ${variable.type}`;
+      node.note = `no ethdebug type ${typeId}`;
     } else if (isValue(resolve(type, types))) {
-      node.value = await layoutValue(contract, state, variable, type);
+      node.value = await contextValue(contract, state, variable, type);
     } else if (type.kind === "mapping") {
       node.children = await walkMapping(
-        contract, state, keys, typeId, base, variable.label, variable,
+        contract, state, keys, typeId, base, label, variable,
       );
     } else {
-      const origin = { variable: variable.label, slot: base };
+      const origin = { variable: label, slot: base };
       const scope = await instantiate(
         { define: { slot: base }, in: { template: typeId } },
         state, templates, origin,
@@ -399,14 +408,18 @@ export async function decodeStorage(contract, state, keys) {
   return nodes;
 }
 
-// Value types have no template; build the region from storageLayout.
-async function layoutValue(contract, state, variable, type) {
-  const size = Number(contract.layout.types[variable.type].numberOfBytes);
+// A value type has no template: its pointer in the program-level context
+// is the region. With no offset, the value starts at byte 0; with no
+// length, it fills the word.
+async function contextValue(contract, state, variable, type) {
+  const p = variable.pointer;
+  const offset = Number(p.offset ?? 0);
+  const length = Number(p.length ?? 32);
   const region = {
     location: "storage",
-    slot: word(BigInt(variable.slot)),
-    offset: "0x" + (32 - variable.offset - size).toString(16),
-    length: "0x" + size.toString(16),
+    slot: baseSlot(variable),
+    offset: "0x" + offset.toString(16),
+    length: "0x" + length.toString(16),
   };
   const cursor = await dereference(region, { state });
   const view = await cursor.view(state);
@@ -416,12 +429,8 @@ async function layoutValue(contract, state, variable, type) {
     hex: bytes.toHex(),
     region: regionJson(view.regions[0]),
     how: {
-      layout: {
-        slot: variable.slot,
-        offset: variable.offset,
-        size,
-        type: variable.type,
-      },
+      context: { variable: variable.identifier, pointer: p,
+        slot: region.slot, offset, length },
     },
   };
 }
@@ -496,7 +505,7 @@ async function walkMapping(
       ? decodeValue(keyType, Data.fromHex(key), types)
       : decodeValue(keyType, Data.fromHex(key).resizeTo(32), types);
     const p = `${path}[${keyText}]`;
-    const origin = { variable: variable.label, slot: base, key };
+    const origin = { variable: variable.identifier, slot: base, key };
     const scope = await instantiate(
       { define: { slot: base, key }, in: { template: typeId } },
       state, templates, origin,

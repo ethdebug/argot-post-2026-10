@@ -9,7 +9,7 @@ const esc = (s) =>
     ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
 const num = (h) => BigInt(h === undefined || h === "0x" ? 0 : h);
 const word = (n) => "0x" + n.toString(16).padStart(64, "0");
-import { typeName } from "./decode.js";
+import { baseSlot, typeName } from "./decode.js";
 
 const SIDES = ["before", "after"];
 const TINTS = 5;
@@ -135,10 +135,12 @@ export function buildPanel(f, tree) {
   }
   [...read, ...written].forEach(addSlot);
 
-  const bases = new Map(); // slot number -> variables, from storageLayout
-  for (const v of f.contract.layout.storage) {
-    const k = BigInt(v.slot);
-    bases.set(k, [...(bases.get(k) ?? []), v.label]);
+  // slot number -> variables, from the program-level context
+  const bases = new Map();
+  for (const v of f.contract.variables) {
+    if (v.pointer.location === "code") continue;
+    const k = BigInt(baseSlot(v));
+    bases.set(k, [...(bases.get(k) ?? []), v.identifier]);
   }
 
   // Address order, as storage is laid out: slot numbers ascending, so a

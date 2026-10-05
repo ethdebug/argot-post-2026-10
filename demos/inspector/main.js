@@ -272,8 +272,8 @@ function renderHow() {
   const whose = `<p class="howside">For the state <b>${WHEN[side]}</b>.` +
     `${same ? " The same steps find the same bytes in both states." : ""}` +
     "</p>";
-  const note = v.how.layout
-    ? "The library read the region the page gave it."
+  const note = v.how.context
+    ? "The library read the region the program context gave."
     : "The library's dereference() returned these regions and read " +
       "them. The steps above replay the same template with the " +
       "library's evaluator; they agree.";
@@ -290,23 +290,20 @@ function items(node, v, side) {
   const linked = (region) => ` data-region="${esc(JSON.stringify(region))}"` +
     ` data-side="${side}" tabindex="0"`;
   const out = [];
-  if (v.how.layout) {
-    const { slot, offset, size } = v.how.layout;
-    out.push({ key: "layout", eval: "",
-      html: `<li><span class="k">No template</span>
-      solc emits no pointer template for a value type at
-      the top level. So the page builds this region itself, from solc's
-      storageLayout: slot <b>${esc(slot)}</b>, ${size} bytes, ${offset}
-      bytes from the low end of the word.</li>` });
-    out.push({ key: "offset", eval: "", html: `<li><span class="k">Offset</span>
-      ethdebug counts bytes from the high end of the word, so the
-      offset is 32 − ${offset} − ${size} = <b>${32 - offset - size}</b>.
-      </li>` });
+  if (v.how.context) {
+    const { variable, slot, offset, length } = v.how.context;
+    out.push({ key: "context", eval: "",
+      html: `<li><span class="k">Start</span>
+      <code>${esc(variable)}</code> is at slot ${hex(slot)}, ${length}
+      bytes at offset ${offset} (from the high end of the word)
+      <span class="tag">from the program context</span><br>
+      solc emits no template for a value type at the top level: its
+      pointer in the program context is the region.</li>` });
   } else {
     const { origin } = v.how;
     out.push({ key: "start", eval: "", html: `<li><span class="k">Start</span>
       <code>${esc(origin.variable)}</code> starts at slot
-      ${hex(origin.slot)} <span class="tag">from storageLayout</span>
+      ${hex(origin.slot)} <span class="tag">from the program context</span>
       ${origin.key ? `<br>Key ${hex(origin.key)}: this transaction hashed
       it with that slot <span class="tag">from the trace</span>` : ""}
       </li>` });
@@ -724,7 +721,8 @@ async function main() {
   }
   const f0 = loaded[shown[0].id].f;
   $("meta").innerHTML += ` Compiled with solc ${esc(
-    f0.contract.compiler.split("+")[0])} (PR #16990 build).`;
+    f0.contract.compiler.split("+")[0])} (Walnut's fork, ` +
+    "walnuthq/solidity PR #10).";
   // Back to what the URL hash says, if it still makes sense
   const h = initialHash;
   const ex = shown.find((x) => x.id === h.get("ex") ||
