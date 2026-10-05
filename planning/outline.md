@@ -159,9 +159,13 @@ no dates given · (~N) = prose word budget
    - On par today: for solc's storage, storageLayout gives the same
      facts. Pointers give more when they cover every variable, and then
      local variables in memory and on the stack **[P]**.
+   - Walnut's next stage (walnuthq/solidity #10, open on their fork)
+     lists every state variable with its pointer, so no storageLayout
+     is needed. Its slots and offsets match storageLayout for all 21
+     variables we tested. The storage inspector uses it.
    - Gaps today: no bit-level addressing. Nested mappings need
-     chaining by hand. Value types get no template yet. Base slots
-     still come from storageLayout until Walnut's next stage **[P]**.
+     chaining by hand. Value types get no template yet. Released solc
+     still needs storageLayout for base slots.
 
 5. **An LLM builds a working tool from it in minutes** (~250, plus
    appendix)
@@ -201,6 +205,14 @@ no dates given · (~N) = prose word budget
      transaction in well under a tenth of a second.
    - Its replay file is a few kilobytes. Attach it to an audit finding,
      and anyone can step through it.
+   - With Walnut's next solc stage, soldb shows the contract's state
+     from ethdebug alone: every state variable through solc's pointers,
+     immutables from the deployed code, no storage layout. The values
+     match the storage-layout reader exactly, in the command line and
+     in the browser. (Reading one value by path still uses the layout;
+     soldb pull request #181 is a draft.) The demo shows the state
+     panel. So "on par with storageLayout" holds in a real debugger,
+     not only in the format.
    - The same demo switches to Fe: soldb, unchanged, steps through a
      Fe transaction too, because both compilers emit ethdebug. The page
      only adapts Fe's file layout, and says so.
@@ -223,7 +235,8 @@ no dates given · (~N) = prose word budget
      can read.
    - Next for solc **[P]**:
      - every state variable as data: the compiler gives each
-       variable's location (the code is written, and we have run it)
+       variable's location (open on Walnut's fork, walnuthq/solidity
+       #10; we built it, and soldb reads state through it)
      - local variables: Foundry's request to show them has been open
        since 2022 **[verify: issue link]**
      - optimized code: 81% of verified mainnet deployments are

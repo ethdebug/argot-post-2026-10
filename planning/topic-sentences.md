@@ -119,6 +119,12 @@ it** (~220)
   browser.** *(Exhibit: the demo page; a replay file of a few
   kilobytes, attached to an audit finding, lets anyone step through
   it. ~100)*
+- **With Walnut's next solc stage, soldb shows a contract's whole
+  state from ethdebug alone, with the same values it gets from
+  storageLayout.** *(Exhibit: the demo's state panel. Pointers for
+  storage, the deployed code for immutables. Say plainly: reading one
+  value by path still uses the layout, and both pull requests are
+  open. ~60)*
 - **Switch the demo to Fe, and the same debugger steps through a
   contract in a different language, because both compilers emit the
   same format.** *(Exhibit: the Solidity | Fe switch; say plainly that
@@ -140,7 +146,8 @@ can't** (~380)
   next stages give them what they never had.** *(~50)*
 - **First comes every state variable as data, then local variables,
   which tools have long struggled to show.** *(Compilers give where
-  each variable lives. Every state variable works on Walnut's branch;
+  each variable lives. Every state variable works on Walnut's fork
+  (walnuthq/solidity #10), and soldb reads state through it;
   local variables are designed; Foundry's request has been open since
   2022 [verify]. ~90)*
 - **To show values, the format must also say what the bytes mean, and
