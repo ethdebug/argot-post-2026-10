@@ -50,9 +50,9 @@ no dates given · (~N) = prose word budget
    - A wrong guess looks like a correct one. Vyper (another contract
      language) builds mapping slots in the opposite order from
      Solidity. Both rules are valid. A tool that assumes Solidity's
-     rule reads the wrong slot and prints a plausible number. The
-     fault is the tool's assumption, not either language. **[verify:
-     inferred from the two rules; show with a real run]**
+     rule reads the wrong slot and prints a plausible number (0, from an
+     empty slot; shown on anvil). The fault is the tool's assumption,
+     not either language.
    - So every team built its own decoder: Remix, Truffle, hevm,
      Tenderly, Foundry. Truffle's decoder is about 24,000 lines,
      written over five years. *(Disclose it in one of two forms,
@@ -87,10 +87,10 @@ no dates given · (~N) = prose word budget
      in this storage slot?"
    - **Solidity:** a short solc settings snippet. A second Solidity
      compiler, Solar (by Paradigm), also emits it on its main branch
-     (unreleased). **[verify: the settings differ between solc 0.8.37
-     and its development branch]**
-     - Source ranges for every instruction: in released solc. **[verify:
-       check 0.8.37]**
+     (unreleased). Pin solc 0.8.37; the same settings work on its
+     development branch.
+     - Source ranges for nearly every instruction: in released solc
+       0.8.37.
      - Storage layouts: a solc build from an open pull request by
        Walnut (the team building solc's ethdebug support),
        argotorg/solidity #16990. We link it.
@@ -219,10 +219,11 @@ no dates given · (~N) = prose word budget
    - The same demo switches to Fe: soldb, unchanged, steps through a
      Fe transaction too, because both compilers emit ethdebug. The page
      only adapts Fe's file layout, and says so.
-   - Three independent teams read the format: our TypeScript packages,
-     soldb (Rust), and Runtime Verification's Python reader, used by
-     their Simbolik debugger (ethdebug.py's README says so). **[verify:
-     run RV's reader on #16990 output]**
+   - Three independent teams have written readers for the format: our
+     TypeScript packages, soldb (Rust), and Runtime Verification's
+     Python reader, used by their Simbolik debugger (ethdebug.py's
+     README says so). Two of them read solc's output today;
+     ethdebug.py does not yet (our run, 2026-10-05).
    - Link the storage inspector, with one clause: the page decodes
      values itself, a stand-in for the format's planned interpretation
      layer.

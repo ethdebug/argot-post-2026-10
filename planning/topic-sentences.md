@@ -131,9 +131,10 @@ it** (~220)
   contract in a different language, because both compilers emit the
   same format.** *(Exhibit: the Solidity | Fe switch; say plainly that
   the page only adapts Fe's file layout. ~70)*
-- **Three independent teams now read the format, in three programming
-  languages.** *(Our TypeScript packages, soldb in Rust, Runtime
-  Verification's Python reader; link the storage inspector, with one
+- **Three independent teams have written readers for the format, in
+  three programming languages.** *(Our TypeScript packages and soldb
+  in Rust read solc's output today; Runtime Verification's Python
+  reader does not yet. Link the storage inspector, with one
   clause: it decodes values itself, a stand-in for the format's
   planned interpretation layer. ~50)*
 - **For solc, this works only on contracts compiled with via-IR and
