@@ -188,9 +188,8 @@ contract Calls {
   }
 }</code></pre>
 <p>We compiled it with via-IR, the optimizer off and ethdebug turned
-on, using the #16990 build. Released solc writes the same source
-ranges.
-<span class="tag verify">to verify: run the same script on solc 0.8.37 output</span>
+on, using the #16990 build. Released solc 0.8.37 writes the same
+program, and the script prints the same lines.
 The full output for <code>run(5)</code>:</p>
 <pre><code class="language-plaintext">$ node step.mjs solc-program.json solc-trace.json Calls.sol
 12: function run(uint256 x) external {
@@ -619,16 +618,17 @@ the two operands swapped:</p>
 <pre><code class="language-json">{ "$keccak256": [{ "$wordsized": "slot" }, { "$wordsized": "key" }] }</code></pre>
 <p>Vyper does not pack values into slots either, so its regions would
 simply have no <code>offset</code>. The tool reading them would not
-change. Vyper does not emit ethdebug; we wrote this from its rule.
-<span class="tag verify">to verify: inferred from the two rules, not run</span></p>
+change. Vyper does not emit ethdebug; we wrote this from its rule, and
+checked the rule on a deployed Vyper contract: Solidity's order finds an
+empty slot, Vyper's finds the value.</p>
 
 <h3>Who writes and reads pointers today</h3>
 <ul>
   <li><strong>solc</strong>, on the #16990 build: one template per
   composite storage type (mapping, struct, dynamic array, string or
   bytes). Value types get none. Its description also names transient
-  storage.
-  <span class="tag verify">to verify: transient storage templates in real output</span></li>
+  storage, but solc allows <code>transient</code> only for value types,
+  so no transient templates appear.</li>
   <li><strong>Walnut's next stage</strong> (walnuthq/solidity #5, with
   #7–#10 on top; we built #10): a
   pointer for every state variable, and <code>code</code> pointers for
@@ -640,8 +640,8 @@ change. Vyper does not emit ethdebug; we wrote this from its rule.
   <li><strong>Readers:</strong> <code>@ethdebug/pointers</code> (ours,
   TypeScript), soldb's draft reader (Rust, #181), and Runtime
   Verification's <code>ethdebug.py</code> (Python, from their Simbolik
-  debugger).
-  <span class="tag verify">to verify: run ethdebug.py on #16990 output</span></li>
+  debugger). ethdebug.py does not yet read solc's output: in our run
+  it dropped every context and resolved no pointer.</li>
 </ul>
 
 <h3>Known gaps</h3>
@@ -785,8 +785,8 @@ languages: Solidity (solc and Solar), Fe and BUG.</p>
 support, one stage at a time, in public pull requests.</p>
 <div class="table-wrap"><table>
 <tr><th>Stage</th><th>Status</th><th>What it adds</th></tr>
-<tr><td>Source ranges</td><td>Released, experimental (first in 0.8.29; 0.8.37 is the latest release)</td><td>A <code>code</code> range on every instruction. Needs via-IR, the optimizer off, and from 0.8.35 the <code>experimental</code> setting.</td></tr>
-<tr><td>Explicit settings (#16961)</td><td>Merged, on the development branch</td><td>Nothing new in the output. Selecting ethdebug output now also requires <code>ethdebug</code> and <code>ast-id</code> in <code>debugInfo</code>.</td></tr>
+<tr><td>Source ranges</td><td>Released, experimental (first in 0.8.29; 0.8.37 is the latest release)</td><td>A <code>code</code> range on nearly every instruction (all but one or two per contract). Needs via-IR, the optimizer off, and from 0.8.35 the <code>experimental</code> setting.</td></tr>
+<tr><td>Explicit settings (#16961)</td><td>Merged, on the development branch</td><td>Nothing new in the output. Listing <code>ethdebug</code> in <code>debugInfo</code> now also requires <code>ast-id</code>.</td></tr>
 <tr><td>Types and storage templates (#16990)</td><td>Open, in review, CI green</td><td>Type documents, and one pointer template per composite storage type. <span class="tag plan">plan</span></td></tr>
 <tr><td>Schema test cleanup (#17055)</td><td>Open</td><td>Tests only.</td></tr>
 <tr><td>Every state variable (walnuthq/solidity #5, and #7–#10 on top)</td><td>Open on Walnut's fork of solc; not yet proposed upstream. We built #10 and ran it: its slots and offsets match <code>storageLayout</code> for every variable we tested, and soldb (pull request #181) reads state through it.</td><td>Every state variable and immutable listed as data: name, declaration, type and pointer. No <code>storageLayout</code> needed to find the bytes; showing values still needs the format's interpretation layer (<a href="#placement">above</a>). <span class="tag plan">plan</span></td></tr>
@@ -795,8 +795,8 @@ support, one stage at a time, in public pull requests.</p>
 <tr><td>Function call markers</td><td>In no plan we found</td><td><code>invoke</code> and <code>return</code>.</td></tr>
 <tr><td>Optimized code</td><td>Deferred; planned after local variables</td><td>ethdebug for optimized builds. <span class="tag plan">plan</span></td></tr>
 </table></div>
-<p>The settings for released solc and the development branch differ.
-<span class="tag verify">to verify: check source ranges and settings on 0.8.37</span>
+<p>The post's settings work unchanged on 0.8.37 and the development
+branch; only <code>ethdebug</code> without <code>ast-id</code> differs.
 Three facts about today's output: 77% to 93% of runtime instructions
 carry a range over the whole contract (compiler-generated code);
 every instruction says <code>source.id: 0</code>, even code from
