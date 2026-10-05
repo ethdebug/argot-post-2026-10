@@ -2,352 +2,470 @@
 
 Working plan for the post; [verify] marks claims still to check.
 
-**Structure:** get it, read it, build on it, covering all four goals
-from the ethdebug docs' goals page.
+## Approach
 
-**Framing,** quoted from that goals page: *"Reading the blockchain
-shouldn't require manually working backwards through those layers"*
-(the layers are optimization and compilation).
+A walk past seven exhibits, each a different demo in a different form,
+so the captions alone carry the argument, and each demo appears once.
+The standfirst and opening welcome the reader; each section says why
+the reader cares (auditors included), glosses its terms, and states
+its limits plainly. All decisions in the notes apply: solc 0.8.37
+pinned (`0.8.37+commit.f401782d`); no funding plea (Argot's funder
+named once, as background); no dated commitments; the contest parked
+and optional; snippets use the expression sigil (the character that
+starts an expression key) of the release we link to. **Exhibits are
+visual by default.** Each one names a primary form (screenshot, GIF or
+video, or a live embed), a fallback still, and the exact frame. Text
+stays only where text is clearly better, and the exhibit says why. The
+solc settings snippet and the pointer template JSON live on the
+companion, not in the post; DWARF gets one line; "what ethdebug is"
+is about 80 words, beside a real instruction.
 
-**Lens:** on par today, and improving.
+Facts settled for this outline:
+- Compilers: four (solc, Solar, Fe, bugc), three source languages.
+- Decoders: the verified six (Remix, Truffle, hevm, sol-dbg,
+  solc-typed-ast, EDB).
+- Foundry: "lists local variables by name, without values; values are
+  open since 2022 (#927)".
+- Three independent readers, as one claim in section 5.
 
-**Exhibits and hooks:** each section carries one exhibit (a picture
-or a few lines, with the punchline in the caption) for the casual
-reader, and one hook (something to do on a demo or the matching
-companion section) for the technical reader.
-
-**Written for people:** each section opens with why the reader should
-care, then shows the proof. Numbers only where they persuade; the rest
-goes to the companion page. Short sentences, plain words.
-
-**Key:** **[verify]** = verify before publishing · **[P]** = planned work;
-no dates given · (~N) = prose word budget
-
----
-
-- **Standfirst** (one line, italic, under the title): what the post
-  is about, in plain words. It carries the main claim: compilers now
-  tell tools what their bytecode means. It also says what you can
-  build on it today, and what comes next.
-- **Opening** (~90, untitled, before section 1): the reader's first
-  paragraph. It welcomes the reader; it does not summarize the post.
-  - What ethdebug is, in one line: an open specification for the debug
-    data a compiler writes next to its EVM bytecode (what each
-    instruction means in the source, and where each value lives). It
-    does for the EVM what DWARF does for native code.
-  - Who we are: the ethdebug team at Argot maintains it. This is its
-    first introduction on this blog.
-  - Momentum, for readers who stop here: three compilers write it
-    today (solc experimentally, Fe, and Solar on its main branch).
-    Independent tools already read it (Walnut's debugger, soldb).
-  - Who the post is for: anyone who builds tools, or wants to, and
-    auditors, who must explain what a transaction did.
-
-1. **Tools have always worked backwards** (~400, incl. "What ethdebug
-   is")
-   - *Why you care:* every tool that shows you a transaction in
-     Solidity terms guesses what the compiler meant. When it guesses
-     wrong, it does not tell you. For an auditor, that is a wrong
-     conclusion in a finding.
-   - **Exhibit:** one slot, two answers. A real Vyper contract holds a
-     balance of 1234; Solidity's rule reads another slot and prints 0.
-     Three-row table; caption states the 0. **Hook:** the storage
-     inspector, where the compiler's own rule is visible.
-   - What a tool guesses: where each variable lives in storage, and
-     which bytes came from which source line. The answers change with
-     every compiler and version.
-   - A wrong guess looks like a correct one. Vyper (another contract
-     language) builds mapping slots in the opposite order from
-     Solidity. Both rules are valid. A tool that assumes Solidity's
-     rule reads the wrong slot and prints a plausible number (0, from an
-     empty slot; shown on anvil). The fault is the tool's assumption,
-     not either language.
-   - So every team built its own decoder: Remix, Truffle, hevm,
-     Tenderly, Foundry. Truffle's decoder is about 24,000 lines,
-     written over five years. *(Disclose it in one of two forms,
-     an open choice: within "we", "we know this first-hand: one of us
-     architected the Truffle Debugger and led the design of its
-     decoder"; or third person, "the ethdebug lead architected the
-     Truffle Debugger and designed the interfaces of its decoder".)*
-   - These decoders hit limits. Tenderly's via-IR docs page said
-     solc's AST and source maps force tools "to rely on heuristics and
-     educated guesses" (Wayback copy, 2026-06-08).
-   - The common workaround is to turn the optimizer off. Then you
-     debug code that is not the code that runs on chain.
-   - With ethdebug, the compiler writes the answers down, in a shared,
-     specified format.
-   - **What ethdebug is** (~100 words; first introduction on this
-     blog): a specification, as JSON schemas, for the debug data a
-     compiler writes next to the bytecode:
-     - a *program* for each piece of bytecode: its instructions, each
-       with *contexts* that say what the instruction means in the
-       source (source ranges, variables, function calls and returns,
-       ...);
-     - shared *resources*: *types* (what the program's values are) and
-       *pointers* (where each value lives, and how to compute it);
-     - versioned and validated by its schemas, so compilers and tools
-       can check each other. Today's compilers emit parts of it (see
-       below). The format covers more than any one compiler uses yet.
-
-2. **You can get the data today, from three compilers** (~350)
-   - *Why you care:* you can try this now, in a few minutes, with
-     tools you already have.
-   - **Exhibit:** one instruction, explained: about six lines of solc
-     0.8.37 output (offset, opcode, its source range) next to the
-     highlighted source line. The settings snippet moves to the companion
-     or a collapsible block. **Hook:** the companion's settings and the
-     hosted builds.
-   - It answers a common question on Ethereum StackExchange: "what is
-     in this storage slot?"
-   - **Solidity:** a short solc settings snippet. A second Solidity
-     compiler, Solar (by Paradigm), also emits it on its main branch
-     (unreleased). Pin solc 0.8.37; the same settings work on its
-     development branch.
-     - Source ranges for nearly every instruction: in released solc
-       0.8.37.
-     - Storage layouts: a solc build from an open pull request by
-       Walnut (the team building solc's ethdebug support),
-       argotorg/solidity #16990. We link it.
-   - **Fe** (a separate contract language): three commands. ethdebug is
-     Fe's only debug output.
-   - **BUG** (our small teaching language): the playground on the
-     ethdebug docs site, with nothing to install. bugc, its compiler,
-     is our reference implementation. One clause says that BUG also
-     previews what comes next (section 7).
-   - solc adds support in steps, one pull request at a time. Source
-     ranges are released. Storage is in an open pull request. Every
-     state variable is written **[P]**. Local variables are designed
-     **[P]**.
-
-3. **Ten lines of code step through Solidity and Fe alike** (~300)
-   - *Why you care:* one small piece of code works across languages.
-     You do not write a new decoder for each compiler.
-   - **Exhibit:** the soldb demo stepping `Shop.place` in Solidity, then
-     the same page in Fe (a GIF, or two screenshots); step.mjs stays as
-     code. **Hook:** "step it yourself" on the soldb demo.
-   - The snippet: for each step of a transaction, look up the source
-     range the compiler recorded and print that line.
-   - Tested 10-03: one script, unchanged, steps through a real solc
-     transaction and a real Fe transaction. The core is 10 lines. A
-     2-line input step picks Fe's program out of its wrapper. A
-     one-line check skips Fe's standard-library sources.
-   - Real output from both languages, side by side.
-   - Notes, briefly:
-     - On solc, this gives the same result as the older source map, in
-       a simpler shape (8 lines of code instead of 19).
-     - Most solc steps point at the whole contract (compiler-generated
-       code), so the stepper skips them with one line. Fe already
-       labels that code.
-     - Fe's file wraps its program differently today. The two-line
-       input step handles it; stepping needs no adapter.
-   - The goals page names Solidity, Vyper and Fe. Two work today.
-
-4. **Pointers: the compiler states the rule, and any tool applies it**
-   (~220)
-   *(Own section for now. Later, it can be cut and folded into section
-   3 as one paragraph.)*
-   - *Why you care:* finding where each value lives is the hardest
-     part of reading a contract's state. With pointers, tools no longer
-     re-derive it for every compiler.
-   - **Exhibit:** the inspector's "How this was found" for
-     `accounts[sender].nonce`: keccak256(key, slot 0) = `0x7230…a722`,
-     then bytes 24–31. A second option: the Strings example, one variable
-     in two layouts, both found by one rule. **Hook:** "click any value
-     to see its derivation" in the inspector.
-   - This is the plainest evidence for the post's main claim: the
-     compiler states the layout it intended, and tools only apply it.
-   - A pointer is a small, declarative description of where a value
-     lives (storage, memory, calldata, the stack, and so on), including
-     how to compute the location. So far, solc uses pointers for
-     storage. Walnut's next-stage branch also emits `code` pointers for
-     immutables. Memory, calldata and the stack come with local
-     variables **[P]**.
-   - The example: solc's real mapping template (from Walnut's #16990
-     build). The slot is the keccak256 hash of the key and the base
-     slot. Then the struct's own layout applies. Our
-     `@ethdebug/pointers` package and soldb's draft reader both decode
-     it. Show the snippet, about six lines. **[verify: snippets must
-     use the expression sigil of the release we link to (`$` today;
-     `~` if ethdebug/format issue #310 lands first)]**
-   - One evaluator works for every compiler. A compiler with different
-     rules describes its own layout, and tools do not change. For
-     example, once Vyper emits ethdebug, its different mapping order is
-     only a different pointer.
-   - This answers "why not DWARF, storageLayout or source maps?". Each
-     of those gives one kind of fact; a pointer gives the rule. One
-     line here; the full comparison goes on the companion page.
-   - Pointers say where a value's bytes are. They do not yet say what
-     the bytes mean (signed or not, field names, and so on). That is
-     the format's next piece (section 7).
-   - On par today: for solc's storage, storageLayout gives the same
-     facts. Pointers give more when they cover every variable, and then
-     local variables in memory and on the stack **[P]**.
-   - Walnut's next stage (walnuthq/solidity #10, open on their fork)
-     lists every state variable with its pointer, so no storageLayout
-     is needed. Its slots and offsets match storageLayout for all 21
-     variables we tested. The storage inspector uses it.
-   - Gaps today: no bit-level addressing. Nested mappings need
-     chaining by hand. Value types get no template yet. Released solc
-     still needs storageLayout for base slots.
-
-5. **An LLM builds a working tool from it in minutes** (~250, plus
-   appendix)
-   - *Why you care:* the idea you have put off may now be an
-     afternoon's work.
-   - The task: a command-line tool that shows each storage value a
-     transaction changed, by its Solidity name, from public material
-     only.
-   - Claude Sonnet built one that passed our hidden tests in under four
-     minutes, and extended it in under a minute. (A second model's tool
-     failed our hidden tests; we report every run.)
-   - Without ethdebug, using solc's older outputs, the model was just
-     as fast. For storage on solc, those outputs carry the same
-     information. Today, ethdebug ties.
-   - Why this is still good news: with a specification, schemas and an
-     automatic judge, you can check an LLM-built tool. This matters
-     because 45% of Solidity developers distrust AI output (Solidity
-     Developer Survey 2025).
-   - Where ethdebug gives more **[P]**: once solc emits every state
-     variable, the tool needs no Solidity storage rules. Once solc
-     emits local variables, the older outputs have nothing to offer.
-   - So we publish the contest now: "The prompt, rules and judge are
-     published, so anyone can re-run this. We will too, once solc emits
-     local variables." We give no date; the re-run follows the
-     milestone. The contest measures time, how many compiler rules the
-     tool has to hardcode, and how much changes per new language.
-     *(Full design in the appendix, outside the word budget.)*
-
-6. **A real debugger already runs on it, offline, in your browser**
-   (~270)
-   - *Why you care:* you can replay and step through a transaction
-     without a node. You can send someone a file that lets them do the
-     same.
-   - **Exhibit:** a GIF of soldb stepping `Shop.place` while its state
-     panel fills in (`nextId 1`, `revenue 30`), from ethdebug alone.
-     **Hook:** "step it yourself", and the 6.5 KB replay file an auditor
-     can attach to a finding.
-   - soldb is the open-source debugger Walnut built on ethdebug. Its
-     command-line tool steps backward and stops when the program writes
-     to a storage slot.
-     Its WebAssembly build runs in the browser and steps through a real
-     transaction in well under a tenth of a second.
-   - Its replay file is a few kilobytes. Attach it to an audit finding,
-     and anyone can step through it, and see the contract's state at
-     each step (next bullet).
-   - With Walnut's next solc stage, soldb shows the contract's state
-     from ethdebug alone: every state variable through solc's pointers,
-     immutables from the deployed code, no storage layout. The values
-     match the storage-layout reader exactly, in the command line and
-     in the browser. (Reading one value by path still uses the layout;
-     soldb pull request #181 is a draft.) The demo shows the state
-     panel. So "on par with storageLayout" holds in a real debugger,
-     not only in the format.
-   - The same demo switches to Fe: soldb, unchanged, steps through a
-     Fe transaction too, because both compilers emit ethdebug. The page
-     only adapts Fe's file layout, and says so.
-   - Three independent teams have written readers for the format: our
-     TypeScript packages, soldb (Rust), and Runtime Verification's
-     Python reader, used by their Simbolik debugger (ethdebug.py's
-     README says so). Two of them read solc's output today;
-     ethdebug.py does not yet (our run, 2026-10-05).
-   - Link the storage inspector, with one clause: the page decodes
-     values itself, a stand-in for the format's planned interpretation
-     layer.
-   - The limit: with solc today, this works only for contracts
-     compiled with via-IR and with the optimizer off. That is about
-     0.1% of what is on mainnet. Fe and Solar already handle optimized
-     code; solc's optimizer support comes later **[P]**.
-
-7. **Today it matches the old outputs; next, it goes where they can't**
-   (~380)
-   - *Why you care:* facts that tools have long struggled to show you,
-     like local variables in optimized code, become data that any tool
-     can read.
-   - **Exhibit:** the BUG trace playground: a call stack from
-     `invoke`/`return`, and an inlined `ADD` still naming `dbl(src)`.
-     **Hook:** the BUG playground, editable in the browser.
-   - Next for solc **[P]**:
-     - every state variable as data: the compiler gives each
-       variable's location (open on Walnut's fork, walnuthq/solidity
-       #10; we built it, and soldb reads state through it)
-     - local variables: Foundry's debugger lists them by name without
-       values; that request has been open since 2022
-       (foundry-rs/foundry #927)
-     - optimized code: 81% of verified mainnet deployments are
-       optimized
-   - **Next for the format: what the bytes mean** (~60): to show a
-     value, a tool needs two things. It needs where the bytes are
-     (pointers, from compilers). It needs what they mean (signed or
-     not, scale, byte order, field names). The second part is the type
-     schema rewrite (ethdebug/format issue #282), right after this
-     release **[P]**. Until then, no tool can show values from ethdebug
-     in a way that works for every compiler. Demos decode values with
-     their own code.
-   - **The format is ready for optimized code; solc is catching up**
-     (~80): most mainnet contracts are optimized (81% of verified
-     deployments). Debuggers have asked you to turn the optimizer off,
-     because inlining and shared code cut the link to the source.
-     ethdebug's instructions can say "I came from an inlined function"
-     (`transform`), "I map to two places" (`gather`), or "I'm shared by
-     several callers" (`pick`). Solar and Fe emit ethdebug for
-     optimized builds today. Gaps: values in optimized code
-     (ethdebug/format issue #291), and no real compiler emits local
-     variables yet.
-   - **BUG already shows what this looks like** (~90): a preview of
-     Solidity debugging after solc's next stages, for functions and
-     optimization.
-     - bugc, our reference compiler, gives a real call stack from its
-       `invoke` and `return` markers. It does not guess from jump
-       markers.
-     - It marks inlined code `transform: ["inline"]`, still linked to
-       its call. The inlined `ADD` still says it is `x + x` in `dbl`,
-       called from `dbl(src)`. All of this is tested.
-     - This part says nothing about variable values.
-     - BUG is a small teaching language and bugc is not a production
-       compiler. So this previews the format, not any compiler's
-       plans.
-     - Link: ethdebug's own reference debugger, the docs site's trace
-       playground. One clause says that soldb tracks what solc emits
-       today. (Checked 10-04: the live viewer shows
-       `weight(i: 0, n: 4) › dbl()`, marked inline.)
-   - Fe's compiler already has more information than it exports
-     (variables, inlining). Whether to export it is the Fe team's
-     decision. With it, Fe could give the call stack and inlining with
-     no format change.
-   - The format changes as more people implement it. This work found
-     four bugs in our own packages, and each was fixed within days.
-     Every change is logged with who has to act on it.
-   - When solc emits local variables, we re-run the published contest
-     unchanged. Anyone can run it before then.
-
-- **Close: pick one guess, and replace it with data** (~150)
-  - Pick one thing your tool guesses today, and replace the guess with
-    data the compiler wrote down. Then tell us what you built.
-  - Links: the specification, the packages, the Matrix chat, the
-    companion page.
-  - Who "we" are, said once: the ethdebug team at Argot (the
-    collective, funded by the Ethereum Foundation, that runs ethdebug,
-    Solidity and Fe).
-  - Thanks to the outside teams: Walnut, the Fe team, Runtime
-    Verification, and Paradigm's Solar team.
+Markers: **[P]** = planned, no date · **[open]** = gnidan decides ·
+**[verify]** = check before publishing. Every claim is a fact-sheet
+row, named in *(italics)*. Blog support for iframes, GIFs, video and
+`<details>` is unknown: ask Lea. Every exhibit has a still fallback.
 
 ---
 
-**Hook options** for the first line of section 1:
-- (a) The Solidity Developer Survey 2025: 33% of developers name
-  debugging as a recurring problem, at every level of experience.
-- (b) Tenderly's via-IR docs page: solc's AST and source maps force
-  tools "to rely on heuristics and educated guesses"; "Evaluate
-  Expression is disabled for IR-compiled contracts" (Wayback copy,
-  2026-06-08).
-- (c) The Vyper example: a tool built on one compiler's assumptions
-  reads another's storage wrong and prints a plausible number.
+## Title, standfirst, opening
 
-**Moved to the companion page:** exact timings and build sizes, the
-per-model challenge table, the solc pull-request stages in detail, the
-mainnet check, Fe's adapter details, the format changes ahead (`~`,
-types, modifiers).
+**Title** (working title, last clause [open]):
+> ethdebug: a shared language for debug data, in use across projects
+> today
 
-**Open:** follow the post's own order, or the goals page's order
-(universal format, real-life debugging, adoption, understanding
-deployed code)?
+The opening backs "in use": four compilers write it, soldb reads it.
+Safe fallback: "Introducing ethdebug: a shared language for debug data".
+
+**Standfirst** (italic, ~30): *Compilers can now tell tools what their
+EVM bytecode means. On Solidity today, that matches what tools already
+had. It is enough to build on, and the next stages go further.*
+(Carries the key sentence's ideas, as decided.)
+
+**Opening** (~100, untitled; welcomes, does not summarize):
+- ethdebug/format is an open specification for the debug data a
+  compiler writes next to its EVM bytecode: what each instruction
+  means in the source, and where each value lives. It does for the
+  EVM what DWARF does for native code. *(README, 2022)*
+- Who we are: the ethdebug team at Argot, which maintains it. This is
+  its first introduction on this blog.
+- Momentum, for readers who stop here: four compilers write it (solc,
+  as an experimental output; Solar, a second Solidity compiler, on its
+  main branch; Fe, as its only debug output; bugc, our reference
+  compiler). soldb, Walnut's open-source debugger, reads it.
+  *(four compilers, three languages; Fe v26.4.1; Solar 2026-09-07;
+  soldb 0.4.0)*
+- Who it is for: people who build tools or want to, and auditors, who
+  must explain what a transaction did.
+
+---
+
+## Sections
+
+### 1. Tools guess what the compiler meant, and a wrong guess looks right (~320)
+
+- *Why you care:* a fix you write, or a finding an auditor signs,
+  rests on what the tool shows. When the tool guesses wrong, nothing
+  tells you.
+- **Exhibit: "One slot, two answers."**
+  - *Form:* a native table, three rows. Text wins here: the punchline
+    is two numbers, and a table stays sharp, searchable and readable
+    by screen readers in any blog.
+  - *Fallback:* none needed.
+  - *Frame:* Vyper 0.4.3 contract on anvil, `balances[me] = 1234` at
+    slot 1. Rows: the rule; the slot (shortened `0x…`); the value read.
+    Solidity's rule, keccak(key . slot): **0**. Vyper's rule,
+    keccak(slot . key): **1234**. [verify: fill both slots from the
+    10-05 run]
+  - *Caption:* "Same contract, same key. A tool that assumes
+    Solidity's rule reads an empty slot and prints 0. Nothing warns
+    you."
+- **Hook:** "See each rule written as data": the companion's "Another
+  language's layout", where the two rules are pointers that differ in
+  one line.
+- Claims:
+  - Both rules are valid; the fault is the tool's assumption, not
+    either language. *(Vyper storage; anvil 1234 vs 0)*
+  - Every tool that shows a transaction in source terms re-derives
+    rules only the compiler knows. Of 20 earlier tools surveyed, six
+    open-source projects each built their own Solidity decoder.
+    *(20 tools; 6 decoders)*
+  - Truffle's decoder alone is about 24,000 lines, written over five
+    years. Disclosure, form [open]. *(`@truffle/codec` 24,195)*
+  - Tenderly's via-IR docs said solc's AST and source maps force tools
+    "to rely on heuristics and educated guesses", and turned expression
+    evaluation off for via-IR contracts (Wayback copy, 2026-06-08).
+    [open: name Tenderly] *(Tenderly quote)*
+  - The common workaround, turning the optimizer off, debugs code that
+    is not what runs: 81% of verified mainnet deployments are
+    optimized. *(Sourcify 81%)*
+  - First line [open]: the exhibit itself, or "debugging is a recurring
+    problem for 33% of Solidity developers". *(Survey 2025)*
+  - Bridge (~40): with ethdebug, the compiler writes the answers down,
+    in a shared, specified format.
+- **To the companion:** the 20-tool survey; the Vyper run (both slots,
+  the 11-line stepper and 36-line storage diff, about 15 minutes).
+
+### 2. The compiler writes the answers down; on solc they match today (~330)
+
+- *Why you care:* you can try it today with released solc 0.8.37, and
+  you lose nothing against the outputs you use now.
+- **Exhibit: "One instruction, explained."**
+  - *Form:* screenshot of a small static figure page. A still is
+    enough: there is nothing to do, only to see the link.
+  - *Fallback:* a JSON code block plus the source line in bold.
+  - *Frame:* left, one instruction from 0.8.37's runtime program for
+    `Calls`, about six lines of JSON (offset, operation,
+    `context.code` with source id and range); right, `Calls.sol` with
+    that range highlighted; under both, the classic source map entry
+    for the same instruction (`s:l:f:j`). Pick an instruction inside
+    `add`, not the whole-contract range. [verify: pick from 0.8.37]
+  - *Caption:* "The same answer as solc's source map, as plain data:
+    identical on every executed step of six transactions. A stepper
+    needs 8 lines of code instead of 19."
+- **Hook:** "Get this output in five minutes": the companion's "Try
+  it" (settings for 0.8.37, Fe's three commands, the BUG playground
+  with nothing to install).
+- Claims:
+  - What ethdebug is (~80): JSON schemas for a *program* per piece of
+    bytecode (each instruction with *contexts*: source ranges,
+    variables, calls and returns) and shared *resources* (*types*, and
+    *pointers*: where each value lives and how to compute it).
+    Versioned releases; each file is stamped with its schema and
+    version. The format covers more than any compiler uses yet.
+    *(draft.1; stamp #305)*
+  - solc has written it since 0.8.29 (March 2025), as an experimental
+    output: via-IR (solc's newer pipeline) only, optimizer off.
+    *(0.8.29; via-IR; optimizer refused)*
+  - On par for stepping: ranges identical to the source map (541 of
+    542 and 965 of 966 instructions). Argot's roadmap set this goal:
+    "feature parity with source maps". *(ranges; roadmap 2026-01-15)*
+  - One gap, said plainly: the source map marks jumps into and out of
+    functions; solc's ethdebug does not yet. *(jump kinds)*
+  - Also today: Fe in three commands; BUG, our small teaching
+    language, in the docs playground. One clause: BUG also previews
+    what comes next (section 6). *(Fe commands; live playground)*
+- **To the companion:** full settings, hosted preview builds (which
+  need an open pull request, said plainly), validation results, the
+  solc stages.
+
+### 3. One ten-line script steps through Solidity and Fe (~220)
+
+- *Why you care:* you write a reader once, not once per compiler.
+- **Exhibit: "Two languages, one script."**
+  - *Form:* screenshot of two terminal panes side by side, each
+    running the same `node step.mjs …` command, with real output. The
+    same command line in both panes shows "unchanged" at a glance.
+  - *Fallback:* the same two columns as a code block (text works as
+    well here; screen readers get it).
+  - *Frame:* left, solc 0.8.37 `Calls.run(5)` (entering `twice`, then
+    `add`); right, Fe `Counter.Bump{n:7}` (taking the `if` branch).
+    About 6 lines each; prompts visible; no scrollback.
+  - *Caption:* "The same script, unchanged, prints the source lines of
+    a real transaction from two compilers: a 10-line core and a 2-line
+    input step."
+- **Hook:** "Read all ten lines": the companion's stepper, with
+  `step.mjs` as copyable text and both inputs to download. (The script
+  stays text there: readers copy it.)
+- Claims:
+  - The 2-line input step picks Fe's program out of its wrapper; one
+    line each skips compiler-generated code and other source files.
+    *(10 + 2 lines)*
+  - About 80% of solc's executed steps carry a whole-contract range
+    (compiler-generated code); one filter line skips them.
+    *(77–93%)*
+  - Same 22 lines on 0.8.37 and the preview build. *(diff empty)*
+  - Fe steps at expression level with its optimizer on; its file needs
+    a small adapter for schema validation, not for stepping.
+    *(Fe -O1; Fe file not stock)*
+  - The goals page names Solidity, Vyper and Fe; two of the three
+    write ethdebug today. *(Vyper emits none)*
+- **To the companion:** line counts, Fe's adapter, the multi-source
+  limit.
+
+### 4. The compiler states where values live; any tool follows (~280)
+
+- *Why you care:* finding a value's bytes is the hardest part of
+  reading a contract's state, and every tool re-derives it per
+  compiler. For an auditor, the derivation is evidence anyone can
+  check.
+- **Exhibit: "How this was found."**
+  - *Form:* live embed (iframe) of the storage inspector, in an embed
+    view. Interaction is the point: click any value and see its
+    derivation.
+  - *Fallback:* screenshot `desktop-dark.png`, cropped to the tree row
+    and the derivation panel.
+  - *Frame:* Token, After, the sender's `nonce` selected; the panel
+    shows keccak256(key, slot 0), then bytes 24–31 of that slot.
+    Deep link `?embed=1#ex=token&mode=after&sel=<nonce path>`
+    [verify: `sel` path form]. Keep the example picker, so a reader
+    can switch to Strings.
+  - *Caption:* "The hashed slot is not a guess: solc wrote the rule,
+    and a generic library followed it. For all 21 variables we tested,
+    the result matches solc's storage layout."
+- **Hook:** "Try the Strings example": one string goes from short to
+  long in one transaction, and the derivation splits at the rule's
+  `if` (`#ex=strings&mode=after&sel=grows`). One template, both
+  layouts.
+- Claims:
+  - A pointer is a small, declarative description of where a value
+    lives (storage, memory, calldata, the stack and three more),
+    including how to compute it (hashes, reads, arithmetic), with
+    templates reused per type. *(7 locations)*
+  - Two independent readers agree: `@ethdebug/pointers` decoded
+    `accounts[0xf39f…]` as `{ balance: 975, nonce: 1, frozen: false }`;
+    soldb's draft reader decoded the same layout. *(two evaluators)*
+  - Walnut's next solc stage, on their fork (walnuthq/solidity #10),
+    lists every state variable with a pointer, so no storage layout is
+    needed to find the bytes; 21 of 21 match. Upstream later [P].
+  - On par today: on released solc, storageLayout gives the same facts.
+  - Why not DWARF, one line: no DWARF operation hashes, so mapping
+    slots would need a vendor extension every debugger implements.
+  - Pointers say where the bytes are, not yet what they mean; the page
+    decodes values with its own small decoder, a stand-in for the
+    format's planned interpretation layer (section 6).
+- **To the companion:** "Pointers, in full": templates (sigil of the
+  linked release: `$` in draft.1, `~` once #323 ships), walkthroughs,
+  the DWARF comparison with credit to solx and Hardhat's EDR, gaps.
+
+### 5. A real debugger already runs on it, offline, in a browser tab (~300)
+
+- *Why you care:* you can replay and step a transaction with no node,
+  and hand someone a file that lets them do the same. An auditor can
+  attach it to a finding.
+- **Exhibit: "State fills in as you step."**
+  - *Form:* a short muted video (MP4, looped) or GIF, about 8 s.
+    Motion is the point: the source span moves and state values
+    change.
+  - *Fallback:* a still at the last step, the state panel with its
+    change marks, plus a "see it move" link.
+  - *Frame:* soldb demo, Solidity tab, `Shop.place`; crop to the
+    source pane and the "State from ethdebug alone" panel; from the
+    entry to `place` to the writes that set `nextId 1` and `revenue
+    30` [verify values]. No timing tables in frame.
+  - *Caption:* "soldb, compiled to WebAssembly, steps a real
+    3,736-step transaction in under a tenth of a second, and reads the
+    contract's state from ethdebug alone, with no storage layout."
+- **Hook:** "Step it yourself, then switch to Fe": the same debugger
+  steps a Fe transaction, unchanged. Plus the 6.5 KB replay file.
+  (Link the full page, not an embed: it loads WebAssembly and its tabs
+  need the room.)
+- Claims:
+  - soldb is Walnut's open-source Solidity debugger (0.4.0). It
+    replays a transaction from a 6.5 KB file with the node off, stops
+    at a storage write (the same step as live), and steps backward.
+    *(v0.4.0 recheck; the replay is a Token transfer, not Shop)*
+  - In Chromium, Firefox, WebKit and a phone: parse, map and step in
+    about 80–95 ms; offline replay with no request leaving the page.
+  - With Walnut's next solc stage and soldb pull request #181, the
+    state view reads every state variable through solc's pointers;
+    values match with and without the layout. Reading one value by
+    path still uses the layout; both pull requests are open.
+  - soldb steps Fe with no change to soldb; the page adapts Fe's file
+    layout, and says so. *(soldb steps Fe)*
+  - Three teams wrote readers: our TypeScript packages, soldb (Rust),
+    and Runtime Verification's Python reader for their Simbolik
+    debugger, which does not yet read solc's output (our run,
+    2026-10-05). [open: wait for Raoul's reply]
+  - A proposal to put soldb behind `forge debug` is open. *(#16557)*
+- **To the companion:** timings, build sizes, the 31 claims checked.
+
+*Optional, PARKED (~160, outside the main line):* **An LLM builds a
+working tool from it in minutes; today it ties.** Exhibit: a native
+table (Sonnet build 3:39 / 1:58; extend 0:44 / 0:16; Opus 3:25 failed
+hidden tests / 2:24 passed); text, since readers compare numbers.
+Caption: "On par today. The prompt, rules and judge are published, so
+anyone can re-run this. We will too, once solc emits local variables."
+No date.
+
+### 6. Next, it shows what the older outputs cannot (~330)
+
+- *Why you care:* facts tools have long struggled to show (a call
+  stack without guessing, inlined code, local variables, optimized
+  builds) become data any tool can read.
+- **Exhibit: "A call stack from data."**
+  - *Form:* a GIF or short video, about 6 s: step into the inlined
+    call and back out, so the stack grows and shrinks.
+  - *Fallback:* a still at the inlined `ADD`.
+  - *Frame:* the docs site's trace playground, the `weight`/`dbl`
+    program at optimization level 2, trace drawer open; crop to the
+    call stack (`weight(i: 0, n: 4) › dbl()`, `dbl` marked inline) and
+    the highlighted `x + x`. [verify: is this program a preset?]
+  - *Caption:* "The call stack comes from the compiler's call and
+    return markers, not from guessing at jumps, and inlined code still
+    names its call. Shown in BUG, our teaching language: a preview of
+    the format, not of any compiler's plans."
+- **Hook:** "Change the program and recompile it in the page": raise
+  the optimization level and watch the inlined code keep its link.
+  (Link; an embed needs the docs-site work below.)
+- Claims:
+  - bugc writes call and return markers and marks inlined code
+    (`transform: ["inline"]`); at level 2 it inlines `dbl` (85 to 33
+    instructions) and the `ADD` still points to its call and body; all
+    tested. No variable values here. bugc is not a production
+    compiler. One clause: this is ethdebug's own reference debugger;
+    soldb tracks what solc emits today.
+  - Next for solc [P, no dates]: every state variable as data (built,
+    works on Walnut's fork); local variables (designed, no pull
+    request); optimized code (deferred). Call markers are in no plan
+    we found.
+  - Why locals matter: Foundry's debugger lists them by name without
+    values; values are open since 2022 (#927).
+  - Next for the format (~60): what the bytes mean (signed or not,
+    scale, byte order, field names): the type schema rewrite (#282),
+    right after this release [P]. Until then, no tool shows values
+    from ethdebug the same way for every compiler.
+  - Optimized code: the format has contexts for inlined and shared
+    code; Solar writes ethdebug with its optimizer on and identical
+    bytecode; Fe steps optimized code.
+  - Fe's compiler models more than it exports (variables, inlining);
+    exporting it is the Fe team's call.
+- **To the companion:** "Optimized code": the `ADD`'s contexts as JSON;
+  Solar and Fe details.
+
+### 7. Where it stands today, stated plainly (~250)
+
+- *Why you care:* you can decide what to build on now, and what to
+  wait for. An auditor learns which contracts this covers.
+- **Exhibit: "Where each compiler stands."**
+  - *Form:* a native table. Text wins: readers scan it as reference,
+    and it must stay exact when facts change before publishing.
+  - *Fallback:* none needed.
+  - *Frame* (no dates; "as of October 2026"):
+
+    | compiler | source ranges | state variables | calls | optimized | locals |
+    |---|---|---|---|---|---|
+    | solc 0.8.37 | yes | via storageLayout | no | no | no |
+    | solc, open PR #16990 | yes | partly: templates | no | no | no |
+    | solc, Walnut's fork #10 | yes | yes | no | no | no |
+    | Solar (main, unreleased) | yes | no | partly | yes | no |
+    | Fe 26.4.1 | yes | no | no [verify] | yes | no |
+    | bugc (reference) | yes | yes | yes | yes | open PR #270 |
+
+  - *Caption:* "On par today, filling in stage by stage. On mainnet,
+    solc's output matches only via-IR builds with the optimizer off:
+    about 0.1% of verified contracts."
+- **Hook:** "One mainnet contract, recompiled": the companion's mainnet
+  section (LaunchList: code and metadata match; an 829-step
+  transaction mapped on every step).
+- Claims:
+  - About 0.1% can match today; one real contract matched exactly.
+  - Meanwhile, a debugger can recompile from the inputs Sourcify
+    stores; tools that add ethdebug to existing solc output are in
+    progress. [open: name Runtime Verification's annotator]
+  - The format moves as implementers arrive: first coordinated release
+    September 2026; draft.1 requires a stamp, and Walnut's fork wrote
+    it within days (the post's demos add it to released solc's and
+    Solar's output, said plainly); four bugs this work found in our
+    packages, each fixed within days (#314–#317).
+  - Changes ahead: the `~` sigil (#310, #323, no `$` alias) and the
+    type rewrite (#282); the changelog says who has to act.
+  - Blemishes: solc marks every instruction with source id 0, even
+    imported code; Fe needs an adapter; no bit-level addressing.
+- **To the companion:** per-compiler status, mainnet details, how the
+  format changes.
+
+---
+
+## Close: pick one guess, and replace it with data (~130)
+
+- Pick one thing your tool guesses today, replace the guess with data
+  the compiler wrote down, and tell us what you built.
+- Links: the specification, the npm packages, soldb, the Matrix chat,
+  the companion page.
+- Background, one line: Argot, funded by the Ethereum Foundation,
+  maintains ethdebug. No request of any kind.
+- Thanks, with consent: Walnut, the Fe team, Runtime Verification,
+  Paradigm's Solar team.
+
+**Word total:** 30 + 100 + 320 + 330 + 220 + 280 + 300 + 330 + 250 +
+130 = **~2,290**; with the optional contest, **~2,450**. Captions count
+inside their sections; tables do not count as prose.
+
+---
+
+## Companion, restructured
+
+The post's deep end, in the post's order. Each section opens with the
+post's exhibit at full size (the live embed itself where the post has
+a still), then "Try it", then details. Hooks land at section tops.
+
+1. **Wrong guesses:** the Vyper run, both rules as pointers; the
+   20-tool survey.
+2. **Try it:** settings for 0.8.37 and the hosted preview builds; Fe's
+   three commands; the BUG playground; parity numbers; validation.
+3. **Ten lines, two languages:** `step.mjs` as text, both inputs.
+4. **Pointers, in full:** the inspector, full page; placement,
+   interpretation, resolution; solc's templates; the DWARF comparison;
+   gaps.
+5. **soldb:** the demo; the replay file; Fe; claims checked.
+6. *(Parked)* **The challenge:** prompt, rules, judge, every run.
+7. **What comes next:** optimized-code contexts, the BUG preview,
+   Solar and Fe.
+8. **Appendix:** compiler status, mainnet, measurements.
+
+Before this, fix the companion's stale spots (fact sheet, "Stale in the
+public repo": the stamp, #5 vs #10, Foundry #410/#927, solx).
+
+---
+
+## Demo work this needs
+
+1. **Inspector embed view** (§4): `?embed=1` hides the page header,
+   prose and memory section; keeps the picker, tree, dump and
+   derivation panel; fits ~600 px high; confirm the `sel` path for the
+   sender's nonce. *Small, ~half a day.*
+2. **soldb demo URL state and capture** (§5): `#ds=sol|fe&step=N` deep
+   links, an `?embed=1` view (source pane and state panel only), and a
+   Playwright script that records the clip and the still. *Small to
+   medium, ~1 day.*
+3. **"One instruction" figure page** (§2): a static page from 0.8.37
+   output for `Calls`: JSON, highlighted source, source map entry.
+   Seed it from the soldb page's highlighter (the planned generic range
+   highlighter). *Small, ~half a day.*
+4. **Trace playground capture** (§6): a Playwright script that loads
+   the `weight`/`dbl` program at level 2 and records the clip and the
+   still. *Small.* For a live embed later: URL state (program, level,
+   step) on the docs site, an ethdebug/format pull request. *Medium;
+   optional.*
+5. **Terminal screenshot** (§3): render both `step.mjs` runs as two
+   panes (a small HTML page, captured). *Small, ~1 hour.*
+6. **One stills script** for every fallback, at 2x and in light and
+   dark, re-run before publishing. *Small.*
+7. **Publish the demos at public URLs** (GitHub Pages) and check that
+   Argot's site allows frames from them (ask Lea). *Small.*
+
+---
+
+## Skimmer test
+
+Read only the title, standfirst, opening and captions:
+
+- **Title / standfirst:** a shared language for debug data; compilers
+  tell tools what bytecode means; on par on Solidity today, more next.
+- **Opening:** an open spec, like DWARF; four compilers write it,
+  soldb reads it; from Argot; for tool builders and auditors.
+- **1:** a tool that assumes Solidity's rule prints 0, and nothing
+  warns you.
+- **2:** the same answer as solc's source map, as plain data; 8 lines
+  instead of 19.
+- **3:** the same script, unchanged, reads two compilers.
+- **4:** the hashed slot is not a guess; 21 of 21 match.
+- **5:** soldb steps 3,736 steps in under a tenth of a second, with
+  state from ethdebug alone.
+- **6:** a call stack from markers, inlined code still named; a BUG
+  preview, not a compiler's plan.
+- **7:** on par today; about 0.1% of mainnet matches.
+
+**Does it hold?** Yes: problem (1), on par (2), shared (3, 4), real
+(5), better (6), limits (7). A skimmer who sees only the stills still
+gets each point, because every caption states it. Weak spots: "on par"
+comes before "why switch", so captions 3 and 4 must carry "one reader,
+no guessing"; caption 6 must name BUG, or it reads as a solc claim.
