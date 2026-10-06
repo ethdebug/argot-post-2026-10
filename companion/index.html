@@ -948,39 +948,50 @@ medians, with no console errors.</p>
 
 <h3>soldb in the browser</h3>
 <p>The lean build steps a saved trace: the Shop <code>place</code>
-transaction, 3,736 steps, a 9.8 MB trace. soldb maps 3,734 of them to a
-line in Shop.sol.</p>
+transaction, 3,736 steps, a 4.4 MB trace (78 KB gzipped). The saved
+trace leaves out the flat copies of each step's state, which soldb
+drops when it reads the trace
+(<a href="../demos/debugger/SOURCE.md#the-saved-trace-one-change">SOURCE.md</a>).
+soldb maps 3,734 of the steps to a line in Shop.sol.</p>
 <div class="table-wrap"><table>
 <tr><th>Stage</th><th>Chromium</th><th>Firefox</th></tr>
-<tr><td>Fetch and compile the WebAssembly</td><td>3.0 ms</td><td>15 ms</td></tr>
-<tr><td>Parse the trace</td><td>39 ms</td><td>40 ms</td></tr>
-<tr><td>Read the ethdebug program</td><td>10 ms</td><td>11 ms</td></tr>
-<tr><td>Map all 3,736 steps</td><td>30 ms</td><td>42 ms</td></tr>
-<tr><td>Whole page (both builds)</td><td>145 ms</td><td>169 ms</td></tr>
+<tr><td>Fetch everything, compile the WebAssembly</td><td>8.4 ms</td><td>16 ms</td></tr>
+<tr><td>Parse the trace</td><td>23 ms</td><td>25 ms</td></tr>
+<tr><td>Read the ethdebug program</td><td>21 ms</td><td>19 ms</td></tr>
+<tr><td>Map all 3,736 steps</td><td>33 ms</td><td>46 ms</td></tr>
+<tr><td>Solidity tab usable, from navigation start</td><td>125 ms</td><td>160 ms</td></tr>
+<tr><td>Whole page (all tabs, both builds)</td><td>496 ms</td><td>589 ms</td></tr>
 </table></div>
-<p>Parse, map and step together take about 80 to 95 ms. The replay
+<p>Parse, map and step together take about 75 to 90 ms. The page loads
+only the Solidity tab at first; each other tab, and the replay build
+below, loads when it first opens, or in idle time after the Solidity
+tab is ready. The replay
 build re-runs a transaction itself, with no node contacted, from the
 command-line tool's own 6.5 KB replay file (<code>Token.transfer</code>,
 960 steps):</p>
 <div class="table-wrap"><table>
 <tr><th>Stage</th><th>Chromium</th><th>Firefox</th></tr>
-<tr><td>WebAssembly</td><td>3.5 ms</td><td>7 ms</td></tr>
-<tr><td>Run the EVM</td><td>7.6 ms</td><td>5 ms</td></tr>
-<tr><td>Map 960 steps</td><td>7.2 ms</td><td>8 ms</td></tr>
+<tr><td>Compile the WebAssembly</td><td>1.2 ms</td><td>6 ms</td></tr>
+<tr><td>Run the EVM</td><td>8.4 ms</td><td>5 ms</td></tr>
+<tr><td>Map 960 steps</td><td>9.8 ms</td><td>9 ms</td></tr>
 </table></div>
-<p>The Fe data set (769 steps): fetch 5 to 7 ms, load the transaction 2
-to 3 ms, read the ethdebug program 8 ms, map all steps 7 to 16 ms.</p>
+<p>The Fe data set (769 steps): fetch 6 to 8 ms, load the transaction 2
+ms, read the ethdebug program 13 ms, map all steps 7 to 9 ms.</p>
 
 <h3>Build sizes</h3>
 <div class="table-wrap"><table>
 <tr><th>soldb WebAssembly build</th><th>Size</th><th>Gzipped</th><th>Can do</th></tr>
-<tr><td>Lean</td><td>321 KB</td><td>141 KB</td><td>Step a trace a node already made</td></tr>
-<tr><td>Replay</td><td>887 KB</td><td>382 KB</td><td>Also re-run the transaction offline</td></tr>
+<tr><td>Lean</td><td>531 KB</td><td>226 KB</td><td>Step a trace a node already made</td></tr>
+<tr><td>Replay</td><td>1,092 KB</td><td>466 KB</td><td>Also re-run the transaction offline</td></tr>
 </table></div>
-<p>Other costs on the demo page: the syntax highlighter adds about 60
-requests and 410 to 430 ms to the load (display only). The 10 MB trace
-is sent uncompressed, which is the main cost on a phone. WebAssembly
-memory peaks at 16.5 MB for that trace.</p>
+<p>Other costs on the demo page: the syntax highlighter adds 16
+requests (95 KB) and 150 to 185 ms (display only). It starts after the
+Solidity tab's files arrive, and the source shows as plain text until
+it is ready. The page's files are gzipped on the wire: the Solidity tab
+needs 453 KB, the Fe tab 63 KB more and the BUG tab 270 KB more. On a
+slow link (400 kbps, 400 ms round trip, Chromium), the Solidity tab is
+usable after 10.3 s, with a progress bar while it loads. WebAssembly
+memory is 21.8 MB after that trace.</p>
 
 <h3>The stepper's line counts</h3>
 <div class="table-wrap"><table>
