@@ -6,6 +6,25 @@ const PAGE = process.env.PAGE ?? "http://localhost:8000/demos/soldb/";
 const CDN = ["esm.sh", "cdn.jsdelivr.net"];
 const runs = +(process.argv[2] ?? 3);
 const all = {};
+// The main thread must stay free while soldb works (in a Web Worker):
+// a requestAnimationFrame loop runs from the start, and no gap between
+// frames may exceed LONG ms until the page is done.
+const LONG = 100;
+const frames = () => {
+  const f = { max: 0, maxBeforeSol: 0, loadingShown: false };
+  window.frames_ = f;
+  let last = performance.now();
+  const tick = () => {
+    const t = performance.now();
+    f.max = Math.max(f.max, t - last);
+    if (!window.walked?.sol) f.maxBeforeSol = f.max;
+    last = t;
+    const el = document.getElementById("loading");
+    if (el && !el.hidden && !window.walked?.sol) f.loadingShown = true;
+    if (!window.results?.done) requestAnimationFrame(tick);
+  };
+  requestAnimationFrame(tick);
+};
 for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
   ["webkit", webkit]]) {
   let browser;
@@ -27,10 +46,12 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
     });
     page.on("console", (m) => logs.push(`${m.type()}: ${m.text()}`));
     page.on("pageerror", (e) => logs.push(`pageerror: ${e}`));
+    await page.addInitScript(frames);
     await page.goto(PAGE);
     await page.waitForFunction(() => window.results?.done, null,
       { timeout: 120000 });
     const r = await page.evaluate(() => window.results);
+    r.frames = await page.evaluate(() => window.frames_);
     r.foreign = foreign; r.logs = logs;
     if (i === 0 && name === "chromium") {
       await page.screenshot({ path: "screenshot-chromium.png",
@@ -59,6 +80,11 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
         .textContent]));
       const marked = () => [...panel.querySelectorAll(".chg")]
         .map((e) => e.closest("tr").cells[0].textContent);
+      // The state comes from the worker: wait for the shown step's.
+      const settle = async () => {
+        await window.stateReady();
+        return panel.dataset.step === String(at());
+      };
       for (const p of ["sol", "fe"]) {
         await window.select(p);
         const w = window.walked[p];
@@ -66,20 +92,28 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
         if (p === "sol") {
           // First and last steps, then step into until a value changes.
           go(0);
+          let synced = await settle();
           const first = table();
           go(w.n - 1);
+          synced &&= await settle();
           const last = table();
           go(0);
+          synced &&= await settle();
           let from = 0, changed = [], row = null;
           while (!changed.length && at() < w.n - 1) {
             from = at();
             btn("into", 1).click();
+            synced &&= await settle();
             changed = marked();
             row = table();
           }
           const to = at();
           btn("into", 1).click();
-          out.state = { shown: !panel.hidden, first, last,
+          synced &&= await settle();
+          // Step fast: only the last step's state is drawn.
+          for (let k = 0; k < 10; k++) btn("into", 1).click();
+          const fast = await settle();
+          out.state = { shown: !panel.hidden, first, last, synced, fast,
             change: { from, to, changed, row }, afterNext: marked(),
             lines: [...panel.querySelectorAll("p")]
               .map((e) => e.textContent.replace(/\s+/g, " ")) };
@@ -176,7 +210,7 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
     if (name === "chromium" && i === 0) {
       // Show the state panel where it says the most: a step in user code
       // that changes a value, with as few unknowns as possible.
-      const showcase = () => page.evaluate(() => {
+      const showcase = () => page.evaluate(async () => {
         const box = document.getElementById("stepper");
         const range = box.querySelector("input");
         const go = (i) => {
@@ -190,6 +224,7 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
         let best = 0, bestScore = -1, prev = "";
         for (let s = 0; s <= +range.max; s++) {
           go(s);
+          await window.stateReady();
           const now = vals();
           const changed = s > 0 && now !== prev;
           prev = now;
@@ -198,7 +233,10 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
           const score = known * 2 + (changed ? 1 : 0);
           if (score >= bestScore) { bestScore = score; best = s; }
         }
-        go(best - 1); go(best);
+        go(best - 1);
+        await window.stateReady();
+        go(best);
+        await window.stateReady();
         console.log("showcase step", best);
         return best;
       });
@@ -262,9 +300,12 @@ const want = {
   last: { orders: MAP, nextId: "1", revenue: "30", owner: UNK },
 };
 const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
-const stateOk = (st, fe) => st?.shown && fe && same(st.first, want.first)
+const stateOk = (st, fe) => st?.shown && st.synced && st.fast && fe
+  && same(st.first, want.first)
   && same(st.last, want.last) && same(st.change.changed, ["nextId"])
   && st.change.row.nextId === "1" && st.afterNext.length === 0;
+const fails = [];
+const check = (name, what, ok) => { if (!ok) fails.push(`${name}: ${what}`); };
 const med = (xs) => xs.slice().sort((a, b) => a - b)[Math.floor(xs.length / 2)];
 for (const [name, b] of Object.entries(all)) {
   console.log(`\n== ${name} ${b.version ?? ""} ${b.error ?? ""}`);
@@ -287,12 +328,43 @@ for (const [name, b] of Object.entries(all)) {
   console.log("ui", JSON.stringify(r0.ui), "shiki", JSON.stringify(r0.shiki));
   console.log("state panel", b.runs.map((r) =>
     stateOk(r.ui.state, r.ui.feStateHidden) ? "ok" : "FAIL").join(","));
-  console.log("console errors", b.runs.flatMap((r) => r.logs)
-    .filter((l) => /^(error|pageerror)/.test(l)).length);
+  const errors = b.runs.flatMap((r) => r.logs)
+    .filter((l) => /^(error|pageerror)/.test(l));
+  console.log("console errors", errors.length);
+  console.log("main thread: longest frame gap ms (until Solidity ready / " +
+    "until done)", b.runs.map((r) => `${r.frames.maxBeforeSol.toFixed(0)}` +
+    ` / ${r.frames.max.toFixed(0)}`).join(", "),
+    "loading shown", b.runs.map((r) => r.frames.loadingShown).join(","));
+  for (const r of b.runs) {
+    for (const part of ["a", "fe", "bug", "b"]) {
+      check(name, `part ${part}`, r[part]?.ok);
+    }
+    const u = r.ui;
+    for (const p of ["sol", "fe"]) {
+      check(name, `${p} stepping`, u[p].intoOk && u[p].backOk
+        && u[p].keyOk && u[p].keyLeftOk && u[p].run.ok && u[p].hl > 0
+        && u[p].hlWhenGen === 0 && !u[p].pageScrollX);
+    }
+    check(name, "BUG tab", u.bug.stepperHidden && u.bug.aboutShown
+      && u.bug.src.length > 0 && u.bug.keysIgnored);
+    check(name, "state panel", stateOk(u.state, u.feStateHidden));
+    check(name, "loading state", r.frames.loadingShown);
+    check(name, `main thread free (gap < ${LONG} ms)`, r.frames.max < LONG);
+    check(name, "worker requests listed", r.requests.some((u) =>
+      u.endsWith("/shop-debug-rpc.trace.json")));
+  }
+  check(name, "no console errors", errors.length === 0);
+  check(name, "no foreign requests",
+    b.runs.every((r) => r.foreign.length === 0));
   console.log("total median ms", med(b.runs.map((r) => r.totalMs)).toFixed(0));
   console.log("foreign requests", b.runs.flatMap((r) => r.foreign));
   console.log("requests", r0.requests.map((u) => new URL(u).pathname));
   console.log("logs", [...new Set(b.runs.flatMap((r) => r.logs))]);
 }
+for (const [name, b] of Object.entries(all)) {
+  check(name, `browser launch ${b.error ?? ""}`, !!b.runs);
+}
+console.log(fails.length ? `\nFAIL\n${fails.join("\n")}` : "\nPASS");
+process.exitCode = fails.length ? 1 : 0;
 import("node:fs").then((fs) =>
   fs.writeFileSync("results.json", JSON.stringify(all, null, 1)));

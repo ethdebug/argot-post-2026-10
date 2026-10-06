@@ -1,9 +1,13 @@
-// Runs soldb-wasm in the page. One viewer steps two data sets with the
-// same code: a Solidity transaction (solc's ethdebug) and a Fe
-// transaction (Fe's ethdebug). The BUG tab links to ethdebug's reference
-// viewer; the details run a soldb check on the BUG transaction. Part B
-// (details) replays a transaction with the replay build. Results go to
-// the DOM and to window.results.
+// The page: UI, highlighting and stepping. soldb-wasm does the
+// debugging, in a Web Worker behind engine.js; the page only displays
+// what the engine reports. One viewer steps two data sets with the same
+// code: a Solidity transaction (solc's ethdebug) and a Fe transaction
+// (Fe's ethdebug). The BUG tab links to ethdebug's reference viewer; the
+// details run a soldb check on the BUG transaction. Part B (details)
+// replays a transaction with the replay build. Results go to the DOM
+// and to window.results.
+
+import { soldbEngine } from "./engine.js";
 
 const results = { env: {}, a: null, fe: null, bug: null, b: null,
   shiki: null };
@@ -16,7 +20,6 @@ const text = async (url) => {
   if (!r.ok) throw new Error(`${url}: HTTP ${r.status}`);
   return r.text();
 };
-const json = async (url) => JSON.parse(await text(url));
 // Display only: Shiki colours the source and draws soldb's span. It
 // never computes a source mapping. Fe has no Shiki grammar; `rust` is a
 // close approximation.
@@ -32,23 +35,12 @@ const shikiReady = (async () => {
   return hl;
 })().catch((e) => { console.warn("Shiki failed to load", e); return null; });
 
-// A span that covers most of the file is the whole contract: the step
-// is compiler-generated code (dispatcher, ABI, checks), not one range.
-const isWhole = (span, srcLen) => span.length >= 0.8 * srcLen;
-
 const esc = (t) => t.replace(/[&<>]/g, (c) =>
   ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" })[c]);
 
 const ms = (x) => `${x.toFixed(1)} ms`;
 const kb = (n) => `${(n / 1024).toFixed(0)} KB`;
 const base = (p) => p.split("/").pop();
-
-async function timed(times, label, fn) {
-  const t = now();
-  const v = await fn();
-  times.push([label, now() - t]);
-  return v;
-}
 
 function showTimes(el, times, extra) {
   el.innerHTML = "";
@@ -63,53 +55,18 @@ function showTimes(el, times, extra) {
   for (const [k, v] of extra) add(k, v);
 }
 
-const source = (id, text, extra) =>
-  ({ id, text, ascii: !/[^\x00-\x7f]/.test(text), ...extra });
-
-// soldb reports byte offsets. JS strings index UTF-16 units, so a file
-// with non-ASCII text needs a conversion to draw the span (display only).
-function charIndex(src, byte) {
-  if (src.ascii) return byte;
-  src.bytes ??= new TextEncoder().encode(src.text);
-  return new TextDecoder().decode(src.bytes.subarray(0, byte)).length;
-}
-
-// Visits every step once. Returns per-step spans [sourceId, start, end]
-// (null for compiler-generated code), soldb's line and EVM call depth
-// (for stepping), and the steps where the source line changes.
-function walk(trace, sources) {
-  const n = trace.stepCount();
+// The engine's per-step data, in the shape the stepping code uses:
+// spans as [sourceId, start, end] or null (compiler-generated code).
+function stepsOf(steps) {
+  const { n, spans: sp, lineNo, depths, changes } = steps;
   const spans = new Array(n);
-  const lines = new Array(n);
-  const lineNo = new Array(n);
-  const depths = new Array(n);
-  const changes = [];
-  const bySource = {};
-  let generated = 0, mapped = 0, last = null;
   for (let i = 0; i < n; i++) {
-    const step = JSON.parse(trace.step(i));
-    const s = step.source;
-    depths[i] = step.depth;
-    lineNo[i] = s ? s.line : null;
-    lines[i] = s ? `${base(s.path)}:${s.line}` : null;
-    const src = s && sources[s.source_id];
-    // soldb's span: source.offset and source.length (bytes).
-    const gen = !s || !src || isWhole(s, src.text.length);
-    spans[i] = gen ? null : [s.source_id, charIndex(src, s.offset),
-      charIndex(src, s.offset + s.length)];
-    if (s) {
-      mapped++;
-      bySource[s.source_id] = (bySource[s.source_id] ?? 0) + 1;
-    }
-    if (gen) generated++;
-    if (!gen && lines[i] !== last) {
-      changes.push(i);
-      last = lines[i];
-    }
+    spans[i] = sp[3 * i] < 0 ? null : [sp[3 * i], sp[3 * i + 1],
+      sp[3 * i + 2]];
   }
-  const flat = Math.min(...depths) === Math.max(...depths);
-  return { n, spans, lines, lineNo, depths, flat, changes, mapped,
-    generated, bySource };
+  let lo = Infinity, hi = -Infinity;
+  for (const d of depths) { lo = Math.min(lo, d); hi = Math.max(hi, d); }
+  return { n, spans, lineNo, depths, flat: lo === hi, changes };
 }
 
 // Stepping, computed by the page from two fields soldb reports per step:
@@ -155,12 +112,22 @@ const viewer = (() => {
   const buttons = [...box.querySelectorAll("button[data-go]")];
   const cache = new Map();
   let hl = null, ds = null, shown = null, before = null;
-  // The contract's state at step i, from soldb's state(i) (Solidity
-  // only). A value that differs from the step shown before is marked.
+  // The contract's state at step i, from the engine's state(i), when the
+  // data set has that capability (Solidity). It comes from the worker,
+  // so it is async: a reply for a step that is no longer shown is
+  // ignored. A value that differs from the state shown before is marked.
+  let stateSeq = 0, stateDone = Promise.resolve();
   const showState = (i) => {
-    stateBox.hidden = !ds.state;
-    if (!ds.state) return;
-    const vars = ds.state(i);
+    const has = !!ds.capabilities.state;
+    stateBox.hidden = !has;
+    if (!has) return;
+    const seq = ++stateSeq, cur = ds;
+    stateDone = engine.state(ds.key, i).then((vars) => {
+      if (seq === stateSeq && cur === ds) drawState(i, vars);
+    }, (e) => console.error(e));
+  };
+  const drawState = (i, vars) => {
+    stateBox.dataset.step = String(i);
     stateTable.innerHTML = "";
     for (const v of vars) {
       const tr = stateTable.insertRow();
@@ -203,13 +170,13 @@ const viewer = (() => {
   };
   const step = (i) => {
     range.value = String(i);
-    const s = JSON.parse(ds.trace.step(i));
+    const st = ds.steps;
     const span = ds.walked.spans[i];
-    const fn = s.function && s.function.name ? ` in ${s.function.name}` : "";
-    const loc = s.source ? `${base(s.source.path)}:${s.source.line}`
+    const fn = st.functions[i] ? ` in ${st.functions[i]}` : "";
+    const loc = st.files[i] ? `${base(st.files[i])}:${st.lineNo[i]}`
       : "no source";
-    where.textContent =
-      `step ${i} / ${ds.walked.n - 1}: pc ${s.pc} ${s.op}, ${loc}${fn}`;
+    where.textContent = `step ${i} / ${ds.walked.n - 1}: ` +
+      `pc ${st.pcs[i]} ${st.ops[i]}, ${loc}${fn}`;
     const src = ds.sources[span ? span[0] : ds.main];
     shown = src.id;
     msg.textContent = "";
@@ -275,6 +242,8 @@ const viewer = (() => {
   };
   const save = () => { if (ds) ds.pos = +range.value; };
   return {
+    // Resolves when the state panel has the shown step's state.
+    settled: () => stateDone,
     hide() { save(); ds = null; box.hidden = true; },
     async show(next) {
       hl = await shikiReady;
@@ -312,245 +281,74 @@ for (const t of document.querySelectorAll("[role=tab]")) {
 }
 window.select = select;
 
-// Both data sets use the same lean module.
-const lean = (async () => {
-  const times = [];
-  const mod = await timed(times, "import JS glue", () =>
-    import("./pkg-lean/soldb_wasm.js"));
-  const out = await timed(times, "fetch + compile + instantiate wasm", () =>
-    mod.default({ module_or_path: "./pkg-lean/soldb_wasm_bg.wasm" }));
-  return { mod, out, times };
-})();
+window.stateReady = () => viewer.settled();
+
+const engine = soldbEngine();
+const BUG = "bug";
+const entries = (times) => Object.entries(times);
 
 // Solidity: Shop `place`, saved native trace, solc's ethdebug (Walnut's
-// solidity PR #10). The deployed code gives soldb the immutables.
-async function loadSolidity() {
-  const { mod, out, times } = await lean;
-  const traceText = await timed(times, "fetch saved trace", () =>
-    text("./shop-debug-rpc.trace.json"));
-  const trace = await timed(times, "Trace.fromJson (parse)", () =>
-    mod.Trace.fromJson(traceText));
-  const dir = "./art/walnut10-Shop";
-  const [metadata, program, sol, code] = await timed(times,
-    "fetch ethdebug artifacts + code", () => Promise.all([
-      json(`${dir}/ethdebug_resources.json`),
-      json(`${dir}/Shop_ethdebug-runtime.json`),
-      text(`${dir}/Shop.sol`),
-      json("./shop-code.json"),
-    ]));
-  await timed(times, "attachEthdebug", () => trace.attachEthdebug(
-    JSON.stringify({ name: "Shop", metadata, program, sources: { 0: sol },
-      address: code.address })));
-  trace.provideCode(code.address, code.code);
-  const state = (i) => JSON.parse(trace.state(i)).variables;
-  const sources = { 0: source(0, sol) };
-  const walked = await timed(times, "step() every step + JSON.parse", () =>
-    walk(trace, sources));
-  const summary = JSON.parse(trace.summary());
-  const values = (i) => Object.fromEntries(state(i)
-    .map((v) => [v.name, v.value]));
-  const r = {
-    ok: true, times: Object.fromEntries(times),
-    stateFirst: values(0), stateLast: values(walked.n - 1),
-    replayAvailable: mod.replayAvailable(), version: mod.version(),
-    traceBytes: traceText.length, steps: walked.n, mapped: walked.mapped,
-    lineChanges: walked.changes.length, generated: walked.generated,
-    firstLines: walked.changes.slice(0, 12).map((i) => walked.lines[i]),
-    debugInfo: summary.debugInfo,
-    wasmMemory: out.memory.buffer.byteLength,
-  };
-  results.a = r;
-  showTimes($("a-times"), times, [
+// solidity PR #10). Fe: Tally `Add{n: 4}` on anvil, Fe 26.4.1's
+// ethdebug; the engine adapts only the file layout (listed on the page).
+// What each data set's details show, from the engine's summary.
+const detail = {
+  sol: (r) => [
     ["module", `soldb ${r.version}, replayAvailable() = ${r.replayAvailable}`],
     ["trace", `${kb(r.traceBytes)}, ${r.steps} steps, ` +
       `${r.mapped} with a source line (${r.generated} compiler-generated, ` +
       `whole-contract span), ${r.lineChanges} line changes`],
     ["wasm memory after", kb(r.wasmMemory)],
-  ]);
-  return { key: "sol", trace, sources, main: 0, lang: "solidity", walked,
-    state };
-}
-
-// Fe: Tally `Add{n: 4}` on anvil, Fe 26.4.1's ethdebug. The page adapts
-// only the file layout (listed on the page): it picks the `call`
-// program and supplies the source text that Fe's file leaves out.
-const FE = "fe";
-const FE_STD = {
-  "builtin-core:/src/": `${FE}/src/core/`,
-  "builtin-std:/src/": `${FE}/src/std/`,
+  ],
+  fe: (r) => [
+    ["trace", `${kb(r.traceBytes)}, ${r.steps} steps, ${r.mapped} with a ` +
+      `source span (${r.userSteps} in tally.fe, ${r.mapped - r.userSteps} ` +
+      `in Fe's standard library), ${r.lineChanges} line changes`],
+    ["soldb's debug info", `${r.debugInfo.instructions} ` +
+      `instructions, ${r.sourceCount} sources, variables at ` +
+      `${r.debugInfo.pcsWithVariables} pcs`],
+    ["functions / variables", `${r.withFunction} / ${r.withVariables} ` +
+      "steps (soldb's function detection targets Solidity; Fe emits no " +
+      "variables)"],
+  ],
 };
-async function loadFe() {
-  const { mod } = await lean;
-  const times = [];
-  const [dbg, tx, receipt, artifact] = await timed(times,
-    "fetch node responses + Fe ethdebug", () => Promise.all([
-      text(`${FE}/tx.debug-trace.json`), text(`${FE}/tx.transaction.json`),
-      text(`${FE}/tx.receipt.json`), json(`${FE}/tally.ethdebug.json`),
-    ]));
-  const trace = await timed(times, "Trace.fromTransaction (parse)", () =>
-    mod.Trace.fromTransaction(dbg, tx, receipt));
-  // Adaptation 1: Fe's file holds two programs; pass the runtime one.
-  const program = artifact.programs.find((p) => p.environment === "call");
-  // Adaptation 2: Fe lists sources without contents; fetch the text.
-  // The user file sits next to the artifact; std-library files are
-  // copies from the Fe repository at tag v26.4.1 (blake3 hashes match).
-  const list = artifact.compilation.sources;
-  const texts = await timed(times, "fetch Fe source text", () =>
-    Promise.all(list.map((s) => {
-      const pre = Object.keys(FE_STD).find((p) => s.uri.startsWith(p));
-      return text(pre ? FE_STD[pre] + s.uri.slice(pre.length)
-        : `${FE}/${base(s.path)}`);
-    })));
+
+async function load(key, part) {
+  const loaded = await engine.load(key);
   const sources = {};
-  const textById = {};
-  list.forEach((s, k) => {
-    sources[s.id] = source(s.id, texts[k],
-      s.uri.startsWith("builtin-") ? { lib: s.uri } : {});
-    textById[s.id] = texts[k];
-  });
-  // `metadata` is Fe's whole file, unchanged: soldb reads the source ids
-  // and paths from its `compilation`. No resources are added.
-  await timed(times, "attachEthdebug", () => trace.attachEthdebug(
-    JSON.stringify({ name: program.contract.name, metadata: artifact,
-      program, sources: textById })));
-  const walked = await timed(times, "step() every step + JSON.parse", () =>
-    walk(trace, sources));
-  const summary = JSON.parse(trace.summary());
-  let withFunction = 0, withVariables = 0;
-  for (let i = 0; i < walked.n; i++) {
-    const s = JSON.parse(trace.step(i));
-    if (s.function) withFunction++;
-    if (s.variables.length) withVariables++;
+  for (const [id, src] of Object.entries(loaded.sources)) {
+    sources[id] = { id: +id, ...src };
   }
-  const userSteps = walked.bySource[0] ?? 0;
-  const r = {
-    ok: true, times: Object.fromEntries(times),
-    steps: walked.n, mapped: walked.mapped, userSteps,
-    lineChanges: walked.changes.length, generated: walked.generated,
-    bySource: walked.bySource, withFunction, withVariables,
-    firstLines: walked.changes.slice(0, 12).map((i) => walked.lines[i]),
-    debugInfo: summary.debugInfo, success: summary.success,
-  };
-  results.fe = r;
-  showTimes($("fe-times"), times, [
-    ["trace", `${kb(dbg.length)}, ${r.steps} steps, ${r.mapped} with a ` +
-      `source span (${userSteps} in tally.fe, ${r.mapped - userSteps} in ` +
-      `Fe's standard library), ${r.lineChanges} line changes`],
-    ["soldb's debug info", `${summary.debugInfo.instructions} ` +
-      `instructions, ${list.length} sources, variables at ` +
-      `${summary.debugInfo.pcsWithVariables} pcs`],
-    ["functions / variables", `${withFunction} / ${withVariables} steps ` +
-      "(soldb's function detection targets Solidity; Fe emits no variables)"],
-  ]);
-  return { key: "fe", trace, sources, main: 0, lang: "rust", walked };
+  const ds = { key, ...loaded, sources, walked: stepsOf(loaded.steps) };
+  results[part] = loaded.summary;
+  showTimes($(`${part}-times`), entries(loaded.summary.times),
+    detail[key](loaded.summary));
+  return ds;
 }
 
 // BUG: Tally on anvil, bugc's ethdebug program. soldb is fed as for Fe;
-// the page adapts the file layout (bugc writes no resources file) and,
-// for the second run, the source id (soldb reads numeric ids only).
-const BUG = "bug";
+// the engine adapts the file layout (bugc writes no resources file)
+// and, for the second run, the source id (soldb reads numeric ids only).
 async function bugCheck() {
-  const { mod } = await lean;
-  const times = [];
-  const [dbg, tx, receipt, programText, bug] = await timed(times,
-    "fetch node responses + bugc program", () => Promise.all([
-      text(`${BUG}/tx.debug-trace.json`), text(`${BUG}/tx.transaction.json`),
-      text(`${BUG}/tx.receipt.json`), text(`${BUG}/tally.program.json`),
-      text(`${BUG}/tally.bug`),
-    ]));
-  const trace = await timed(times, "Trace.fromTransaction (parse)", () =>
-    mod.Trace.fromTransaction(dbg, tx, receipt));
-  // What soldb reports, over every step.
-  const report = (id, program) => {
-    trace.attachEthdebug(JSON.stringify({ name: "Tally", program,
-      metadata: { compilation: { sources: [{ id, path: "tally.bug" }] } },
-      sources: id === 0 ? { 0: bug } : {} }));
-    const r = { spans: 0, withVariables: 0, decoded: 0 };
-    const fns = new Set(), vars = new Set();
-    for (let i = 0; i < trace.stepCount(); i++) {
-      const s = JSON.parse(trace.step(i));
-      if (s.source) r.spans++;
-      if (s.function) fns.add(s.function.name);
-      if (s.variables.length) r.withVariables++;
-      for (const v of s.variables) {
-        vars.add(`${v.name}: ${v.ty} (${v.location.kind}[` +
-          `${v.location.offset}], ${v.value.status})`);
-        if (v.value.status === "decoded") r.decoded++;
-      }
-    }
-    const info = JSON.parse(trace.summary()).debugInfo;
-    return { ...r, functions: [...fns], variables: [...vars],
-      pcsWithVariables: info.pcsWithVariables };
-  };
-  const asEmitted = report("tally.bug", JSON.parse(programText));
-  const numeric = report(0, JSON.parse(
-    programText.replaceAll('"id": "tally.bug"', '"id": 0')));
-  const summary = JSON.parse(trace.summary());
-  const r = { ok: true, times: Object.fromEntries(times),
-    steps: trace.stepCount(), success: summary.success, asEmitted, numeric };
+  const r = await engine.run("bug-check");
   results.bug = r;
   const row = (x) => `${x.spans} steps with a span; functions: ` +
     `${x.functions.join(", ") || "none"}; variables at ` +
     `${x.pcsWithVariables} pcs, on ${x.withVariables} steps, ` +
     `${x.decoded} decoded; as ${x.variables.join("; ") || "none"}`;
-  showTimes($("bug-times"), times, [
-    ["trace", `${kb(dbg.length)}, ${r.steps} steps`],
-    ["source id \"tally.bug\" (as emitted)", row(asEmitted)],
-    ["source id 0", row(numeric)],
+  showTimes($("bug-times"), entries(r.times), [
+    ["trace", `${kb(r.traceBytes)}, ${r.steps} steps`],
+    ["source id \"tally.bug\" (as emitted)", row(r.asEmitted)],
+    ["source id 0", row(r.numeric)],
   ]);
 }
 
+// Part B: the replay build re-executes Token.transfer offline.
 async function partB() {
-  const times = [];
-  const mod = await timed(times, "import JS glue", () =>
-    import("./pkg-replay/soldb_wasm.js"));
-  const out = await timed(times, "fetch + compile + instantiate wasm", () =>
-    mod.default({ module_or_path: "./pkg-replay/soldb_wasm_bg.wasm" }));
-  if (!mod.replayAvailable()) throw new Error("replay build has no Replay");
-  const file = await timed(times, "fetch replay file", () =>
-    json("./replay/transfer.json"));
-  const s = JSON.stringify;
-  const replay = await timed(times, "Replay.prepare", () =>
-    mod.Replay.prepare(s(file.transaction), s(file.receipt), s(file.block),
-      String(file.chainId)));
-  let rounds = 0;
-  let status = JSON.parse(replay.status());
-  await timed(times, "provideState + run (EVM)", () => {
-    while (status.status === "needsState") {
-      if (rounds++ > 0) {
-        throw new Error("replay file lacks state: " + s(status.requests));
-      }
-      replay.provideState(s(file.state));
-      status = JSON.parse(replay.run());
-    }
-  });
-  if (status.status !== "complete") throw new Error(s(status));
-  const trace = await timed(times, "finish", () => replay.finish());
-  const dir = "./art/walnut10-Token";
-  const [metadata, program, sol] = await timed(times,
-    "fetch ethdebug artifacts", () => Promise.all([
-      json(`${dir}/ethdebug_resources.json`),
-      json(`${dir}/Token_ethdebug-runtime.json`),
-      text(`${dir}/Token.sol`),
-    ]));
-  await timed(times, "attachEthdebug", () => trace.attachEthdebug(
-    JSON.stringify({ name: "Token", metadata, program, sources: { 0: sol } })));
-  const walked = await timed(times, "step() every step + JSON.parse", () =>
-    walk(trace, { 0: source(0, sol) }));
-  const summary = JSON.parse(trace.summary());
-  const r = {
-    ok: true, times: Object.fromEntries(times), rounds,
-    version: mod.version(), steps: walked.n, mapped: walked.mapped,
-    lineChanges: walked.changes.length, generated: walked.generated,
-    firstLines: walked.changes.slice(0, 12).map((i) => walked.lines[i]),
-    backend: summary.backend, success: summary.status ?? summary.success,
-    debugInfo: summary.debugInfo,
-    wasmMemory: out.memory.buffer.byteLength,
-  };
+  const r = await engine.run("replay");
   results.b = r;
-  showTimes($("b-times"), times, [
+  showTimes($("b-times"), entries(r.times), [
     ["module", `soldb ${r.version}, replayAvailable() = true`],
-    ["replay", `${rounds} run(s), ${r.steps} steps, ` +
+    ["replay", `${r.rounds} run(s), ${r.steps} steps, ` +
       `${r.mapped} with a source line (${r.generated} compiler-generated, ` +
       `whole-contract span), ${r.lineChanges} line changes`],
     ["wasm memory after", kb(r.wasmMemory)],
@@ -566,11 +364,14 @@ function fail(part, e) {
   console.error(e);
 }
 
-function listRequests() {
+// The page's own requests and the engine's (the worker's fetches).
+async function listRequests() {
   const el = $("reqs");
   el.innerHTML = "";
-  const reqs = performance.getEntriesByType("resource")
-    .filter((e) => !e.name.endsWith("/events"));
+  const seen = new Set();
+  const reqs = [...performance.getEntriesByType("resource"),
+    ...await engine.requests()].filter((e) => !e.name.endsWith("/events")
+    && !seen.has(e.name) && seen.add(e.name));
   results.requests = reqs.map((e) => e.name);
   const here = reqs.filter((e) => new URL(e.name).origin === location.origin);
   results.cdnRequests = reqs.length - here.length;
@@ -594,17 +395,22 @@ results.env = {
 $("env").textContent = navigator.userAgent;
 
 const t0 = now();
-for (const [key, part, load] of [["sol", "a", loadSolidity],
-  ["fe", "fe", loadFe]]) {
+const loading = $("loading");
+for (const [key, part] of [["sol", "a"], ["fe", "fe"]]) {
   try {
-    datasets[key] = await load();
+    datasets[key] = await load(key, part);
     window.walked[key] = datasets[key].walked;
     $(`${part}-status`).textContent = "Works.";
     $(`${part}-status`).className = "status ok";
     document.querySelector(`[data-ds=${key}]`).disabled = false;
-    if (key === "sol") await select("sol");
+    if (key === "sol") {
+      results.solReadyMs = now() - t0;
+      loading.hidden = true;
+      await select("sol");
+    }
   } catch (e) { fail(part, e); }
 }
+loading.hidden = true;
 if (!datasets.sol && datasets.fe) await select("fe");
 $("bug-status").textContent = "Running...";
 try {
@@ -615,6 +421,6 @@ try {
 $("b-status").textContent = "Running...";
 try { await partB(); } catch (e) { fail("b", e); }
 results.totalMs = now() - t0;
-listRequests();
+await listRequests();
 results.done = true;
 document.body.dataset.done = "1";
