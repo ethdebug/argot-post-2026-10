@@ -42,8 +42,9 @@ async function timed(times, label, fn) {
 // One program, two optimization levels, by bugc from ethdebug/format
 // main (local variables at every level).
 const BUG = "bug";
-const FILE = "weights.bug";
-const DIRS = { "bug-O0": `${BUG}/weights-O0`, "bug-O2": `${BUG}/weights-O2` };
+const FILE = "scores.bug";
+const DIRS = { "bug-O0": `${BUG}/scores-O0`,
+  "bug-O2": `${BUG}/scores-O2` };
 
 // The context tree's `code` ranges, each marked when it sits in a
 // context with transform "inline" (an inlined body). In bugc's output
@@ -81,9 +82,9 @@ async function load(key) {
   const times = {};
   const [program, dbg, src, before, runtime] = await timed(times,
     "fetch program, trace, source", () => Promise.all([
-      json(`${dir}/weights.program.json`), text(`${dir}/tx.debug-trace.json`),
+      json(`${dir}/scores.program.json`), text(`${dir}/tx.debug-trace.json`),
       text(`${BUG}/${FILE}`), json(`${dir}/tx.storage-before.json`),
-      text(`${dir}/out/Weights.runtime.bin`),
+      text(`${dir}/out/Scores.runtime.bin`),
     ]));
   const logs = await timed(times, "parse trace", () =>
     JSON.parse(dbg).structLogs);
@@ -236,18 +237,53 @@ function decode(data, type) {
 
 const REASON = "no location here: not stored yet, or folded (#291)";
 
-const typeName = (t) => !t ? "?" : t.kind === "uint" || t.kind === "int"
-  ? `${t.kind}${t.bits ?? 256}` : t.kind;
+const typeName = (t) => {
+  if (!t) return "?";
+  if (t.kind === "uint" || t.kind === "int") {
+    return `${t.kind}${t.bits ?? 256}`;
+  }
+  if (t.kind === "array") return `${typeName(t.contains?.type)}[]`;
+  if (t.kind === "mapping") {
+    return `mapping(${typeName(t.contains?.key?.type)} => ` +
+      `${typeName(t.contains?.value?.type)})`;
+  }
+  return t.kind;
+};
 
-// The value a pointer names at step i: its region named `name`, or its
-// last region.
+// The value a pointer names at step i, by its type: an array, from the
+// regions bugc names `<name>-length` and `<name>-element`; a struct,
+// from one region per member; else the region named `name`, or the
+// last region. A mapping's pointer names only its base slot, so the
+// page shows no entries.
 async function valueAt(ds, i, pointer, name, type) {
+  if (type?.kind === "mapping") {
+    return `<mapping at slot ${pointer.slot ?? "?"}>`;
+  }
   const state = machineState(ds, i);
   const cursor = await dereference(pointer, { state });
   const view = await cursor.view(state);
+  const read = async (r, t) => decode(await view.read(r), t);
+  if (type?.kind === "array") {
+    const length = view.regions.named(`${name}-length`)?.at(-1);
+    const items = [];
+    for (const r of view.regions.named(`${name}-element`) ?? []) {
+      items.push(await read(r, type.contains?.type));
+    }
+    if (length) {
+      return `length ${await read(length)}: [${items.join(", ")}]`;
+    }
+  }
+  if (type?.kind === "struct" && Array.isArray(type.contains)) {
+    const fields = [];
+    for (const m of type.contains) {
+      const r = view.regions.named(m.name)?.at(-1);
+      if (r) fields.push(`${m.name}: ${await read(r, m.type)}`);
+    }
+    if (fields.length) return `{ ${fields.join(", ")} }`;
+  }
   const region = view.regions.named(name)?.at(-1)
     ?? view.regions.at(-1);
-  return decode(await view.read(region), type);
+  return read(region, type);
 }
 
 // Variables at step i: those of the context that holds at step i (the
@@ -268,7 +304,9 @@ async function variables(key, i) {
   const vars = context ? extractVariablesFromInstruction({ context }) : [];
   const out = [];
   for (const v of vars) {
-    const scope = v.pointer?.location === "storage" ? "storage" : "local";
+    // Storage if any of its regions is (a struct's pointer is a group).
+    const scope = /"location":"storage"/.test(JSON.stringify(v.pointer))
+      ? "storage" : "local";
     let value = "<no location>";
     if (v.pointer) {
       try {

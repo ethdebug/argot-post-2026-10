@@ -1,0 +1,30 @@
+name Scores;
+
+define {
+  struct Stats { plays: uint8; total: uint32; };
+  function sq(x: uint256) -> uint256 { return x * x; };
+  function sumTo(k: uint256) -> uint256 {
+    if (k == 0) { return 0; }
+    return k + sumTo(k - 1);
+  };
+  function score(k: uint256) -> uint256 {
+    let bonus = 3;
+    return sq(k) + sumTo(k) + bonus;
+  };
+}
+
+storage {
+  [0] stats: Stats;
+  [1] last: mapping<address, uint256>;
+}
+
+code {
+  let recent = [0, 0, 0];
+  for (let i = 1; i < 4; i = i + 1) {
+    let s = score(i);
+    recent = [recent[1], recent[2], s];
+    stats.total = stats.total + s as uint32;
+  }
+  last[msg.sender] = recent[2];
+  stats.plays = stats.plays + 1;
+}

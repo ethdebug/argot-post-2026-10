@@ -458,7 +458,7 @@ async function load(key, part, eng = engine) {
   return ds;
 }
 
-// BUG: Weights on anvil, at optimization levels 0 and 2, by bugc from
+// BUG: Scores on anvil, at optimization levels 0 and 2, by bugc from
 // ethdebug/format main; debugged by ethdebug's reference
 // implementation (ref-worker.js), not soldb.
 async function loadRef() {

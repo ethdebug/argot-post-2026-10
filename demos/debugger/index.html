@@ -189,7 +189,7 @@ reports.</p>
       <button role="radio" data-lvl="O0" aria-checked="true">-O0: no
         inlining</button>
       <button role="radio" data-lvl="O2" aria-checked="false">-O2:
-        <code>dbl</code> inlined</button>
+        <code>sq</code> inlined</button>
     </div>
   </div>
   <p class="engine" data-about="sol fe">Engine: soldb, Walnut's
@@ -262,8 +262,8 @@ maps each step (WebAssembly, in a Web Worker)...</p>
       that the transaction touches. A value shows as unknown until the
       transaction reads or writes it.</p>
       <p class="muted" data-cap="variables" hidden>Decoding is a simple
-      stand-in (uint, address) for the format's planned interpretation
-      layer.</p>
+      stand-in (uint, address, and arrays and structs of these) for the
+      format's planned interpretation layer.</p>
       <p class="why"></p>
       <p class="why locals"></p>
     </div>
@@ -311,22 +311,28 @@ and the trace reconstruction from
 bugc, BUG's compiler, on ethdebug/format main. Only the decoding of
 values is a stand-in, for the format's planned interpretation
 layer.</p>
-<p><code>Weights</code> (<a href="bug/weights.bug">weights.bug</a>):
-the code block calls <code>weight</code> four times.
-<code>weight</code> calls <code>dbl</code>, and from <code>i = 2</code>
-also <code>tri</code>, which calls itself. bugc marks each call with
-<code>invoke</code> and <code>return</code> contexts. The call stack
-comes from these contexts. The tab has the same program at two
-optimization levels.</p>
+<p><code>Scores</code> (<a href="bug/scores.bug">scores.bug</a>)
+scores three rounds. It keeps the last three scores in the memory array
+<code>recent</code> and a total in the packed storage struct
+<code>stats</code>. <code>score</code> calls <code>sq</code> and
+<code>sumTo</code>, which calls itself. Look for: the call stack (up to
+five frames, from bugc's <code>invoke</code> and <code>return</code>
+contexts); <code>recent</code> as it fills, read through its pointer
+(length, then each element); at -O2, the inlined <code>sq</code> and
+the folded local <code>bonus</code>. The tab has the same program at
+two optimization levels.</p>
 <p class="muted">At both levels, bugc gives a local variable a pointer
 where its value is in memory. Where a local has no location (its value
 is not stored yet, or the optimizer folded it), bugc lists it by type
 only: the format cannot yet say "the value is this expression"
-(ethdebug/format#291). At -O2, bugc inlines <code>dbl</code>. The
-inlined instructions carry <code>transform: ["inline"]</code> and keep
-the source range of the call <code>dbl(i)</code>. The local
-<code>x</code> of the inlined <code>dbl</code> is marked
-"inline".</p>
+(ethdebug/format#291). At -O0, <code>bonus</code> is in memory. At
+-O2, the optimizer folds it into the sum, so it is listed by type only.
+At -O2, bugc also inlines <code>sq</code>. The inlined instructions
+carry <code>transform: ["inline"]</code> and keep the source range of
+the call <code>sq(k)</code>. The local <code>x</code> of the inlined
+<code>sq</code> is marked "inline". The pointer for
+<code>last</code>, a mapping, names only its base slot, so the page
+shows no entries.</p>
 </div>
 
 <p class="muted" data-about="bug" hidden>"over" and "out"

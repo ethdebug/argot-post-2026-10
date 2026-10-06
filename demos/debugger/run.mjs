@@ -290,9 +290,9 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
             site: box.querySelectorAll(".src .site").length,
             frames: stack() };
         }
-        // Each inlined body of dbl(i): at its first step with x located,
-        // x (dbl's parameter, read through its pointer) and the call
-        // stack. weight(i, n) passes i to dbl, so x must be i.
+        // Each inlined body of sq(k): at its first step with x located,
+        // x (sq's parameter, read through its pointer) and the call
+        // stack. score(k) passes k to sq, so x must be k.
         o.inlineLocals = [];
         for (let i = 1; i < w.n; i++) {
           if (!w.inline?.[i] || w.inline[i - 1]) continue;
@@ -314,6 +314,26 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
           const r = rows().find((r) => r.scope === "local"
             && r.value.startsWith("<"));
           if (r) o.typeOnly = { step: i, ...r };
+        }
+        // Every step: each local or storage variable with a location,
+        // as read through its pointer. Collects the values of recent
+        // (in order, without repeats), of bonus, and of every name.
+        o.scan = { values: {}, recent: [], bonus: [] };
+        for (let i = 0; i < w.n; i++) {
+          go(i);
+          await fsettle();
+          for (const r of rows()) {
+            const vs = o.scan.values[r.name] ??= [];
+            if (!vs.includes(r.value)) vs.push(r.value);
+            if (r.name === "recent" && !r.value.startsWith("<")
+              && o.scan.recent.at(-1) !== r.value) {
+              o.scan.recent.push(r.value);
+            }
+            if (r.name === "bonus" && !o.scan.bonus.some((b) =>
+              b.value === r.value)) {
+              o.scan.bonus.push({ step: i, value: r.value, note: r.note });
+            }
+          }
         }
         o.lineMs = lineMsOf(w);
       }
@@ -629,31 +649,66 @@ for (const [name, b] of Object.entries(all)) {
       check(name, `BUG ${lvl} call stack depth >= 2`, o.stack.synced
         && o.stack.depth >= 2 && o.stack.frames.length >= 2);
     }
-    // Weights: weight(i, 4) = 2i + 4, plus tri(i) from i = 2:
-    // sum = 4 + 6 + (8 + 3) + (10 + 6) = 37. After the loop: n = 4,
-    // sum = 37 (i is out of scope).
+    // Scores, by hand: score(k) = k * k + sumTo(k) + 3, so score(1) =
+    // 1 + 1 + 3 = 5, score(2) = 4 + 3 + 3 = 10, score(3) = 9 + 6 + 3 =
+    // 18. recent shifts each score in: [0, 0, 5], [0, 5, 10], [5, 10,
+    // 18]. stats.total = 5 + 10 + 18 = 33; stats.plays = 1 at the end.
+    // last's pointer names only its base slot (no entries).
+    const RECENT = ["[0, 0, 0]", "[0, 0, 5]", "[0, 5, 10]", "[5, 10, 18]"]
+      .map((a) => `length 3: ${a}`);
+    // The values the program gives each variable (k: score's and
+    // sumTo's; x: the inlined sq's). <no location>: listed by type only.
+    const NONE = "<no location>";
+    const VALUES = { i: ["1", "2", "3", "4"], s: ["5", "10", "18"],
+      k: ["0", "1", "2", "3"], x: ["1", "2", "3"], bonus: ["3"],
+      recent: RECENT, last: ["<mapping at slot 1>"],
+      stats: ["0", "5", "15", "33"].map((t) =>
+        `{ plays: 0, total: ${t} }`).concat("{ plays: 1, total: 33 }") };
     for (const lvl of ["O0", "O2"]) {
       const o = u.bug[lvl];
-      check(name, `BUG ${lvl} local variable with a value`, !!o.local
-        && same(o.last, { total: "37", calls: "1", n: "4", sum: "37" }));
-      // The deepest stack: tri(3) recurses down to tri(0), in weight(3).
+      check(name, `BUG ${lvl} final values`, !!o.local
+        && same(o.last, { stats: "{ plays: 1, total: 33 }",
+          last: "<mapping at slot 1>", recent: RECENT[3] }));
+      // The deepest stack: sumTo(3) recurses down to sumTo(0), in
+      // score(3).
       check(name, `BUG ${lvl} call stack frames`, same(
         o.stack.frames.map((f) => f.replace(/ (called|inlined) at.*/, "")),
-        ["tri(k: 0)", "tri(k: 1)", "tri(k: 2)", "tri(k: 3)",
-          "weight(i: 3, n: 4)"]));
+        ["sumTo(k: 0)", "sumTo(k: 1)", "sumTo(k: 2)", "sumTo(k: 3)",
+          "score(k: 3)"]));
       check(name, `BUG ${lvl} type-only local with its reason`,
         /no location here.*#291/.test(o.typeOnly?.note ?? ""));
+      // recent, read through its pointer (the word, the length region,
+      // the list of elements), takes each value in order.
+      check(name, `BUG ${lvl} array recent: length and elements`,
+        same(o.scan.recent, RECENT));
+      // Every value read through a pointer is one the program gives.
+      const bad = Object.entries(o.scan.values).flatMap(([n, vs]) =>
+        vs.filter((v) => v !== NONE && !VALUES[n]?.includes(v))
+          .map((v) => `${n}=${v}`));
+      check(name, `BUG ${lvl} every pointer reads the program's value`
+        + (bad.length ? ` (${bad.join(", ")})` : ""), bad.length === 0
+        // Each name is read at some step (x: O2 only; bonus: O0 only).
+        && Object.keys(VALUES).every((n) => (lvl === "O0" ? n === "x"
+          : n === "bonus") || o.scan.values[n]?.some((v) => v !== NONE)));
     }
-    // dbl inlined, four times (i = 0..3): x is marked inline, and its
-    // pointer reads i, the argument weight(i, n) gives it.
+    // bonus: in memory at -O0 (3); folded at -O2, so listed by type
+    // only, with its reason, at every step.
+    const b0 = u.bug.O0.scan.bonus, b2 = u.bug.O2.scan.bonus;
+    check(name, "BUG O0 bonus located (3)",
+      b0.some((b) => b.value === "3"));
+    check(name, "BUG O2 bonus folded: type-only at every step",
+      b2.length === 1 && b2[0].value === NONE
+      && /no location here.*#291/.test(b2[0].note));
+    // sq inlined, three times (k = 1..3): x is marked inline, and its
+    // pointer reads k, the argument score(k) gives it.
     const xs = u.bug.O2.inlineLocals;
-    check(name, "BUG O2 inlined local x reads i through its pointer",
-      xs.length === 4 && xs.every((e, k) => e.x.value === String(k)
-        && e.x.inline && /inline in dbl/.test(e.x.note)
-        && e.frames.some((f) => f.startsWith(`weight(i: ${k}, n: 4)`))));
+    check(name, "BUG O2 inlined local x reads k through its pointer",
+      xs.length === 3 && xs.every((e, k) => e.x.value === String(k + 1)
+        && e.x.inline && /inline in sq/.test(e.x.note)
+        && e.frames.some((f) => f.startsWith(`score(k: ${k + 1})`))));
     check(name, "BUG O0 no inline locals", u.bug.O0.inlineLocals
       .length === 0);
-    check(name, "BUG O2 inline marker", u.bug.O2.inline?.fn === "dbl"
+    check(name, "BUG O2 inline marker", u.bug.O2.inline?.fn === "sq"
       && u.bug.O2.inline.noteVisible === "visible"
       && u.bug.O2.inline.site > 0);
     check(name, "state panel", stateOk(u.state));

@@ -1,5 +1,5 @@
 // Setup: deploy a BUG contract on anvil (`anvil --steps-tracing --port
-// 8547`), send one call, and save the node's three responses that
+// $PORT`), send one call, and save the node's three responses that
 // soldb's Trace.fromTransaction takes.
 // BUG's `code` block runs on every call, so the calldata is empty.
 // Usage: node make-tx.mjs [Name] [dir] [memory]
@@ -7,8 +7,10 @@
 // step's memory and storage, for the BUG tab's pointers.
 import fs from "fs";
 const [name = "Tally", dir = ".", memory] = process.argv.slice(2);
+// The node: PORT (default 8547) on localhost.
+const NODE = `http://127.0.0.1:${process.env.PORT ?? 8547}`;
 const rpc = async (method, params = []) => {
-  const r = await (await fetch("http://127.0.0.1:8547", {
+  const r = await (await fetch(NODE, {
     method: "POST", headers: { "content-type": "application/json" },
     body: JSON.stringify({ jsonrpc: "2.0", id: 1, method, params }),
   })).json();
