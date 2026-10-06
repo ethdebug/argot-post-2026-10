@@ -1,20 +1,27 @@
-// Setup: compile tally.bug with bugc's API (the CLI prints bytecode but
-// not the ethdebug program). Writes out/Tally.bin (creation code),
-// out/Tally.runtime.bin and tally.program.json (bugc's runtime program,
-// unchanged), at optimization level 2 (inlines `dbl`).
-// Usage: node compile.mjs <path to packages/bugc>
+// Setup: compile a BUG file with bugc's API (the CLI prints bytecode but
+// not the ethdebug program). Writes <dir>/out/<Name>.bin (creation
+// code), <dir>/out/<Name>.runtime.bin and <dir>/<stem>.program.json
+// (bugc's runtime program, unchanged). <Name> is the program's `name`.
+// Usage: node compile.mjs <path to packages/bugc> [file] [level] [dir]
+// Defaults: tally.bug at optimization level 2 (inlines `dbl`), in ".".
+// The BUG tab's data: weights.bug at levels 0 and 2, into weights-O0
+// and weights-O2, by bugc from ethdebug/format PR #270.
 import fs from "fs";
-const bugc = await import(`${process.argv[2]}/dist/src/index.js`);
-const source = fs.readFileSync("tally.bug", "utf8");
+const [lib, file = "tally.bug", level = "2", dir = "."] =
+  process.argv.slice(2);
+const bugc = await import(`${lib}/dist/src/index.js`);
+const source = fs.readFileSync(file, "utf8");
 const r = await bugc.compile({ to: "bytecode", source,
-  optimizer: { level: 2 }, sourcePath: "tally.bug" });
+  optimizer: { level: +level }, sourcePath: file });
 if (!r.success) throw new Error(JSON.stringify(r.messages ?? r, null, 1));
 const b = r.value.bytecode;
+const name = source.match(/^name (\w+);/m)[1];
+const stem = file.replace(/\.bug$/, "");
 const hex = (u8) => Buffer.from(u8).toString("hex");
-fs.mkdirSync("out", { recursive: true });
-fs.writeFileSync("out/Tally.bin", hex(b.create));
-fs.writeFileSync("out/Tally.runtime.bin", hex(b.runtime));
-fs.writeFileSync("tally.program.json",
+fs.mkdirSync(`${dir}/out`, { recursive: true });
+fs.writeFileSync(`${dir}/out/${name}.bin`, hex(b.create));
+fs.writeFileSync(`${dir}/out/${name}.runtime.bin`, hex(b.runtime));
+fs.writeFileSync(`${dir}/${stem}.program.json`,
   JSON.stringify(b.runtimeProgram, null, 1));
 console.log(Object.keys(r.value), Object.keys(b),
   b.runtimeProgram.instructions.length, "instructions");

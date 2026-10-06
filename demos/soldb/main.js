@@ -1,25 +1,21 @@
-// The page: UI, highlighting and stepping. soldb-wasm does the
-// debugging, in a Web Worker behind engine.js; the page only displays
-// what the engine reports. One viewer steps two data sets with the same
-// code: a Solidity transaction (solc's ethdebug) and a Fe transaction
-// (Fe's ethdebug). The BUG tab links to ethdebug's reference viewer; the
-// details run a soldb check on the BUG transaction. Part B (details)
-// replays a transaction with the replay build. Results go to the DOM
-// and to window.results.
+// The page: UI, highlighting and stepping. Engines do the debugging,
+// each in a Web Worker behind engine.js; the page only displays what an
+// engine reports. One viewer steps every data set with the same code: a
+// Solidity transaction (solc's ethdebug) and a Fe transaction (Fe's
+// ethdebug), by soldb-wasm; a BUG transaction at two optimization
+// levels (bugc's ethdebug), by ethdebug's reference implementation. The
+// details run a soldb check on another BUG transaction. Part B
+// (details) replays a transaction with the replay build. Results go to
+// the DOM and to window.results.
 
-import { soldbEngine } from "./engine.js";
+import { soldbEngine, refEngine } from "./engine.js";
 
-const results = { env: {}, a: null, fe: null, bug: null, b: null,
-  shiki: null };
+const results = { env: {}, a: null, fe: null, ref: null, bug: null,
+  b: null, shiki: null };
 window.results = results;
 
 const $ = (id) => document.getElementById(id);
 const now = () => performance.now();
-const text = async (url) => {
-  const r = await fetch(url);
-  if (!r.ok) throw new Error(`${url}: HTTP ${r.status}`);
-  return r.text();
-};
 // Display only: Shiki colours the source and draws soldb's span. It
 // never computes a source mapping. Fe has no Shiki grammar; `rust` is a
 // close approximation.
@@ -66,7 +62,8 @@ function stepsOf(steps) {
   }
   let lo = Infinity, hi = -Infinity;
   for (const d of depths) { lo = Math.min(lo, d); hi = Math.max(hi, d); }
-  return { n, spans, lineNo, depths, flat: lo === hi, changes };
+  return { n, spans, lineNo, depths, flat: lo === hi, changes,
+    inline: steps.inline };
 }
 
 // Stepping, computed by the page from two fields soldb reports per step:
@@ -109,22 +106,63 @@ const viewer = (() => {
   const msg = $("msg");
   const stateBox = box.querySelector(".state");
   const stateTable = stateBox.querySelector("table");
+  const framesBox = box.querySelector(".frames");
+  const framesList = framesBox.querySelector("ol");
   const buttons = [...box.querySelectorAll("button[data-go]")];
   const cache = new Map();
   let hl = null, ds = null, shown = null, before = null;
-  // The contract's state at step i, from the engine's state(i), when the
-  // data set has that capability (Solidity). It comes from the worker,
-  // so it is async: a reply for a step that is no longer shown is
-  // ignored. A value that differs from the state shown before is marked.
+  // The panels at step i, when the data set has their capability: the
+  // contract's state from the engine's state(i) (Solidity), or the
+  // variables in scope from variables(i) (BUG), in the same table; and
+  // the call stack from callStack(i) (BUG). They come from a worker, so
+  // they are async: a reply for a step that is no longer shown is
+  // ignored. A value that differs from the one shown before is marked.
   let stateSeq = 0, stateDone = Promise.resolve();
   const showState = (i) => {
-    const has = !!ds.capabilities.state;
-    stateBox.hidden = !has;
-    if (!has) return;
-    const seq = ++stateSeq, cur = ds;
-    stateDone = engine.state(ds.key, i).then((vars) => {
-      if (seq === stateSeq && cur === ds) drawState(i, vars);
+    const caps = ds.capabilities;
+    const vars = caps.state ? "state" : caps.variables ? "variables" : null;
+    stateBox.hidden = !vars;
+    for (const p of stateBox.querySelectorAll("[data-cap]")) {
+      p.hidden = p.dataset.cap !== vars;
+    }
+    framesBox.hidden = !caps.callStack;
+    if (!vars && !caps.callStack) return;
+    const seq = ++stateSeq, cur = ds, e = ds.engine;
+    stateDone = Promise.all([vars && e[vars](ds.key, i),
+      caps.callStack && e.callStack(ds.key, i)]).then(([v, f]) => {
+      if (seq !== stateSeq || cur !== ds) return;
+      if (v) drawState(i, v);
+      if (f) drawFrames(i, f);
     }, (e) => console.error(e));
+  };
+  const badge = (t) => {
+    const b = document.createElement("span");
+    b.className = "badge";
+    b.textContent = t;
+    return b;
+  };
+  const code = (t) => {
+    const c = document.createElement("code");
+    c.textContent = t;
+    return c;
+  };
+  // The call stack, innermost first; each frame with its call site.
+  const drawFrames = (i, frames) => {
+    framesBox.dataset.step = String(i);
+    framesBox.dataset.depth = String(frames.length);
+    framesList.innerHTML = "";
+    for (const f of frames) {
+      const li = framesList.appendChild(document.createElement("li"));
+      li.append(code(f.args === null ? f.name : `${f.name}(${f.args})`));
+      if (f.inline) li.append(" ", badge("inline"));
+      if (f.site) {
+        li.append(` ${f.inline ? "spliced into" : "called at"} line ` +
+          `${f.site.line}: `, code(f.site.text.trim()));
+      }
+    }
+    const li = framesList.appendChild(document.createElement("li"));
+    li.className = "muted";
+    li.textContent = "the code block (the transaction's entry)";
   };
   const drawState = (i, vars) => {
     stateBox.dataset.step = String(i);
@@ -134,6 +172,7 @@ const viewer = (() => {
       const name = tr.insertCell();
       name.textContent = v.name;
       name.title = v.type;
+      if (v.scope) tr.dataset.scope = v.scope;
       const val = document.createElement("span");
       val.textContent = v.value.startsWith("<unknown") ? "<unknown>"
         : v.value;
@@ -147,19 +186,35 @@ const viewer = (() => {
         val.classList.add("chg");
       }
       tr.insertCell().append(val);
+      if (v.scope) {
+        const c = tr.insertCell();
+        c.className = "muted";
+        c.textContent = `${v.scope}, ${v.type}`;
+      }
+    }
+    if (!vars.length) {
+      const c = stateTable.insertRow().insertCell();
+      c.className = "muted";
+      c.textContent = "none in this step's context";
     }
     before = new Map(vars.map((v) => [v.name, v.value]));
   };
-  const render = (src, span) => {
-    const key = `${ds.key}:${src.id}:${span ? span.join(":") : ""}`;
+  // `site`: an inlined body's call site, outlined (same source only).
+  const render = (src, span, site) => {
+    const key = `${ds.key}:${src.id}:${span ? span.join(":") : ""}` +
+      (site ? `:${site.join(":")}` : "");
     let html = cache.get(key);
     if (html === undefined) {
       const t = now();
+      const decorations = span
+        ? [{ start: span[1], end: span[2], properties: { class: "hl" } }]
+        : [];
+      if (site && site[0] === src.id) {
+        decorations.push({ start: site[1], end: site[2],
+          properties: { class: "site" } });
+      }
       html = hl.codeToHtml(src.text, {
-        lang: ds.lang, themes: THEMES, defaultColor: false,
-        decorations: span
-          ? [{ start: span[1], end: span[2], properties: { class: "hl" } }]
-          : [],
+        lang: ds.lang, themes: THEMES, defaultColor: false, decorations,
       });
       const dt = now() - t;
       results.shiki.renders++;
@@ -187,13 +242,23 @@ const viewer = (() => {
       b.title = b.disabled && ds.walked.flat && b.dataset.go !== "into"
         ? "Every step here is at EVM call depth 1" : "";
     }
-    srcEl.innerHTML = hl ? render(src, span) : `<pre>${esc(src.text)}</pre>`;
+    // An inlined body (reference engine): the step's span is in the
+    // body; the marker names the function and its call site.
+    const inl = st.inline && st.inline[i];
+    srcEl.innerHTML = hl ? render(src, span, inl && inl.site)
+      : `<pre>${esc(src.text)}</pre>`;
     showState(i);
     srcEl.classList.toggle("faded", !span);
     note.textContent = !span
       ? "compiler-generated code (no specific source)"
       : src.lib ? `in Fe's standard library: ${src.lib}` : "";
-    note.classList.toggle("on", !span || !!src.lib);
+    if (inl) {
+      note.append(badge("inline"), ` the body of ${inl.fn ?? "?"}, ` +
+        "spliced in at its call ", code((inl.text ?? "?").trim()),
+        ` (line ${inl.line}, outlined): no call happens`);
+    }
+    note.dataset.inline = inl ? inl.fn ?? "?" : "";
+    note.classList.toggle("on", !span || !!src.lib || !!inl);
     const marks = srcEl.querySelectorAll(".hl");
     if (marks.length) {
       // Centre the span's start line (or the span, if it fits) in the
@@ -263,28 +328,40 @@ const viewer = (() => {
 const datasets = {};
 window.walked = {};
 
+// The BUG tab shows one of two data sets: the same program at
+// optimization level 0 or 2.
+let bugLevel = "O0";
 async function select(key) {
-  if (key !== "bug" && !datasets[key]) return;
+  const ds = datasets[key === "bug" ? `bug-${bugLevel}` : key];
+  if (!ds) return;
   for (const t of document.querySelectorAll("[role=tab]")) {
     t.setAttribute("aria-selected", String(t.dataset.ds === key));
   }
   for (const p of document.querySelectorAll("[data-about]")) {
     p.hidden = !p.dataset.about.split(" ").includes(key);
   }
-  if (key !== "bug") return viewer.show(datasets[key]);
-  viewer.hide();
-  const pre = $("bug-src");
-  if (!pre.textContent) pre.textContent = await text(`${BUG}/tally.bug`);
+  return viewer.show(ds);
 }
 for (const t of document.querySelectorAll("[role=tab]")) {
   t.onclick = () => select(t.dataset.ds);
 }
+for (const b of document.querySelectorAll("[data-lvl]")) {
+  b.onclick = () => {
+    bugLevel = b.dataset.lvl;
+    for (const c of document.querySelectorAll("[data-lvl]")) {
+      c.setAttribute("aria-checked", String(c === b));
+    }
+    return select("bug");
+  };
+}
 window.select = select;
+window.selectLevel = (lvl) =>
+  document.querySelector(`[data-lvl=${lvl}]`).onclick();
 
 window.stateReady = () => viewer.settled();
 
 const engine = soldbEngine();
-const BUG = "bug";
+const ref = refEngine();
 const entries = (times) => Object.entries(times);
 
 // Solidity: Shop `place`, saved native trace, solc's ethdebug (Walnut's
@@ -312,17 +389,43 @@ const detail = {
   ],
 };
 
-async function load(key, part) {
-  const loaded = await engine.load(key);
+async function load(key, part, eng = engine) {
+  const loaded = await eng.load(key);
   const sources = {};
   for (const [id, src] of Object.entries(loaded.sources)) {
     sources[id] = { id: +id, ...src };
   }
-  const ds = { key, ...loaded, sources, walked: stepsOf(loaded.steps) };
-  results[part] = loaded.summary;
-  showTimes($(`${part}-times`), entries(loaded.summary.times),
-    detail[key](loaded.summary));
+  const ds = { key, engine: eng, ...loaded, sources,
+    walked: stepsOf(loaded.steps) };
+  if (part) {
+    results[part] = loaded.summary;
+    showTimes($(`${part}-times`), entries(loaded.summary.times),
+      detail[key](loaded.summary));
+  }
   return ds;
+}
+
+// BUG: Weights on anvil, at optimization levels 0 and 2, by bugc from
+// ethdebug/format PR #270; debugged by ethdebug's reference
+// implementation (ref-worker.js), not soldb.
+async function loadRef() {
+  const r = { ok: true };
+  const times = [], rows = [];
+  for (const lvl of ["O0", "O2"]) {
+    const ds = datasets[`bug-${lvl}`] = await load(`bug-${lvl}`, null, ref);
+    window.walked[`bug-${lvl}`] = ds.walked;
+    const s = r[lvl] = ds.summary;
+    for (const [k, v] of entries(s.times)) times.push([`-${lvl}: ${k}`, v]);
+    rows.push([`-${lvl}: trace`, `${kb(s.traceBytes)}, ${s.steps} ` +
+      `steps, ${s.instructions} instructions; call stack up to ` +
+      `${s.maxDepth} frames; ${s.withInline} steps in an inlined body`]);
+  }
+  results.ref = r;
+  showTimes($("ref-times"), times, rows);
+  const commit = r.O0.commit.slice(0, 9);
+  $("ref-status").textContent = `Works. ethdebug/format at ${commit}.`;
+  $("ref-status").className = "status ok";
+  document.querySelector("[data-ds=bug]").disabled = false;
 }
 
 // BUG: Tally on anvil, bugc's ethdebug program. soldb is fed as for Fe;
@@ -370,7 +473,8 @@ async function listRequests() {
   el.innerHTML = "";
   const seen = new Set();
   const reqs = [...performance.getEntriesByType("resource"),
-    ...await engine.requests()].filter((e) => !e.name.endsWith("/events")
+    ...await engine.requests(), ...await ref.requests()]
+    .filter((e) => !e.name.endsWith("/events")
     && !seen.has(e.name) && seen.add(e.name));
   results.requests = reqs.map((e) => e.name);
   const here = reqs.filter((e) => new URL(e.name).origin === location.origin);
@@ -396,6 +500,8 @@ $("env").textContent = navigator.userAgent;
 
 const t0 = now();
 const loading = $("loading");
+// The reference engine has its own worker: it loads alongside soldb.
+const refReady = loadRef().catch((e) => fail("ref", e));
 for (const [key, part] of [["sol", "a"], ["fe", "fe"]]) {
   try {
     datasets[key] = await load(key, part);
@@ -412,6 +518,7 @@ for (const [key, part] of [["sol", "a"], ["fe", "fe"]]) {
 }
 loading.hidden = true;
 if (!datasets.sol && datasets.fe) await select("fe");
+await refReady;
 $("bug-status").textContent = "Running...";
 try {
   await bugCheck();
