@@ -6,19 +6,29 @@
 // It is the soldb engine behind engine.js; the shapes it returns are
 // documented there.
 //
-// Messages: { id, op, args } in; { id, value } or { id, error } out.
+// Messages: { id, op, args } in; { id, value } or { id, error } out,
+// and { id, progress } while a file arrives or a phase starts (see
+// fetch-progress.js).
 //   load(dataset)    "sol" or "fe": a Loaded (see engine.js)
 //   state(dataset, i) soldb's state(i): the contract's state at step i
 //   run(job)         "bug-check" or "replay": a soldb-only check
 //   requests()       this worker's resource timing entries
+// Each load fetches all its files at once, so a slow link pays its
+// round trip once.
+
+import { fetcher, serve, textOf } from "./fetch-progress.js";
 
 const now = () => performance.now();
-const text = async (url) => {
-  const r = await fetch(url);
-  if (!r.ok) throw new Error(`${url}: HTTP ${r.status}`);
-  return r.text();
+// Per call: `get` fetches with progress; `phase` names the work after.
+const io = (report) => {
+  const get = fetcher(report);
+  return {
+    get,
+    text: async (url, label) => textOf(await get(url, label)),
+    json: async (url, label) => JSON.parse(textOf(await get(url, label))),
+    phase: (phase) => report({ phase }),
+  };
 };
-const json = async (url) => JSON.parse(await text(url));
 const base = (p) => p.split("/").pop();
 
 async function timed(times, label, fn) {
@@ -108,36 +118,43 @@ const transfer = (steps) =>
   [steps.pcs.buffer, steps.spans.buffer, steps.lineNo.buffer,
     steps.depths.buffer];
 
-// Both data sets and the BUG check use the same lean module.
+// Both data sets and the BUG check use the same lean module. A failed
+// load is not kept, so a retry starts over.
 let lean;
-const loadLean = () => lean ??= (async () => {
+const loadLean = (io) => lean ??= (async () => {
   const times = [];
-  const mod = await timed(times, "import JS glue", () =>
-    import("./pkg-lean/soldb_wasm.js"));
-  const out = await timed(times, "fetch + compile + instantiate wasm", () =>
-    mod.default({ module_or_path: "./pkg-lean/soldb_wasm_bg.wasm" }));
+  const [mod, wasm] = await timed(times, "fetch JS glue + wasm", () =>
+    Promise.all([import("./pkg-lean/soldb_wasm.js"),
+      io.get("./pkg-lean/soldb_wasm_bg.wasm",
+        "soldb (WebAssembly)")]));
+  const out = await timed(times, "compile + instantiate wasm", () =>
+    mod.default({ module_or_path: wasm }));
   return { mod, out, times };
-})();
+})().catch((e) => { lean = null; throw e; });
 
 // Traces kept for state(i).
 const traces = {};
 
 // Solidity: Shop `place`, saved native trace, solc's ethdebug (Walnut's
 // solidity PR #10). The deployed code gives soldb the immutables.
-async function loadSolidity() {
-  const { mod, out, times } = await loadLean();
-  const traceText = await timed(times, "fetch saved trace", () =>
-    text("./shop-debug-rpc.trace.json"));
+async function loadSolidity(io) {
+  const dir = "./art/walnut10-Shop";
+  const t = now();
+  const [lean, traceText, metadata, program, sol, code] =
+    await Promise.all([
+      loadLean(io),
+      io.text("./shop-debug-rpc.trace.json", "the transaction trace"),
+      io.json(`${dir}/ethdebug_resources.json`, "solc's ethdebug data"),
+      io.json(`${dir}/Shop_ethdebug-runtime.json`, "solc's ethdebug data"),
+      io.text(`${dir}/Shop.sol`, "the source"),
+      io.json("./shop-code.json", "the deployed code"),
+    ]);
+  const { mod, out } = lean;
+  const times = [...lean.times,
+    ["fetch all (wasm, trace, ethdebug, code), compile wasm", now() - t]];
+  io.phase("soldb parses the trace and maps each step");
   const trace = await timed(times, "Trace.fromJson (parse)", () =>
     mod.Trace.fromJson(traceText));
-  const dir = "./art/walnut10-Shop";
-  const [metadata, program, sol, code] = await timed(times,
-    "fetch ethdebug artifacts + code", () => Promise.all([
-      json(`${dir}/ethdebug_resources.json`),
-      json(`${dir}/Shop_ethdebug-runtime.json`),
-      text(`${dir}/Shop.sol`),
-      json("./shop-code.json"),
-    ]));
   await timed(times, "attachEthdebug", () => trace.attachEthdebug(
     JSON.stringify({ name: "Shop", metadata, program, sources: { 0: sol },
       address: code.address })));
@@ -171,28 +188,35 @@ const FE_STD = {
   "builtin-core:/src/": `${FE}/src/core/`,
   "builtin-std:/src/": `${FE}/src/std/`,
 };
-async function loadFe() {
-  const { mod } = await loadLean();
+async function loadFe(io) {
   const times = [];
-  const [dbg, tx, receipt, artifact] = await timed(times,
+  const node = "the node's saved responses";
+  const [{ mod }, dbg, tx, receipt, artifact] = await timed(times,
     "fetch node responses + Fe ethdebug", () => Promise.all([
-      text(`${FE}/tx.debug-trace.json`), text(`${FE}/tx.transaction.json`),
-      text(`${FE}/tx.receipt.json`), json(`${FE}/tally.ethdebug.json`),
+      loadLean(io),
+      io.text(`${FE}/tx.debug-trace.json`, node),
+      io.text(`${FE}/tx.transaction.json`, node),
+      io.text(`${FE}/tx.receipt.json`, node),
+      io.json(`${FE}/tally.ethdebug.json`, "Fe's ethdebug data"),
     ]));
+  // Adaptation 2 (below): Fe lists sources without contents; fetch the
+  // text while soldb parses. The user file sits next to the artifact;
+  // std-library files are copies from the Fe repository at tag v26.4.1
+  // (blake3 hashes match).
+  const list = artifact.compilation.sources;
+  const textsReady = Promise.all(list.map((s) => {
+    const pre = Object.keys(FE_STD).find((p) => s.uri.startsWith(p));
+    return io.text(pre ? FE_STD[pre] + s.uri.slice(pre.length)
+      : `${FE}/${base(s.path)}`, "the Fe source text");
+  }));
+  textsReady.catch(() => {});
   const trace = await timed(times, "Trace.fromTransaction (parse)", () =>
     mod.Trace.fromTransaction(dbg, tx, receipt));
   // Adaptation 1: Fe's file holds two programs; pass the runtime one.
   const program = artifact.programs.find((p) => p.environment === "call");
-  // Adaptation 2: Fe lists sources without contents; fetch the text.
-  // The user file sits next to the artifact; std-library files are
-  // copies from the Fe repository at tag v26.4.1 (blake3 hashes match).
-  const list = artifact.compilation.sources;
   const texts = await timed(times, "fetch Fe source text", () =>
-    Promise.all(list.map((s) => {
-      const pre = Object.keys(FE_STD).find((p) => s.uri.startsWith(p));
-      return text(pre ? FE_STD[pre] + s.uri.slice(pre.length)
-        : `${FE}/${base(s.path)}`);
-    })));
+    textsReady);
+  io.phase("soldb maps each step");
   const sources = {};
   const textById = {};
   const shown = {};
@@ -228,14 +252,17 @@ async function loadFe() {
 // the page adapts the file layout (bugc writes no resources file) and,
 // for the second run, the source id (soldb reads numeric ids only).
 const BUG = "bug";
-async function bugCheck() {
-  const { mod } = await loadLean();
+async function bugCheck(io) {
   const times = [];
-  const [dbg, tx, receipt, programText, bug] = await timed(times,
+  const node = "the node's saved responses";
+  const [{ mod }, dbg, tx, receipt, programText, bug] = await timed(times,
     "fetch node responses + bugc program", () => Promise.all([
-      text(`${BUG}/tx.debug-trace.json`), text(`${BUG}/tx.transaction.json`),
-      text(`${BUG}/tx.receipt.json`), text(`${BUG}/tally.program.json`),
-      text(`${BUG}/tally.bug`),
+      loadLean(io),
+      io.text(`${BUG}/tx.debug-trace.json`, node),
+      io.text(`${BUG}/tx.transaction.json`, node),
+      io.text(`${BUG}/tx.receipt.json`, node),
+      io.text(`${BUG}/tally.program.json`, "bugc's ethdebug program"),
+      io.text(`${BUG}/tally.bug`, "the source"),
     ]));
   const trace = await timed(times, "Trace.fromTransaction (parse)", () =>
     mod.Trace.fromTransaction(dbg, tx, receipt));
@@ -279,15 +306,22 @@ function state(key, i) {
 }
 
 // The replay build: re-execute Token.transfer offline, from a file.
-async function replay() {
+async function replay(io) {
   const times = [];
-  const mod = await timed(times, "import JS glue", () =>
-    import("./pkg-replay/soldb_wasm.js"));
-  const out = await timed(times, "fetch + compile + instantiate wasm", () =>
-    mod.default({ module_or_path: "./pkg-replay/soldb_wasm_bg.wasm" }));
+  const dir = "./art/walnut10-Token";
+  const [mod, wasm, file, metadata, program, sol] = await timed(times,
+    "fetch JS glue, wasm, replay file, ethdebug", () => Promise.all([
+      import("./pkg-replay/soldb_wasm.js"),
+      io.get("./pkg-replay/soldb_wasm_bg.wasm",
+        "soldb's replay build (WebAssembly)"),
+      io.json("./replay/transfer.json", "the replay file"),
+      io.json(`${dir}/ethdebug_resources.json`, "solc's ethdebug data"),
+      io.json(`${dir}/Token_ethdebug-runtime.json`, "solc's ethdebug data"),
+      io.text(`${dir}/Token.sol`, "the source"),
+    ]));
+  const out = await timed(times, "compile + instantiate wasm", () =>
+    mod.default({ module_or_path: wasm }));
   if (!mod.replayAvailable()) throw new Error("replay build has no Replay");
-  const file = await timed(times, "fetch replay file", () =>
-    json("./replay/transfer.json"));
   const s = JSON.stringify;
   const rp = await timed(times, "Replay.prepare", () =>
     mod.Replay.prepare(s(file.transaction), s(file.receipt), s(file.block),
@@ -305,13 +339,6 @@ async function replay() {
   });
   if (status.status !== "complete") throw new Error(s(status));
   const trace = await timed(times, "finish", () => rp.finish());
-  const dir = "./art/walnut10-Token";
-  const [metadata, program, sol] = await timed(times,
-    "fetch ethdebug artifacts", () => Promise.all([
-      json(`${dir}/ethdebug_resources.json`),
-      json(`${dir}/Token_ethdebug-runtime.json`),
-      text(`${dir}/Token.sol`),
-    ]));
   await timed(times, "attachEthdebug", () => trace.attachEthdebug(
     JSON.stringify({ name: "Token", metadata, program, sources: { 0: sol } })));
   const { steps, counts } = await timed(times,
@@ -333,18 +360,9 @@ const jobs = { "bug-check": bugCheck, replay };
 const requests = () => [performance.getEntriesByType("resource")
   .map((e) => ({ name: e.name, transferSize: e.transferSize }))];
 
-const ops = {
-  load: (dataset) => loaders[dataset](),
-  state: (dataset, i) => [state(dataset, i)],
-  run: (job) => jobs[job](),
+serve({
+  load: (report, dataset) => loaders[dataset](io(report)),
+  state: (report, dataset, i) => [state(dataset, i)],
+  run: (report, job) => jobs[job](io(report)),
   requests,
-};
-
-self.onmessage = async ({ data: { id, op, args } }) => {
-  try {
-    const [value, buffers = []] = await ops[op](...args);
-    self.postMessage({ id, value }, buffers);
-  } catch (e) {
-    self.postMessage({ id, error: String(e && e.stack || e) });
-  }
-};
+});

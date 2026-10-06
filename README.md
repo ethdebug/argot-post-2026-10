@@ -10,7 +10,9 @@ Site: <https://ethdebug.github.io/argot-post-2026-10/>
   sentence per planned paragraph.
 - [demos/debugger/](demos/debugger/): step through a transaction in
   the browser: soldb, Walnut's debugger, for Solidity and Fe; ethdebug's
-  reference implementation for BUG.
+  reference implementation for BUG. Its saved Solidity trace leaves out
+  the flat copies of each step's state, which soldb drops on reading; see
+  [SOURCE.md](demos/debugger/SOURCE.md#the-saved-trace-one-change).
 - [demos/inspector/](demos/inspector/): a storage inspector that shows
   each variable's bytes, found through solc's ethdebug pointers.
 - [demos/stepper/](demos/stepper/): a source stepper in about ten lines

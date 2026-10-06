@@ -1,12 +1,29 @@
 // Opens the page in real browsers (Playwright) and collects
 // window.results. Usage: node run.mjs [runs]
+// BROWSERS=chromium,firefox,webkit (default: all three) picks the
+// browsers for the main runs.
 import { chromium, firefox, webkit, devices } from "playwright";
+import fs from "node:fs";
+import { fileURLToPath } from "node:url";
+import { pagesServer } from "./pages-server.mjs";
 const PAGE = process.env.PAGE
   ?? "http://localhost:8765/files/demos/debugger/";
+const BROWSERS = (process.env.BROWSERS ?? "chromium,firefox,webkit")
+  .split(",");
 // Shiki and its grammar/themes come from a CDN; nothing else may.
 const CDN = ["esm.sh", "cdn.jsdelivr.net"];
 const runs = +(process.argv[2] ?? 3);
 const all = {};
+// The page loads only its default tab at first; the rest loads when
+// opened. The checks load everything (window.loadAll), then wait until
+// the page is done.
+const loadAll = async (page) => {
+  await page.waitForFunction(() => window.results?.ready, null,
+    { timeout: 120000 });
+  await page.evaluate(() => window.loadAll());
+  await page.waitForFunction(() => window.results?.done, null,
+    { timeout: 120000 });
+};
 // The main thread must stay free while soldb works (in a Web Worker):
 // a requestAnimationFrame loop runs from the start, and no gap between
 // frames may exceed LONG ms until the page is done.
@@ -20,14 +37,17 @@ const frames = () => {
     f.max = Math.max(f.max, t - last);
     if (!window.walked?.sol) f.maxBeforeSol = f.max;
     last = t;
+    // The loader: in the source card, while the default tab loads.
     const el = document.getElementById("loading");
-    if (el && !el.hidden && !window.walked?.sol) f.loadingShown = true;
+    if (el && el.getClientRects().length && !window.walked?.sol) {
+      f.loadingShown = true;
+    }
     if (!window.results?.done) requestAnimationFrame(tick);
   };
   requestAnimationFrame(tick);
 };
 for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
-  ["webkit", webkit]]) {
+  ["webkit", webkit]].filter(([n]) => BROWSERS.includes(n))) {
   let browser;
   try { browser = await type.launch(); } catch (e) {
     all[name] = { error: String(e).split("\n")[0] }; continue;
@@ -49,8 +69,7 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
     page.on("pageerror", (e) => logs.push(`pageerror: ${e}`));
     await page.addInitScript(frames);
     await page.goto(PAGE);
-    await page.waitForFunction(() => window.results?.done, null,
-      { timeout: 120000 });
+    await loadAll(page);
     const r = await page.evaluate(() => window.results);
     if (i === 0) {
       // The old path redirects here and keeps the hash.
@@ -318,10 +337,11 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
         // Every step: each local or storage variable with a location,
         // as read through its pointer. Collects the values of recent
         // (in order, without repeats), of bonus, and of every name.
-        o.scan = { values: {}, recent: [], bonus: [] };
+        o.scan = { values: {}, recent: [], bonus: [], names: [] };
         for (let i = 0; i < w.n; i++) {
           go(i);
           await fsettle();
+          o.scan.names.push(rows().map((r) => r.name));
           for (const r of rows()) {
             const vs = o.scan.values[r.name] ??= [];
             if (!vs.includes(r.value)) vs.push(r.value);
@@ -491,8 +511,7 @@ let phone;
   page.on("console", (m) => logs.push(`${m.type()}: ${m.text()}`));
   page.on("pageerror", (e) => logs.push(`pageerror: ${e}`));
   await page.goto(PAGE);
-  await page.waitForFunction(() => window.results?.done, null,
-    { timeout: 120000 });
+  await loadAll(page);
   const w = await page.evaluate(async () => {
     await window.select("fe");
     const range = document.querySelector("#stepper input[type=range]");
@@ -535,8 +554,7 @@ const layoutFails = [];
     page.on("console", (m) => m.type() === "error" && errors.push(m.text()));
     page.on("pageerror", (e) => errors.push(String(e)));
     await page.goto(PAGE);
-    await page.waitForFunction(() => window.results?.done, null,
-      { timeout: 120000 });
+    await loadAll(page);
     const r = await page.evaluate(async (wide) => {
       const out = {};
       const range = document.querySelector("#stepper input[type=range]");
@@ -594,6 +612,31 @@ const stateOk = (st) => st?.shown && st.synced && st.fast
   && same(st.first, want.first)
   && same(st.last, want.last) && same(st.change.changed, ["nextId"])
   && st.change.row.nextId === "1" && st.afterNext.length === 0;
+// From bugc's -O2 program and its trace, not from the page: the steps
+// whose instruction is inlined code (transform "inline"), and, for each
+// inlined call of sq, the steps from the one after its invoke to the
+// one of its return.
+const sqInline = (() => {
+  const dir = new URL("bug/scores-O2/", import.meta.url);
+  const read = (f) => JSON.parse(fs.readFileSync(new URL(f, dir), "utf8"));
+  const program = read("scores.program.json");
+  const logs = read("tx.debug-trace.json").structLogs;
+  const ctx = new Map(program.instructions.map((i) => [i.offset, i.context]));
+  const any = (c, f) => !!c && (f(c) || [...c.gather ?? [], ...c.pick ?? []]
+    .some((x) => any(x, f)));
+  const inline = [], spans = [];
+  let open = null;
+  logs.forEach((l, i) => {
+    const c = ctx.get(l.pc);
+    if (any(c, (x) => x.transform?.includes("inline"))) inline.push(i);
+    if (any(c, (x) => x.invoke?.identifier === "sq")) open = i;
+    if (any(c, (x) => x.return?.identifier === "sq") && open !== null) {
+      spans.push(Array.from({ length: i - open }, (_, k) => open + 1 + k));
+      open = null;
+    }
+  });
+  return { inline, spans };
+})();
 const fails = [];
 const check = (name, what, ok) => { if (!ok) fails.push(`${name}: ${what}`); };
 const med = (xs) => xs.slice().sort((a, b) => a - b)[Math.floor(xs.length / 2)];
@@ -651,10 +694,11 @@ for (const [name, b] of Object.entries(all)) {
     }
     // Scores, by hand: score(k) = k * k + sumTo(k) + 3, so score(1) =
     // 1 + 1 + 3 = 5, score(2) = 4 + 3 + 3 = 10, score(3) = 9 + 6 + 3 =
-    // 18. recent shifts each score in: [0, 0, 5], [0, 5, 10], [5, 10,
-    // 18]. stats.total = 5 + 10 + 18 = 33; stats.plays = 1 at the end.
-    // last's pointer names only its base slot (no entries).
-    const RECENT = ["[0, 0, 0]", "[0, 0, 5]", "[0, 5, 10]", "[5, 10, 18]"]
+    // 18. Round i writes its score to recent[i - 1], one element per
+    // round: [5, 0, 0], [5, 10, 0], [5, 10, 18]. stats.total = 5 + 10 +
+    // 18 = 33; stats.plays = 1 at the end. last's pointer names only
+    // its base slot (no entries).
+    const RECENT = ["[0, 0, 0]", "[5, 0, 0]", "[5, 10, 0]", "[5, 10, 18]"]
       .map((a) => `length 3: ${a}`);
     // The values the program gives each variable (k: score's and
     // sumTo's; x: the inlined sq's). <no location>: listed by type only.
@@ -708,6 +752,19 @@ for (const [name, b] of Object.entries(all)) {
         && e.frames.some((f) => f.startsWith(`score(k: ${k + 1})`))));
     check(name, "BUG O0 no inline locals", u.bug.O0.inlineLocals
       .length === 0);
+    // In sq's inlined bodies: the caller's storage variables stay
+    // listed at every step, and x is listed from the step after the
+    // inlined invoke up to the step of the instruction that carries
+    // sq's return (contexts are postconditions), and nowhere else.
+    const names = u.bug.O2.scan.names, inl = sqInline.inline;
+    const lost = inl.filter((i) => !names[i].includes("stats")
+      || !names[i].includes("last"));
+    check(name, "BUG O2 storage listed at every inlined step" +
+      (lost.length ? ` (not at ${lost.slice(0, 5)})` : ""),
+      inl.length > 0 && lost.length === 0);
+    const xAt = names.flatMap((ns, i) => ns.includes("x") ? [i] : []);
+    check(name, "BUG O2 x: from the inlined invoke to the inlined return",
+      sqInline.spans.length === 3 && same(xAt, sqInline.spans.flat()));
     check(name, "BUG O2 inline marker", u.bug.O2.inline?.fn === "sq"
       && u.bug.O2.inline.noteVisible === "visible"
       && u.bug.O2.inline.site > 0);
@@ -766,9 +823,158 @@ for (const [name, b] of Object.entries(all)) {
   check(name, `browser launch ${b.error ?? ""}`, !!b.runs);
 }
 for (const f of layoutFails) fails.push(f);
+
+// sizes.js (make-sizes.sh) gives the loading bars each data file's
+// size: it must match the files, and list every file the engines fetch.
+{
+  const sizes = Object.fromEntries([...fs.readFileSync(
+    new URL("sizes.js", import.meta.url), "utf8")
+    .matchAll(/"([^"]+)": (\d+)/g)].map((m) => [m[1], +m[2]]));
+  const here = new URL("./", import.meta.url);
+  const stale = Object.entries(sizes).filter(([f, n]) => {
+    const u = new URL(f, here);
+    return !fs.existsSync(u) || fs.statSync(u).size !== n;
+  }).map(([f]) => f);
+  check("sizes.js", "matches the files" +
+    (stale.length ? ` (not: ${stale.join(", ")})` : ""), !stale.length);
+  const base = new URL(PAGE).pathname;
+  const fetched = Object.values(all).flatMap((b) => b.runs ?? [])
+    .flatMap((r) => r.requests).map((u) => new URL(u).pathname)
+    .filter((p) => p.startsWith(base)).map((p) => p.slice(base.length))
+    .filter((p) => /^((art|bug|fe|replay|vendor)\/|pkg-|shop-)/.test(p)
+      && !p.endsWith(".mjs"));
+  const missing = [...new Set(fetched)].filter((p) => !(p in sizes));
+  check("sizes.js", "lists every data file the page fetches" +
+    (missing.length ? ` (not: ${missing.join(", ")})` : ""),
+  fetched.length > 0 && !missing.length);
+}
+
+// A slow link: Chromium with CDP network emulation at Slow 3G (400
+// kbps, 400 ms round trip), the page served as GitHub Pages serves it
+// (every file gzipped: pages-server.mjs). One fresh page per tab: the
+// default tab (Solidity) until it is usable, then a click on the tab.
+// Times are from the start of navigation. Checks: the loader with its
+// bar shows within 1 s of the HTML; the status line counts bytes; the
+// default tab and each other tab become usable; no console errors.
+const SLOW = { offline: false, latency: 400,
+  downloadThroughput: 400 * 1000 / 8, uploadThroughput: 400 * 1000 / 8 };
+const slow = {};
+{
+  const srv = await pagesServer(fileURLToPath(new URL("../..",
+    import.meta.url)));
+  const browser = await chromium.launch();
+  for (const tab of ["sol", "fe", "bug"]) {
+    const ctx = await browser.newContext();
+    const page = await ctx.newPage();
+    const cdp = await ctx.newCDPSession(page);
+    await cdp.send("Network.enable");
+    await cdp.send("Network.emulateNetworkConditions", SLOW);
+    const errors = [];
+    let wire = 0;
+    page.on("console", (m) => m.type() === "error" && errors.push(m.text()));
+    page.on("pageerror", (e) => errors.push(String(e)));
+    ctx.on("requestfinished", async (q) => {
+      wire += (await q.sizes().catch(() => ({}))).responseBodySize ?? 0;
+    });
+    await page.addInitScript(() => {
+      const t = window.__t = {};
+      const tick = () => {
+        const n = performance.now();
+        const l = document.getElementById("loading");
+        const bar = l?.querySelector(".progress");
+        if (!t.loader && bar && bar.getClientRects().length) t.loader = n;
+        const text = l?.querySelector(".load-status")?.textContent ?? "";
+        if (!t.bytes && / of [\d.]+ [KM]B\)/.test(text)) {
+          t.bytes = n;
+          t.status = text;
+        }
+        if (!window.results?.ready) requestAnimationFrame(tick);
+      };
+      requestAnimationFrame(tick);
+    });
+    try {
+      await page.goto(srv.url + "demos/debugger/", { waitUntil: "commit" });
+      await page.waitForFunction(() => window.results?.ready, null,
+        { timeout: 300000, polling: 100 });
+      const ready = wire;
+      slow[tab] = await page.evaluate(async (tab) => {
+        const nav = performance.getEntriesByType("navigation")[0];
+        const out = { ...window.__t, html: nav.responseEnd,
+          ready: window.results.readyMs,
+          hl: document.querySelectorAll("#stepper .hl").length };
+        if (tab !== "sol") {
+          const t = performance.now();
+          await window.select(tab);
+          out.click = performance.now() - t;
+          out.hl = document.querySelectorAll("#stepper .hl").length;
+        }
+        out.usable = performance.now();
+        if (tab === "sol") out.usable = out.ready;
+        return out;
+      }, tab);
+      slow[tab].readyKB = Math.round(ready / 1000);
+      slow[tab].tabKB = Math.round((wire - ready) / 1000);
+    } catch (e) {
+      slow[tab] = { error: String(e).split("\n")[0] };
+    }
+    slow[tab].errors = errors;
+    await ctx.close();
+  }
+  await browser.close();
+  await srv.close();
+}
+console.log("\nSlow 3G (Pages gzip), ms from navigation start; KB on the " +
+  "wire until the default tab is ready, then for the tab:");
+for (const [tab, r] of Object.entries(slow)) {
+  console.log(`  ${tab}: ${JSON.stringify(r)}`);
+  check("Slow 3G", `${tab}: usable`, !r.error && r.hl > 0);
+  check("Slow 3G", `${tab}: no console errors (${r.errors})`,
+    !r.errors.length);
+}
+const s0 = slow.sol;
+check("Slow 3G", "loader and bar within 1 s of the HTML",
+  !s0.error && s0.loader - s0.html <= 1000);
+check("Slow 3G", "status line counts bytes", !s0.error && !!s0.bytes);
+
+// A failed fetch, in each browser: the trace's request is aborted. The
+// loader names what failed and offers a retry; the retry loads it.
+const failure = {};
+for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
+  ["webkit", webkit]]) {
+  const browser = await type.launch();
+  const ctx = await browser.newContext();
+  const page = await ctx.newPage();
+  let block = true;
+  await ctx.route("**/shop-debug-rpc.trace.json", (route) =>
+    block ? route.abort() : route.continue());
+  try {
+    await page.goto(PAGE);
+    await page.waitForSelector("#loading.err .btn:not([hidden])",
+      { timeout: 60000 });
+    const f = failure[name] = await page.evaluate(() => ({
+      status: document.querySelector("#loading .load-status").textContent,
+      tabsUsable: [...document.querySelectorAll("[role=tab]")]
+        .every((t) => !t.disabled) }));
+    block = false;
+    await page.click("#loading .btn");
+    await page.waitForFunction(() => window.results?.ready, null,
+      { timeout: 60000 });
+    f.recovered = await page.evaluate(() =>
+      document.querySelectorAll("#stepper .hl").length > 0
+      && !document.getElementById("stepper").classList.contains("loading"));
+  } catch (e) {
+    failure[name] = { error: String(e).split("\n")[0] };
+  }
+  console.log(`failure ${name}: ${JSON.stringify(failure[name])}`);
+  check(name, "a failed fetch: its reason and a retry",
+    /Could not load the transaction trace/.test(failure[name].status));
+  check(name, "a failed fetch: the retry loads it",
+    failure[name].recovered === true);
+  await browser.close();
+}
 check("iPhone 15", "BUG tab: no sideways scroll",
   phone.bug.scrollW <= phone.bug.clientW);
 console.log(fails.length ? `\nFAIL\n${fails.join("\n")}` : "\nPASS");
 process.exitCode = fails.length ? 1 : 0;
-import("node:fs").then((fs) =>
-  fs.writeFileSync("results.json", JSON.stringify(all, null, 1)));
+fs.writeFileSync("results.json", JSON.stringify({ browsers: all, slow,
+  failure }, null, 1));

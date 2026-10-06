@@ -2,7 +2,8 @@
 # Makes the Solidity data: compiles Shop and Token with solc (Walnut's
 # solidity PR #10) into art/walnut10-*, runs Shop.place and
 # Token.transfer on a fresh anvil node, and saves what the page loads:
-#   shop-debug-rpc.trace.json  soldb's saved trace (debug_traceTransaction)
+#   shop-debug-rpc.trace.json  soldb's saved trace (debug_traceTransaction),
+#                              without the flat copies of each step's state
 #   shop-code.json             eth_getCode of Shop, for its immutables
 #   replay/transfer.json       soldb's replay file for Token.transfer
 # Usage: SOLC=<solc> SOLDB=<soldb CLI> ./make-sol.sh, with
@@ -33,6 +34,13 @@ t1=$(tx $T "transfer(address,uint256)" $TO 25)
 t2=$(tx $S "place(string,uint128,uint256)" widget 5 3)
 "$SOLDB" trace $t2 -r $RPC --backend debug-rpc -e $S:Shop:art/walnut10-Shop \
   --save-trace shop-debug-rpc.trace.json > /dev/null
+# Each step holds its state twice: in `snapshot`, and in the flat
+# `stack`, `memory` and `storage` fields. soldb's parser keeps the
+# snapshot and drops the flat copies (soldb-core, TraceStep::normalized),
+# so the page's copy leaves them out, on one line (SOURCE.md).
+jq -c '.steps[] |= del(.stack, .memory, .storage)' \
+  shop-debug-rpc.trace.json > shop-debug-rpc.trace.json.tmp
+mv shop-debug-rpc.trace.json.tmp shop-debug-rpc.trace.json
 "$SOLDB" trace $t1 -r $RPC -e $T:Token:art/walnut10-Token \
   --save-replay replay/transfer.json > /dev/null
 jq -n --arg a $S --arg c "$(cast code --rpc-url $RPC $S)" \

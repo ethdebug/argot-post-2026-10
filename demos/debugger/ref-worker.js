@@ -12,7 +12,9 @@
 // stand-in for the format's planned interpretation layer.
 //
 // It implements the engine interface of engine.js. Messages:
-// { id, op, args } in; { id, value } or { id, error } out.
+// { id, op, args } in; { id, value } or { id, error } out, and
+// { id, progress } while a file arrives or a phase starts (see
+// fetch-progress.js).
 //   load(dataset)          "bug-O0" or "bug-O2": a Loaded
 //   variables(dataset, i)  Variable[] at step i
 //   callStack(dataset, i)  Frame[] at step i, innermost first
@@ -23,14 +25,9 @@ import {
   buildPcToInstructionMap, extractVariablesFromInstruction,
   extractTransformFromInstruction, effectiveContextForStep, commit,
 } from "./vendor/ethdebug-ref.js";
+import { fetcher, serve, textOf } from "./fetch-progress.js";
 
 const now = () => performance.now();
-const text = async (url) => {
-  const r = await fetch(url);
-  if (!r.ok) throw new Error(`${url}: HTTP ${r.status}`);
-  return r.text();
-};
-const json = async (url) => JSON.parse(await text(url));
 
 async function timed(times, label, fn) {
   const t = now();
@@ -77,15 +74,21 @@ const lineOf = (src, offset) => {
 
 const datasets = {};
 
-async function load(key) {
+async function load(report, key) {
   const dir = DIRS[key];
   const times = {};
+  const get = fetcher(report);
+  const text = async (url, label) => textOf(await get(url, label));
+  const json = async (url, label) => JSON.parse(await text(url, label));
   const [program, dbg, src, before, runtime] = await timed(times,
     "fetch program, trace, source", () => Promise.all([
-      json(`${dir}/scores.program.json`), text(`${dir}/tx.debug-trace.json`),
-      text(`${BUG}/${FILE}`), json(`${dir}/tx.storage-before.json`),
-      text(`${dir}/out/Scores.runtime.bin`),
+      json(`${dir}/scores.program.json`, "bugc's ethdebug program"),
+      text(`${dir}/tx.debug-trace.json`, "the transaction trace"),
+      text(`${BUG}/${FILE}`, "the source"),
+      json(`${dir}/tx.storage-before.json`, "the storage before"),
+      text(`${dir}/out/Scores.runtime.bin`, "the deployed code"),
     ]));
+  report({ phase: "The reference implementation maps each step" });
   const logs = await timed(times, "parse trace", () =>
     JSON.parse(dbg).structLogs);
   const n = logs.length;
@@ -366,13 +369,7 @@ async function callStack(key, i) {
 const requests = () => [performance.getEntriesByType("resource")
   .map((e) => ({ name: e.name, transferSize: e.transferSize }))];
 
-const ops = { load, variables, callStack, requests };
-
-self.onmessage = async ({ data: { id, op, args } }) => {
-  try {
-    const [value, buffers = []] = await ops[op](...args);
-    self.postMessage({ id, value }, buffers);
-  } catch (e) {
-    self.postMessage({ id, error: String(e && e.stack || e) });
-  }
-};
+// The ops take a progress `report` first; only load uses it.
+const skip = (f) => (report, ...args) => f(...args);
+serve({ load, variables: skip(variables), callStack: skip(callStack),
+  requests: skip(requests) });
