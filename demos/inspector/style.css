@@ -522,7 +522,20 @@ li.same > .row .name, li.same > .row .type { opacity: 0.55; }
 .active .b:not(.hl):not(.at) { opacity: 0.3; filter: saturate(0.2); }
 .tree.active .row:not(.hl) { opacity: 0.45; }
 /* The byte under the pointer, at the same place in both views */
-.b.at { outline: 1px solid var(--accent); opacity: 1; }
+.b { position: relative; }
+.b.at { opacity: 1; }
+.b.at::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-top: 1px solid var(--accent);
+  border-bottom: 1px solid var(--accent);
+  pointer-events: none;
+}
+.b.at.at-s::after { border-left: 1px solid var(--accent);
+  border-top-left-radius: 3px; border-bottom-left-radius: 3px; }
+.b.at.at-e::after { border-right: 1px solid var(--accent);
+  border-top-right-radius: 3px; border-bottom-right-radius: 3px; }
 .b:focus-visible { outline: 2px solid var(--accent); }
 .ruler .bytes { line-height: 1.3; }
 .ruler .b { color: var(--muted); font-size: 0.85em; text-align: left; }

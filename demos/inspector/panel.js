@@ -733,6 +733,13 @@ export function paint(root, tree, h, opts = {}) {
       c.classList.toggle("at", isAt);
       on ||= hl || isAt;
     }
+    // one outline around each run of pointed-at bytes, not one per byte
+    for (const c of w.querySelectorAll(".b")) {
+      const at = c.classList.contains("at");
+      const p = c.previousElementSibling, n = c.nextElementSibling;
+      c.classList.toggle("at-s", at && !p?.classList.contains("at"));
+      c.classList.toggle("at-e", at && !n?.classList.contains("at"));
+    }
     // a slot the value uses only in the other state
     const o = side === "before" ? "after" : "before";
     const only = !on && !!h && [...Array(32).keys()].some((i) =>
