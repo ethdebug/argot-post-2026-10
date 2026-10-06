@@ -702,6 +702,17 @@ debugger can still show the function on its call stack (the spec calls
 this a <em>virtual activation</em>). And <code>frame</code> says which
 level a fact belongs to, such as the source or the compiler's
 intermediate code; no compiler emits it yet.</p>
+<p><strong>Precision, not accuracy.</strong> Under optimization, debug
+data may lose precision but never accuracy. A range may gather several
+statements, and a variable the optimizer folded away may be listed with
+its type but no pointer; but a pointer never reads the wrong bytes, and
+a range never names code an instruction did not come from. bugc holds
+to this: its optimizer gathers colliding ranges and never drops one; in
+its open work on local variables (ethdebug/format pull request #328), a
+folded local has no pointer, and tests at every optimizer level check
+each listed pointer against the program's real value at every step; a
+missing value is now a compile error, not a wrong value (#327,
+merged).</p>
 
 <h3>bugc inlining, as data</h3>
 <p><strong>bugc</strong> compiles BUG, a small language we built to
