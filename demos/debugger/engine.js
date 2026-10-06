@@ -26,7 +26,8 @@
  * @property {(string|null)[]} functions  function name, or null
  * @property {number[]} changes   steps where the source line changes
  * @property {(Inline|null)[]} [inline]  with the inline capability: a
- *   marker on each step whose instruction is part of an inlined body
+ *   marker on each step in an inlined body, as the call stack has it
+ *   (its innermost frame is an inlined one)
  */
 
 /**
