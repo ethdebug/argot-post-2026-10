@@ -194,9 +194,9 @@ editable in the browser.*
   accuracy.** *(Precision: a range may gather several statements; a
   folded variable has a type but no location. Accuracy: a pointer
   never reads the wrong bytes. bugc gathers, never drops (#266); its
-  open locals work lists folded locals with no pointer and tests every
-  pointer at every level (#328); a missing value is a compile error
-  (#327, merged). ~30)*
+  local variables list folded locals with no pointer and tests every
+  pointer at every level (#328, merged 2026-10-06); a missing value is
+  a compile error (#327, merged). ~30)*
 - **ethdebug does not have to wait for every compiler: a backfill tool
   can generate it from what older compiler versions already write.**
   *(Answers section 6's "about 0.1% of mainnet": contracts already on
@@ -211,10 +211,20 @@ editable in the browser.*
   after solc's next stages.** *(A real call stack from `invoke` and
   `return`, with no guessing from jump markers. Inlined code is marked
   `transform: ["inline"]` and still linked to its call: the inlined
-  `ADD` still names `dbl(src)`. All tested. No variable values. BUG is
-  a small teaching language and bugc is not a production compiler, so
-  this previews the format. Link: ethdebug's own reference debugger
-  (the trace playground); soldb tracks what solc emits today. ~90)*
+  `ADD` still names `dbl(src)`. All tested. BUG is a small teaching
+  language and bugc is not a production compiler, so this previews the
+  format. Link: ethdebug's own reference debugger (the trace
+  playground); soldb tracks what solc emits today. ~70)*
+- **BUG now shows what variables look like in optimized code: each
+  local is located where its value lives, or listed by type where the
+  optimizer folded it.** *(bugc lists its local variables at every
+  optimization level, O0 to O3, since ethdebug/format pull request
+  #328 (merged 2026-10-06). Pointers name the exact bytes in memory or
+  on the stack; an inlined function's locals appear in its inlined
+  code. Tests read every listed pointer against the real machine state
+  at every step; the tracking does not change the bytecode.
+  "Precision, not accuracy" in practice. Where the bytes are, not what
+  they mean: no variable values. ~40)*
 - **Fe's compiler already models variables, scopes and inlining
   internally, so Fe could export them with no format change; that is
   the Fe team's decision.** *(~25)*

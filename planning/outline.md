@@ -291,17 +291,17 @@ no dates given · (~N) = prose word budget
      (`transform`), "I map to two places" (`gather`), or "I'm shared by
      several callers" (`pick`). Solar and Fe emit ethdebug for
      optimized builds today. Gaps: values in optimized code
-     (ethdebug/format issue #291), and no real compiler emits local
-     variables yet.
+     (ethdebug/format issue #291), and no production compiler emits
+     local variables yet.
      - **Under optimization, debug data may lose precision but never
        accuracy** (~30). A range may gather several statements, and a
        folded variable may have a type but no location; a pointer
        never reads the wrong bytes. Evidence: bugc's optimizer gathers
-       ranges and never drops one; in its open locals work
-       (ethdebug/format pull request #328), a folded local has no
-       pointer, and tests at every level check each pointer against
-       the program's real values; a missing value is now a compile
-       error (#327, merged).
+       ranges and never drops one; in its local variables
+       (ethdebug/format pull request #328, merged 2026-10-06), a folded
+       local has no pointer, and tests at every level check each
+       pointer against the program's real values; a missing value is
+       now a compile error (#327, merged).
    - **Contracts already on chain: backfilling** (~70): this answers
      the reader's question after section 6's "about 0.1% of mainnet":
      what about contracts that older compilers built? ethdebug does not
@@ -315,7 +315,7 @@ no dates given · (~N) = prose word budget
      their reader does not yet read solc's output (our run,
      2026-10-05). A debugger can also recompile a verified contract
      from the compiler input that Sourcify stores.
-   - **BUG already shows what this looks like** (~90): a preview of
+   - **BUG already shows what this looks like** (~110): a preview of
      Solidity debugging after solc's next stages, for functions and
      optimization.
      - bugc, our reference compiler, gives a real call stack from its
@@ -324,7 +324,17 @@ no dates given · (~N) = prose word budget
      - It marks inlined code `transform: ["inline"]`, still linked to
        its call. The inlined `ADD` still says it is `x + x` in `dbl`,
        called from `dbl(src)`. All of this is tested.
-     - This part says nothing about variable values.
+     - **BUG now shows what variables look like in optimized code:
+       each local is located where its value lives, or listed by type
+       where the optimizer folded it.** Evidence: since
+       ethdebug/format pull request #328 (merged 2026-10-06), bugc
+       lists its local variables at every optimization level, O0 to
+       O3. A pointer names the exact bytes in memory or on the stack,
+       and an inlined function's locals appear in its inlined code.
+       Tests read every listed pointer against the real machine state
+       at every step, and the tracking does not change the bytecode.
+       This is "precision, not accuracy" in practice. It shows where
+       the bytes are, not what they mean: no variable values.
      - BUG is a small teaching language and bugc is not a production
        compiler. So this previews the format, not any compiler's
        plans.
