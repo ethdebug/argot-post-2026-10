@@ -319,8 +319,9 @@ a value) is designed, not built. So today there is no
 compiler-agnostic way to turn ethdebug data into displayed values. The
 storage inspector above decodes values with its own small decoder, by
 hand: exactly the missing layer. Local variables also need compilers
-to emit them: bugc in ethdebug/format pull request #270 (open), solc in
-a later stage <span class="tag plan">plan</span>.</p>
+to emit them: bugc does, at every optimizer level (ethdebug/format
+pull request #328, merged 2026-10-06); solc in a later stage
+<span class="tag plan">plan</span>.</p>
 
 <h3>The parts</h3>
 <ul>
@@ -632,7 +633,9 @@ empty slot, Vyper's finds the value.</p>
   immutables. Their offsets match solc's <code>immutableReferences</code>.
   <span class="tag plan">plan</span> for upstream solc.</li>
   <li><strong>bugc</strong>, our reference compiler: a pointer per
-  storage variable, built from its own storage analysis.</li>
+  storage variable, built from its own storage analysis, and, for each
+  local variable, a pointer to its exact bytes in memory or on the
+  stack (ethdebug/format #328).</li>
   <li><strong>Fe and Solar</strong> emit no pointers yet.</li>
   <li><strong>Readers:</strong> <code>@ethdebug/pointers</code> (ours,
   TypeScript), soldb's draft reader (Rust, #181), and Runtime
@@ -708,8 +711,9 @@ statements, and a variable the optimizer folded away may be listed with
 its type but no pointer; but a pointer never reads the wrong bytes, and
 a range never names code an instruction did not come from. bugc holds
 to this: its optimizer gathers colliding ranges and never drops one; in
-its open work on local variables (ethdebug/format pull request #328), a
-folded local has no pointer, and tests at every optimizer level check
+its local variables (ethdebug/format pull request #328, merged
+2026-10-06), a folded local has no pointer, and tests at every
+optimizer level check
 each listed pointer against the program's real value at every step; a
 missing value is now a compile error, not a wrong value (#327,
 merged).</p>
@@ -740,6 +744,15 @@ that calls and returns survive every optimizer level, that each
 transform name appears at the right levels, and that the code still
 runs correctly. BUG is our own language, so this shows the format
 works, not that others use it.</p>
+<p>bugc also shows what variables look like in optimized code. Since
+ethdebug/format pull request #328 (merged 2026-10-06), it lists its
+local variables at every optimizer level, 0 to 3: each local is
+located where its value lives, or listed by type where the optimizer
+folded it. An inlined function's locals appear in its inlined code,
+under <code>transform: ["inline"]</code>. Tests read every listed
+pointer against the real machine state at every step, and the
+tracking does not change the bytecode. This is where the bytes are,
+not what they mean: no values yet.</p>
 
 <h3>Solar and Fe</h3>
 <p><strong>Solar</strong>, a second Solidity compiler written by
@@ -781,7 +794,8 @@ design page itself covers variables, not calls.</p>
 variable has no location and is only an expression (a constant, or
 <code>a + 1</code> while <code>a</code> is live), ethdebug has no form
 for it yet. That is ethdebug/format issue #291, and settling it is our
-work. No real compiler emits local variables yet.</p>
+work. No production compiler emits local variables yet; bugc, our
+reference compiler, does (see "bugc inlining, as data").</p>
 
 <!-- ============================================================ -->
 <h2 id="compilers">4. Where each compiler stands</h2>
@@ -876,8 +890,14 @@ optimizer contexts above, at four optimizer levels. You can write BUG
 and see its ethdebug output in the
 <a href="https://ethdebug.github.io/format/docs/explore/bug-playground">playground</a>
 on the ethdebug site, with nothing to install.
-bugc does not emit local variables yet; a pull request for that
-(ethdebug/format #270) is open.</p>
+Since ethdebug/format #328 (merged 2026-10-06), bugc also emits local
+variables at every optimizer level: a pointer to the exact bytes in
+memory or on the stack, composed pointers for dynamic arrays,
+<code>string</code> and <code>bytes</code>, and the type alone where
+the optimizer folded a value. Its tests read every listed pointer
+against the real machine state at every step. It does not show
+values: pull request #270 decodes them in the trace playground only as
+a display hack, not for merge.</p>
 
 <!-- ============================================================ -->
 <h2 id="mainnet">5. Contracts already on mainnet</h2>
