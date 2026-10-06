@@ -92,6 +92,10 @@
  * @property {string} type
  * @property {string} value  "<...>" marks a placeholder (unknown, ...)
  * @property {string} [scope]  "storage" or "local" (variables only)
+ * @property {string} [reason]  why it has no value (a local by type
+ *   only)
+ * @property {string} [inline]  the inlined function whose body it is a
+ *   local of
  */
 
 /**

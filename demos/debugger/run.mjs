@@ -218,8 +218,8 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
         go(multi);
       }
       // BUG tab: the reference engine, at -O0 then -O2. It steps, shows a
-      // call stack of depth >= 2, a local variable with a value (-O0)
-      // and an inline marker (-O2).
+      // call stack of depth >= 2, local variables with values (both
+      // levels) and an inline marker (-O2).
       const frames = box.querySelector(".frames");
       const fsettle = async () => {
         await window.stateReady();
@@ -228,7 +228,9 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
       const rows = () => [...panel.querySelectorAll("tr")]
         .filter((tr) => tr.cells.length > 1).map((tr) =>
         ({ name: tr.cells[0].textContent, value: tr.cells[1].textContent,
-          scope: tr.dataset.scope }));
+          scope: tr.dataset.scope, note: tr.cells[2]?.textContent
+            .replace(/\s+/g, " ") ?? null,
+          inline: !!tr.cells[2]?.querySelector(".badge") }));
       const stack = () => [...frames.querySelectorAll("li:not(.muted)")]
         .map((li) => li.textContent.replace(/\s+/g, " "));
       out.bug = {};
@@ -287,6 +289,31 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
             noteVisible: getComputedStyle(note).visibility,
             site: box.querySelectorAll(".src .site").length,
             frames: stack() };
+        }
+        // Each inlined body of dbl(i): at its first step with x located,
+        // x (dbl's parameter, read through its pointer) and the call
+        // stack. weight(i, n) passes i to dbl, so x must be i.
+        o.inlineLocals = [];
+        for (let i = 1; i < w.n; i++) {
+          if (!w.inline?.[i] || w.inline[i - 1]) continue;
+          for (let j = i; j < w.n && w.inline[j]; j++) {
+            go(j);
+            await fsettle();
+            const x = rows().find((r) => r.name === "x");
+            if (x && !x.value.startsWith("<")) {
+              o.inlineLocals.push({ step: j, x, frames: stack() });
+              break;
+            }
+          }
+        }
+        // Locals listed by type only, with their reason.
+        o.typeOnly = null;
+        for (let i = 0; i < w.n && !o.typeOnly; i += 3) {
+          go(i);
+          await fsettle();
+          const r = rows().find((r) => r.scope === "local"
+            && r.value.startsWith("<"));
+          if (r) o.typeOnly = { step: i, ...r };
         }
         o.lineMs = lineMsOf(w);
       }
@@ -602,12 +629,30 @@ for (const [name, b] of Object.entries(all)) {
       check(name, `BUG ${lvl} call stack depth >= 2`, o.stack.synced
         && o.stack.depth >= 2 && o.stack.frames.length >= 2);
     }
-    // Weights: sum = 4 + 6 + (8 + 3) + (10 + 6) = 37.
-    check(name, "BUG O0 local variable with a value", !!u.bug.O0.local
-      && same(u.bug.O0.last, { total: "37", calls: "1", n: "4",
-        sum: "37" }));
-    check(name, "BUG O2 storage", same(u.bug.O2.last,
-      { total: "37", calls: "1" }));
+    // Weights: weight(i, 4) = 2i + 4, plus tri(i) from i = 2:
+    // sum = 4 + 6 + (8 + 3) + (10 + 6) = 37. After the loop: n = 4,
+    // sum = 37 (i is out of scope).
+    for (const lvl of ["O0", "O2"]) {
+      const o = u.bug[lvl];
+      check(name, `BUG ${lvl} local variable with a value`, !!o.local
+        && same(o.last, { total: "37", calls: "1", n: "4", sum: "37" }));
+      // The deepest stack: tri(3) recurses down to tri(0), in weight(3).
+      check(name, `BUG ${lvl} call stack frames`, same(
+        o.stack.frames.map((f) => f.replace(/ (called|inlined) at.*/, "")),
+        ["tri(k: 0)", "tri(k: 1)", "tri(k: 2)", "tri(k: 3)",
+          "weight(i: 3, n: 4)"]));
+      check(name, `BUG ${lvl} type-only local with its reason`,
+        /no location here.*#291/.test(o.typeOnly?.note ?? ""));
+    }
+    // dbl inlined, four times (i = 0..3): x is marked inline, and its
+    // pointer reads i, the argument weight(i, n) gives it.
+    const xs = u.bug.O2.inlineLocals;
+    check(name, "BUG O2 inlined local x reads i through its pointer",
+      xs.length === 4 && xs.every((e, k) => e.x.value === String(k)
+        && e.x.inline && /inline in dbl/.test(e.x.note)
+        && e.frames.some((f) => f.startsWith(`weight(i: ${k}, n: 4)`))));
+    check(name, "BUG O0 no inline locals", u.bug.O0.inlineLocals
+      .length === 0);
     check(name, "BUG O2 inline marker", u.bug.O2.inline?.fn === "dbl"
       && u.bug.O2.inline.noteVisible === "visible"
       && u.bug.O2.inline.site > 0);

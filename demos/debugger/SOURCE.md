@@ -42,7 +42,7 @@ PR's soldb CLI, on a local anvil node.
 ## The BUG tab: ethdebug's reference implementation
 
 `vendor/ethdebug-ref.js` bundles, from ethdebug/format at commit
-`863d8e8843a0de01d121b2dff98229063c508ee5` (main): `@ethdebug/pointers`
+`ac1164cd96f8259fc1a0391f9c31776520ec5e01` (main): `@ethdebug/pointers`
 (`dereference`, `Data`), `@ethdebug/evm`'s Machine.State adapter
 (`createMachineState`, without its executor) and the trace
 reconstruction utilities of `@ethdebug/programs-react` (no React). It
@@ -50,8 +50,8 @@ is made by `make-ref-vendor.sh <checkout>` after `yarn install` in that
 checkout. `ref-worker.js` uses it.
 
 The BUG data (`bug/weights.bug`, `bug/weights-O0/`, `bug/weights-O2/`)
-comes from bugc built from ethdebug/format PR #270 (head `842fa71cb`,
-branch `ui-local-value-reduce`; local variables, at level 0 only), with
+comes from bugc built from ethdebug/format at the same commit,
+`ac1164cd9` (main, with PR #328: local variables at every level), with
 `bug/compile.mjs <bugc> weights.bug <0|2> weights-O<0|2>` and, on
 `anvil --steps-tracing --port 8547`, `bug/make-tx.mjs Weights
 weights-O<0|2> memory` (anvil 1.2.3). The trace has each step's memory;
