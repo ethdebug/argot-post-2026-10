@@ -5,6 +5,13 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Step through a transaction</title>
 <link rel="stylesheet" href="../../shared/appendix.css">
+<link rel="stylesheet" href="layouts.css">
+<script>
+  // Layout options for review: ?layout=a|b|c (layouts.js, layouts.css).
+  // Without it, the page keeps its own layout.
+  { const l = new URLSearchParams(location.search).get("layout");
+    if (/^[abc]$/.test(l ?? "")) document.documentElement.dataset.layout = l; }
+</script>
 <style>
   /* This demo only. Tokens and shared components: ../../appendix.css. */
   .doc h3 { margin-top: 24px; }
@@ -92,11 +99,11 @@
 <main class="doc">
 <header>
 <h1>Step through a transaction</h1>
-<p>This page steps through a real transaction in this browser tab,
-offline, from saved files, and highlights the source range of each EVM
-step. A debugger, compiled for the browser, does the debugging; the
-page only displays what it reports. Use the step buttons, the keys, the
-slider, or click a source line to run to it.</p>
+<p>This page steps through real transactions in this browser tab,
+offline, from saved files. At each EVM step, it highlights the source
+range. A debugger engine, compiled for the browser, does the debugging.
+Each tab names its engine. The page only shows what the engine
+reports.</p>
 <p class="appendix-nav">Part of the ethdebug post appendix, with
 <a href="../inspector/">Storage, by name</a> and
 <a href="../../companion/">ethdebug in depth</a>.</p>
@@ -104,68 +111,72 @@ slider, or click a source line to run to it.</p>
 </header>
 
 <div class="tabs picker" role="tablist">
-  <button role="tab" data-ds="sol" aria-selected="true" disabled>Solidity</button>
+  <button role="tab" data-ds="sol" aria-selected="true"
+    disabled>Solidity</button>
   <button role="tab" data-ds="fe" aria-selected="false" disabled>Fe</button>
   <button role="tab" data-ds="bug" aria-selected="false" disabled>BUG
     (preview)</button>
 </div>
-<p class="engine" data-about="sol fe">Engine: soldb (Walnut's
-debugger)</p>
+<p class="engine" data-about="sol fe">Engine: soldb, Walnut's
+debugger</p>
 <p class="engine" data-about="bug" hidden>Engine: ethdebug's
-reference implementation</p>
-<p data-about="sol fe"><strong>The same debugger and the same page
-code step through a different language, because both compilers write
+reference implementation, not soldb</p>
+<p class="claim" data-about="sol fe"><strong>soldb and this page step
+through Solidity and Fe with the same code. Both compilers write
 ethdebug.</strong></p>
 
 <div class="about" data-about="sol">
 <p><code>Shop.place</code>: a saved trace of a real transaction (10 MB,
-3,736 EVM steps), with solc's ethdebug output (Walnut's solc,
-walnuthq/solidity PR #10). soldb parses the trace
-(<code>Trace.fromJson</code>), reads solc's ethdebug
-(<code>attachEthdebug</code>), maps each step to its source
+3,736 EVM steps). The ethdebug output comes from Walnut's solc
+(walnuthq/solidity PR #10). soldb parses the trace
+(<code>Trace.fromJson</code>) and reads the ethdebug
+(<code>attachEthdebug</code>). Then it maps each step to its source
 (<code>step(i)</code>) and reads the contract's state
 (<code>state(i)</code>).</p>
 </div>
 
 <div class="about" data-about="fe" hidden>
-<p>soldb, a Solidity debugger, stepping through a Fe contract, using
-only Fe's ethdebug output. Debugging by soldb (WebAssembly); the page
-adapts only the file layout, listed below.</p>
-<p><code>Tally.Add{n: 4}</code> (<a href="fe/tally.fe">tally.fe</a>): a
-loop, an internal call to <code>weight</code> and a branch, compiled by
-Fe 26.4.1 at <code>-O 0</code>. The transaction ran on a local anvil
-node; the page loads the node's saved responses with soldb's
-<code>Trace.fromTransaction</code>, then <code>attachEthdebug</code> and
-<code>step(i)</code>, the same calls and the same viewer as the
+<p>soldb, a Solidity debugger, steps through a Fe contract. It uses
+only Fe's ethdebug output. The page changes only the file layout (see
+the list below).</p>
+<p><code>Tally.Add{n: 4}</code> (<a href="fe/tally.fe">tally.fe</a>) has
+a loop, an internal call to <code>weight</code> and a branch. Fe 26.4.1
+compiled it at <code>-O 0</code>. The transaction ran on a local anvil
+node. The page loads the node's saved responses with soldb's
+<code>Trace.fromTransaction</code>, then calls
+<code>attachEthdebug</code> and <code>step(i)</code>, as on the
 Solidity tab.</p>
 </div>
 
 <div class="about" data-about="bug" hidden>
-<p class="muted">This tab runs ethdebug's reference implementation
-(<code>@ethdebug/pointers</code>, <code>@ethdebug/evm</code> and the
-trace reconstruction of <code>@ethdebug/programs-react</code>), not
-soldb. Local variables come from a preview build of BUG's compiler
-(ethdebug/format PR #270).</p>
+<p class="muted">This tab runs ethdebug's reference implementation,
+not soldb: <code>@ethdebug/pointers</code>, <code>@ethdebug/evm</code>
+and the trace reconstruction from
+<code>@ethdebug/programs-react</code>. Local variables come from a
+preview build of bugc, BUG's compiler (ethdebug/format PR #270).</p>
 <p><code>Weights</code> (<a href="bug/weights.bug">weights.bug</a>):
-the code block calls <code>weight</code> four times; <code>weight</code>
-calls <code>dbl</code> and, from <code>i = 2</code>, <code>tri</code>,
-which calls itself. bugc marks each call with <code>invoke</code> and
-<code>return</code> contexts; the call stack comes from them. The same
-program, compiled at two optimization levels:</p>
-<div class="picker" role="radiogroup" aria-label="optimization level">
+the code block calls <code>weight</code> four times.
+<code>weight</code> calls <code>dbl</code>, and from <code>i = 2</code>
+also <code>tri</code>, which calls itself. bugc marks each call with
+<code>invoke</code> and <code>return</code> contexts. The call stack
+comes from these contexts. The tab has the same program at two
+optimization levels:</p>
+<div class="picker levels" data-about="bug" hidden role="radiogroup"
+  aria-label="optimization level">
   <button role="radio" data-lvl="O0" aria-checked="true">-O0: local
     variables</button>
   <button role="radio" data-lvl="O2" aria-checked="false">-O2:
     <code>dbl</code> inlined</button>
 </div>
-<p class="muted">At level 0, bugc gives a local variable a pointer where
-its value is in memory. At level 2, it inlines <code>dbl</code>: those
-instructions carry <code>transform: ["inline"]</code> and keep the range
-of the call <code>dbl(i)</code>; it emits no local variables.</p>
+<p class="muted">At -O0, bugc gives a local variable a pointer where
+its value is in memory. At -O2, bugc inlines <code>dbl</code>. The
+inlined instructions carry <code>transform: ["inline"]</code> and keep
+the source range of the call <code>dbl(i)</code>. At -O2, bugc emits
+no local variables.</p>
 </div>
 
-<p class="status" id="loading">Loading: soldb (WebAssembly, in a Web
-Worker) parses the trace and maps every step...</p>
+<p class="status" id="loading">Loading: soldb parses the trace and
+maps each step (WebAssembly, in a Web Worker)...</p>
 
 <div id="stepper" hidden>
   <div class="ctl">
@@ -179,7 +190,7 @@ Worker) parses the trace and maps every step...</p>
   <p class="keys">Keys: <kbd>&larr;</kbd> <kbd>&rarr;</kbd> into,
     <kbd>Shift</kbd>+<kbd>&larr;</kbd> <kbd>&rarr;</kbd> over,
     <kbd>Shift</kbd>+<kbd>&uarr;</kbd> <kbd>&darr;</kbd> out. Click a
-    source line to run to the next step on it.</p>
+    source line to run to its next step.</p>
   <div class="skip">
     <label><input type="checkbox" id="skip" checked> Skip compiler
       code</label>
@@ -195,7 +206,7 @@ Worker) parses the trace and maps every step...</p>
   <div class="panel frames">
     <p class="ph">Call stack</p>
     <p data-has>Innermost first, from <code>invoke</code> and
-    <code>return</code> contexts:</p>
+    <code>return</code> contexts.</p>
     <ol aria-label="call stack" data-has></ol>
     <p class="why"></p>
     <p class="extra"></p>
@@ -207,67 +218,65 @@ Worker) parses the trace and maps every step...</p>
   </div>
   <div class="panel state">
     <p class="ph">Variables</p>
-    <p data-cap="state">State from ethdebug alone: solc's pointers for
-    storage, the deployed code for immutables; no storage layout.</p>
-    <p data-cap="variables" hidden>Variables in scope: the context's
-    <code>variables</code>, each read through its pointer with
+    <p data-cap="state">Contract state, from ethdebug alone: solc's
+    pointers for storage, the deployed code for immutables. No storage
+    layout.</p>
+    <p data-cap="variables" hidden>Variables in scope, from the context's
+    <code>variables</code>. Each is read through its pointer with
     <code>dereference</code>.</p>
     <table aria-label="contract state" data-has></table>
-    <p class="muted" data-cap="state">A trace holds only the storage a
-    transaction reads or writes, so a value shows as unknown until the
-    transaction reads or writes it, and stays unknown if it never
-    does.</p>
-    <p class="muted" data-cap="variables" hidden>Values are decoded
-    simply (uint, address), a stand-in for the format's planned
-    interpretation layer.</p>
+    <p class="muted" data-cap="state">A trace holds only the storage
+    that the transaction touches. A value shows as unknown until the
+    transaction reads or writes it.</p>
+    <p class="muted" data-cap="variables" hidden>Decoding is a simple
+    stand-in (uint, address) for the format's planned interpretation
+    layer.</p>
     <p class="why"></p>
     <p class="why locals"></p>
   </div>
-  <p class="muted" data-about="bug" hidden>"over" and "out" use the depth
-  of the call stack: "over" steps over a call or an inlined body, "out"
-  runs to the caller. BUG has no grammar in Shiki: the code is coloured
-  as Rust.</p>
-  <p class="muted" data-about="sol fe">The page computes these steps from
-  two fields that soldb reports per step: the source span and the EVM
-  call depth.
-  "into" goes to the next new span; "over" to the next new span at the
-  same or a lower depth; "out" to the first span after the depth drops.
-  The EVM depth does not count internal function calls, and every step
-  in these transactions is at depth 1, so "over" and "out" are
-  disabled here. soldb's own step over and out
-  (<code>soldb-debugger</code>) follow internal calls; its WebAssembly
+  <p class="muted step-note" data-about="bug" hidden>"over" and "out"
+  use the call stack depth. "over" steps over a call or an inlined body.
+  "out" runs to the caller. Shiki has no BUG grammar, so the code is
+  coloured as Rust.</p>
+  <p class="muted step-note" data-about="sol fe">The page computes each
+  step from two fields that soldb reports: the source span and the EVM
+  call depth. "into" goes to the next new span. "over" goes to the next
+  new span at the same or a lower depth. "out" goes to the first span
+  after the depth drops. The EVM depth does not count internal calls.
+  Every step in these transactions is at depth 1, so "over" and "out"
+  are off here. soldb's own step over and out
+  (<code>soldb-debugger</code>) follow internal calls. Its WebAssembly
   build does not expose them yet.</p>
 </div>
 
 <div class="about" data-about="fe" hidden>
-<p>What the page adapts (file layout only):</p>
+<p>What the page changes (file layout only):</p>
 <ul>
   <li><code>program</code>: Fe's file holds two programs in a Fe-specific
-    <code>programs</code> list; the page passes the runtime one
+    <code>programs</code> list. The page passes the runtime one
     (<code>environment: "call"</code>).</li>
   <li><code>sources</code>: Fe lists its sources without their text. The
-    page supplies it: <code>tally.fe</code>, and 7 standard-library files
-    (<code>builtin-core:/…</code>, <code>builtin-std:/…</code>) copied
-    from the Fe repository at tag v26.4.1. Their blake3 hashes match the
-    ones in Fe's file.</li>
+    page supplies the text: <code>tally.fe</code>, and 7 standard-library
+    files (<code>builtin-core:/…</code>, <code>builtin-std:/…</code>)
+    copied from the Fe repository at tag v26.4.1. Their blake3 hashes
+    match the ones in Fe's file.</li>
   <li><code>metadata</code>: Fe's whole file, unchanged. soldb reads the
-    source ids and paths from its <code>compilation</code>; it needs no
-    types or pointers, so none are added. <code>name</code> is the
-    program's contract name.</li>
+    source ids and paths from its <code>compilation</code>. soldb needs
+    no types or pointers, so the page adds none. <code>name</code> is
+    the program's contract name.</li>
 </ul>
-<p class="muted">Display only: Fe has no grammar in Shiki, so the code
-is coloured as Rust. soldb reports byte offsets; the page converts them
-to string positions to draw the span (one std file has non-ASCII text).
-File names are shown without their directory. soldb reports no function
-names for Fe (its function detection targets Solidity) and no variables
-(Fe emits none).</p>
+<p class="muted">Display only: Shiki has no Fe grammar, so the code is
+coloured as Rust. soldb reports byte offsets. The page converts them to
+string positions to draw the span, because one std file has non-ASCII
+text. File names show without their directory. soldb reports no
+function names for Fe, because its function detection targets
+Solidity. It reports no variables, because Fe emits none.</p>
 </div>
 
 <details>
 <summary>Details: timings, offline replay, requests</summary>
-<p class="muted">soldb runs in a Web Worker, so the page stays
-responsive while it works. The times below are measured in the
-worker.</p>
+<p class="muted">Each engine runs in a Web Worker, so the page stays
+responsive. The workers measure the times below.</p>
 
 <h3>Solidity: lean build, saved trace</h3>
 <p class="status" id="a-status">Running...</p>
@@ -278,36 +287,36 @@ worker.</p>
 <table id="fe-times"></table>
 
 <h3>BUG: ethdebug's reference implementation</h3>
-<p>The BUG tab's engine (<code>ref-worker.js</code>): ethdebug/format's
-packages, bundled in <code>vendor/ethdebug-ref.js</code>
-(<code>make-ref-vendor.sh</code>). It maps each step and builds its call
-stack when it loads; variables and the call stack's arguments are read
-when a step is shown.</p>
+<p>The BUG tab's engine (<code>ref-worker.js</code>) is
+ethdebug/format's packages, bundled in
+<code>vendor/ethdebug-ref.js</code> (<code>make-ref-vendor.sh</code>).
+When it loads, it maps each step and builds its call stack. It reads
+variables and call arguments when the page shows a step.</p>
 <p class="status" id="ref-status">Running...</p>
 <table id="ref-times"></table>
 
 <h3>BUG: soldb check, lean build, node responses</h3>
-<p>The transaction of <code>Tally</code>
-(<a href="bug/tally.bug">tally.bug</a>, bugc at level 2), saved
-earlier. soldb is fed as for Fe (<code>Trace.fromTransaction</code>, then
-<code>attachEthdebug</code>). Adaptations: bugc writes no resources
+<p>A saved transaction of <code>Tally</code>
+(<a href="bug/tally.bug">tally.bug</a>, bugc at -O2). soldb gets it as
+on the Fe tab (<code>Trace.fromTransaction</code>, then
+<code>attachEthdebug</code>). Two changes: bugc writes no resources
 file, so the page gives <code>metadata</code> as
-<code>{compilation: {sources: [{id, path}]}}</code>; bugc's source id
-is the string <code>"tally.bug"</code>, which soldb skips (it reads
-numeric ids only), so the second row gives it as <code>0</code>.</p>
+<code>{compilation: {sources: [{id, path}]}}</code>. bugc's source id is
+the string <code>"tally.bug"</code>, and soldb reads numeric ids only,
+so the second row gives the id as <code>0</code>.</p>
 <p class="status" id="bug-status">Waiting...</p>
 <table id="bug-times"></table>
 
-<h3>B. Replay build: re-execute a transaction offline</h3>
-<p>The replay module (1,092 KB) contains an EVM. It re-executes a
-<code>Token.transfer</code> transaction from a 6.5 KB replay file and
-contacts no node: soldb's only requests are for static files from this
+<h3>Replay build: re-run a transaction offline</h3>
+<p>The replay module (1,092 KB) contains an EVM. It re-runs a
+<code>Token.transfer</code> transaction from a 6.5 KB replay file. It
+contacts no node: soldb requests only static files from this
 server.</p>
 <p class="status" id="b-status">Waiting...</p>
 <table id="b-times"></table>
 
-<h3>Requests made by this page</h3>
-<p class="muted">From the browser's resource timing list. Every entry
+<h3>Requests from this page</h3>
+<p class="muted">From the browser's resource timing list. Each entry
 must be a static file on this server.</p>
 <table id="reqs"></table>
 <p class="muted" id="cdn"></p>

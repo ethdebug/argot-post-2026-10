@@ -144,22 +144,22 @@ function client(name, file) {
 /** @returns {Engine} soldb-wasm, in a module Web Worker. */
 export function soldbEngine() {
   const call = client("soldb", "./soldb-worker.js");
-  const noCalls = (who) => `${who} doesn't emit call markers ` +
-    "(invoke/return) yet, so there is no call stack from the data.";
   return {
     name: "soldb",
     whyNot: {
       sol: {
-        callStack: noCalls("solc"),
-        inline: "solc emits ethdebug only with the optimizer off, so " +
-          "there is no inlining here.",
-        locals: "No local variables: solc doesn't emit them yet.",
+        callStack: "No call stack: solc emits no invoke or return " +
+          "contexts yet.",
+        inline: "No inlining: solc emits ethdebug only with the " +
+          "optimizer off.",
+        locals: "No local variables: solc does not emit them yet.",
       },
       fe: {
-        callStack: noCalls("Fe's exporter (it writes only source ranges)"),
-        inline: "Fe's export doesn't mark inlining: Fe tracks it " +
-          "internally but writes no inline contexts.",
-        variables: "Fe's export has no variables.",
+        callStack: "No call stack: Fe's export writes only source " +
+          "ranges, no invoke or return contexts.",
+        inline: "No inline markers: Fe tracks inlining internally, " +
+          "but its export writes no inline contexts.",
+        variables: "No variables: Fe's export has none.",
       },
     },
     load: (dataset) => call("load", dataset),
@@ -179,7 +179,7 @@ export function refEngine() {
   return {
     name: "reference",
     whyNot: {
-      "bug-O0": { inline: "At -O0, bugc inlines nothing." },
+      "bug-O0": { inline: "No inlining: at -O0, bugc inlines nothing." },
     },
     load: (dataset) => call("load", dataset),
     variables: (dataset, i) => call("variables", dataset, i),
