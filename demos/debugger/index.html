@@ -5,34 +5,79 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Step through a transaction</title>
 <link rel="stylesheet" href="../../shared/appendix.css">
-<link rel="stylesheet" href="layouts.css">
-<script>
-  // Layout options for review: ?layout=a|b|c (layouts.js, layouts.css).
-  // Without it, the page keeps its own layout.
-  { const l = new URLSearchParams(location.search).get("layout");
-    if (/^[abc]$/.test(l ?? "")) document.documentElement.dataset.layout = l; }
-</script>
 <style>
-  /* This demo only. Tokens and shared components: ../../appendix.css. */
+  /* This demo only. Tokens and shared components: ../../appendix.css.
+     The debugger: a bar of controls over the source, and a rail of
+     panels beside both. Each box has a fixed size and scrolls inside,
+     so nothing moves when the tab or the step changes. On a phone, one
+     column. */
+  main { max-width: 1400px; }
+  .doc > #stepper { max-width: none; }
   .doc h3 { margin-top: 24px; }
-  .tabs { margin: 16px 0 0; }
   p.muted { font-size: 0.9rem; }
   .about { font-size: 0.95rem; }
   .about ul { margin: 0.25rem 0; }
-  .row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
-  #where { font-family: var(--mono); font-size: 0.85rem; color: var(--muted);
-    overflow-wrap: anywhere; }
-  input[type=range] { width: 100%; }
   details { margin-top: 32px; border-top: 1px solid var(--line);
     padding-top: 12px; }
   details table { margin-bottom: 8px; }
-  /* The source box: a panel like the inspector's source view. */
-  .src { background: var(--panel); border: 1px solid var(--line);
-    border-radius: 6px; max-height: 20rem; overflow: auto;
-    position: relative; overscroll-behavior: contain; }
+  kbd { font-family: var(--mono); font-size: 0.8rem; padding: 0 4px;
+    border: 1px solid var(--line); border-radius: 3px;
+    background: var(--panel); }
+
+  /* The head: the data set (tab, and BUG's level), then its engine. */
+  .dbg-head { margin: 16px 0 12px; }
+  .dbg-pick { display: flex; flex-wrap: wrap; align-items: center;
+    gap: 8px 16px; }
+  .levels { padding-left: 16px; border-left: 1px solid var(--line); }
+  .picker[hidden] { display: none; }
+  .engine { margin: 8px 0 0; font-size: 0.9rem; color: var(--muted); }
+  /* About each tab: below the debugger, so the debugger keeps its place
+     when the tab changes. */
+  .dbg-about { margin-top: 28px; padding-top: 4px;
+    border-top: 1px solid var(--line); }
+
+  /* The debugger. --h: the source card's height. */
+  #stepper:not([hidden]) { display: grid; gap: 12px 16px;
+    --h: clamp(22rem, calc(100vh - 15rem), 42rem);
+    grid-template-columns: minmax(0, 1fr) minmax(18rem, 25rem);
+    grid-template-rows: auto var(--h);
+    grid-template-areas: "bar panels" "view panels"; }
+
+  /* Controls: buttons and keys | skip. */
+  .bar { grid-area: bar; display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    grid-template-areas: "ctl skip" "keys skip";
+    align-items: start; gap: 4px 32px; }
+  .ctl { grid-area: ctl; display: flex; flex-wrap: wrap; gap: 6px 10px; }
+  .ctl > span { display: flex; gap: 6px; }
+  .skip { grid-area: skip; max-width: 34rem; }
+  .skip label { font-size: 0.9rem; }
+  /* Four lines on every tab, so the source never moves. */
+  .skip p { margin: 2px 0 0; height: 6em; overflow: auto;
+    font-size: 0.85rem; color: var(--muted); }
+  /* The keys line wraps to the buttons' width; it never widens them. */
+  .keys { grid-area: keys; margin: 0; width: 0; min-width: 100%;
+    font-size: 0.85rem; color: var(--muted); }
+  @media (hover: none) { .keys { display: none; } }
+
+  /* The source card: step line and slider, code, notes. The code
+     scrolls inside. */
+  .view { grid-area: view; display: flex; flex-direction: column;
+    min-width: 0; background: var(--panel); border: 1px solid var(--line);
+    border-radius: 6px; overflow: hidden; }
+  .view-head { padding: 8px 12px 2px; border-bottom: 1px solid var(--line); }
+  #where { margin: 0; font-family: var(--mono); font-size: 0.85rem;
+    overflow-wrap: anywhere; }
+  .view-head input[type=range] { width: 100%; margin: 4px 0; }
+  .src { flex: 1; min-height: 0; overflow: auto; position: relative;
+    overscroll-behavior: contain; }
   .src.faded pre { opacity: 0.45; }
-  .gen-note { margin: 4px 0; font-size: 0.85rem; color: var(--muted);
-    font-style: italic; visibility: hidden; min-height: 1.3em; }
+  .foot { height: 2.9rem; overflow: auto; padding: 4px 12px;
+    border-top: 1px solid var(--line);
+    background: color-mix(in srgb, var(--code-bg) 50%, var(--panel));
+    font-size: 0.8rem; line-height: 1.4; color: var(--muted); }
+  .foot p { margin: 0; }
+  .gen-note { font-style: italic; visibility: hidden; }
   .gen-note.on { visibility: visible; }
   /* Shiki: dual themes through CSS variables. */
   .src pre { margin: 0; padding: 6px 0; width: max-content;
@@ -59,25 +104,27 @@
   /* Click a line: run to the next step on it. */
   .src .line { cursor: pointer; }
   .src .line:hover::before { color: var(--accent); }
-  .ctl { display: flex; flex-wrap: wrap; gap: 6px 16px; }
-  .ctl > span { display: flex; gap: 6px; }
-  .engine { margin: 8px 0; font-size: 0.9rem; color: var(--muted); }
-  .skip { margin: 4px 0; }
-  .skip label { font-size: 0.9rem; }
-  .skip p { margin: 2px 0 0; font-size: 0.85rem; color: var(--muted); }
-  .keys, #msg { font-size: 0.85rem; color: var(--muted); margin: 4px 0; }
-  kbd { font-family: var(--mono); font-size: 0.8rem; padding: 0 4px;
-    border: 1px solid var(--line); border-radius: 3px;
-    background: var(--panel); }
-  /* The panels: call stack, inlining, variables, on every tab. Missing
-     data shows its reason in muted text. In the variables table, a
-     changed value takes the inspector's "changed" colour. */
-  .panel { margin-top: 12px; }
-  .panel .ph { font-weight: 600; margin: 4px 0; }
+
+  /* The panels: call stack, variables, inlining, on every tab, one card
+     each; the heading stays in view while the content scrolls. Missing
+     data shows its reason in muted text. The rail takes the height of
+     the bar and the source; its content never sizes the rows. */
+  .panels { grid-area: panels; display: grid; contain: size; gap: 12px;
+    min-width: 0;
+    grid-template-rows: minmax(0, 1fr) minmax(0, 1.4fr) 7rem; }
+  .panel { min-height: 0; min-width: 0; overflow: auto;
+    overscroll-behavior: contain; padding: 0 12px 8px;
+    background: var(--panel); border: 1px solid var(--line);
+    border-radius: 6px; }
+  .panel .ph { position: sticky; top: 0; z-index: 1; font-weight: 600;
+    margin: 0 -12px 6px; padding: 8px 12px 6px; font-size: 0.95rem;
+    background: var(--panel); border-bottom: 1px solid var(--line); }
   .panel .why, .panel .extra { color: var(--muted); }
   .panel .why:empty, .panel .extra:empty { display: none; }
   .panel p { margin: 4px 0; font-size: 0.9rem; }
-  .state table { min-width: 0; }
+  /* In the variables table, a changed value takes the inspector's
+     "changed" colour. */
+  .state table { min-width: 0; margin: 4px 0; }
   .state td { font-family: var(--mono); font-size: 0.8rem;
     overflow-wrap: anywhere; }
   .state td:first-child { white-space: nowrap; }
@@ -93,6 +140,23 @@
     color: var(--accent); }
   .src .site { outline: 1px dashed var(--accent); outline-offset: 1px;
     border-radius: 2px; }
+
+  /* Phone: one column, in reading order. */
+  @media (max-width: 760px) {
+    #stepper:not([hidden]) { --h: min(70vh, 32rem);
+      grid-template-columns: minmax(0, 1fr);
+      grid-template-rows: auto var(--h) auto;
+      grid-template-areas: "bar" "view" "panels"; }
+    .bar { grid-template-columns: minmax(0, 1fr);
+      grid-template-areas: "ctl" "skip" "keys"; gap: 8px; }
+    .panels { contain: none; grid-template-rows: none; }
+    .panel { max-height: 18rem; }
+    .levels { padding-left: 0; border-left: 0; }
+    /* The level row and a two-line engine line keep their space on
+       every tab, so the debugger stays in place when the tab changes. */
+    .levels[hidden] { display: flex; visibility: hidden; }
+    .engine { min-height: 3em; }
+  }
 </style>
 </head>
 <body>
@@ -110,18 +174,109 @@ reports.</p>
 <p class="meta" id="env"></p>
 </header>
 
-<div class="tabs picker" role="tablist">
-  <button role="tab" data-ds="sol" aria-selected="true"
-    disabled>Solidity</button>
-  <button role="tab" data-ds="fe" aria-selected="false" disabled>Fe</button>
-  <button role="tab" data-ds="bug" aria-selected="false" disabled>BUG
-    (preview)</button>
+<div class="dbg-head">
+  <div class="dbg-pick">
+    <div class="tabs picker" role="tablist">
+      <button role="tab" data-ds="sol" aria-selected="true"
+        disabled>Solidity</button>
+      <button role="tab" data-ds="fe" aria-selected="false"
+        disabled>Fe</button>
+      <button role="tab" data-ds="bug" aria-selected="false"
+        disabled>BUG (preview)</button>
+    </div>
+    <div class="picker levels" data-about="bug" hidden role="radiogroup"
+      aria-label="optimization level">
+      <button role="radio" data-lvl="O0" aria-checked="true">-O0: local
+        variables</button>
+      <button role="radio" data-lvl="O2" aria-checked="false">-O2:
+        <code>dbl</code> inlined</button>
+    </div>
+  </div>
+  <p class="engine" data-about="sol fe">Engine: soldb, Walnut's
+  debugger</p>
+  <p class="engine" data-about="bug" hidden>Engine: ethdebug's
+  reference implementation, not soldb</p>
 </div>
-<p class="engine" data-about="sol fe">Engine: soldb, Walnut's
-debugger</p>
-<p class="engine" data-about="bug" hidden>Engine: ethdebug's
-reference implementation, not soldb</p>
-<p class="claim" data-about="sol fe"><strong>soldb and this page step
+
+<p class="status" id="loading">Loading: soldb parses the trace and
+maps each step (WebAssembly, in a Web Worker)...</p>
+
+<div id="stepper" hidden>
+  <div class="bar">
+    <div class="ctl">
+      <span><button class="btn" data-go="out" data-d="-1">&larr;
+        out</button>
+        <button class="btn" data-go="over" data-d="-1">&larr;
+          over</button>
+        <button class="btn" data-go="into" data-d="-1">&larr;
+          into</button></span>
+      <span><button class="btn" data-go="into" data-d="1">into
+        &rarr;</button>
+        <button class="btn" data-go="over" data-d="1">over
+          &rarr;</button>
+        <button class="btn" data-go="out" data-d="1">out
+          &rarr;</button></span>
+    </div>
+    <p class="keys">Keys: <kbd>&larr;</kbd> <kbd>&rarr;</kbd> into,
+      <kbd>Shift</kbd>+<kbd>&larr;</kbd> <kbd>&rarr;</kbd> over,
+      <kbd>Shift</kbd>+<kbd>&uarr;</kbd> <kbd>&darr;</kbd> out. Click a
+      source line to run to its next step.</p>
+    <div class="skip">
+      <label><input type="checkbox" id="skip" checked> Skip compiler
+        and library code</label>
+      <p id="skip-note"></p>
+    </div>
+  </div>
+  <div class="view">
+    <div class="view-head">
+      <p id="where"></p>
+      <input type="range" min="0" value="0" aria-label="step">
+    </div>
+    <div class="src"></div>
+    <div class="foot">
+      <p class="gen-note"></p>
+      <p id="msg"></p>
+    </div>
+  </div>
+  <!-- The same panels on every tab. A panel whose data the tab lacks
+       stays in place and says why (engine.js, whyNot). -->
+  <div class="panels">
+    <div class="panel frames">
+      <p class="ph">Call stack</p>
+      <p data-has>Innermost first, from <code>invoke</code> and
+      <code>return</code> contexts.</p>
+      <ol aria-label="call stack" data-has></ol>
+      <p class="why"></p>
+      <p class="extra"></p>
+    </div>
+    <div class="panel state">
+      <p class="ph">Variables</p>
+      <p data-cap="state">Contract state, from ethdebug alone: solc's
+      pointers for storage, the deployed code for immutables. No
+      storage layout.</p>
+      <p data-cap="variables" hidden>Variables in scope, from the
+      context's <code>variables</code>. Each is read through its pointer
+      with <code>dereference</code>.</p>
+      <table aria-label="contract state" data-has></table>
+      <p class="muted" data-cap="state">A trace holds only the storage
+      that the transaction touches. A value shows as unknown until the
+      transaction reads or writes it.</p>
+      <p class="muted" data-cap="variables" hidden>Decoding is a simple
+      stand-in (uint, address) for the format's planned interpretation
+      layer.</p>
+      <p class="why"></p>
+      <p class="why locals"></p>
+    </div>
+    <div class="panel inlining">
+      <p class="ph">Inlining</p>
+      <p class="cur" data-has></p>
+      <p class="why"></p>
+    </div>
+  </div>
+</div>
+
+<div class="dbg-about">
+<p data-about="sol fe"><strong>soldb and this page step
 through Solidity and Fe with the same code. Both compilers write
 ethdebug.</strong></p>
 
@@ -160,14 +315,7 @@ the code block calls <code>weight</code> four times.
 also <code>tri</code>, which calls itself. bugc marks each call with
 <code>invoke</code> and <code>return</code> contexts. The call stack
 comes from these contexts. The tab has the same program at two
-optimization levels:</p>
-<div class="picker levels" data-about="bug" hidden role="radiogroup"
-  aria-label="optimization level">
-  <button role="radio" data-lvl="O0" aria-checked="true">-O0: local
-    variables</button>
-  <button role="radio" data-lvl="O2" aria-checked="false">-O2:
-    <code>dbl</code> inlined</button>
-</div>
+optimization levels.</p>
 <p class="muted">At -O0, bugc gives a local variable a pointer where
 its value is in memory. At -O2, bugc inlines <code>dbl</code>. The
 inlined instructions carry <code>transform: ["inline"]</code> and keep
@@ -175,79 +323,19 @@ the source range of the call <code>dbl(i)</code>. At -O2, bugc emits
 no local variables.</p>
 </div>
 
-<p class="status" id="loading">Loading: soldb parses the trace and
-maps each step (WebAssembly, in a Web Worker)...</p>
-
-<div id="stepper" hidden>
-  <div class="ctl">
-    <span><button class="btn" data-go="out" data-d="-1">&larr; out</button>
-      <button class="btn" data-go="over" data-d="-1">&larr; over</button>
-      <button class="btn" data-go="into" data-d="-1">&larr; into</button></span>
-    <span><button class="btn" data-go="into" data-d="1">into &rarr;</button>
-      <button class="btn" data-go="over" data-d="1">over &rarr;</button>
-      <button class="btn" data-go="out" data-d="1">out &rarr;</button></span>
-  </div>
-  <p class="keys">Keys: <kbd>&larr;</kbd> <kbd>&rarr;</kbd> into,
-    <kbd>Shift</kbd>+<kbd>&larr;</kbd> <kbd>&rarr;</kbd> over,
-    <kbd>Shift</kbd>+<kbd>&uarr;</kbd> <kbd>&darr;</kbd> out. Click a
-    source line to run to its next step.</p>
-  <div class="skip">
-    <label><input type="checkbox" id="skip" checked> Skip compiler
-      code</label>
-    <p id="skip-note"></p>
-  </div>
-  <p id="where"></p>
-  <input type="range" min="0" value="0" aria-label="step">
-  <p id="msg"></p>
-  <p class="gen-note"></p>
-  <div class="src"></div>
-  <!-- The same panels on every tab. A panel whose data the tab lacks
-       stays in place and says why (engine.js, whyNot). -->
-  <div class="panel frames">
-    <p class="ph">Call stack</p>
-    <p data-has>Innermost first, from <code>invoke</code> and
-    <code>return</code> contexts.</p>
-    <ol aria-label="call stack" data-has></ol>
-    <p class="why"></p>
-    <p class="extra"></p>
-  </div>
-  <div class="panel inlining">
-    <p class="ph">Inlining</p>
-    <p class="cur" data-has></p>
-    <p class="why"></p>
-  </div>
-  <div class="panel state">
-    <p class="ph">Variables</p>
-    <p data-cap="state">Contract state, from ethdebug alone: solc's
-    pointers for storage, the deployed code for immutables. No storage
-    layout.</p>
-    <p data-cap="variables" hidden>Variables in scope, from the context's
-    <code>variables</code>. Each is read through its pointer with
-    <code>dereference</code>.</p>
-    <table aria-label="contract state" data-has></table>
-    <p class="muted" data-cap="state">A trace holds only the storage
-    that the transaction touches. A value shows as unknown until the
-    transaction reads or writes it.</p>
-    <p class="muted" data-cap="variables" hidden>Decoding is a simple
-    stand-in (uint, address) for the format's planned interpretation
-    layer.</p>
-    <p class="why"></p>
-    <p class="why locals"></p>
-  </div>
-  <p class="muted step-note" data-about="bug" hidden>"over" and "out"
-  use the call stack depth. "over" steps over a call or an inlined body.
-  "out" runs to the caller. Shiki has no BUG grammar, so the code is
-  coloured as Rust.</p>
-  <p class="muted step-note" data-about="sol fe">The page computes each
-  step from two fields that soldb reports: the source span and the EVM
-  call depth. "into" goes to the next new span. "over" goes to the next
-  new span at the same or a lower depth. "out" goes to the first span
-  after the depth drops. The EVM depth does not count internal calls.
-  Every step in these transactions is at depth 1, so "over" and "out"
-  are off here. soldb's own step over and out
-  (<code>soldb-debugger</code>) follow internal calls. Its WebAssembly
-  build does not expose them yet.</p>
-</div>
+<p class="muted" data-about="bug" hidden>"over" and "out"
+use the call stack depth. "over" steps over a call or an inlined body.
+"out" runs to the caller. Shiki has no BUG grammar, so the code is
+coloured as Rust.</p>
+<p class="muted" data-about="sol fe">The page computes each
+step from two fields that soldb reports: the source span and the EVM
+call depth. "into" goes to the next new span. "over" goes to the next
+new span at the same or a lower depth. "out" goes to the first span
+after the depth drops. The EVM depth does not count internal calls.
+Every step in these transactions is at depth 1, so "over" and "out"
+are off here. soldb's own step over and out
+(<code>soldb-debugger</code>) follow internal calls. Its WebAssembly
+build does not expose them yet.</p>
 
 <div class="about" data-about="fe" hidden>
 <p>What the page changes (file layout only):</p>
@@ -271,6 +359,7 @@ string positions to draw the span, because one std file has non-ASCII
 text. File names show without their directory. soldb reports no
 function names for Fe, because its function detection targets
 Solidity. It reports no variables, because Fe emits none.</p>
+</div>
 </div>
 
 <details>

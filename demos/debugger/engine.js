@@ -40,7 +40,8 @@
 /**
  * @typedef {Object} Source
  * @property {string} text
- * @property {string} [lib]  set when the file is a standard library
+ * @property {string} [lib]  set when the file is library code (not the
+ *   contract's own); "Skip compiler and library code" skips its steps
  */
 
 /**
@@ -53,7 +54,11 @@
  * @property {string} [generated]  how the engine recognizes
  *   compiler-generated code (the steps it gives -1 spans), as the
  *   compiler marks it; e.g. "for solc, a source range covering the
- *   whole contract". The page's "Skip compiler code" skips these steps.
+ *   whole contract". The page's "Skip compiler and library code" skips
+ *   these steps.
+ * @property {string} [library]  how the engine recognizes library code
+ *   (the sources it marks `lib`); e.g. "for Fe, a builtin-core:/ or
+ *   builtin-std:/ file". Absent: WhyNot.library says why.
  */
 
 /**
@@ -66,6 +71,8 @@
  * @property {string} [variables]  no variables (state or variables)
  * @property {string} [locals]     shown even with the state: what the
  *   variables panel lacks (local variables)
+ * @property {{text: string, href?: string}} [library]  no library
+ *   detection (capability library): why, and a link to the issue
  */
 
 /**
@@ -153,6 +160,10 @@ export function soldbEngine() {
         inline: "No inlining: solc emits ethdebug only with the " +
           "optimizer off.",
         locals: "No local variables: solc does not emit them yet.",
+        // solc's ethdebug gives every instruction the contract's own
+        // source id, even code from imported files.
+        library: { text: "Imported code: not detectable yet",
+          href: "https://github.com/ethdebug/format/issues/329" },
       },
       fe: {
         callStack: "No call stack: Fe's export writes only source " +
@@ -179,7 +190,9 @@ export function refEngine() {
   return {
     name: "reference",
     whyNot: {
-      "bug-O0": { inline: "No inlining: at -O0, bugc inlines nothing." },
+      "bug-O0": { inline: "No inlining: at -O0, bugc inlines nothing.",
+        library: { text: "Library code: none in BUG" } },
+      "bug-O2": { library: { text: "Library code: none in BUG" } },
     },
     load: (dataset) => call("load", dataset),
     variables: (dataset, i) => call("variables", dataset, i),

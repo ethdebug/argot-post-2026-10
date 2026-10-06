@@ -8,7 +8,6 @@
 // (details) replays a transaction with the replay build. Results go to
 // the DOM and to window.results.
 
-import "./layouts.js";
 import { soldbEngine, refEngine } from "./engine.js";
 
 const results = { env: {}, a: null, fe: null, ref: null, bug: null,
@@ -53,8 +52,10 @@ function showTimes(el, times, extra) {
 }
 
 // The engine's per-step data, in the shape the stepping code uses:
-// spans as [sourceId, start, end] or null (compiler-generated code).
-function stepsOf(steps) {
+// spans as [sourceId, start, end] or null (compiler-generated code);
+// `lib` is true where the span is in a library file (the engine marks
+// the source with `lib`).
+function stepsOf(steps, sources) {
   const { n, spans: sp, lineNo, depths, changes } = steps;
   const spans = new Array(n);
   for (let i = 0; i < n; i++) {
@@ -63,18 +64,19 @@ function stepsOf(steps) {
   }
   let lo = Infinity, hi = -Infinity;
   for (const d of depths) { lo = Math.min(lo, d); hi = Math.max(hi, d); }
-  return { n, spans, lineNo, depths, flat: lo === hi, changes,
+  const lib = spans.map((s) => !!s && !!sources[s[0]].lib);
+  return { n, spans, lib, lineNo, depths, flat: lo === hi, changes,
     inline: steps.inline };
 }
 
 // Stepping, computed by the page from two fields the engine reports per
 // step: the source span and the call depth. `go` is "into", "over" or
 // "out"; `d` is 1 (forward) or -1 (back). With `skip`, compiler-generated
-// steps (no span) are never a stop; without it, a run of them is one
-// stop. Returns a step, or undefined.
+// steps (no span) and library steps are never a stop; without it, a run
+// of compiler-generated steps is one stop. Returns a step, or undefined.
 function nav(w, i, go, d, skip) {
-  const key = (j) => w.spans[j] ? w.spans[j].join(":")
-    : skip ? null : "generated";
+  const key = (j) => skip && (!w.spans[j] || w.lib[j]) ? null
+    : w.spans[j] ? w.spans[j].join(":") : "generated";
   const find = (from, ok) => {
     for (let j = from; j >= 0 && j < w.n; j += d) if (ok(j)) return j;
   };
@@ -300,7 +302,8 @@ const viewer = (() => {
     }
   };
   range.oninput = () => step(+range.value);
-  // Skip compiler code: the buttons' targets change; the step does not.
+  // Skip compiler and library code: the buttons' targets change; the
+  // step does not.
   skip.onchange = () => ds && step(+range.value);
   for (const b of buttons) {
     b.onclick = () => b.target !== undefined && step(b.target);
@@ -347,10 +350,18 @@ const viewer = (() => {
       before = null;
       range.max = String(ds.walked.n - 1);
       box.hidden = false;
-      // How this engine recognizes compiler-generated code.
-      skipNote.textContent = "The engine finds compiler code by how " +
-        `each compiler marks it (${ds.capabilities.generated}). ` +
-        "ethdebug has no explicit marker for this yet.";
+      // How this engine recognizes compiler and library code.
+      const caps = ds.capabilities, no = ds.whyNot.library;
+      const issue = (href) => {
+        const a = document.createElement("a");
+        a.href = href;
+        a.textContent = `#${href.split("/").pop()}`;
+        return a;
+      };
+      skipNote.replaceChildren(`Compiler code: ${caps.generated}. `,
+        ...caps.library ? [`Library code: ${caps.library}`]
+          : [no.text, ...no.href ? [" (", issue(no.href), ")"] : []],
+        ". ethdebug has no explicit marker for either yet.");
       // Open at the first step in the contract's own file.
       const c = ds.walked.changes;
       step(ds.pos ?? c.find((i) => ds.walked.spans[i][0] === ds.main)
@@ -431,7 +442,7 @@ async function load(key, part, eng = engine) {
   }
   const ds = { key, engine: eng, ...loaded, sources,
     whyNot: eng.whyNot[key] ?? {},
-    walked: stepsOf(loaded.steps) };
+    walked: stepsOf(loaded.steps, sources) };
   if (part) {
     results[part] = loaded.summary;
     showTimes($(`${part}-times`), entries(loaded.summary.times),
