@@ -109,47 +109,72 @@
  */
 
 /**
+ * Progress while an engine loads: a file's bytes (see
+ * fetch-progress.js, FileProgress), or the work that follows, as
+ * { phase: "what the engine does" }.
+ * @typedef {(p: Object) => void} OnProgress
+ */
+
+/**
  * @typedef {Object} Engine
  * @property {string} name
  * @property {Object<string, WhyNot>} whyNot  by data set
- * @property {(dataset: string) => Promise<Loaded>} load
+ * @property {(dataset: string, onProgress?: OnProgress) =>
+ *   Promise<Loaded>} load
  * @property {(dataset: string, i: number) => Promise<Variable[]>} [state]
  *   the contract's state
  * @property {(dataset: string, i: number) => Promise<Variable[]>}
  *   [variables]  the variables in scope (storage and locals)
  * @property {(dataset: string, i: number) => Promise<Frame[]>}
  *   [callStack]
- * @property {(job: string) => Promise<Object>} [run]  engine-specific
- *   checks (soldb: "bug-check", "replay")
+ * @property {(job: string, onProgress?: OnProgress) => Promise<Object>}
+ *   [run]  engine-specific checks (soldb: "bug-check", "replay")
  * @property {() => Promise<{name: string, transferSize: number}[]>}
  *   requests  resource timing entries of the engine's own fetches
  */
 
-// Calls into a module Web Worker: { id, op, args } out, { id, value }
-// or { id, error } back.
+// Calls into a module Web Worker: { id, op, args } out; { id, value }
+// or { id, error } back, and { id, progress } meanwhile. The worker
+// starts at the first call, so its code loads only when needed. A
+// worker that fails (its code did not load) is dropped, and the next
+// call starts a new one.
 function client(name, file) {
-  const worker = new Worker(new URL(file, import.meta.url),
-    { type: "module" });
+  let worker = null;
   const pending = new Map();
   let next = 0;
-  worker.onmessage = ({ data: { id, value, error } }) => {
-    const p = pending.get(id);
-    pending.delete(id);
-    if (error === undefined) p.resolve(value);
-    else p.reject(new Error(error));
+  const start = () => {
+    const w = new Worker(new URL(file, import.meta.url),
+      { type: "module" });
+    w.onmessage = ({ data: { id, value, error, progress } }) => {
+      const p = pending.get(id);
+      if (!p) return;
+      if (progress) {
+        p.onProgress?.(progress);
+        return;
+      }
+      pending.delete(id);
+      if (error === undefined) p.resolve(value);
+      else p.reject(new Error(error));
+    };
+    w.onerror = (e) => {
+      e.preventDefault();
+      const err = new Error(`Could not start ${name}: its code did not ` +
+        `load${e.message ? ` (${e.message})` : ""}`);
+      for (const p of pending.values()) p.reject(err);
+      pending.clear();
+      w.terminate();
+      if (worker === w) worker = null;
+    };
+    return w;
   };
-  worker.onerror = (e) => {
-    e.preventDefault();
-    const err = new Error(`${name} worker: ${e.message
-      || "failed to start"}`);
-    for (const p of pending.values()) p.reject(err);
-    pending.clear();
-  };
-  return (op, ...args) => new Promise((resolve, reject) => {
+  const call = (op, args, onProgress) => new Promise((resolve, reject) => {
     const id = next++;
-    pending.set(id, { resolve, reject });
-    worker.postMessage({ id, op, args });
+    pending.set(id, { resolve, reject, onProgress });
+    (worker ??= start()).postMessage({ id, op, args });
   });
+  // requests() only asks a worker that has started.
+  call.started = () => worker !== null;
+  return call;
 }
 
 /** @returns {Engine} soldb-wasm, in a module Web Worker. */
@@ -177,10 +202,10 @@ export function soldbEngine() {
         variables: "No variables: Fe's export has none.",
       },
     },
-    load: (dataset) => call("load", dataset),
-    state: (dataset, i) => call("state", dataset, i),
-    run: (job) => call("run", job),
-    requests: () => call("requests"),
+    load: (dataset, onProgress) => call("load", [dataset], onProgress),
+    state: (dataset, i) => call("state", [dataset, i]),
+    run: (job, onProgress) => call("run", [job], onProgress),
+    requests: async () => call.started() ? call("requests", []) : [],
   };
 }
 
@@ -198,9 +223,9 @@ export function refEngine() {
         library: { text: "Library code: none in BUG" } },
       "bug-O2": { library: { text: "Library code: none in BUG" } },
     },
-    load: (dataset) => call("load", dataset),
-    variables: (dataset, i) => call("variables", dataset, i),
-    callStack: (dataset, i) => call("callStack", dataset, i),
-    requests: () => call("requests"),
+    load: (dataset, onProgress) => call("load", [dataset], onProgress),
+    variables: (dataset, i) => call("variables", [dataset, i]),
+    callStack: (dataset, i) => call("callStack", [dataset, i]),
+    requests: async () => call.started() ? call("requests", []) : [],
   };
 }

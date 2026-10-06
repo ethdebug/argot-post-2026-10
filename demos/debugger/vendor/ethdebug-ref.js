@@ -8329,24 +8329,54 @@ function extractVariablesFromInstruction(instruction) {
   if (!instruction.context) {
     return [];
   }
-  return extractVariablesFromContext(instruction.context);
-}
-function extractVariablesFromContext(context) {
-  if ("variables" in context && Array.isArray(context.variables)) {
-    return context.variables;
-  }
-  if ("gather" in context && Array.isArray(context.gather)) {
-    return context.gather.flatMap(extractVariablesFromContext);
-  }
-  if ("pick" in context && Array.isArray(context.pick)) {
-    for (const subContext of context.pick) {
-      const vars = extractVariablesFromContext(subContext);
-      if (vars.length > 0) {
-        return vars;
-      }
+  const joined = [];
+  for (const listed of listedIn(instruction.context)) {
+    const same2 = joined.find((other) => sameVariable(other, listed));
+    if (same2) {
+      same2.entry = { ...same2.entry, ...listed.entry };
+    } else {
+      joined.push({ ...listed });
     }
   }
-  return [];
+  return joined.map(({ entry }) => entry);
+}
+function listedIn(context, frame) {
+  const ctx = context;
+  const here = typeof ctx.frame === "string" ? ctx.frame : frame;
+  const own = Array.isArray(ctx.variables) ? ctx.variables.map((entry) => ({
+    entry,
+    frame: here
+  })) : [];
+  const gathered = Array.isArray(ctx.gather) ? ctx.gather.flatMap((c) => listedIn(c, here)) : [];
+  const picked = [];
+  if (Array.isArray(ctx.pick) && ctx.pick.length > 0) {
+    const [first, ...others] = ctx.pick.map((c) => listedIn(c, here));
+    for (const listed of first) {
+      const matches = others.map((branch) => branch.find((other) => sameVariable(listed, other) && same(listed.entry.pointer, other.entry.pointer)));
+      if (matches.some((match) => match === void 0))
+        continue;
+      const { type, ...rest } = listed.entry;
+      const typed = matches.every((match) => same(type, match.entry.type));
+      picked.push({ ...listed, entry: typed ? listed.entry : rest });
+    }
+  }
+  return [...own, ...gathered, ...picked];
+}
+function sameVariable(a, b) {
+  const x = a.entry.declaration;
+  const y = b.entry.declaration;
+  return a.frame === b.frame && a.entry.identifier === b.entry.identifier && x !== void 0 && y !== void 0 && x.source?.id === y.source?.id && x.range?.offset === y.range?.offset && x.range?.length === y.range?.length;
+}
+function same(a, b) {
+  if (a === b)
+    return true;
+  if (typeof a !== "object" || typeof b !== "object" || !a || !b) {
+    return false;
+  }
+  if (Array.isArray(a) !== Array.isArray(b))
+    return false;
+  const keys = Object.keys(a);
+  return keys.length === Object.keys(b).length && keys.every((key) => same(a[key], b[key]));
 }
 function extractTransformFromInstruction(instruction) {
   if (!instruction.context) {
@@ -8625,7 +8655,7 @@ function buildPcToInstructionMap(program) {
   return map2;
 }
 
-var commit = "ac1164cd96f8259fc1a0391f9c31776520ec5e01";
+var commit = "2fd7e781b8138b22b08c5b0b837b52cce5ada2ac";
 export {
   Data2 as Data,
   buildCallStack,
