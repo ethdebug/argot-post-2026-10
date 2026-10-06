@@ -20,12 +20,9 @@ main { max-width: 1440px; }
     grid-template-columns: minmax(0, 5fr) minmax(0, 7fr);
     grid-template-rows: auto auto 1fr;
   }
-  .mcols { grid-template-rows: auto 1fr; }
   .storage { grid-column: 1; grid-row: 1; font-size: 1.05rem; }
   .howbox { grid-column: 1; grid-row: 2; }
   .source { grid-column: 1; grid-row: 3; }
-  .mcols .source { grid-row: 2; }
-  .mcols .words { grid-row: 1 / span 2; }
   .words {
     grid-column: 2;
     grid-row: 1 / span 3;
@@ -719,16 +716,11 @@ li.same > .row .name, li.same > .row .type { opacity: 0.55; }
   color: var(--plan-fg);
 }
 .mpick button[disabled] { opacity: 0.4; cursor: not-allowed; }
-.mval { margin-left: auto; text-align: right; font-family: var(--mono);
-  font-size: 0.9rem; overflow-wrap: anywhere; }
-.mval .old { color: var(--old); text-decoration: line-through; }
-.mval .new { color: var(--new); font-weight: 700; }
-.mval .arrow { margin: 0 6px; }
-.mval.same { color: var(--muted); }
-.mwhere { font-family: var(--mono); padding: 0 0 4px; }
 #mtree .row { cursor: pointer; border-radius: 4px; }
-#mtree .row.sel .mval { box-shadow: inset 0 -1px 0 var(--accent); }
-#mtree .row:focus-visible { outline: 2px solid var(--accent); }
+#mtree .row:hover .val, #mtree .row.sel .val {
+  border-color: var(--accent); }
+#mtree .row:focus-visible { outline: 2px solid var(--accent);
+  outline-offset: 1px; }
 .b.past { color: var(--muted); opacity: 0.35; }
 #msrc mark.ma { background: var(--plan-bg); color: var(--plan-fg);
   border-radius: 2px; }

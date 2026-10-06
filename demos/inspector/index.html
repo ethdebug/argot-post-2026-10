@@ -101,23 +101,23 @@ templates by ethdebug's reference library.">
 
   <section id="memory" class="ahead" aria-labelledby="mem-h">
     <h2 id="mem-h">Looking ahead: memory, with BUG
-      <span class="tag preview">preview: needs ethdebug/format PR #270,
-      not yet merged</span></h2>
-    <p class="muted"><em>Work in progress: this section's example and
-    design are still open.</em></p>
+      <span class="tag preview">preview: bugc from ethdebug/format main,
+      not yet released</span></h2>
     <p class="lede">BUG is ethdebug's teaching language. Its compiler,
-    bugc, is ethdebug's reference compiler and emits the fullest
-    ethdebug data today, including where each local variable lives in
-    memory at each instruction. The program below finds gcd(1071, 462)
-    = 21 by recursion. Each call gets its own frame in memory, with its
-    own <code>a</code> and <code>b</code>; the frames stack up as the
-    calls go deeper, and each frame's first word holds the frame of its
-    caller, so the frames form a chain. Pick two points in the run, A
-    and B, and show memory at one of them; cards beside the lit words
-    show the other. As above, the byte ranges come from ethdebug's
-    reference library (@ethdebug/pointers), which follows bugc's
-    pointers against the memory at each point;
-    soldb is not used. The decoding into values is this page's own.</p>
+    bugc, is ethdebug's reference compiler. On main (PR #328), bugc
+    tells where each local variable is at each instruction, arrays and
+    strings in memory included. The program below finds the longest name
+    in a list of three. <code>names</code> is an array: its word holds an
+    address, and at that address are the length and one word for each
+    element. Each element word holds the address of a string: its
+    length, then its bytes. <code>longest</code> is a string, and its
+    word holds the address of one of those strings, so the program copies
+    no bytes. Pick two points in the run, A and B, and show memory at one
+    of them; cards beside the lit words show the other. As above, the
+    byte ranges come from ethdebug's reference library
+    (@ethdebug/pointers), which follows bugc's pointers against the
+    memory at each point. Only the decoding into numbers and text is this
+    page's own.</p>
     <p class="meta" id="mmeta"></p>
 
     <div class="mpicks">
@@ -134,12 +134,17 @@ templates by ethdebug's reference library.">
       <p id="mnote" class="summary"></p>
     </div>
 
-    <div class="cols mcols">
+    <div class="cols">
       <section aria-label="Values" class="storage">
-        <h2 class="label">Values
+        <h2 class="label">Local variables
           <span class="legend"><span class="chg">changed</span>
           <span class="same">unchanged</span></span></h2>
         <div id="mtree" class="tree"><p class="muted">Loading…</p></div>
+      </section>
+
+      <section aria-labelledby="mhow-h" class="howbox">
+        <h2 class="label" id="mhow-h">How this was found</h2>
+        <div id="mhow" class="how" aria-live="polite"></div>
       </section>
 
       <section aria-labelledby="mwords-h" class="words">
@@ -149,8 +154,9 @@ templates by ethdebug's reference library.">
         <p class="muted small intro">Memory at A or at B, one 32-byte
         word to a line, by offset. Shown: the words a value lives in and
         the words that changed between A and B; "⋯" marks words left
-        out. "··" is past the end of memory at that point. Beside each
-        lit run, a card shows the same words at the other point.</p>
+        out. Point at a value, a byte or an address to light it up.
+        Beside each lit run, a card shows the same words at the other
+        point.</p>
         <div class="dump"><div id="mpanel" class="panel"></div></div>
         <div id="mdetails" class="details" aria-live="polite"></div>
       </section>
@@ -164,18 +170,17 @@ templates by ethdebug's reference library.">
     </div>
 
     <ul class="mknown small muted">
-      <li><code>a</code> and <code>b</code> sit at an offset from a
-      frame pointer kept at 0x80. The library reads the frame pointer
-      from memory to find them, so at each point it finds the
-      <code>a</code> and <code>b</code> of the call that is running. The
-      callers' values are still in memory, in their own frames.</li>
-      <li>"frames" lists the chain from 0x80 through each frame's first
-      word. The page reads that chain itself; it is not one of bugc's
-      pointers. Point at it to light the words that link the
-      frames.</li>
-      <li><code>result</code> lives in storage, not memory. bugc gives
-      it a storage pointer; the library reads it from the storage at
-      each point.</li>
+      <li><code>longest</code> lights the same bytes as the element
+      whose address it holds: from either one, the library finds the
+      same length and bytes.</li>
+      <li>Without optimization, bugc can keep one local in more than one
+      word over a run. At "Longer name found", <code>longest</code> is
+      in another word than at the other points; bugc's pointer at each
+      point names the word.</li>
+      <li>bugc cannot yet build structs or fixed-size arrays in memory,
+      so its debug data gives their types only.</li>
+      <li><code>size</code> is in storage, not memory; this section
+      shows memory only.</li>
     </ul>
   </section>
 </main>

@@ -32,11 +32,11 @@ node: everything comes from `fixtures/`.
   `desktop-dark.png`: Token, the sender's nonce selected, with "How
   this was found"; `insets.png`: Token, After, the sender's `Account` (a
   run of two slots) lit, with its "before" card;
-  `memory.png`: the memory section, frames lit, A = first call, B =
-  deepest call; `memory-phone.png`: the memory section on a phone, `a`
-  selected; `phone.png`: Strings, `grows` (short → long) selected, the
+  `memory.png`: the memory section, `longest` selected, A = loop
+  starts, B = loop done; `memory-phone.png`: the memory section on a
+  phone, `longest` selected; `phone.png`: Strings, `grows` (short → long) selected, the
   panel saying the before and after derivations differ).
-- `mem.js`, `bug/gcd.bug`, `bin/make-memory-fixture.mjs`,
+- `mem.js`, `bug/longest.bug`, `bin/make-memory-fixture.mjs`,
   `fixtures/memory.json`: the memory section (below).
 - `contracts/`: Token, Shop and Packed (also used by the debugger demo)
   and Strings (written for this page).
@@ -259,9 +259,8 @@ Highlights that still use the tray (desktop and phone): two lit runs
 with only a "⋯" line between them, where one run's popover and the
 next run's card need the same space. Token `accounts` (both entries);
 Shop `orders`, `orders[1]` (its struct and its string data) and
-`orders[1].quantities`; Packed `xs` (length slot and data slot); in
-the memory section, `frames` (0x80 and the frames). Strings `grows`
-and `shrinks`, and memory `a` and `b`, render in place.
+`orders[1].quantities`; Packed `xs` (length slot and data slot).
+Strings `grows` and `shrinks` render in place.
 
 ## How the derivation is found
 
@@ -283,47 +282,59 @@ is imported from the package's dist (it is not a public export).
   member leaked into later members. The page now bundles a build with
   the fix, and Shop decodes correctly.
 
-## Memory, with BUG (preview: needs ethdebug/format PR #270)
+## Memory, with BUG (preview: bugc from ethdebug/format main)
 
 A separate section under the storage demo shows memory at two points
 of one run of a BUG program, as the same kind of dumps (A, then B), with
-a list of the values. Its own Show control (A | B, B by default) works
-like the storage one, and its selection, lock, cards and URL keys
-(`a`, `b`, `mmode`, `msel`) work the same way; it has no derivation
-panel. bugc on `main` emits no memory pointers (its `variables`
-contexts carry storage pointers only). PR #270 (branch
-`ui-local-value-reduce`, commit `c3d592832`, not merged) emits, for
-each instruction, a memory pointer for each local or parameter that
-has a home in memory; a function's parameters are a group that reads a
-frame pointer at 0x80 and adds an offset (`{"$sum": [{"$read":
-"frame"}, 96]}`). We know of no bugs in #270 at that commit in the
-parts this section uses.
+the program's local variables as a tree. It works like the storage
+demo: a Show control (A | B, B by default), "How this was found" for
+the selected value, cards beside the lit words with the same words at
+the other point, and its own URL keys (`a`, `b`, `mmode`, `msel`).
+Since PR #328 (`ac1164cd9`, merged, not yet released), bugc on `main`
+emits, for each instruction, a pointer for each local in scope. For a
+dynamic array, the pointer names the local's word, a length region at
+the address the word holds (`{"$read": "names"}`), and a `list` of
+element words at `base + 32 + 32*i`; for a string or `bytes`, a length
+region and a data region sized by the length. Element references
+compose the same way. Structs and fixed-size arrays in memory have
+types only (bugc cannot build them in memory yet).
 
-The program, `bug/gcd.bug`, is recursive: `result = gcd(1071, 462)`
-calls gcd(462, 147), gcd(147, 21) and gcd(21, 0), and stores 21. Each
-call has its own frame with its own `a` and `b`; each frame's first
-word holds the caller's frame pointer, so at the deepest call the chain
-is 0x340 → 0x280 → 0x1c0 → 0x100 → 0. The points: first call, deepest
-call, unwinding (back in gcd(462, 147)), result stored.
+The program, `bug/longest.bug`, finds the longest name in
+`["ada", "grace", "alan"]` and stores its length. `names` is an
+`array<string>`; `longest` is a `string` local that starts as
+`names[0]` and becomes `names[1]`. bugc copies no bytes: `longest`'s
+word holds the address of the element's string, so `longest` and that
+element light the same bytes. The points: "Loop starts" (the first
+`i < names.length`, i = 1, `longest` = "ada"), "Longer name found"
+(after `longest = names[i]`), "Loop done" (the last test, i = 3,
+`longest` = "grace"). At "Longer name found", bugc (without
+optimization) keeps `longest` in another word, so its derivation parts
+from the other points'.
 
 How the fixture was made:
 
-1. A detached worktree of PR #270 at `c3d592832`, `yarn install
-   --frozen-lockfile && yarn build`.
-2. `anvil --steps-tracing --port 8547 --silent`
+1. A detached worktree of ethdebug/format main at `ac1164cd9`, `yarn
+   install --frozen-lockfile && yarn build`.
+2. `anvil --steps-tracing --port 8547 --silent` (without
+   `--steps-tracing`, anvil returns no steps).
 3. `BUGC=<worktree>/packages/bugc RPC_URL=http://127.0.0.1:8547 node
-   bin/make-memory-fixture.mjs`. It compiles `bug/gcd.bug`, deploys it,
-   calls it once, traces with memory, and saves four points: the step,
-   its instruction's `variables` context (as bugc emitted it), its code
-   range, memory after the step (a context describes the state after
-   its instruction), and storage slot 0.
+   bin/make-memory-fixture.mjs`. It compiles `bug/longest.bug` (`OPT`
+   sets the level; 0 by default; levels 1 to 3 give the same values
+   and pass the same checks), deploys it, calls it once, traces with
+   memory, and saves three points: the step, its instruction's
+   `variables` context (as bugc emitted it, with the source path made
+   relative), its code range, and memory after the step (a context
+   describes the state after its instruction). It checks the values
+   and that `longest` is at the expected element's bytes.
 
 The page dereferences each memory pointer with `@ethdebug/pointers`
-against that point's memory (`decode.js` `decodeLocals`), and lays the
-returned regions over the words; the frame pointer region is shown as a
-part of `a` and `b`. `result` has a storage pointer; the library reads
-it from the point's storage (`decodeStored`), and it is listed with no
-bytes in the dumps. "frames" is the page's own: it follows the chain
-from 0x80 through each frame's first word, and lights those words.
-Shown words: those a value lives in at A or B, and those that changed;
-other words are a "⋯" gap.
+against that point's memory (`decode.js` `decodeLocals`), and walks
+the regions by name: the local's word, `-length`, `-element` for each
+item, `-data` for a string's bytes. Each value keeps the regions read
+to find it (its parts); "How this was found" replays the pointer with
+the library's evaluator, as for storage, and each step names what its
+region holds (an address, a length, the bytes). Each region is owned
+by the first value that reads it, so an array's word and length belong
+to the array, and an element's word and length to the element.
+`size` is in storage and is not shown. Shown words: those a value
+lives in at A or B, and those that changed; other words are a "⋯" gap.
