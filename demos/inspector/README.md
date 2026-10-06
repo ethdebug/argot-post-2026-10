@@ -38,7 +38,7 @@ node: everything comes from `fixtures/`.
   panel saying the before and after derivations differ).
 - `mem.js`, `bug/gcd.bug`, `bin/make-memory-fixture.mjs`,
   `fixtures/memory.json`: the memory section (below).
-- `contracts/`: Token, Shop and Packed (also used by the soldb demo)
+- `contracts/`: Token, Shop and Packed (also used by the debugger demo)
   and Strings (written for this page).
 
 ## How the fixtures were made

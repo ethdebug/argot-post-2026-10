@@ -1,7 +1,8 @@
 // Opens the page in real browsers (Playwright) and collects
 // window.results. Usage: node run.mjs [runs]
 import { chromium, firefox, webkit, devices } from "playwright";
-const PAGE = process.env.PAGE ?? "http://localhost:8000/demos/soldb/";
+const PAGE = process.env.PAGE
+  ?? "http://localhost:8765/files/demos/debugger/";
 // Shiki and its grammar/themes come from a CDN; nothing else may.
 const CDN = ["esm.sh", "cdn.jsdelivr.net"];
 const runs = +(process.argv[2] ?? 3);
@@ -51,6 +52,17 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
     await page.waitForFunction(() => window.results?.done, null,
       { timeout: 120000 });
     const r = await page.evaluate(() => window.results);
+    if (i === 0) {
+      // The old path redirects here and keeps the hash.
+      const old = await ctx.newPage();
+      await old.goto(new URL("../soldb/#kept", PAGE).href);
+      await old.waitForURL((u) => u.pathname.endsWith("/demos/debugger/"),
+        { timeout: 10000 }).catch(() => {});
+      const u = new URL(old.url());
+      r.redirect = { path: u.pathname, hash: u.hash,
+        ok: u.pathname === new URL(PAGE).pathname && u.hash === "#kept" };
+      await old.close();
+    }
     r.frames = await page.evaluate(() => window.frames_);
     r.foreign = foreign; r.logs = logs;
     if (i === 0 && name === "chromium") {
@@ -62,7 +74,7 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
     const ui = await page.evaluate(async () => {
       const out = {};
       const box = document.getElementById("stepper");
-      const range = box.querySelector("input");
+      const range = box.querySelector("input[type=range]");
       const go = (i) => {
         range.value = String(i);
         range.dispatchEvent(new Event("input"));
@@ -94,7 +106,6 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
       for (const p of ["sol", "fe"]) {
         await window.select(p);
         const w = window.walked[p];
-        if (p === "fe") out.feStateHidden = panel.hidden;
         if (p === "sol") {
           // First and last steps, then step into until a value changes.
           go(0);
@@ -119,7 +130,8 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
           // Step fast: only the last step's state is drawn.
           for (let k = 0; k < 10; k++) btn("into", 1).click();
           const fast = await settle();
-          out.state = { shown: !panel.hidden, first, last, synced, fast,
+          out.state = { shown: !panel.querySelector("table").hidden,
+            first, last, synced, fast,
             change: { from, to, changed, row }, afterNext: marked(),
             lines: [...panel.querySelectorAll("p")]
               .map((e) => e.textContent.replace(/\s+/g, " ")) };
@@ -136,6 +148,9 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
           intoOk &&= j > i && !!w.spans[j] && key(w, j) !== key(w, i);
         }
         const lineMs = (performance.now() - t) / 20;
+        // The slider follows the buttons.
+        const sliderOk = range.type === "range" && +range.value === +document
+          .getElementById("where").textContent.match(/^step (\d+)/)[1];
         // Back into: an earlier step with another span; keys match buttons.
         const i0 = at();
         btn("into", -1).click();
@@ -165,7 +180,8 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
         const ran = at();
         const runOk = ran > before && ran <= target && w.lineNo[ran] === line
           && w.spans[ran][0] === shownId;
-        out[p] = { intoOk, backOk, keyOk, keyLeftOk, disabled, shiftNoMove,
+        out[p] = { intoOk, sliderOk, backOk, keyOk, keyLeftOk, disabled,
+          shiftNoMove,
           run: { from: before, line, to: ran, ok: runOk } };
         // A multi-line span in the main file (source 0).
         let multi = -1;
@@ -221,7 +237,8 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
         const w = window.walked[`bug-${lvl}`];
         const o = out.bug[lvl] = { stepperShown: !box.hidden,
           aboutShown: !document.querySelector("[data-about=bug]").hidden,
-          framesShown: !frames.hidden, varsShown: !panel.hidden };
+          framesShown: !frames.querySelector("ol").hidden,
+          varsShown: !panel.querySelector("table").hidden };
         go(0);
         const fwd = btn("into", 1);
         let intoOk = true;
@@ -273,6 +290,60 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
         }
         o.lineMs = lineMsOf(w);
       }
+      // Skip compiler code. On (the default): into, over and out never
+      // stop on a compiler-generated step (no span), forward or back.
+      // Off: stepping into stops on one. Over and out only where enabled
+      // (BUG; on Solidity and Fe every step is at EVM depth 1).
+      const skip = document.getElementById("skip");
+      const setSkip = (on) => { if (skip.checked !== on) skip.click(); };
+      out.skip = { default: skip.checked };
+      for (const ds of ["sol", "fe", "bug-O0", "bug-O2"]) {
+        if (ds.startsWith("bug")) await window.selectLevel(ds.slice(4));
+        else await window.select(ds);
+        const w = window.walked[ds];
+        const walk = (go, d) => {
+          const b = btn(go, d);
+          let gen = 0, stops = 0;
+          while (!b.disabled && stops < w.n) {
+            b.click();
+            stops++;
+            if (!w.spans[at()]) gen++;
+          }
+          return { stops, gen };
+        };
+        const o = out.skip[ds] = {
+          note: document.getElementById("skip-note").textContent };
+        // The same panels on every tab; missing data says why.
+        go(w.changes[0] ?? 0);
+        await window.stateReady();
+        out.panels ??= {};
+        out.panels[ds] = [...box.querySelectorAll(".panel")].map((e) => ({
+          name: e.querySelector(".ph").textContent,
+          shown: !e.hidden && e.getClientRects().length > 0,
+          why: [...e.querySelectorAll(".why")].map((x) => x.textContent)
+            .filter((t) => t).join(" | "),
+          whyMuted: [...e.querySelectorAll(".why")].every((x) =>
+            getComputedStyle(x).color === getComputedStyle(note).color),
+          data: [...e.querySelectorAll("[data-has]")]
+            .some((x) => !x.hidden) }));
+        for (const on of [true, false]) {
+          setSkip(on);
+          const r = o[on ? "on" : "off"] = {};
+          for (const g of ["into", "over", "out"]) {
+            go(0);
+            const off = btn(g, 1).disabled && btn(g, -1).disabled
+              && w.depths.every((x) => x === w.depths[0]);
+            if (off) continue;
+            // "out" starts from the deepest call stack.
+            const deep = w.depths.indexOf(Math.max(...w.depths));
+            go(g === "out" ? deep : 0);
+            r[`${g}+`] = walk(g, 1);
+            go(g === "out" ? deep : w.n - 1);
+            r[`${g}-`] = walk(g, -1);
+          }
+        }
+        setSkip(true);
+      }
       await window.select("sol");
       return out;
     });
@@ -282,7 +353,7 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
       // that changes a value, with as few unknowns as possible.
       const showcase = () => page.evaluate(async () => {
         const box = document.getElementById("stepper");
-        const range = box.querySelector("input");
+        const range = box.querySelector("input[type=range]");
         const go = (i) => {
           range.value = String(i);
           range.dispatchEvent(new Event("input"));
@@ -316,7 +387,7 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
         fullPage: true });
       await page.evaluate(async (i) => {
         await window.select("fe");
-        const range = document.querySelector("#stepper input");
+        const range = document.querySelector("#stepper input[type=range]");
         range.value = String(i);
         range.dispatchEvent(new Event("input"));
       }, ui.fe.multi);
@@ -335,7 +406,7 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
       // is shown first, so changed values are marked as when stepping.
       const bugAt = (lvl, i) => page.evaluate(async ([lvl, i]) => {
         await window.selectLevel(lvl);
-        const range = document.querySelector("#stepper input");
+        const range = document.querySelector("#stepper input[type=range]");
         const go = async (j) => {
           range.value = String(j);
           range.dispatchEvent(new Event("input"));
@@ -373,7 +444,7 @@ let phone;
     { timeout: 120000 });
   const w = await page.evaluate(async () => {
     await window.select("fe");
-    const range = document.querySelector("#stepper input");
+    const range = document.querySelector("#stepper input[type=range]");
     const sp = window.walked.fe.spans;
     range.value = String(sp.findIndex((s) => s && s[0] === 0 &&
       s[2] - s[1] > 60));
@@ -386,7 +457,7 @@ let phone;
   // BUG, -O2, at an inline step with its call stack: no sideways scroll.
   w.bug = await page.evaluate(async () => {
     await window.selectLevel("O2");
-    const range = document.querySelector("#stepper input");
+    const range = document.querySelector("#stepper input[type=range]");
     range.value = String(window.walked["bug-O2"].inline
       .findIndex((x) => x) + 1);
     range.dispatchEvent(new Event("input"));
@@ -405,7 +476,7 @@ const want = {
   last: { orders: MAP, nextId: "1", revenue: "30", owner: UNK },
 };
 const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
-const stateOk = (st, fe) => st?.shown && st.synced && st.fast && fe
+const stateOk = (st) => st?.shown && st.synced && st.fast
   && same(st.first, want.first)
   && same(st.last, want.last) && same(st.change.changed, ["nextId"])
   && st.change.row.nextId === "1" && st.afterNext.length === 0;
@@ -432,8 +503,10 @@ for (const [name, b] of Object.entries(all)) {
   }
   console.log("ref", JSON.stringify(r0.ref));
   console.log("ui", JSON.stringify(r0.ui), "shiki", JSON.stringify(r0.shiki));
+  console.log("redirect", JSON.stringify(r0.redirect));
+  console.log("panels", JSON.stringify(r0.ui.panels));
   console.log("state panel", b.runs.map((r) =>
-    stateOk(r.ui.state, r.ui.feStateHidden) ? "ok" : "FAIL").join(","));
+    stateOk(r.ui.state) ? "ok" : "FAIL").join(","));
   const errors = b.runs.flatMap((r) => r.logs)
     .filter((l) => /^(error|pageerror)/.test(l));
   console.log("console errors", errors.length);
@@ -447,7 +520,8 @@ for (const [name, b] of Object.entries(all)) {
     }
     const u = r.ui;
     for (const p of ["sol", "fe"]) {
-      check(name, `${p} stepping`, u[p].intoOk && u[p].backOk
+      check(name, `${p} stepping`, u[p].intoOk && u[p].sliderOk
+        && u[p].backOk
         && u[p].keyOk && u[p].keyLeftOk && u[p].run.ok && u[p].hl > 0
         && u[p].hlWhenGen === 0 && !u[p].pageScrollX);
     }
@@ -469,7 +543,36 @@ for (const [name, b] of Object.entries(all)) {
     check(name, "BUG O2 inline marker", u.bug.O2.inline?.fn === "dbl"
       && u.bug.O2.inline.noteVisible === "visible"
       && u.bug.O2.inline.site > 0);
-    check(name, "state panel", stateOk(u.state, u.feStateHidden));
+    check(name, "state panel", stateOk(u.state));
+    check(name, "skip compiler code on by default", u.skip.default);
+    // Panels: call stack, inlining, variables on every tab; those without
+    // data give their reason (expected: the data set's whyNot).
+    const NAMES = ["Call stack", "Inlining", "Variables"];
+    const missing = { sol: ["Call stack", "Inlining"],
+      fe: NAMES, "bug-O0": ["Inlining"], "bug-O2": [] };
+    for (const [ds, want] of Object.entries(missing)) {
+      const ps = u.panels[ds];
+      check(name, `${ds} panels`, same(ps.map((x) => x.name), NAMES)
+        && ps.every((x) => x.shown && x.whyMuted));
+      for (const x of ps) {
+        const miss = want.includes(x.name);
+        check(name, `${ds} ${x.name}: ${miss ? "reason" : "data"}`,
+          miss ? !x.data && x.why.length > 20 : x.data);
+      }
+    }
+    check(name, "sol: no-locals reason", /local variables/
+      .test(u.panels.sol[2].why));
+    for (const ds of ["sol", "fe", "bug-O0", "bug-O2"]) {
+      const o = u.skip[ds];
+      const on = Object.values(o.on), off = Object.values(o.off);
+      check(name, `${ds} skip on: no stop on compiler code`,
+        o.on["into+"].stops > 0 && on.every((x) => x.gen === 0));
+      check(name, `${ds} skip off: a stop on compiler code`,
+        off.some((x) => x.gen > 0));
+      check(name, `${ds} skip note`, /ethdebug has no explicit marker/
+        .test(o.note));
+    }
+    if (r.redirect) check(name, "redirect from demos/soldb/", r.redirect.ok);
     check(name, "loading state", r.frames.loadingShown);
     check(name, `main thread free (gap < ${LONG} ms)`, r.frames.max < LONG);
     check(name, "worker requests listed", r.requests.some((u) =>
