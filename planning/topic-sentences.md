@@ -167,7 +167,7 @@ finding.*
   and later. Fe and Solar already handle optimized code. ~70)*
 
 **7. Today it matches the old outputs; next, it goes where they
-can't** (~450)
+can't** (~480)
 
 *Exhibit: the BUG trace playground: a call stack from `invoke`/`return`,
 and an inlined `ADD` still naming `dbl(src)`. Hook: the BUG playground,
@@ -190,6 +190,13 @@ editable in the browser.*
   still catching up.** *(81% of verified mainnet deployments are
   optimized; `transform`, `gather` and `pick`; Solar and Fe emit
   ethdebug for optimized builds; gap: values in optimized code. ~70)*
+- **Under optimization, debug data may lose precision but never
+  accuracy.** *(Precision: a range may gather several statements; a
+  folded variable has a type but no location. Accuracy: a pointer
+  never reads the wrong bytes. bugc gathers, never drops (#266); its
+  open locals work lists folded locals with no pointer and tests every
+  pointer at every level (#328); a missing value is a compile error
+  (#327, merged). ~30)*
 - **ethdebug does not have to wait for every compiler: a backfill tool
   can generate it from what older compiler versions already write.**
   *(Answers section 6's "about 0.1% of mainnet": contracts already on

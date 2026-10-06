@@ -259,7 +259,7 @@ no dates given · (~N) = prose word budget
      code; solc's optimizer support comes later **[P]**.
 
 7. **Today it matches the old outputs; next, it goes where they can't**
-   (~450)
+   (~480)
    - *Why you care:* facts that tools have long struggled to show you,
      like local variables in optimized code, become data that any tool
      can read.
@@ -284,7 +284,7 @@ no dates given · (~N) = prose word budget
      in a way that works for every compiler. Demos decode values with
      their own code.
    - **The format is ready for optimized code; solc is catching up**
-     (~80): most mainnet contracts are optimized (81% of verified
+     (~110): most mainnet contracts are optimized (81% of verified
      deployments). Debuggers have asked you to turn the optimizer off,
      because inlining and shared code cut the link to the source.
      ethdebug's instructions can say "I came from an inlined function"
@@ -293,6 +293,15 @@ no dates given · (~N) = prose word budget
      optimized builds today. Gaps: values in optimized code
      (ethdebug/format issue #291), and no real compiler emits local
      variables yet.
+     - **Under optimization, debug data may lose precision but never
+       accuracy** (~30). A range may gather several statements, and a
+       folded variable may have a type but no location; a pointer
+       never reads the wrong bytes. Evidence: bugc's optimizer gathers
+       ranges and never drops one; in its open locals work
+       (ethdebug/format pull request #328), a folded local has no
+       pointer, and tests at every level check each pointer against
+       the program's real values; a missing value is now a compile
+       error (#327, merged).
    - **Contracts already on chain: backfilling** (~70): this answers
      the reader's question after section 6's "about 0.1% of mainnet":
      what about contracts that older compilers built? ethdebug does not
