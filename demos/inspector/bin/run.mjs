@@ -5,6 +5,9 @@ import { chromium, firefox, webkit, devices } from "playwright";
 import { fileURLToPath } from "node:url";
 import path from "node:path";
 import fs from "node:fs";
+import http from "node:http";
+import zlib from "node:zlib";
+import { current as sizesCurrent } from "./sizes.mjs";
 
 const PAGE = process.env.PAGE ?? "http://localhost:8000/demos/inspector/";
 const root = path.dirname(path.dirname(fileURLToPath(import.meta.url)));
@@ -64,6 +67,206 @@ for (const file of fs.readdirSync(path.join(root, "fixtures"))) {
     failed++;
   }
 }
+// The loader's file sizes are current (bin/sizes.mjs), and the picker
+// in index.html has the examples of fixtures/index.json
+if (!sizesCurrent()) {
+  console.log("index.html: file sizes are stale; run node bin/sizes.mjs");
+  failed++;
+}
+{
+  const html = fs.readFileSync(path.join(root, "index.html"), "utf8");
+  const picker = html.match(/<div id="picker"[^>]*>([\s\S]*?)<\/div>/)[1];
+  const got = [...picker.matchAll(/data-id="([^"]+)">([^<]+)</g)]
+    .map(([, id, t]) => `${id} ${t.replace(/\s+/g, " ")}`).join("\n");
+  const want = JSON.parse(fs.readFileSync(path.join(root, "fixtures",
+    "index.json"), "utf8")).filter((x) => !x.hidden)
+    .map((x) => `${x.id} ${x.title}`).join("\n");
+  if (got !== want) {
+    console.log(`index.html picker differs from fixtures/index.json:\n${
+      got}`);
+    failed++;
+  }
+}
+// No local paths in what is published
+{
+  const home = "/" + "Users/";
+  const walk = (d) => fs.readdirSync(d, { withFileTypes: true })
+    .flatMap((e) => e.name.startsWith(".") || ["node_modules",
+      "screenshots"].includes(e.name) ? [] : e.isDirectory()
+      ? walk(path.join(d, e.name)) : [path.join(d, e.name)]);
+  for (const f of walk(root)) {
+    if (fs.readFileSync(f, "utf8").includes(home)) {
+      console.log(`${path.relative(root, f)} has a local path`);
+      failed++;
+    }
+  }
+}
+
+// A static server like GitHub Pages: the repo's public root, text
+// gzipped. For the slow-link check.
+const site = path.dirname(path.dirname(root));
+const TYPES = { ".html": "text/html", ".js": "text/javascript",
+  ".css": "text/css", ".json": "application/json" };
+const server = http.createServer((req, res) => {
+  let f = path.join(site, decodeURIComponent(new URL(req.url,
+    "http://x").pathname));
+  if (f.endsWith("/")) f += "index.html";
+  if (!f.startsWith(site) || !fs.existsSync(f)) {
+    res.writeHead(404);
+    return res.end();
+  }
+  const body = zlib.gzipSync(fs.readFileSync(f));
+  res.writeHead(200, { "content-type": TYPES[path.extname(f)] ??
+    "application/octet-stream", "content-encoding": "gzip",
+  "content-length": body.length, "cache-control": "max-age=600" });
+  res.end(body);
+});
+await new Promise((r) => server.listen(0, "127.0.0.1", r));
+const SLOW = `http://127.0.0.1:${server.address().port}/demos/inspector/`;
+
+// A load that fails shows its error and a Retry button; Retry loads it
+// again. `url`: the file that fails (HTTP 503, or a network error) until
+// Retry. `pick`: the example to pick first (its data then fails). `via`:
+// the Retry button to click (the bar's, or the one by the error).
+async function retryCheck(browser, url,
+  { pick, abort, throttle, via = "#loadbar button" } = {}) {
+  const out = [];
+  const ctx = await browser.newContext({
+    viewport: { width: 1280, height: 900 } });
+  let broken = true;
+  await ctx.route(`**/${url}`, (route) => !broken ? route.continue()
+    : abort ? route.abort() : route.fulfill({ status: 503, body: "" }));
+  const p = await ctx.newPage();
+  if (throttle) await throttle(p);
+  p.on("pageerror", (e) => out.push(`pageerror: ${e}`));
+  // (the browser reports the failed request itself)
+  p.on("console", (m) => {
+    if (m.type() === "error" && !/Failed to load resource|ERR_FAILED/
+      .test(m.text())) out.push(`console: ${m.text()}`);
+  });
+  await p.goto(pick ? SLOW : PAGE);
+  if (pick) {
+    await p.waitForFunction(() => window.results?.done, null,
+      { timeout: 60000 });
+    await p.locator(`#picker button[data-id="${pick}"]`).click();
+  }
+  const bar = p.locator("#loadbar.failed");
+  await bar.waitFor({ timeout: 60000 });
+  const text = (await bar.innerText()).replace(/\s+/g, " ").trim();
+  const reason = abort ? "the network request failed" : "HTTP 503";
+  if (text !== `Could not load ${url} (${reason}).Retry` ||
+    await p.locator("#loadbar button").innerText() !== "Retry") {
+    out.push(`error text: ${text}`);
+  }
+  broken = false;
+  await p.locator(via).click();
+  await p.waitForFunction((x) => window.results?.done &&
+    document.querySelector("#tree li[data-path]") &&
+    (!x || document.querySelector(`#picker [aria-checked="true"]`)
+      ?.dataset.id === x), pick, { timeout: 60000 });
+  if (await p.locator("#loadbar.failed").count()) out.push("still failed");
+  if (pick && !(await p.evaluate((x) => x in window.results.decoded,
+    pick))) out.push(`${pick} not shown`);
+  await ctx.close();
+  return out.map((x) => `retry ${url}: ${x}`);
+}
+
+// On a slow link (Chromium's "Slow 3G" over CDP: 400 ms latency, 400
+// kbit/s), from the gzipping server: progress shows within 1 s, the
+// first example is usable, only its data has loaded by then (the others
+// come idle-time after), nothing moves, and nothing logs an error. Also
+// prints each request with its size on the wire and its size.
+async function slowLink(browser) {
+  const out = [];
+  const throttle = async (p) => {
+    const cdp = await p.context().newCDPSession(p);
+    await cdp.send("Network.enable");
+    await cdp.send("Network.emulateNetworkConditions", { offline: false,
+      latency: 400, downloadThroughput: 400 * 1000 / 8,
+      uploadThroughput: 400 * 1000 / 8 });
+  };
+  const ctx = await browser.newContext({
+    viewport: { width: 1280, height: 720 } });
+  const p = await ctx.newPage();
+  await throttle(p);
+  p.on("pageerror", (e) => out.push(`pageerror: ${e}`));
+  p.on("console", (m) => {
+    if (["error", "warning"].includes(m.type())) {
+      out.push(`console: ${m.text()}`);
+    }
+  });
+  await p.addInitScript(() => {
+    window.shifts = 0;
+    new PerformanceObserver((l) => {
+      for (const e of l.getEntries()) {
+        if (!e.hadRecentInput) window.shifts += e.value;
+      }
+    }).observe({ type: "layout-shift", buffered: true });
+  });
+  const t0 = Date.now();
+  await p.goto(SLOW, { waitUntil: "commit" });
+  let progress;
+  while (Date.now() - t0 < 5000) {
+    const t = await p.locator("#loadbar").innerText().catch(() => "");
+    if (/\d+ KB of \d+ KB/.test(t) &&
+      await p.locator("#loadbar .msg").isVisible()) {
+      progress = Date.now() - t0;
+      break;
+    }
+    await p.waitForTimeout(25);
+  }
+  await p.waitForFunction(() => window.results?.done, null,
+    { timeout: 60000 });
+  const t = await p.evaluate(() => {
+    const paint = performance.getEntriesByName("first-contentful-paint")[0];
+    const { usable } = window.results;
+    return { paint: Math.round(paint?.startTime ?? -1),
+      usable: Math.round(usable),
+      fixtures: performance.getEntriesByType("resource")
+        .filter((e) => e.startTime < usable &&
+          e.name.includes("/fixtures/"))
+        .map((e) => e.name.split("/fixtures/")[1]).sort().join() };
+  });
+  if (!(progress <= 1000)) out.push(`progress shown at ${progress} ms`);
+  if (!(t.paint <= 1000)) out.push(`first paint at ${t.paint} ms`);
+  if (t.fixtures !== "index.json,memory.json,token-transfer.json") {
+    out.push(`fetched before usable: ${t.fixtures}`);
+  }
+  // the others, idle-time
+  await p.waitForFunction(() => ["shop-place", "packed-set",
+    "strings-update"].every((id) => performance.getEntriesByType(
+    "resource").some((e) => e.name.endsWith(`fixtures/${id}.json`))),
+  null, { timeout: 30000 }).catch(() => out.push("no prefetch"));
+  await p.waitForFunction(() => window.memResults?.done);
+  const shifts = await p.evaluate(() => window.shifts);
+  if (shifts > 0.01) out.push(`layout shift ${shifts.toFixed(3)}`);
+  // a prefetched example shows at once
+  const t1 = Date.now();
+  await p.locator('#picker button[data-id="shop-place"]').click();
+  await p.locator('#tree li[data-path="orders"]').waitFor();
+  const pick = Date.now() - t1;
+  const rows = await p.evaluate(() => [performance.getEntriesByType(
+    "navigation")[0], ...performance.getEntriesByType("resource")]
+    .filter((e) => !e.name.startsWith("blob:"))
+    .map((e) => [e.name.replace(/^.*\/demos\/inspector\//, "")
+      .replace(/^.*\/shared\//, "../../shared/") || "index.html",
+      e.encodedBodySize, e.decodedBodySize]));
+  const kb = (n) => (n / 1024).toFixed(1).padStart(6);
+  const sum = (k) => rows.reduce((n, r) => n + r[k], 0);
+  console.log(`  slow link: progress ${progress} ms, first paint ${
+    t.paint} ms, usable ${t.usable} ms, layout shift ${shifts.toFixed(4)
+  }, prefetched pick ${pick} ms`);
+  for (const [n, gz, raw] of rows) {
+    console.log(`  ${kb(gz)} KB gzip ${kb(raw)} KB  ${n}`);
+  }
+  console.log(`  ${kb(sum(1))} KB gzip ${kb(sum(2))} KB  total`);
+  await ctx.close();
+  // a failure on the slow link: Retry loads it
+  out.push(...await retryCheck(browser, "fixtures/packed-set.json",
+    { pick: "packed-set", throttle }));
+  return out.map((x) => `slow link: ${x}`);
+}
+
 for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
   ["webkit", webkit]]) {
   const browser = await type.launch();
@@ -75,7 +278,8 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
   const foreign = [];
   await ctx.route("**/*", (route) => {
     const u = new URL(route.request().url());
-    if (u.host !== new URL(PAGE).host) {
+    // (the loader imports the decoder bundle it fetched from a blob: URL)
+    if (u.protocol !== "blob:" && u.host !== new URL(PAGE).host) {
       foreign.push(u.href);
       return route.abort();
     }
@@ -90,6 +294,10 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
   await page.goto(PAGE);
   await page.waitForFunction(() => window.results?.done, null,
     { timeout: 60000 });
+  // each example's data loads when it is picked
+  for (const id of Object.keys(expected)) {
+    await page.evaluate((x) => window.select(x), id);
+  }
   const r = await page.evaluate(() => window.results);
   const problems = [...r.errors, ...logs,
     ...foreign.map((u) => `foreign ${u}`)];
@@ -961,14 +1169,14 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
     { timeout: 60000 });
   const mr = await page.evaluate(() => window.memResults);
   problems.push(...mr.errors.map((e) => `memory: ${e}`));
-  // The longest of three names: longest holds the address of one
-  // element's string, so it reads that element's bytes
+  // names[1] = "grace hopper": the element's word gets the address of a
+  // new string; "grace" stays where it was
   const list = { names: "length 3", "names[0]": '"ada"',
-    "names[1]": '"grace"', "names[2]": '"alan"' };
+    "names[2]": '"alan"' };
   const memWant = {
-    start: { ...list, longest: '"ada"', i: "1" },
-    found: { ...list, longest: '"grace"', i: "1" },
-    done: { ...list, longest: '"grace"', i: "3" },
+    built: { ...list, "names[1]": '"grace"' },
+    written: { ...list, "names[1]": '"grace"' },
+    replaced: { ...list, "names[1]": '"grace hopper"' },
   };
   for (const [pt, vals] of Object.entries(memWant)) {
     const d = mr.decoded[pt] ?? {};
@@ -976,12 +1184,6 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
       [k, v.text]));
     if (!same(got, vals)) {
       problems.push(`memory ${pt}: ${JSON.stringify(got)}`);
-    }
-  }
-  for (const [pt, el] of [["start", "names[0]"], ["done", "names[1]"]]) {
-    const d = mr.decoded[pt] ?? {};
-    if (d.longest?.region.offset !== d[el]?.region.offset) {
-      problems.push(`memory ${pt}: longest is not at ${el}`);
     }
   }
   const storageLit = await page.locator("#panel .b.hl:not(.cmp *)").count();
@@ -995,72 +1197,84 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
       [k, v.length === 32 ? "all" : v.join()]));
   });
   const mrow = (n) => page.locator(`#mtree li[data-path="${n}"] > .row`);
-  // A = loop starts, B = loop done: longest's word (0x180) holds the
-  // address of "ada" at A and of "grace" at B
+  // A = array built, B = name replaced: names[1] is found through the
+  // array's word (0xa0), its length (0x140) and the element's word
+  // (0x180), which holds the address of "grace" (0x200) at A and of
+  // "grace hopper" (0x280) at B
   await page.locator("#memory").scrollIntoViewIfNeeded();
-  await mrow("longest").hover();
+  await mrow("names[1]").hover();
   let ml = await mlit();
-  if (!same(ml, { "before 0x0180": "all", "before 0x02a0": "all",
-    "before 0x02c0": "0,1,2", "after 0x0180": "all", "after 0x02e0": "all",
-    "after 0x0300": "0,1,2,3,4" })) {
-    problems.push(`memory longest: ${JSON.stringify(ml)}`);
+  const via = { "0x00a0": "all", "0x0140": "all", "0x0180": "all" };
+  const onSide = (side, o) => Object.fromEntries(Object.entries(o).map(
+    ([k, v]) => [`${side} ${k}`, v]));
+  if (!same(ml, { ...onSide("before", { ...via, "0x0200": "all",
+    "0x0220": "0,1,2,3,4" }), ...onSide("after", { ...via, "0x0280": "all",
+    "0x02a0": "0,1,2,3,4,5,6,7,8,9,10,11" }) })) {
+    problems.push(`memory names[1]: ${JSON.stringify(ml)}`);
   }
   const mprobe = await dl("#mdetails");
-  if (mprobe.Value !== "longest (string)" ||
-    mprobe.A !== '0x02c0–0x02c2 = "ada"' ||
-    mprobe.B !== '0x0300–0x0304 = "grace"' || mprobe.scrolls) {
+  if (mprobe.Value !== "names[1] (string)" ||
+    mprobe.A !== '0x0220–0x0224 = "grace"' ||
+    mprobe.B !== '0x02a0–0x02ab = "grace hopper"' || mprobe.scrolls) {
     problems.push(`memory details: ${JSON.stringify(mprobe)}`);
   }
-  // Selected: the derivation reads longest's word, then the length at
-  // that address, then the bytes; the card shows the word at A
-  await mrow("longest").click();
+  // Selected: the array's word, its length, the item, the element's
+  // word (an address at A, another at B), the string's length, its
+  // bytes; the card shows the element's word at A
+  await mrow("names[1]").click();
   const mhow = () => page.locator("#mhow").textContent();
-  let h = await mhow();
-  if (!/longest-length[\s\S]*the length, 5[\s\S]*longest-data/.test(h) ||
-    !h.includes("an address, 0x02e0")) {
-    problems.push(`memory how longest: ${h.slice(0, 200)}`);
+  const h = await mhow();
+  const order = ["names:", "names-length", "Item", "names-element:",
+    "names-element-length", "names-element-data",
+    'Read at B: "grace hopper"'];
+  const where = order.map((x) => h.indexOf(x));
+  if (where.some((x, k) => x < 0 || (k && x < where[k - 1])) ||
+    !/an address, 0x0200[\s\S]*an address, 0x0280/.test(h) ||
+    !/the length, 5[\s\S]*the length, 12/.test(h) ||
+    await page.locator("#mhow .branch").count()) {
+    problems.push(`memory how names[1]: ${where} ${h.slice(0, 200)}`);
   }
   const cards = await page.evaluate(() => [...document.querySelectorAll(
     "#mpanel .cmp [data-of]")].map((c) => c.dataset.of));
   if (!cards.includes("0x0180")) {
     problems.push(`memory cards: ${cards}`);
   }
-  // An element: the array's word, its length, the item, the element's
-  // word, the string's length, its bytes
-  await mrow("names[1]").click();
-  h = await mhow();
-  const order = ["names:", "names-length", "Item", "names-element:",
-    "names-element-length", "names-element-data", "Read at B: \"grace\""];
-  const at = order.map((x) => h.indexOf(x));
-  if (at.some((x, k) => x < 0 || (k && x < at[k - 1]))) {
-    problems.push(`memory how names[1]: ${at}`);
-  }
-  // a step lights its region: the string's length word
+  // a step lights its region: the new string's length word
   await page.locator('#mhow li[data-region*="names-element-length"]')
     .hover();
   ml = await mlit();
-  if (!same(ml, { "after 0x02e0": "all" })) {
+  if (!same(ml, { "after 0x0280": "all" })) {
     problems.push(`memory step: ${JSON.stringify(ml)}`);
   }
   await page.keyboard.press("Escape");
-  // A byte names its owners: names[1] and longest share these bytes
+  // A byte names its owner
   await page.locator('#mpanel .word[data-side="after"]' +
-    '[data-slot="0x0300"] .b[data-i="0"]').hover();
+    '[data-slot="0x02a0"] .b[data-i="0"]').hover();
   const mp2 = await page.locator("#mdetails").textContent();
-  if (!mp2.trim().startsWith("names[1], longest · bytes 0–4 of word " +
-    "0x0300")) {
+  if (!mp2.trim().startsWith("names[1] · bytes 0–11 of word 0x02a0")) {
     problems.push(`memory byte: ${mp2}`);
   }
-  // B = longer name found: longest is in another word there, so the
-  // derivation shows A's and B's steps apart
-  await page.locator('#mpick-after button[data-id="found"]').click();
-  await mrow("longest").click();
-  if (await page.locator("#mhow .branch").count() !== 2) {
-    problems.push("memory: no fork for longest in another word");
+  // At B, the old bytes of "grace" are still in memory, owned by no
+  // value
+  const left = await page.evaluate(() => [...document.querySelectorAll(
+    '#mpanel .word[data-side="after"][data-slot="0x0220"] .b')]
+    .slice(0, 5).map((c) => `${c.textContent}${
+      c.classList.contains("free") ? "" : "!"}`).join(" "));
+  if (left !== "67 72 61 63 65") problems.push(`memory old bytes: ${left}`);
+  // A = new string written: "grace hopper" is in memory at A already;
+  // only the element's word changes
+  await page.locator('#mpick-before button[data-id="written"]').click();
+  await mrow("names[1]").click();
+  const mwords = await page.evaluate(() => [...document.querySelectorAll(
+    '#mpanel .view[data-side="after"] .wrow:not(.same)[data-slot]')]
+    .map((r) => r.dataset.slot).join());
+  if (mwords !== "0x00c0,0x0180") {
+    problems.push(`memory written -> replaced: ${mwords}`);
   }
-  await page.locator('#mpick-after button[data-id="done"]').click();
+  await page.keyboard.press("Escape");
+  await page.locator('#mpick-before button[data-id="built"]').click();
   // Enter on a row selects it; Escape clears it
-  await mrow("i").focus();
+  await mrow("names[2]").focus();
   await page.keyboard.press("Enter");
   await page.locator("h1").hover();
   if (await page.locator("#mtree .row.sel").count() !== 1) {
@@ -1089,7 +1303,7 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
   });
   if (mwide) problems.push("memory: words scroll sideways on desktop");
   if (name === "chromium") {
-    await mrow("longest").click();
+    await mrow("names[1]").click();
     await page.evaluate(() => {
       document.querySelector("#memory .words").scrollTop = 0;
       document.querySelector("#memory").scrollIntoView();
@@ -1108,8 +1322,8 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
   hp.on("console", (m) => {
     if (m.type() === "error") problems.push(`hash console: ${m.text()}`);
   });
-  await hp.goto(PAGE + "#ex=strings&mode=before&sel=grows&a=found&" +
-    "b=done&mmode=before&msel=names[1]&insets=0");
+  await hp.goto(PAGE + "#ex=strings&mode=before&sel=grows&a=written&" +
+    "b=replaced&mmode=before&msel=names[1]&insets=0");
   await hp.waitForFunction(() => window.results?.done &&
     window.memResults?.done, null, { timeout: 60000 });
   const hs = await hp.evaluate(() => ({
@@ -1129,7 +1343,8 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
     insets: document.querySelector("#insets").checked,
   }));
   if (!same(hs, { ex: "strings-update", mode: "before", sel: "grows",
-    how: "before", a: "found", b: "done", mmode: "before", msel: "names[1]",
+    how: "before", a: "written", b: "replaced", mmode: "before",
+    msel: "names[1]",
     insets: false, hash: hs.hash }) || !hs.hash.includes("ex=strings") ||
     !hs.hash.includes("sel=grows")) {
     problems.push(`hash restore: ${JSON.stringify(hs)}`);
@@ -1152,7 +1367,7 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
     document.querySelectorAll("#tree .row.sel").length,
     document.querySelector('#mpick-before [aria-checked="true"]')
       ?.dataset.id]);
-  if (stale.join() !== "token-transfer,after,0,start") {
+  if (stale.join() !== "token-transfer,after,0,built") {
     problems.push(`stale hash: ${stale}`);
   }
   await hp.close();
@@ -1201,11 +1416,12 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
   if (await pp.locator("#how .branch").count() !== 2) {
     problems.push("phone: no difference shown for grows");
   }
-  // longest: its word, the length and the bytes, at A and at B
-  await pp.locator('#mtree li[data-path="longest"] > .row').click();
+  // names[1]: four words and the bytes, at A ("grace") and at B
+  // ("grace hopper")
+  await pp.locator('#mtree li[data-path="names[1]"] > .row').click();
   const mlitp = await pp.locator("#mpanel .b.hl:not(.cmp *)").count();
-  if (mlitp !== 32 + 32 + 3 + 32 + 32 + 5) {
-    problems.push(`phone: ${mlitp} bytes lit for longest`);
+  if (mlitp !== 4 * 32 + 5 + 4 * 32 + 12) {
+    problems.push(`phone: ${mlitp} bytes lit for names[1]`);
   }
   if (await pp.evaluate(() => document.documentElement.scrollWidth >
     document.documentElement.clientWidth)) {
@@ -1217,9 +1433,18 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
     await pp.waitForTimeout(300);
     await pp.locator("#memory").screenshot({ path: shot("memory-phone.png") });
   }
+  // Loading failures: the decoder bundle (network error) and the first
+  // example's data (HTTP 503)
+  problems.push(...await retryCheck(browser, "vendor/pointers.js",
+    { abort: true }));
+  problems.push(...await retryCheck(browser,
+    "fixtures/token-transfer.json", { via: "#tree .error button" }));
+  if (name === "chromium") problems.push(...await slowLink(browser));
+
   console.log(`${name} ${browser.version()}: ${problems.length
     ? "FAIL\n  " + problems.join("\n  ") : "ok"}`);
   failed += problems.length;
   await browser.close();
 }
+server.close();
 process.exit(failed ? 1 : 0);
