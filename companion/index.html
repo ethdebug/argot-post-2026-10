@@ -279,8 +279,8 @@ calls yet (see <a href="#optimized">Optimized code</a>).</p>
   other adapter.</li>
   <li><strong>Other files.</strong> Fe also maps steps into its standard
   library. One line skips other source files. A real tool would map
-  each source id to its file. solc always writes source id 0 today, even
-  for imported files (see
+  each source id to its file. solc gives every instruction the source id of the
+  contract's own file, even for imported files (<a href="https://github.com/ethdebug/format/issues/329">#329</a>; see
   <a href="#mainnet">Contracts already on mainnet</a>).</li>
 </ul>
 
@@ -796,8 +796,8 @@ support, one stage at a time, in public pull requests.</p>
 branch; only <code>ethdebug</code> without <code>ast-id</code> differs.
 Three facts about today's output: 77% to 93% of runtime instructions
 carry a range over the whole contract (compiler-generated code);
-every instruction says <code>source.id: 0</code>, even code from
-imported files; and neither writes the new <em>stamp</em>
+every instruction gets the source id of the contract's own file,
+even code from imported files (<a href="https://github.com/ethdebug/format/issues/329">#329</a>); and neither writes the new <em>stamp</em>
 field that names a file's schema and version (Walnut's #10 build
 does). Output from both the
 nightly and the #16990 build validates against our schemas, 45 checks
@@ -896,9 +896,13 @@ solc today, only on a small part of them.</p>
   building a tool that adds ethdebug to existing solc output, with the
   optimizer off; it is a work in progress.</li>
   <li><strong>Source ids.</strong> In LaunchList, about 15% of
-  instructions come from imported files, but solc labels them all
-  <code>source.id: 0</code>. A stepper then shows the wrong file for
-  that code. We see it in 0.8.30, 0.8.37 and the #16990 build.</li>
+  instructions come from imported files, but solc gives every
+  instruction the source id of the contract's own file. The byte
+  ranges are right but point into the wrong file, so a stepper shows
+  the wrong file for that code. Two-file repro on 0.8.37: all 416 of
+  <code>Main</code>'s instructions say id 1, while the classic source
+  map puts 19 of them in file 0
+  (<a href="https://github.com/ethdebug/format/issues/329">#329</a>). We see it in 0.8.30, 0.8.37 and the #16990 build.</li>
 </ul>
 <p>Fe and Solar already emit ethdebug for optimized code. For solc,
 optimized code comes later <span class="tag plan">plan</span>, and it
