@@ -148,6 +148,9 @@ stage in @ethdebug/codec, which do not exist yet. What soldb shows for
 this transaction is under Details.</p>
 </div>
 
+<p class="status" id="loading">Loading: soldb (WebAssembly, in a Web
+Worker) parses the trace and maps every step...</p>
+
 <div id="stepper" hidden>
   <div class="ctl">
     <span><button class="btn" data-go="out" data-d="-1">&larr; out</button>
@@ -211,6 +214,9 @@ names for Fe (its function detection targets Solidity) and no variables
 
 <details>
 <summary>Details: timings, offline replay, requests</summary>
+<p class="muted">soldb runs in a Web Worker, so the page stays
+responsive while it works. The times below are measured in the
+worker.</p>
 
 <h3>Solidity: lean build, saved trace</h3>
 <p class="status" id="a-status">Running...</p>
