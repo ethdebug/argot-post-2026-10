@@ -1,19 +1,21 @@
 // Makes fixtures/memory.json for the memory section: compiles
-// bug/gcd.bug with bugc, runs it on anvil, and saves memory at a few
+// bug/longest.bug with bugc, runs it on anvil, and saves memory at a few
 // handpicked points of the trace, with the `variables` context bugc
 // emitted for each point's instruction.
 //
-// The program is Euclid's GCD, recursive: gcd(1071, 462) calls
-// gcd(462, 147), gcd(147, 21) and gcd(21, 0), and stores 21. Each call
-// has its own frame in memory, and a and b of each call are at fixed
-// offsets from the frame pointer at 0x80. Each frame keeps the caller's
-// frame pointer in its first word.
+// The program finds the longest name in an array of three strings.
+// `names` is an array in memory: its word holds the address of a length
+// word and three element words, and each element word holds the address
+// of a string (a length word, then the bytes). `longest` is a string
+// local: its word holds the address of one of those strings.
 //
-// bugc must come from ethdebug/format PR #270 (branch
-// ui-local-value-reduce): bugc on main emits no memory pointers.
+// bugc must come from ethdebug/format main (PR #328 or later), which
+// emits pointers for local variables.
 //
-// Needs anvil on RPC (default http://127.0.0.1:8547).
+// Needs anvil with steps tracing on RPC (default http://127.0.0.1:8547):
+//   anvil --port 8547 --steps-tracing
 // Usage: BUGC=<checkout>/packages/bugc node bin/make-memory-fixture.mjs
+// (OPT=<0-3> sets bugc's optimization level; default 0)
 import fs from "node:fs";
 import path from "node:path";
 import { execFileSync } from "node:child_process";
@@ -23,7 +25,8 @@ import { decodeLocals } from "../decode.js";
 const root = path.dirname(path.dirname(fileURLToPath(import.meta.url)));
 const RPC = process.env.RPC_URL ?? "http://127.0.0.1:8547";
 const BUGC = process.env.BUGC;
-if (!BUGC) throw new Error("set BUGC to a built packages/bugc of PR #270");
+const OPT = process.env.OPT ?? "0";
+if (!BUGC) throw new Error("set BUGC to a built packages/bugc from main");
 
 const rpc = async (method, params = []) => {
   const res = await fetch(RPC, {
@@ -38,11 +41,14 @@ const rpc = async (method, params = []) => {
 
 // ------------------------------------------------------------ compile
 
-const file = path.join(root, "bug", "gcd.bug");
+const rel = "bug/longest.bug";
+const file = path.join(root, rel);
 const source = fs.readFileSync(file, "utf8");
+// bugc names the source by its full path; keep the relative one
 const out = JSON.parse(execFileSync("node",
-  [path.join(BUGC, "dist", "bin", "bugc.js"), "-f", "json", file],
-  { encoding: "utf8" }));
+  [path.join(BUGC, "dist", "bin", "bugc.js"), "-O", OPT, "-f", "json",
+    file], { encoding: "utf8" }).split(JSON.stringify(file).slice(1, -1))
+  .join(rel));
 const git = (...a) =>
   execFileSync("git", ["-C", BUGC, ...a], { encoding: "utf8" }).trim();
 const commit = git("rev-parse", "HEAD");
@@ -80,149 +86,110 @@ const tx = await send({ to: address });
 const trace = await rpc("debug_traceTransaction",
   [tx.hash, { enableMemory: true }]);
 const logs = trace.structLogs;
+if (!logs.length) throw new Error("empty trace: run anvil --steps-tracing");
 
-// Each step with its instruction's context
-const steps = logs.map((s, index) => {
-  const context = byPc.get(s.pc)?.debug?.context ?? {};
-  const inMemory = new Set((context.variables ?? [])
-    .filter((v) => JSON.stringify(v.pointer ?? {}).includes('"memory"'))
-    .map((v) => v.identifier));
-  return { index, s, context, inMemory, invoke: !!context.invoke };
-});
-const has = (st, ...names) => names.every((n) => st.inMemory.has(n));
-
-// --------------------------------------------------------------- points
 // A context describes the state after its instruction runs, so each
 // point shows memory after its step: the memory of the next step.
+const memoryAfter = (index) =>
+  "0x" + (logs[index + 1].memory ?? []).map((w) =>
+    w.replace(/^0x/, "")).join("");
 
-// The last step of the run of steps that starts at `first` and keeps the
-// same variables
-const runEnd = (first) => {
-  let k = first;
-  const key = (st) => [...st.inMemory].join();
-  while (steps[k + 1] && key(steps[k + 1]) === key(steps[first])) k++;
-  return steps[k];
-};
-const text = (st) => {
-  const r = st.context.code?.range;
+// Each step with its instruction's context and the values the library
+// reads for its locals (path -> value text)
+const text = (context) => {
+  const r = context.code?.range;
   return r ? source.slice(r.offset, r.offset + r.length) : "";
 };
-// Each call tests b == 0 once; the first test is in the first call, the
-// last in the deepest call
-const tests = steps.filter((st) => st.s.op === "EQ" && text(st) === "b == 0" &&
-  has(st, "a", "b"));
-// Steps just after a return: from gcd(21, 0) back into gcd(147, 21), then
-// into gcd(462, 147), into gcd(1071, 462), and into the main code
-const returns = steps.filter((st) => st.context.return);
-const sstore = steps.find((st) => st.s.op === "SSTORE");
-if (tests.length !== 4 || returns.length !== 4 || !sstore) {
-  throw new Error(`want 4 calls, 4 returns and a store; got ${
-    tests.length}, ${returns.length}, ${!!sstore}`);
+const nodes = (ns) => ns.flatMap((n) => [n, ...nodes(n.children ?? [])]);
+const steps = [];
+for (let index = 0; index < logs.length - 1; index++) {
+  const context = byPc.get(logs[index].pc)?.debug?.context ?? {};
+  const locals = nodes(await decodeLocals(context.variables ?? [],
+    memoryAfter(index)));
+  const flat = Object.fromEntries(locals.map((n) => [n.path,
+    n.value.text]));
+  steps.push({ index, context, flat, locals, code: text(context) });
 }
-// Point ids are the ones the page knows (mem.js picks "before" for A and
-// "loop" for B at first); the titles say what each point is.
+const all = (st) => ["names", "longest", "i"].every((n) => n in st.flat);
+
+// --------------------------------------------------------------- points
+
+// The loop test `i < names.length`: the last step of each run of steps
+// for it (the comparison), with all three locals listed
+const tests = steps.filter((st, k) => all(st) &&
+  st.code === "i < names.length" &&
+  steps[k + 1]?.code !== "i < names.length");
+const found = steps.find((st) => all(st) && st.flat.longest === '"grace"');
+if (tests.length !== 3 || !found) {
+  throw new Error(`want 3 loop tests and longest = grace; got ${
+    tests.length}, ${!!found}`);
+}
 const points = [
   {
-    id: "before",
-    title: "First call: gcd(1071, 462)",
-    note: "at b == 0; one frame, at 0x0100",
+    id: "start",
+    title: "Loop starts",
+    note: "i < names.length, with i = 1; longest is names[0]",
     step: tests[0],
   },
   {
-    id: "loop",
-    title: "Deepest call: gcd(21, 0)",
-    note: "at b == 0, which is true; four frames, the last at 0x0340",
-    step: tests[3],
+    id: "found",
+    title: "Longer name found",
+    note: "longest = names[i] ran, with i = 1",
+    step: found,
   },
   {
-    id: "inside",
-    title: "Unwinding: back in gcd(462, 147)",
-    note: "gcd(147, 21) returned 21; the frame pointer is 0x01c0 again",
-    step: runEnd(returns[1].index + 1),
-  },
-  {
-    id: "after",
-    title: "Result stored: 21",
-    note: "result = 21 in storage slot 0; no value is in memory now",
-    step: sstore,
+    id: "done",
+    title: "Loop done",
+    note: "i < names.length, with i = 3: false, so the loop ends",
+    step: tests[2],
   },
 ];
 
-const memoryAfter = (st) =>
-  "0x" + (logs[st.index + 1].memory ?? []).map((w) =>
-    w.replace(/^0x/, "")).join("");
-const wordAt = (memory, at) =>
-  BigInt("0x" + memory.slice(2 + at * 2, 2 + (at + 32) * 2));
-
-// Values, and where the library finds them: [value, word]
+// What the program computed, and which string longest shares
+const names = { "names": "length 3", "names[0]": '"ada"',
+  "names[1]": '"grace"', "names[2]": '"alan"' };
 const expected = {
-  before: { a: ["1071", "0x0160"], b: ["462", "0x0180"] },
-  loop: { a: ["21", "0x03a0"], b: ["0", "0x03c0"] },
-  inside: { a: ["462", "0x0220"], b: ["147", "0x0240"] },
-  after: {},
+  start: { ...names, longest: '"ada"', i: "1", same: "names[0]" },
+  found: { ...names, longest: '"grace"', i: "1", same: "names[1]" },
+  done: { ...names, longest: '"grace"', i: "3", same: "names[1]" },
 };
-// The frame pointer at 0x80, then the chain of saved frame pointers: the
-// first word of each frame holds the caller's frame pointer (0 for the
-// main code)
-const chains = {
-  before: [0x100, 0],
-  loop: [0x340, 0x280, 0x1c0, 0x100, 0],
-  inside: [0x1c0, 0x100, 0],
-  after: [0],
-};
-const slot0 = {
-  before: await rpc("eth_getStorageAt",
-    [address, "0x0", "0x" + (BigInt(tx.receipt.blockNumber) - 1n)
-      .toString(16)]),
-  after: await rpc("eth_getStorageAt",
-    [address, "0x0", tx.receipt.blockNumber]),
-};
-if (BigInt(slot0.after) !== 21n) throw new Error(`result is ${slot0.after}`);
 
+const sorted = (o) => JSON.stringify(Object.fromEntries(
+  Object.entries(o).sort(([a], [b]) => a.localeCompare(b))));
 const saved = [];
 for (const p of points) {
-  const { index, s, context } = p.step;
-  const memory = memoryAfter(p.step);
-  const variables = context.variables ?? [];
-  // check: the library reads what the program computed
-  const values = await decodeLocals(variables, memory);
-  const want = expected[p.id];
-  if (values.length !== Object.keys(want).length) {
-    throw new Error(`${p.id}: ${values.map((v) => v.name)} in memory`);
+  const { index, context, flat, locals } = p.step;
+  const { same, ...want } = expected[p.id];
+  if (sorted(flat) !== sorted(want)) {
+    throw new Error(`${p.id}: ${JSON.stringify(flat)}`);
   }
-  for (const [name, [text, at]] of Object.entries(want)) {
-    const v = values.find((x) => x.name === name);
-    const got = `${v?.text} at ${v?.region.offset}`;
-    if (got !== `${text} at ${at}`) {
-      throw new Error(`${p.id}: ${name} is ${got}, want ${text} at ${at}`);
-    }
+  // longest's bytes are the element's bytes: no string was copied
+  const region = (path) => {
+    const { offset, length } = locals.find((n) => n.path === path)
+      .value.region;
+    return `${offset} ${length}`;
+  };
+  if (region("longest") !== region(same)) {
+    throw new Error(`${p.id}: longest is not at ${same}`);
   }
-  const chain = [Number(wordAt(memory, 0x80))];
-  while (chain.at(-1) !== 0) chain.push(Number(wordAt(memory, chain.at(-1))));
-  if (chain.join() !== chains[p.id].join()) {
-    throw new Error(`${p.id}: frame pointers ${chain}, want ${chains[p.id]}`);
-  }
-  // storage slot 0 (result), as it is after the step
-  const storage = { "0x0": index >= sstore.index ? slot0.after : slot0.before };
+  const s = logs[index];
+  const memory = memoryAfter(index);
   saved.push({
     id: p.id, title: p.title, note: p.note,
     step: index, pc: s.pc, op: s.op, depth: s.depth,
     range: context.code?.range,
-    variables,
+    variables: context.variables ?? [],
     memory,
-    storage,
   });
   console.log(p.id, `step ${index}`, `pc ${s.pc} ${s.op}`,
     `${(memory.length - 2) / 2} bytes of memory`,
-    values.map((v) => `${v.name}=${v.text}`).join(" "),
-    `frames ${chain.map((n) => n.toString(16)).join(" -> ")}`,
-    `result=${BigInt(storage["0x0"])}`);
+    Object.entries(flat).map(([k, v]) => `${k}=${v}`).join(" "));
 }
 
 const data = {
-  program: { name: "Gcd", file: "bug/gcd.bug", source },
-  compiler: { name: "bugc", pr: 270, branch: "ui-local-value-reduce",
-    commit },
+  program: { name: "Longest", file: rel, source },
+  compiler: { name: "bugc", branch: "main", commit,
+    optimize: Number(OPT) },
   tx: { hash: tx.hash, from, to: address,
     block: Number(tx.receipt.blockNumber) },
   trace: { steps: logs.length },
@@ -230,4 +197,5 @@ const data = {
 };
 fs.writeFileSync(path.join(root, "fixtures", "memory.json"),
   JSON.stringify(data));
-console.log("bugc", commit.slice(0, 9), `${logs.length} steps`);
+console.log("bugc", commit.slice(0, 9), `-O ${OPT}`,
+  `${logs.length} steps`);

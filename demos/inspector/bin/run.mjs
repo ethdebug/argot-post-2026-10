@@ -954,36 +954,34 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
   await setMode("after");
   await page.keyboard.press("Escape");
 
-  // The memory section (BUG, PR #270 preview): values decoded from
+  // The memory section (BUG, bugc from main): locals decoded from
   // bugc's pointers by the library, at each curated point
   await page.setViewportSize({ width: 1280, height: 900 });
   await page.waitForFunction(() => window.memResults?.done, null,
     { timeout: 60000 });
   const mr = await page.evaluate(() => window.memResults);
   problems.push(...mr.errors.map((e) => `memory: ${e}`));
-  // gcd(1071, 462), recursive: a and b of the running call, through
-  // the frame pointer at 0x80; result in storage
+  // The longest of three names: longest holds the address of one
+  // element's string, so it reads that element's bytes
+  const list = { names: "length 3", "names[0]": '"ada"',
+    "names[1]": '"grace"', "names[2]": '"alan"' };
   const memWant = {
-    before: { a: "1071", b: "462", "storage:result": "0" },
-    loop: { a: "21", b: "0", "storage:result": "0" },
-    inside: { a: "462", b: "147", "storage:result": "0" },
-    after: { "storage:result": "21" },
-  };
-  const chainWant = {
-    before: ["0x0100"],
-    loop: ["0x0340", "0x0280", "0x01c0", "0x0100"],
-    inside: ["0x01c0", "0x0100"],
-    after: [],
+    start: { ...list, longest: '"ada"', i: "1" },
+    found: { ...list, longest: '"grace"', i: "1" },
+    done: { ...list, longest: '"grace"', i: "3" },
   };
   for (const [pt, vals] of Object.entries(memWant)) {
     const d = mr.decoded[pt] ?? {};
-    const got = Object.fromEntries(Object.entries(d)
-      .filter(([k]) => k !== "frames").map(([k, v]) => [k, v.text]));
+    const got = Object.fromEntries(Object.entries(d).map(([k, v]) =>
+      [k, v.text]));
     if (!same(got, vals)) {
       problems.push(`memory ${pt}: ${JSON.stringify(got)}`);
     }
-    if (d.frames?.chain.join() !== chainWant[pt].join()) {
-      problems.push(`memory ${pt} frames: ${d.frames?.chain}`);
+  }
+  for (const [pt, el] of [["start", "names[0]"], ["done", "names[1]"]]) {
+    const d = mr.decoded[pt] ?? {};
+    if (d.longest?.region.offset !== d[el]?.region.offset) {
+      problems.push(`memory ${pt}: longest is not at ${el}`);
     }
   }
   const storageLit = await page.locator("#panel .b.hl:not(.cmp *)").count();
@@ -997,58 +995,72 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
       [k, v.length === 32 ? "all" : v.join()]));
   });
   const mrow = (n) => page.locator(`#mtree li[data-path="${n}"] > .row`);
-  // A = first call, B = deepest call: a moved from 0x160 to 0x3a0, and
-  // the library found it through the frame pointer at 0x80
+  // A = loop starts, B = loop done: longest's word (0x180) holds the
+  // address of "ada" at A and of "grace" at B
   await page.locator("#memory").scrollIntoViewIfNeeded();
-  await mrow("a").hover();
+  await mrow("longest").hover();
   let ml = await mlit();
-  if (!same(ml, { "before 0x0160": "all", "before 0x0080": "all",
-    "after 0x03a0": "all", "after 0x0080": "all" })) {
-    problems.push(`memory a: ${JSON.stringify(ml)}`);
-  }
-  const mwhere = await page.locator('#mtree li[data-path="a"] .mwhere')
-    .textContent();
-  if (!mwhere.includes("A 0x0160–0x017f · B 0x03a0–0x03bf (moved)")) {
-    problems.push(`memory a where: ${mwhere}`);
+  if (!same(ml, { "before 0x0180": "all", "before 0x02a0": "all",
+    "before 0x02c0": "0,1,2", "after 0x0180": "all", "after 0x02e0": "all",
+    "after 0x0300": "0,1,2,3,4" })) {
+    problems.push(`memory longest: ${JSON.stringify(ml)}`);
   }
   const mprobe = await dl("#mdetails");
-  if (mprobe.Value !== "a" || mprobe.A !== "0x0160–0x017f = 1071" ||
-    mprobe.B !== "0x03a0–0x03bf = 21" || mprobe.scrolls) {
+  if (mprobe.Value !== "longest (string)" ||
+    mprobe.A !== '0x02c0–0x02c2 = "ada"' ||
+    mprobe.B !== '0x0300–0x0304 = "grace"' || mprobe.scrolls) {
     problems.push(`memory details: ${JSON.stringify(mprobe)}`);
   }
-  // The frames: 0x80 and each frame's first word, which holds the
-  // caller's frame (0x340 -> 0x280 -> 0x1c0 -> 0x100 -> 0)
-  await mrow("#frames").hover();
+  // Selected: the derivation reads longest's word, then the length at
+  // that address, then the bytes; the card shows the word at A
+  await mrow("longest").click();
+  const mhow = () => page.locator("#mhow").textContent();
+  let h = await mhow();
+  if (!/longest-length[\s\S]*the length, 5[\s\S]*longest-data/.test(h) ||
+    !h.includes("an address, 0x02e0")) {
+    problems.push(`memory how longest: ${h.slice(0, 200)}`);
+  }
+  const cards = await page.evaluate(() => [...document.querySelectorAll(
+    "#mpanel .cmp [data-of]")].map((c) => c.dataset.of));
+  if (!cards.includes("0x0180")) {
+    problems.push(`memory cards: ${cards}`);
+  }
+  // An element: the array's word, its length, the item, the element's
+  // word, the string's length, its bytes
+  await mrow("names[1]").click();
+  h = await mhow();
+  const order = ["names:", "names-length", "Item", "names-element:",
+    "names-element-length", "names-element-data", "Read at B: \"grace\""];
+  const at = order.map((x) => h.indexOf(x));
+  if (at.some((x, k) => x < 0 || (k && x < at[k - 1]))) {
+    problems.push(`memory how names[1]: ${at}`);
+  }
+  // a step lights its region: the string's length word
+  await page.locator('#mhow li[data-region*="names-element-length"]')
+    .hover();
   ml = await mlit();
-  const fw = ["0x0080", "0x0340", "0x0280", "0x01c0", "0x0100"];
-  if (!same(ml, Object.fromEntries([["before 0x0080", "all"],
-    ["before 0x0100", "all"], ...fw.map((w) => [`after ${w}`, "all"])]))) {
-    problems.push(`memory frames: ${JSON.stringify(ml)}`);
+  if (!same(ml, { "after 0x02e0": "all" })) {
+    problems.push(`memory step: ${JSON.stringify(ml)}`);
   }
-  const links = await page.evaluate(() => Object.fromEntries(
-    ["0x0080", "0x0340", "0x0280", "0x01c0", "0x0100"].map((w) => [w,
-      [...document.querySelectorAll(`#mpanel .word[data-side="after"]` +
-        `[data-slot="${w}"] .b`)].slice(30).map((c) => c.textContent)
-        .join("")])));
-  if (!same(links, { "0x0080": "0340", "0x0340": "0280", "0x0280": "01c0",
-    "0x01c0": "0100", "0x0100": "0000" })) {
-    problems.push(`memory frame links: ${JSON.stringify(links)}`);
-  }
-  // A byte names its owner and lights it
+  await page.keyboard.press("Escape");
+  // A byte names its owners: names[1] and longest share these bytes
   await page.locator('#mpanel .word[data-side="after"]' +
-    '[data-slot="0x03c0"] .b[data-i="31"]').hover();
+    '[data-slot="0x0300"] .b[data-i="0"]').hover();
   const mp2 = await page.locator("#mdetails").textContent();
-  if (!mp2.trim().startsWith("b · bytes 0–31 of word 0x03c0")) {
+  if (!mp2.trim().startsWith("names[1], longest · bytes 0–4 of word " +
+    "0x0300")) {
     problems.push(`memory byte: ${mp2}`);
   }
-  // result is in storage: 21 once stored
-  await page.locator('#mpick-after button[data-id="after"]').click();
-  const res = await page.locator('#mtree li[data-path="storage:result"]' +
-    " .mval").innerText();
-  if (res.trim() !== "21") problems.push(`result: ${res}`);
-  await page.locator('#mpick-after button[data-id="loop"]').click();
+  // B = longer name found: longest is in another word there, so the
+  // derivation shows A's and B's steps apart
+  await page.locator('#mpick-after button[data-id="found"]').click();
+  await mrow("longest").click();
+  if (await page.locator("#mhow .branch").count() !== 2) {
+    problems.push("memory: no fork for longest in another word");
+  }
+  await page.locator('#mpick-after button[data-id="done"]').click();
   // Enter on a row selects it; Escape clears it
-  await mrow("b").focus();
+  await mrow("i").focus();
   await page.keyboard.press("Enter");
   await page.locator("h1").hover();
   if (await page.locator("#mtree .row.sel").count() !== 1) {
@@ -1077,14 +1089,15 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
   });
   if (mwide) problems.push("memory: words scroll sideways on desktop");
   if (name === "chromium") {
-    await mrow("#frames").hover();
+    await mrow("longest").click();
     await page.evaluate(() => {
       document.querySelector("#memory .words").scrollTop = 0;
       document.querySelector("#memory").scrollIntoView();
     });
-    await mrow("#frames").hover();
+    await page.locator("h1").hover();
     await page.waitForTimeout(300);
     await page.locator("#memory").screenshot({ path: shot("memory.png") });
+    await page.keyboard.press("Escape");
   }
 
   // The URL hash keeps the view: loading with one restores the example,
@@ -1095,8 +1108,8 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
   hp.on("console", (m) => {
     if (m.type() === "error") problems.push(`hash console: ${m.text()}`);
   });
-  await hp.goto(PAGE + "#ex=strings&mode=before&sel=grows&a=inside&" +
-    "b=after&mmode=before&msel=b&insets=0");
+  await hp.goto(PAGE + "#ex=strings&mode=before&sel=grows&a=found&" +
+    "b=done&mmode=before&msel=names[1]&insets=0");
   await hp.waitForFunction(() => window.results?.done &&
     window.memResults?.done, null, { timeout: 60000 });
   const hs = await hp.evaluate(() => ({
@@ -1116,7 +1129,7 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
     insets: document.querySelector("#insets").checked,
   }));
   if (!same(hs, { ex: "strings-update", mode: "before", sel: "grows",
-    how: "before", a: "inside", b: "after", mmode: "before", msel: "b",
+    how: "before", a: "found", b: "done", mmode: "before", msel: "names[1]",
     insets: false, hash: hs.hash }) || !hs.hash.includes("ex=strings") ||
     !hs.hash.includes("sel=grows")) {
     problems.push(`hash restore: ${JSON.stringify(hs)}`);
@@ -1139,7 +1152,7 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
     document.querySelectorAll("#tree .row.sel").length,
     document.querySelector('#mpick-before [aria-checked="true"]')
       ?.dataset.id]);
-  if (stale.join() !== "token-transfer,after,0,before") {
+  if (stale.join() !== "token-transfer,after,0,start") {
     problems.push(`stale hash: ${stale}`);
   }
   await hp.close();
@@ -1188,9 +1201,15 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
   if (await pp.locator("#how .branch").count() !== 2) {
     problems.push("phone: no difference shown for grows");
   }
-  await pp.locator('#mtree li[data-path="a"] > .row').click();
-  if ((await pp.locator("#mpanel .b.hl:not(.cmp *)").count()) !== 128) {
-    problems.push("phone: memory a not lit");
+  // longest: its word, the length and the bytes, at A and at B
+  await pp.locator('#mtree li[data-path="longest"] > .row').click();
+  const mlitp = await pp.locator("#mpanel .b.hl:not(.cmp *)").count();
+  if (mlitp !== 32 + 32 + 3 + 32 + 32 + 5) {
+    problems.push(`phone: ${mlitp} bytes lit for longest`);
+  }
+  if (await pp.evaluate(() => document.documentElement.scrollWidth >
+    document.documentElement.clientWidth)) {
+    problems.push("phone: page scrolls sideways (memory)");
   }
   if (name === "webkit") {
     await pp.waitForTimeout(300);

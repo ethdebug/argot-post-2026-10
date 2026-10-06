@@ -144,6 +144,11 @@ export function decodeValue(type, bytes, types) {
   }
 }
 
+// A type's element type: by id (solc), or inline (bugc)
+const inner = (t, types) =>
+  t.contains.type.id === undefined ? t.contains.type
+    : types[t.contains.type.id];
+
 // A short Solidity-like name for an ethdebug type
 export function typeName(type, types) {
   switch (type.kind) {
@@ -157,7 +162,7 @@ export function typeName(type, types) {
     case "alias":
       return type.definition?.name ?? type.kind;
     case "array": {
-      const e = typeName(types[type.contains.type.id], types);
+      const e = typeName(inner(type, types), types);
       return `${e}[${type.count ?? ""}]`;
     }
     case "mapping": {
@@ -331,6 +336,7 @@ async function instantiate(pointer, state, templates, origin) {
     how: { origin, pointer, steps: replayed[index].steps },
   });
   return {
+    has: (name) => view.regions.named(name).length > 0,
     async take(name) {
       const list = view.regions.named(name);
       const i = used.get(name) ?? 0;
@@ -558,59 +564,82 @@ export function memoryState(hex) {
 }
 
 // The values in memory at one point: each `variables` entry whose pointer
-// is in memory, dereferenced by the library against that point's memory.
-// The region named for the variable holds its value; other regions (such
-// as a frame pointer the offset is read from) are its parts.
+// is in memory, dereferenced by the library against that point's memory
+// (a pointer that reads the stack is left out: the state has no stack).
+// Returns one node per local, as decodeStorage does:
+//   { label, path, type, value?: { text, hex, region, how, parts },
+//     children? }
+// A value's `parts` are the regions read to find it (the local's word,
+// the base address, a length, an element's word); `how` holds the
+// replayed steps of each part and of the value's own region, in order.
 export async function decodeLocals(variables, hex) {
   const state = memoryState(hex);
   const out = [];
   for (const v of variables) {
-    if (!v.pointer || !JSON.stringify(v.pointer).includes('"memory"')) {
-      continue;
+    const p = JSON.stringify(v.pointer ?? {});
+    if (!p.includes('"memory"') || p.includes('"stack"')) continue;
+    const origin = { variable: v.identifier };
+    const scope = await instantiate(v.pointer, state, {}, origin);
+    // a frame pointer the local's word is found from (in a function)
+    const chain = [];
+    for (const f of ["-frame"]) {
+      if (scope.has(f)) chain.push(await scope.take(f));
     }
-    const cursor = await dereference(v.pointer, { state });
-    const view = await cursor.view(state);
-    const regions = [...view.regions];
-    const main = view.regions.named(v.identifier)[0] ?? regions.at(-1);
-    const bytes = await view.read(main);
-    const parts = [];
-    for (const r of regions) {
-      if (r === main) continue;
-      parts.push({ region: regionJson(r),
-        hex: (await view.read(r)).toHex() });
-    }
-    out.push({
-      name: v.identifier,
-      type: v.type,
+    out.push({ label: v.identifier, path: v.identifier, type: v.type,
       pointer: v.pointer,
-      region: regionJson(main),
-      hex: bytes.toHex(),
-      text: decodeValue(v.type, bytes, {}),
-      parts,
-    });
+      ...(await walkLocal(scope, v.type, v.identifier, v.identifier,
+        chain)) });
   }
   return out;
 }
 
-// The values in storage at one point: each `variables` entry whose
-// pointer is in storage, dereferenced by the library against that
-// point's storage words (`storage`: slot hex -> word hex; others zero).
-export async function decodeStored(variables, storage) {
-  const words = new Map(Object.entries(storage ?? {}).map(([k, v]) =>
-    [BigInt(k), v]));
-  const state = storageState(async (slot) =>
-    words.get(BigInt(slot)) ?? word(0n));
+// One value in memory, from the regions bugc's pointer names: the value's
+// word (a reference type's holds the address of its data), then, for a
+// reference type, "-length" at that address and "-element" words or a
+// "-data" region after it. `chain`: the regions read to get here.
+async function walkLocal(scope, type, prefix, path, chain) {
+  const ref = isDynBytes(type) ||
+    (type.kind === "array" && type.count === undefined);
+  const r = await scope.take(prefix);
+  const value = (main, text, parts) => ({ text, hex: main.bytes.toHex(),
+    region: main.region, parts: parts.map((x) => x.region),
+    how: { origin: main.how.origin, pointer: main.how.pointer,
+      steps: stepsAlong([...parts, main]) } });
+  if (!ref) {
+    return { value: value(r, decodeValue(type, r.bytes, {}), chain) };
+  }
+  const len = await scope.take(join(prefix, "length"));
+  const n = Number(toBig(len.bytes));
+  if (isDynBytes(type)) {
+    const d = await scope.take(join(prefix, "data"));
+    return { value: value(d, decodeValue(type, d.bytes, {}),
+      [...chain, r, len]) };
+  }
+  const children = [];
+  for (let i = 0; i < n; i++) {
+    children.push({ label: `[${i}]`, path: `${path}[${i}]`,
+      type: inner(type, {}),
+      ...(await walkLocal(scope, inner(type, {}), join(prefix, "element"),
+        `${path}[${i}]`, [...chain, r, len])) });
+  }
+  return { value: { ...value(len, `length ${n}`, [...chain, r]),
+    length: true }, children };
+}
+
+// The steps that find a list of regions, in order: each region's own
+// steps, without those already given (a list item shared by the regions
+// of one element). Each region step carries its region.
+function stepsAlong(rs) {
+  const seen = new Set();
   const out = [];
-  for (const v of variables) {
-    if (!v.pointer || !JSON.stringify(v.pointer).includes('"storage"')) {
-      continue;
-    }
-    const cursor = await dereference(v.pointer, { state });
-    const view = await cursor.view(state);
-    const r = view.regions[0];
-    const bytes = await view.read(r);
-    out.push({ name: v.identifier, type: v.type, region: regionJson(r),
-      hex: bytes.toHex(), text: decodeValue(v.type, bytes, {}) });
+  for (const r of rs) {
+    r.how.steps.forEach((s, i, all) => {
+      const k = JSON.stringify(s);
+      if (seen.has(k)) return;
+      seen.add(k);
+      out.push(i === all.length - 1 ? { ...s, at: r.region,
+        read: r.bytes.toHex() } : s);
+    });
   }
   return out;
 }

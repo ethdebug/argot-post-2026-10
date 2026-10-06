@@ -1,10 +1,10 @@
 // The memory section: memory at two handpicked points of a BUG program's
-// trace, as two dumps (A, then B), linked to the values bugc says are in
+// trace (A, then B), linked to the local variables bugc says are in
 // memory there. Each value's bytes are the regions that the reference
 // library (@ethdebug/pointers) returned for bugc's pointer, against that
 // point's memory (decode.js decodeLocals); this file only lays those
 // regions over words. The decoding to a value is the page's own.
-import { decodeLocals, decodeStored, typeName } from "./decode.js";
+import { decodeLocals, typeName } from "./decode.js";
 import {
   octets, ruler, paint, initialHash, setHash, locked, details,
 } from "./panel.js";
@@ -16,15 +16,14 @@ const esc = (s) =>
 const num = (h) => Number(BigInt(h === undefined || h === "0x" ? 0 : h));
 const hex = (n, w = 4) => "0x" + n.toString(16).padStart(w, "0");
 const SIDES = ["before", "after"]; // A and B: the page's dump styles
+const TAG = { before: "A", after: "B" };
 const TINTS = 5;
 
 window.memResults = { done: false, errors: [], decoded: {} };
 
 let data; // fixtures/memory.json
-const values = {}; // point id -> decoded values in memory
-const stored = {}; // point id -> decoded values in storage
-const chains = {}; // point id -> frame bases, newest first
-const pick = { before: "before", after: "loop" }; // side -> point id
+const trees = {}; // point id -> decoded locals (decode.js nodes)
+const pick = { before: "start", after: "done" }; // side -> point id
 // Which dump to show: "before" (A) or "after" (B)
 let mode = "after";
 
@@ -42,26 +41,53 @@ function regionBytes(r) {
 // "0x01a0–0x01bf"
 const span = (r) => {
   const o = num(r.offset);
-  return `${hex(o)}–${hex(o + num(r.length ?? "0x20") - 1)}`;
+  const n = num(r.length ?? "0x20");
+  return n ? `${hex(o)}–${hex(o + n - 1)}` : `${hex(o)} (no bytes)`;
 };
 
 const point = (side) => data.points.find((p) => p.id === pick[side]);
-const word = (o) => ({ location: "memory", offset: hex(o), length: "0x20" });
-const FRAMES = "#frames"; // the frame chain's row
-
-// The frames on the stack at a point: from the frame pointer at 0x80,
-// each frame's first word to the caller's frame (0 ends it). Read by
-// this page from memory, not from bugc's pointers.
-function frameChain(memory) {
-  const b = pairs(memory);
-  const at = (o) => num("0x" + (b.slice(o, o + 32).join("") || "0"));
-  const out = [];
-  for (let f = at(0x80); f && out.length < 16; f = at(f)) out.push(f);
-  return out;
-}
 const pairs = (m) => (m.slice(2).match(/../g) ?? []);
 
+// What a region is to the value it leads to, from its name in bugc's
+// pointer: "names", "names-length", "names-element", "names-element-data"
+function role(name) {
+  if (name.endsWith("-length")) return "length";
+  if (name.endsWith("-data")) return "bytes";
+  if (name.endsWith("-frame")) return "frame pointer";
+  return "address";
+}
+
+// Join A's and B's trees by path
+function merge(a = [], b = []) {
+  const byPath = new Map();
+  for (const n of a) byPath.set(n.path, { a: n });
+  for (const n of b) byPath.set(n.path, { ...byPath.get(n.path), b: n });
+  return [...byPath.values()].map(({ a, b }) => {
+    const n = b ?? a;
+    const node = { label: n.label, path: n.path, type: n.type,
+      before: a?.value, after: b?.value,
+      children: n.children || a?.children
+        ? merge(a?.children, b?.children) : undefined };
+    node.changed = node.before?.text !== node.after?.text ||
+      (node.children ?? []).some((c) => c.changed);
+    return node;
+  });
+}
+
+const walk = (nodes, f) => nodes.forEach((n) => {
+  f(n);
+  walk(n.children ?? [], f);
+});
+const find = (nodes, path) => {
+  let out;
+  walk(nodes, (n) => {
+    if (n.path === path) out = n;
+  });
+  return out;
+};
+
 function build() {
+  const tree = merge(trees[pick.before], trees[pick.after]);
   const owners = new Map(); // id -> { id, row, label, regions, text }
   const cover = { before: new Map(), after: new Map() };
   const own = (id, row, label, side, region, text) => {
@@ -80,23 +106,25 @@ function build() {
       if (!ids.includes(id)) ids.push(id);
     }
   };
+  // Each region once a side, owned by the first value that reads it: an
+  // array's word and length belong to the array, an element's word and
+  // length to the element. A local that holds the same address as an
+  // element owns its own regions, over the same bytes.
   for (const side of SIDES) {
-    for (const v of values[pick[side]]) {
-      own(v.name, v.name, v.name, side, v.region, v.text);
-      for (const p of v.parts) {
-        own(`${v.name}#${p.region.name}`, v.name,
-          `${v.name} (${p.region.name} pointer)`, side, p.region);
+    const seen = new Set();
+    walk(tree, (n) => {
+      const v = n[side];
+      if (!v) return;
+      for (const r of [...v.parts, v.region]) {
+        const k = `${r.name} ${r.offset} ${r.length}`;
+        if (seen.has(k)) continue;
+        seen.add(k);
+        const main = r === v.region;
+        own(main ? n.path : `${n.path}#${r.name}`, n.path,
+          main && !v.length ? n.path : `${n.path} (${role(r.name)})`, side,
+          r, main ? v.text : undefined);
       }
-    }
-    // The frame chain: the frame pointer at 0x80, and each frame's
-    // first word, which holds its caller's frame pointer
-    const fp = chains[pick[side]];
-    if (fp.length) {
-      own(FRAMES, FRAMES, "frame pointer (0x80)", side, word(0x80));
-      fp.forEach((f, k) => own(`${FRAMES}${f}`, FRAMES,
-        `frame ${hex(f)}: caller's frame pointer${k === fp.length - 1
-          ? " (none)" : ""}`, side, word(f)));
-    }
+    });
   }
   const bytes = { before: pairs(point("before").memory),
     after: pairs(point("after").memory) };
@@ -109,7 +137,7 @@ function build() {
     if (a !== b) words.add(hex(w));
   }
   const order = [...words].sort((x, y) => num(x) - num(y));
-  return { owners, cover, bytes, order };
+  return { tree, owners, cover, bytes, order };
 }
 
 // --------------------------------------------------------- the dumps
@@ -149,7 +177,7 @@ function wordHtml(m, w, side, tint) {
           ? ` data-owners="${esc(g.owners.join("|"))}"` : ""}` +
         `${first ? ` tabindex="0" role="button" aria-label="${esc(
           `${label}, bytes ${g.from} to ${g.to} of word ${w}, ${
-            side === "before" ? "A" : "B"}`)}"` : ""}` +
+            TAG[side]}`)}"` : ""}` +
         `>${b ?? "··"}</span>`);
     }
   }
@@ -176,7 +204,6 @@ function renderDumps(m) {
   const gap = `<div class="gap" aria-hidden="true"><span>⋯</span></div>`;
   const view = (side) => {
     const p = point(side);
-    const tag = side === "before" ? "A" : "B";
     const lines = [];
     rows.forEach((x, k) => {
       if (k === 0 ? x.n !== 0 : x.n !== rows[k - 1].n + 32) lines.push(gap);
@@ -191,8 +218,8 @@ function renderDumps(m) {
     });
     lines.push(gap);
     return `<div class="view" data-side="${side}" role="group"` +
-      ` aria-label="Memory at ${tag}, ${esc(p.title)}">` +
-      `<div class="view-head"><span class="view-name">${tag} · ${
+      ` aria-label="Memory at ${TAG[side]}, ${esc(p.title)}">` +
+      `<div class="view-head"><span class="view-name">${TAG[side]} · ${
         esc(p.title)}</span>` +
       `<div class="wrow head"><span class="addr"></span>${ruler()}</div>` +
       `</div><div class="rows">${lines.join("")}</div></div>`;
@@ -204,74 +231,139 @@ function renderDumps(m) {
 
 // ------------------------------------------------------- the values
 
-function renderValues(m) {
-  const names = [];
-  for (const side of SIDES) {
-    for (const v of values[pick[side]]) {
-      if (!names.includes(v.name)) names.push(v.name);
+function row(n, top) {
+  const changed = n.before?.text !== n.after?.text;
+  const val = (x) => x ? esc(x.text) : `<i title="bugc's variables ` +
+    `context at this point does not list it">not listed</i>`;
+  const kids = n.children?.length
+    ? `<ul>${n.children.map((c) => row(c)).join("")}</ul>` : "";
+  return `<li data-path="${esc(n.path)}" class="${n.changed ? "chg"
+    : "same"}${top ? " top" : ""}">` +
+    `<div class="row" tabindex="0" role="button" aria-pressed="false">` +
+    `<span class="name">${esc(n.label)}</span>` +
+    `<span class="type">${esc(typeName(n.type, {}))}</span>` +
+    `<span class="val ${changed ? "chg" : "same"}"><span>${
+      val(n[mode])}</span></span></div>${kids}</li>`;
+}
+
+const renderValues = (m) =>
+  `<ul>${m.tree.map((n) => row(n, true)).join("")}</ul>`;
+
+// ------------------------------------------------- how this was found
+
+const code = (x) => `<code>${esc(x)}</code>`;
+const expr = (e) => code(JSON.stringify(e));
+// A value from the library's evaluator, { int?, hex }: small numbers in
+// decimal, addresses in hex
+const shown = (v) => {
+  const n = BigInt(v.hex === "0x" ? 0 : v.hex);
+  return n < 256n ? `<b>${n}</b>` : `<b>${hex(Number(n))}</b>`;
+};
+const args = (s) => s.args ? `<div class="args">where ${s.args.map((a) =>
+  `${expr(a.expr)} = ${shown(a.value)}`).join(", ")}</div>` : "";
+
+// What a region's bytes are, as read at that point
+function readText(s) {
+  const k = role(s.at.name);
+  const n = BigInt(s.read === "0x" ? 0 : s.read);
+  if (k === "bytes") return `the bytes, ${code(s.read)}`;
+  if (k === "length") return `the length, <b>${n}</b>`;
+  return `an address, <b>${hex(Number(n))}</b>`;
+}
+
+// The steps of one point's derivation, each with a key for its
+// structure (what it does, not the values it finds), its evaluation in
+// short, and the HTML of its list item
+function items(n, v, side) {
+  const linked = (r) => ` data-region="${esc(JSON.stringify(r))}"` +
+    ` data-side="${side}" tabindex="0"`;
+  const top = n.path.split("[")[0];
+  const out = [{ key: "start", eval: "",
+    html: `<li><span class="k">Start</span>
+      ${code(top)} is a local in memory here
+      <span class="tag">from bugc</span><br>Its pointer is in the
+      variables context of the instruction at this point.</li>` }];
+  for (const s of v.how.steps) {
+    if (s.kind === "list") {
+      out.push({ key: `list ${s.each} ${s.index}`,
+        eval: `of ${shown(s.count.value)}`,
+        html: `<li><span class="k">Item</span> ${code(s.each)} =
+          <b>${esc(s.index)}</b>, of ${expr(s.count.expr)} =
+          ${shown(s.count.value)} items</li>` });
+    } else if (s.kind === "region") {
+      const ev = s.fields.map((f) => `${f.field} ${shown(f.value)}`)
+        .join("; ");
+      out.push({ key: `region ${s.name} ${JSON.stringify(
+        s.fields.map((f) => [f.field, f.expr]))}`,
+      eval: `${ev}: ${readText(s)}`,
+      html: `<li${linked(s.at)}><span class="k">Region</span>
+        ${code(s.name)}: ${s.fields.map((x) => `${x.field} ${
+          typeof x.expr === "object" ? `${expr(x.expr)} = ` : ""}${
+          shown(x.value)}${args(x)}`).join("; ")}.
+        <div>Holds ${readText(s)}</div></li>` });
     }
   }
-  const find = (side, n) => values[pick[side]].find((v) => v.name === n);
-  return `<ul>${names.map((n) => {
-    const [a, b] = SIDES.map((side) => find(side, n));
-    const v = b ?? a;
-    const val = (x) => x ? esc(x.text) : `<i title="bugc's variables ` +
-      `context at this point does not list it">not listed here</i>`;
-    const changed = a?.text !== b?.text;
-    const one = mode === "before" ? a : b;
-    const where = (x) => x ? span(x.region) : "—";
-    const moved = a && b && span(a.region) !== span(b.region);
-    const part = v.parts.length ? ` · offset read from the ${esc(
-      v.parts.map((p) => `${p.region.name} pointer at ${span(p.region)}`)
-        .join(", "))}` : "";
-    return `<li data-path="${esc(n)}" class="top ${changed ? "chg" : "same"}">` +
-      `<div class="row" tabindex="0" role="button" aria-pressed="false">` +
-      `<span class="name">${esc(n)}</span>` +
-      `<span class="type">${esc(typeName(v.type, {}))}</span>` +
-      `<span class="mval ${changed ? "chg" : "same"}"><span>${val(one)}` +
-      `</span></span></div>` +
-      `<div class="mwhere small muted">A ${where(a)} · B ${where(b)}${
-        moved ? " (moved)" : ""}${part}</div></li>`;
-  }).join("")}${framesRow()}${storedRows()}</ul>`;
+  const r = v.region;
+  out.push({ key: "result", eval: `${span(r)} = ${esc(v.text)}`,
+    html: `<li class="final"${linked(r)}><span class="k">Result</span>
+    memory ${span(r)}, ${num(r.length)} bytes.
+    <div>Read at ${TAG[side]}: <b>${esc(v.text)}</b></div></li>` });
+  // each item as two columns: its kind, and the rest
+  return out.map((x) => ({ ...x, html: x.html.trim().replace(
+    /^(<li[^>]*>)\s*(<span class="k">[^<]*<\/span>)([\s\S]*)<\/li>$/,
+    '$1$2<div class="c">$3</div></li>') }));
 }
 
-// One row: a name, a type and the value at A and at B
-function rowHtml(path, name, type, a, b, where) {
-  const changed = a !== b;
-  const val = (x) => x === undefined ? "<i>none</i>" : esc(x);
-  const one = mode === "before" ? a : b;
-  return `<li data-path="${esc(path)}" class="top ${changed ? "chg"
-    : "same"}"><div class="row" tabindex="0" role="button"` +
-    ` aria-pressed="false"><span class="name">${esc(name)}</span>` +
-    `<span class="type">${esc(type)}</span>` +
-    `<span class="mval ${changed ? "chg" : "same"}"><span>${val(one)}` +
-    `</span></span></div><div class="mwhere small muted">${where}</div></li>`;
-}
-
-// The frames on the stack, newest first, as the page reads them
-function framesRow() {
-  const [a, b] = SIDES.map((s) => chains[pick[s]]);
-  if (!a.length && !b.length) return "";
-  const list = (fp) => fp.length ? fp.map((f) => hex(f)).join(", ")
-    : "none";
-  return rowHtml(FRAMES, "frames", "read by this page", list(a), list(b),
-    "Newest first. 0x80 holds the current frame; each frame's first " +
-    "word holds its caller's frame (0: none). Each call has its own " +
-    "<code>a</code> and <code>b</code> in its frame.");
-}
-
-// Values bugc says are in storage (no bytes in memory to light)
-function storedRows() {
-  const names = [...new Set(SIDES.flatMap((s) =>
-    stored[pick[s]].map((v) => v.name)))];
-  return names.map((n) => {
-    const [a, b] = SIDES.map((s) =>
-      stored[pick[s]].find((v) => v.name === n));
-    const v = b ?? a;
-    return rowHtml(`storage:${n}`, n, typeName(v.type, {}), a?.text,
-      b?.text, `In storage, slot ${num(v.region.slot)} (not in memory);` +
-      " read by the library from bugc's storage pointer.");
-  }).join("");
+function renderHow() {
+  const box = $("mhow");
+  const n = chosen && find(model.tree, chosen);
+  if (!n) {
+    box.innerHTML = `<p class="muted howrest">Click any value, or a byte
+      in the words, to see how the page found it.</p>`;
+    return;
+  }
+  const head = `<p class="howhead">${code(n.path)} <span class="type">${
+    esc(typeName(n.type, {}))}</span></p>`;
+  const side = mode;
+  const other = side === "before" ? "after" : "before";
+  const v = n[side];
+  if (!v) {
+    box.innerHTML = head + `<p class="small">At ${TAG[side]}, bugc's ` +
+      "variables context does not list it.</p>";
+    return;
+  }
+  // The other point's derivation beside this one: shared steps once, a
+  // step that evaluates differently with both evaluations; where the
+  // two part (a local kept in another word), the rest as two lists
+  const A = items(n, v, side);
+  const B = n[other] ? items(n, n[other], other) : null;
+  let k = 0;
+  while (B && k < A.length && k < B.length && A[k].key === B[k].key) k++;
+  const forked = B && (k < A.length || k < B.length);
+  const list = (xs, sd, cls) => `<div class="branch ${cls}">` +
+    `<p class="branch-head"><span class="ev-tag">${TAG[sd]}</span></p>` +
+    `<ol class="steps" start="${k + 1}" style="counter-reset: step ${k}">${
+      xs.slice(k).map((x) => x.html).join("")}</ol></div>`;
+  const dual = (x, i) => {
+    const y = B?.[i];
+    if (!y || x.eval === y.eval) return x.html;
+    const [a, b] = side === "before" ? [x, y] : [y, x];
+    return x.html.replace(/<\/div><\/li>\s*$/, `<div class="evals">` +
+      `<div><span class="ev-tag">A</span> ${a.eval}</div>` +
+      `<div><span class="ev-tag">B</span> ${b.eval}</div></div>` +
+      "</div></li>");
+  };
+  const same = B && !forked && A.every((x, i) => x.eval === B[i].eval);
+  const whose = `<p class="howside">For the memory at <b>${TAG[side]}</b>.` +
+    `${same ? " The same steps find the same bytes at A and B." : ""}` +
+    `${forked ? ` From step ${k + 1}, A and B differ: there bugc keeps ` +
+      `${code(n.path.split("[")[0])} in another word.` : ""}</p>`;
+  box.innerHTML = head + whose + `<ol class="steps">${A.slice(0, k)
+    .map(dual).join("")}</ol>` + (forked ? list(A, side, "mine") +
+    list(B, other, "theirs") : "") +
+    `<p class="muted small">The library's dereference() returned these
+    regions for bugc's pointer and read them. The steps above replay the
+    pointer with the library's evaluator; they agree.</p>`;
 }
 
 // ------------------------------------------------------- highlight
@@ -291,38 +383,28 @@ function ownerBytes(m, ids) {
   return out;
 }
 
-function valueLabel(m, n) {
-  if (n === FRAMES) {
-    const list = (s) => chains[pick[s]].map((f) => hex(f)).join(" → ") ||
-      "none";
-    return `frames · A: ${list("before")} · B: ${list("after")}`;
+// A value and everything under it, with the regions read to find it
+function forValue(m, path) {
+  const n = find(m.tree, path);
+  const ids = [...m.owners.keys()].filter((id) => {
+    const r = m.owners.get(id).row;
+    return r === path || r.startsWith(path + "[");
+  });
+  const bytes = ownerBytes(m, ids);
+  for (const side of SIDES) {
+    for (const r of n[side]?.parts ?? []) {
+      for (const [w, i] of regionBytes(r)) bytes.add(key(side, w, i));
+    }
   }
-  if (n.startsWith("storage:")) {
-    const k = n.slice(8);
-    const v = (s) => stored[pick[s]].find((x) => x.name === k);
-    const t = (s) => v(s)?.text ?? "none";
-    const slot = num((v("after") ?? v("before")).region.slot);
-    return `${k} · storage slot ${slot} · A: ${t("before")} · B: ${
-      t("after")}`;
-  }
-  const side = (s) => {
-    const v = values[pick[s]].find((x) => x.name === n);
-    return v ? `${span(v.region)} = ${v.text}` : "not listed";
+  const at = (side) => {
+    const v = n[side];
+    return v ? `${span(v.region)} = ${esc(v.text)}` : "not listed";
   };
-  return `${n} · A: ${side("before")} · B: ${side("after")}`;
-}
-
-function forValue(m, n) {
-  const ids = [...m.owners.keys()].filter((id) => m.owners.get(id).row === n);
-  // the details: one row per point, from the label's parts
-  const [name, ...parts] = valueLabel(m, n).split(" · ");
-  const code = (x) => `<code>${esc(x)}</code>`;
-  return { bytes: ownerBytes(m, ids), rows: new Set([n]),
-    label: valueLabel(m, n),
-    info: [["Value", code(name)], ...parts.map((p) => {
-      const k = p.match(/^(A|B): (.*)$/);
-      return k ? [k[1], esc(k[2])] : ["", esc(p)];
-    })] };
+  return { bytes, rows: new Set([path]), path,
+    label: `${path} · A: ${n.before ? n.before.text : "not listed"} · B: ${
+      n.after ? n.after.text : "not listed"}`,
+    info: [["Value", `${code(path)} (${esc(typeName(n.type, {}))})`],
+      ["A", at("before")], ["B", at("after")]] };
 }
 
 function forBytes(m, cell) {
@@ -353,11 +435,19 @@ function forWord(m, w) {
     label: `word ${w} (${hex(num(w))}–${hex(num(w) + 31)})` };
 }
 
+// A region step of "How this was found"
+function forRegion(r, side) {
+  const bytes = new Set();
+  for (const [w, i] of regionBytes(r)) bytes.add(key(side, w, i));
+  return { bytes, rows: new Set(), step: true,
+    label: `region ${r.name} · ${span(r)} (${TAG[side]})` };
+}
+
 // ------------------------------------------------------------ page
 
 let model;
 let hover = null;
-let chosen = null; // the selected value's name
+let chosen = null; // the selected value's path
 const PROBE = "Point at a value or a byte for its details.";
 
 function show() {
@@ -372,8 +462,8 @@ function show() {
   }
   $("mdetails").innerHTML = details(h, PROBE);
   $("mviewing").hidden = !chosen;
-  $("mviewing").textContent = chosen ? `viewing ${chosen === "#frames"
-    ? "frames" : chosen.replace(/^storage:/, "")} · Esc to clear` : "";
+  $("mviewing").textContent = chosen ? `viewing ${chosen} · Esc to clear`
+    : "";
   keep();
 }
 
@@ -412,6 +502,7 @@ function renderSource() {
 
 function render() {
   model = build();
+  if (chosen && !find(model.tree, chosen)) chosen = null;
   $("mtree").innerHTML = renderValues(model);
   $("mpanel").innerHTML = renderDumps(model);
   for (const v of $("mpanel").querySelectorAll(".view")) {
@@ -432,6 +523,7 @@ function render() {
   $("mnote").textContent = `A: ${p("before").title} (${p("before").note}) ·` +
     ` B: ${p("after").title} (${p("after").note})`;
   hover = null;
+  renderHow();
   show();
 }
 
@@ -442,8 +534,12 @@ function target(el) {
   if (cell) return forBytes(model, cell);
   const addr = el.closest("#mpanel .wrow[data-slot] .addr");
   if (addr) return forWord(model, addr.parentElement.dataset.slot);
+  const step = el.closest("#mhow li[data-region]");
+  if (step) {
+    return forRegion(JSON.parse(step.dataset.region), step.dataset.side);
+  }
   const li = el.closest("#mtree li[data-path]");
-  if (li) return forValue(model, li.dataset.path);
+  if (li && el.closest(".row")) return forValue(model, li.dataset.path);
   return null;
 }
 
@@ -475,6 +571,13 @@ function choose(el) {
   const p = row ? row.dataset.path : id ? model.owners.get(id).row : null;
   chosen = row && p === chosen ? null : p;
   hover = null;
+  renderHow();
+  show();
+}
+
+function clear() {
+  chosen = null;
+  renderHow();
   show();
 }
 
@@ -497,21 +600,14 @@ function wire() {
       return choose(e.target);
     }
     // Empty space clears the selection; controls and text do not
-    if (e.target.closest("a, button, summary, #msrc, #mdetails, .addr, " +
-      ".tray, " +
-      ".mwhere") || String(window.getSelection?.() ?? "")) return;
-    if (chosen) {
-      chosen = null;
-      show();
-    }
+    if (e.target.closest("a, button, summary, #msrc, #mdetails, #mhow, " +
+      ".addr, .tray") || String(window.getSelection?.() ?? "")) return;
+    if (chosen) clear();
   });
   document.addEventListener("keydown", (e) => {
     if (e.key !== "Escape" || !chosen) return;
     const f = document.activeElement;
-    if (f?.closest?.("#memory") || !f || f === document.body) {
-      chosen = null;
-      show();
-    }
+    if (f?.closest?.("#memory") || !f || f === document.body) clear();
   });
   sec.addEventListener("keydown", (e) => {
     if (e.key !== "Enter" && e.key !== " ") return;
@@ -526,15 +622,13 @@ function wire() {
 async function main() {
   data = await (await fetch("fixtures/memory.json")).json();
   for (const p of data.points) {
-    values[p.id] = await decodeLocals(p.variables, p.memory);
-    stored[p.id] = await decodeStored(p.variables, p.storage);
-    chains[p.id] = frameChain(p.memory);
-    window.memResults.decoded[p.id] = Object.fromEntries(
-      values[p.id].map((v) => [v.name, { text: v.text, region: v.region,
-        parts: v.parts.map((x) => x.region) }])
-        .concat(stored[p.id].map((v) => [`storage:${v.name}`,
-          { text: v.text, region: v.region }]))
-        .concat([["frames", { chain: chains[p.id].map((f) => hex(f)) }]]));
+    trees[p.id] = await decodeLocals(p.variables, p.memory);
+    const flat = {};
+    walk(trees[p.id], (n) => {
+      flat[n.path] = { text: n.value.text, region: n.value.region,
+        parts: n.value.parts };
+    });
+    window.memResults.decoded[p.id] = flat;
   }
   $("mmode").innerHTML = [["before", "A"], ["after", "B"]].map(([m, t]) =>
     `<button role="radio" data-mode="${m}" aria-checked="false">${t}` +
@@ -544,10 +638,11 @@ async function main() {
       `<button role="radio" data-id="${esc(p.id)}" aria-checked="false"` +
       ` title="${esc(p.note)}">${esc(p.title)}</button>`).join("");
   }
+  const o = data.compiler.optimize;
   $("mmeta").innerHTML = `Program <code>${esc(data.program.file)}</code>,` +
-    ` compiled by bugc from PR #${data.compiler.pr} (commit <code>${
-      data.compiler.commit.slice(0, 9)}</code>); the trace has ${
-      data.trace.steps} steps.`;
+    ` compiled by bugc from ethdebug/format main (commit <code>${
+      data.compiler.commit.slice(0, 9)}</code>)${o ? `, at -O${o}`
+      : ", without optimization"}; the trace has ${data.trace.steps} steps.`;
   // Back to what the URL hash says, if it still makes sense
   const h = initialHash;
   const ids = data.points.map((p) => p.id);
@@ -562,8 +657,9 @@ async function main() {
   const sel = h.get("msel");
   wire();
   render();
-  if (sel && $("mtree").querySelector(`li[data-path="${CSS.escape(sel)}"]`)) {
+  if (sel && find(model.tree, sel)) {
     chosen = sel;
+    renderHow();
   }
   restored = true;
   show();
