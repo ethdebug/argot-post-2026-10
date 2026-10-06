@@ -85,6 +85,12 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
         await window.stateReady();
         return panel.dataset.step === String(at());
       };
+      const lineMsOf = () => {
+        const t = performance.now();
+        for (let k = 0; k < 10; k++) btn("into", 1).click();
+        return (performance.now() - t) / 10;
+      };
+      const note = box.querySelector(".gen-note");
       for (const p of ["sol", "fe"]) {
         await window.select(p);
         const w = window.walked[p];
@@ -181,7 +187,6 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
             > document.documentElement.clientWidth });
         const gen = w.spans.findIndex((s) => !s);
         go(gen);
-        const note = box.querySelector(".gen-note");
         Object.assign(out[p], { gen,
           noteVisible: getComputedStyle(note).visibility,
           faded: box.querySelector(".src").classList.contains("faded"),
@@ -196,13 +201,78 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
         }
         go(multi);
       }
-      // BUG tab: ethdebug's reference viewer, linked; soldb's stepper hidden.
-      await window.select("bug");
-      const about = document.querySelector("[data-about=bug]");
-      out.bug = { stepperHidden: box.hidden, aboutShown: !about.hidden,
-        src: document.getElementById("bug-src").textContent.slice(0, 10),
-        link: about.querySelector("a[href*='trace-playground']")?.href,
-        keysIgnored: (() => { press("ArrowRight"); return box.hidden; })() };
+      // BUG tab: the reference engine, at -O0 then -O2. It steps, shows a
+      // call stack of depth >= 2, a local variable with a value (-O0)
+      // and an inline marker (-O2).
+      const frames = box.querySelector(".frames");
+      const fsettle = async () => {
+        await window.stateReady();
+        return frames.dataset.step === String(at());
+      };
+      const rows = () => [...panel.querySelectorAll("tr")]
+        .filter((tr) => tr.cells.length > 1).map((tr) =>
+        ({ name: tr.cells[0].textContent, value: tr.cells[1].textContent,
+          scope: tr.dataset.scope }));
+      const stack = () => [...frames.querySelectorAll("li:not(.muted)")]
+        .map((li) => li.textContent.replace(/\s+/g, " "));
+      out.bug = {};
+      for (const lvl of ["O0", "O2"]) {
+        await window.selectLevel(lvl);
+        const w = window.walked[`bug-${lvl}`];
+        const o = out.bug[lvl] = { stepperShown: !box.hidden,
+          aboutShown: !document.querySelector("[data-about=bug]").hidden,
+          framesShown: !frames.hidden, varsShown: !panel.hidden };
+        go(0);
+        const fwd = btn("into", 1);
+        let intoOk = true;
+        for (let k = 0; k < 20; k++) {
+          const i = at();
+          fwd.click();
+          const j = at();
+          intoOk &&= j > i && !!w.spans[j] && key(w, j) !== key(w, i);
+        }
+        o.intoOk = intoOk;
+        o.overOutEnabled = ["over", "out"].some((g) => !btn(g, 1).disabled);
+        // The deepest call stack, at the first step that reaches it.
+        const deep = w.depths.indexOf(Math.max(...w.depths));
+        go(deep + 1);
+        const synced = await fsettle();
+        o.stack = { step: at(), synced, depth: +frames.dataset.depth,
+          frames: stack() };
+        // Step over from a call: lands at the same or a lower depth.
+        const call = w.depths.findIndex((d, i) => i > 0 &&
+          d > w.depths[i - 1]);
+        go(call - 1);
+        btn("over", 1).click();
+        o.over = { from: call - 1, to: at(),
+          ok: w.depths[at()] <= w.depths[call - 1] };
+        // The first step with a local variable that has a value, and the
+        // values at the last step.
+        o.local = null;
+        for (let i = 0; i < w.n && !o.local; i += 5) {
+          go(i);
+          await fsettle();
+          const r = rows().find((r) => r.scope === "local"
+            && !r.value.startsWith("<"));
+          if (r) o.local = { step: i, ...r, all: rows() };
+        }
+        go(w.n - 1);
+        await fsettle();
+        o.last = Object.fromEntries(rows().map((r) => [r.name, r.value]));
+        // The first step in an inlined body.
+        const inl = (w.inline ?? []).findIndex((x) => x);
+        o.inline = null;
+        if (inl >= 0) {
+          go(inl + 1);
+          await fsettle();
+          o.inline = { step: at(), fn: note.dataset.inline,
+            text: note.textContent.replace(/\s+/g, " "),
+            noteVisible: getComputedStyle(note).visibility,
+            site: box.querySelectorAll(".src .site").length,
+            frames: stack() };
+        }
+        o.lineMs = lineMsOf(w);
+      }
       await window.select("sol");
       return out;
     });
@@ -259,8 +329,30 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
       await page.screenshot({ path: "screenshot-highlight-dark.png",
         fullPage: true });
       await page.emulateMedia({ colorScheme: "light" });
-      await page.evaluate(() => window.select("bug"));
+      // BUG: -O2 at the first step after an inlined body opens (inline
+      // marker, inline frame); -O0 at the first step from the deepest
+      // call stack on where a local variable has a value. The step before
+      // is shown first, so changed values are marked as when stepping.
+      const bugAt = (lvl, i) => page.evaluate(async ([lvl, i]) => {
+        await window.selectLevel(lvl);
+        const range = document.querySelector("#stepper input");
+        const go = async (j) => {
+          range.value = String(j);
+          range.dispatchEvent(new Event("input"));
+          await window.stateReady();
+        };
+        const local = () => [...document.querySelectorAll(
+          ".state tr[data-scope=local] .val:not(.unk)")].length > 0;
+        await go(i);
+        if (lvl === "O0") while (!local()) await go(++i);
+        await go(i - 1);
+        await go(i);
+      }, [lvl, i]);
+      await bugAt("O2", ui.bug.O2.inline.step);
       await page.screenshot({ path: "screenshot-bug.png", fullPage: true });
+      await bugAt("O0", ui.bug.O0.stack.step);
+      await page.screenshot({ path: "screenshot-bug-O0.png",
+        fullPage: true });
     }
     all[name].runs.push(r);
     await ctx.close();
@@ -268,6 +360,7 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
   await browser.close();
 }
 // Phone: iPhone 15 emulation (WebKit), stepped to a multi-line span.
+let phone;
 {
   const browser = await webkit.launch();
   const ctx = await browser.newContext({ ...devices["iPhone 15"] });
@@ -290,7 +383,19 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
   });
   await page.locator("#stepper").scrollIntoViewIfNeeded();
   await page.screenshot({ path: "screenshot-highlight-iphone.png" });
+  // BUG, -O2, at an inline step with its call stack: no sideways scroll.
+  w.bug = await page.evaluate(async () => {
+    await window.selectLevel("O2");
+    const range = document.querySelector("#stepper input");
+    range.value = String(window.walked["bug-O2"].inline
+      .findIndex((x) => x) + 1);
+    range.dispatchEvent(new Event("input"));
+    await window.stateReady();
+    const d = document.documentElement;
+    return { scrollW: d.scrollWidth, clientW: d.clientWidth };
+  });
   console.log("phone", JSON.stringify(w), logs);
+  phone = w;
   await browser.close();
 }
 // The state panel's expected values (Shop.place on a fresh contract).
@@ -325,6 +430,7 @@ for (const [name, b] of Object.entries(all)) {
     const { times, ...rest } = r0[part];
     console.log("  ", JSON.stringify(rest));
   }
+  console.log("ref", JSON.stringify(r0.ref));
   console.log("ui", JSON.stringify(r0.ui), "shiki", JSON.stringify(r0.shiki));
   console.log("state panel", b.runs.map((r) =>
     stateOk(r.ui.state, r.ui.feStateHidden) ? "ok" : "FAIL").join(","));
@@ -345,8 +451,24 @@ for (const [name, b] of Object.entries(all)) {
         && u[p].keyOk && u[p].keyLeftOk && u[p].run.ok && u[p].hl > 0
         && u[p].hlWhenGen === 0 && !u[p].pageScrollX);
     }
-    check(name, "BUG tab", u.bug.stepperHidden && u.bug.aboutShown
-      && u.bug.src.length > 0 && u.bug.keysIgnored);
+    check(name, "part ref", r.ref?.ok);
+    for (const lvl of ["O0", "O2"]) {
+      const o = u.bug[lvl];
+      check(name, `BUG ${lvl} stepping`, o.stepperShown && o.aboutShown
+        && o.framesShown && o.varsShown && o.intoOk && o.overOutEnabled
+        && o.over.ok);
+      check(name, `BUG ${lvl} call stack depth >= 2`, o.stack.synced
+        && o.stack.depth >= 2 && o.stack.frames.length >= 2);
+    }
+    // Weights: sum = 4 + 6 + (8 + 3) + (10 + 6) = 37.
+    check(name, "BUG O0 local variable with a value", !!u.bug.O0.local
+      && same(u.bug.O0.last, { total: "37", calls: "1", n: "4",
+        sum: "37" }));
+    check(name, "BUG O2 storage", same(u.bug.O2.last,
+      { total: "37", calls: "1" }));
+    check(name, "BUG O2 inline marker", u.bug.O2.inline?.fn === "dbl"
+      && u.bug.O2.inline.noteVisible === "visible"
+      && u.bug.O2.inline.site > 0);
     check(name, "state panel", stateOk(u.state, u.feStateHidden));
     check(name, "loading state", r.frames.loadingShown);
     check(name, `main thread free (gap < ${LONG} ms)`, r.frames.max < LONG);
@@ -364,6 +486,8 @@ for (const [name, b] of Object.entries(all)) {
 for (const [name, b] of Object.entries(all)) {
   check(name, `browser launch ${b.error ?? ""}`, !!b.runs);
 }
+check("iPhone 15", "BUG tab: no sideways scroll",
+  phone.bug.scrollW <= phone.bug.clientW);
 console.log(fails.length ? `\nFAIL\n${fails.join("\n")}` : "\nPASS");
 process.exitCode = fails.length ? 1 : 0;
 import("node:fs").then((fs) =>

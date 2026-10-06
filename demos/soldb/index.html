@@ -69,6 +69,17 @@
   .state .val { padding: 0 3px; border-radius: 3px; }
   .state .val.unk { color: var(--muted); }
   .state .val.chg { background: var(--chg-bg); color: var(--chg-fg); }
+  /* BUG (reference engine): the call stack and the inline marker. An
+     inlined body's call site is outlined in the source. */
+  .frames { margin-top: 12px; }
+  .frames p { margin: 4px 0; font-size: 0.9rem; }
+  .frames ol { margin: 4px 0; padding-left: 1.5rem; font-size: 0.85rem; }
+  .frames li { overflow-wrap: anywhere; }
+  .badge { font: 0.75rem var(--mono); font-style: normal; padding: 0 5px;
+    border: 1px solid var(--accent); border-radius: 3px;
+    color: var(--accent); }
+  .src .site { outline: 1px dashed var(--accent); outline-offset: 1px;
+    border-radius: 2px; }
 </style>
 </head>
 <body>
@@ -80,7 +91,8 @@ WebAssembly, in this browser tab. It steps through a real transaction
 offline, from saved files, and highlights the source range of each EVM
 step. Debugging by soldb (WebAssembly); the page only displays what
 soldb reports. Use the step buttons, the keys, the slider, or click a
-source line to run to it.</p>
+source line to run to it. The BUG tab runs ethdebug's reference
+implementation instead.</p>
 <p class="appendix-nav">Part of the ethdebug post appendix, with
 <a href="../inspector/">Storage, by name</a> and
 <a href="../../companion/">ethdebug in depth</a>.</p>
@@ -90,7 +102,8 @@ source line to run to it.</p>
 <div class="tabs picker" role="tablist">
   <button role="tab" data-ds="sol" aria-selected="true" disabled>Solidity</button>
   <button role="tab" data-ds="fe" aria-selected="false" disabled>Fe</button>
-  <button role="tab" data-ds="bug" aria-selected="false">BUG (preview)</button>
+  <button role="tab" data-ds="bug" aria-selected="false" disabled>BUG
+    (preview)</button>
 </div>
 <p data-about="sol fe"><strong>The same debugger and the same page
 code step through a different language, because both compilers write
@@ -120,32 +133,27 @@ Solidity tab.</p>
 </div>
 
 <div class="about" data-about="bug" hidden>
-<p class="note">This tab uses ethdebug's own reference debugger, not
-soldb; soldb tracks what solc emits today.</p>
-<p>BUG is ethdebug's teaching language; its compiler emits the fullest
-debug data today, a preview of what real-language debugging can
-show.</p>
-<p><code>Tally</code> (<a href="bug/tally.bug">tally.bug</a>), compiled
-by bugc at optimization level 2. The loop calls <code>weight</code>: a
-real call, which bugc marks with <code>invoke</code> and
-<code>return</code> contexts. In <code>weight</code>, the optimizer
-inlines <code>dbl</code>: those instructions carry
-<code>transform: ["inline"]</code> and keep the span of the call
-<code>dbl(i)</code> next to the span of the body
-<code>x + x</code>.</p>
-<p><a href="https://ethdebug.github.io/format/docs/explore/trace-playground/"
->Step through it in ethdebug's reference trace viewer</a> (ethdebug's
-reference viewer, not soldb): press <strong>Try it</strong> on an
-example, paste the program below into the editor, choose
-<strong>O2</strong> and press <strong>Compile &amp; Run</strong>. The
-call stack shows <code>weight(i: 0, n: 4)</code>, then
-<code>weight(i: 0, n: 4) › dbl()</code> marked <em>inline</em> (no
-call; the body is spliced in).</p>
-<pre class="code-block" id="bug-src"></pre>
-<p class="muted">Variable values are not shown here: that needs the
-format's interpretation layer (the type schema rewrite) and a decode
-stage in @ethdebug/codec, which do not exist yet. What soldb shows for
-this transaction is under Details.</p>
+<p class="muted">This tab runs ethdebug's reference implementation
+(<code>@ethdebug/pointers</code>, <code>@ethdebug/evm</code> and the
+trace reconstruction of <code>@ethdebug/programs-react</code>), not
+soldb. Local variables come from a preview build of BUG's compiler
+(ethdebug/format PR #270).</p>
+<p><code>Weights</code> (<a href="bug/weights.bug">weights.bug</a>):
+the code block calls <code>weight</code> four times; <code>weight</code>
+calls <code>dbl</code> and, from <code>i = 2</code>, <code>tri</code>,
+which calls itself. bugc marks each call with <code>invoke</code> and
+<code>return</code> contexts; the call stack comes from them. The same
+program, compiled at two optimization levels:</p>
+<div class="picker" role="radiogroup" aria-label="optimization level">
+  <button role="radio" data-lvl="O0" aria-checked="true">-O0: local
+    variables</button>
+  <button role="radio" data-lvl="O2" aria-checked="false">-O2:
+    <code>dbl</code> inlined</button>
+</div>
+<p class="muted">At level 0, bugc gives a local variable a pointer where
+its value is in memory. At level 2, it inlines <code>dbl</code>: those
+instructions carry <code>transform: ["inline"]</code> and keep the range
+of the call <code>dbl(i)</code>; it emits no local variables.</p>
 </div>
 
 <p class="status" id="loading">Loading: soldb (WebAssembly, in a Web
@@ -169,16 +177,33 @@ Worker) parses the trace and maps every step...</p>
   <p id="msg"></p>
   <p class="gen-note"></p>
   <div class="src"></div>
-  <div class="state" hidden>
-    <p>State from ethdebug alone: solc's pointers for storage, the
-    deployed code for immutables; no storage layout.</p>
-    <table aria-label="contract state"></table>
-    <p class="muted">A trace holds only the storage a transaction reads
-    or writes, so a value shows as unknown until the transaction reads or
-    writes it, and stays unknown if it never does.</p>
+  <div class="frames" hidden>
+    <p>Call stack, innermost first, from <code>invoke</code> and
+    <code>return</code> contexts:</p>
+    <ol aria-label="call stack"></ol>
   </div>
-  <p class="muted">The page computes these steps from two fields that
-  soldb reports per step: the source span and the EVM call depth.
+  <div class="state" hidden>
+    <p data-cap="state">State from ethdebug alone: solc's pointers for
+    storage, the deployed code for immutables; no storage layout.</p>
+    <p data-cap="variables" hidden>Variables in scope: the context's
+    <code>variables</code>, each read through its pointer with
+    <code>dereference</code>.</p>
+    <table aria-label="contract state"></table>
+    <p class="muted" data-cap="state">A trace holds only the storage a
+    transaction reads or writes, so a value shows as unknown until the
+    transaction reads or writes it, and stays unknown if it never
+    does.</p>
+    <p class="muted" data-cap="variables" hidden>Values are decoded
+    simply (uint, address), a stand-in for the format's planned
+    interpretation layer.</p>
+  </div>
+  <p class="muted" data-about="bug" hidden>"over" and "out" use the depth
+  of the call stack: "over" steps over a call or an inlined body, "out"
+  runs to the caller. BUG has no grammar in Shiki: the code is coloured
+  as Rust.</p>
+  <p class="muted" data-about="sol fe">The page computes these steps from
+  two fields that soldb reports per step: the source span and the EVM
+  call depth.
   "into" goes to the next new span; "over" to the next new span at the
   same or a lower depth; "out" to the first span after the depth drops.
   The EVM depth does not count internal function calls, and every step
@@ -226,8 +251,19 @@ worker.</p>
 <p class="status" id="fe-status">Waiting...</p>
 <table id="fe-times"></table>
 
+<h3>BUG: ethdebug's reference implementation</h3>
+<p>The BUG tab's engine (<code>ref-worker.js</code>): ethdebug/format's
+packages, bundled in <code>vendor/ethdebug-ref.js</code>
+(<code>make-ref-vendor.sh</code>). It maps each step and builds its call
+stack when it loads; variables and the call stack's arguments are read
+when a step is shown.</p>
+<p class="status" id="ref-status">Running...</p>
+<table id="ref-times"></table>
+
 <h3>BUG: soldb check, lean build, node responses</h3>
-<p>soldb is fed as for Fe (<code>Trace.fromTransaction</code>, then
+<p>The transaction of <code>Tally</code>
+(<a href="bug/tally.bug">tally.bug</a>, bugc at level 2), saved
+earlier. soldb is fed as for Fe (<code>Trace.fromTransaction</code>, then
 <code>attachEthdebug</code>). Adaptations: bugc writes no resources
 file, so the page gives <code>metadata</code> as
 <code>{compilation: {sources: [{id, path}]}}</code>; bugc's source id

@@ -1,8 +1,8 @@
 // The interface between the page and a debugger engine. The page (UI,
 // highlighting, stepping) talks only to an Engine; the engine does all
 // the debugging. soldbEngine() runs soldb-wasm in a Web Worker
-// (soldb-worker.js). Another engine (for example, ethdebug's reference
-// implementation) can implement the same interface.
+// (soldb-worker.js); refEngine() runs ethdebug's reference
+// implementation in another (ref-worker.js), for the BUG tab.
 //
 // An engine loads a dataset and returns every step at once, so the page
 // steps and highlights with no round trip. Anything per step that is
@@ -21,9 +21,20 @@
  *   specific source range (compiler-generated code)
  * @property {(string|null)[]} files  source path, or null
  * @property {Int32Array} lineNo  1-based source line, or -1
- * @property {Int32Array} depths  EVM call depth
+ * @property {Int32Array} depths  call depth: the EVM's (soldb), or
+ *   the number of frames in the call stack (reference engine)
  * @property {(string|null)[]} functions  function name, or null
  * @property {number[]} changes   steps where the source line changes
+ * @property {(Inline|null)[]} [inline]  with the inline capability: a
+ *   marker on each step whose instruction is part of an inlined body
+ */
+
+/**
+ * @typedef {Object} Inline
+ * @property {string|null} fn   the inlined function
+ * @property {number[]|null} site  its call site: source id, start, end
+ * @property {number} line      the call site's line, or -1
+ * @property {string|null} text the call site's source text
  */
 
 /**
@@ -36,9 +47,9 @@
  * Features beyond stepping. All optional; absent means not supported.
  * @typedef {Object} Capabilities
  * @property {boolean} [state]      engine.state(dataset, i) works
- * @property {boolean} [callStack]  Steps carry a call stack (reserved)
- * @property {boolean} [variables]  Steps carry variables (reserved)
- * @property {boolean} [inline]     Steps mark inlined code (reserved)
+ * @property {boolean} [callStack]  engine.callStack(dataset, i) works
+ * @property {boolean} [variables]  engine.variables(dataset, i) works
+ * @property {boolean} [inline]     Steps carry `inline` markers
  */
 
 /**
@@ -57,22 +68,39 @@
  * @property {string} name
  * @property {string} type
  * @property {string} value  "<...>" marks a placeholder (unknown, ...)
+ * @property {string} [scope]  "storage" or "local" (variables only)
+ */
+
+/**
+ * A call stack frame, innermost first.
+ * @typedef {Object} Frame
+ * @property {string} name
+ * @property {string|null} args  "name: value, ...", or null
+ * @property {boolean} inline   an inlined (virtual) frame: no real call
+ * @property {{line: number, text: string}|null} site  the call site
+ * @property {number} at        the step where the frame opened
  */
 
 /**
  * @typedef {Object} Engine
  * @property {string} name
  * @property {(dataset: string) => Promise<Loaded>} load
- * @property {(dataset: string, i: number) => Promise<Variable[]>} state
- * @property {(job: string) => Promise<Object>} run  engine-specific
+ * @property {(dataset: string, i: number) => Promise<Variable[]>} [state]
+ *   the contract's state
+ * @property {(dataset: string, i: number) => Promise<Variable[]>}
+ *   [variables]  the variables in scope (storage and locals)
+ * @property {(dataset: string, i: number) => Promise<Frame[]>}
+ *   [callStack]
+ * @property {(job: string) => Promise<Object>} [run]  engine-specific
  *   checks (soldb: "bug-check", "replay")
  * @property {() => Promise<{name: string, transferSize: number}[]>}
  *   requests  resource timing entries of the engine's own fetches
  */
 
-/** @returns {Engine} soldb-wasm, in a module Web Worker. */
-export function soldbEngine() {
-  const worker = new Worker(new URL("./soldb-worker.js", import.meta.url),
+// Calls into a module Web Worker: { id, op, args } out, { id, value }
+// or { id, error } back.
+function client(name, file) {
+  const worker = new Worker(new URL(file, import.meta.url),
     { type: "module" });
   const pending = new Map();
   let next = 0;
@@ -84,20 +112,42 @@ export function soldbEngine() {
   };
   worker.onerror = (e) => {
     e.preventDefault();
-    const err = new Error(`soldb worker: ${e.message || "failed to start"}`);
+    const err = new Error(`${name} worker: ${e.message
+      || "failed to start"}`);
     for (const p of pending.values()) p.reject(err);
     pending.clear();
   };
-  const call = (op, ...args) => new Promise((resolve, reject) => {
+  return (op, ...args) => new Promise((resolve, reject) => {
     const id = next++;
     pending.set(id, { resolve, reject });
     worker.postMessage({ id, op, args });
   });
+}
+
+/** @returns {Engine} soldb-wasm, in a module Web Worker. */
+export function soldbEngine() {
+  const call = client("soldb", "./soldb-worker.js");
   return {
     name: "soldb",
     load: (dataset) => call("load", dataset),
     state: (dataset, i) => call("state", dataset, i),
     run: (job) => call("run", job),
+    requests: () => call("requests"),
+  };
+}
+
+/**
+ * @returns {Engine} ethdebug's reference implementation (pointers, evm,
+ * programs-react's trace reconstruction), in a module Web Worker.
+ * Data sets "bug-O0" and "bug-O2".
+ */
+export function refEngine() {
+  const call = client("reference", "./ref-worker.js");
+  return {
+    name: "reference",
+    load: (dataset) => call("load", dataset),
+    variables: (dataset, i) => call("variables", dataset, i),
+    callStack: (dataset, i) => call("callStack", dataset, i),
     requests: () => call("requests"),
   };
 }
