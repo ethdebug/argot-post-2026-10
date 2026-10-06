@@ -214,6 +214,13 @@ const viewer = (() => {
         const c = tr.insertCell();
         c.className = "muted";
         c.textContent = `${v.scope}, ${v.type}`;
+        // A local of an inlined body, and why a local has no value.
+        if (v.inline) c.append(" ", badge("inline"), ` in ${v.inline}`);
+        if (v.reason) {
+          const r = c.appendChild(document.createElement("span"));
+          r.className = "reason";
+          r.textContent = `; ${v.reason}`;
+        }
       }
     }
     if (!vars.length) {
@@ -452,7 +459,7 @@ async function load(key, part, eng = engine) {
 }
 
 // BUG: Weights on anvil, at optimization levels 0 and 2, by bugc from
-// ethdebug/format PR #270; debugged by ethdebug's reference
+// ethdebug/format main; debugged by ethdebug's reference
 // implementation (ref-worker.js), not soldb.
 async function loadRef() {
   const r = { ok: true };

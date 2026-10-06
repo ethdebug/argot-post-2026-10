@@ -5,7 +5,7 @@
 // Usage: node compile.mjs <path to packages/bugc> [file] [level] [dir]
 // Defaults: tally.bug at optimization level 2 (inlines `dbl`), in ".".
 // The BUG tab's data: weights.bug at levels 0 and 2, into weights-O0
-// and weights-O2, by bugc from ethdebug/format PR #270.
+// and weights-O2, by bugc from ethdebug/format main.
 import fs from "fs";
 const [lib, file = "tally.bug", level = "2", dir = "."] =
   process.argv.slice(2);

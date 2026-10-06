@@ -186,8 +186,8 @@ reports.</p>
     </div>
     <div class="picker levels" data-about="bug" hidden role="radiogroup"
       aria-label="optimization level">
-      <button role="radio" data-lvl="O0" aria-checked="true">-O0: local
-        variables</button>
+      <button role="radio" data-lvl="O0" aria-checked="true">-O0: no
+        inlining</button>
       <button role="radio" data-lvl="O2" aria-checked="false">-O2:
         <code>dbl</code> inlined</button>
     </div>
@@ -307,8 +307,10 @@ Solidity tab.</p>
 <p class="muted">This tab runs ethdebug's reference implementation,
 not soldb: <code>@ethdebug/pointers</code>, <code>@ethdebug/evm</code>
 and the trace reconstruction from
-<code>@ethdebug/programs-react</code>. Local variables come from a
-preview build of bugc, BUG's compiler (ethdebug/format PR #270).</p>
+<code>@ethdebug/programs-react</code>. The local variables come from
+bugc, BUG's compiler, on ethdebug/format main. Only the decoding of
+values is a stand-in, for the format's planned interpretation
+layer.</p>
 <p><code>Weights</code> (<a href="bug/weights.bug">weights.bug</a>):
 the code block calls <code>weight</code> four times.
 <code>weight</code> calls <code>dbl</code>, and from <code>i = 2</code>
@@ -316,11 +318,15 @@ also <code>tri</code>, which calls itself. bugc marks each call with
 <code>invoke</code> and <code>return</code> contexts. The call stack
 comes from these contexts. The tab has the same program at two
 optimization levels.</p>
-<p class="muted">At -O0, bugc gives a local variable a pointer where
-its value is in memory. At -O2, bugc inlines <code>dbl</code>. The
+<p class="muted">At both levels, bugc gives a local variable a pointer
+where its value is in memory. Where a local has no location (its value
+is not stored yet, or the optimizer folded it), bugc lists it by type
+only: the format cannot yet say "the value is this expression"
+(ethdebug/format#291). At -O2, bugc inlines <code>dbl</code>. The
 inlined instructions carry <code>transform: ["inline"]</code> and keep
-the source range of the call <code>dbl(i)</code>. At -O2, bugc emits
-no local variables.</p>
+the source range of the call <code>dbl(i)</code>. The local
+<code>x</code> of the inlined <code>dbl</code> is marked
+"inline".</p>
 </div>
 
 <p class="muted" data-about="bug" hidden>"over" and "out"

@@ -40,7 +40,7 @@ async function timed(times, label, fn) {
 }
 
 // One program, two optimization levels, by bugc from ethdebug/format
-// PR #270 (local variables, at level 0 only).
+// main (local variables at every level).
 const BUG = "bug";
 const FILE = "weights.bug";
 const DIRS = { "bug-O0": `${BUG}/weights-O0`, "bug-O2": `${BUG}/weights-O2` };
@@ -182,7 +182,11 @@ async function load(key) {
     .map(([k, v]) => [BigInt(k), BigInt(v)]));
   const code = Data.fromHex("0x" + runtime.trim());
 
-  datasets[key] = { program, logs, map, trace, src, stores, pre, code };
+  // The functions bugc inlines at this level: their locals are an
+  // inlined body's.
+  const inlinedFns = new Set(inlined.values());
+  datasets[key] = { program, logs, map, trace, src, stores, pre, code,
+    fnAt, inlinedFns };
   const steps = { n, pcs, ops, spans, files, lineNo, depths, functions,
     changes, inline };
   const summary = { ok: true, times, commit, steps: n,
@@ -230,6 +234,8 @@ function decode(data, type) {
   return v.toString();
 }
 
+const REASON = "no location here: not stored yet, or folded (#291)";
+
 const typeName = (t) => !t ? "?" : t.kind === "uint" || t.kind === "int"
   ? `${t.kind}${t.bits ?? 256}` : t.kind;
 
@@ -246,7 +252,12 @@ async function valueAt(ds, i, pointer, name, type) {
 
 // Variables at step i: those of the context that holds at step i (the
 // previous instruction's context, a postcondition), each read through
-// its pointer from the state observed at step i.
+// its pointer from the state observed at step i. A local with no
+// pointer is listed by type only: bugc gives a local a location only
+// where its value is stored (before its MSTORE, while a jump copies
+// phi values, or when the optimizer folds or removes it, it has none;
+// the format cannot yet say "the value is this expression", #291).
+// A local of a function that bugc inlines is marked with that function.
 async function variables(key, i) {
   const ds = datasets[key];
   const context = effectiveContextForStep({
@@ -258,7 +269,7 @@ async function variables(key, i) {
   const out = [];
   for (const v of vars) {
     const scope = v.pointer?.location === "storage" ? "storage" : "local";
-    let value = "<in scope, no value here>";
+    let value = "<no location>";
     if (v.pointer) {
       try {
         value = await valueAt(ds, i, v.pointer, v.identifier, v.type);
@@ -266,7 +277,11 @@ async function variables(key, i) {
         value = `<error: ${e.message}>`;
       }
     }
-    out.push({ name: v.identifier, type: typeName(v.type), value, scope });
+    const d = v.declaration?.range;
+    const fn = scope === "local" && d && ds.fnAt(d.offset);
+    out.push({ name: v.identifier, type: typeName(v.type), value, scope,
+      ...(v.pointer ? {} : { reason: REASON }),
+      ...(ds.inlinedFns.has(fn) ? { inline: fn } : {}) });
   }
   return [out];
 }
