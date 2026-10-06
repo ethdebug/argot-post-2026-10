@@ -72,6 +72,20 @@ const lineOf = (src, offset) => {
   return n;
 };
 
+// A call stack frame's call site: the unmarked `code` range of the
+// instruction that carries its invoke. The frame opens at the step
+// after that instruction (contexts are postconditions), or a few steps
+// later when the invoke repeats (a JUMP, then its JUMPDEST).
+function siteOf(logs, map, f) {
+  for (let j = f.stepIndex - 1; j >= Math.max(0, f.stepIndex - 4); j--) {
+    const ctx = map.get(logs[j].pc)?.context;
+    const c = invokes(ctx).some((v) => v.identifier === f.identifier)
+      && codes(ctx).find((c) => !c.inline);
+    if (c) return c;
+  }
+  return null;
+}
+
 const datasets = {};
 
 async function load(report, key) {
@@ -125,7 +139,8 @@ async function load(report, key) {
 
   // Per step: the source span from the step's own instruction (the
   // inlined body's range, if any), as the reference trace viewer shows
-  // it; the inline marker; the call depth from buildCallStack.
+  // it; the call stack from buildCallStack, and from it the call depth
+  // and the inline marker.
   const pcs = new Int32Array(n);
   const spans = new Int32Array(3 * n).fill(-1);
   const lineNo = new Int32Array(n).fill(-1);
@@ -156,19 +171,23 @@ async function load(report, key) {
       if (lineNo[i] !== last) changes.push(i);
       last = lineNo[i];
     }
-    const site = cs.find((c) => !c.inline);
-    if (extractTransformFromInstruction({ context: ctxAt(i) })
-      .includes("inline")) {
+    // The inline marker comes from the call stack: the step is in an
+    // inlined body when its innermost frame is an inlined (virtual)
+    // one, from the step after the inlined invoke through the step of
+    // the instruction that carries the inlined return.
+    const frames = buildCallStack(trace, map, i, program.context);
+    const top = frames.at(-1);
+    if (top?.isInline) {
       withInline++;
-      const s = site && site !== body ? site : null;
+      const s = siteOf(logs, map, top);
       inline[i] = {
-        fn: (s && inlined.get(`${s.offset}:${s.length}`)) ?? null,
+        fn: top.identifier,
         site: s ? [0, s.offset, s.offset + s.length] : null,
         line: s ? lineOf(src, s.offset) : -1,
         text: s ? src.slice(s.offset, s.offset + s.length) : null,
       };
     }
-    depths[i] = buildCallStack(trace, map, i, program.context).length;
+    depths[i] = frames.length;
     maxDepth = Math.max(maxDepth, depths[i]);
   }
   times["map steps, call stack per step"] = now() - t;
@@ -336,17 +355,9 @@ async function callStack(key, i) {
   const frames = buildCallStack(ds.trace, ds.map, i, ds.program.context);
   const out = [];
   for (const f of frames.reverse()) {
-    let site = null;
-    for (let j = f.stepIndex; j >= Math.max(0, f.stepIndex - 4); j--) {
-      const ctx = ds.map.get(ds.logs[j].pc)?.context;
-      const c = invokes(ctx).some((v) => v.identifier === f.identifier)
-        && codes(ctx).find((c) => !c.inline);
-      if (c) {
-        site = { line: lineOf(ds.src, c.offset),
-          text: ds.src.slice(c.offset, c.offset + c.length) };
-        break;
-      }
-    }
+    const c = siteOf(ds.logs, ds.map, f);
+    const site = c && { line: lineOf(ds.src, c.offset),
+      text: ds.src.slice(c.offset, c.offset + c.length) };
     let args = null;
     if (f.argumentPointers) {
       args = [];

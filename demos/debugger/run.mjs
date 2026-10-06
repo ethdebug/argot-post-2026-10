@@ -337,11 +337,20 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
         // Every step: each local or storage variable with a location,
         // as read through its pointer. Collects the values of recent
         // (in order, without repeats), of bonus, and of every name.
-        o.scan = { values: {}, recent: [], bonus: [], names: [] };
+        // And the Inlining panel, the source note and the innermost
+        // call stack frame.
+        o.scan = { values: {}, recent: [], bonus: [], names: [],
+          inlining: [] };
+        const inlCur = box.querySelector(".inlining .cur");
         for (let i = 0; i < w.n; i++) {
           go(i);
           await fsettle();
           o.scan.names.push(rows().map((r) => r.name));
+          const top = frames.querySelector("li:not(.muted)");
+          o.scan.inlining.push({ panel: inlCur.textContent,
+            note: note.textContent,
+            top: top?.textContent.replace(/\s+/g, " ") ?? null,
+            topInline: !!top?.querySelector(".badge") });
           for (const r of rows()) {
             const vs = o.scan.values[r.name] ??= [];
             if (!vs.includes(r.value)) vs.push(r.value);
@@ -765,6 +774,31 @@ for (const [name, b] of Object.entries(all)) {
     const xAt = names.flatMap((ns, i) => ns.includes("x") ? [i] : []);
     check(name, "BUG O2 x: from the inlined invoke to the inlined return",
       sqInline.spans.length === 3 && same(xAt, sqInline.spans.flat()));
+    // The Inlining panel and the call stack agree at every step: the
+    // panel names an inlined body exactly when the innermost frame is
+    // an inlined one, of the same function. For sq, those are the steps
+    // from the one after its inlined invoke through the one after its
+    // inlined return (the reference call stack closes a frame after
+    // the step that observes its return). Neither panel nor note reads
+    // "?" or "-1".
+    for (const lvl of ["O0", "O2"]) {
+      const sc = u.bug[lvl].scan.inlining, bad = [], inSq = [];
+      sc.forEach((x, i) => {
+        const m = /in the body of (\S+), inlined at line (\S+)\./
+          .exec(x.panel);
+        const fn = x.top?.split(/[ (]/)[0];
+        if (!!m !== x.topInline || (m && m[1] !== fn)
+          || /\?|-1/.test(x.panel) || /body of \?|line -1|call \?/
+            .test(x.note)) bad.push(i);
+        if (m?.[1] === "sq") inSq.push(i);
+      });
+      check(name, `BUG ${lvl} Inlining panel agrees with the call stack`
+        + (bad.length ? ` (not at ${bad.slice(0, 5)})` : ""),
+        sc.length > 0 && bad.length === 0);
+      check(name, `BUG ${lvl} inlined steps: invoke to return`,
+        same(inSq, lvl === "O2"
+          ? sqInline.spans.flatMap((sp) => [...sp, sp.at(-1) + 1]) : []));
+    }
     check(name, "BUG O2 inline marker", u.bug.O2.inline?.fn === "sq"
       && u.bug.O2.inline.noteVisible === "visible"
       && u.bug.O2.inline.site > 0);
