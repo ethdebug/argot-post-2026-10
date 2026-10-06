@@ -219,7 +219,8 @@ async function loadFe() {
   // Fe has no Shiki grammar; `rust` is a close approximation.
   return [{ summary: r, steps, sources: shown, main: 0, lang: "rust",
     capabilities: {
-      generated: "for Fe, an instruction with no source range" } },
+      generated: "for Fe, an instruction with no source range",
+      library: "for Fe, a builtin-core:/ or builtin-std:/ file" } },
     transfer(steps)];
 }
 

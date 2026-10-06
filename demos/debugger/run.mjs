@@ -290,10 +290,11 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
         }
         o.lineMs = lineMsOf(w);
       }
-      // Skip compiler code. On (the default): into, over and out never
-      // stop on a compiler-generated step (no span), forward or back.
-      // Off: stepping into stops on one. Over and out only where enabled
-      // (BUG; on Solidity and Fe every step is at EVM depth 1).
+      // Skip compiler and library code. On (the default): into, over and
+      // out never stop on a compiler-generated step (no span) or in a
+      // library file, forward or back. Off: stepping into stops on one.
+      // Over and out only where enabled (BUG; on Solidity and Fe every
+      // step is at EVM depth 1).
       const skip = document.getElementById("skip");
       const setSkip = (on) => { if (skip.checked !== on) skip.click(); };
       out.skip = { default: skip.checked };
@@ -303,16 +304,19 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
         const w = window.walked[ds];
         const walk = (go, d) => {
           const b = btn(go, d);
-          let gen = 0, stops = 0;
+          let gen = 0, lib = 0, stops = 0;
           while (!b.disabled && stops < w.n) {
             b.click();
             stops++;
             if (!w.spans[at()]) gen++;
+            if (w.lib[at()]) lib++;
           }
-          return { stops, gen };
+          return { stops, gen, lib };
         };
         const o = out.skip[ds] = {
-          note: document.getElementById("skip-note").textContent };
+          note: document.getElementById("skip-note").textContent,
+          link: document.querySelector("#skip-note a")?.href ?? null,
+          libSteps: w.lib.filter(Boolean).length };
         // The same panels on every tab; missing data says why.
         go(w.changes[0] ?? 0);
         await window.stateReady();
@@ -469,6 +473,69 @@ let phone;
   phone = w;
   await browser.close();
 }
+// Layout (Chromium), at 1440 and 390 px wide, on every data set: the
+// source and the three panels show, with no sideways scroll. The boxes
+// keep their place and size when the tab or the step changes: at 1440
+// px the source and the panels, at 390 px the source card.
+const layoutFails = [];
+{
+  const browser = await chromium.launch();
+  for (const width of [1440, 390]) {
+    const ctx = await browser.newContext({
+      viewport: { width, height: width > 500 ? 900 : 844 } });
+    const page = await ctx.newPage();
+    const errors = [];
+    page.on("console", (m) => m.type() === "error" && errors.push(m.text()));
+    page.on("pageerror", (e) => errors.push(String(e)));
+    await page.goto(PAGE);
+    await page.waitForFunction(() => window.results?.done, null,
+      { timeout: 120000 });
+    const r = await page.evaluate(async (wide) => {
+      const out = {};
+      const range = document.querySelector("#stepper input[type=range]");
+      const boxes = () => (wide ? [".src", ".frames", ".state", ".inlining"]
+        : [".view"]).map((s) => {
+        const b = document.querySelector(`#stepper ${s}`)
+          .getBoundingClientRect();
+        return [b.x, b.y + scrollY, b.width, b.height].map(Math.round)
+          .join(",");
+      }).join(" ");
+      for (const ds of ["sol", "fe", "bug-O0", "bug-O2"]) {
+        if (ds.startsWith("bug")) await window.selectLevel(ds.slice(4));
+        else await window.select(ds);
+        const at = [];
+        for (const f of [0.1, 0.5, 0.9]) {
+          range.value = String(Math.round(+range.max * f));
+          range.dispatchEvent(new Event("input"));
+          await window.stateReady();
+          at.push(boxes());
+        }
+        const d = document.documentElement;
+        out[ds] = {
+          shown: [".src", ".panel.frames", ".panel.state",
+            ".panel.inlining"].map((s) => document.querySelector(
+            `#stepper ${s}`).getBoundingClientRect().height > 20),
+          sideways: d.scrollWidth > d.clientWidth, boxes: at };
+      }
+      await window.select("sol");
+      return out;
+    }, width > 500);
+    for (const [ds, x] of Object.entries(r)) {
+      const n = `layout ${width}px ${ds}`;
+      if (!x.shown.every(Boolean)) layoutFails.push(`${n}: shown ${x.shown}`);
+      if (x.sideways) layoutFails.push(`${n}: sideways scroll`);
+    }
+    const all = new Set(Object.values(r).flatMap((x) => x.boxes));
+    if (all.size !== 1) {
+      layoutFails.push(`layout ${width}px: boxes move: ${[...all]
+        .join(" | ")}`);
+    }
+    if (errors.length) layoutFails.push(`layout ${width}px: ${errors}`);
+    console.log("layout", width, JSON.stringify(Object.fromEntries(
+      Object.entries(r).map(([k, x]) => [k, x.boxes[0]]))));
+  }
+  await browser.close();
+}
 // The state panel's expected values (Shop.place on a fresh contract).
 const MAP = "<mapping; index it with [key]>", UNK = "<unknown>";
 const want = {
@@ -505,6 +572,7 @@ for (const [name, b] of Object.entries(all)) {
   console.log("ui", JSON.stringify(r0.ui), "shiki", JSON.stringify(r0.shiki));
   console.log("redirect", JSON.stringify(r0.redirect));
   console.log("panels", JSON.stringify(r0.ui.panels));
+  console.log("skip", JSON.stringify(r0.ui.skip));
   console.log("state panel", b.runs.map((r) =>
     stateOk(r.ui.state) ? "ok" : "FAIL").join(","));
   const errors = b.runs.flatMap((r) => r.logs)
@@ -547,7 +615,7 @@ for (const [name, b] of Object.entries(all)) {
     check(name, "skip compiler code on by default", u.skip.default);
     // Panels: call stack, inlining, variables on every tab; those without
     // data give their reason (expected: the data set's whyNot).
-    const NAMES = ["Call stack", "Inlining", "Variables"];
+    const NAMES = ["Call stack", "Variables", "Inlining"];
     const missing = { sol: ["Call stack", "Inlining"],
       fe: NAMES, "bug-O0": ["Inlining"], "bug-O2": [] };
     for (const [ds, want] of Object.entries(missing)) {
@@ -561,7 +629,7 @@ for (const [name, b] of Object.entries(all)) {
       }
     }
     check(name, "sol: no-locals reason", /local variables/
-      .test(u.panels.sol[2].why));
+      .test(u.panels.sol[1].why));
     for (const ds of ["sol", "fe", "bug-O0", "bug-O2"]) {
       const o = u.skip[ds];
       const on = Object.values(o.on), off = Object.values(o.off);
@@ -570,8 +638,16 @@ for (const [name, b] of Object.entries(all)) {
       check(name, `${ds} skip off: a stop on compiler code`,
         off.some((x) => x.gen > 0));
       check(name, `${ds} skip note`, /ethdebug has no explicit marker/
-        .test(o.note));
+        .test(o.note) && /Library code|Imported code/.test(o.note));
+      check(name, `${ds} skip on: no stop in a library file`,
+        on.every((x) => x.lib === 0));
     }
+    // Fe steps through its standard library; skipping it is the point.
+    check(name, "fe skip off: a stop in a library file",
+      u.skip.fe.libSteps > 0 && Object.values(u.skip.fe.off)
+        .some((x) => x.lib > 0));
+    check(name, "sol skip note links ethdebug/format#329",
+      u.skip.sol.link === "https://github.com/ethdebug/format/issues/329");
     if (r.redirect) check(name, "redirect from demos/soldb/", r.redirect.ok);
     check(name, "loading state", r.frames.loadingShown);
     check(name, `main thread free (gap < ${LONG} ms)`, r.frames.max < LONG);
@@ -589,6 +665,7 @@ for (const [name, b] of Object.entries(all)) {
 for (const [name, b] of Object.entries(all)) {
   check(name, `browser launch ${b.error ?? ""}`, !!b.runs);
 }
+for (const f of layoutFails) fails.push(f);
 check("iPhone 15", "BUG tab: no sideways scroll",
   phone.bug.scrollW <= phone.bug.clientW);
 console.log(fails.length ? `\nFAIL\n${fails.join("\n")}` : "\nPASS");
