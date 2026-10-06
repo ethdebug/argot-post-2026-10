@@ -677,67 +677,114 @@ function keep() {
 }
 
 const loaded = {};
+let index = []; // the examples shown, from fixtures/index.json
+let wanted; // the example asked for last
+// gray lines in the tree while an example's data loads
+const SKELETON = `<div class="skel" aria-hidden="true">${
+  "<i></i>".repeat(8)}</div>`;
+let firstShown;
+const ready = new Promise((r) => {
+  firstShown = r;
+});
 
+// Each value's text before and after, by path (for bin/run.mjs)
+function record(id, tree) {
+  const flat = {};
+  const visit = (n) => {
+    flat[n.path] = { before: n.before?.text, after: n.after?.text };
+    (n.children ?? []).forEach(visit);
+  };
+  tree.forEach(visit);
+  window.results.decoded[id] = flat;
+}
+
+// Show an example. Its data is fetched the first time (with progress in
+// the bar at the top); until then the picker shows the choice and the
+// tree waits. Returns false when the data did not load.
 window.select = async (id) => {
-  if (!loaded[id]) {
-    const f = await (await fetch(`fixtures/${id}.json`)).json();
-    const tree = await decode(f);
-    loaded[id] = { id, f, tree, panel: buildPanel(f, tree) };
-  }
-  current = loaded[id];
+  wanted = id;
   for (const b of $("picker").querySelectorAll("button")) {
     b.setAttribute("aria-checked", String(b.dataset.id === id));
   }
+  if (!loaded[id]) {
+    const x = index.find((e) => e.id === id);
+    $("tree").innerHTML = SKELETON;
+    $("summary").textContent = x?.summary ?? "";
+    let f;
+    try {
+      f = await window.loading.load(`fixtures/${id}.json`,
+        { label: x ? `“${x.title}”` : id });
+    } catch (e) {
+      if (wanted === id) {
+        window.loading.fail(e, () => window.select(id));
+        $("tree").innerHTML = `<p class="error">${esc(e.message)}` +
+          ` <button type="button" class="btn">Retry</button></p>`;
+        $("tree").querySelector("button").onclick = window.loading.retry;
+      }
+      return false;
+    }
+    const tree = await decode(f);
+    loaded[id] = { id, f, tree, panel: buildPanel(f, tree) };
+    record(id, tree);
+  }
+  if (wanted !== id) return true; // another example was asked for since
+  current = loaded[id];
   render();
   keep();
+  firstShown();
+  return true;
 };
 
+// After the page is usable, fetch the other examples one at a time while
+// the browser is idle and nothing else is loading
+function prefetch(ids) {
+  const idle = window.requestIdleCallback ??
+    ((f) => setTimeout(f, 200));
+  const next = () => idle(() => {
+    if (!ids.length) return;
+    if (window.loading.busy()) return setTimeout(next, 500);
+    window.loading.load(`fixtures/${ids.shift()}.json`, { quiet: true })
+      .catch(() => {}).then(next);
+  });
+  next();
+}
+
 async function main() {
-  $("meta").innerHTML =
-    `@ethdebug/pointers from main (commit <code>${commit.slice(0, 9)}` +
-    "</code>), pending release.";
-  const index = await (await fetch("fixtures/index.json")).json();
-  const shown = index.filter((x) => !x.hidden);
-  $("picker").innerHTML = shown.map((x) =>
+  index = (await window.loading.load("fixtures/index.json"))
+    .filter((x) => !x.hidden);
+  $("picker").innerHTML = index.map((x) =>
     `<button role="radio" data-id="${esc(x.id)}">${esc(x.title)}</button>`)
     .join("");
-  $("mode").innerHTML = [["before", "Before"], ["after", "After"]].map(
-    ([m, t]) =>
-    `<button role="radio" data-mode="${m}" aria-checked="false">${t}` +
-    "</button>").join("");
   $("picker").addEventListener("click", (e) => {
     const b = e.target.closest("button");
     if (b) window.select(b.dataset.id).catch(fail);
   });
-  for (const x of shown) {
-    await window.select(x.id);
-    const flat = {};
-    const visit = (n) => {
-      flat[n.path] = { before: n.before?.text, after: n.after?.text };
-      (n.children ?? []).forEach(visit);
-    };
-    current.tree.forEach(visit);
-    window.results.decoded[x.id] = flat;
-  }
-  const f0 = loaded[shown[0].id].f;
-  $("meta").innerHTML += ` Compiled with solc ${esc(
-    f0.contract.compiler.split("+")[0])} (Walnut's fork, ` +
-    "walnuthq/solidity PR #10).";
   // Back to what the URL hash says, if it still makes sense
   const h = initialHash;
-  const ex = shown.find((x) => x.id === h.get("ex") ||
-    exId(x.id) === h.get("ex")) ?? shown[0];
-  await window.select(ex.id);
+  const ex = index.find((x) => x.id === h.get("ex") ||
+    exId(x.id) === h.get("ex")) ?? index[0];
   // (an old "compare" shows After)
   if (["before", "after"].includes(h.get("mode"))) mode = h.get("mode");
   insets = h.get("insets") !== "0";
   $("insets").checked = insets;
+  // the first example (after a failure, once Retry or a pick shows one)
+  window.select(ex.id);
+  await ready;
+  $("meta").innerHTML =
+    `@ethdebug/pointers from main (commit <code>${commit.slice(0, 9)}` +
+    "</code>), pending release." + ` Compiled with solc ${esc(
+    current.f.contract.compiler.split("+")[0])} (Walnut's fork, ` +
+    "walnuthq/solidity PR #10).";
   applyMode();
   const sel = h.get("sel");
-  if (sel && find(current.tree, sel)) choose(sel, null, true);
+  if (sel && current.id === ex.id && find(current.tree, sel)) {
+    choose(sel, null, true);
+  }
   restored = true;
   keep();
+  window.results.usable = performance.now();
   window.results.done = true;
+  prefetch(index.map((x) => x.id).filter((id) => !loaded[id]));
 }
 
 function fail(e) {

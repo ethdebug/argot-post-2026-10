@@ -732,3 +732,30 @@ li.same > .row .name, li.same > .row .type { opacity: 0.55; }
 .legend mark.mb { background: var(--mark); color: inherit; }
 .mknown { margin: 16px 0 0; padding-left: 20px; max-width: 80ch; }
 .mknown li { margin: 4px 0; }
+
+/* Loading: gray lines where the values will be, and room kept for the
+   lines that come with the data, so the layout does not move when it
+   arrives */
+.skel { display: grid; gap: 12px; padding: 8px 0; }
+.skel i {
+  display: block;
+  height: 18px;
+  border-radius: 4px;
+  background: color-mix(in srgb, var(--fg) 8%, transparent);
+}
+.skel i:nth-child(3n + 2) { width: 70%; margin-left: 16px; }
+.skel i:nth-child(3n) { width: 55%; margin-left: 16px; }
+@media (prefers-reduced-motion: no-preference) {
+  .skel i { animation: skel 1.4s ease-in-out infinite alternate; }
+}
+@keyframes skel { to { opacity: 0.45; } }
+/* the lines that come with the data: two lines of meta and one of
+   summary on a wide page, four and three on a phone */
+#meta, #mmeta { min-height: calc(2 * 1.5em); }
+.summary { min-height: 1.5em; }
+@media (max-width: 759px) {
+  #meta, #mmeta { min-height: calc(4 * 1.5em); }
+  .summary { min-height: calc(3 * 1.5em); }
+}
+/* the words: room for the smallest dump */
+#panel:empty, #mpanel:empty { min-height: 270px; }

@@ -16,4 +16,4 @@ export const commit = "$commit";
 JS
 npx esbuild "$entry" --bundle --format=esm --platform=neutral \
   --main-fields=module,main --outfile="$here/vendor/pointers.js" \
-  --legal-comments=none
+  --legal-comments=none --minify

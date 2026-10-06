@@ -7,12 +7,65 @@
 <meta name="description" content="Contract storage before and after a
 transaction, by Solidity name, decoded from solc's ethdebug pointer
 templates by ethdebug's reference library.">
-<link rel="stylesheet" href="../../shared/appendix.css">
-<link rel="stylesheet" href="style.css">
-<script type="module" src="main.js"></script>
-<script type="module" src="mem.js"></script>
+<!-- On a slow link the loading bar paints first: the stylesheets do not
+block it (media="print" until they load), and the page stays hidden
+until both are in, so nothing moves when they apply. The loader at the
+end of the body fetches the decoder and the data. -->
+<style>
+  html { background: #fbfaf7; color: #1f2328; }
+  body { margin: 0; display: flow-root; }
+  html:not(.styled) main { visibility: hidden; }
+  .loadbar { position: fixed; z-index: 30; top: 0; left: 0; right: 0;
+    font: 13px/1.4 system-ui, sans-serif; pointer-events: none; }
+  .loadbar[hidden] { display: none; }
+  .loadbar .track { height: 3px; background: #dedbd3; }
+  .loadbar .fill { height: 3px; width: 0; background: #8a4b00;
+    transition: width 0.2s; }
+  .loadbar .msg { position: fixed; bottom: 12px; left: 16px; margin: 0;
+    width: max-content; max-width: calc(100% - 32px);
+    padding: 4px 10px; border-radius: 6px;
+    box-shadow: 0 2px 8px rgb(0 0 0 / 0.12);
+    background: #fff; border: 1px solid #dedbd3; color: #1f2328;
+    pointer-events: auto; overflow-wrap: anywhere; }
+  .loadbar.failed .msg { border-color: #8b2f2f; }
+  .loadbar.failed .fill { background: #8b2f2f; }
+  .loadbar button { font: inherit; margin-left: 8px; padding: 1px 10px;
+    border-radius: 4px; border: 1px solid currentColor;
+    background: transparent; color: inherit; cursor: pointer; }
+  @media (prefers-color-scheme: dark) {
+    html { background: #15171a; color: #e6e4df; }
+    .loadbar .track { background: #2e3238; }
+    .loadbar .fill { background: #f0b35a; }
+    .loadbar .msg { background: #1c1f23; border-color: #2e3238;
+      color: #e6e4df; }
+    .loadbar.failed .msg { border-color: #f08a8a; }
+    .loadbar.failed .fill { background: #f08a8a; }
+  }
+</style>
+<script>
+  // Shows the page once both stylesheets are in (or failed)
+  window.styled = (link) => {
+    link.media = "all";
+    if (document.querySelectorAll("link[data-css][media=print]").length)
+      return;
+    document.documentElement.classList.add("styled");
+  };
+</script>
+<link rel="stylesheet" href="../../shared/appendix.css" media="print"
+  data-css onload="styled(this)" onerror="styled(this)">
+<link rel="stylesheet" href="style.css" media="print" data-css
+  onload="styled(this)" onerror="styled(this)">
+<link rel="modulepreload" href="main.js">
+<link rel="modulepreload" href="mem.js">
+<link rel="modulepreload" href="panel.js">
+<link rel="modulepreload" href="decode.js">
 </head>
 <body>
+<div id="loadbar" class="loadbar" role="status" aria-live="polite">
+  <div class="track"><div class="fill"></div></div>
+  <p class="msg"><span class="text">Loading the decoder and the
+  data…</span></p>
+</div>
 <main>
   <header>
     <h1>Storage, by name</h1>
@@ -32,11 +85,26 @@ templates by ethdebug's reference library.">
 
   <section id="storage" aria-label="Transaction">
     <h2 class="label">Transaction</h2>
+    <!-- the same buttons as main.js makes from fixtures/index.json, here
+    so the page does not move when they come -->
     <div id="picker" class="picker" role="radiogroup"
-      aria-label="Transaction"></div>
+      aria-label="Transaction">
+      <button role="radio"
+        data-id="token-transfer">Token: transfer 25</button>
+      <button role="radio"
+        data-id="shop-place">Shop: place an order</button>
+      <button role="radio"
+        data-id="packed-set">Packed: set packed values</button>
+      <button role="radio"
+        data-id="strings-update">Strings: one grows long, one shrinks
+        short</button></div>
     <div class="moderow"><span class="modelabel" id="mode-l">Show</span>
       <div id="mode" class="picker mode" role="radiogroup"
-        aria-labelledby="mode-l"></div>
+        aria-labelledby="mode-l">
+        <button role="radio" data-mode="before"
+          aria-checked="false">Before</button>
+        <button role="radio" data-mode="after"
+          aria-checked="true">After</button></div>
       <label class="chipcheck"><input type="checkbox" id="insets" checked>
         show other state</label>
       <span id="viewing" class="viewing" hidden></span></div>
@@ -48,7 +116,9 @@ templates by ethdebug's reference library.">
       <h2 class="label">Storage
         <span class="legend"><span class="chg">changed</span>
         <span class="same">unchanged</span></span></h2>
-      <div id="tree" class="tree"><p class="muted">Loading…</p></div>
+      <div id="tree" class="tree">
+        <div class="skel" aria-hidden="true"><i></i><i></i><i></i><i></i>
+        <i></i><i></i><i></i><i></i></div></div>
     </section>
 
     <section aria-labelledby="how-h" class="howbox">
@@ -104,15 +174,17 @@ templates by ethdebug's reference library.">
       <span class="tag preview">preview: bugc from ethdebug/format main,
       not yet released</span></h2>
     <p class="lede">BUG is ethdebug's teaching language. Its compiler,
-    bugc, is ethdebug's reference compiler. On main (PR #328), bugc
+    bugc, is ethdebug's reference compiler. On main (PRs #328 and #343), bugc
     tells where each local variable is at each instruction, arrays and
-    strings in memory included. The program below finds the longest name
-    in a list of three. <code>names</code> is an array: its word holds an
-    address, and at that address are the length and one word for each
-    element. Each element word holds the address of a string: its
-    length, then its bytes. <code>longest</code> is a string, and its
-    word holds the address of one of those strings, so the program copies
-    no bytes. Pick two points in the run, A and B, and show memory at one
+    strings in memory included. The program below replaces one name in
+    a list of three with a longer one. <code>names</code> is an array:
+    its word holds an address, and at that address are the length and
+    one word for each element. Each element word holds the address of a
+    string: its length, then its bytes. The replace writes
+    <code>"grace hopper"</code> at free memory and puts its address in
+    the word of <code>names[1]</code>. The bytes of
+    <code>"grace"</code> stay where they were, but no value points at
+    them any more. Pick two points in the run, A and B, and show memory at one
     of them; cards beside the lit words show the other. As above, the
     byte ranges come from ethdebug's reference library
     (@ethdebug/pointers), which follows bugc's pointers against the
@@ -129,7 +201,11 @@ templates by ethdebug's reference library.">
           role="radiogroup" aria-label="Point B"></div></div>
       <div class="moderow"><span class="modelabel" id="mmode-l">Show</span>
         <div id="mmode" class="picker mode" role="radiogroup"
-          aria-labelledby="mmode-l"></div>
+          aria-labelledby="mmode-l">
+          <button role="radio" data-mode="before"
+            aria-checked="false">A</button>
+          <button role="radio" data-mode="after"
+            aria-checked="true">B</button></div>
         <span id="mviewing" class="viewing" hidden></span></div>
       <p id="mnote" class="summary"></p>
     </div>
@@ -139,7 +215,9 @@ templates by ethdebug's reference library.">
         <h2 class="label">Local variables
           <span class="legend"><span class="chg">changed</span>
           <span class="same">unchanged</span></span></h2>
-        <div id="mtree" class="tree"><p class="muted">Loading…</p></div>
+        <div id="mtree" class="tree">
+        <div class="skel" aria-hidden="true"><i></i><i></i><i></i><i></i>
+        <i></i><i></i><i></i><i></i></div></div>
       </section>
 
       <section aria-labelledby="mhow-h" class="howbox">
@@ -170,13 +248,9 @@ templates by ethdebug's reference library.">
     </div>
 
     <ul class="mknown small muted">
-      <li><code>longest</code> lights the same bytes as the element
-      whose address it holds: from either one, the library finds the
-      same length and bytes.</li>
-      <li>Without optimization, bugc can keep one local in more than one
-      word over a run. At "Longer name found", <code>longest</code> is
-      in another word than at the other points; bugc's pointer at each
-      point names the word.</li>
+      <li>Memory is not freed: after the replace, the old string's
+      bytes are still in memory, but no value owns them, so they are
+      dim.</li>
       <li>bugc cannot yet build structs or fixed-size arrays in memory,
       so its debug data gives their types only.</li>
       <li><code>size</code> is in storage, not memory; this section
@@ -184,5 +258,179 @@ templates by ethdebug's reference library.">
     </ul>
   </section>
 </main>
+<script>
+// The loader. Fetches the decoder bundle and the data with progress
+// (bytes of total; a gzipped response is counted as its bytes after
+// gzip is undone, which is what the sizes below give), and keeps each
+// file it fetched. A failed load shows its error and a Retry button.
+// main.js and mem.js run once the decoder is in, and fetch an example's
+// data through window.loading.load() when the example is shown.
+(() => {
+  // the size of each file, in bytes (bin/sizes.mjs writes this)
+  const SIZES = /* sizes */{
+    "vendor/pointers.js": 278654,
+    "fixtures/index.json": 768,
+    "fixtures/memory.json": 8154,
+    "fixtures/packed-set.json": 8357,
+    "fixtures/shop-place.json": 18344,
+    "fixtures/strings-update.json": 7594,
+    "fixtures/token-transfer.json": 6524
+  }/* end sizes */;
+  const bar = document.getElementById("loadbar");
+  const files = new Map(); // url -> { got, size, label, shown, promise }
+  let failures = []; // { text, retry }
+  let hide;
+  const kb = (n) => `${Math.round(n / 1024)} KB`;
+
+  function draw() {
+    const on = [...files.values()].filter((f) => f.shown);
+    const busy = on.some((f) => !f.done);
+    clearTimeout(hide);
+    bar.classList.toggle("failed", failures.length > 0);
+    const text = bar.querySelector(".text");
+    const fill = bar.querySelector(".fill");
+    bar.querySelector("button")?.remove();
+    if (failures.length) {
+      bar.hidden = false;
+      text.textContent = failures.map((f) => f.text).join(" ");
+      const b = document.createElement("button");
+      b.type = "button";
+      b.textContent = "Retry";
+      b.onclick = retry;
+      bar.querySelector(".msg").append(b);
+      fill.style.width = "100%";
+      return;
+    }
+    if (!busy) {
+      // done: the bar goes, and the next load starts from zero
+      for (const f of on) f.shown = false;
+      fill.style.width = "100%";
+      hide = setTimeout(() => {
+        bar.hidden = true;
+      }, 300);
+      return;
+    }
+    const got = on.reduce((n, f) => n + f.got, 0);
+    const size = on.reduce((n, f) => n + Math.max(f.size, f.got), 0);
+    const labels = [...new Set(on.filter((f) => !f.done)
+      .map((f) => f.label))];
+    bar.hidden = false;
+    text.textContent = `Loading ${labels.length === 1 ? labels[0]
+      : "the decoder and the data"}: ${kb(got)} of ${kb(size)}`;
+    fill.style.width = `${size ? (100 * got) / size : 0}%`;
+  }
+
+  // Fetch a file once: JSON, or text with { text: true }. `quiet`: no
+  // progress (a prefetch); a later load of the same file shows it.
+  function load(url, { label = url, text = false, quiet = false } = {}) {
+    let f = files.get(url);
+    if (f) {
+      if (!quiet && !f.shown && !f.done) {
+        Object.assign(f, { shown: true, label });
+        draw();
+      }
+      return f.promise;
+    }
+    f = { got: 0, size: SIZES[url] ?? 0, label, shown: !quiet,
+      done: false };
+    files.set(url, f);
+    f.promise = (async () => {
+      let res;
+      try {
+        res = await fetch(url);
+      } catch {
+        throw new Error("the network request failed");
+      }
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const parts = [];
+      const reader = res.body.getReader();
+      for (;;) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        parts.push(value);
+        f.got += value.length;
+        if (f.shown) draw();
+      }
+      const all = new Uint8Array(f.got);
+      let at = 0;
+      for (const p of parts) {
+        all.set(p, at);
+        at += p.length;
+      }
+      const body = new TextDecoder().decode(all);
+      return text ? body : JSON.parse(body);
+    })().then((x) => {
+      f.done = true;
+      draw();
+      return x;
+    }, (e) => {
+      files.delete(url);
+      draw();
+      throw new Error(`Could not load ${url} (${e.message}).`);
+    });
+    draw();
+    return f.promise;
+  }
+
+  // Show a load error with a Retry button; `retry` loads again. Retry
+  // retries every failed load. (The page may show the error with its
+  // own button that calls retry().)
+  function fail(e, retry) {
+    failures.push({ text: String(e?.message ?? e), retry });
+    draw();
+  }
+
+  function retry() {
+    const again = failures.map((f) => f.retry);
+    failures = [];
+    draw();
+    again.forEach((f) => f());
+  }
+
+  window.loading = { load, fail, retry, busy: () =>
+    [...files.values()].some((f) => !f.done) };
+
+  // The decoder, the index, the example the page opens with, and the
+  // memory section's data, all at once
+  async function boot() {
+    // the example to open with: the URL hash's, or the first
+    const ex = new URLSearchParams(location.hash.slice(1)).get("ex");
+    const ids = [...document.querySelectorAll("#picker button")]
+      .map((b) => b.dataset.id);
+    const first = ids.find((id) => id === ex || id.split("-")[0] === ex) ??
+      ids[0];
+    for (const b of document.querySelectorAll("#picker button")) {
+      b.setAttribute("aria-checked", String(b.dataset.id === first));
+    }
+    const index = load("fixtures/index.json",
+      { label: "the decoder and the data" });
+    // (main.js loads it again, and shows a failure)
+    load(`fixtures/${first}.json`, { label: "the decoder and the data" })
+      .catch(() => {});
+    load("fixtures/memory.json", { label: "the decoder and the data" })
+      .catch(() => {});
+    try {
+      if (!globalThis.ethdebugPointers) {
+        const code = await load("vendor/pointers.js",
+          { label: "the decoder and the data", text: true });
+        const url = URL.createObjectURL(
+          new Blob([code], { type: "text/javascript" }));
+        globalThis.ethdebugPointers = await import(url);
+        URL.revokeObjectURL(url);
+      }
+      await index;
+    } catch (e) {
+      return fail(e, boot);
+    }
+    try {
+      await Promise.all([import("./main.js"), import("./mem.js")]);
+    } catch (e) {
+      fail(new Error(`The page's code did not load (${e.message}).`),
+        () => location.reload());
+    }
+  }
+  boot();
+})();
+</script>
 </body>
 </html>

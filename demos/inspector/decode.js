@@ -5,7 +5,11 @@
 // steps come from replay(), which walks the same template and asks the
 // library's own evaluate() for each expression. Each replayed region must
 // equal the region that dereference() returned, or decoding stops.
-import { dereference, Data, evaluate, commit } from "./vendor/pointers.js";
+//
+// On the page, index.html loads the library first (with progress) and
+// puts it on globalThis.ethdebugPointers; in node, it is imported here.
+const { dereference, Data, evaluate, commit } =
+  globalThis.ethdebugPointers ?? await import("./vendor/pointers.js");
 
 export { commit };
 

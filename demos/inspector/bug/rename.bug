@@ -1,0 +1,11 @@
+name Rename;
+
+storage {
+  [0] size: uint256;
+}
+
+code {
+  let names: array<string> = ["ada", "grace", "alan"];
+  names[1] = "grace hopper";
+  size = names[1].length;
+}

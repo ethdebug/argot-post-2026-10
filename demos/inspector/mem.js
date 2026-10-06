@@ -23,7 +23,7 @@ window.memResults = { done: false, errors: [], decoded: {} };
 
 let data; // fixtures/memory.json
 const trees = {}; // point id -> decoded locals (decode.js nodes)
-const pick = { before: "start", after: "done" }; // side -> point id
+const pick = { before: "built", after: "replaced" }; // side -> point id
 // Which dump to show: "before" (A) or "after" (B)
 let mode = "after";
 
@@ -619,8 +619,21 @@ function wire() {
   });
 }
 
+let wired = false;
 async function main() {
-  data = await (await fetch("fixtures/memory.json")).json();
+  try {
+    data = await window.loading.load("fixtures/memory.json",
+      { label: "the memory example" });
+  } catch (e) {
+    $("mtree").innerHTML = `<p class="error">${esc(e.message)}` +
+      ` <button type="button" class="btn">Retry</button></p>`;
+    $("mtree").querySelector("button").onclick = window.loading.retry;
+    return window.loading.fail(e, () => {
+      $("mtree").innerHTML = `<div class="skel" aria-hidden="true">${
+        "<i></i>".repeat(8)}</div>`;
+      main().catch(failed);
+    });
+  }
   for (const p of data.points) {
     trees[p.id] = await decodeLocals(p.variables, p.memory);
     const flat = {};
@@ -630,9 +643,6 @@ async function main() {
     });
     window.memResults.decoded[p.id] = flat;
   }
-  $("mmode").innerHTML = [["before", "A"], ["after", "B"]].map(([m, t]) =>
-    `<button role="radio" data-mode="${m}" aria-checked="false">${t}` +
-    "</button>").join("");
   for (const side of SIDES) {
     $(`mpick-${side}`).innerHTML = data.points.map((p) =>
       `<button role="radio" data-id="${esc(p.id)}" aria-checked="false"` +
@@ -655,7 +665,8 @@ async function main() {
     mode = h.get("mmode");
   }
   const sel = h.get("msel");
-  wire();
+  if (!wired) wire();
+  wired = true;
   render();
   if (sel && find(model.tree, sel)) {
     chosen = sel;
@@ -666,10 +677,12 @@ async function main() {
   window.memResults.done = true;
 }
 
-main().catch((e) => {
+function failed(e) {
   console.error(e);
   window.memResults.errors.push(String(e?.message ?? e));
   window.memResults.done = true;
   $("mtree").innerHTML = `<p class="error">Could not decode: ${esc(
     e?.message ?? e)}</p>`;
-});
+}
+
+main().catch(failed);

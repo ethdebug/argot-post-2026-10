@@ -1,16 +1,17 @@
 // Makes fixtures/memory.json for the memory section: compiles
-// bug/longest.bug with bugc, runs it on anvil, and saves memory at a few
+// bug/rename.bug with bugc, runs it on anvil, and saves memory at a few
 // handpicked points of the trace, with the `variables` context bugc
 // emitted for each point's instruction.
 //
-// The program finds the longest name in an array of three strings.
-// `names` is an array in memory: its word holds the address of a length
-// word and three element words, and each element word holds the address
-// of a string (a length word, then the bytes). `longest` is a string
-// local: its word holds the address of one of those strings.
+// The program replaces one name in an array of three strings with a
+// longer one. `names` is an array in memory: its word holds the address
+// of a length word and three element words, and each element word holds
+// the address of a string (a length word, then the bytes). The replace
+// writes the new string at free memory and puts its address in the
+// element's word; the old string stays where it was.
 //
-// bugc must come from ethdebug/format main (PR #328 or later), which
-// emits pointers for local variables.
+// bugc must come from ethdebug/format main (PR #343 or later), which
+// compiles writes to memory array elements.
 //
 // Needs anvil with steps tracing on RPC (default http://127.0.0.1:8547):
 //   anvil --port 8547 --steps-tracing
@@ -41,7 +42,7 @@ const rpc = async (method, params = []) => {
 
 // ------------------------------------------------------------ compile
 
-const rel = "bug/longest.bug";
+const rel = "bug/rename.bug";
 const file = path.join(root, rel);
 const source = fs.readFileSync(file, "utf8");
 // bugc names the source by its full path; keep the relative one
@@ -110,67 +111,58 @@ for (let index = 0; index < logs.length - 1; index++) {
     n.value.text]));
   steps.push({ index, context, flat, locals, code: text(context) });
 }
-const all = (st) => ["names", "longest", "i"].every((n) => n in st.flat);
+const listed = (st) => "names[1]" in st.flat;
 
 // --------------------------------------------------------------- points
 
-// The loop test `i < names.length`: the last step of each run of steps
-// for it (the comparison), with all three locals listed
-const tests = steps.filter((st, k) => all(st) &&
-  st.code === "i < names.length" &&
-  steps[k + 1]?.code !== "i < names.length");
-const found = steps.find((st) => all(st) && st.flat.longest === '"grace"');
-if (tests.length !== 3 || !found) {
-  throw new Error(`want 3 loop tests and longest = grace; got ${
-    tests.length}, ${!!found}`);
+// The steps for the new string's literal, with the array listed: the
+// first (nothing of the new string in memory yet) and the last (its
+// length and bytes written); then the step that writes the element's
+// word, the first where names[1] reads the new string
+const NEW = '"grace hopper"';
+const literal = steps.filter((st) => listed(st) && st.code === NEW);
+const replaced = steps.find((st) => st.flat["names[1]"] === NEW);
+if (!literal.length || !replaced) {
+  throw new Error(`want the literal's steps and the replace; got ${
+    literal.length}, ${!!replaced}`);
 }
 const points = [
   {
-    id: "start",
-    title: "Loop starts",
-    note: "i < names.length, with i = 1; longest is names[0]",
-    step: tests[0],
+    id: "built",
+    title: "Array built",
+    note: 'names holds three strings; "grace hopper" is next',
+    step: literal[0],
   },
   {
-    id: "found",
-    title: "Longer name found",
-    note: "longest = names[i] ran, with i = 1",
-    step: found,
+    id: "written",
+    title: "New string written",
+    note: '"grace hopper" is in memory; names[1] still holds "grace"',
+    step: literal[literal.length - 1],
   },
   {
-    id: "done",
-    title: "Loop done",
-    note: "i < names.length, with i = 3: false, so the loop ends",
-    step: tests[2],
+    id: "replaced",
+    title: "Name replaced",
+    note: "names[1] = \"grace hopper\" ran; \"grace\" stays in memory",
+    step: replaced,
   },
 ];
 
-// What the program computed, and which string longest shares
+// What the program computed
 const names = { "names": "length 3", "names[0]": '"ada"',
-  "names[1]": '"grace"', "names[2]": '"alan"' };
+  "names[2]": '"alan"' };
 const expected = {
-  start: { ...names, longest: '"ada"', i: "1", same: "names[0]" },
-  found: { ...names, longest: '"grace"', i: "1", same: "names[1]" },
-  done: { ...names, longest: '"grace"', i: "3", same: "names[1]" },
+  built: { ...names, "names[1]": '"grace"' },
+  written: { ...names, "names[1]": '"grace"' },
+  replaced: { ...names, "names[1]": NEW },
 };
 
 const sorted = (o) => JSON.stringify(Object.fromEntries(
   Object.entries(o).sort(([a], [b]) => a.localeCompare(b))));
 const saved = [];
 for (const p of points) {
-  const { index, context, flat, locals } = p.step;
-  const { same, ...want } = expected[p.id];
-  if (sorted(flat) !== sorted(want)) {
+  const { index, context, flat } = p.step;
+  if (sorted(flat) !== sorted(expected[p.id])) {
     throw new Error(`${p.id}: ${JSON.stringify(flat)}`);
-  }
-  // longest's bytes are the element's bytes: no string was copied
-  const region = (path) => {
-    const { offset, length } = locals.find((n) => n.path === path)
-      .value.region;
-    return `${offset} ${length}`;
-  };
-  if (region("longest") !== region(same)) {
-    throw new Error(`${p.id}: longest is not at ${same}`);
   }
   const s = logs[index];
   const memory = memoryAfter(index);
@@ -186,8 +178,25 @@ for (const p of points) {
     Object.entries(flat).map(([k, v]) => `${k}=${v}`).join(" "));
 }
 
+// The element's word changed, and the old string's bytes did not
+const region = (p, path) => p.step.locals.find((n) => n.path === path)
+  .value.region;
+const [A, B] = [points[0], points[2]];
+const old = region(A, "names[1]");
+if (region(B, "names[1]").offset === old.offset) {
+  throw new Error("names[1] did not move");
+}
+const at = (p, r) => {
+  const o = Number(r.offset) * 2 + 2;
+  return saved.find((x) => x.id === p.id).memory
+    .slice(o, o + Number(r.length) * 2);
+};
+if (at(B, old) !== at(A, old) || at(A, old) !== "6772616365") {
+  throw new Error("the old string's bytes changed");
+}
+
 const data = {
-  program: { name: "Longest", file: rel, source },
+  program: { name: "Rename", file: rel, source },
   compiler: { name: "bugc", branch: "main", commit,
     optimize: Number(OPT) },
   tx: { hash: tx.hash, from, to: address,
