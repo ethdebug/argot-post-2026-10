@@ -1,0 +1,164 @@
+/* Layout options for review: ?layout=a|b|c (layouts.js moves the
+   elements into boxes; this file places the boxes). Every rule but the
+   first applies only with an option, so the default page is as before.
+   Same tokens as appendix.css: only layout and hierarchy change.
+
+   A: classic debugger. Controls over the source; panels in a rail.
+   B: three columns. Call stack | source | variables, controls on top.
+   C: transport. Source full width, controls under it, panels in a row.
+   On a phone, each one is a single column. */
+
+/* The level picker carries its own `hidden` (data-about). */
+.picker[hidden] { display: none; }
+
+:root[data-layout] main { max-width: 1400px; }
+:root[data-layout] .doc > #stepper { max-width: none; }
+
+/* The head: tabs and level, then the engine. */
+:root[data-layout] .dbg-head { margin: 16px 0 12px; }
+:root[data-layout] .dbg-pick { display: flex; flex-wrap: wrap;
+  align-items: center; gap: 8px 16px; }
+:root[data-layout] .dbg-pick .tabs { margin: 0; }
+:root[data-layout] .dbg-pick .levels { padding-left: 16px;
+  border-left: 1px solid var(--line); }
+:root[data-layout] .dbg-head .engine { margin: 8px 0 0; }
+
+/* About each tab, below the debugger, as reading text. */
+:root[data-layout] .dbg-about { margin-top: 28px; padding-top: 4px;
+  border-top: 1px solid var(--line); }
+
+/* The debugger. --h: the source's height, fixed so nothing moves. */
+:root[data-layout] #stepper:not([hidden]) { display: grid;
+  gap: 12px 16px; margin-top: 4px;
+  --h: clamp(22rem, calc(100vh - 15rem), 42rem); }
+
+/* Controls: buttons and keys | skip. B and C add the step line and
+   the slider. */
+:root[data-layout] .bar { display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  grid-template-areas: "ctl skip" "keys skip";
+  align-items: start; gap: 4px 32px; }
+:root[data-layout] .bar .ctl { grid-area: ctl; gap: 6px 10px; }
+:root[data-layout] .bar .skip { grid-area: skip; margin: 0;
+  max-width: 34rem; }
+:root[data-layout] .bar .skip p { min-height: 2.6em; }
+/* The keys line wraps to the buttons' width; it never widens them. */
+:root[data-layout] .bar .keys { grid-area: keys; margin: 0; width: 0;
+  min-width: 100%; }
+@media (hover: none) {
+  :root[data-layout] .bar .keys { display: none; }
+}
+
+/* The source card: optional head (step line, slider), code, foot
+   (notes). Fixed height; the code scrolls inside. */
+:root[data-layout] .view { display: flex; flex-direction: column;
+  height: var(--h); min-width: 0; background: var(--panel);
+  border: 1px solid var(--line); border-radius: 6px; overflow: hidden; }
+:root[data-layout] .view .src { flex: 1; min-height: 0; max-height: none;
+  border: 0; border-radius: 0; }
+:root[data-layout] .view-head { padding: 8px 12px 2px;
+  border-bottom: 1px solid var(--line); }
+:root[data-layout] #where { margin: 0; color: var(--fg); }
+:root[data-layout] .foot { height: 2.9rem; overflow: auto;
+  padding: 4px 12px; border-top: 1px solid var(--line);
+  background: color-mix(in srgb, var(--code-bg) 50%, var(--panel));
+  font-size: 0.8rem; line-height: 1.4; }
+:root[data-layout] .foot .gen-note { margin: 0; min-height: 0; }
+:root[data-layout] .foot #msg { margin: 0; }
+
+/* The panels: one card each, with a heading that stays in view while
+   its content scrolls. */
+:root[data-layout] .panels { min-height: 0; min-width: 0; gap: 12px; }
+:root[data-layout] .panel { margin: 0; min-height: 0; min-width: 0;
+  overflow: auto; overscroll-behavior: contain; padding: 0 12px 8px;
+  background: var(--panel); border: 1px solid var(--line);
+  border-radius: 6px; }
+:root[data-layout] .panel .ph { position: sticky; top: 0; z-index: 1;
+  margin: 0 -12px 6px; padding: 8px 12px 6px; font-size: 0.95rem;
+  background: var(--panel); border-bottom: 1px solid var(--line); }
+:root[data-layout] .panel table { margin: 4px 0; }
+
+/* A: classic debugger. */
+:root[data-layout="a"] #stepper:not([hidden]) {
+  grid-template-columns: minmax(0, 1fr) minmax(18rem, 25rem);
+  grid-template-rows: auto var(--h);
+  grid-template-areas: "bar panels" "view panels"; }
+:root[data-layout="a"] .bar { grid-area: bar; }
+:root[data-layout="a"] .view { grid-area: view; }
+:root[data-layout="a"] .view-head input[type=range] { margin: 4px 0; }
+/* The rail takes the height of the bar and source; its content never
+   sizes the rows. */
+:root[data-layout="a"] .panels { grid-area: panels; display: grid;
+  contain: size;
+  grid-template-rows: minmax(0, 1fr) minmax(0, 1.4fr) 7rem; }
+:root[data-layout="a"] .frames { order: 1; }
+:root[data-layout="a"] .state { order: 2; }
+:root[data-layout="a"] .inlining { order: 3; }
+
+/* B: three columns. */
+:root[data-layout="b"] #stepper:not([hidden]) {
+  --h: clamp(22rem, calc(100vh - 19rem), 40rem);
+  grid-template-columns: minmax(14rem, 19rem) minmax(0, 1fr)
+    minmax(16rem, 23rem);
+  grid-template-rows: auto calc(var(--h) - 7rem - 12px) 7rem;
+  grid-template-areas: "bar bar bar" "frames view state"
+    "inl view state"; }
+/* The bar spans the columns, with the step line and slider. */
+:root[data-layout="b"] .bar { grid-area: bar;
+  grid-template-areas: "ctl skip" "keys skip" "where where"
+    "range range";
+  padding-bottom: 12px; border-bottom: 1px solid var(--line); }
+:root[data-layout="b"] .bar #where { grid-area: where; margin-top: 6px; }
+:root[data-layout="b"] .bar input[type=range] { grid-area: range;
+  margin: 0; }
+:root[data-layout="b"] .view { grid-area: view; }
+:root[data-layout="b"] .panels { display: contents; }
+:root[data-layout="b"] .frames { grid-area: frames; }
+:root[data-layout="b"] .inlining { grid-area: inl; }
+:root[data-layout="b"] .state { grid-area: state; }
+
+/* C: transport. */
+:root[data-layout="c"] #stepper:not([hidden]) {
+  --h: clamp(18rem, calc(100vh - 30rem), 34rem);
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-rows: var(--h) auto 13rem;
+  grid-template-areas: "view view view" "bar bar bar"
+    "frames state inl"; }
+:root[data-layout="c"] .view { grid-area: view; }
+/* The transport: the slider, then the buttons, the step line and the
+   skip toggle. */
+:root[data-layout="c"] .bar { grid-area: bar;
+  grid-template-columns: auto minmax(0, 1fr) minmax(14rem, 24rem);
+  grid-template-areas: "range range range" "ctl where skip"
+    "keys keys skip";
+  align-items: center; gap: 4px 24px; }
+:root[data-layout="c"] .bar .skip { margin-top: 4px; }
+:root[data-layout="c"] .bar #where { grid-area: where; }
+:root[data-layout="c"] .bar input[type=range] { grid-area: range;
+  margin: 0; }
+:root[data-layout="c"] .panels { display: contents; }
+:root[data-layout="c"] .frames { grid-area: frames; }
+:root[data-layout="c"] .state { grid-area: state; }
+:root[data-layout="c"] .inlining { grid-area: inl; }
+
+/* Phone: one column, in reading order (A, B: controls, source,
+   panels; C: source, controls, panels). */
+@media (max-width: 760px) {
+  :root[data-layout] #stepper:not([hidden]) {
+    --h: min(70vh, 32rem);
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: none;
+    grid-template-areas: none; }
+  :root[data-layout] #stepper > *, :root[data-layout] .panel {
+    grid-area: auto; }
+  :root[data-layout] .panels { display: grid; contain: none;
+    grid-template-rows: none; }
+  :root[data-layout] .panel { height: auto; max-height: 18rem; }
+  :root[data-layout] .bar { display: flex; flex-wrap: wrap; }
+  :root[data-layout] .bar > * { flex: 1 0 100%; }
+  :root[data-layout] .bar .ctl { flex: 0 1 auto; }
+  :root[data-layout] .dbg-pick .levels { padding-left: 0;
+    border-left: 0; }
+  :root[data-layout="c"] .bar input[type=range] { order: -2; }
+  :root[data-layout="c"] .bar #where { order: -1; }
+}

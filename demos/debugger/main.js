@@ -8,6 +8,7 @@
 // (details) replays a transaction with the replay build. Results go to
 // the DOM and to window.results.
 
+import "./layouts.js";
 import { soldbEngine, refEngine } from "./engine.js";
 
 const results = { env: {}, a: null, fe: null, ref: null, bug: null,
@@ -146,7 +147,7 @@ const viewer = (() => {
     // has one, labelled as such and never drawn as a stack.
     const fn = !caps.callStack && ds.steps.functions[i];
     framesExtra.replaceChildren(...fn
-      ? [`${ds.engine.name}'s function detection: in `, code(fn)] : []);
+      ? [`${ds.engine.name}'s own function detection: `, code(fn)] : []);
     if (!vars && !caps.callStack) return;
     const seq = ++stateSeq, cur = ds, e = ds.engine;
     stateDone = Promise.all([vars && e[vars](ds.key, i),
@@ -177,13 +178,13 @@ const viewer = (() => {
       li.append(code(f.args === null ? f.name : `${f.name}(${f.args})`));
       if (f.inline) li.append(" ", badge("inline"));
       if (f.site) {
-        li.append(` ${f.inline ? "spliced into" : "called at"} line ` +
+        li.append(` ${f.inline ? "inlined at" : "called at"} line ` +
           `${f.site.line}: `, code(f.site.text.trim()));
       }
     }
     const li = framesList.appendChild(document.createElement("li"));
     li.className = "muted";
-    li.textContent = "the code block (the transaction's entry)";
+    li.textContent = "the code block (transaction entry)";
   };
   const drawState = (i, vars) => {
     stateBox.dataset.step = String(i);
@@ -216,7 +217,7 @@ const viewer = (() => {
     if (!vars.length) {
       const c = stateTable.insertRow().insertCell();
       c.className = "muted";
-      c.textContent = "none in this step's context";
+      c.textContent = "None in this step's context.";
     }
     before = new Map(vars.map((v) => [v.name, v.value]));
   };
@@ -248,9 +249,9 @@ const viewer = (() => {
     range.value = String(i);
     const st = ds.steps;
     const span = ds.walked.spans[i];
-    const fn = st.functions[i] ? ` in ${st.functions[i]}` : "";
+    const fn = st.functions[i] ? `, function ${st.functions[i]}` : "";
     const loc = st.files[i] ? `${base(st.files[i])}:${st.lineNo[i]}`
-      : "no source";
+      : "no source range";
     where.textContent = `step ${i} / ${ds.walked.n - 1}: ` +
       `pc ${st.pcs[i]} ${st.ops[i]}, ${loc}${fn}`;
     const src = ds.sources[span ? span[0] : ds.main];
@@ -262,7 +263,7 @@ const viewer = (() => {
       b.disabled = b.target === undefined ||
         (ds.walked.flat && b.dataset.go !== "into");
       b.title = b.disabled && ds.walked.flat && b.dataset.go !== "into"
-        ? "Every step here is at EVM call depth 1" : "";
+        ? "Every step here is at EVM call depth 1." : "";
     }
     // An inlined body (reference engine): the step's span is in the
     // body; the marker names the function and its call site.
@@ -270,18 +271,18 @@ const viewer = (() => {
     why(inlBox, !!ds.capabilities.inline, ds.whyNot.inline);
     inlCur.replaceChildren(...!inl ? ["This step is not in an inlined body."]
       : [badge("inline"), ` This step is in the body of ${inl.fn ?? "?"}, ` +
-        `spliced in at line ${inl.line}.`]);
+        `inlined at line ${inl.line}.`]);
     srcEl.innerHTML = hl ? render(src, span, inl && inl.site)
       : `<pre>${esc(src.text)}</pre>`;
     showState(i);
     srcEl.classList.toggle("faded", !span);
     note.textContent = !span
-      ? "compiler-generated code (no specific source)"
-      : src.lib ? `in Fe's standard library: ${src.lib}` : "";
+      ? "Compiler-generated code: no source range."
+      : src.lib ? `In Fe's standard library: ${src.lib}` : "";
     if (inl) {
-      note.append(badge("inline"), ` the body of ${inl.fn ?? "?"}, ` +
-        "spliced in at its call ", code((inl.text ?? "?").trim()),
-        ` (line ${inl.line}, outlined): no call happens`);
+      note.append(badge("inline"), ` The body of ${inl.fn ?? "?"}, ` +
+        "inlined at the call ", code((inl.text ?? "?").trim()),
+        ` (line ${inl.line}, outlined). No call happens.`);
     }
     note.dataset.inline = inl ? inl.fn ?? "?" : "";
     note.classList.toggle("on", !span || !!src.lib || !!inl);
@@ -347,10 +348,9 @@ const viewer = (() => {
       range.max = String(ds.walked.n - 1);
       box.hidden = false;
       // How this engine recognizes compiler-generated code.
-      skipNote.textContent = "Skipping relies on the debugger " +
-        "recognizing compiler-generated code by how each compiler marks " +
-        `it (${ds.capabilities.generated}). ethdebug has no explicit ` +
-        "marker for this yet.";
+      skipNote.textContent = "The engine finds compiler code by how " +
+        `each compiler marks it (${ds.capabilities.generated}). ` +
+        "ethdebug has no explicit marker for this yet.";
       // Open at the first step in the contract's own file.
       const c = ds.walked.changes;
       step(ds.pos ?? c.find((i) => ds.walked.spans[i][0] === ds.main)
@@ -408,7 +408,7 @@ const detail = {
     ["trace", `${kb(r.traceBytes)}, ${r.steps} steps, ` +
       `${r.mapped} with a source line (${r.generated} compiler-generated, ` +
       `whole-contract span), ${r.lineChanges} line changes`],
-    ["wasm memory after", kb(r.wasmMemory)],
+    ["WebAssembly memory after", kb(r.wasmMemory)],
   ],
   fe: (r) => [
     ["trace", `${kb(r.traceBytes)}, ${r.steps} steps, ${r.mapped} with a ` +
@@ -418,8 +418,8 @@ const detail = {
       `instructions, ${r.sourceCount} sources, variables at ` +
       `${r.debugInfo.pcsWithVariables} pcs`],
     ["functions / variables", `${r.withFunction} / ${r.withVariables} ` +
-      "steps (soldb's function detection targets Solidity; Fe emits no " +
-      "variables)"],
+      "steps (soldb's function detection targets Solidity, and Fe " +
+      "emits no variables)"],
   ],
 };
 
@@ -489,7 +489,7 @@ async function partB() {
     ["replay", `${r.rounds} run(s), ${r.steps} steps, ` +
       `${r.mapped} with a source line (${r.generated} compiler-generated, ` +
       `whole-contract span), ${r.lineChanges} line changes`],
-    ["wasm memory after", kb(r.wasmMemory)],
+    ["WebAssembly memory after", kb(r.wasmMemory)],
   ]);
   $("b-status").textContent = "Works. No node was contacted.";
   $("b-status").className = "status ok";
@@ -522,8 +522,8 @@ async function listRequests() {
     c.textContent = e.transferSize ? kb(e.transferSize) : "";
   }
   $("cdn").textContent = `Not listed: ${results.cdnRequests} requests ` +
-    "for Shiki (esm.sh), which colours the source. It is display code " +
-    "only; soldb needs none of them.";
+    "for Shiki (esm.sh), which colours the source. Shiki is display " +
+    "code only. The engines need none of these requests.";
 }
 
 results.env = {
