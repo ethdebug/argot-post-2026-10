@@ -43,7 +43,7 @@ demos, pointers in full, optimized code, where
 each compiler stands, contracts on mainnet, and our measurements.</p>
 <p class="appendix-nav">Part of the ethdebug post appendix, with
 <a href="../demos/inspector/">Storage, by name</a> and
-<a href="../demos/soldb/">soldb-wasm in the browser</a>.</p>
+<a href="../demos/debugger/">Step through a transaction</a>.</p>
 </header>
 
 <p><strong>ethdebug</strong> is an open specification for the debug
@@ -90,12 +90,12 @@ contract's state at each step, read by soldb from ethdebug alone:
 solc's pointers for storage and the deployed code for immutables, with
 no storage layout. This uses Walnut's next solc stage
 (walnuthq/solidity #10) and soldb pull request #181, both open.</p>
-<p class="demo-link"><a href="../demos/soldb/">Open the soldb demo</a></p>
+<p class="demo-link"><a href="../demos/debugger/">Open the demo</a></p>
 <figure>
   <picture>
-    <source srcset="../demos/soldb/screenshot-highlight-dark.png"
+    <source srcset="../demos/debugger/screenshot-highlight-dark.png"
       media="(prefers-color-scheme: dark)">
-    <img src="../demos/soldb/screenshot-highlight.png"
+    <img src="../demos/debugger/screenshot-highlight.png"
       alt="soldb in the browser, highlighting the source span of one step in a Solidity contract" loading="lazy">
   </picture>
   <figcaption>soldb highlights the source span of one step of a real
@@ -103,10 +103,10 @@ no storage layout. This uses Walnut's next solc stage
 </figure>
 <figure>
   <picture>
-    <source srcset="../demos/soldb/screenshot-fe-dark.png"
+    <source srcset="../demos/debugger/screenshot-fe-dark.png"
       media="(prefers-color-scheme: dark)">
-    <img src="../demos/soldb/screenshot-fe.png"
-      alt="The same soldb page with the Fe tab selected, stepping through a Fe contract" loading="lazy">
+    <img src="../demos/debugger/screenshot-fe.png"
+      alt="The same page with the Fe tab selected, stepping through a Fe contract" loading="lazy">
   </picture>
   <figcaption>The same page, switched to Fe.</figcaption>
 </figure>

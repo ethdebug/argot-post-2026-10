@@ -66,11 +66,14 @@ function stepsOf(steps) {
     inline: steps.inline };
 }
 
-// Stepping, computed by the page from two fields soldb reports per step:
-// the source span and the EVM call depth. `go` is "into", "over" or
-// "out"; `d` is 1 (forward) or -1 (back). Returns a step, or undefined.
-function nav(w, i, go, d) {
-  const key = (j) => w.spans[j] && w.spans[j].join(":");
+// Stepping, computed by the page from two fields the engine reports per
+// step: the source span and the call depth. `go` is "into", "over" or
+// "out"; `d` is 1 (forward) or -1 (back). With `skip`, compiler-generated
+// steps (no span) are never a stop; without it, a run of them is one
+// stop. Returns a step, or undefined.
+function nav(w, i, go, d, skip) {
+  const key = (j) => w.spans[j] ? w.spans[j].join(":")
+    : skip ? null : "generated";
   const find = (from, ok) => {
     for (let j = from; j >= 0 && j < w.n; j += d) if (ok(j)) return j;
   };
@@ -99,7 +102,7 @@ function runTo(w, i, id, line) {
 // through the same code.
 const viewer = (() => {
   const box = $("stepper");
-  const range = box.querySelector("input");
+  const range = box.querySelector("input[type=range]");
   const srcEl = box.querySelector(".src");
   const note = box.querySelector(".gen-note");
   const where = $("where");
@@ -108,9 +111,21 @@ const viewer = (() => {
   const stateTable = stateBox.querySelector("table");
   const framesBox = box.querySelector(".frames");
   const framesList = framesBox.querySelector("ol");
+  const framesExtra = framesBox.querySelector(".extra");
+  const inlBox = box.querySelector(".inlining");
+  const inlCur = inlBox.querySelector(".cur");
   const buttons = [...box.querySelectorAll("button[data-go]")];
+  const skip = $("skip");
+  const skipNote = $("skip-note");
   const cache = new Map();
   let hl = null, ds = null, shown = null, before = null;
+  // Every tab shows the same panels. A panel whose capability the data
+  // set lacks keeps its place and says why (engine.js, whyNot).
+  const why = (panel, has, text) => {
+    for (const e of panel.querySelectorAll("[data-has]")) e.hidden = !has;
+    panel.querySelector(".why:not(.locals)").textContent = has ? ""
+      : text ?? "Not available for this data set.";
+  };
   // The panels at step i, when the data set has their capability: the
   // contract's state from the engine's state(i) (Solidity), or the
   // variables in scope from variables(i) (BUG), in the same table; and
@@ -119,13 +134,19 @@ const viewer = (() => {
   // ignored. A value that differs from the one shown before is marked.
   let stateSeq = 0, stateDone = Promise.resolve();
   const showState = (i) => {
-    const caps = ds.capabilities;
+    const caps = ds.capabilities, no = ds.whyNot;
     const vars = caps.state ? "state" : caps.variables ? "variables" : null;
-    stateBox.hidden = !vars;
     for (const p of stateBox.querySelectorAll("[data-cap]")) {
       p.hidden = p.dataset.cap !== vars;
     }
-    framesBox.hidden = !caps.callStack;
+    why(stateBox, !!vars, no.variables);
+    stateBox.querySelector(".locals").textContent = no.locals ?? "";
+    why(framesBox, !!caps.callStack, no.callStack);
+    // Without a call stack: the engine's own function detection, if it
+    // has one, labelled as such and never drawn as a stack.
+    const fn = !caps.callStack && ds.steps.functions[i];
+    framesExtra.replaceChildren(...fn
+      ? [`${ds.engine.name}'s function detection: in `, code(fn)] : []);
     if (!vars && !caps.callStack) return;
     const seq = ++stateSeq, cur = ds, e = ds.engine;
     stateDone = Promise.all([vars && e[vars](ds.key, i),
@@ -236,7 +257,8 @@ const viewer = (() => {
     shown = src.id;
     msg.textContent = "";
     for (const b of buttons) {
-      b.target = nav(ds.walked, i, b.dataset.go, +b.dataset.d);
+      b.target = nav(ds.walked, i, b.dataset.go, +b.dataset.d,
+        skip.checked);
       b.disabled = b.target === undefined ||
         (ds.walked.flat && b.dataset.go !== "into");
       b.title = b.disabled && ds.walked.flat && b.dataset.go !== "into"
@@ -245,6 +267,10 @@ const viewer = (() => {
     // An inlined body (reference engine): the step's span is in the
     // body; the marker names the function and its call site.
     const inl = st.inline && st.inline[i];
+    why(inlBox, !!ds.capabilities.inline, ds.whyNot.inline);
+    inlCur.replaceChildren(...!inl ? ["This step is not in an inlined body."]
+      : [badge("inline"), ` This step is in the body of ${inl.fn ?? "?"}, ` +
+        `spliced in at line ${inl.line}.`]);
     srcEl.innerHTML = hl ? render(src, span, inl && inl.site)
       : `<pre>${esc(src.text)}</pre>`;
     showState(i);
@@ -273,6 +299,8 @@ const viewer = (() => {
     }
   };
   range.oninput = () => step(+range.value);
+  // Skip compiler code: the buttons' targets change; the step does not.
+  skip.onchange = () => ds && step(+range.value);
   for (const b of buttons) {
     b.onclick = () => b.target !== undefined && step(b.target);
   }
@@ -285,7 +313,8 @@ const viewer = (() => {
   };
   document.addEventListener("keydown", (e) => {
     if (box.hidden || e.metaKey || e.ctrlKey || e.altKey) return;
-    if (e.target.closest && e.target.closest("input, textarea, select")) {
+    if (e.target.closest && e.target.closest(
+      "input:not([type=checkbox]), textarea, select")) {
       return;
     }
     const k = KEYS[(e.shiftKey ? "Shift+" : "") + e.key];
@@ -317,6 +346,11 @@ const viewer = (() => {
       before = null;
       range.max = String(ds.walked.n - 1);
       box.hidden = false;
+      // How this engine recognizes compiler-generated code.
+      skipNote.textContent = "Skipping relies on the debugger " +
+        "recognizing compiler-generated code by how each compiler marks " +
+        `it (${ds.capabilities.generated}). ethdebug has no explicit ` +
+        "marker for this yet.";
       // Open at the first step in the contract's own file.
       const c = ds.walked.changes;
       step(ds.pos ?? c.find((i) => ds.walked.spans[i][0] === ds.main)
@@ -396,6 +430,7 @@ async function load(key, part, eng = engine) {
     sources[id] = { id: +id, ...src };
   }
   const ds = { key, engine: eng, ...loaded, sources,
+    whyNot: eng.whyNot[key] ?? {},
     walked: stepsOf(loaded.steps) };
   if (part) {
     results[part] = loaded.summary;

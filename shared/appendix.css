@@ -1,6 +1,6 @@
 /* Shared look for the ethdebug post appendix: the storage inspector
-   (demos/inspector/), the companion page (companion/) and the soldb
-   demo (demos/soldb/). Design tokens first, then shared components.
+   (demos/inspector/), the companion page (companion/) and the
+   debugger demo (demos/debugger/). Design tokens first, then shared components.
    Each page keeps a small stylesheet for what only it has. */
 
 :root {

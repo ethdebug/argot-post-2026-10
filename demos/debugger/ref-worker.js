@@ -129,12 +129,18 @@ async function load(key) {
   const ops = new Array(n), files = new Array(n), functions = new Array(n);
   const inline = new Array(n).fill(null);
   const changes = [];
-  let last = -1, withInline = 0, maxDepth = 0;
+  let last = -1, withInline = 0, maxDepth = 0, noCode = 0, whole = 0;
   for (let i = 0; i < n; i++) {
     pcs[i] = logs[i].pc;
     ops[i] = logs[i].op;
     const cs = codes(ctxAt(i));
-    const body = cs.find((c) => c.inline) ?? cs[0];
+    // Compiler-generated code: no `code` range, or one that covers most
+    // of the program (the whole program, not one range): no span.
+    const found = cs.find((c) => c.inline) ?? cs[0];
+    const all = found && found.length >= 0.8 * src.length;
+    const body = all ? null : found;
+    if (!found) noCode++;
+    if (all) whole++;
     files[i] = functions[i] = null;
     if (body) {
       spans[3 * i] = 0;
@@ -181,10 +187,12 @@ async function load(key) {
     changes, inline };
   const summary = { ok: true, times, commit, steps: n,
     instructions: program.instructions.length, withInline, maxDepth,
+    noCode, whole,
     traceBytes: dbg.length };
   return [{ summary, steps, sources: { 0: { text: src } }, main: 0,
     lang: "rust", capabilities: { callStack: true, variables: true,
-      inline: withInline > 0 } },
+      inline: withInline > 0,
+      generated: "for bugc, an instruction with no code range" } },
   [pcs.buffer, spans.buffer, lineNo.buffer, depths.buffer]];
 }
 

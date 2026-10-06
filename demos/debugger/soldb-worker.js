@@ -60,6 +60,7 @@ function walk(trace, sources) {
   const changes = [];
   const bySource = {};
   let generated = 0, mapped = 0, withFunction = 0, withVariables = 0;
+  let noSource = 0;
   let last = null;
   for (let i = 0; i < n; i++) {
     const step = JSON.parse(trace.step(i));
@@ -86,6 +87,7 @@ function walk(trace, sources) {
       bySource[s.source_id] = (bySource[s.source_id] ?? 0) + 1;
     }
     if (gen) generated++;
+    if (!s || !src) noSource++;
     if (!gen && lines[i] !== last) {
       changes.push(i);
       last = lines[i];
@@ -94,7 +96,8 @@ function walk(trace, sources) {
   return {
     steps: { n, pcs, ops, spans, files, lineNo, depths, functions,
       changes },
-    counts: { mapped, generated, bySource, withFunction, withVariables,
+    counts: { mapped, generated, noSource, bySource, withFunction,
+      withVariables,
       lineChanges: changes.length,
       firstLines: changes.slice(0, 12).map((i) => lines[i]) },
   };
@@ -155,7 +158,9 @@ async function loadSolidity() {
     wasmMemory: out.memory.buffer.byteLength,
   };
   return [{ summary: r, steps, sources: { 0: { text: sol } }, main: 0,
-    lang: "solidity", capabilities: { state: true } }, transfer(steps)];
+    lang: "solidity", capabilities: { state: true,
+      generated: "for solc, a source range covering the whole contract" } },
+  transfer(steps)];
 }
 
 // Fe: Tally `Add{n: 4}` on anvil, Fe 26.4.1's ethdebug. The page adapts
@@ -213,7 +218,9 @@ async function loadFe() {
   };
   // Fe has no Shiki grammar; `rust` is a close approximation.
   return [{ summary: r, steps, sources: shown, main: 0, lang: "rust",
-    capabilities: {} }, transfer(steps)];
+    capabilities: {
+      generated: "for Fe, an instruction with no source range" } },
+    transfer(steps)];
 }
 
 // BUG: Tally on anvil, bugc's ethdebug program. soldb is fed as for Fe;

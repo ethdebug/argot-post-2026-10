@@ -50,6 +50,22 @@
  * @property {boolean} [callStack]  engine.callStack(dataset, i) works
  * @property {boolean} [variables]  engine.variables(dataset, i) works
  * @property {boolean} [inline]     Steps carry `inline` markers
+ * @property {string} [generated]  how the engine recognizes
+ *   compiler-generated code (the steps it gives -1 spans), as the
+ *   compiler marks it; e.g. "for solc, a source range covering the
+ *   whole contract". The page's "Skip compiler code" skips these steps.
+ */
+
+/**
+ * Why a data set lacks a panel's data, in plain words. The page shows
+ * the same panels on every tab; a panel without its capability shows
+ * this text instead. All optional.
+ * @typedef {Object} WhyNot
+ * @property {string} [callStack]  no call stack (capability callStack)
+ * @property {string} [inline]     no inline markers (capability inline)
+ * @property {string} [variables]  no variables (state or variables)
+ * @property {string} [locals]     shown even with the state: what the
+ *   variables panel lacks (local variables)
  */
 
 /**
@@ -84,6 +100,7 @@
 /**
  * @typedef {Object} Engine
  * @property {string} name
+ * @property {Object<string, WhyNot>} whyNot  by data set
  * @property {(dataset: string) => Promise<Loaded>} load
  * @property {(dataset: string, i: number) => Promise<Variable[]>} [state]
  *   the contract's state
@@ -127,8 +144,24 @@ function client(name, file) {
 /** @returns {Engine} soldb-wasm, in a module Web Worker. */
 export function soldbEngine() {
   const call = client("soldb", "./soldb-worker.js");
+  const noCalls = (who) => `${who} doesn't emit call markers ` +
+    "(invoke/return) yet, so there is no call stack from the data.";
   return {
     name: "soldb",
+    whyNot: {
+      sol: {
+        callStack: noCalls("solc"),
+        inline: "solc emits ethdebug only with the optimizer off, so " +
+          "there is no inlining here.",
+        locals: "No local variables: solc doesn't emit them yet.",
+      },
+      fe: {
+        callStack: noCalls("Fe's exporter (it writes only source ranges)"),
+        inline: "Fe's export doesn't mark inlining: Fe tracks it " +
+          "internally but writes no inline contexts.",
+        variables: "Fe's export has no variables.",
+      },
+    },
     load: (dataset) => call("load", dataset),
     state: (dataset, i) => call("state", dataset, i),
     run: (job) => call("run", job),
@@ -145,6 +178,9 @@ export function refEngine() {
   const call = client("reference", "./ref-worker.js");
   return {
     name: "reference",
+    whyNot: {
+      "bug-O0": { inline: "At -O0, bugc inlines nothing." },
+    },
     load: (dataset) => call("load", dataset),
     variables: (dataset, i) => call("variables", dataset, i),
     callStack: (dataset, i) => call("callStack", dataset, i),

@@ -8,8 +8,9 @@ Site: <https://ethdebug.github.io/argot-post-2026-10/>
 - [planning/outline.md](planning/outline.md): the post's outline.
 - [planning/topic-sentences.md](planning/topic-sentences.md): one
   sentence per planned paragraph.
-- [demos/soldb/](demos/soldb/): soldb, Walnut's debugger, stepping a
-  transaction in the browser (Solidity, Fe and BUG).
+- [demos/debugger/](demos/debugger/): step through a transaction in
+  the browser: soldb, Walnut's debugger, for Solidity and Fe; ethdebug's
+  reference implementation for BUG.
 - [demos/inspector/](demos/inspector/): a storage inspector that shows
   each variable's bytes, found through solc's ethdebug pointers.
 - [demos/stepper/](demos/stepper/): a source stepper in about ten lines
