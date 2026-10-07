@@ -609,28 +609,30 @@ const layoutFails = [];
 }
 // What the transaction gives each variable, checked by hand against the
 // sources (sol/Arcade.sol, bug/arcade.bug) and the story
-// (arcade-story.json): alice's first play() is a hit (combo 1, +10),
-// and the traced one, her second, is a hit too. Before it: score 10,
-// combo 1, total 10, rounds 1. In it: combo = 1 + 1 = 2; multiplied(10,
-// 2): m = 5, then 2 (2 < 5), so gained = 10 * 2 = 20; then total = 10 +
-// 20 = 30, rounds = 2. BUG keeps no length for its storage array, so
-// hits reads as length 0. players' pointer names only its base slot.
-// motd: bugc stores a string's memory address, not its text (0xa0, 160:
-// a known bugc gap). <no location>: a local listed by type only.
+// (arcade-story.json): three joins; alice hits twice (+10, +20), bob
+// hits (+10), carol misses; then the traced call, alice's third play,
+// a hit. Before it: alice's combo 2; total 40, rounds 3, three players
+// joined. In it: combo = 2 + 1 = 3; multiplied(10, 3): m = 5, then 3
+// (3 < 5), so gained = 10 * 3 = 30; then total = 40 + 30 = 70, rounds =
+// 4. BUG: `joined` counts the roster (3); the roster's length slot
+// stays 0 (no push), so roster reads as length 0; motd holds a memory
+// address (160, 0xa0), not its text (a known bugc gap). players'
+// pointer names only its base slot. <no location>: a local listed by
+// type only.
 const NONE = "<no location>";
 const EXPECT = {
-  values: { points: ["10"], combo: ["2"], m: ["5", "2"], gained: ["20"],
-    total: ["10", "30"], rounds: ["1", "2"], motd: ["160"],
-    hits: ["length 0: []"], players: ["<mapping at slot 0>"] },
-  last: { players: "<mapping at slot 0>", hits: "length 0: []",
-    total: "30", rounds: "2" },
-  storage: ["players", "hits", "motd", "total", "rounds"],
-  // soldb's state at the Solidity tab's last step: two hits, two
-  // elements.
-  sol: { total: "30", rounds: "2",
-    hits: "<2 element(s); index it with [i]>" },
+  values: { points: ["10"], combo: ["3"], m: ["5", "3"], gained: ["30"],
+    total: ["40", "70"], rounds: ["3", "4"], joined: ["3"],
+    motd: ["160"], roster: ["length 0: []"],
+    players: ["<mapping at slot 0>"] },
+  last: { players: "<mapping at slot 0>", roster: "length 0: []",
+    total: "70", rounds: "4", joined: "3" },
+  storage: ["players", "roster", "motd", "total", "rounds", "joined"],
+  // soldb's state at the Solidity tab's last step (play never reads
+  // roster or motd, so the trace has no value for them).
+  sol: { total: "70", rounds: "4", roster: "<unknown>" },
   // The real call at -O0, as the call stack lists it.
-  call: "multiplied(points: 10, combo: 2)",
+  call: "multiplied(points: 10, combo: 3)",
 };
 const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
 const rd = (f) => JSON.parse(fs.readFileSync(new URL(f, import.meta.url),
@@ -711,7 +713,7 @@ const OLD = (() => {
     Object.values(x).forEach(walk);
   };
   walk(out.sources["Arcade.sol"].AST);
-  return { fns };
+  return { fns, lines: [null, ...src.split("\n")] };
 })();
 const fails = [];
 const check = (name, what, ok) => { if (!ok) fails.push(`${name}: ${what}`); };
@@ -847,41 +849,34 @@ for (const [name, b] of Object.entries(all)) {
     check(name, "BUG O2 inline marker", BUG.O2.inline.has(u.bug.O2.inline?.fn)
       && u.bug.O2.inline.noteVisible === "visible"
       && u.bug.O2.inline.site > 0);
-    // The old way. (1) Most steps map to the whole contract. (2) After
-    // rolledHit has returned (from the first step in multiplied on),
-    // three steps map to the 3 of `% 3` in rolledHit (hand-checked:
-    // pc 1424, 1441 and 1556 push the constant 3, the slot of total and
-    // rounds, and a shift by 3). (3) No inlined helper gets a frame:
-    // rolledHit and multiplied run (bugc inlines both at -O2; solc
-    // inlines all three), with no frame named for any helper; the only
-    // jump marked i inside rolledHit has the range of abi.encode(...)
-    // and enters code with no function in the AST.
+    // The old way. (1) Most steps map to the whole contract. (2) Line 35,
+    // `p.score += gained; total += gained; rounds += 1;`, runs (the
+    // transaction is a hit: total goes from 40 to 70) but no step maps
+    // to it. (3) No inlined helper gets a frame: rolledHit and
+    // multiplied run, with no frame named for any of the three
+    // helpers; instead, five jumps marked i open frames with no
+    // function in the AST, three of them on `+= 1` statements.
     const old = u.old, rec = old.steps;
     const whole = rec.filter((x) => /the whole contract/.test(x.note));
     check(name, "old: most steps map to the whole contract",
-      whole.length > 0.7 * rec.length && whole.length === r.old.whole
+      whole.length > 0.6 * rec.length && whole.length === r.old.whole
       && rec.every((x) => / source map -?\d+:-?\d+:-?\d+:[io-]$/
         .test(x.where)));
-    const after = rec.findIndex((x) => /, function multiplied,/
-      .test(x.where));
-    const threes = rec.slice(after).filter((x) =>
-      /, function rolledHit,/.test(x.where) && x.hl === "3");
-    check(name, "old: three steps on the 3 of `% 3` after rolledHit",
-      after > 0 && threes.length === 3
-      && OLD.fns.rolledHit.includes("% 3"));
+    check(name, "old: line 35 never shows",
+      OLD.lines[35].includes("total += gained")
+      && rec.some((x) => /Arcade\.sol:34,/.test(x.where))
+      && !rec.some((x) => /Arcade\.sol:35,/.test(x.where)));
     const helpers = ["rolledHit", "multiplied", "resetCombo"];
     check(name, "old: no frame for an inlined helper",
       ["rolledHit", "multiplied"].every((fn) => rec.some((x) =>
         new RegExp(`, function ${fn},`).test(x.where)))
       && rec.every((x) => !x.stack.some((f) =>
         helpers.some((h) => f.startsWith(h)))));
-    const inRolled = r.old.jumps.filter((j) => j.site
-      && OLD.fns.rolledHit.includes(j.site));
-    check(name, "old: the only i in rolledHit enters abi.encode's code",
-      inRolled.length === 1 && inRolled[0].name === null
-      && /^abi\.encode\(/.test(inRolled[0].site)
-      && rec.some((x) => /^unknown function called at line 23: abi\.encode/
-        .test(x.stack[0] ?? "")));
+    const unnamed = r.old.jumps.filter((j) => j.name === null);
+    check(name, "old: five frames enter compiler helpers",
+      unnamed.length === 5
+      && unnamed.filter((j) => /\+= 1$/.test(j.site ?? "")).length === 3
+      && r.old.jumps.some((j) => j.name === "play"));
     check(name, "old: the panels", old.aboutShown && old.framesShown
       && !old.varsShown);
     check(name, "skip compiler code on by default", u.skip.default);

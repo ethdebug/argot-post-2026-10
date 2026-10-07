@@ -36,9 +36,9 @@ $R=$HOME/.rustup=/rustup $R=$HOME/.cargo=/cargo $R=<soldb>=/soldb"
 
 ## The data: one contract, one transaction
 
-Every tab steps `Arcade` and the same transaction, alice's second
-`play()` (a hit at combo 2). `make-arcade.sh` makes all of it, on a fresh `anvil --steps-tracing --port 8556` (anvil
-1.2.3):
+Every tab steps `Arcade` and the same transaction, alice's third
+`play()` (a hit at combo 3). `make-arcade.sh` makes all of it, on a
+fresh `anvil --steps-tracing --port 8556` (anvil 1.2.3):
 
 - `sol/ethdebug/`: solc from pull request walnuthq/solidity#10 (head
   `c434b2ea`, `0.8.38-develop.2026.10.5`), `--via-ir --experimental
@@ -58,12 +58,13 @@ Every tab steps `Arcade` and the same transaction, alice's second
 - `bug/arcade-O0/`, `bug/arcade-O2/`: bugc at `-O 0` and `-O 2`, from
   `bug/arcade.bug` (`bug/compile.mjs`).
 - The transactions (`make-arcade-txs.mjs`, from `arcade-story.json`):
-  each build is deployed (motd "gl hf"), then gets alice's first
-  `play()` and the traced one, her second. The roll depends on the
-  block, and anvil cannot set prevrandao, so each `play()` runs inside
-  an `evm_snapshot`: if it does not roll a hit, the script reverts,
-  mines one empty block and sends it again. A hit writes at least three
-  storage slots, a miss at most two. The script saves the node's
+  each build is deployed (motd "gl hf"), then gets the story: alice,
+  bob and carol join; alice hits twice, bob hits, carol misses; then
+  the traced call, alice's third `play()`, a hit. The roll depends on
+  the block, and anvil cannot set prevrandao, so each `play()` runs
+  inside an `evm_snapshot`: if it does not roll the story's outcome
+  (a hit changes `total`, a miss does not), the script reverts, mines
+  one empty block and sends it again. The script saves the node's
   responses (`fe/`, `bug/arcade-O*/`: with each step's memory, and the
   storage before, for the pointers) and the old way's trace
   (`old/play.trace.json`: each step's pc, op and depth only).
@@ -108,6 +109,6 @@ is made by `make-ref-vendor.sh <checkout>` after `yarn install` in that
 checkout. `ref-worker.js` uses it.
 
 The BUG data comes from bugc built from ethdebug/format main at
-`db7d0e4ee` (`make-arcade.sh`, above). The details' soldb check uses
+`6c81c1084` (`make-arcade.sh`, above). The details' soldb check uses
 `bug/tally.bug` and its saved transaction (`bug/compile.mjs`,
 `bug/make-tx.mjs`).

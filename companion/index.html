@@ -75,8 +75,8 @@ small script runs in Node.</p>
 
 <h3>Step through a transaction</h3>
 <p>This page steps one contract, <code>Arcade</code> (a small game:
-each <code>play()</code> rolls a hit or a miss), and one transaction in
-four ways, in your browser tab. Each tab names the
+players join with a name, and each <code>play()</code> rolls a hit or a
+miss), and one transaction, alice's combo-3 hit, in four ways, in your browser tab. Each tab names the
 debugger engine that does the work; the page only shows the source
 range the engine reports for each step. Use the slider or the line
 buttons to step.</p>
@@ -110,7 +110,7 @@ buttons to step.</p>
       alt="soldb in the browser, highlighting the source span of one step in a Solidity contract" loading="lazy">
   </picture>
   <figcaption>soldb highlights the source span of one step of a real
-  Solidity transaction (1,683 steps).</figcaption>
+  Solidity transaction (2,233 steps).</figcaption>
 </figure>
 <figure>
   <picture>
@@ -960,23 +960,23 @@ medians, with no console errors.</p>
 
 <h3>soldb in the browser</h3>
 <p>The lean build steps a saved trace: <code>Arcade</code>'s
-<code>play()</code> transaction, 1,683 steps, a 1.2 MB trace (29 KB
+<code>play()</code> transaction, 2,233 steps, a 1.5 MB trace (32 KB
 gzipped). The saved
 trace leaves out the flat copies of each step's state, which soldb
 drops when it reads the trace
 (<a href="../demos/debugger/SOURCE.md#the-saved-trace-one-change">SOURCE.md</a>).
-soldb maps all 1,683 steps to a line in Arcade.sol; 1,425 of them map
+soldb maps all 2,233 steps to a line in Arcade.sol; 1,870 of them map
 to the whole contract (compiler-generated code).</p>
 <div class="table-wrap"><table>
 <tr><th>Stage</th><th>Chromium</th><th>Firefox</th></tr>
-<tr><td>Fetch everything, compile the WebAssembly</td><td>7.0 ms</td><td>13 ms</td></tr>
-<tr><td>Parse the trace</td><td>11 ms</td><td>11 ms</td></tr>
-<tr><td>Read the ethdebug program</td><td>21 ms</td><td>19 ms</td></tr>
-<tr><td>Map all 1,683 steps</td><td>16 ms</td><td>18 ms</td></tr>
-<tr><td>Solidity tab usable, from navigation start</td><td>96 ms</td><td>118 ms</td></tr>
-<tr><td>Whole page (all tabs, both builds)</td><td>227 ms</td><td>308 ms</td></tr>
+<tr><td>Fetch everything, compile the WebAssembly</td><td>7.8 ms</td><td>16 ms</td></tr>
+<tr><td>Parse the trace</td><td>15 ms</td><td>15 ms</td></tr>
+<tr><td>Read the ethdebug program</td><td>29 ms</td><td>26 ms</td></tr>
+<tr><td>Map all 2,233 steps</td><td>24 ms</td><td>30 ms</td></tr>
+<tr><td>Solidity tab usable, from navigation start</td><td>122 ms</td><td>171 ms</td></tr>
+<tr><td>Whole page (all tabs, both builds)</td><td>354 ms</td><td>466 ms</td></tr>
 </table></div>
-<p>Parse, read and map together take about 50 ms. The page loads
+<p>Parse, read and map together take about 70 ms. The page loads
 only the Solidity tab at first; each other tab, and the replay build
 below, loads when it first opens, or in idle time after the Solidity
 tab is ready. The replay
@@ -989,9 +989,9 @@ command-line tool's own 6.5 KB replay file (<code>Token.transfer</code>,
 <tr><td>Run the EVM</td><td>8.4 ms</td><td>5 ms</td></tr>
 <tr><td>Map 960 steps</td><td>9.8 ms</td><td>9 ms</td></tr>
 </table></div>
-<p>The Fe data set (2,327 steps): fetch 29 to 42 ms, load the
-transaction 4 to 5 ms, read the ethdebug program 39 to 42 ms, map all
-steps 22 to 36 ms.</p>
+<p>The Fe data set (4,549 steps): fetch 37 to 53 ms, load the
+transaction 8 to 13 ms, read the ethdebug program 62 to 63 ms, map all
+steps 52 to 81 ms.</p>
 
 <h3>Build sizes</h3>
 <div class="table-wrap"><table>
@@ -1000,13 +1000,13 @@ steps 22 to 36 ms.</p>
 <tr><td>Replay</td><td>1,092 KB</td><td>466 KB</td><td>Also re-run the transaction offline</td></tr>
 </table></div>
 <p>Other costs on the demo page: the syntax highlighter adds 16
-requests (95 KB) and 140 to 160 ms (display only). It starts after the
+requests (95 KB) and 145 to 155 ms (display only). It starts after the
 Solidity tab's files arrive, and the source shows as plain text until
 it is ready. The page's files are gzipped on the wire: the Solidity tab
-needs 404 KB, the Fe tab 245 KB more, the BUG tab 242 KB more and the
-old way 27 KB more. On a slow link (400 kbps, 400 ms round trip,
-Chromium), the Solidity tab is usable after 9.3 s, with a progress bar
-while it loads. WebAssembly memory is 21.3 MB after that trace.</p>
+needs 417 KB, the Fe tab 291 KB more, the BUG tab 312 KB more and the
+old way 30 KB more. On a slow link (400 kbps, 400 ms round trip,
+Chromium), the Solidity tab is usable after 9.5 s, with a progress bar
+while it loads. WebAssembly memory is 25.6 MB after that trace.</p>
 
 <h3>The stepper's line counts</h3>
 <div class="table-wrap"><table>

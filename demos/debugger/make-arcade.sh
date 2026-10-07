@@ -1,7 +1,7 @@
 #!/bin/bash
 # Makes the data of every tab: one contract, Arcade, in Solidity, Fe and
-# BUG, and one transaction on each build: alice's second play(), a hit at
-# combo 2 (arcade-story.json, make-arcade-txs.mjs).
+# BUG, and one transaction on each build: alice's third play(), a hit at
+# combo 3 (arcade-story.json, make-arcade-txs.mjs).
 #   sol/ethdebug/  Walnut's solc fork (walnuthq/solidity PR #10), ethdebug
 #                  output with pointers for the state variables (via-IR,
 #                  optimizer off: solc emits ethdebug only without it)

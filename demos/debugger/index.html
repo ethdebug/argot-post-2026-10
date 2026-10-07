@@ -68,7 +68,10 @@
     min-width: 0; background: var(--panel); border: 1px solid var(--line);
     border-radius: 6px; overflow: hidden; }
   .view-head { padding: 8px 12px 2px; border-bottom: 1px solid var(--line); }
+  /* Two lines on every tab (the old way adds the source map entry), so
+     the source never moves. */
   #where { margin: 0; font-family: var(--mono); font-size: 0.85rem;
+    line-height: 1.4; height: 2.8em; overflow: auto;
     overflow-wrap: anywhere; }
   .view-head input[type=range] { width: 100%; margin: 4px 0; }
   .src { flex: 1; min-height: 0; overflow: auto; position: relative;
@@ -335,14 +338,16 @@ names its engine. The page only shows what the engine reports.</p>
 <div class="dbg-about">
 <p>Every tab steps the same contract, <code>Arcade</code>
 (<a href="sol/Arcade.sol">Arcade.sol</a>), and the same transaction. In
-<code>Arcade</code>, a player calls <code>play()</code>, and a roll from
-the block gives a hit or a miss. A hit raises the player's combo by one
-and scores 10 &times; combo (up to 5&times;); a miss resets the combo.
-The transaction is alice's second <code>play()</code>, a hit at combo 2:
-<code>multiplied(10, 2)</code> is 20. Her first, a hit too, comes before
-it. Each ran on a local anvil node. anvil cannot set the block's
-randomness, so the script replays a <code>play()</code> from a snapshot
-until it rolls the story's outcome.</p>
+<code>Arcade</code>, players <code>join</code> with a name, then call
+<code>play()</code>, and a roll from the block gives a hit or a miss. A
+hit raises the player's combo by one and scores 10 &times; combo (up to
+5&times;); a miss resets the combo. The story: alice, bob and carol
+join; alice hits twice, bob hits, carol misses. The transaction is
+alice's third <code>play()</code>, a hit at combo 3:
+<code>multiplied(10, 3)</code> is 30, and <code>total</code> goes from 40
+to 70. Each call ran on a local anvil node. anvil cannot set the
+block's randomness, so the script replays a <code>play()</code> from a
+snapshot until it rolls the story's outcome.</p>
 
 <p data-about="sol fe"><strong>soldb and this page step
 through Solidity and Fe with the same code. Both compilers write
@@ -353,7 +358,7 @@ ethdebug.</strong></p>
 <code>c434b2ea</code>), with ethdebug output. Its pointers let soldb
 read the contract's state. solc writes ethdebug only with the optimizer
 off, so this build is via-IR without the optimizer. The trace is soldb's
-saved trace of the transaction (0.6 MB, 1,683 EVM steps). soldb parses
+saved trace of the transaction (1.5 MB, 2,233 EVM steps). soldb parses
 the trace (<code>Trace.fromJson</code>) and reads the ethdebug
 (<code>attachEthdebug</code>). Then it maps each step to its source
 (<code>step(i)</code>) and reads the contract's state
@@ -384,18 +389,20 @@ decoding of values is a stand-in, for the format's planned
 interpretation layer.</p>
 <p><code>Arcade</code> in BUG (<a href="bug/arcade.bug">arcade.bug</a>),
 statement for statement as in Arcade.sol where BUG allows. It differs
-in a few ways: BUG has one entry point, so <code>setMotd</code> is
-dispatched by hand; the roll mixes <code>block.number</code> and the
-sender, unhashed; the reset is written inline; and BUG has no
-<code>push</code>, so <code>play</code> writes
-<code>hits[rounds]</code>, and bugc stores no length for it, so
-<code>hits</code> reads as length 0. bugc does not store strings yet,
-so <code>motd</code> holds a memory address, not its text. Look for: at
--O0, the calls to <code>rolledHit</code> and
-<code>multiplied(points: 10, combo: 2)</code> in the call stack; at
--O2, the inlined <code>multiplied</code>, with its local
-<code>m</code> going from 5 to 2, then <code>gained</code> (20). The tab
-has the same program at two optimization levels.</p>
+in a few ways: BUG has one entry point, so <code>join</code> and
+<code>setMotd</code> are dispatched by hand; BUG has no
+<code>require</code>, so <code>join</code> and <code>play</code> check
+nothing; the roll mixes <code>block.number</code> and the sender,
+unhashed; the reset is written inline; and BUG has no
+<code>push</code>, so <code>join</code> writes
+<code>roster[joined]</code> and counts in <code>joined</code>, while
+<code>roster</code>'s length stays 0. bugc does not store strings yet,
+so <code>motd</code> and each player's <code>name</code> hold a memory
+address, not text. Look for: at -O0, the calls to
+<code>rolledHit</code> and <code>multiplied(points: 10, combo: 3)</code>
+in the call stack; at -O2, the inlined <code>multiplied</code>, with its
+local <code>m</code> going from 5 to 3, then <code>gained</code> (30).
+The tab has the same program at two optimization levels.</p>
 <p class="muted">At both levels, bugc gives a local variable a pointer
 where its value is in memory. Where a local has no location (its value
 is not stored yet, or the optimizer folded it), bugc lists it by type
@@ -424,12 +431,12 @@ page highlights each step's range and shows its entry. It builds the
 call stack as older debuggers did, from the <code>i</code> and
 <code>o</code> jumps, and names a frame by the AST function that holds
 the jump's target.</p>
-<p>The transaction: 338 steps; 257 map to the whole contract, 38 to no
-source and 43 to a smaller range. solc inlined <code>rolledHit</code>
-and <code>multiplied</code> into <code>play</code>. Look for: the steps
-on the <code>3</code> of <code>% 3</code> (line 23) after the roll is
-done, and the call stack while <code>rolledHit</code> and
-<code>multiplied</code> run.</p>
+<p>The transaction: 486 steps; 327 map to the whole contract, 93 to no
+source and 66 to a smaller range. solc inlined <code>rolledHit</code>,
+<code>multiplied</code> and <code>resetCombo</code> into the functions
+that call them. Look for: line 35, which this hit runs; and the call
+stack while <code>rolledHit</code> and <code>multiplied</code>
+run.</p>
 </div>
 
 <p class="muted" data-about="bug old" hidden>"over" and "out"

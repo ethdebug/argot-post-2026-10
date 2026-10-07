@@ -3,6 +3,8 @@ use core::abi::DynString
 use std::evm::{Ctx, StorageBytes, StorageMap, keccak_words}
 
 msg ArcadeMsg {
+    #[selector = sol("join(string)")]
+    Join { name: DynString },
     #[selector = sol("play()")]
     Play,
     #[selector = sol("setMotd(string)")]
@@ -13,13 +15,18 @@ msg ArcadeMsg {
 struct ArcadeStore {
     scores: StorageMap<Address, u64, 0>,
     combos: StorageMap<Address, u32, 1>,
-    actives: StorageMap<Address, bool, 2>,
-    hits: StorageMap<u256, u256, 3>,   // every hit's points, by index
-    total: u128,                       // all players' points
-    rounds: u64,                       // the number of hits
+    best_combos: StorageMap<Address, u32, 2>,
+    plays: StorageMap<Address, u32, 3>,
+    hit_counts: StorageMap<Address, u32, 4>,
+    last_blocks: StorageMap<Address, u64, 5>,   // when they last played
+    roster: StorageMap<u256, Address, 6>,   // everyone who has joined (a mapping can't list its keys)
+    roster_len: u256,                       //   (no dynamic array: a map by index + a length)
+    total: u128,                            // all players' points
+    rounds: u64,                            // the number of hits
 }
 
-type Motd = StorageBytes<u256, 4, 5>   // the server's message of the day
+type Names = StorageBytes<Address, 7, 8>   // each player's name
+type Motd = StorageBytes<u256, 9, 10>      // the server's message of the day
 
 // a toy roll (not safe randomness): 2 in 3 is a hit
 fn rolled_hit() -> bool uses (ctx: Ctx) {
@@ -39,6 +46,7 @@ fn multiplied(points: u64, combo: u32) -> u64 {
 
 pub contract Arcade uses (ctx: Ctx) {
     mut store: ArcadeStore
+    mut names: Names
     mut motd: Motd
 
     init(m: DynString) uses (mut motd) {
@@ -46,17 +54,29 @@ pub contract Arcade uses (ctx: Ctx) {
     }
 
     recv ArcadeMsg {
-        Play uses (mut store, ctx) {
+        Join { name } uses (mut store, mut names, ctx) {   // pick a name, once
             let me: Address = ctx.caller()
-            store.actives.set(key: me, value: true)
+            assert(name.len() > 0 && names.len(key: me) == 0)
+            names.store_view(key: me, view: name.as_bytes().view())
+            store.roster.set(key: store.roster_len, value: me)
+            store.roster_len = store.roster_len + 1
+        }
+        Play uses (mut store, names, ctx) {
+            let me: Address = ctx.caller()
+            assert(names.len(key: me) > 0)   // joined
+            store.plays.set(key: me, value: store.plays.get(key: me) + 1)
+            store.last_blocks.set(key: me, value: ctx.block_number().downcast_truncate())
             if !rolled_hit() {   // a miss
                 reset_combo(who: me)
                 return
             }
             store.combos.set(key: me, value: store.combos.get(key: me) + 1)
+            store.hit_counts.set(key: me, value: store.hit_counts.get(key: me) + 1)
+            if store.combos.get(key: me) > store.best_combos.get(key: me) {
+                store.best_combos.set(key: me, value: store.combos.get(key: me))
+            }
             let gained: u64 = multiplied(points: 10, combo: store.combos.get(key: me))
             store.scores.set(key: me, value: store.scores.get(key: me) + gained)
-            store.hits.set(key: store.rounds as u256, value: gained as u256)
             store.total = store.total + gained as u128
             store.rounds = store.rounds + 1
         }

@@ -17,8 +17,7 @@
 // anvil cannot set prevrandao. So each call with `hit` runs inside an
 // evm_snapshot: if it does not roll the outcome the story needs, the
 // script reverts, mines one empty block and sends it again. A hit
-// writes at least three storage slots (the player, the points, the
-// counters); a miss, at most two (the player's fields).
+// changes `total` (its slot, per build, below); a miss does not.
 // The node: PORT (default 8556) on localhost.
 // Usage: node make-arcade-txs.mjs > txs.json
 import fs from "fs";
@@ -50,17 +49,16 @@ const cast = (...a) => execFileSync("cast", a).toString().trim();
 const calldata = (c) => cast("calldata", c.call, ...c.args);
 const ctorArgs = cast("abi-encode", plan.deploy.sig, ...plan.deploy.args)
   .slice(2);
-const sstores = async (h) => new Set((await rpc("debug_traceTransaction",
-  [h, { disableMemory: true, disableStorage: true }])).structLogs
-  .filter((l) => l.op === "SSTORE").map((l) => l.stack.at(-1)));
+const word = (to, slot) => rpc("eth_getStorageAt",
+  [to, "0x" + slot.toString(16), "latest"]);
 // Send a call; with `hit`, until it rolls that outcome.
-const play = async (to, c) => {
+const play = async (to, c, totalSlot) => {
   for (let tries = 0; tries < 60; tries++) {
     const snap = await rpc("evm_snapshot");
+    const before = await word(to, totalSlot);
     const [h, rc] = await send(to, calldata(c), accounts[c.from]);
-    if (c.hit === undefined || ((await sstores(h)).size >= 3) === c.hit) {
-      return [h, rc];
-    }
+    const hit = (await word(to, totalSlot)) !== before;
+    if (c.hit === undefined || hit === c.hit) return [h, rc];
     await rpc("evm_revert", [snap]);
     await rpc("anvil_mine", ["0x1"]);
   }
@@ -68,16 +66,18 @@ const play = async (to, c) => {
 };
 
 const hex = (f) => fs.readFileSync(f, "utf8").trim().replace(/^0x/, "");
+// total's slot: Solidity packs it with rounds in slot 3; Fe's store
+// puts it in slot 12; BUG declares it at slot 3.
 const targets = {
-  sol: { create: hex("sol/ethdebug/Arcade.bin") + ctorArgs },
+  sol: { create: hex("sol/ethdebug/Arcade.bin") + ctorArgs, total: 3 },
   old: { create: JSON.parse(fs.readFileSync("old/combined.json", "utf8"))
-    .contracts["Arcade.sol:Arcade"].bin + ctorArgs },
+    .contracts["Arcade.sol:Arcade"].bin + ctorArgs, total: 3 },
   fe: { create: hex("fe/out/Arcade.bin") + ctorArgs,
-    runtime: hex("fe/out/Arcade.runtime.bin") },
+    runtime: hex("fe/out/Arcade.runtime.bin"), total: 12 },
   "bug/arcade-O0": { create: hex("bug/arcade-O0/out/Arcade.bin"),
-    runtime: hex("bug/arcade-O0/out/Arcade.runtime.bin") },
+    runtime: hex("bug/arcade-O0/out/Arcade.runtime.bin"), total: 3 },
   "bug/arcade-O2": { create: hex("bug/arcade-O2/out/Arcade.bin"),
-    runtime: hex("bug/arcade-O2/out/Arcade.runtime.bin") },
+    runtime: hex("bug/arcade-O2/out/Arcade.runtime.bin"), total: 3 },
 };
 const out = {};
 const write = (f, v) => fs.writeFileSync(f, JSON.stringify(v));
@@ -94,8 +94,8 @@ for (const [dir, t] of Object.entries(targets)) {
     }
   }
   const setup = [hd];
-  for (const c of plan.setup) setup.push((await play(to, c))[0]);
-  const [h, rc] = await play(to, plan.tx);
+  for (const c of plan.setup) setup.push((await play(to, c, t.total))[0]);
+  const [h, rc] = await play(to, plan.tx, t.total);
   out[dir] = { address: to, tx: h };
   if (dir === "sol") continue;
   if (dir === "old") {
