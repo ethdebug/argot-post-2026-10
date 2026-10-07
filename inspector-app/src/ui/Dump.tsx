@@ -1,7 +1,20 @@
 // A dump of one location at one timeline point (vanilla panel.js
 // renderPanel, wordHtml, paint): one word a row, in address order, each
 // byte linked to the value that owns it
-import { useLayoutEffect, useRef } from "react";
+import { useEffect, useLayoutEffect, useRef } from "react";
+import { drawOverlays } from "./overlays";
+
+// one drawing of a box's overlays per commit, however many of its dumps
+// rendered (the pending mark lives on the box's element)
+function schedule(root: HTMLElement & { _overlays?: boolean },
+  cards: boolean) {
+  if (root._overlays) return;
+  root._overlays = true;
+  queueMicrotask(() => {
+    root._overlays = false;
+    if (root.isConnected) drawOverlays(root, { cards });
+  });
+}
 import type {
   KeyboardEvent, MouseEvent, PointerEvent, ReactElement,
 } from "react";
@@ -130,7 +143,7 @@ function Word({ l, row, word, other, side, name, light, groupsOf }: {
 export function Dump(p: { id: ViewId; location: Location; data: DataRef;
   filter?: Filter; link?: LinkId; domId?: string;
   side?: "before" | "after"; hidden?: boolean; title?: string;
-  when?: string; compare?: DataRef }) {
+  when?: string; compare?: DataRef; cards?: boolean }) {
   const { l } = useLayout(p.id, p.filter);
   const hereAt = usePointAt(p.data);
   const thereAt = usePointAt(p.compare);
@@ -230,6 +243,30 @@ export function Dump(p: { id: ViewId; location: Location; data: DataRef;
     addEventListener("resize", fit);
     return () => removeEventListener("resize", fit);
   }, [rows.length, shownHere]);
+
+  // the overlays (popovers, cards, the tray), over the dumps' box, once
+  // per render of any of its dumps; again on resize and once the fonts
+  // are in (the labels are fitted in them)
+  const cards = !!p.cards;
+  useLayoutEffect(() => {
+    const v = me.current;
+    const root = v?.closest<HTMLElement>(".panel") ?? v?.parentElement;
+    if (root) schedule(root, cards);
+  });
+  useEffect(() => {
+    const again = () => {
+      const v = me.current;
+      const root = v?.closest<HTMLElement>(".panel") ?? v?.parentElement;
+      if (root) schedule(root, cards);
+    };
+    addEventListener("resize", again);
+    let live = true;
+    document.fonts?.ready.then(() => live && again());
+    return () => {
+      live = false;
+      removeEventListener("resize", again);
+    };
+  }, [cards]);
   const lines: ReactElement[] = [];
   rows.forEach((r, k) => {
     const n = BigInt(r.address);

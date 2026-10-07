@@ -29,6 +29,10 @@ declare global {
 
 const $ = (id: string) => document.getElementById(id)!;
 document.documentElement.classList.add("styled");
+// (bin/run.mjs: fit the dumps' fonts again, after a layout change; each
+// dump fits on resize)
+(window as unknown as { fitDumps(): void }).fitDumps = () =>
+  dispatchEvent(new Event("resize"));
 // the contract's line count (the source box's summary)
 $("contract-box").querySelector(".srclines")!.textContent = String(
   $("contract-src").textContent!.replace(/\n$/, "").split("\n").length);
