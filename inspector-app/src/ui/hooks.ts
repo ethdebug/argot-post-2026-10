@@ -3,7 +3,9 @@
 import { createContext, useContext, useEffect, useMemo, useState,
   useSyncExternalStore } from "react";
 import type { Project } from "../engine/project";
-import type { Decoded, Layout, Light, Snapshot } from "../engine/types";
+import type {
+  Decoded, Decoding, Layout, Light, Snapshot,
+} from "../engine/types";
 import { decode } from "../engine/decode";
 import { layout } from "../engine/layout";
 import { forBytes, forPath, noLight } from "../engine/light";
@@ -16,6 +18,13 @@ export interface LensContextValue {
   spec: LensSpec; project: Project; store: Store<LensState>;
 }
 export const LensContext = createContext<LensContextValue | null>(null);
+
+// A decoding by id: the lens's own first, then the project's
+export function decodingOf(c: LensContextValue, id: string):
+  Decoding | undefined {
+  return c.spec.decodings.find((d): d is Decoding =>
+    typeof d !== "string" && d.id === id) ?? c.project.decodings[id];
+}
 
 export function useLens(): LensContextValue {
   const c = useContext(LensContext);
@@ -46,7 +55,8 @@ export function resolveRef(ref: DataRef, s: LensState, p: Project):
 }
 
 export function useDecoded(ref: DataRef | undefined): Decoded | undefined {
-  const { project } = useLens();
+  const lens = useLens();
+  const { project } = lens;
   const key = useLensState((s) => {
     const at = ref && resolveRef(ref, s, project);
     return at ? `${at.decoding}\n${at.point}` : "";
@@ -56,13 +66,15 @@ export function useDecoded(ref: DataRef | undefined): Decoded | undefined {
     if (!key) return;
     const [decoding, point] = key.split("\n");
     let live = true;
-    decode(project, project.decodings[decoding], point).then((d) => {
+    const dc = decodingOf(lens, decoding);
+    if (!dc) return console.error(`no decoding ${decoding}`);
+    decode(project, dc, point).then((d) => {
       if (live) setGot({ key, d });
     }, (e) => console.error(e));
     return () => {
       live = false;
     };
-  }, [project, key]);
+  }, [lens, project, key]);
   return got?.key === key ? got.d : undefined;
 }
 
@@ -129,7 +141,8 @@ export function useLight(id: string): Light {
 
 // The snapshot at a view's timeline point (a dump's words)
 export function useSnapshot(ref: DataRef | undefined): Snapshot | undefined {
-  const { project } = useLens();
+  const lens = useLens();
+  const { project } = lens;
   const key = useLensState((s) => {
     const at = ref && resolveRef(ref, s, project);
     return at ? `${at.decoding}\n${at.point}` : "";
@@ -139,13 +152,15 @@ export function useSnapshot(ref: DataRef | undefined): Snapshot | undefined {
     if (!key) return;
     const [decoding, point] = key.split("\n");
     let live = true;
-    project.timeline(project.decodings[decoding].timeline).then((t) => {
+    const dc = decodingOf(lens, decoding);
+    if (!dc) return;
+    project.timeline(dc.timeline).then((t) => {
       const at = t.points.find((x) => x.id === point);
       if (live && at) setGot({ key, s: at.snapshot });
     }, (e) => console.error(e));
     return () => {
       live = false;
     };
-  }, [project, key]);
+  }, [lens, project, key]);
   return got?.key === key ? got.s : undefined;
 }

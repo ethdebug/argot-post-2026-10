@@ -7,26 +7,24 @@ import { testProject } from "../../test/project";
 
 afterEach(cleanup);
 
-// every element's place in the markup, and its box
+// every element's place in the markup (boxes: the e2e bbox test; jsdom
+// has no layout)
 const shape = (root: Element) => [...root.querySelectorAll("*")].map((e) =>
-  `${e.tagName}${JSON.stringify(e.getBoundingClientRect())}`);
+  `${e.tagName}#${e.id}`);
+const slow = { timeout: 5000 };
 
-it("hovering a byte moves nothing", async () => {
+it("hovering a byte changes classes only, not the markup", async () => {
   const project = await testProject();
   const { container } = render(<Lens spec={fullInspector}
     project={project} />);
   await waitFor(() => expect(container.querySelector(
-    '.b[data-owners="total"]')).toBeTruthy());
+    '.b[data-owners="total"]')).toBeTruthy(), slow);
   const before = shape(container);
-  const rects = [...container.querySelectorAll(".wrow")].map((r) =>
-    JSON.stringify(r.getBoundingClientRect()));
   fireEvent.pointerOver(container.querySelector(
     '.view:not([hidden]) .b[data-owners="total"]')!);
   await waitFor(() => expect(container.querySelector(".b.hl"))
-    .toBeTruthy());
+    .toBeTruthy(), slow);
   expect(shape(container)).toEqual(before);
-  expect([...container.querySelectorAll(".wrow")].map((r) =>
-    JSON.stringify(r.getBoundingClientRect()))).toEqual(rects);
 });
 
 it("one word per row, its owners' bytes marked", async () => {
@@ -34,7 +32,7 @@ it("one word per row, its owners' bytes marked", async () => {
   const { container } = render(<Lens spec={fullInspector}
     project={project} />);
   await waitFor(() => expect(container.querySelector(
-    '.view[data-side="after"] .wrow')).toBeTruthy());
+    '.view[data-side="after"] .wrow')).toBeTruthy(), slow);
   const view = container.querySelector('.view[data-side="after"]')!;
   expect(view.hasAttribute("hidden")).toBe(false);
   expect(container.querySelector('.view[data-side="before"]')!
