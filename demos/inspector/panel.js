@@ -839,13 +839,7 @@ function whatIn(all) {
       out.push(x);
     });
   });
-  // (a value's length takes the value's colour)
-  for (const x of out) {
-    if (x.id?.endsWith("#length") && !x.k) {
-      x.k = out.find((y) => y.id === x.id.replace(/#length$/, ""))?.k ??
-        null;
-    }
-  }
+  // (a name is a badge only where its own bytes are lit now)
   return out;
 }
 // The names a popover shows, `keep` of them (indices), in byte order,
@@ -869,7 +863,7 @@ function whatHtml(items, keep) {
     for (const i of on) {
       if (i !== last + 1) seg += `${seg ? " · " : ""}${cut}`;
       const x = items[i];
-      seg += `${seg ? " · " : ""}<code class="pname${x.k ? ` chip ${x.k}`
+      seg += `${seg ? " · " : ""}<code class="pname${x.k ? ` pbadge ${x.k}`
         : ""}${x.k && x.muted ? " muted" : ""}">${esc(x.text)}</code>`;
       last = i;
     }
@@ -888,8 +882,11 @@ function fitWhat(pop) {
   const items = pop._what;
   const what = pop.querySelector(".pwhat");
   if (!items?.length || !what) return;
-  // (the whole label, its suffix too, against the popover's room)
-  const over = () => pop.scrollWidth > pop.clientWidth + 1;
+  // (the whole label, on one line, its suffix too, against the room the
+  // popover may take)
+  const room = parseFloat(pop.style.maxWidth) || Infinity;
+  const line = pop.querySelector(".pop-how");
+  const over = () => line.scrollWidth + 16 > room;
   let keep = items.map((_, i) => i);
   const segs = [...new Set(items.map((x) => x.seg ?? 0))];
   const segOf = (i) => items[i].seg ?? 0;
@@ -931,14 +928,29 @@ function fitWhat(pop) {
     render();
   }
   // (still too wide: the "how" part's addresses shorter; never the
-  // names kept or the suffix)
+  // suffix)
   const how = pop.querySelector(".phow");
   if (over() && how) {
     how.textContent = how.textContent.replace(/0x[0-9a-f]+…([0-9a-f]{4})/g,
       "…$1");
   }
-  // (and if even that is too wide, a narrow box: it wraps)
-  if (over()) pop.classList.add("wrap");
+  // (then the names from the middle, the first and last longest; then
+  // none but "…")
+  while (over() && keep.length > 2) {
+    keep.splice(Math.floor(keep.length / 2), 1);
+    render();
+  }
+  if (over() && keep.length) {
+    keep = [];
+    render();
+  }
+  // (and if a badge alone is too long, its own addresses shorter)
+  if (over()) {
+    for (const c of pop.querySelectorAll(".pname")) {
+      c.textContent = c.textContent.replace(
+        /0x([0-9a-f]{3})[0-9a-f]*…[0-9a-f]*([0-9a-f]{3})/g, "0x$1…$2");
+    }
+  }
 }
 function popFor(rows, more) {
   const facts = [...new Set(rows.map((r) => r.dataset.facts))]
@@ -1309,10 +1321,11 @@ function annotate(root, v, compare, names, tray, taken, room, force) {
         addr.classList.add("popped");
         place(pop, prow.querySelector(".a"), beside);
         // (its names, cut to its room; then placed again, at its width)
-        if (pop.scrollWidth > pop.clientWidth + 1) {
+        if (pop.querySelector(".pop-how").scrollWidth + 16 >
+          parseFloat(pop.style.maxWidth)) {
           fitWhat(pop);
-          place(pop, prow.querySelector(".a"), beside);
         }
+        place(pop, prow.querySelector(".a"), beside);
         const r = pop.getBoundingClientRect();
         // (a muted label, for a run found at an earlier step, covers no
         // other row's bytes either: it would hide data)
