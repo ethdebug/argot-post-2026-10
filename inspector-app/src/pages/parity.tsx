@@ -110,6 +110,11 @@ try {
   };
 
   const ready = (lens: LensContextValue) => {
+    // "show other state": the cards in the dump and by the tree's rows
+    const box = $("insets") as HTMLInputElement;
+    box.checked = lens.store.get().insets;
+    box.addEventListener("change", () => lens.store.set((s) =>
+      ({ ...s, insets: box.checked })));
     lens.store.subscribe(() => {
       scene(lens);
       const id = lens.store.get().bookmark;
