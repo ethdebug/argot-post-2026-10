@@ -90,7 +90,7 @@ it("vyper: the Vyper words appear, owned by nobody", async () => {
   const sol = await at("vyAsSol", "arcade-vyper:after");
   const vy = await at("vyRule", "arcade-vyper:after");
   const l = layout(sol, "storage", { rows: "values" },
-    [{ d: vy, who: "Vyper's" }]);
+    { others: [{ d: vy, who: "Vyper's" }] });
   const words = l.rows.filter((r) => r.how.startsWith("Vyper's"));
   expect(words).toHaveLength(3 * 8 + 1);
   expect(words.every((r) => r.what.length === 0)).toBe(true);
@@ -131,3 +131,25 @@ it.each([["sol:arcade-mid", "arcade-mid:after"],
     expect(l.rows.length).toBeGreaterThan(0);
     for (const r of l.rows) expect(r.how, r.address).not.toMatch(/^slot 0x/);
   });
+
+it("rows 'touched': the values', and the slots the point's "
+  + "transaction read or wrote", async () => {
+  const p = await testProject();
+  const [before, after] = (await p.timeline("arcade-alice")).points;
+  const d = await decode(p, p.decodings["sol:arcade-alice"], after.id);
+  const values = layout(d, "storage", { rows: "values" });
+  const touched = layout(d, "storage", { rows: "touched" },
+    { point: after });
+  const tx = after.transaction!;
+  const want = [...tx.reads, ...tx.writes].filter((s) =>
+    after.snapshot.storage.has(s));
+  expect(want.length).toBeGreaterThan(0);
+  const got = new Set(touched.rows.map((r) => r.address));
+  for (const s of [...want, ...values.rows.map((r) => r.address)]) {
+    expect(got.has(s), s).toBe(true);
+  }
+  // (no point given: as "values")
+  expect(layout(d, "storage", { rows: "touched" }).rows)
+    .toEqual(values.rows);
+  expect(before.id).toBe("arcade-alice:before");
+});
