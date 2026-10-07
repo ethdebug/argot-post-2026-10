@@ -2,6 +2,7 @@ import { it, expect } from "vitest";
 import { fsIo } from "../../test/io";
 import type { Io } from "./io";
 import { load } from "./project";
+import { decode } from "./decode";
 
 it("loads only the index until a timeline is asked for", async () => {
   const seen: string[] = [];
@@ -38,7 +39,7 @@ it("a bookmark names its points, timeline and decoding", async () => {
   expect(alice).toMatchObject({ side: "after", points:
     ["arcade-alice:before", "arcade-alice:after"] });
   expect(p.decodings["sol:arcade-mid"]).toEqual({ id: "sol:arcade-mid",
-    compilation: "arcade-sol", timeline: "arcade-mid", variables: "state",
+    compilation: "sol@arcade-mid", timeline: "arcade-mid", variables: "state",
     keys: { from: "list", path: "roster" } });
 });
 
@@ -48,7 +49,21 @@ it("a point's snapshot is that side's storage", async () => {
   const slot2 = ("0x" + "2".padStart(64, "0")) as `0x${string}`;
   expect(t.points[0].snapshot.storage.get(slot2)?.slice(-2)).toBe("28");
   expect(t.points[1].snapshot.storage.get(slot2)?.slice(-2)).toBe("46");
-  expect((await p.compilation("arcade-sol")).stateVariables
+  expect((await p.compilation("sol@arcade-alice")).stateVariables
+    .map((v) => v.identifier))
+    .toEqual(["roster", "motd", "total", "rounds", "players"]);
+});
+
+it("each fixture's contract is its own compilation, whatever the fetch "
+  + "order", async () => {
+  const p = await load(fsIo());
+  await p.timeline("arcade-vyper");
+  expect((await p.compilation("sol@arcade-vyper")).stateVariables
+    .map((v) => v.identifier)).toEqual(["players"]);
+  const d = await decode(p, p.decodings["sol:arcade-mid"],
+    "arcade-mid:after");
+  expect(d.tree.map((n) => n.path)).toEqual(["total", "rounds"]);
+  expect((await p.compilation("sol@arcade-mid")).stateVariables
     .map((v) => v.identifier))
     .toEqual(["roster", "motd", "total", "rounds", "players"]);
 });
