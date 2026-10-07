@@ -1,0 +1,6 @@
+/* The port's own looks, for what the vanilla page does not have
+   (style.css is vanilla's, copied as-is) */
+/* a hand-written compilation's badge, over its tree */
+.handmade { display: inline-block; margin: 0 0 6px; padding: 1px 8px;
+  border-radius: 4px; font-size: 0.8rem; background: var(--plan-bg);
+  color: var(--plan-fg); }

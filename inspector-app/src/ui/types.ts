@@ -37,11 +37,14 @@ export type ViewSpec = { id: ViewId; area: string; link?: LinkId;
       // Phase 1's pair: the side of it this dump is (shown when the lens
       // shows that side; titled Before/After); else its own title
       side?: "before" | "after"; title?: string;
+      // the point (or decoding) it compares with: changed bytes, the
+      // slots' facts (Phase 1's pair: the other side)
+      compare?: DataRef;
       // other decodings of the same point whose words it shows, owned
       // by none here, named "<who> keccak(…)" (Phase 1: Vyper's)
       others?: { decoding: DecodingId; who?: string }[] }
     | { kind: "tree"; data: DataRef; filter?: Filter;
-      variant?: "tree" | "table" }
+      variant?: "tree" | "table"; compare?: DataRef }
     | { kind: "picker"; of: "bookmarks" | "points" | "side" | "level" });
 export type ViewKind = ViewSpec["kind"];
 
