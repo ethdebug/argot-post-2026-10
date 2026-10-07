@@ -456,6 +456,7 @@ li.same > .row .name, li.same > .row .type { opacity: 0.55; }
   grid-template-columns: var(--gutter) 1fr;
   align-items: center;
   column-gap: 1ch;
+  /* room for a slot popover (one line and its arrow) */
   height: 2.2em;
   color: var(--muted);
   opacity: 0.7;

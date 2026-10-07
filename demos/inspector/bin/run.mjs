@@ -867,7 +867,7 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
   await page.locator(`#tree li[data-path="${A}.combo"] > .row`).hover();
   pp0 = await pops();
   if (pp0.length !== 1 || !pp0[0].startsWith(
-    "keccak(0x7099…79c8, slot 0) · read, written\n= 0x14e0")) {
+    "keccak(0x7099…79c8, slot 0) · read, written")) {
     problems.push(`pops combo: ${pp0}`);
   }
   // each popover's left edge is at the gutter's, its arrow at its
@@ -1062,7 +1062,8 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
       n.every((x, k) => k === 0 || n[k - 1] < x);
     if (!ok) problems.push(`${id} order: ${b.map((x) => x.slice(0, 8))}`);
     const seq = await page.locator('#panel .view[data-side="after"] .rows')
-      .evaluate((r) => [...r.children].map((c) =>
+      .evaluate((r) => [...r.children].filter((c) =>
+        !c.classList.contains("room")).map((c) =>
         c.classList.contains("gap") ? "gap" : c.dataset.slot));
     const want = [];
     n.forEach((x, k) => {
@@ -1473,6 +1474,40 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
   if (/\((alice|bob|carol)\)/.test(await page.locator("#tree").innerText())) {
     problems.push("a name label after a key");
   }
+  // every lit run's popover has room in a gap line beside it: with
+  // players selected, one popover for each player's record and one for
+  // carol's long name's data, none in the tray, none on bytes or on
+  // another row's address
+  await page.locator('#tree li[data-path="players"] > .row').click();
+  await page.mouse.move(1, 1);
+  const room = await page.evaluate(() => {
+    const v = document.querySelector('#panel .view:not([hidden])');
+    const hit = (a, b) => a.left < b.right - 0.5 && b.left < a.right - 0.5 &&
+      a.top < b.bottom - 0.5 && b.top < a.bottom - 0.5;
+    const pops = [...v.querySelectorAll(".pop")];
+    const cover = [];
+    for (const p of pops) {
+      const r = p.getBoundingClientRect();
+      const own = p.closest(".wrow");
+      for (const e of v.querySelectorAll(".rows > .wrow > .addr .a, " +
+        ".rows > .wrow > .word .b")) {
+        if (e.closest(".wrow") !== own && hit(r, e.getBoundingClientRect())) {
+          cover.push(`${p.textContent.slice(0, 20)} on ${e.textContent}`);
+        }
+      }
+    }
+    return { pops: pops.map((p) => p.querySelector(".pop-how").textContent)
+      .sort(), tray: document.querySelectorAll("#panel .tray, .pinned")
+      .length, cover: cover.slice(0, 3) };
+  });
+  if (room.tray || room.cover.length || room.pops.join("|") !== [
+    "keccak(0x3c44…93bc, slot 0) + 0 … + 1",
+    "keccak(0x7099…79c8, slot 0) + 0 … + 1",
+    "keccak(0x90f7…b906, slot 0) + 0 … + 1",
+    "keccak(keccak(0x90f7…b906, slot 0) + 1) + 0 … + 1"].join("|")) {
+    problems.push(`popover room: ${JSON.stringify(room)}`);
+  }
+  await page.keyboard.press("Escape");
   // a byte of bob's record selects its field; the roster at keccak(slot 1)
   await page.locator(`#panel .word[data-side="after"] ` +
     `.b[data-owners="${B}.score"][data-i="31"]`).click();
@@ -1526,7 +1561,7 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
   // (its popover may have no room: the Vyper words are next to each
   // other; the details name the slot)
   const vp = (await pops()).join();
-  if ((vp && vp !== `Vyper's keccak(slot 0, 0x7099…79c8)\n= ${vslot}`) ||
+  if ((vp && vp !== "Vyper's keccak(slot 0, 0x7099…79c8)") ||
     !(await page.locator("#details").innerText()).includes(
       "Vyper's keccak(slot 0, 0x7099…79c8)")) {
     problems.push(`vyper pops: ${vp}`);
