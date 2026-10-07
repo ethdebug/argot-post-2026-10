@@ -4,11 +4,33 @@
   "type": "module",
   "description": "The storage inspector as a React + TypeScript app",
   "scripts": {
-    "test": "node --test bin/"
+    "dev": "vite",
+    "build": "vite build",
+    "test": "vitest run && node --test bin/",
+    "check": "node bin/check.mjs",
+    "e2e": "playwright test"
+  },
+  "dependencies": {
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0"
   },
   "devDependencies": {
+    "@ethdebug/pointers": "file:vendor/ethdebug-pointers-0.1.0-preview.1.tgz",
+    "@playwright/test": "1.63.0",
+    "@testing-library/react": "^16.0.0",
+    "@types/node": "^22.0.0",
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0",
+    "@vitejs/plugin-react": "^5.0.0",
+    "jsdom": "^26.0.0",
     "pixelmatch": "^7.1.0",
     "playwright": "1.63.0",
-    "pngjs": "^7.0.0"
+    "pngjs": "^7.0.0",
+    "typescript": "^5.9.0",
+    "vite": "^7.0.0",
+    "vitest": "^3.2.0"
+  },
+  "overrides": {
+    "@ethdebug/format": "file:vendor/ethdebug-format-0.1.0-draft.1.tgz"
   }
 }

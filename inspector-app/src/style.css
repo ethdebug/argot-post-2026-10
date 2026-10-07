@@ -1,0 +1,1201 @@
+/* Storage inspector. Tokens and shared components (header, code,
+   picker, tags, notes) are in ../appendix.css. */
+.summary {
+  font-family: ui-monospace, Menlo, monospace;
+  font-size: 0.85rem;
+  color: var(--muted);
+  overflow-wrap: anywhere;
+  margin: 8px 0 0;
+}
+
+/* A wider frame than the other appendix pages: the words want room */
+main { max-width: 1440px; }
+
+/* Narrow: tree, "How this was found", words, source, one under the
+   other. Wide: the words (the raw bytes) on the left, held in view; the
+   tree, the derivation and the source beside them, on the right. */
+.cols { display: grid; grid-template-columns: minmax(0, 1fr); gap: 0 28px; }
+@media (min-width: 1100px) {
+  .cols {
+    grid-template-columns: minmax(0, 7fr) minmax(0, 5fr);
+    grid-template-rows: auto auto 1fr;
+  }
+  .storage { grid-column: 2; grid-row: 1; font-size: 1.05rem; }
+  .howbox { grid-column: 2; grid-row: 2; }
+  .source { grid-column: 2; grid-row: 3; }
+  .words {
+    grid-column: 1;
+    grid-row: 1 / span 3;
+    position: sticky;
+    top: 0;
+    align-self: start;
+    /* no scroll box of its own: annotations overflow it visibly, so a
+       highlight never adds a scrollbar */
+    padding-bottom: 12px;
+  }
+}
+
+.legend { text-transform: none; letter-spacing: 0; font-size: 0.8rem; }
+.legend .chg {
+  background: var(--chg-bg);
+  color: var(--chg-fg);
+  padding: 0 6px;
+  border-radius: 3px;
+}
+.legend .same { opacity: 0.55; }
+
+.tree ul { list-style: none; margin: 0; padding: 0 0 0 16px; }
+.tree > ul { padding: 0; }
+.tree li { margin: 0; }
+.tree li.top { border-top: 1px solid var(--line); padding: 4px 0; }
+.row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 2px 10px;
+  padding: 3px 0;
+}
+.name { font-weight: 600; overflow-wrap: anywhere; }
+.type { color: var(--muted); font-size: 0.8rem; }
+li.same > .row .name, li.same > .row .type { opacity: 0.55; }
+.val {
+  margin-left: auto;
+  text-align: right;
+  border: 1px solid transparent;
+  border-radius: 5px;
+  padding: 2px 8px;
+  max-width: 100%;
+  overflow-wrap: anywhere;
+}
+/* A whole row selects its variable, changed or not */
+#tree .row { cursor: pointer; border-radius: 4px; }
+#tree .row:focus-visible { outline: 2px solid var(--accent);
+  outline-offset: 1px; }
+#tree .row.sel .val { border-color: var(--accent); }
+.val.same { opacity: 0.6; }
+.val.chg { background: var(--chg-bg); color: var(--chg-fg); }
+.val .old { color: var(--old); text-decoration: line-through; }
+.val .new { color: var(--new); font-weight: 700; }
+.val .arrow { margin: 0 6px; }
+.empty { margin: 0; font-size: 0.85rem; }
+
+/* The steps read a little like table rows: number | kind | content,
+   with a hairline between steps */
+.steps { margin: 0; padding-left: 0; list-style: none;
+  counter-reset: step; }
+.steps li {
+  display: grid;
+  grid-template-columns: 2em 6.2em minmax(0, 1fr);
+  align-items: baseline;
+  margin: 0;
+  padding: 5px 0;
+  border-top: 1px solid color-mix(in srgb, var(--line) 70%, transparent);
+  overflow-wrap: anywhere;
+}
+.steps li:first-child { border-top: none; }
+.steps li::before {
+  counter-increment: step;
+  content: counter(step) ".";
+  color: var(--muted);
+  font-size: 0.85em;
+  text-align: right;
+  padding-right: 0.6em;
+}
+.steps .c { min-width: 0; }
+.steps .k {
+  display: block;
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--accent);
+  font-weight: 700;
+}
+.steps .final { font-weight: 400; }
+.args { color: var(--muted); font-size: 0.85rem; margin-left: 1em; }
+/* "How this was found": the selected variable's derivation */
+.howbox .how { margin-top: 0; }
+.howrest { margin: 0; }
+.howhead { margin: 0 0 4px; display: flex; flex-wrap: wrap; gap: 4px 10px;
+  align-items: baseline; }
+.howhead code { font-weight: 700; background: none; padding: 0; }
+.howside { margin: 0 0 8px; color: var(--muted); }
+.howside b { color: var(--fg); font-weight: 600; }
+/* Where the two states' derivations differ: a step's two evaluations,
+   and after the fork, one list per branch (this state's first; the
+   other muted, like the cards) */
+.evals {
+  margin: 4px 0 0;
+  font-size: 0.85rem;
+  display: grid;
+  gap: 1px;
+}
+.ev-tag {
+  display: inline-block;
+  min-width: 3.6em;
+  padding: 0 6px;
+  border-radius: 5px;
+  font: 600 0.62rem/1.6 system-ui, -apple-system, "Segoe UI", sans-serif;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  text-align: center;
+  color: var(--panel);
+  background: var(--accent);
+}
+.branch { margin: 6px 0 0; }
+.branch-head { margin: 0 0 2px; }
+.branch-head .ev-tag { min-width: 0; }
+.branch-head { padding-left: 2em; }
+.branch.theirs {
+  padding: 4px 0 2px;
+  border-radius: 6px;
+  background: color-mix(in srgb, var(--accent) 7%, var(--panel));
+  opacity: 0.75;
+}
+.branch.theirs .ev-tag {
+  color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 16%, var(--panel));
+}
+.mode button { font-size: 0.85rem; padding: 3px 12px; }
+.mode button:not(:first-child) {
+  border-top-left-radius: 0; border-bottom-left-radius: 0;
+  margin-left: -1px;
+}
+.mode button:not(:last-child) {
+  border-top-right-radius: 0; border-bottom-right-radius: 0;
+}
+.mode button[aria-checked="true"] { position: relative; }
+.mode { gap: 0; }
+.moderow { display: flex; align-items: center; gap: 10px; margin: 10px 0 0; }
+.modelabel { font-size: 0.8rem; color: var(--muted); }
+.mpicks .moderow { margin: 0 0 6px; }
+.mpicks .modelabel { min-width: 1.2em; }
+.how details { margin-top: 4px; }
+.how summary { cursor: pointer; color: var(--muted); font-size: 0.85rem; }
+.how pre {
+  max-height: 260px;
+  overflow: auto;
+  background: var(--code-bg);
+  padding: 8px;
+  border-radius: 4px;
+  font-size: 0.75rem;
+}
+.hex.short { cursor: pointer; border-bottom: 1px dotted var(--muted); }
+.hex.full { overflow-wrap: anywhere; }
+
+
+.source .src { max-height: 60vh; }
+.src {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 10px;
+  margin: 0;
+  max-height: 70vh;
+  overflow: auto;
+  font-size: 0.78rem;
+  line-height: 1.45;
+  white-space: pre;
+}
+.src mark { background: var(--mark); color: inherit; border-radius: 2px; }
+
+.notes { margin-top: 32px; border-top: 1px solid var(--line); }
+.notes ul { padding-left: 20px; max-width: 80ch; }
+.notes li { margin: 6px 0; }
+.val span { overflow-wrap: anywhere; }
+
+/* ------------------------------------------------- the words panel */
+
+/* Subtle tints, one per value in a slot, so packed values read as
+   bands. The strong highlight is --mark, from the "changed" family. */
+:root {
+  --t0: #e4ecf6; --t1: #e3f0e3; --t2: #efe6f4; --t3: #f6e7df;
+  --t4: #dff0ef;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --t0: #1f2a38; --t1: #1f2e23; --t2: #2b2333; --t3: #35261f;
+    --t4: #1c302f;
+  }
+}
+:root[data-theme="dark"] {
+  --t0: #1f2a38; --t1: #1f2e23; --t2: #2b2333; --t3: #35261f;
+  --t4: #1c302f;
+}
+.t0 { --tint: var(--t0); }
+.t1 { --tint: var(--t1); }
+.t2 { --tint: var(--t2); }
+.t3 { --tint: var(--t3); }
+.t4 { --tint: var(--t4); }
+
+.words .intro { margin: 0 0 8px; max-width: 70ch; }
+.legend .bchg {
+  font-family: var(--mono);
+  color: var(--new);
+  font-weight: 700;
+  box-shadow: inset 0 -2px 0 var(--new);
+}
+.legend .bfree { opacity: 0.45; }
+
+/* The details of what is lit, under the dump: a short list of terms
+   and values. It grows with its content; it never scrolls. */
+.details {
+  /* room above for a card under the dump's last rows */
+  margin: 2.6em 0 0;
+  padding: 8px 12px;
+  min-height: calc(4 * 1.5em + 16px);
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-left: 3px solid var(--accent);
+  border-radius: 6px;
+  font-size: 0.85rem;
+  line-height: 1.5;
+}
+.details p { margin: 0; }
+.details dl {
+  display: grid;
+  grid-template-columns: max-content minmax(0, 1fr);
+  gap: 2px 14px;
+  margin: 0;
+}
+.details dt { color: var(--muted); }
+.details dd { margin: 0; overflow-wrap: anywhere; }
+
+/* The locked state: what the view is on while a value is selected,
+   beside the Before | After toggle */
+.viewing {
+  padding: 0 8px;
+  border-radius: 9px;
+  font: 600 0.7rem/1.6 system-ui, -apple-system, "Segoe UI", sans-serif;
+  color: var(--panel);
+  background: var(--accent);
+  /* one line, always (it keeps its room when hidden) */
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+}
+.moderow { flex-wrap: wrap; }
+/* "show other state": a checkbox chip, like the toggle's buttons */
+.chipcheck {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 10px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--panel);
+  font-size: 0.85rem;
+  cursor: pointer;
+}
+.chipcheck input { accent-color: var(--accent); margin: 0; }
+
+/* In the tree, while a value is lit: its value in the other state,
+   in a card like the dump's (under in Before, over in After) */
+.tree li, .tree .row { position: relative; }
+.tcard {
+  position: absolute;
+  right: 0;
+  z-index: 5;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 1px;
+  max-width: 90%;
+  padding: 5px 10px;
+  border-radius: 6px;
+  background: color-mix(in srgb, var(--accent) 11%, var(--panel));
+  border: 1px solid color-mix(in srgb, var(--accent) 40%, transparent);
+  box-shadow: 0 3px 10px rgb(0 0 0 / 0.16);
+  font-family: var(--mono);
+  font-size: 0.8rem;
+  color: var(--muted);
+  pointer-events: none;
+  animation: cmp-in 0.14s ease-out;
+  overflow-wrap: anywhere;
+  text-align: right;
+}
+.tcard.before { top: calc(100% + 2px); }
+.tcard.after { bottom: calc(100% + 2px); }
+.tcard .cmp-tag { left: auto; right: 8px; }
+.tcard.before .cmp-tag { top: calc(100% - 6px); border-radius: 5px; }
+.tcard.after .cmp-tag { bottom: calc(100% - 6px); border-radius: 5px; }
+.tcard .tval b { font-weight: 600; color: var(--fg); }
+
+/* Two dumps, before and after, one under the other. A dump is one
+   column of words in address order, each word one line of 32 bytes in
+   four groups of eight, the address in a narrow gutter, and a gap line
+   where the addresses jump. The byte size follows the panel's width; on
+   a panel too narrow for that (a phone), the words scroll sideways in
+   the panel, both dumps together, and the gutter stays in view. */
+.dump {
+  container-type: inline-size;
+  --cell: 2.4ch;
+  --gutter: 8ch;
+}
+.views {
+  display: grid;
+  row-gap: 16px;
+  font-family: var(--mono);
+  font-variant-numeric: tabular-nums;
+  /* the largest size at which a row (gutter, 32 cells and three gaps;
+     16 cells on a narrow box) fits the box: --k32 and --k16 are a row's
+     width in em, measured once in this font (main.js fitDumps); 12px is
+     the rows' padding and border */
+  font-size: clamp(10px, calc((100cqi - 12px) / var(--k32, 56)), 20px);
+}
+@container (max-width: 559.98px) {
+  .views { font-size: clamp(10px, calc((100cqi - 12px) / var(--k16, 30)),
+    20px); }
+}
+.swipe { display: none; margin: 0 0 6px; }
+/* On a narrow panel (a phone), each word is two lines of 16 bytes, so
+   every byte shows with no sideways scrolling; the address once, the
+   second line under the bytes */
+@container (max-width: 559.98px) {
+  .views { padding-bottom: 3.2em; }
+  .word .bytes, .ruler .bytes, .bruler .bytes { display: grid;
+    grid-template-columns: repeat(2, max-content); row-gap: 0;
+    line-height: 1.4; }
+  /* (no byte ruler over the dump: on two lines it reads oddly) */
+  .wrow.head .ruler { visibility: hidden; }
+  .dump { --cell: 2.15ch; }
+}
+.view-head {
+  position: sticky;
+  top: 0;
+  z-index: 4;
+  background: var(--bg);
+  padding-top: 2px;
+}
+@container (max-width: 559.98px) {
+  .view-head { position: static; }
+}
+.view-name {
+  display: block;
+  font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--muted);
+  margin-bottom: 2px;
+}
+.view[data-side="after"] .view-name { color: var(--accent); }
+.rows {
+  width: max-content;
+  min-width: 100%;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 4px 8px 4px 0;
+}
+.wrow {
+  display: grid;
+  grid-template-columns: var(--gutter) max-content;
+  align-items: start;
+  column-gap: 1ch;
+}
+
+.wrow.head { padding-right: 8px; }
+.addr {
+  position: sticky;
+  left: 0;
+  /* above byte cells, which paint as layers when dimmed (opacity) */
+  z-index: 2;
+  align-self: stretch;
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 4px;
+  padding: 0 1ch 0 8px;
+  border-right: 1px solid var(--line);
+  background: var(--panel);
+  color: var(--muted);
+  white-space: nowrap;
+}
+.wrow.head .addr { background: var(--bg); border-right-color: transparent; }
+.addr:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+/* the address reads as a row label: right-aligned against the bytes,
+   like line numbers in a hex dump */
+.addr .a {
+  line-height: 1.85;
+  font-size: 0.92em;
+  letter-spacing: -0.01em;
+}
+/* written, same value: the one mark at rest */
+.ring {
+  width: 0.55em;
+  height: 0.55em;
+  border: 1.5px solid var(--accent);
+  border-radius: 50%;
+  flex: none;
+}
+/* How a lit slot was found, over its address */
+.pop {
+  position: absolute;
+  left: 0;
+  bottom: calc(100% + 6px);
+  z-index: 3;
+  padding: 1px 7px;
+  border-radius: 4px;
+  background: var(--fg);
+  color: var(--bg);
+  font-size: 0.68rem;
+  line-height: 1.5;
+  pointer-events: none;
+  box-shadow: 0 1px 3px rgb(0 0 0 / 0.2);
+  width: max-content;
+}
+/* (one line; cut at its end where the box is narrower, as on a phone) */
+.pop .pop-how { display: block; white-space: nowrap; overflow: hidden;
+  text-overflow: ellipsis; }
+/* what a slot holds, by name; a name in its bytes' colour */
+.pop .pname { font: inherit; background: none; border: 0; padding: 0 2px;
+  color: inherit; border-radius: 3px; }
+.pop .pname:is(.pk1, .pk2, .pk3, .pk4, .pk5, .pk6, .pk7, .pk8, .pk9) {
+  background: var(--pk); color: var(--pk-fg); }
+.pop .pname.muted { filter: saturate(0.25); opacity: 0.7; }
+.pop .pmore { opacity: 0.75; }
+.pop .full {
+  display: block;
+  font-size: 0.9em;
+  opacity: 0.75;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  word-break: break-all;
+}
+/* its arrow, pointing down at the address */
+.pop::after {
+  content: "";
+  position: absolute;
+  top: 100%;
+  left: var(--ax, 50%);
+  transform: translateX(-50%);
+  border: 5px solid transparent;
+  border-top-color: var(--fg);
+}
+.wrow:hover .addr, .wrow.on .addr { color: var(--fg); }
+.gap {
+  display: grid;
+  grid-template-columns: var(--gutter) 1fr;
+  align-items: center;
+  column-gap: 1ch;
+  /* room for a slot popover (one line and its arrow) */
+  height: 2.2em;
+  color: var(--muted);
+  opacity: 0.7;
+}
+.gap span {
+  justify-self: end;
+  padding-right: calc(1ch + 1px);
+  line-height: 1;
+}
+.gap::after { content: ""; border-top: 1px dashed var(--line); }
+
+.bytes {
+  display: flex;
+  gap: 0.8ch;
+  width: max-content;
+  line-height: 1.85;
+}
+.oct {
+  display: grid;
+  grid-template-columns: repeat(8, var(--cell));
+  flex: none;
+}
+.b {
+  text-align: center;
+  background: var(--tint, transparent);
+  outline-offset: -1px;
+}
+.b.gs { border-top-left-radius: 3px; border-bottom-left-radius: 3px; }
+.b.ge { border-top-right-radius: 3px; border-bottom-right-radius: 3px; }
+.b.z { color: var(--muted); }
+.b.free { opacity: 0.4; }
+.same .b:not(.hl) { color: var(--muted); }
+.word[data-side="before"] .b.chg { color: var(--old);
+  box-shadow: inset 0 -2px 0 var(--old); }
+.word[data-side="after"] .b.chg { color: var(--new); font-weight: 700;
+  box-shadow: inset 0 -2px 0 var(--new); }
+.b[data-owners] { cursor: pointer; }
+.b.hl { background: var(--mark); color: var(--chg-fg); opacity: 1; }
+.word[data-side="after"] .b.hl.chg { color: var(--new); }
+/* A subtle zebra stripe on every other word row; it fades with the
+   rest while something is lit */
+.wrow { --zebra: transparent; background: var(--zebra);
+  transition: background-color 0.12s; }
+.wrow.zb { --zebra: color-mix(in srgb, var(--fg) 4%, transparent); }
+.wrow.zb .addr { background: color-mix(in srgb, var(--fg) 4%, var(--panel)); }
+.active .wrow.zb { --zebra: color-mix(in srgb, var(--fg) 2%, transparent); }
+.active .wrow.zb .addr {
+  background: color-mix(in srgb, var(--fg) 2%, var(--panel));
+}
+/* Lit bytes say so without color too: a line over them */
+.b.hl { box-shadow: inset 0 2px 0 var(--accent); }
+.word[data-side="before"] .b.hl.chg {
+  box-shadow: inset 0 2px 0 var(--accent), inset 0 -2px 0 var(--old);
+}
+.word[data-side="after"] .b.hl.chg {
+  box-shadow: inset 0 2px 0 var(--accent), inset 0 -2px 0 var(--new);
+}
+/* The one rule: brown caps and edges mark the active thing only (the
+   selection, or a replay's step) and its lit bytes. A hover is the
+   plain fill: no cap, no border, no brown outline (panel.js paint sets
+   .chosen) */
+.panel:not(.chosen) .b.hl { box-shadow: none; }
+.panel:not(.chosen) .word[data-side="before"] .b.hl.chg {
+  box-shadow: inset 0 -2px 0 var(--old); }
+.panel:not(.chosen) .word[data-side="after"] .b.hl.chg {
+  box-shadow: inset 0 -2px 0 var(--new); }
+/* While something is lit, everything else steps back: tints, change
+   marks and other tree rows fade, so the highlight dominates */
+.b, .tree .row { transition: opacity 0.12s, filter 0.12s; }
+.active .b:not(.hl):not(.at) { opacity: 0.3; filter: saturate(0.2); }
+.tree.active .row:not(.hl) { opacity: 0.45; }
+/* The byte under the pointer, at the same place in both views */
+.b { position: relative; }
+.b.at { opacity: 1; }
+/* (no border or outline for what is under the pointer: a hover is the
+   plain fill, in the dump as in the tree. A distinct mark for "the
+   exact thing under the mouse", if one is ever wanted, hooks in here,
+   on .b.at (panel.js paint sets it), and in the tree's row hover; it
+   must look the same on both sides and must not be a border) */
+.b:focus-visible { outline: 2px solid var(--accent); }
+.ruler .bytes { line-height: 1.3; }
+.ruler .b { color: var(--muted); font-size: 0.85em; text-align: left; }
+
+/* The tree side of a link */
+.row.hl { background: var(--mark); border-radius: 4px;
+  box-shadow: -4px 0 0 var(--mark), 4px 0 0 var(--mark); }
+.row.sel { box-shadow: -7px 0 0 var(--accent); }
+.row.hl.sel { box-shadow: -4px 0 0 var(--mark), 4px 0 0 var(--mark),
+  -7px 0 0 var(--accent); }
+.how li[data-region] { cursor: default; border-radius: 4px; }
+.how li[data-region]:hover, .how li[data-region]:focus-visible {
+  background: var(--code-bg);
+}
+.how li[data-region]:focus-visible { outline: 2px solid var(--accent); }
+
+/* Compare: beside each run of lit words, a picture of the same words
+   in the other dump (cloned rows, drawn as there), muted a little, in a
+   light card that floats over the neighboring rows: under the run in
+   Before, over it in After. Same size, same columns as the run. */
+.wrow { position: relative; }
+.cmp {
+  position: absolute;
+  z-index: 5; /* over the sticky dump heads */
+  pointer-events: none;
+  animation: cmp-in 0.14s ease-out;
+}
+.cmp.before { top: calc(100% + 1px); }
+.cmp.after { bottom: calc(100% + 1px); }
+/* a fade only: a moving card would be measured where it starts */
+@keyframes cmp-in { from { opacity: 0; } }
+.cmp-frame {
+  position: relative;
+  margin-left: -6px; /* room left of the addresses, as on the right */
+  overflow: clip;
+  padding: 3px 0;
+  border-radius: 6px;
+  background: color-mix(in srgb, var(--accent) 11%, var(--panel));
+  border: 1px solid color-mix(in srgb, var(--accent) 40%, transparent);
+  box-shadow: 0 3px 10px rgb(0 0 0 / 0.16);
+}
+.cmp-photo {
+  position: relative;
+  left: 5px; /* the frame's 6px of room, less its 1px border */
+  filter: saturate(0.55) contrast(0.88);
+  opacity: 0.85;
+}
+/* the card's addresses: one label column, a tinted strip with the
+   gutter's hairline against the bytes */
+.cmp-photo .addr {
+  position: static;
+  background: color-mix(in srgb, var(--accent) 9%, transparent);
+  border-right-color: color-mix(in srgb, var(--accent) 35%, var(--line));
+}
+.cmp-photo .wrow:first-child .addr { border-top-left-radius: 4px; }
+.cmp-photo .wrow:last-child .addr { border-bottom-left-radius: 4px; }
+.cmp-photo .b { transition: none; }
+/* in the card, the rest of the word is not dimmed: the card's own
+   muting is enough, and the value's bytes keep their highlight */
+.active .cmp-photo .b:not(.hl):not(.at) { opacity: 1; filter: none; }
+.active .cmp-photo .b.free:not(.hl) { opacity: 0.4; }
+/* its label, a tab on the edge away from the run */
+.cmp-tag {
+  position: absolute;
+  left: 8px;
+  z-index: 1;
+  font: 600 0.58rem/1.45 system-ui, -apple-system, "Segoe UI", sans-serif;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  white-space: nowrap;
+  padding: 0 6px;
+  color: var(--panel);
+  background: var(--accent);
+}
+/* half over the card's edge, to take little room */
+.cmp.before .cmp-tag { top: calc(100% - 6px); border-radius: 5px; }
+.cmp.after .cmp-tag { bottom: calc(100% - 6px); border-radius: 5px; }
+.cmp.pinned .cmp-tag { display: none; }
+/* the slot popover under its address (in After), arrow up */
+.addr.popped { z-index: 3; }
+/* a lit run's addresses, as one group: a soft rounded tint behind
+   them, which the slot popover points at (not in the cards) */
+.addr.grp::before {
+  content: "";
+  position: absolute;
+  inset: 0 4px 0 3px;
+  z-index: -1;
+  background: color-mix(in srgb, var(--mark) 55%, var(--panel));
+}
+.addr.grp-top::before { top: 2px; border-top-left-radius: 6px;
+  border-top-right-radius: 6px; }
+.addr.grp-end::before { bottom: 2px; border-bottom-left-radius: 6px;
+  border-bottom-right-radius: 6px; }
+.cmp-photo .addr.grp::before { display: none; }
+.pop.under { bottom: auto; top: calc(100% + 6px); }
+.pop.under::after {
+  top: auto;
+  bottom: 100%;
+  border-top-color: transparent;
+  border-bottom-color: var(--fg);
+}
+
+/* An annotation with no room beside its rows (it would cover lit
+   bytes or the other annotation) waits, labeled, in a tray under the
+   dumps instead */
+/* fixed at the bottom of the window, over the words: it takes no room
+   in the page, so it moves nothing */
+.tray {
+  position: fixed;
+  bottom: 8px;
+  z-index: 7;
+  display: grid;
+  gap: 6px;
+  max-height: 45vh;
+  overflow: auto;
+  padding: 6px;
+  border-radius: 8px;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  box-shadow: 0 4px 16px rgb(0 0 0 / 0.18);
+}
+.pin {
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 4px 0 6px;
+  animation: cmp-in 0.14s ease-out;
+}
+.pin-head {
+  margin: 0 0 4px;
+  padding: 0 8px;
+  font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+  font-size: 0.72rem;
+  color: var(--muted);
+}
+.cmp.pinned { position: relative; top: auto; bottom: auto; margin-top: 2px;
+  animation: none; }
+.pop.pinned { position: static; display: inline-block; margin: 0 8px;
+  pointer-events: auto; }
+.pop.pinned::after { display: none; }
+
+
+/* ------------------------------------------- memory, with BUG */
+
+/* Set apart from the storage demo above: a tinted band, its own
+   frame. */
+.ahead {
+  margin-top: 40px;
+  padding: 20px 20px 24px;
+  border: 1px solid var(--line);
+  border-top: 4px solid var(--plan-fg);
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--plan-bg) 35%, var(--bg));
+}
+.ahead > h2 { margin: 0 0 8px; font-size: 1.3rem; }
+.tag.preview {
+  display: inline-block;
+  white-space: normal;
+  font-size: 0.75rem;
+  font-weight: 400;
+  vertical-align: middle;
+  border-color: var(--plan-fg);
+  color: var(--plan-fg);
+  background: var(--plan-bg);
+}
+.ahead .lede { max-width: 78ch; margin: 0 0 8px; }
+.ahead .dump .view-head,
+.ahead .wrow.head .addr { background: transparent; }
+.ahead .view-head {
+  background: color-mix(in srgb, var(--plan-bg) 35%, var(--bg));
+}
+.mpicks { margin: 12px 0 8px; }
+.mpickrow {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  margin: 0 0 6px;
+}
+.mpickrow .label {
+  font-weight: 700;
+  min-width: 1.2em;
+  color: var(--plan-fg);
+}
+.mpick button[disabled] { opacity: 0.4; cursor: not-allowed; }
+#mtree .row { cursor: pointer; border-radius: 4px; }
+#mtree .row.sel .val {
+  border-color: var(--accent); }
+#mtree .row:focus-visible { outline: 2px solid var(--accent);
+  outline-offset: 1px; }
+.b.past { color: var(--muted); opacity: 0.35; }
+#msrc mark.ma { background: var(--plan-bg); color: var(--plan-fg);
+  border-radius: 2px; }
+#msrc mark.mb, #msrc mark.mab { background: var(--mark); color: inherit;
+  border-radius: 2px; }
+#msrc mark.mab { box-shadow: 0 2px 0 var(--plan-fg); }
+.legend mark { padding: 0 6px; border-radius: 3px; }
+.legend mark.ma { background: var(--plan-bg); color: var(--plan-fg); }
+.legend mark.mb { background: var(--mark); color: inherit; }
+.mknown { margin: 16px 0 0; padding-left: 20px; max-width: 80ch; }
+.mknown li { margin: 4px 0; }
+/* the record's storage slot after memory, and a local with no location */
+.gap.mstore span { font-size: 0.75rem; letter-spacing: 0.04em; }
+#mtree .noloc { color: var(--muted); }
+.mpickrow .label { min-width: 5.5em; }
+#mmoderow[hidden] { display: none; }
+
+/* Loading: gray lines where the values will be, and room kept for the
+   lines that come with the data, so the layout does not move when it
+   arrives */
+.skel { display: grid; gap: 12px; padding: 8px 0; }
+.skel i {
+  display: block;
+  height: 18px;
+  border-radius: 4px;
+  background: color-mix(in srgb, var(--fg) 8%, transparent);
+}
+.skel i:nth-child(3n + 2) { width: 70%; margin-left: 16px; }
+.skel i:nth-child(3n) { width: 55%; margin-left: 16px; }
+@media (prefers-reduced-motion: no-preference) {
+  .skel i { animation: skel 1.4s ease-in-out infinite alternate; }
+}
+@keyframes skel { to { opacity: 0.45; } }
+/* the lines that come with the data: two lines of meta and one of
+   summary on a wide page, four and three on a phone */
+#meta, #mmeta { min-height: calc(2 * 1.5em); }
+.summary { min-height: 1.5em; }
+@media (max-width: 759px) {
+  #meta, #mmeta { min-height: calc(4 * 1.5em); }
+  .summary { min-height: calc(3 * 1.5em); }
+}
+/* the words: room for the smallest dump */
+#panel:empty, #mpanel:empty { min-height: 270px; }
+
+/* Scenes. A scene's intro sits under the picker. A scene with one point
+   has no other state: no Before | After, no "show other state", no
+   change legends (main[data-single]; the memory section keeps its own) */
+.intros p { max-width: 78ch; margin: 10px 0 0; }
+main[data-single] #storage :is(#mode-l, #mode, .chipcheck),
+main[data-single] > .cols :is(.chglegend, .legend .bchg, .intro .two) {
+  display: none; }
+/* The contract, above the scenes; the calldata of setMotto, under its
+   scene's storage */
+.contract p, .calldata .lede { max-width: 78ch; }
+.contract .src { max-height: 22em; }
+/* the contract's source, collapsed under a summary line */
+.srcbox {
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--panel);
+  max-width: 78ch;
+}
+.srcbox[open] { max-width: none; }
+.srcbox > summary {
+  padding: 8px 12px;
+  color: var(--fg);
+  font-size: 0.9rem;
+  border-radius: 6px;
+}
+.srcbox > summary:hover { color: var(--accent); }
+.srcbox > summary:focus-visible { outline: 2px solid var(--accent);
+  outline-offset: 1px; }
+.srcfile { font-family: ui-monospace, Menlo, monospace; font-weight: 600; }
+/* the colouring: Shiki's two themes as CSS variables */
+#contract-src.coloured span { color: var(--shiki-light); }
+@media (prefers-color-scheme: dark) {
+  #contract-src.coloured span { color: var(--shiki-dark); }
+}
+.srcbox > .src { border: none; border-top: 1px solid var(--line);
+  border-radius: 0 0 6px 6px; }
+.calldata { margin-top: 20px; }
+.calldata .lede { margin: 0 0 8px; }
+.cparts { display: grid; gap: 0 20px; margin-top: 10px;
+  grid-template-columns: minmax(0, 1fr); }
+@media (min-width: 760px) {
+  .cparts { grid-template-columns: minmax(0, 2fr) minmax(0, 3fr); }
+}
+
+/* A composite's children, each in its own colour when it is lit (pk1 …;
+   the first colour is --mark). The same child has the same colour in
+   the tree and the dump; the lit cues (the line over lit bytes, the
+   lit row) stay as they are. */
+:root {
+  --pk1: #b9d8ff; --pk1-fg: #0b3a75;
+  --pk2: #bfe8c4; --pk2-fg: #14532d;
+  --pk3: #ffc7dd; --pk3-fg: #6b1238;
+  --pk4: #d9c8ff; --pk4-fg: #3b1f7a;
+  --pk5: #a8e6e0; --pk5-fg: #0f4f4a;
+  --pk6: #ffcf9e; --pk6-fg: #6a3300;
+  --pk7: #ffb3a7; --pk7-fg: #7a1a10;
+  --pk8: #b8e07a; --pk8-fg: #2f4a00;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --pk1: #1f4a80; --pk1-fg: #cfe3ff;
+    --pk2: #1e5a2c; --pk2-fg: #c8f0cf;
+    --pk3: #74224a; --pk3-fg: #ffd3e6;
+    --pk4: #4b3586; --pk4-fg: #e2d6ff;
+    --pk5: #145a55; --pk5-fg: #c4f3ee;
+    --pk6: #7a4310; --pk6-fg: #ffd9b3;
+    --pk7: #8a2a20; --pk7-fg: #ffd0c8;
+    --pk8: #3f5c0e; --pk8-fg: #e2f5bf;
+  }
+}
+:root[data-theme="dark"] {
+  --pk1: #1f4a80; --pk1-fg: #cfe3ff;
+  --pk2: #1e5a2c; --pk2-fg: #c8f0cf;
+  --pk3: #74224a; --pk3-fg: #ffd3e6;
+  --pk4: #4b3586; --pk4-fg: #e2d6ff;
+  --pk5: #145a55; --pk5-fg: #c4f3ee;
+  --pk6: #7a4310; --pk6-fg: #ffd9b3;
+  --pk7: #8a2a20; --pk7-fg: #ffd0c8;
+  --pk8: #3f5c0e; --pk8-fg: #e2f5bf;
+}
+.pk1 { --pk: var(--pk1); --pk-fg: var(--pk1-fg); }
+.pk2 { --pk: var(--pk2); --pk-fg: var(--pk2-fg); }
+.pk3 { --pk: var(--pk3); --pk-fg: var(--pk3-fg); }
+.pk4 { --pk: var(--pk4); --pk-fg: var(--pk4-fg); }
+.pk5 { --pk: var(--pk5); --pk-fg: var(--pk5-fg); }
+.pk6 { --pk: var(--pk6); --pk-fg: var(--pk6-fg); }
+.pk7 { --pk: var(--pk7); --pk-fg: var(--pk7-fg); }
+.pk8 { --pk: var(--pk8); --pk-fg: var(--pk8-fg); }
+.b.hl:is(.pk1, .pk2, .pk3, .pk4, .pk5, .pk6, .pk7, .pk8) {
+  background: var(--pk); color: var(--pk-fg); }
+.row.hl:is(.pk1, .pk2, .pk3, .pk4, .pk5, .pk6, .pk7, .pk8) {
+  background: var(--pk); color: var(--pk-fg);
+  box-shadow: -4px 0 0 var(--pk), 4px 0 0 var(--pk); }
+.row.hl.sel:is(.pk1, .pk2, .pk3, .pk4, .pk5, .pk6, .pk7, .pk8) {
+  box-shadow: -4px 0 0 var(--pk), 4px 0 0 var(--pk),
+    -7px 0 0 var(--accent); }
+.row.hl:is(.pk1, .pk2, .pk3, .pk4, .pk5, .pk6, .pk7, .pk8) :is(.type, .val) {
+  color: inherit; }
+
+/* With a composite selected, pointing at one child (or focusing it)
+   mutes the other children's colours, in the tree and the dump */
+.b.hl.muted, .row.hl.muted { filter: saturate(0.25); opacity: 0.55; }
+.b.hl, .row.hl { transition: opacity 0.12s, filter 0.12s; }
+@media (prefers-reduced-motion: reduce) {
+  .b, .tree .row, .b.hl, .row.hl { transition: none; }
+}
+
+/* The storage section: two equal columns that start at one height,
+   the dump on the left and the variables on the right (the source under
+   the variables); over both, one line: the bar (main.js renderBox). */
+.howread { margin: 10px 0 6px; }
+@media (min-width: 1100px) {
+  .scols { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    grid-template-rows: auto 1fr; }
+  .scols .words { grid-column: 1; grid-row: 1 / span 2; position: static; }
+  .scols .storage { grid-column: 2; grid-row: 1; font-size: inherit; }
+}
+.colhead { margin-top: 0; }
+/* the dump's state is in the bar and the Show toggle */
+.scols .view-name { display: none; }
+/* the bar: one line, at one height, always, in the page's flow: the
+   selection in a fixed-width spot, then the controls, then
+   the short caption, which is cut at its end if it must be */
+.rbar { display: grid; align-items: center; gap: 10px; height: 2.6em;
+  line-height: 1.2;
+  box-sizing: border-box; padding: 0 10px; margin: 0;
+  grid-template-columns: 4.6em minmax(0, 34ch) 15em 3.6em minmax(0, 1fr)
+    6em;
+  background: var(--panel); border: 1px solid var(--line);
+  border-left: 3px solid var(--accent); border-radius: 6px;
+  white-space: nowrap; position: relative; z-index: 1; }
+/* (each slot as tall as the bar, whatever it holds) */
+.rbar > * { overflow: hidden; text-overflow: ellipsis; min-width: 0;
+  align-self: stretch; }
+.rbar > :is(.rmode, .rsel, .rcount, .rshort) { line-height: 2.45; }
+.rbar > :is(.rctl, .rexit) { display: flex; align-items: center; }
+.rbar .rctl { display: flex; align-items: center; gap: 4px;
+  overflow: visible; }
+.rbar .rctl .btn { padding: 1px 10px; }
+.rshort { font-weight: 600; }
+/* a replay: the whole bar tinted, "Replay" at its start; the details
+   joined under it, in the same tint: one panel, the bar its header row */
+.rbar.replaying, .dpanel { background: color-mix(in srgb, var(--accent) 10%,
+  var(--panel)); }
+.rbar.replaying { border-bottom-left-radius: 0;
+  border-bottom-right-radius: 0;
+  border-bottom-color: color-mix(in srgb, var(--accent) 25%, var(--line)); }
+/* (it unfolds at entry and folds at exit: main.js fold) */
+.dwrap { margin: 0 0 10px; }
+.dwrap.folding { overflow: hidden; }
+.rmode { font-size: 0.72rem; font-weight: 700; text-transform: uppercase;
+  letter-spacing: 0.06em; color: var(--accent); }
+.rbar .rcount { margin: 0; text-align: right; }
+.rbar .rexit { display: flex; justify-content: flex-end; overflow: visible; }
+.rbar .rstart { width: 100%; padding: 1px 6px; overflow: hidden;
+  text-overflow: ellipsis; }
+@media (max-width: 759px) {
+  /* (the selection, the controls, the count, Exit; the caption is in
+     the sheet) */
+  .rbar { grid-template-columns: 0 minmax(0, 1fr) 9.6em 2.6em 4.4em;
+    gap: 4px; padding: 0 6px; height: 2.6em; }
+  .rbar .rmode { visibility: hidden; }
+  .rbar .rshort { display: none; }
+  .rbar .rsel .type, .rbar .rsel .muted { display: none; }
+  .rbar .rctl .btn { padding: 1px 6px; }
+  .rbar .rexit .btn { padding: 1px 4px; font-size: 0.8rem; }
+  .rbar .rstart { font-size: 0.8rem; }
+}
+/* under the bar, joined to it, during a replay only, at one size:
+   the step (its caption, formula, constructs, footnote; then the chips,
+   one row) and the pointer. Each part has its own fixed room. */
+.dpanel { display: grid; gap: 14px; grid-template-columns: minmax(0, 1fr)
+  minmax(0, 1fr); height: 17.4em; box-sizing: border-box;
+  margin: 0; padding: 8px 12px;
+  border: 1px solid var(--line); border-top: 0;
+  border-left: 3px solid var(--accent); border-radius: 0 0 6px 6px; }
+.dpanel[hidden] { display: none; }
+.dleft { display: grid; grid-template-rows: minmax(0, 1fr) 1.9em 3.4em;
+  min-height: 0; gap: 6px; }
+/* the focus entry: one fixed row; empty but there when there is none */
+.dpick { display: flex; align-items: center; gap: 4px; min-width: 0;
+  overflow: hidden; white-space: nowrap; }
+.dpick .plab { font-size: 0.72rem; font-weight: 700; text-transform:
+  uppercase; letter-spacing: 0.06em; color: var(--muted); margin-right: 4px; }
+.dpick .btn { padding: 1px 10px; font-size: 0.85rem; }
+/* (pressed: as the scene picker's choice, without bold: nothing moves) */
+.dpick .btn[aria-pressed="true"] { border-color: var(--accent);
+  box-shadow: inset 0 0 0 1px var(--accent); }
+/* a rule's instances, one row each: key → slot */
+.itab { display: grid; grid-template-columns: max-content max-content
+  max-content; gap: 0 8px; }
+.itab .isw { padding: 0 3px; border-radius: 3px; background: var(--pk);
+  color: var(--pk-fg); }
+.dtext { min-height: 0; overflow: hidden; }
+.dtext dl { margin: 0; display: grid; grid-template-columns: auto 1fr;
+  gap: 0 10px; font-size: 0.85rem; line-height: 1.35; }
+.dtext dd { margin: 0; overflow-wrap: anywhere; }
+.ptr { min-height: 0; display: grid; grid-template-rows: auto
+  minmax(0, 1fr); }
+.ptr .plabel { margin: 0 0 4px; font-size: 0.75rem; font-weight: 700;
+  text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); }
+.ptr .pnote { font-weight: 400; text-transform: none; letter-spacing: 0; }
+/* the excerpt scrolls inside itself, inset under the header (a clear
+   gap; no fade at its edges) */
+.ptrscroll { min-height: 0; overflow: auto; position: relative;
+  margin: 6px 0 0; border-top: 1px solid var(--line); }
+#ptr code { background: none; padding: 0; border: 0; font-size: inherit; }
+.ptrlines { margin: 0; padding: 0.9em 0; font-size: 0.72rem;
+  display: block;
+  line-height: 1.5; white-space: pre; width: max-content; min-width: 100%; }
+.ptrlines .line { display: block; min-width: 100%; box-sizing: border-box;
+  padding: 0 0.6em 0 0.9em; background: none; }
+.ptrlines .line:empty::before { content: " "; }
+.ptrlines .line.on-top { border-top-left-radius: 4px;
+  border-top-right-radius: 4px; }
+.ptrlines .line.on-end { border-bottom-left-radius: 4px;
+  border-bottom-right-radius: 4px; }
+.ptrscroll.lit .ptrlines .line:not(.on) { opacity: 0.4; }
+/* the one band: the step's lines, with a rule at their left */
+.ptrlines .line.on { background: color-mix(in srgb, var(--mark) 55%,
+  transparent); box-shadow: inset 3px 0 0 var(--accent); }
+@media (prefers-color-scheme: dark) {
+  .ptrlines .line.on { background: color-mix(in srgb, var(--accent) 22%,
+    transparent); }
+}
+#ptr .ptrlines span { color: var(--shiki-light, inherit); }
+@media (prefers-color-scheme: dark) {
+  #ptr .ptrlines span { color: var(--shiki-dark, inherit); }
+}
+/* on a phone: the same, compact (the step's caption and formula, a
+   few lines of the pointer; the rest scrolls inside it) */
+@media (max-width: 759px) {
+  .dpanel { grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: auto 5.4em; height: 17.9em; gap: 4px;
+    padding: 6px 10px; }
+  .dleft { grid-template-rows: auto 1.9em; }
+  .dpanel .chips, .dpanel .rsrc, .dpanel .fnotes, .ptr .plabel {
+    display: none; }
+  .ptr { grid-template-rows: minmax(0, 1fr); }
+}
+.rcap { margin: 0; font-size: 1rem; line-height: 1.35; height: 2.7em;
+  overflow: hidden; }
+.rform { margin: 0; font-family: ui-monospace, Menlo, monospace;
+  font-size: 0.85rem; line-height: 1.4; height: 4.2em; overflow: hidden;
+  overflow-wrap: anywhere; }
+.rform .prose { font-family: system-ui, -apple-system, "Segoe UI",
+  sans-serif; color: var(--muted); }
+.rwhere { font-family: inherit; height: auto; }
+.rsrc { margin: 4px 0 0; height: 1.6em; overflow: hidden;
+  white-space: nowrap; }
+@media (max-width: 759px) {
+  .rcap { height: 4.05em; font-size: 0.95rem; }
+  .rform { height: 5.6em; font-size: 0.8rem; }
+}
+.rcount { margin-left: 6px; color: var(--muted); font-size: 0.85rem;
+  font-variant-numeric: tabular-nums; }
+.rctl .btn[disabled] { opacity: 0.4; cursor: default; }
+.gloss { font-family: system-ui, sans-serif; font-size: 0.75em;
+  color: var(--muted); }
+.badge { font-size: 0.75rem; padding: 0 6px; border-radius: 9px;
+  border: 1px solid color-mix(in srgb, var(--fg) 35%, transparent);
+  color: var(--fg); background: transparent; }
+.source { font-size: 0.8rem; color: var(--fg); opacity: 0.8; }
+.source.pksrc { background: var(--pksrc); color: var(--pksrc-fg);
+  opacity: 1; padding: 0 6px; border-radius: 9px; }
+sup.fn { font-size: 0.7em; color: var(--accent); margin-left: 1px; }
+/* the chips: one row, which scrolls sideways inside itself */
+.chips { display: flex; flex-wrap: nowrap; align-items: flex-start;
+  gap: 3px; margin: 0; height: 3.4em; overflow-x: auto; overflow-y: hidden;
+  scrollbar-width: thin; }
+.chip { flex: none; }
+.chip { display: inline-flex; flex-direction: column; align-items: center;
+  gap: 1px; max-width: 16em; padding: 2px 8px; border-radius: 10px;
+  border: 1px solid var(--line); background: var(--panel); color: var(--fg);
+  font: inherit; font-size: 0.78rem; cursor: pointer; }
+.chip .ctext { font-family: ui-monospace, Menlo, monospace; max-width: 100%;
+  overflow-wrap: anywhere; }
+.chip .clabel { font-size: 0.68rem; color: var(--muted); }
+.chip.cur { background: var(--mark); color: var(--chg-fg);
+  border-color: var(--accent); }
+.chip.cur .clabel { color: inherit; }
+.chip.later { opacity: 0.45; }
+.carrow { color: var(--muted); align-self: center; font-size: 0.8rem; }
+.fnotes { margin: 4px 0 0; font-size: 0.75rem; height: 1.7em;
+  overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.fnote { margin-right: 10px; }
+.fnote sup { color: var(--accent); line-height: 0; }
+.fname { font-weight: 700; }
+/* a slot's byte positions, under it, during a replay step about its
+   bytes */
+.bruler { position: absolute; top: 100%; z-index: 3; pointer-events: none;
+  background: var(--panel); border-radius: 3px; }
+.bruler .b { font-size: 0.6rem; color: var(--muted); text-align: center; }
+/* a label for a run found at an earlier step of a replay: muted */
+.pop.kept { background: var(--panel); color: var(--muted);
+  box-shadow: none; outline: 1px solid var(--line); }
+.pop.kept::after { border-top-color: var(--line); }
+.pop.kept.under::after { border-bottom-color: var(--line);
+  border-top-color: transparent; }
+#details:focus-visible { outline: 2px solid var(--accent);
+  outline-offset: 2px; }
+/* the ninth child colour, and the tint of a step's input's source */
+:root { --pk9: #e3d3b4; --pk9-fg: #4f3b14; --pksrc: #d4dbe6;
+  --pksrc-fg: #1f2a3a; }
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) { --pk9: #5a4a2a; --pk9-fg: #f3e3c4;
+    --pksrc: #34404f; --pksrc-fg: #d9e2ee; }
+}
+:root[data-theme="dark"] { --pk9: #5a4a2a; --pk9-fg: #f3e3c4;
+  --pksrc: #34404f; --pksrc-fg: #d9e2ee; }
+.pk9 { --pk: var(--pk9); --pk-fg: var(--pk9-fg); }
+.pksrc { --pk: var(--pksrc); --pk-fg: var(--pksrc-fg); }
+.b.hl:is(.pk9, .pksrc) { background: var(--pk); color: var(--pk-fg); }
+.row.hl:is(.pk9, .pksrc) { background: var(--pk); color: var(--pk-fg);
+  box-shadow: -4px 0 0 var(--pk), 4px 0 0 var(--pk); }
+.fname[class*="pk"] { background: var(--pk); color: var(--pk-fg);
+  border-radius: 3px; padding: 0 3px; }
+/* room under the dump for a card under its last rows (two points) */
+main:not([data-single]) .words .dump { margin-bottom: 2.6em; }
+/* a popover beside the gutter (no room at it): its arrow at its left */
+.pop.beside::after { left: 8px; }
+/* no scroll anchoring: the page never scrolls by itself when a step
+   changes the dump's overlays */
+html { overflow-anchor: none; }
+/* the byte positions of a step: over the "⋯" line above the slot when
+   there is one, with a label at the left */
+.bruler.above { top: auto; bottom: 100%; }
+.bruler .blabel { position: absolute; right: 100%; top: 0; padding: 0 6px;
+  font-size: 0.6rem; color: var(--accent); }
+.bruler .b { color: var(--accent); }
+/* the selected value's declaration, in the contract's source */
+#contract-src .line.decl { background: var(--mark); border-radius: 2px; }
+/* the variables: a box as tall as the storage dump, scrolled inside */
+.scols #tree { overflow-y: auto; overflow-x: hidden; box-sizing: border-box;
+  /* (the scrollbar's room kept: the width never changes when it comes
+     and goes) */
+  scrollbar-gutter: stable;
+  /* room inside the scrolling box for the bars and bands that reach out
+     of a row (the selection's bar, 7px), without moving the rows */
+  margin: 0 -8px 0 -10px; padding-left: 10px; padding-right: 8px; }
+/* names from the code, in monospace (types stay proportional) */
+.tree .name, .rcap code.id, .rshort code.id { font-family: ui-monospace,
+  Menlo, monospace; font-weight: 600; }
+.rcap code.id, .rshort code.id { background: none; padding: 0; border: 0;
+  font-size: 0.95em; }
+/* the tree's box, and the strips on its edges (overlays: they push no
+   rows): the colours of the lit rows past that edge, a chevron, no
+   text; they fade in and out */
+.treebox { position: relative; }
+.tedge { position: absolute; left: -10px; right: -8px; height: 18px;
+  z-index: 3; display: grid; place-items: center; padding: 0; border: 0;
+  color: var(--fg); cursor: pointer; opacity: 0; pointer-events: none;
+  transition: opacity 0.15s; font-size: 14px; }
+.tedge.on { opacity: 1; pointer-events: auto; }
+.tedge svg { width: 14px; height: 14px; }
+.tedge.up { top: 0; border-radius: 6px 6px 0 0; }
+.tedge.down { bottom: 0; border-radius: 0 0 6px 6px; }
+.tedge:hover { filter: brightness(0.92) saturate(1.2); }
+.tedge:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+@media (prefers-reduced-motion: reduce) { .tedge { transition: none; } }
+/* a group's chevron: plain at rest, at the right end of its row, its
+   box's right edge on the values' right edge (inside their 8px padding
+   and border); a box behind it only on hover, focus and press, in room
+   kept for it (nothing moves). The group's summary moves in to make
+   room; leaf rows keep theirs. */
+#tree li:has(> .chev) > .row { padding-right: calc(28px + 13px); }
+/* (the row and its chevron share one grid cell: the chevron centred on
+   the row's height, whatever it is; the members below) */
+#tree li:has(> .chev) { display: grid; grid-template-columns: minmax(0, 1fr); }
+#tree li:has(> .chev) > .row { grid-area: 1 / 1; }
+#tree li:has(> .chev) > ul, #tree li:has(> .chev) > .empty { grid-column: 1; }
+#tree li > .chev { grid-area: 1 / 1; justify-self: end; align-self: center;
+  margin-right: 9px; width: 28px;
+  height: 28px; padding: 0; box-sizing: border-box;
+  border: 1px solid transparent; border-radius: 6px; background: none;
+  color: var(--fg); font-size: 1.05rem; cursor: pointer; z-index: 1;
+  display: grid; place-items: center; }
+#tree li > .chev svg { width: 1em; height: 1em; transition: transform 0.15s; }
+#tree li > .chev[aria-expanded="false"] svg { transform: rotate(-90deg); }
+#tree li > .chev:is(:hover, :focus-visible, :active) {
+  background: var(--panel); border-color: var(--line); }
+#tree li > .chev:active { border-color: var(--accent); }
+#tree li > .chev:focus-visible { outline: 2px solid var(--accent);
+  outline-offset: 1px; }
+@media (prefers-reduced-motion: reduce) {
+  #tree li > .chev svg { transition: none; }
+}
+#tree li.collapsed > ul { display: none; }
+.val.sum { color: var(--muted); font-size: 0.85rem; }
+/* a block of tree rows in one colour: the item, key line and parts */
+/* (drawn behind the rows, from the first row's top to the last row's
+   bottom: a top-level item's padding and separator stay outside it, so
+   the block's edges are its rows' edges, as a single row's fill) */
+.tree li.blk { color: var(--pk-fg, var(--chg-fg)); z-index: 0; }
+.tree li.blk::before { content: ""; position: absolute; inset: 0 -4px;
+  z-index: -1; border-radius: 4px; background: var(--pk, var(--mark)); }
+.tree li.top.blk::before { top: 4px; bottom: 4px; }
+.tree li.blk .row.hl { background: none; box-shadow: none; }
+#tree li.blk .row { border-radius: 0; }
+.tree li.blk.muted { filter: saturate(0.25); opacity: 0.55; }
+.tree li.blk .row.hl.muted { filter: none; opacity: 1; }
+.tree li.blk .row:not(.hl) { opacity: 0.45; }
+/* the page's own short names for solc's template ids */
+#ptr .alias, .pids .alias { font-style: italic; text-decoration: underline
+  dotted; text-underline-offset: 2px; color: var(--accent) !important;
+  cursor: pointer; }
+#ptr .alias span { color: inherit !important; }
