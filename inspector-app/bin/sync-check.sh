@@ -24,7 +24,7 @@ for sha in $(echo "$log" | cut -d' ' -f1); do
   port="$(printf '%s' "$line" | cut -f3)"
   case "$port" in
     deferred:*)
-      tasks="$(printf '%s' "${port#deferred:}" | tr ',+' '  ')"
+      tasks="$(printf '%s' "${port#deferred:}" | cut -d';' -f1 | tr ',+' '  ')"
       open=0
       for t in $tasks; do
         grep -qx "$t" "$done" || open=1
