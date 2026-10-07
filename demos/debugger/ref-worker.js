@@ -279,11 +279,44 @@ const typeName = (t) => {
 // from one region per member; else the region named `name`, or the
 // last region. A mapping's pointer names only its base slot, so the
 // page shows no entries.
+// A string in storage. bugc's pointer names only its slot, so the page
+// reads it by Solidity's rule (part of the decoding stand-in): a short
+// string (under 32 bytes) sits in the slot with 2 * length in its last
+// byte; a long one stores 2 * length + 1 there, and its bytes from
+// keccak256(slot) on. The words are read through pointers built by that
+// rule.
+async function stringAt(state, slot) {
+  const word = async (p) => {
+    const c = await dereference(p, { state });
+    const v = await c.view(state);
+    return v.read(v.regions.at(-1));
+  };
+  const head = await word({ location: "storage", slot });
+  const n = head.asUint();
+  let bytes;
+  if (n % 2n === 0n) {
+    bytes = head.slice(0, Number(head.at(-1)) / 2);
+  } else {
+    const len = Number((n - 1n) / 2n);
+    const parts = [];
+    for (let k = 0; k * 32 < len; k++) {
+      parts.push(...await word({ location: "storage",
+        slot: { $sum: [{ $keccak256: [{ $wordsized: slot }] }, k] } }));
+    }
+    bytes = Uint8Array.from(parts.slice(0, len));
+  }
+  return JSON.stringify(new TextDecoder().decode(bytes));
+}
+
 async function valueAt(ds, i, pointer, name, type) {
   if (type?.kind === "mapping") {
     return `<mapping at slot ${pointer.slot ?? "?"}>`;
   }
   const state = machineState(ds, i);
+  if (type?.kind === "string" && pointer.location === "storage"
+    && typeof pointer.slot === "number") {
+    return stringAt(state, pointer.slot);
+  }
   const cursor = await dereference(pointer, { state });
   const view = await cursor.view(state);
   const read = async (r, t) => decode(await view.read(r), t);

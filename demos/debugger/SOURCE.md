@@ -100,7 +100,7 @@ changes; `run.mjs` checks that it matches.
 ## The BUG tab: ethdebug's reference implementation
 
 `vendor/ethdebug-ref.js` bundles, from ethdebug/format at commit
-`8714233076eb5de594de4a070b36d9bbd5363e86` (main): `@ethdebug/pointers`
+`1d45fea4c49b849c10399f55436843f33fdad4f0` (main): `@ethdebug/pointers`
 (`dereference`, `Data`), `@ethdebug/evm`'s Machine.State adapter
 (`createMachineState`, without its executor) and the trace
 reconstruction utilities of `@ethdebug/programs-react` (no React; with
@@ -110,6 +110,8 @@ is made by `make-ref-vendor.sh <checkout>` after `yarn install` in that
 checkout. `ref-worker.js` uses it.
 
 The BUG data comes from bugc built from ethdebug/format main at
-`6c81c1084` (`make-arcade.sh`, above). The details' soldb check uses
-`bug/tally.bug` and its saved transaction (`bug/compile.mjs`,
-`bug/make-tx.mjs`).
+`1d45fea4c` (`make-arcade.sh`, above), which has #368: strings in
+storage, `push`, `block.prevrandao`, `keccak256` over several words and
+`!`. `bug/arcade.bug` is a copy of the Arcade BUG port. The details'
+soldb check uses `bug/tally.bug` and its saved transaction
+(`bug/compile.mjs`, `bug/make-tx.mjs`).
