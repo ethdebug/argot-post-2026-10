@@ -86,7 +86,9 @@ function Present({ v, View }: { v: ViewSpec; View: ComponentType<any> }) {
     ? { ...v.data, point: { slot: v.data.point.slot === "a" ? "b"
       : v.data.point.slot === "b" ? "a" : "$other" } } : undefined;
   const other = ("compare" in v ? v.compare : undefined) ?? pair;
-  if (v.kind === "tree") return <View {...v} compare={other} />;
+  if (v.kind === "tree" || v.kind === "walkthrough") {
+    return <View {...v} compare={other} />;
+  }
   if (v.kind !== "dump") return <View {...v} />;
   const side = v.side;
   const title = !side ? v.title ?? "Storage" : single ? "Storage"
