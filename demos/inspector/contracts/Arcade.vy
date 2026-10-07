@@ -9,11 +9,11 @@ struct Player:
     lastBlock: uint64  # when they last played
     name: String[64]
 
-players: public(HashMap[address, Player])
 roster: public(DynArray[address, 100])  # everyone who has joined (a mapping can't list its keys)
 motd: public(String[100])              # the server's message of the day
 total: public(uint128)                 # all players' points
 rounds: public(uint64)                 # the number of hits
+players: public(HashMap[address, Player])
 
 @deploy
 def __init__(m: String[100]):

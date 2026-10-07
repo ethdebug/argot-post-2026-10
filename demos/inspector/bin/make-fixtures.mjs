@@ -14,7 +14,7 @@ import path from "node:path";
 import { execFileSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import {
-  storageState, mappingKeys, touchedSlots, decodeStorage,
+  storageState, mappingKeys, touchedSlots, decodeStorage, baseSlot,
 } from "../decode.js";
 
 const root = path.dirname(path.dirname(fileURLToPath(import.meta.url)));
@@ -238,10 +238,11 @@ const [, ALICE, BOB, CAROL] = await rpc("eth_accounts");
 const PLAYERS = { [ALICE]: "alice", [BOB]: "bob", [CAROL]: "carol" };
 const NAMES = { [ALICE]: "alice", [BOB]: "bob",
   [CAROL]: "carol, the unstoppable combo queen" };
-const MOTD = ["gl hf", "season 2 starts friday, see you on the leaderboard"];
-if (MOTD[0].length > 31 || MOTD[1].length <= 31 ||
+// the motd starts long (its bytes at keccak(its slot)), then shrinks
+const MOTD = ["season 2 starts friday, see you on the leaderboard", "gl hf"];
+if (MOTD[0].length <= 31 || MOTD[1].length > 31 ||
   NAMES[CAROL].length <= 31) {
-  throw new Error("the motds must be short, then long; carol's name long");
+  throw new Error("the motds must be long, then short; carol's name long");
 }
 // the plays up to the middle of the game, then alice's third hit
 const STORY = [[ALICE, true], [ALICE, true], [BOB, true], [CAROL, false]];
@@ -290,10 +291,14 @@ const field = (w, from, n) =>
 
 const arcade = compile("Arcade");
 console.log("solc", arcade.compiler);
+// players' slot, from the program context (solc), and from vyper's layout
+const SOL_SLOT = BigInt(baseSlot(arcade.variables.find((v) =>
+  v.identifier === "players")));
 {
   const address = await deploy(arcade, ctor(MOTD[0]));
   // combo: bytes 8-11 of the player's slot (byte 0 most significant)
-  const combo = async (who) => field(await word(address, keccak(who, 0)),
+  const combo = async (who) => field(await word(address,
+    keccak(who, SOL_SLOT)),
     20, 4);
   const joins = await joinAll(address);
   const plays = [];
@@ -332,8 +337,11 @@ console.log("solc", arcade.compiler);
     path.join(root, "contracts", "Arcade.vy")], { encoding: "utf8" }).trim();
   const { receipt } = await send({ data: bytecode + ctor(MOTD[0]).slice(2) });
   const address = receipt.contractAddress;
+  const VY_SLOT = BigInt(JSON.parse(execFileSync(VYPER, ["-f", "layout",
+    path.join(root, "contracts", "Arcade.vy")], { encoding: "utf8" }))
+    .storage_layout.players.slot);
   const combo = async (who) => BigInt(await word(address,
-    add(keccak(0, who), 1)));
+    add(keccak(VY_SLOT, who), 1)));
   await joinAll(address);
   let last;
   for (const [who, hit] of STORY) last = await play(address, who, hit, combo);
@@ -347,8 +355,8 @@ console.log("solc", arcade.compiler);
     "lastBlock"];
   const entries = [];
   for (const [who, w] of Object.entries(want)) {
-    const sol = keccak(who, 0);
-    const vy = keccak(0, who);
+    const sol = keccak(who, SOL_SLOT);
+    const vy = keccak(VY_SLOT, who);
     const name = NAMES[who];
     const words = 7 + Math.ceil(name.length / 32);
     const members = [];
@@ -378,19 +386,19 @@ console.log("solc", arcade.compiler);
   const { after } = await fixture({
     id: "arcade-vyper", address, tx: last,
     contract: { ...arcade, variables: [players] },
-    keys: new Map([[hex32(0), Object.keys(want).map((who) =>
+    keys: new Map([[hex32(SOL_SLOT), Object.keys(want).map((who) =>
       ({ key: hex32(who) }))]]),
     keep: entries.flatMap((e) => e.members.map((m) => m.slot)),
     extra: {
       keysFrom: "the KECCAK256 inputs in the traces of Vyper's joins and" +
         " plays (there the slot comes first, then the key)",
       players: PLAYERS,
-      vyper: { compiler: vyVersion, entries },
+      vyper: { compiler: vyVersion, base: String(VY_SLOT), entries },
     },
     summary: "Vyper: the middle of the game",
   });
   for (const who of Object.keys(want)) {
-    if (BigInt(after.get(keccak(who, 0))) !== 0n) {
+    if (BigInt(after.get(keccak(who, SOL_SLOT))) !== 0n) {
       throw new Error("solc rule read");
     }
   }

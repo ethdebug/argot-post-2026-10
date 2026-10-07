@@ -212,7 +212,7 @@ function renderDumps(m) {
         ? " zb" : ""}"` +
         ` data-slot="${x.w}" data-name="word ${x.w}"` +
         ` data-facts="${esc(x.facts)}">` +
-        `<span class="addr" tabindex="0" title="${esc(what)}"` +
+        `<span class="addr" tabindex="0"` +
         ` aria-label="${esc(what)}"><span class="a">${x.w}</span></span>` +
         wordHtml(m, x.w, side, x.tint) + `</div>`);
     });
@@ -233,8 +233,9 @@ function renderDumps(m) {
 
 function row(n, top) {
   const changed = n.before?.text !== n.after?.text;
-  const val = (x) => x ? esc(x.text) : `<i title="bugc's variables ` +
-    `context at this point does not list it">not listed</i>`;
+  const val = (x) => x ? esc(x.text) : `<i aria-label="not listed: ` +
+    `bugc's variables context at this point does not list it">not ` +
+    `listed</i>`;
   const kids = n.children?.length
     ? `<ul>${n.children.map((c) => row(c)).join("")}</ul>` : "";
   return `<li data-path="${esc(n.path)}" class="${n.changed ? "chg"
@@ -493,8 +494,8 @@ function renderSource() {
     let e = k;
     while (e < bytes.length && cls[e] === cls[k]) e++;
     const t = esc(dec(k, e));
-    html += cls[k] ? `<mark class="m${cls[k]}" title="${cls[k] === "ab"
-      ? "A and B" : cls[k].toUpperCase()}">${t}</mark>` : t;
+    html += cls[k] ? `<mark class="m${cls[k]}" aria-label="${cls[k] === "ab"
+      ? "A and B" : cls[k].toUpperCase()}: ${t}">${t}</mark>` : t;
     k = e;
   }
   $("msrc").innerHTML = html;
@@ -645,7 +646,8 @@ async function main() {
   for (const side of SIDES) {
     $(`mpick-${side}`).innerHTML = data.points.map((p) =>
       `<button role="radio" data-id="${esc(p.id)}" aria-checked="false"` +
-      ` title="${esc(p.note)}">${esc(p.title)}</button>`).join("");
+      ` aria-label="${esc(`${p.title}: ${p.note}`)}">${esc(p.title)}` +
+      "</button>").join("");
   }
   const o = data.compiler.optimize;
   $("mmeta").innerHTML = `Program <code>${esc(data.program.file)}</code>,` +
