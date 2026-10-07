@@ -1,12 +1,14 @@
-// Makes the page's fixtures: compiles the contracts with a native solc
-// built from Walnut's fork (walnuthq/solidity PR #10), deploys them on
-// anvil, runs the transactions, and saves for each one the trace steps
-// the page needs, the storage words the decoder reads (before and
+// Makes the page's fixtures: compiles Scores (contracts/Scores.sol) with
+// a native solc built from Walnut's fork (walnuthq/solidity PR #10) and
+// the Vyper version (contracts/Scores.vy) with vyper, deploys them on
+// anvil, runs the transactions, and saves for each fixture the trace
+// steps the page needs, the storage words the decoder reads (before and
 // after), and the compiler output.
 //
-// Needs anvil on RPC (default http://127.0.0.1:8548), `cast`, and the
-// solc binary at SOLC (default: `solc` on PATH; see README.md).
-// Usage: SOLC=<solc> node bin/make-fixtures.mjs
+// Needs anvil on RPC (default http://127.0.0.1:8555), `cast`, the solc
+// binary at SOLC (default: `solc` on PATH) and the vyper binary at VYPER
+// (default: `vyper` on PATH; see README.md).
+// Usage: SOLC=<solc> VYPER=<vyper> node bin/make-fixtures.mjs
 import fs from "node:fs";
 import path from "node:path";
 import { execFileSync } from "node:child_process";
@@ -16,8 +18,7 @@ import {
 } from "../decode.js";
 
 const root = path.dirname(path.dirname(fileURLToPath(import.meta.url)));
-const RPC = process.env.RPC_URL ?? "http://127.0.0.1:8548";
-const TO = "0x70997970C51812dc3A010C7d01b50e0d17dc79C8";
+const RPC = process.env.RPC_URL ?? "http://127.0.0.1:8555";
 
 const rpc = async (method, params = []) => {
   const res = await fetch(RPC, {
@@ -153,14 +154,21 @@ function recordingState(address, block, record) {
   });
 }
 
-async function fixture({
-  id, title, summary, contract, address, tx, hidden,
-}) {
+// One fixture: a transaction's trace steps, and every storage word the
+// decoder reads before and after it. `keys`: mapping keys to use instead
+// of the transaction's own KECCAK256 inputs (Map, as mappingKeys()
+// returns). `keep`: the slots of the trace to keep (all by default).
+async function fixture({ id, summary, contract, address, tx, keys, keep,
+  extra = {} }) {
   const block = BigInt(tx.receipt.blockNumber);
   const full = await rpc("debug_traceTransaction", [tx.hash,
     { enableMemory: true }]);
-  const trace = trimTrace(full.structLogs);
-  const keys = mappingKeys(trace);
+  let trace = trimTrace(full.structLogs);
+  keys ??= mappingKeys(trace);
+  if (keep) {
+    trace = trace.filter((s) => !["SLOAD", "SSTORE"].includes(s.op) ||
+      keep.includes(hex32(s.stack.at(-1))));
+  }
   const before = new Map();
   const after = new Map();
   await decodeStorage(contract, recordingState(address, block - 1n, before),
@@ -189,85 +197,121 @@ async function fixture({
   }
   const t = await rpc("eth_getTransactionByHash", [tx.hash]);
   const data = {
-    id, title, summary,
+    id, summary,
     tx: { hash: tx.hash, from: t.from, to: t.to, input: t.input,
       block: Number(block) },
     contract: { ...contract, address, bytecode: undefined },
     trace: { steps: full.structLogs.length, kept: trace },
+    ...(keys !== undefined && extra.keysFrom
+      ? { keys: [...keys].map(([b, ks]) => [b, ks]) } : {}),
+    ...extra,
     slots,
   };
   fs.writeFileSync(path.join(root, "fixtures", `${id}.json`),
     JSON.stringify(data));
   console.log(id, tx.hash, `${trace.length}/${full.structLogs.length} steps`,
     `${Object.keys(slots).length} slots`);
-  return { id, title, summary, contract: contract.name, hidden };
+  return { slots, after };
 }
+
+const hex32 = (h) => "0x" + BigInt(h).toString(16).padStart(64, "0");
+const keccak = (...words) =>
+  cast("keccak", "0x" + words.map((w) => hex32(w).slice(2)).join(""));
+const add = (h, n) => hex32(BigInt(h) + BigInt(n));
+const word = async (address, slot) => hex32(await rpc("eth_getStorageAt",
+  [address, slot, "latest"]));
 
 // ------------------------------------------------------------ run it
 
-const token = compile("Token");
-const shop = compile("Shop");
-const packed = compile("Packed");
-const strings = compile("Strings");
-console.log("solc", token.compiler);
+// Alice is anvil's first account, the sender of every transaction
+const ALICE = from;
+const MOTTO = ["play fair",
+  "play fair, keep score, and write the scores down"];
+if (MOTTO[0].length > 31 || MOTTO[1].length <= 31) {
+  throw new Error("the mottos must be short, then long");
+}
 
-const index = [];
+const scores = compile("Scores");
+console.log("solc", scores.compiler);
 {
-  const address = await deploy(token, cast("abi-encode", "f(uint256)", "1000"));
-  const tx = await call(address, "transfer(address,uint256)", TO, "25");
-  index.push(await fixture({
-    id: "token-transfer", contract: token, address, tx,
-    title: "Token: transfer 25",
-    summary: `transfer(${TO}, 25) from the deployer, who holds 1000`,
-  }));
+  const address = await deploy(scores);
+  const first = await call(address, "record(uint256)", "7");
+  const second = await call(address, "record(uint256)", "30");
+  // the record fixture: the second record(), so the state before it is
+  // the state after the first
+  await fixture({
+    id: "scores-record", contract: scores, address, tx: second,
+    extra: { keysFrom: "the trace of Alice's record(30)" },
+    summary: "record(7), then record(30), from Alice",
+  });
+  await call(address, "setMotto(string)", MOTTO[0]);
+  const motto = await call(address, "setMotto(string)", MOTTO[1]);
+  // setMotto hashes no mapping key: Alice's key comes from the trace of
+  // her first record()
+  const trace = await rpc("debug_traceTransaction", [first.hash,
+    { enableMemory: true }]);
+  await fixture({
+    id: "scores-motto", contract: scores, address, tx: motto,
+    keys: mappingKeys(trimTrace(trace.structLogs)),
+    extra: { keysFrom: "the trace of Alice's record(7)" },
+    summary: `setMotto("${MOTTO[0]}"), then setMotto("${MOTTO[1]}")`,
+  });
 }
-{
-  const address = await deploy(shop);
-  const tx = await call(address, "place(string,uint128,uint256)", "widget",
-    "5", "3");
-  index.push(await fixture({
-    id: "shop-place", contract: shop, address, tx,
-    title: "Shop: place an order",
-    summary: 'place("widget", 5, 3): a struct with a string, pushed array',
-    // @ethdebug/pointers (main) lets a `define` leak into later members of
-    // a group, so Order.price and Order.quantities come out one slot off.
 
-  }));
-}
+// Vyper: the same program, the same calls. Vyper emits no ethdebug, so
+// the fixture applies solc's rule for players (from Scores.sol's ethdebug
+// output) to the Vyper contract's storage, and keeps the slots Vyper
+// itself wrote for Alice, from its trace.
 {
-  const address = await deploy(packed);
-  const set = await call(address, "set(uint8,uint16,uint128)", "7", "300",
-    "123456789");
-  index.push(await fixture({
-    id: "packed-set", contract: packed, address, tx: set,
-    title: "Packed: set packed values",
-    summary: "set(7, 300, 123456789): small values share one slot",
-  }));
-}
-{
-  // Two strings change layout in one transaction: one grows from short
-  // to long, one shrinks from long to short. Two more sit at the
-  // boundary: 31 bytes (the longest short string) and 32 bytes (the
-  // shortest long string). A setup transaction, not shown, sets them.
-  const address = await deploy(strings);
-  const S = {
-    grows: ["short", "a string longer than thirty-one bytes, stored long"],
-    shrinks: ["this one starts long, then becomes a short one", "now short"],
-    most: "exactly thirty-one bytes, short",
-    least: "thirty-two bytes, the least long",
-  };
-  if (S.most.length !== 31 || S.least.length !== 32) {
-    throw new Error("boundary strings are the wrong length");
+  const VYPER = process.env.VYPER ?? "vyper";
+  const vyVersion = execFileSync(VYPER, ["--version"], { encoding: "utf8" })
+    .trim();
+  const bytecode = execFileSync(VYPER, ["-f", "bytecode",
+    path.join(root, "contracts", "Scores.vy")], { encoding: "utf8" }).trim();
+  const { receipt } = await send({ data: bytecode });
+  const address = receipt.contractAddress;
+  await call(address, "record(uint256)", "7");
+  const tx = await call(address, "record(uint256)", "30");
+  // Solidity's rule: keccak256(key . slot); Vyper's: keccak256(slot . key),
+  // and the struct unpacked, one member per slot
+  const sol = keccak(ALICE, 0);
+  const vy = keccak(0, ALICE);
+  const members = [0, 1, 2].map((k) => add(vy, k));
+  const got = await Promise.all(members.map((s) => word(address, s)));
+  const want = [67n, 2n, 1n];
+  if (got.some((w, k) => BigInt(w) !== want[k]) ||
+    BigInt(await word(address, sol)) !== 0n) {
+    throw new Error(`vyper: unexpected storage ${got}`);
   }
-  await call(address, "setAll(string,string,string,string)", S.grows[0],
-    S.shrinks[0], S.most, S.least);
-  const tx = await call(address, "update(string,string)", S.grows[1],
-    S.shrinks[1]);
-  index.push(await fixture({
-    id: "strings-update", contract: strings, address, tx,
-    title: "Strings: one grows long, one shrinks short",
-    summary: `update("${S.grows[1]}", "${S.shrinks[1]}")`,
-  }));
+  // the getter agrees: (score, streak, active)
+  console.log("vyper players(alice):", cast("call", "--rpc-url", RPC,
+    address, "players(address)(uint64,uint32,bool)", ALICE)
+    .replace(/\s+/g, " "));
+  const players = scores.variables.find((v) => v.identifier === "players");
+  const { after } = await fixture({
+    id: "scores-vyper", address, tx,
+    contract: { ...scores, variables: [players] },
+    keys: new Map([[hex32(0), [{ key: hex32(ALICE) }]]]),
+    keep: members,
+    extra: {
+      keysFrom: "the KECCAK256 inputs in the trace of Vyper's record(30)" +
+        " (there the slot comes first, then the key)",
+      vyper: { compiler: vyVersion, slot: vy, members,
+        names: ["score", "streak", "active"] },
+    },
+    summary: "Vyper: record(7), then record(30), from Alice",
+  });
+  if (BigInt(after.get(sol)) !== 0n) throw new Error("solc rule read");
+  console.log("vyper", vyVersion, "solidity rule", sol, "vyper rule", vy);
 }
-fs.writeFileSync(path.join(root, "fixtures", "index.json"),
-  JSON.stringify(index, null, 2));
+
+// The contract at the top of the page: contracts/Scores.sol, as is
+{
+  const html = path.join(root, "index.html");
+  const esc = (t) => t.replace(/&/g, "&amp;").replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;");
+  fs.writeFileSync(html, fs.readFileSync(html, "utf8").replace(
+    /(<pre id="contract-src" class="src">)[\s\S]*?(<\/pre>)/,
+    (_, a, b) => a + esc(scores.source) + b));
+}
+// then: node bin/sizes.mjs

@@ -4,9 +4,10 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Storage by Name</title>
-<meta name="description" content="Contract storage before and after a
-transaction, by Solidity name, decoded from solc's ethdebug pointer
-templates by ethdebug's reference library.">
+<meta name="description" content="One contract's storage, by Solidity
+name, in scenes: click a byte to find its variable, or a variable to
+find its bytes. Decoded from solc's ethdebug pointer templates by
+ethdebug's reference library.">
 <!-- On a slow link the loading bar paints first: the stylesheets do not
 block it (media="print" until they load), and the page stays hidden
 until both are in, so nothing moves when they apply. The loader at the
@@ -59,6 +60,7 @@ end of the body fetches the decoder and the data. -->
 <link rel="modulepreload" href="mem.js">
 <link rel="modulepreload" href="panel.js">
 <link rel="modulepreload" href="decode.js">
+<link rel="modulepreload" href="calldata.js">
 </head>
 <body>
 <div id="loadbar" class="loadbar" role="status" aria-live="polite">
@@ -69,9 +71,11 @@ end of the body fetches the decoder and the data. -->
 <main>
   <header>
     <h1>Storage, by name</h1>
-    <p>Pick a transaction. The page shows the contract's storage by
-    Solidity name, before and after, and marks what changed. Click any
-    value, changed or not, to see how it was found.</p>
+    <p>One contract, Scores, in a few scenes. Click a byte in a word of
+    storage, and the variable that owns it lights up; click a variable,
+    and its bytes light up. "How this was found" shows each step from
+    the variable to its bytes. Some scenes compare two points (Before |
+    After) and mark what changed.</p>
     <p>Decoded by ethdebug's reference library from solc's ethdebug
     output (a preview build of Walnut's solc fork, walnuthq/solidity
     PR #10). Each variable's base slot, offset and type come from the
@@ -83,21 +87,118 @@ end of the body fetches the decoder and the data. -->
     <a href="../debugger/">Step through a transaction</a>.</p>
   </header>
 
-  <section id="storage" aria-label="Transaction">
-    <h2 class="label">Transaction</h2>
+  <section id="contract" class="contract" aria-labelledby="contract-h">
+    <h2 class="label" id="contract-h">The contract</h2>
+    <p>Every scene below shows one contract, Scores. A player calls
+    <code>record(points)</code>: the contract adds the points and a
+    streak bonus (points × streak, at most 100) to the caller's
+    <code>Player</code> in <code>players</code>, adds 1 to the streak,
+    appends the points gained to <code>history</code>, and adds to
+    <code>total</code> and <code>rounds</code>. <code>setMotto</code>
+    sets a string. The five state variables, <code>players</code> to
+    <code>rounds</code>, are what the scenes show. Alice, anvil's first account, sends every
+    transaction.</p>
+    <!-- contracts/Scores.sol (bin/run.mjs checks that they match) -->
+    <pre id="contract-src" class="src">// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.0;
+
+contract Scores {
+    struct Player {
+        uint64 score;
+        uint32 streak;
+        bool active;
+    }
+
+    mapping(address =&gt; Player) public players;
+    uint256[] public history;
+    string public motto;
+    uint128 public total;
+    uint64 public rounds;
+
+    function bonus(uint256 points, uint256 streak)
+        internal
+        pure
+        returns (uint256)
+    {
+        uint256 b = points * streak;
+        if (b &gt; 100) {
+            b = 100;
+        }
+        return b;
+    }
+
+    function record(uint256 points) external {
+        uint256 streak = players[msg.sender].streak;
+        uint256 gained = points + bonus(points, streak);
+        players[msg.sender].score = uint64(players[msg.sender].score + gained);
+        players[msg.sender].streak = players[msg.sender].streak + 1;
+        players[msg.sender].active = true;
+        history.push(gained);
+        total = uint128(total + gained);
+        rounds = rounds + 1;
+    }
+
+    function setMotto(string calldata m) external {
+        motto = m;
+    }
+}
+</pre>
+  </section>
+
+  <section id="storage" aria-label="Scene">
+    <h2 class="label">Scene</h2>
     <!-- the same buttons as main.js makes from fixtures/index.json, here
     so the page does not move when they come -->
-    <div id="picker" class="picker" role="radiogroup"
-      aria-label="Transaction">
-      <button role="radio"
-        data-id="token-transfer">Token: transfer 25</button>
-      <button role="radio"
-        data-id="shop-place">Shop: place an order</button>
-      <button role="radio"
-        data-id="packed-set">Packed: set packed values</button>
-      <button role="radio"
-        data-id="strings-update">Strings: one grows long, one shrinks
-        short</button></div>
+    <div id="picker" class="picker" role="radiogroup" aria-label="Scene">
+      <button role="radio" data-id="packed" data-fixture="scores-record"
+        data-single>A packed slot</button>
+      <button role="radio" data-id="alice" data-fixture="scores-record"
+        data-single>Alice's entry</button>
+      <button role="radio" data-id="streak"
+        data-fixture="scores-record">Same slot, new values</button>
+      <button role="radio" data-id="motto"
+        data-fixture="scores-motto">A string outgrows its slot</button>
+      <button role="radio" data-id="vyper" data-fixture="scores-vyper"
+        data-single>Vyper reads it differently</button></div>
+    <!-- one intro per scene (fixtures/index.json); the loader shows the
+    first one -->
+    <div id="intros" class="intros">
+      <p data-scene="packed" hidden><code>total</code> (a
+      <code>uint128</code>) and <code>rounds</code> (a
+      <code>uint64</code>) share one slot, slot 3. Click a byte in that
+      word: its variable lights up in the tree. Click a variable: its
+      bytes light up. Alice has called <code>record(7)</code> once, so
+      <code>total</code> is 7 and <code>rounds</code> is 1.</p>
+      <p data-scene="alice" hidden>Alice's <code>Player</code> is one
+      entry in the mapping <code>players</code>. Its slot is
+      keccak256(her address . slot 0), and <code>score</code>,
+      <code>streak</code> and <code>active</code> share that one word.
+      "How this was found" shows each step of solc's rule, from the
+      mapping's slot to the bytes of <code>streak</code>.</p>
+      <p data-scene="streak" hidden>Alice calls <code>record(30)</code>
+      after <code>record(7)</code>. Her streak was 1, so her bonus is 30
+      × 1 = 30: her score goes from 7 to 7 + 30 + 30 = 67, and her
+      streak goes to 2. The slot stays the same; bytes inside it change.
+      Before is after her first call, After after her second. Beside the
+      lit word, a card shows it in the other state.</p>
+      <p data-scene="motto" hidden><code>setMotto</code> replaces a
+      9-byte motto with a 48-byte one. A string of 31 bytes or less
+      lives in its slot, with 2 × its length in the last byte. A longer
+      string keeps only 2 × its length + 1 in its slot, and its bytes
+      move to keccak256(slot 2) and the slots after it. "How this was
+      found" shows where the two rules part.</p>
+      <p data-scene="vyper" hidden>The same program, compiled by Vyper
+      0.4.3 (<code>contracts/Scores.vy</code>), after the same two
+      <code>record</code> calls. Vyper emits no ethdebug, so the page
+      has no rule from Vyper. Here it applies Solidity's rule (from
+      solc's ethdebug output) to the Vyper contract's real storage:
+      keccak256(key . slot 0) holds nothing, so the tree shows
+      <code>score</code> 0, with no error. Vyper's own rule hashes the
+      slot first, keccak256(slot 0 . key), and puts each member in its
+      own slot: 67, 2 and 1 (true). Those three words are in the dump,
+      and no value shown owns them; "How this was found" lists
+      them.</p>
+    </div>
     <div class="moderow"><span class="modelabel" id="mode-l">Show</span>
       <div id="mode" class="picker mode" role="radiogroup"
         aria-labelledby="mode-l">
@@ -114,7 +215,7 @@ end of the body fetches the decoder and the data. -->
   <div class="cols">
     <section aria-label="Storage" class="storage">
       <h2 class="label">Storage
-        <span class="legend"><span class="chg">changed</span>
+        <span class="legend chglegend"><span class="chg">changed</span>
         <span class="same">unchanged</span></span></h2>
       <div id="tree" class="tree">
         <div class="skel" aria-hidden="true"><i></i><i></i><i></i><i></i>
@@ -131,13 +232,15 @@ end of the body fetches the decoder and the data. -->
         <span class="legend"><span class="bchg">changed byte</span>
         <span class="bfree">no value shown</span></span></h2>
       <p class="muted small intro">Each slot holds one 32-byte word.
-      The dump shows storage before or after the transaction (Before |
-      After, above): the slots that hold the values on this page and
-      the slots the transaction read or wrote, in address order, one
-      word to a line; "⋯" marks a jump in address. Byte 0 is the most
-      significant. Point at a value, a byte or an address to light it
-      up. Beside each lit run, a card shows the same words in the other
-      state, in the same columns.</p>
+      The dump shows storage at the scene's point (or, in a scene with
+      two, at the one picked above): the slots that hold the values on
+      this page (with two points, also the slots the transaction read or
+      wrote), in address order, one word to a line; "⋯" marks a jump in
+      address. Byte 0 is
+      the most significant. Point at a value, a byte or an address to
+      light it up. In a scene with two points, a card beside each lit
+      run shows the same words at the other point, in the same
+      columns.</p>
       <div id="dump" class="dump">
         <div id="panel" class="panel"></div>
       </div>
@@ -152,17 +255,50 @@ end of the body fetches the decoder and the data. -->
     </section>
   </div>
 
+  <section id="calldata" class="calldata" aria-labelledby="cd-h" hidden>
+    <h2 class="label" id="cd-h">The calldata of setMotto</h2>
+    <p class="lede"><code>m</code> is a <code>string calldata</code>
+    parameter: its bytes stay in the transaction's input. solc's ethdebug
+    output here gives no pointer for <code>m</code>: its instructions
+    carry source ranges only, and its resources have no calldata types or
+    templates. So the page cannot ask ethdebug where <code>m</code> is.
+    The labels below come from the ABI encoding rules, which the page
+    applies itself; nothing in this part comes from @ethdebug/pointers.
+    Click a byte to find its part of <code>m</code>, or a part to find
+    its bytes.</p>
+    <div class="cols">
+      <section aria-label="Parameters" class="storage">
+        <h2 class="label">Parameters</h2>
+        <div id="ctree" class="tree"></div>
+      </section>
+      <section aria-labelledby="chow-h" class="howbox">
+        <h2 class="label" id="chow-h">How this was found</h2>
+        <div id="chow" class="how"></div>
+      </section>
+      <section aria-labelledby="cwords-h" class="words">
+        <h2 class="label" id="cwords-h">The bytes of the calldata</h2>
+        <p class="muted small intro">The transaction's input: the
+        4-byte selector, then 32-byte words, by offset.</p>
+        <div class="dump"><div id="cpanel" class="panel"></div></div>
+        <div id="cdetails" class="details" aria-live="polite"></div>
+      </section>
+    </div>
+  </section>
+
   <section class="notes" aria-label="Notes">
     <h2>What is not done yet</h2>
     <ul>
       <li><b>Mapping keys.</b> A mapping does not list its keys. The page
-      shows only the keys this transaction hashed (read from the
-      KECCAK256 inputs in its trace). Other entries exist but are not
-      shown.</li>
+      shows only keys read from the KECCAK256 inputs in a trace (Alice's
+      address, from her <code>record</code> calls). Other entries may
+      exist but are not shown.</li>
       <li><b>Nested mappings.</b> A mapping inside a struct or another
       mapping needs one template applied after another, with a key for
-      each level. The page does not do that yet; these contracts have
-      none.</li>
+      each level. The page does not do that yet; Scores has none.</li>
+      <li><b>Vyper.</b> Vyper emits no ethdebug. Its scene applies
+      solc's rule to Vyper's storage, to show what a tool built on
+      Solidity's rules reads; Vyper's own slots come from its
+      trace.</li>
       <li><b>Names in the templates.</b> Template and type names such as
       <code>t_mapping$_t_address_$…</code> are solc's internal names.
       ethdebug does not require them.</li>
@@ -263,18 +399,17 @@ end of the body fetches the decoder and the data. -->
 // (bytes of total; a gzipped response is counted as its bytes after
 // gzip is undone, which is what the sizes below give), and keeps each
 // file it fetched. A failed load shows its error and a Retry button.
-// main.js and mem.js run once the decoder is in, and fetch an example's
-// data through window.loading.load() when the example is shown.
+// main.js and mem.js run once the decoder is in, and fetch a scene's
+// data through window.loading.load() when the scene is shown.
 (() => {
   // the size of each file, in bytes (bin/sizes.mjs writes this)
   const SIZES = /* sizes */{
     "vendor/pointers.js": 278654,
-    "fixtures/index.json": 768,
+    "fixtures/index.json": 1744,
     "fixtures/memory.json": 8154,
-    "fixtures/packed-set.json": 8357,
-    "fixtures/shop-place.json": 18344,
-    "fixtures/strings-update.json": 7594,
-    "fixtures/token-transfer.json": 6524
+    "fixtures/scores-motto.json": 8598,
+    "fixtures/scores-record.json": 11724,
+    "fixtures/scores-vyper.json": 9210
   }/* end sizes */;
   const bar = document.getElementById("loadbar");
   const files = new Map(); // url -> { got, size, label, shown, promise }
@@ -390,22 +525,27 @@ end of the body fetches the decoder and the data. -->
   window.loading = { load, fail, retry, busy: () =>
     [...files.values()].some((f) => !f.done) };
 
-  // The decoder, the index, the example the page opens with, and the
+  // The decoder, the index, the scene the page opens with, and the
   // memory section's data, all at once
   async function boot() {
-    // the example to open with: the URL hash's, or the first
+    // the scene to open with: the URL hash's, or the first
     const ex = new URLSearchParams(location.hash.slice(1)).get("ex");
-    const ids = [...document.querySelectorAll("#picker button")]
-      .map((b) => b.dataset.id);
-    const first = ids.find((id) => id === ex || id.split("-")[0] === ex) ??
-      ids[0];
-    for (const b of document.querySelectorAll("#picker button")) {
-      b.setAttribute("aria-checked", String(b.dataset.id === first));
+    const buttons = [...document.querySelectorAll("#picker button")];
+    const first = buttons.find((b) => b.dataset.id === ex) ?? buttons[0];
+    for (const b of buttons) {
+      b.setAttribute("aria-checked", String(b === first));
     }
+    // its intro, and no Before | After for a scene with one point
+    for (const p of document.querySelectorAll("#intros [data-scene]")) {
+      p.hidden = p.dataset.scene !== first.dataset.id;
+    }
+    document.querySelector("main").toggleAttribute("data-single",
+      first.hasAttribute("data-single"));
     const index = load("fixtures/index.json",
       { label: "the decoder and the data" });
     // (main.js loads it again, and shows a failure)
-    load(`fixtures/${first}.json`, { label: "the decoder and the data" })
+    load(`fixtures/${first.dataset.fixture}.json`,
+      { label: "the decoder and the data" })
       .catch(() => {});
     load("fixtures/memory.json", { label: "the decoder and the data" })
       .catch(() => {});

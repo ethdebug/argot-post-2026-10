@@ -1,26 +1,56 @@
 [
   {
-    "id": "token-transfer",
-    "title": "Token: transfer 25",
-    "summary": "transfer(0x70997970C51812dc3A010C7d01b50e0d17dc79C8, 25) from the deployer, who holds 1000",
-    "contract": "Token"
+    "id": "packed",
+    "title": "A packed slot",
+    "fixture": "scores-record",
+    "points": ["before"],
+    "when": "after Alice's first record(7)",
+    "summary": "Storage after record(7) from Alice",
+    "select": null
   },
   {
-    "id": "shop-place",
-    "title": "Shop: place an order",
-    "summary": "place(\"widget\", 5, 3): a struct with a string, pushed array",
-    "contract": "Shop"
+    "id": "alice",
+    "title": "Alice's entry",
+    "fixture": "scores-record",
+    "points": ["before"],
+    "when": "after Alice's first record(7)",
+    "summary": "Storage after record(7) from Alice",
+    "select": "players[0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266].streak"
   },
   {
-    "id": "packed-set",
-    "title": "Packed: set packed values",
-    "summary": "set(7, 300, 123456789): small values share one slot",
-    "contract": "Packed"
+    "id": "streak",
+    "title": "Same slot, new values",
+    "fixture": "scores-record",
+    "points": ["before", "after"],
+    "when": {
+      "before": "after Alice's first record(7)",
+      "after": "after her second record(30)"
+    },
+    "summary": "Before: after record(7) · After: after record(30), both from Alice",
+    "select": "players[0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266]",
+    "mode": "after"
   },
   {
-    "id": "strings-update",
-    "title": "Strings: one grows long, one shrinks short",
-    "summary": "update(\"a string longer than thirty-one bytes, stored long\", \"now short\")",
-    "contract": "Strings"
+    "id": "motto",
+    "title": "A string outgrows its slot",
+    "fixture": "scores-motto",
+    "points": ["before", "after"],
+    "when": {
+      "before": "before setMotto",
+      "after": "after setMotto"
+    },
+    "summary": "setMotto(\"play fair\"), then setMotto(\"play fair, keep score, and write the scores down\")",
+    "select": "motto",
+    "mode": "after",
+    "calldata": { "signature": "setMotto(string)", "param": "m" }
+  },
+  {
+    "id": "vyper",
+    "title": "Vyper reads it differently",
+    "fixture": "scores-vyper",
+    "points": ["after"],
+    "when": "after Alice's record(7) and record(30), in the Vyper contract",
+    "summary": "Vyper 0.4.3: record(7), then record(30), from Alice",
+    "select": "players[0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266].score"
   }
 ]
