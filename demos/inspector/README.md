@@ -374,6 +374,15 @@ in the row's colour; a click scrolls the tree, inside itself, to the
 row. Hover alone never scrolls the tree. The pills are overlays: no row
 moves.
 
+A slot's label reads "how it is found : what it holds": the names of
+the values in that slot as the pointer names them, in byte order
+(`slot 2 : rounds · total`; an array's own word: `slot 0 : length`;
+the first three, then `+N`), or for a run of several slots, the path
+of the value they make up (`keccak(0x90f7…b906, slot 3) :
+players[0x90f7…b906], 2 slots`). Each name takes its bytes' colour
+when the colours tell values apart (a legend); else it is plain. One
+line, cut at its end where the box is narrow.
+
 Nothing moves when a value is selected, pointed at or stepped through:
 emphasis is lighting and muting only. The bar (`#details`) is one line
 over both columns, in the page's flow (nothing on the page is sticky

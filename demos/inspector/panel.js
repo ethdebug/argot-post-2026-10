@@ -737,15 +737,94 @@ function runName(rows) {
 
 // The slot popover for a run: how its slots were found, and what the
 // transaction did to them
+// What a run of slots holds, as the pointer names it: one slot, its
+// values in byte order (an array's own word: its length); several, the
+// value they make up, as a path. Each name in its bytes' colour now,
+// where the colours tell values apart; else plain.
+function whatIn(all) {
+  // (the lit rows of a run, if some are: a run may take in rows an
+  // earlier step found)
+  const lit = all.filter((r) => r.classList.contains("on"));
+  const rows = lit.length ? lit : all;
+  const owners = [];
+  for (const r of rows) {
+    for (const c of r.querySelectorAll(":scope > .word .b[data-owners]")) {
+      for (const id of c.dataset.owners.split("|")) {
+        if (!owners.some((o) => o.id === id)) owners.push({ id, cells: [] });
+        owners.find((o) => o.id === id).cells.push(c);
+      }
+    }
+  }
+  if (!owners.length) return "";
+  const path = (id) => id.replace(/#length$/, "");
+  const ids = [...document.querySelectorAll(".b[data-owners]")]
+    .flatMap((c) => c.dataset.owners.split("|")).map(path);
+  const colour = (cells) => {
+    const ks = new Set(cells.filter((c) => c.classList.contains("hl"))
+      .map((c) => [...c.classList].find((x) => /^pk\d$/.test(x)) ?? ""));
+    return ks.size === 1 ? [...ks][0] : "";
+  };
+  // (muted where its bytes are: an echo)
+  const muted = (cells) => cells.some((c) => c.classList.contains("hl")) &&
+    cells.filter((c) => c.classList.contains("hl")).every((c) =>
+      c.classList.contains("muted"));
+  const name = (o, text) => {
+    const k = colour(o.cells);
+    return `<code class="pname${k ? ` ${k}` : ""}${k && muted(o.cells)
+      ? " muted" : ""}">${esc(text)}</code>`;
+  };
+  let names;
+  if (rows.length > 1) {
+    // (the deepest path all of them are under)
+    const ps = owners.map((o) => path(o.id));
+    let common = ps[0];
+    while (common && !ps.every((p) => p === common ||
+      p.startsWith(common + ".") || p.startsWith(common + "["))) {
+      common = common.replace(/(\.[^.[\]]+|\[[^\]]*\])$/, "");
+      if (!/[.[]/.test(common) && !ps.every((p) => p.startsWith(common))) {
+        common = "";
+      }
+    }
+    names = [name({ cells: owners.flatMap((o) => o.cells) },
+      common ? shortKeys(common) : ps.map(shortKeys).join(" · "))];
+  } else {
+    // (one slot: its values left to right)
+    const one = owners.length === 1;
+    const parent = (p) => p.match(/^(.*)(\.[^.[\]]+|\[[^\]]*\])$/)?.[1] ??
+      "";
+    const label = (o) => {
+      const p = path(o.id);
+      // (a composite's own word: an array's length)
+      if (!o.id.endsWith("#length") && ids.some((q) =>
+        q.startsWith(p + "["))) return "length";
+      return one || parent(p) === "" ? shortKeys(p) : p.slice(
+        parent(p).length).replace(/^\./, "");
+    };
+    const shown = owners.slice(0, 3).map((o) => name(o, label(o)));
+    names = [shown.join(" · ") + (owners.length > 3
+      ? ` <span class="pmore">+${owners.length - 3}</span>` : "")];
+    // (one colour for all of them: plain; the order carries the link)
+    const ks = new Set(owners.map((o) => colour(o.cells)));
+    if (ks.size === 1) names = names.map((n) => n.replace(/ pk\d/g, ""));
+  }
+  return names.join("");
+}
 function popFor(rows, more) {
   const facts = [...new Set(rows.map((r) => r.dataset.facts))]
     .filter(Boolean);
   const pop = document.createElement("span");
   pop.className = "pop";
   pop.setAttribute("role", "status");
-  pop.innerHTML = `<span class="pop-how">${esc(runName(rows))}${
-    facts.length ? ` · ${esc(facts.join(" / "))}` : ""}${more
-    ? ` · +${more} more` : ""}</span>`;
+  const what = whatIn(rows);
+  // (several slots: "how : what, n slots"; a run with one lit row names
+  // that row's values: "how : what")
+  const one = rows.filter((r) => r.classList.contains("on")).length === 1 &&
+    rows.length > 1;
+  const [, how, n] = runName(rows).match(/^(.*?)(, \d+ slots)?$/);
+  const count = one ? "" : n;
+  pop.innerHTML = `<span class="pop-how">${esc(what ? how : runName(rows))}${
+    what ? ` : ${what}${count ?? ""}` : ""}${facts.length ? ` · ${esc(facts.join(" / "))}`
+    : ""}${more ? ` · +${more} more` : ""}</span>`;
   return pop;
 }
 

@@ -638,7 +638,7 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
   // and a popover at slot 2's address, in the dump shown
   const pops = () => page.locator("#panel .pop").allInnerTexts();
   let pp0 = await pops();
-  if (pp0.join("|") !== "slot 2 · read, written") {
+  if (pp0.join("|") !== "slot 2 : rounds · total · read, written") {
     problems.push(`pops rounds: ${pp0}`);
   }
   pp0 = [];
@@ -673,7 +673,7 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
     one.Holds !== "40 (0x…000028)" || "Before" in one || "After" in one) {
     problems.push(`one point details: ${JSON.stringify(one)}`);
   }
-  if ((await pops()).join("|") !== "slot 2") {
+  if ((await pops()).join("|") !== "slot 2 : rounds · total") {
     problems.push(`one point pops: ${await pops()}`);
   }
   if (await page.locator("#panel .cmp, #tree .tcard").count()) {
@@ -813,7 +813,7 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
   });
   if (labelled.pops.length !== 2 ||
     !labelled.pops.some((t) => t.startsWith("slot 1")) ||
-    !labelled.pops.some((t) => t.startsWith("keccak(slot 1), 2 slots")) ||
+    !labelled.pops.some((t) => t.startsWith("keccak(slot 1) : motd, 2 slots")) ||
     labelled.covered.length) {
     problems.push(`motd labels: ${JSON.stringify(labelled)}`);
   }
@@ -906,7 +906,8 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
   await page.locator(`#tree li[data-path="${A}.combo"] > .row`).hover();
   pp0 = await pops();
   if (pp0.length !== 1 || !pp0[0].startsWith(
-    "keccak(0x7099…79c8, slot 3) · read, written")) {
+    "keccak(0x7099…79c8, slot 3) : lastBlock · hitCount · plays +3 · read, " +
+    "written")) {
     problems.push(`pops combo: ${pp0}`);
   }
   // each popover's left edge is at the gutter's, its arrow at its
@@ -2106,6 +2107,44 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
     await page.setViewportSize({ width: 1280, height: 900 });
     if (bad.length) problems.push(`dump fit: ${bad}`);
   }
+  // a slot's label: how it is found, then what it holds, by name, in
+  // byte order; each name in its bytes' colour when the colours tell
+  // values apart, else plain; a record's run: its owner's path
+  {
+    const pops = () => page.evaluate(() => [...document.querySelectorAll(
+      "#panel .view:not([hidden]) .pop:not(.kept)")].map((p) => ({
+      text: p.textContent, ks: [...p.querySelectorAll(".pname")].map((n) =>
+        n.className.match(/pk\d/)?.[0] ?? "") })));
+    const got = {};
+    for (const x of ["roster", "total", "players"]) {
+      await page.evaluate((y) => window.select("mid", { sel: y }), x);
+      await page.mouse.move(1, 1);
+      got[x] = await pops();
+    }
+    await page.locator('#details button[data-r="start"]').click();
+    await page.locator(`#chips .chip[data-k="${P.fields}"]`).click();
+    await page.mouse.move(1, 1);
+    got.fields = await pops();
+    // (the colours of alice's first three fields' bytes, left to right)
+    const fk = await page.evaluate((a) => ["lastBlock", "hitCount", "plays"]
+      .map((f) => document.querySelector(`#panel .view:not([hidden]) ` +
+        `.b.hl[data-owners="${a}.${f}"]`)?.className.match(/pk\d/)?.[0]), A);
+    await page.keyboard.press("Escape");
+    const t = (x) => got[x].map((p) => p.text);
+    const alice = got.fields.find((p) => p.text.startsWith(
+      "keccak(0x7099…79c8, slot 3) :"));
+    if (!t("roster").includes("slot 0 : length") ||
+      !t("total").includes("slot 2 : rounds · total") ||
+      got.total[0]?.ks.some(Boolean) ||
+      !t("players").includes(
+        "keccak(0x7099…79c8, slot 3) : players[0x7099…79c8], 2 slots") ||
+      alice?.text !== "keccak(0x7099…79c8, slot 3) : lastBlock · hitCount · " +
+        "plays +3" || alice.ks.join() !== fk.join() || !fk.every(Boolean) ||
+      new Set(fk).size !== 3) {
+      problems.push(`slot labels: ${JSON.stringify({ got, fk })}`);
+    }
+    await page.evaluate((x) => window.select("mid", { sel: x }), `${B}.plays`);
+  }
   // while it replays, pointing elsewhere changes nothing
   await page.locator('#details button[data-r="start"]').click();
   await page.mouse.move(1, 1);
@@ -2897,10 +2936,11 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
     problems.push(`a range in a label: ${room.pops}`);
   }
   if (room.tray || room.cover.length || room.pops.join("|") !== [
-    "keccak(0x3c44…93bc, slot 3), 2 slots",
-    "keccak(0x7099…79c8, slot 3), 2 slots",
-    "keccak(0x90f7…b906, slot 3), 2 slots",
-    "keccak(keccak(0x90f7…b906, slot 3) + 1), 2 slots",
+    "keccak(0x3c44…93bc, slot 3) : players[0x3c44…93bc], 2 slots",
+    "keccak(0x7099…79c8, slot 3) : players[0x7099…79c8], 2 slots",
+    "keccak(0x90f7…b906, slot 3) : players[0x90f7…b906], 2 slots",
+    "keccak(keccak(0x90f7…b906, slot 3) + 1) : players[0x90f7…b906].name, " +
+      "2 slots",
     // (and players' own slot, by its gutter)
     "slot 3"].join("|")) {
     problems.push(`popover room: ${JSON.stringify(room)}`);
@@ -2933,7 +2973,9 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
       hit(r, c.getBoundingClientRect()));
     return `${pop.textContent}${on ? " on lit" : ""}`;
   });
-  if (r1 !== "keccak(slot 0) + 1") problems.push(`roster[1] popover: ${r1}`);
+  if (r1 !== "keccak(slot 0) + 1 : roster[1]") {
+    problems.push(`roster[1] popover: ${r1}`);
+  }
   // every slot popover is placed as a gap line's: its left edge 6 px
   // left of the gutter, its arrow on the middle of its address
   {
