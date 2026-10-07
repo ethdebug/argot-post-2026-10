@@ -1593,6 +1593,94 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
     problems.push(`Escape in a replay: ${JSON.stringify(st)}`);
   }
 
+  // a click that clears a selection shows the hover of what is under
+  // the pointer at once, with no mouse move: a row, and a byte
+  {
+    await page.evaluate(() => window.select("mid", { sel: null }));
+    const lit = () => page.evaluate(() => ({
+      row: document.querySelector('#tree li[data-path="total"] > .row')
+        .classList.contains("hl"),
+      bytes: document.querySelectorAll("#panel .view:not([hidden]) .b.hl")
+        .length, sel: !!document.querySelector("#tree .row.sel") }));
+    await row("total").click();
+    await row("total").click();
+    const r = await lit();
+    const cell = page.locator(`#panel .view:not([hidden]) .wrow[data-slot="0x${
+      "0".repeat(63)}2"] .b[data-i="31"]`);
+    await cell.click();
+    await cell.click();
+    const b = await lit();
+    if (!r.row || r.bytes !== 16 || r.sel || !b.row || b.bytes !== 16 ||
+      b.sel) {
+      problems.push(`hover after a clearing click: ${JSON.stringify([r, b])}`);
+    }
+    await page.mouse.move(1, 1);
+  }
+  // brown caps and edges only on the selected thing: a hover is the
+  // plain fill
+  {
+    await page.evaluate(() => window.select("mid", { sel: null }));
+    const caps = () => page.evaluate(() => {
+      const bs = [...document.querySelectorAll(
+        "#panel .view:not([hidden]) .b.hl")];
+      const v = document.querySelector(
+        '#tree li[data-path="roster[0]"] > .row .val');
+      return { lit: bs.length, capped: bs.filter((b) =>
+        getComputedStyle(b).boxShadow !== "none").length,
+      val: getComputedStyle(v).borderTopColor };
+    });
+    await row("roster[0]").hover();
+    const h = await caps();
+    await row("roster[0]").click();
+    await page.mouse.move(1, 1);
+    const s = await caps();
+    const clear = /rgba\(0, 0, 0, 0\)|transparent/;
+    if (h.lit !== 20 || h.capped || !clear.test(h.val) || s.lit !== 20 ||
+      s.capped !== 20 || clear.test(s.val)) {
+      problems.push(`caps: hover ${JSON.stringify(h)}, selected ${
+        JSON.stringify(s)}`);
+    }
+    await page.evaluate((x) => window.select("mid", { sel: x }), `${B}.plays`);
+  }
+  // a hover draws no border or outline on any byte (a value's row, its
+  // bytes, a slot's address)
+  {
+    await page.evaluate(() => window.select("mid", { sel: null }));
+    const lines = () => page.evaluate(() => [...document.querySelectorAll(
+      "#panel .view:not([hidden]) .b")].filter((b) => {
+      const cs = [getComputedStyle(b), getComputedStyle(b, "::after")];
+      return cs.some((c) => ["Top", "Right", "Bottom", "Left"].some((k) =>
+        parseFloat(c[`border${k}Width`]) > 0 && c[`border${k}Style`] !==
+        "none") || (c.outlineStyle !== "none" &&
+        parseFloat(c.outlineWidth) > 0)) || (b.classList.contains("hl") &&
+        cs[0].boxShadow !== "none");
+    }).length);
+    const bad = [];
+    for (const p of ["total", "roster[0]", `${C}.plays`, "motd"]) {
+      await row(p).hover();
+      if (await lines()) bad.push(p);
+    }
+    const two = `#panel .view:not([hidden]) .wrow[data-slot="0x${
+      "0".repeat(63)}2"]`;
+    await page.locator(`${two} .b[data-i="20"]`).hover();
+    if (await lines()) bad.push("a byte of total");
+    await page.locator(`${two} .addr`).hover();
+    if (await lines()) bad.push("slot 2's address");
+    if (bad.length) problems.push(`hover lines: ${bad}`);
+    await page.mouse.move(1, 1);
+  }
+  // selecting alice's entry, then players (no mouse move): alice's rows
+  // are one merged block at once
+  {
+    await page.evaluate((x) => window.select("mid", { sel: x }), A);
+    await row("players").click();
+    const m = await page.evaluate((a) => {
+      const li = document.querySelector(`#tree li[data-path="${a}"]`);
+      return li.classList.contains("blk");
+    }, A);
+    if (!m) problems.push("alice's rows not one block after players");
+    await page.evaluate((x) => window.select("mid", { sel: x }), `${B}.plays`);
+  }
   // while it replays, pointing elsewhere changes nothing
   await page.locator('#details button[data-r="start"]').click();
   await page.mouse.move(1, 1);

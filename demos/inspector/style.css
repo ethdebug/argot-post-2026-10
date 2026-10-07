@@ -71,7 +71,7 @@ li.same > .row .name, li.same > .row .type { opacity: 0.55; }
 #tree .row { cursor: pointer; border-radius: 4px; }
 #tree .row:focus-visible { outline: 2px solid var(--accent);
   outline-offset: 1px; }
-#tree .row:hover .val, #tree .row.sel .val { border-color: var(--accent); }
+#tree .row.sel .val { border-color: var(--accent); }
 .val.same { opacity: 0.6; }
 .val.chg { background: var(--chg-bg); color: var(--chg-fg); }
 .val .old { color: var(--old); text-decoration: line-through; }
@@ -523,6 +523,15 @@ li.same > .row .name, li.same > .row .type { opacity: 0.55; }
 .word[data-side="after"] .b.hl.chg {
   box-shadow: inset 0 2px 0 var(--accent), inset 0 -2px 0 var(--new);
 }
+/* The one rule: brown caps and edges mark the active thing only (the
+   selection, or a replay's step) and its lit bytes. A hover is the
+   plain fill: no cap, no border, no brown outline (panel.js paint sets
+   .chosen) */
+.panel:not(.chosen) .b.hl { box-shadow: none; }
+.panel:not(.chosen) .word[data-side="before"] .b.hl.chg {
+  box-shadow: inset 0 -2px 0 var(--old); }
+.panel:not(.chosen) .word[data-side="after"] .b.hl.chg {
+  box-shadow: inset 0 -2px 0 var(--new); }
 /* While something is lit, everything else steps back: tints, change
    marks and other tree rows fade, so the highlight dominates */
 .b, .tree .row { transition: opacity 0.12s, filter 0.12s; }
@@ -531,18 +540,11 @@ li.same > .row .name, li.same > .row .type { opacity: 0.55; }
 /* The byte under the pointer, at the same place in both views */
 .b { position: relative; }
 .b.at { opacity: 1; }
-.b.at::after {
-  content: "";
-  position: absolute;
-  inset: 0;
-  border-top: 1px solid var(--accent);
-  border-bottom: 1px solid var(--accent);
-  pointer-events: none;
-}
-.b.at.at-s::after { border-left: 1px solid var(--accent);
-  border-top-left-radius: 3px; border-bottom-left-radius: 3px; }
-.b.at.at-e::after { border-right: 1px solid var(--accent);
-  border-top-right-radius: 3px; border-bottom-right-radius: 3px; }
+/* (no border or outline for what is under the pointer: a hover is the
+   plain fill, in the dump as in the tree. A distinct mark for "the
+   exact thing under the mouse", if one is ever wanted, hooks in here,
+   on .b.at (panel.js paint sets it), and in the tree's row hover; it
+   must look the same on both sides and must not be a border) */
 .b:focus-visible { outline: 2px solid var(--accent); }
 .ruler .bytes { line-height: 1.3; }
 .ruler .b { color: var(--muted); font-size: 0.85em; text-align: left; }
@@ -727,7 +729,7 @@ li.same > .row .name, li.same > .row .type { opacity: 0.55; }
 }
 .mpick button[disabled] { opacity: 0.4; cursor: not-allowed; }
 #mtree .row { cursor: pointer; border-radius: 4px; }
-#mtree .row:hover .val, #mtree .row.sel .val {
+#mtree .row.sel .val {
   border-color: var(--accent); }
 #mtree .row:focus-visible { outline: 2px solid var(--accent);
   outline-offset: 1px; }
