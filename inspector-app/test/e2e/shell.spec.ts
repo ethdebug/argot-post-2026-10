@@ -20,6 +20,9 @@ test("picker lists every lens; ] moves on; reload restores",
 
 test("g opens the list; a lens in it shows that lens", async ({ page }) => {
   await page.goto("./shell.html");
+  // (the shell mounts once the project is loaded: a key pressed before
+  // that has no shell to go to)
+  await expect(page.locator("[data-shell-picker]")).toBeAttached();
   const list = page.locator("[data-shell-list]");
   await expect(list).toBeHidden();
   await page.locator("body").press("g");

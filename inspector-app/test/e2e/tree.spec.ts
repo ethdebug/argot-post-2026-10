@@ -134,3 +134,47 @@ test("a lit row out of the tree's view: a circle button on the edge",
       .first().hover();
     expect(await pill("up")).toMatchObject({ round: true, centred: true });
   });
+
+test("a group opens and closes with a short height animation; none with "
+  + "reduced motion", async ({ page }) => {
+  await page.emulateMedia({ reducedMotion: "no-preference" });
+  await ready(page);
+  await select(page, null);
+  const heights = async () => {
+    const out: number[] = [];
+    for (let k = 0; k < 6; k++) {
+      out.push(await page.evaluate(() => (document.querySelector(
+        '#tree li[data-path="roster"] > ul') as HTMLElement).offsetHeight));
+      await page.waitForTimeout(30);
+    }
+    return out;
+  };
+  await chev(page, "roster").click();
+  const closing = await heights();
+  expect(closing.some((h) => h > 0 && h < closing[0] + 1)).toBe(true);
+  await expect(page.locator('#tree li[data-path="roster"]'))
+    .toHaveClass(/\bcollapsed\b/);
+  await chev(page, "roster").click();
+  const opening = await heights();
+  expect(opening.at(-1)).toBeGreaterThan(opening[0]);
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await chev(page, "roster").click();
+  await expect(page.locator('#tree li[data-path="roster"]'))
+    .toHaveClass(/\bcollapsed\b/, { timeout: 50 });
+});
+
+test("a slot the value uses only in the other state: marked 'only'",
+  async ({ page }) => {
+    await page.goto("./");
+    await page.waitForFunction(() => (window as unknown as W).results?.done);
+    await page.evaluate(() => (window as unknown as W).select("motd",
+      { sel: "motd" }));
+    await page.mouse.move(1, 1);
+    // (After: motd is short, in slot 1; its old data slots, lit Before,
+    // are "only" After)
+    await expect(page.locator(
+      '#panel .view[data-side="after"] .wrow.only')).toHaveCount(2);
+    await expect(page.locator(
+      '#panel .view[data-side="after"] .wrow.only > .word .b.hl'))
+      .toHaveCount(0);
+  });

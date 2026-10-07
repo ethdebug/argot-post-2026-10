@@ -127,11 +127,13 @@ export function useViewSpec(id: string): ViewSpec {
 // `filter`: the lens's (Lens.tsx Present), else the view's own; rows
 // "touched" adds the slots the point's transaction read or wrote. A dump's
 // `others` (decodings of its timeline) show their words, owned by none.
-export function useLayout(id: string, filter?: Filter):
+// (`at`: another point or decoding than the view's own: what it
+// compares with)
+export function useLayout(id: string, filter?: Filter, at?: DataRef):
   { d?: Decoded; l?: Layout } {
   const v = useViewSpec(id);
   const lens = useLens();
-  const data = "data" in v ? v.data : undefined;
+  const data = at ?? ("data" in v ? v.data : undefined);
   const d = useDecoded(data);
   const point = usePoint(data);
   const f = filter ?? ("filter" in v ? v.filter : undefined);
@@ -167,9 +169,9 @@ export function useCollapsed(link: string | undefined): ReadonlySet<string> {
 // pointed at in focus (a hover elsewhere is ignored); else what is
 // pointed at: a value (a run of its own bytes: only that owner's
 // bytes), bytes no value owns, or a row's address
-export function useLight(id: string, filter?: Filter): Light {
+export function useLight(id: string, filter?: Filter, at?: DataRef): Light {
   const v = useViewSpec(id);
-  const { d, l } = useLayout(id, filter);
+  const { d, l } = useLayout(id, filter, at);
   const [link] = useLink(v.link);
   const collapsed = useCollapsed(v.link);
   return useMemo(() => {

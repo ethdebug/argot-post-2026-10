@@ -190,11 +190,48 @@ export function Tree(p: { id: ViewId; data: DataRef; filter?: Filter;
     setLink((s) => s.hover?.path === path && !s.hover?.bytes &&
       (path || !s.hover) ? s : { ...s, hover: path ? { path } : null });
   };
-  const toggle = (path: string) => setView((v) => {
-    const next = new Set(v.collapsed);
-    if (!next.delete(path)) next.add(path);
-    return { ...v, collapsed: next };
-  });
+  // Open or close a group: a deliberate action, so the tree may change
+  // (a quick height animation, 180 ms; at once with reduced motion). The
+  // dump does not move.
+  const opened = useRef<string | null>(null);
+  const toggle = (path: string) => {
+    const set = (open: boolean) => setView((v) => {
+      const next = new Set(v.collapsed);
+      if (open) next.delete(path);
+      else next.add(path);
+      return { ...v, collapsed: next };
+    });
+    const open = view.collapsed.has(path);
+    const ul = box.current?.querySelector<HTMLElement>(
+      `li[data-path="${esc(path)}"] > ul`);
+    const still = matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+    if (!ul || still || !ul.animate) return set(open);
+    if (open) {
+      opened.current = path;
+      return set(true);
+    }
+    const h = ul.scrollHeight;
+    ul.style.overflow = "hidden";
+    ul.animate([{ height: `${h}px` }, { height: "0px" }],
+      { duration: 180, easing: "ease-in" }).finished.then(() => {
+      ul.style.overflow = "";
+      set(false);
+    });
+  };
+  // (a group just opened: its members grow in)
+  useLayoutEffect(() => {
+    const path = opened.current;
+    opened.current = null;
+    const ul = path && box.current?.querySelector<HTMLElement>(
+      `li[data-path="${esc(path)}"] > ul`);
+    if (!ul || !ul.animate) return;
+    const h = ul.scrollHeight;
+    ul.style.overflow = "hidden";
+    ul.animate([{ height: "0px" }, { height: `${h}px` }],
+      { duration: 180, easing: "ease-out" }).finished.then(() => {
+      ul.style.overflow = "";
+    });
+  }, [view.collapsed]);
   // a row selects its value (its block, by pointer), or, when it is the
   // selected one, clears
   const act = (el: EventTarget, keys = false) => {

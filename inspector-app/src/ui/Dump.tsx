@@ -151,6 +151,8 @@ export function Dump(p: { id: ViewId; location: Location; data: DataRef;
   const snap = here?.snapshot;
   const otherPoint = thereAt?.p;
   const light = useLight(p.id, p.filter);
+  // what the compared point lights (a slot lit there only: "only")
+  const there = useLight(p.id, p.filter, p.compare);
   const [link, setLink] = useLink(p.link);
   const d = useDecoded(p.data);
   const lens = useLens();
@@ -293,9 +295,11 @@ export function Dump(p: { id: ViewId; location: Location; data: DataRef;
       : ` (slot ${short(r.address)})`}${facts ? `; ${facts}` : ""}`;
     const on = [...Array(32).keys()].some((i) =>
       light.bytes.has(byteKey(p.location, r.address, i)));
-    const gut = !on && light.gutters.has(r.address);
+    const only = !on && !!p.compare && [...there.bytes].some((b) =>
+      b.split("|")[1] === r.address);
+    const gut = !on && !only && light.gutters.has(r.address);
     const cls = ["wrow", same ? "same" : "", k % 2 ? "zb" : "",
-      on ? "on" : "", gut ? "gut" : ""]
+      on ? "on" : "", only ? "only" : "", gut ? "gut" : ""]
       .filter(Boolean).join(" ");
     lines.push(<div key={r.address} className={cls} data-slot={r.address}
       data-name={name} data-facts={facts}
