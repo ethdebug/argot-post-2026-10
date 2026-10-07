@@ -226,43 +226,27 @@ contract Arcade {
           aria-checked="true">After</button></div>
       <label class="chipcheck"><input type="checkbox" id="insets" checked>
         show other state</label>
-      <span id="viewing" class="viewing" hidden></span></div>
+      <span id="viewing" class="viewing" style="visibility: hidden">
+        </span></div>
     <p id="summary" class="summary"></p>
   </section>
 
-  <div class="cols">
-    <section aria-label="Storage" class="storage">
-      <h2 class="label">Storage
-        <span class="legend chglegend"><span class="chg">changed</span>
-        <span class="same">unchanged</span></span></h2>
-      <div id="tree" class="tree">
-        <div class="skel" aria-hidden="true"><i></i><i></i><i></i><i></i>
-        <i></i><i></i><i></i><i></i></div></div>
-    </section>
+  <!-- how to read the dump, in one line -->
+  <p class="howread muted small">One 32-byte word per row, byte 0 at the
+  left; "⋯" skips addresses.</p>
+  <!-- the bar over both columns, one line, always there: the selection,
+  the replay's controls and the step's short caption (main.js renderBox) -->
+  <div id="details" class="rbar" aria-live="polite" tabindex="0"
+    aria-label="The selected value; how it was found"></div>
 
+  <div class="cols scols">
     <section aria-labelledby="words-h" class="words">
-      <h2 class="label" id="words-h">The words in storage
+      <h2 class="label colhead" id="words-h">Storage
         <span class="legend"><span class="bchg">changed byte</span>
         <span class="bfree">no value shown</span></span></h2>
-      <!-- (.two: only in a scene with two points) -->
-      <p class="muted small intro">Each slot holds one 32-byte word.
-      The dump shows storage at the scene's point<span class="two"> picked
-      above (Before | After)</span>: the slots that hold the values on
-      this page<span class="two">, and the slots the transaction read or
-      wrote</span>, in address order, one word to a line; "⋯" marks a jump
-      in address. Byte 0 is the most significant. Point at a value, a
-      byte or an address to light it up.<span class="two"> A card beside
-      each lit run shows the same words at the other point, in the same
-      columns.</span></p>
       <div id="dump" class="dump">
         <div id="panel" class="panel"></div>
       </div>
-      <!-- the selected value, resolved, with its replay (main.js
-      renderBox); else what the pointer is on -->
-      <div id="details" class="details" aria-live="polite" tabindex="0"
-        aria-label="The selected value; how it was found"></div>
-      <!-- the replay's steps, one chip each (main.js renderBox) -->
-      <div id="chips" class="chips"></div>
       <!-- the calldata of the scene's call (the message of the day only),
       next to the storage dump -->
       <section id="calldata" class="calldata" aria-labelledby="cd-h" hidden>
@@ -285,6 +269,25 @@ contract Arcade {
             <div id="chow" class="how"></div></div>
         </div>
       </section>
+      <!-- stuck to the bottom of this column, always there, at one size:
+      the step in full, the colours, the chips, the footnotes, and the
+      pointer solc wrote -->
+      <div id="dpanel" class="dpanel">
+        <div class="dleft">
+          <div id="dtext" class="dtext"></div>
+          <div id="chips" class="chips"></div>
+        </div>
+        <div id="ptr" class="ptr" aria-label="The pointer solc wrote"></div>
+      </div>
+    </section>
+
+    <section aria-label="Variables" class="storage">
+      <h2 class="label colhead">Variables
+        <span class="legend chglegend"><span class="chg">changed</span>
+        <span class="same">unchanged</span></span></h2>
+      <div id="tree" class="tree">
+        <div class="skel" aria-hidden="true"><i></i><i></i><i></i><i></i>
+        <i></i><i></i><i></i><i></i></div></div>
     </section>
 
     <section aria-label="Source" class="source">
@@ -424,7 +427,7 @@ contract Arcade {
   // the size of each file, in bytes (bin/sizes.mjs writes this)
   const SIZES = /* sizes */{
     "vendor/pointers.js": 278654,
-    "vendor/shiki.js": 201406,
+    "vendor/shiki.js": 211902,
     "fixtures/arcade-alice.json": 17770,
     "fixtures/arcade-mid.json": 14381,
     "fixtures/arcade-motd.json": 13572,
@@ -548,6 +551,27 @@ contract Arcade {
 
   // The decoder, the index, the scene the page opens with, and the
   // memory section's data, all at once
+  // The colouring (Shiki's core, its JavaScript regex engine, the
+  // Solidity and YAML grammars, two themes: vendor/shiki.js), loaded the
+  // first time something needs it: the contract's source, or a pointer
+  let hlp = null;
+  const shiki = () => hlp ??= (async () => {
+    const code = await load("vendor/shiki.js",
+      { label: "the colouring", text: true });
+    const url = URL.createObjectURL(
+      new Blob([code], { type: "text/javascript" }));
+    const s = await import(url);
+    URL.revokeObjectURL(url);
+    return s.createHighlighterCore({
+      themes: [s.light, s.dark], langs: [s.solidity, s.yaml],
+      engine: s.createJavaScriptRegexEngine() });
+  })().catch((e) => {
+    hlp = null;
+    console.warn("the colouring did not load", e);
+    return null;
+  });
+  window.loading.shiki = shiki;
+
   // The contract's source: its line count, and open or closed as this
   // viewer left it. The colouring (Shiki's core, its JavaScript regex
   // engine, the Solidity grammar and two themes, vendor/shiki.js) loads
@@ -558,15 +582,8 @@ contract Arcade {
     const src = pre.textContent;
     let coloured = null;
     const colour = () => coloured ??= (async () => {
-      const code = await load("vendor/shiki.js",
-        { label: "the colouring", text: true });
-      const url = URL.createObjectURL(
-        new Blob([code], { type: "text/javascript" }));
-      const s = await import(url);
-      URL.revokeObjectURL(url);
-      const hl = await s.createHighlighterCore({
-        themes: [s.light, s.dark], langs: [s.solidity],
-        engine: s.createJavaScriptRegexEngine() });
+      const hl = await shiki();
+      if (!hl) throw new Error("no colouring");
       const html = hl.codeToHtml(src, { lang: "solidity",
         themes: { light: "github-light", dark: "github-dark" },
         defaultColor: false });
