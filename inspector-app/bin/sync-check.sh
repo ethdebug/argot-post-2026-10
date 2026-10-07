@@ -5,13 +5,13 @@
 # tasks-done (the task closed without porting it). A deferred entry is
 # open (listed, not a failure) until its tasks close it: the task
 # writes its port commit in the ledger's third column.
-# (LEDGER, DONE: other files, for the tests)
+# (LEDGER, DONE: other files; UPTO: another end than main; for the tests)
 here="$(cd "$(dirname "$0")/.." && pwd)"
 ledger="${LEDGER:-$here/sync-ledger.tsv}"
 done="${DONE:-$here/tasks-done}"
 
 base="$(git -C "$here" rev-parse pre-port-2026-10)"
-log="$(git -C "$here" log --oneline "$base..main" -- \
+log="$(git -C "$here" log --oneline "$base..${UPTO:-main}" -- \
   :/demos/inspector)"
 status=0
 for sha in $(echo "$log" | cut -d' ' -f1); do
