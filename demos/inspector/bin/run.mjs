@@ -1644,29 +1644,32 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
   await page.keyboard.press("Escape");
   await page.locator("h1").hover();
 
-  // The memory section (BUG, bugc from main): locals decoded from
-  // bugc's pointers by the library, at each curated point
+  // "Inside one play" (BUG, bugc from main): alice's third hit at -O0
+  // and -O2, paused at three points. The locals' values, decoded from
+  // bugc's pointers by the library, checked by hand against the source:
+  // the roll is a hit; multiplied(10, 3) has m = 5, then m = combo = 3;
+  // gained = 10 * 3 = 30. Before the writes, bugc lists hit with no
+  // location, without optimization too.
   await page.setViewportSize({ width: 1280, height: 900 });
   await page.waitForFunction(() => window.memResults?.done, null,
     { timeout: 60000 });
   const mr = await page.evaluate(() => window.memResults);
   problems.push(...mr.errors.map((e) => `memory: ${e}`));
-  // names[1] = "grace hopper": the element's word gets the address of a
-  // new string; "grace" stays where it was
-  const list = { names: "length 3", "names[0]": '"ada"',
-    "names[2]": '"alan"' };
   const memWant = {
-    built: { ...list, "names[1]": '"grace"' },
-    written: { ...list, "names[1]": '"grace"' },
-    replaced: { ...list, "names[1]": '"grace hopper"' },
+    roll: [{ hit: "true" }],
+    mult: [{ points: "10", combo: "3", m: "5" },
+      { points: "10", combo: "3", m: "3" }],
+    writes: [{ gained: "30" }],
   };
-  for (const [pt, vals] of Object.entries(memWant)) {
-    const d = mr.decoded[pt] ?? {};
-    const got = Object.fromEntries(Object.entries(d).map(([k, v]) =>
-      [k, v.text]));
-    if (!same(got, vals)) {
-      problems.push(`memory ${pt}: ${JSON.stringify(got)}`);
+  for (const o of ["0", "2"]) {
+    for (const [pt, want] of Object.entries(memWant)) {
+      const got = (mr.decoded[o]?.[pt] ?? []).map((x) => x.values);
+      if (!same(got, want)) {
+        problems.push(`memory -O${o} ${pt}: ${JSON.stringify(got)}`);
+      }
     }
+    const none = mr.decoded[o]?.writes?.[0]?.none.join();
+    if (none !== "hit") problems.push(`memory -O${o} no location: ${none}`);
   }
   const storageLit = await page.locator("#panel .b.hl:not(.cmp *)").count();
   const mlit = () => page.evaluate(() => {
@@ -1679,101 +1682,164 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
       [k, v.length === 32 ? "all" : v.join()]));
   });
   const mrow = (n) => page.locator(`#mtree li[data-path="${n}"] > .row`);
-  // A = array built, B = name replaced: names[1] is found through the
-  // array's word (0xa0), its length (0x140) and the element's word
-  // (0x180), which holds the address of "grace" (0x200) at A and of
-  // "grace hopper" (0x280) at B
+  const mpt = (id) => page.locator(`#mpoint button[data-id="${id}"]`).click();
+  const mopt = (o) => page.locator(`#mlevel button[data-opt="${o}"]`).click();
+  const msel = () => page.evaluate(() => document.querySelector(
+    "#mtree .row.sel")?.parentElement.dataset.path ?? null);
+  // the colour of each lit row and byte: "hl" (the selection's own) or
+  // its child colour, "muted" when muted
+  const mcol = () => page.evaluate(() => {
+    const k = (el) => !el.classList.contains("hl") ? null
+      : ([...el.classList].find((c) => /^pk\d$/.test(c)) ?? "hl") +
+        (el.classList.contains("muted") ? " muted" : "");
+    const rows = {};
+    for (const li of document.querySelectorAll("#mtree li[data-path]")) {
+      rows[li.dataset.path] = k(li.firstElementChild);
+    }
+    const bytes = {};
+    for (const c of document.querySelectorAll(
+      "#mpanel .view:not([hidden]) .b.hl:not(.cmp *)")) {
+      const w = c.closest(".word").dataset.slot;
+      (bytes[w] ??= new Set()).add(k(c));
+    }
+    return { rows, bytes: Object.fromEntries(Object.entries(bytes)
+      .map(([w, s]) => [w, [...s].sort().join()])) };
+  });
   await page.locator("#memory").scrollIntoViewIfNeeded();
-  await mrow("names[1]").hover();
-  let ml = await mlit();
-  const via = { "0x00a0": "all", "0x0140": "all", "0x0180": "all" };
-  const onSide = (side, o) => Object.fromEntries(Object.entries(o).map(
-    ([k, v]) => [`${side} ${k}`, v]));
-  if (!same(ml, { ...onSide("before", { ...via, "0x0200": "all",
-    "0x0220": "0,1,2,3,4" }), ...onSide("after", { ...via, "0x0280": "all",
-    "0x02a0": "0,1,2,3,4,5,6,7,8,9,10,11" }) })) {
-    problems.push(`memory names[1]: ${JSON.stringify(ml)}`);
+  // At first: -O0, after the roll, hit selected; one point, so one
+  // dump called "Memory", no Before | After, no cards, no change marks
+  {
+    const v = await page.evaluate(() => [
+      document.querySelector("#mmoderow").hidden,
+      getComputedStyle(document.querySelector("#mmoderow")).display,
+      [...document.querySelectorAll("#mpanel .view-name")].map((x) =>
+        x.textContent).join(),
+      document.querySelectorAll("#mpanel .cmp, #mpanel .b.chg").length,
+      document.querySelector("#msrclegend").textContent.trim()]);
+    if (!same(v, [true, "none", "Memory", 0, "paused here"])) {
+      problems.push(`memory one point: ${JSON.stringify(v)}`);
+    }
   }
-  const mprobe = await dl("#mdetails");
-  if (mprobe.Value !== "names[1] (string)" ||
-    mprobe.A !== '0x0220–0x0224 = "grace"' ||
-    mprobe.B !== '0x02a0–0x02ab = "grace hopper"' || mprobe.scrolls) {
-    problems.push(`memory details: ${JSON.stringify(mprobe)}`);
+  if (await msel() !== "hit" ||
+    !same(await mlit(), { "after 0x00c0": "31" })) {
+    problems.push(`memory roll: ${await msel()} ${
+      JSON.stringify(await mlit())}`);
   }
-  // Selected: the array's word, its length, the item, the element's
-  // word (an address at A, another at B), the string's length, its
-  // bytes; the card shows the element's word at A
-  await mrow("names[1]").click();
-  const mhow = () => page.locator("#mhow").textContent();
-  const h = await mhow();
-  const order = ["names:", "names-length", "Item", "names-element:",
-    "names-element-length", "names-element-data",
-    'Read at B: "grace hopper"'];
-  const where = order.map((x) => h.indexOf(x));
-  if (where.some((x, k) => x < 0 || (k && x < where[k - 1])) ||
-    !/an address, 0x0200[\s\S]*an address, 0x0280/.test(h) ||
-    !/the length, 5[\s\S]*the length, 12/.test(h) ||
-    await page.locator("#mhow .branch").count()) {
-    problems.push(`memory how names[1]: ${where} ${h.slice(0, 200)}`);
-  }
-  const cards = await page.evaluate(() => [...document.querySelectorAll(
-    "#mpanel .cmp [data-of]")].map((c) => c.dataset.of));
-  if (!cards.includes("0x0180")) {
-    problems.push(`memory cards: ${cards}`);
-  }
-  // a step lights its region: the new string's length word
-  await page.locator('#mhow li[data-region*="names-element-length"]')
-    .hover();
-  ml = await mlit();
-  if (!same(ml, { "after 0x0280": "all" })) {
-    problems.push(`memory step: ${JSON.stringify(ml)}`);
-  }
-  await page.keyboard.press("Escape");
-  // A byte names its owner
-  await page.locator('#mpanel .word[data-side="after"]' +
-    '[data-slot="0x02a0"] .b[data-i="0"]').hover();
-  const mp2 = await page.locator("#mdetails").textContent();
-  if (!mp2.trim().startsWith("names[1] · bytes 0–11 of word 0x02a0")) {
-    problems.push(`memory byte: ${mp2}`);
-  }
-  // At B, the old bytes of "grace" are still in memory, owned by no
-  // value
-  const left = await page.evaluate(() => [...document.querySelectorAll(
-    '#mpanel .word[data-side="after"][data-slot="0x0220"] .b')]
-    .slice(0, 5).map((c) => `${c.textContent}${
-      c.classList.contains("free") ? "" : "!"}`).join(" "));
-  if (left !== "67 72 61 63 65") problems.push(`memory old bytes: ${left}`);
-  // A = new string written: "grace hopper" is in memory at A already;
-  // only the element's word changes
-  await page.locator('#mpick-before button[data-id="written"]').click();
-  await mrow("names[1]").click();
-  const mwords = await page.evaluate(() => [...document.querySelectorAll(
-    '#mpanel .view[data-side="after"] .wrow:not(.same)[data-slot]')]
-    .map((r) => r.dataset.slot).join());
-  if (mwords !== "0x00c0,0x0180") {
-    problems.push(`memory written -> replaced: ${mwords}`);
-  }
-  await page.keyboard.press("Escape");
-  await page.locator('#mpick-before button[data-id="built"]').click();
-  // Enter on a row selects it; Escape clears it
-  await mrow("names[2]").focus();
-  await page.keyboard.press("Enter");
+  // Inside multiplied at -O0: a real call. multiplied is selected: its
+  // own bytes (the frame pointer, the word at 0x80) in the selection
+  // colour, each local in a child colour of its own
+  await mpt("mult");
   await page.locator("h1").hover();
-  if (await page.locator("#mtree .row.sel").count() !== 1) {
-    problems.push("memory key pick");
+  {
+    const c = await mcol();
+    const kids = ["points", "combo", "m"].map((p) => c.rows[p]);
+    if (await msel() !== "multiplied" || c.rows.multiplied !== "hl" ||
+      new Set(kids).size !== 3 || kids.some((k) => !/^pk\d$/.test(k)) ||
+      c.bytes["0x0080"] !== "hl") {
+      problems.push(`memory multiplied -O0: ${JSON.stringify(c)}`);
+    }
+    const frame = await mrow("multiplied").locator(".val").textContent();
+    if (!/^frame at 0x[0-9a-f]+$/.test(frame.trim())) {
+      problems.push(`memory frame -O0: ${frame}`);
+    }
+    // pointing at one child mutes the others, not the selection's own
+    await mrow("points").hover();
+    const d = await mcol();
+    if (d.rows.points !== kids[0] || d.rows.combo !== `${kids[1]} muted` ||
+      d.rows.m !== `${kids[2]} muted` || d.rows.multiplied !== "hl" ||
+      d.bytes["0x0080"] !== "hl") {
+      problems.push(`memory muting: ${JSON.stringify(d)}`);
+    }
   }
-  await page.keyboard.press("Escape");
-  if (await page.locator("#mtree .row.sel").count()) {
-    problems.push("memory Escape");
-  }
-  // A or B shows that point's dump only
-  for (const [m, want] of [["before", "before"], ["after", "after"]]) {
+  // two steps (before and after m = combo): Before | After, and the
+  // dump of the one picked
+  for (const [m, want] of [["before", "Before"], ["after", "After"]]) {
     await page.locator(`#mmode button[data-mode="${m}"]`).click();
     const v = await page.locator("#mpanel .view").evaluateAll((vs) =>
       vs.filter((x) => !x.hidden && x.offsetHeight).map((x) =>
-        x.dataset.side).join());
+        x.querySelector(".view-name").textContent).join());
     if (v !== want) problems.push(`memory mode ${m}: ${v}`);
   }
+  // From the bytes to the value: a click on a byte of points selects
+  // it; a click on its row again clears it
+  await page.locator('#mpanel .view:not([hidden]) .b[data-owners="points"]')
+    .first().click();
+  if (await msel() !== "points") {
+    problems.push(`memory byte -> value: ${await msel()}`);
+  }
+  // m moves: at -O0 from the frame + 88 to the frame + 184, which
+  // holds combo's bytes too
+  await mrow("m").click();
+  {
+    const d = await dl("#mdetails");
+    const [a, b] = [d.Before, d.After].map((x) =>
+      x?.match(/^0x([0-9a-f]+)–0x([0-9a-f]+) = (\d)$/));
+    const frame = parseInt((await mrow("multiplied").locator(".val")
+      .textContent()).trim().slice(9), 16);
+    if (!a || !b || parseInt(a[1], 16) !== frame + 88 || a[3] !== "5" ||
+      parseInt(b[1], 16) !== frame + 184 || b[3] !== "3") {
+      problems.push(`memory m: ${JSON.stringify(d)} ${frame}`);
+    }
+  }
+  // at -O2: inlined, no frame; the locals at fixed offsets
+  await mopt(2);
+  await mrow("multiplied").click();
+  {
+    const v = (await mrow("multiplied").locator(".val").textContent())
+      .trim();
+    const c = await mcol();
+    if (v !== "inlined: no frame" || "0x0080" in c.bytes ||
+      await page.locator("#mpanel .wrow[data-slot='0x0080']").count()) {
+      problems.push(`memory multiplied -O2: ${v} ${JSON.stringify(c)}`);
+    }
+  }
+  // Before the writes: gained = 30; hit with no location; alice's
+  // record slot, its six members in six colours
+  await mpt("writes");
+  {
+    const t = await page.locator("#mtree").innerText();
+    if (!/gained[\s\S]*30/.test(t) ||
+      !/hit[\s\S]*no location at this point/.test(t)) {
+      problems.push(`memory writes tree: ${t}`);
+    }
+  }
+  await mrow("players[msg.sender]").click();
+  {
+    const c = await mcol();
+    const ms = ["score", "combo", "bestCombo", "plays", "hitCount",
+      "lastBlock"].map((x) => c.rows[`players[msg.sender].${x}`]);
+    if (new Set(ms).size !== 6 || ms.some((k) => !/^pk\d$/.test(k)) ||
+      c.rows["players[msg.sender]"] !== "hl") {
+      problems.push(`memory record: ${JSON.stringify(c)}`);
+    }
+    const score = await mrow("players[msg.sender].score")
+      .locator(".val").textContent();
+    if (score.trim() !== "30") problems.push(`memory score: ${score}`);
+  }
+  // a click on the score's bytes selects the score
+  await page.locator('#mpanel .b[data-owners="players[msg.sender].score"]')
+    .first().click();
+  if (await msel() !== "players[msg.sender].score") {
+    problems.push(`memory record byte: ${await msel()}`);
+  }
+  // a derivation step lights its region; Escape clears
+  // (the point opens with hit selected: a click clears it, Enter on
+  // the focused row selects it again)
+  await mpt("roll");
+  await mrow("hit").click();
+  if (await msel()) problems.push("memory click again");
+  await mrow("hit").focus();
+  await page.keyboard.press("Enter");
+  await page.locator("h1").hover();
+  if (await msel() !== "hit") problems.push("memory key pick");
+  // (at -O2 here: hit is the last byte of the word at 0x120)
+  await page.locator('#mhow li[data-region]').first().hover();
+  if (!same(await mlit(), { "after 0x0120": "31" })) {
+    problems.push(`memory step: ${JSON.stringify(await mlit())}`);
+  }
+  await page.locator("h1").hover();
+  await page.keyboard.press("Escape");
+  if (await msel()) problems.push("memory Escape");
   // the storage section is not affected
   if (await page.locator("#panel .b.hl:not(.cmp *)").count() !==
     storageLit) {
@@ -1785,7 +1851,8 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
   });
   if (mwide) problems.push("memory: words scroll sideways on desktop");
   if (name === "chromium") {
-    await mrow("names[1]").click();
+    await mopt(0);
+    await mpt("mult");
     await page.evaluate(() => {
       document.querySelector("#memory .words").scrollTop = 0;
       document.querySelector("#memory").scrollIntoView();
@@ -1793,8 +1860,9 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
     await page.locator("h1").hover();
     await page.waitForTimeout(300);
     await page.locator("#memory").screenshot({ path: shot("memory.png") });
-    await page.keyboard.press("Escape");
   }
+  await mopt(0);
+  await mpt("roll");
 
   // Each section keeps its own view: the storage scene's controls (the
   // scene, Before | After, "show other state", Escape) leave the memory
@@ -1802,9 +1870,8 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
   // leave the storage scene as it is
   {
     const memView = () => page.evaluate(() => JSON.stringify([
-      ...["#mpick-before", "#mpick-after", "#mmode"].map((q) =>
-        document.querySelector(`${q} [aria-checked="true"]`)?.dataset.id ??
-        document.querySelector(`${q} [aria-checked="true"]`)?.dataset.mode),
+      ...["#mlevel", "#mpoint", "#mmode"].map((q) =>
+        document.querySelector(`${q} [aria-checked="true"]`)?.textContent),
       [...document.querySelectorAll("#mpanel .view")].map((v) => v.hidden)
         .join(),
       document.querySelector("#mtree .row.sel")?.parentElement.dataset.path,
@@ -1820,7 +1887,8 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
       document.querySelector("#tree").innerText]));
     await scene("alice");
     await page.locator(`#tree li[data-path="${A}.combo"] > .row`).click();
-    await mrow("names[1]").click();
+    await mpt("mult");
+    await mrow("m").click();
     await page.locator("h1").hover();
     let m0 = await memView();
     const steps = [
@@ -1851,14 +1919,15 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
     await page.locator("h1").hover();
     let s0 = await storeView();
     const msteps = [
-      ["A", () => page.locator('#mmode button[data-mode="before"]').click()],
-      ["B", () => page.locator('#mmode button[data-mode="after"]').click()],
-      ["point A", () => page.locator('#mpick-before button[data-id="written"]')
+      ["Before", () => page.locator('#mmode button[data-mode="before"]')
         .click()],
-      ["point A again", () => page.locator(
-        '#mpick-before button[data-id="built"]').click()],
+      ["After", () => page.locator('#mmode button[data-mode="after"]')
+        .click()],
+      ["O2", () => mopt(2)],
+      ["a point", () => mpt("writes")],
+      ["O0", () => mopt(0)],
       ["Escape", async () => {
-        await mrow("names[2]").click();
+        await mrow("gained").click();
         await page.evaluate(() => document.activeElement?.blur());
         await page.keyboard.press("Escape");
       }],
@@ -1891,8 +1960,8 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
   hp.on("console", (m) => {
     if (m.type() === "error") problems.push(`hash console: ${m.text()}`);
   });
-  await hp.goto(PAGE + "#ex=motd&mode=before&sel=roster&a=written&" +
-    "b=replaced&mmode=before&msel=names[1]&insets=0");
+  await hp.goto(PAGE + "#ex=motd&mode=before&sel=roster&mopt=2&" +
+    "mpt=mult&mmode=before&msel=m&insets=0");
   await hp.waitForFunction(() => window.results?.done &&
     window.memResults?.done, null, { timeout: 60000 });
   const hs = await hp.evaluate(() => ({
@@ -1900,9 +1969,9 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
     mode: document.querySelector('#mode [aria-checked="true"]')?.dataset.mode,
     sel: document.querySelector("#tree .row.sel")?.parentElement.dataset.path,
     how: document.querySelector("#how li.final")?.dataset.side,
-    a: document.querySelector('#mpick-before [aria-checked="true"]')
-      ?.dataset.id,
-    b: document.querySelector('#mpick-after [aria-checked="true"]')
+    mopt: document.querySelector('#mlevel [aria-checked="true"]')
+      ?.dataset.opt,
+    mpt: document.querySelector('#mpoint [aria-checked="true"]')
       ?.dataset.id,
     mmode: document.querySelector('#mmode [aria-checked="true"]')
       ?.dataset.mode,
@@ -1912,8 +1981,8 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
     insets: document.querySelector("#insets").checked,
   }));
   if (!same(hs, { ex: "motd", mode: "before", sel: "roster",
-    how: "before", a: "written", b: "replaced", mmode: "before",
-    msel: "names[1]",
+    how: "before", mopt: "2", mpt: "mult", mmode: "before",
+    msel: "m",
     insets: false, hash: hs.hash }) || !hs.hash.includes("ex=motd") ||
     !hs.hash.includes("sel=roster")) {
     problems.push(`hash restore: ${JSON.stringify(hs)}`);
@@ -1948,16 +2017,16 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
   await idle(hp);
   await hp.goto("about:blank");
   // (an old mode=compare shows After)
-  await hp.goto(PAGE + "#ex=nope&mode=compare&sel=zzz&a=x&b=x");
+  await hp.goto(PAGE + "#ex=nope&mode=compare&sel=zzz&mopt=7&mpt=x");
   await hp.waitForFunction(() => window.results?.done &&
     window.memResults?.done, null, { timeout: 60000 });
   const stale = await hp.evaluate(() => [
     document.querySelector('#picker [aria-checked="true"]')?.dataset.id,
     document.querySelector('#mode [aria-checked="true"]')?.dataset.mode,
     document.querySelectorAll("#tree .row.sel").length,
-    document.querySelector('#mpick-before [aria-checked="true"]')
+    document.querySelector('#mpoint [aria-checked="true"]')
       ?.dataset.id]);
-  if (stale.join() !== "mid,after,1,built") {
+  if (stale.join() !== "mid,after,1,roll") {
     problems.push(`stale hash: ${stale}`);
   }
   await hp.close();
@@ -2007,12 +2076,13 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
   if (await pp.locator("#how .branch").count() !== 2) {
     problems.push("phone: no difference shown for motd");
   }
-  // names[1]: four words and the bytes, at A ("grace") and at B
-  // ("grace hopper")
-  await pp.locator('#mtree li[data-path="names[1]"] > .row').click();
+  // multiplied at -O0, both steps: before, the frame pointer (32
+  // bytes), points (8), m = 5 (8) and combo (4); after, the same but m
+  // = 3 over combo's word (8, combo's 4 among them)
+  await pp.locator('#mpoint button[data-id="mult"]').click();
   const mlitp = await pp.locator("#mpanel .b.hl:not(.cmp *)").count();
-  if (mlitp !== 4 * 32 + 5 + 4 * 32 + 12) {
-    problems.push(`phone: ${mlitp} bytes lit for names[1]`);
+  if (mlitp !== 32 + 8 + 8 + 4 + 32 + 8 + 8) {
+    problems.push(`phone: ${mlitp} bytes lit for multiplied`);
   }
   if (await pp.evaluate(() => document.documentElement.scrollWidth >
     document.documentElement.clientWidth)) {

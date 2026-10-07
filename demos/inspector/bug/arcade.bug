@@ -1,0 +1,72 @@
+name Arcade;
+
+define {
+  struct Player {
+    score: uint64;
+    combo: uint32;
+    bestCombo: uint32;
+    plays: uint32;
+    hitCount: uint32;
+    lastBlock: uint64;   // when they last played
+    name: string;        // the next slot
+  };
+
+  // a toy roll (not safe randomness): 2 in 3 is a hit. Equal to
+  // Solidity's keccak256(abi.encode(block.prevrandao, msg.sender))
+  function rolledHit() -> bool {
+    return (keccak256(block.prevrandao, msg.sender) as uint256) % 3 != 0;
+  };
+
+  function multiplied(points: uint64, combo: uint32) -> uint64 {
+    let m: uint64 = 5;
+    if (combo < 5) {
+      m = combo;
+    }
+    return points * m;
+  };
+}
+
+storage {
+  [0] roster: array<address>;  // everyone who has joined (a mapping can't list its keys)
+  [1] motd: string;            // the server's message of the day
+  [2] total: uint128;          // all players' points
+  [3] rounds: uint64;          // the number of hits
+  [4] players: mapping<address, Player>;
+}
+
+create {
+  motd = "season 2 starts friday, see you on the leaderboard";
+}
+
+code {
+  // setMotd(string)
+  if (msg.data[0:4] as bytes4 == 0x5fe59b9d) {
+    let len = msg.data[36:68] as bytes32 as uint256;
+    motd = msg.data[68:68 + len] as string;
+    return;
+  }
+  // join(string): pick a name, once (BUG has no revert, so no checks)
+  if (msg.data[0:4] as bytes4 == 0x6a786b07) {
+    let len = msg.data[36:68] as bytes32 as uint256;
+    players[msg.sender].name = msg.data[68:68 + len] as string;
+    roster.push(msg.sender);
+    return;
+  }
+  // play()
+  players[msg.sender].plays = players[msg.sender].plays + 1;
+  players[msg.sender].lastBlock = block.number as uint64;
+  let hit = rolledHit();
+  if (!hit) {
+    players[msg.sender].combo = 0;   // resetCombo, inlined by hand
+    return;
+  }
+  players[msg.sender].combo = players[msg.sender].combo + 1;
+  players[msg.sender].hitCount = players[msg.sender].hitCount + 1;
+  if (players[msg.sender].combo > players[msg.sender].bestCombo) {
+    players[msg.sender].bestCombo = players[msg.sender].combo;
+  }
+  let gained = multiplied(10, players[msg.sender].combo);
+  players[msg.sender].score = players[msg.sender].score + gained;
+  total = total + gained;
+  rounds = rounds + 1;
+}

@@ -316,51 +316,57 @@ contract Arcade {
   </section>
 
   <section id="memory" class="ahead" aria-labelledby="mem-h">
-    <h2 id="mem-h">Looking ahead: memory, with BUG
+    <h2 id="mem-h">Inside one play: locals in memory, with BUG
       <span class="tag preview">preview: bugc from ethdebug/format main,
       not yet released</span></h2>
-    <p class="lede">BUG is ethdebug's teaching language. Its compiler,
-    bugc, is ethdebug's reference compiler. On main (PRs #328 and #343), bugc
-    tells where each local variable is at each instruction, arrays and
-    strings in memory included. The program below replaces one name in
-    a list of three with a longer one. <code>names</code> is an array:
-    its word holds an address, and at that address are the length and
-    one word for each element. Each element word holds the address of a
-    string: its length, then its bytes. The replace writes
-    <code>"grace hopper"</code> at free memory and puts its address in
-    the word of <code>names[1]</code>. The bytes of
-    <code>"grace"</code> stay where they were, but no value points at
-    them any more. Pick two points in the run, A and B, and show memory at one
-    of them; cards beside the lit words show the other. As above, the
-    byte ranges come from ethdebug's reference library
-    (@ethdebug/pointers), which follows bugc's pointers against the
-    memory at each point. Only the decoding into numbers and text is this
+    <p class="lede">BUG is ethdebug's teaching language, and bugc is
+    ethdebug's reference compiler. Arcade has a BUG port, and here is
+    alice's third hit again, paused at three points inside
+    <code>play()</code>. At each point, bugc's debug data lists the
+    local variables in scope, and gives most of them a pointer: bugc
+    keeps them in memory. Compile it without optimization (O0) or with
+    it (O2): at O0, <code>multiplied</code> is a real call, and its
+    locals are in a frame whose address is in the word at 0x80; at O2
+    it is inlined, so its locals are at fixed offsets, with no frame.
+    A local that bugc lists with its type only has no location at that
+    point. As above, the byte ranges come from ethdebug's reference
+    library (@ethdebug/pointers), which follows bugc's pointers against
+    the memory at each point. Only the decoding into numbers is this
     page's own.</p>
     <p class="meta" id="mmeta"></p>
 
-    <div class="mpicks">
-      <div class="mpickrow"><span class="label">A</span>
-        <div id="mpick-before" class="picker mpick" data-side="before"
-          role="radiogroup" aria-label="Point A"></div></div>
-      <div class="mpickrow"><span class="label">B</span>
-        <div id="mpick-after" class="picker mpick" data-side="after"
-          role="radiogroup" aria-label="Point B"></div></div>
-      <div class="moderow"><span class="modelabel" id="mmode-l">Show</span>
+    <div class="mpicks" id="msection">
+      <div class="mpickrow"><span class="label">Compiled</span>
+        <div id="mlevel" class="picker mpick" role="radiogroup"
+          aria-label="Optimization level">
+          <button role="radio" data-opt="0" aria-checked="true">O0</button>
+          <button role="radio" data-opt="2"
+            aria-checked="false">O2</button></div></div>
+      <div class="mpickrow"><span class="label">Paused</span>
+        <div id="mpoint" class="picker mpick" role="radiogroup"
+          aria-label="Pause point">
+          <button role="radio" data-id="roll" aria-checked="true">After
+            the roll</button>
+          <button role="radio" data-id="mult" aria-checked="false">Inside
+            multiplied</button>
+          <button role="radio" data-id="writes"
+            aria-checked="false">Before the writes</button></div></div>
+      <div class="moderow" id="mmoderow" hidden><span class="modelabel"
+          id="mmode-l">Show</span>
         <div id="mmode" class="picker mode" role="radiogroup"
           aria-labelledby="mmode-l">
           <button role="radio" data-mode="before"
-            aria-checked="false">A</button>
+            aria-checked="false">Before</button>
           <button role="radio" data-mode="after"
-            aria-checked="true">B</button></div>
-        <span id="mviewing" class="viewing" hidden></span></div>
+            aria-checked="true">After</button></div></div>
+      <div class="moderow"><span id="mviewing" class="viewing"
+        hidden></span></div>
       <p id="mnote" class="summary"></p>
     </div>
 
     <div class="cols">
       <section aria-label="Values" class="storage">
-        <h2 class="label">Local variables
-          <span class="legend"><span class="chg">changed</span>
-          <span class="same">unchanged</span></span></h2>
+        <h2 class="label">Local variables</h2>
         <div id="mtree" class="tree">
         <div class="skel" aria-hidden="true"><i></i><i></i><i></i><i></i>
         <i></i><i></i><i></i><i></i></div></div>
@@ -373,36 +379,37 @@ contract Arcade {
 
       <section aria-labelledby="mwords-h" class="words">
         <h2 class="label" id="mwords-h">The words in memory
-          <span class="legend"><span class="bchg">changed byte</span>
-          <span class="bfree">no value shown</span></span></h2>
-        <p class="muted small intro">Memory at A or at B, one 32-byte
-        word to a line, by offset. Shown: the words a value lives in and
-        the words that changed between A and B; "⋯" marks words left
-        out. Point at a value, a byte or an address to light it up.
-        Beside each lit run, a card shows the same words at the other
-        point.</p>
+          <span class="legend"><span class="bfree">no value
+          shown</span></span></h2>
+        <p class="muted small intro">Memory at the paused step, one
+        32-byte word to a line, by offset. Shown: the words a local
+        lives in; "⋯" marks words left out. At the last point, alice's
+        record slot in storage comes last. Point at a value, a byte or
+        an address to light it up.</p>
         <div class="dump"><div id="mpanel" class="panel"></div></div>
         <div id="mdetails" class="details" aria-live="polite"></div>
       </section>
 
       <section aria-label="BUG source" class="source">
         <h2 class="label">BUG source
-          <span class="legend"><mark class="ma">A</mark>
-          <mark class="mb">B</mark></span></h2>
+          <span class="legend" id="msrclegend"><mark class="mb">paused
+          here</mark></span></h2>
         <pre id="msrc" class="src"></pre>
       </section>
     </div>
 
     <ul class="mknown small muted">
-      <li>"not listed": bugc's variables context at that point does not
-      list the variable.</li>
-      <li>Memory is not freed: after the replace, the old string's
-      bytes are still in memory, but no value owns them, so they are
-      dim.</li>
-      <li>bugc cannot yet build structs or fixed-size arrays in memory,
-      so its debug data gives their types only.</li>
-      <li><code>size</code> is in storage, not memory; this section
-      shows memory only.</li>
+      <li>"no location at this point": bugc lists the local with its
+      type and no pointer. This happens with optimization (a value the
+      optimizer folded away) and without it (at O0, <code>hit</code>
+      after its <code>if</code>).</li>
+      <li>Inside <code>multiplied</code>, <code>m = combo</code> moves
+      <code>m</code>: after it, bugc points <code>m</code> at a word
+      that holds <code>combo</code>'s bytes too.</li>
+      <li>Alice's record slot is the page's own: bugc's pointer for
+      <code>players</code> gives only its base slot, so the slot
+      (keccak256 of the key and 4) and the packed members follow BUG's
+      rules, which are Solidity's.</li>
     </ul>
   </section>
 </main>
@@ -423,7 +430,7 @@ contract Arcade {
     "fixtures/arcade-motd.json": 13316,
     "fixtures/arcade-vyper.json": 19541,
     "fixtures/index.json": 1594,
-    "fixtures/memory.json": 8154
+    "fixtures/memory.json": 34785
   }/* end sizes */;
   const bar = document.getElementById("loadbar");
   const files = new Map(); // url -> { got, size, label, shown, promise }
