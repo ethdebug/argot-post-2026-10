@@ -1,6 +1,7 @@
 // A dump of one location at one timeline point (vanilla panel.js
 // renderPanel, wordHtml, paint): one word a row, in address order, each
 // byte linked to the value that owns it
+import { useLayoutEffect, useRef } from "react";
 import type {
   KeyboardEvent, MouseEvent, PointerEvent, ReactElement,
 } from "react";
@@ -143,7 +144,28 @@ export function Dump(p: { id: ViewId; location: Location; data: DataRef;
     }
   };
 
+  // The dump's font: the largest at which its row fits the box (CSS,
+  // .views); a row's width in em, in this font, measured once for each
+  // layout (32 bytes a line, or 16 on a narrow box) (vanilla fitDumps)
+  const me = useRef<HTMLDivElement>(null);
   const rows = l?.rows ?? [];
+  const shownHere = shown === side;
+  useLayoutEffect(() => {
+    const fit = () => {
+      const d = me.current?.closest<HTMLElement>(".dump");
+      const row = me.current?.querySelector(".rows > .wrow");
+      if (!d || !row || !shownHere || !d.clientWidth) return;
+      const key = d.clientWidth < 560 ? "--k16" : "--k32";
+      if (d.style.getPropertyValue(key)) return;
+      const fs = parseFloat(getComputedStyle(row).fontSize);
+      const w = row.querySelector(".word")!.getBoundingClientRect().right -
+        row.getBoundingClientRect().left;
+      if (w > 0) d.style.setProperty(key, (w / fs).toFixed(4));
+    };
+    fit();
+    addEventListener("resize", fit);
+    return () => removeEventListener("resize", fit);
+  }, [rows.length, shownHere]);
   const lines: ReactElement[] = [];
   rows.forEach((r, k) => {
     const n = BigInt(r.address);
@@ -177,7 +199,7 @@ export function Dump(p: { id: ViewId; location: Location; data: DataRef;
   lines.push(<div key="end" className="gap" aria-hidden="true">
     <span>⋯</span></div>);
 
-  return <div className="view" data-side={side} role="group"
+  return <div ref={me} className="view" data-side={side} role="group"
     aria-label={`Storage ${when}`} hidden={shown !== side}
     onPointerOver={point} onFocus={point}
     onPointerLeave={() => setLink((s) => s.hover ? { ...s, hover: null } : s)}
