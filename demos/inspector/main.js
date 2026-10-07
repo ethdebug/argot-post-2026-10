@@ -522,13 +522,19 @@ function replaySteps(path, side, focus) {
   const isRec = insts.some((i) => keyOf(i));
   const recs = isRec && insts.length > 1
     ? insts.map((i) => ({ path: i, who: who(i) })) : null;
-  const f = insts.includes(focus) ? focus : insts.includes(entryPath(node) ??
-    "") ? entryPath(node) : insts[0];
+  // the focus: one instance at full strength, the others echoing it;
+  // or "*", all of them at full strength (by default for a composite
+  // with several; one entry or a value in it: that entry)
+  const own = insts.includes(entryPath(node) ?? "") ? entryPath(node)
+    : insts.includes(node.path) ? node.path : null;
+  const every = focus === "*" || (focus === undefined && !own &&
+    insts.length > 1);
+  const f = insts.includes(focus) ? focus : own ?? insts[0];
 
   const out = [];
   const step = (x) => {
     const st = { constructs: [], parts: [], rows: [], gutters: [], band: [],
-      var: variable, recs, focus: f, ...x };
+      var: variable, recs, focus: every ? "*" : f, ...x };
     out.push(st);
     return st;
   };
@@ -855,8 +861,8 @@ function replaySteps(path, side, focus) {
       ruler: items[0]?.region.slot,
       parts: all.map((y) => ({ regions: [y.region], rows: [y.leaf.path],
         colors: new Map([[y.leaf.path, kc(y.leaf.path)]]),
-        dim: y.x.inst !== f })),
-      rows: mine.map((y) => y.leaf.path) });
+        dim: !every && y.x.inst !== f })),
+      rows: (every ? all : mine).map((y) => y.leaf.path) });
   }
 
   // the `if` steps, now that what they took in is known
@@ -1342,9 +1348,9 @@ function renderBox() {
   const hadPick = document.activeElement?.closest?.("#dpick")
     ? document.activeElement.dataset.focus : null;
   $("dpick").innerHTML = rec ? `<span class="plab">Focus</span>${
-    rec.recs.map((r) => `<button type="button" class="btn" data-focus="${
-      esc(r.path)}" aria-pressed="${r.path === replay.focus}">${esc(r.who)
-    }</button>`).join("")}` : "";
+    [{ path: "*", who: "all" }, ...rec.recs].map((r) => `<button ` +
+      `type="button" class="btn" data-focus="${esc(r.path)}" aria-pressed="${
+        r.path === replay.focus}">${esc(r.who)}</button>`).join("")}` : "";
   if (hadPick) {
     $("dpick").querySelector(`[data-focus="${CSS.escape(hadPick)}"]`)
       ?.focus({ preventScroll: true });
