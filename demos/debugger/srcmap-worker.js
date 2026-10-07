@@ -94,7 +94,13 @@ async function load(report, key) {
   const pcs = instructionPcs(c["bin-runtime"]);
   const map = decode(c["srcmap-runtime"]);
   const entryAt = new Map(pcs.map((pc, k) => [pc, map[k]]));
-  const fns = functionsOf(out.sources[NAME].AST);
+  // Source map and AST ranges are in bytes; the page draws string
+  // positions (the source has non-ASCII text in its comments).
+  const bytes = new TextEncoder().encode(src);
+  const dec = new TextDecoder();
+  const ch = (b) => dec.decode(bytes.subarray(0, b)).length;
+  const fns = functionsOf(out.sources[NAME].AST).map((f) =>
+    ({ name: f.name, s: ch(f.s), l: ch(f.s + f.l) - ch(f.s) }));
   // Steps in the contract itself (it makes no calls; depth 1).
   const logs = JSON.parse(traceText).structLogs.filter((l) => l.depth === 1);
   const n = logs.length;
@@ -112,10 +118,12 @@ async function load(report, key) {
     }
     return best?.name ?? null;
   };
-  // Each step's range: [s, l], or null (no source, or the whole contract).
+  // Each step's range: [start, length] in string positions, or null (no
+  // source, or the whole contract).
   const rangeAt = (i) => {
     const [s, l, f] = entryAt.get(logs[i].pc) ?? [-1, -1, -1, "-"];
-    return s < 0 || f !== 0 || l >= 0.8 * src.length ? null : [s, l];
+    return s < 0 || f !== 0 || l >= 0.8 * bytes.length ? null
+      : [ch(s), ch(s + l) - ch(s)];
   };
   // The call stack, as events: at step `at`, a frame opens or closes.
   const frames = [];

@@ -11,6 +11,18 @@
   },
   {
     "type": "function",
+    "name": "join",
+    "inputs": [
+      {
+        "name": "name",
+        "type": "string"
+      }
+    ],
+    "outputs": [],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
     "name": "play",
     "inputs": [],
     "outputs": [],

@@ -1,6 +1,15 @@
 {
-  "about": "The calls every tab gets (make-arcade-txs.mjs). The deployer is anvil account 0; alice is account 1. deploy: the constructor's arguments (BUG sets motd in its create block). setup: sent first, in order. tx: the traced transaction. Each play must roll the outcome given in hit; the script replays it from a snapshot until it does.",
+  "about": "The calls every tab gets (make-arcade-txs.mjs). Accounts: anvil's, by index; the deployer is 0, alice 1, bob 2, carol 3. deploy: the constructor's arguments (BUG sets motd in its create block). setup: sent first, in order. tx: the traced transaction, alice's combo-3 hit. A play with hit must roll that outcome; the script replays it from a snapshot until it does.",
   "deploy": { "sig": "constructor(string)", "args": ["gl hf"] },
-  "setup": [{ "from": 1, "call": "play()", "args": [], "hit": true }],
+  "setup": [
+    { "from": 1, "call": "join(string)", "args": ["alice"] },
+    { "from": 2, "call": "join(string)", "args": ["bob"] },
+    { "from": 3, "call": "join(string)",
+      "args": ["carol, the unstoppable combo queen"] },
+    { "from": 1, "call": "play()", "args": [], "hit": true },
+    { "from": 1, "call": "play()", "args": [], "hit": true },
+    { "from": 2, "call": "play()", "args": [], "hit": true },
+    { "from": 3, "call": "play()", "args": [], "hit": false }
+  ],
   "tx": { "from": 1, "call": "play()", "args": [], "hit": true }
 }

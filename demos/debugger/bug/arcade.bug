@@ -4,7 +4,11 @@ define {
   struct Player {
     score: uint64;
     combo: uint32;
-    active: bool;
+    bestCombo: uint32;
+    plays: uint32;
+    hitCount: uint32;
+    lastBlock: uint64;   // when they last played
+    name: string;        // the next slot
   };
 
   // a toy roll (not safe randomness): 2 in 3 is a hit.
@@ -25,10 +29,11 @@ define {
 
 storage {
   [0] players: mapping<address, Player>;
-  [1] hits: array<uint256>;    // every hit's points, in order
+  [1] roster: array<address>;  // everyone who has joined (a mapping can't list its keys)
   [2] motd: string;            // the server's message of the day
   [3] total: uint128;          // all players' points
   [4] rounds: uint64;          // the number of hits
+  [5] joined: uint256;         // roster length (no push, no storage .length)
 }
 
 create {
@@ -36,22 +41,34 @@ create {
 }
 
 code {
-  // setMotd(string): the only other entrypoint
+  // setMotd(string)
   if (msg.data[0:4] as bytes4 == 0x5fe59b9d) {
     let len = msg.data[36:68] as bytes32 as uint256;
     motd = msg.data[68:68 + len] as string;
     return;
   }
+  // join(string): pick a name, once (BUG has no revert, so no checks)
+  if (msg.data[0:4] as bytes4 == 0x6a786b07) {
+    let len = msg.data[36:68] as bytes32 as uint256;
+    players[msg.sender].name = msg.data[68:68 + len] as string;
+    roster[joined] = msg.sender;
+    joined = joined + 1;
+    return;
+  }
   // play()
-  players[msg.sender].active = true;
+  players[msg.sender].plays = players[msg.sender].plays + 1;
+  players[msg.sender].lastBlock = block.number as uint64;
   if (rolledHit() == false) {   // bugc compiles `!` as bitwise NOT
     players[msg.sender].combo = 0;   // resetCombo, inlined by hand
     return;
   }
   players[msg.sender].combo = players[msg.sender].combo + 1;
+  players[msg.sender].hitCount = players[msg.sender].hitCount + 1;
+  if (players[msg.sender].combo > players[msg.sender].bestCombo) {
+    players[msg.sender].bestCombo = players[msg.sender].combo;
+  }
   let gained = multiplied(10, players[msg.sender].combo);
   players[msg.sender].score = players[msg.sender].score + gained;
-  hits[rounds] = gained;
   total = total + gained;
   rounds = rounds + 1;
 }
