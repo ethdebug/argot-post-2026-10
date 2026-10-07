@@ -2034,6 +2034,39 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
   }
   await page.locator(`#tree li[data-path="${A}"] > .row`).click();
   await page.mouse.move(1, 1);
+  // with players selected, each entry is one block in its colour: its
+  // key line and its fields, one background, rounded at its ends only,
+  // no gap between its rows
+  {
+    await page.evaluate(() => window.select("mid", { sel: "players" }));
+    await page.mouse.move(1, 1);
+    const bl = await page.evaluate((ps) => ps.map((p) => {
+      const li = document.querySelector(`#tree li[data-path="${p}"]`);
+      const k = [...li.classList].find((c) => /^pk\d$/.test(c));
+      const rows = [...li.querySelectorAll(".row")];
+      const bg = (e) => getComputedStyle(e).backgroundColor;
+      return li.classList.contains("blk") && !!k &&
+        rows.every((r) => /rgba\(0, 0, 0, 0\)|transparent/.test(bg(r)) &&
+          parseFloat(getComputedStyle(r).borderTopLeftRadius) === 0) &&
+        parseFloat(getComputedStyle(li).borderTopLeftRadius) > 0 ? k : null;
+    }), [A, B, C]);
+    if (bl.some((x) => !x) || new Set(bl).size !== 3) {
+      problems.push(`entry blocks: ${bl}`);
+    }
+    // players' own slot, 3, which holds nothing: its gutter tinted, its
+    // label shown, its bytes plain
+    const s3 = await page.evaluate(() => {
+      const r = document.querySelector('#panel .view:not([hidden]) ' +
+        `.wrow[data-slot="0x${"0".repeat(63)}3"]`);
+      return { grp: r.querySelector(".addr").classList.contains("grp"),
+        lit: r.querySelectorAll(".b.hl").length,
+        pop: r.querySelector(".pop")?.textContent };
+    });
+    if (!s3.grp || s3.lit || s3.pop !== "slot 3") {
+      problems.push(`players' slot 3: ${JSON.stringify(s3)}`);
+    }
+    await page.evaluate((x) => window.select("mid", { sel: x }), A);
+  }
   // with alice's entry selected, pointing at one member (its row, or a
   // byte of it, or the keyboard) mutes the other members, both sides
   const muted = () => page.evaluate(() => ({
@@ -2113,7 +2146,9 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
     "keccak(0x3c44…93bc, slot 3), 2 slots",
     "keccak(0x7099…79c8, slot 3), 2 slots",
     "keccak(0x90f7…b906, slot 3), 2 slots",
-    "keccak(keccak(0x90f7…b906, slot 3) + 1), 2 slots"].join("|")) {
+    "keccak(keccak(0x90f7…b906, slot 3) + 1), 2 slots",
+    // (and players' own slot, by its gutter)
+    "slot 3"].join("|")) {
     problems.push(`popover room: ${JSON.stringify(room)}`);
   }
   await page.keyboard.press("Escape");
