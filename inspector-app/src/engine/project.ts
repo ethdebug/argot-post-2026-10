@@ -57,7 +57,9 @@ export async function load(io: Io, manifest = "fixtures/index.json"):
     timeline: async (id) => (await fixture(id)).timeline,
     // a fixture's contract: from that fixture
     async compilation(id) {
-      if (id === VY_RULE) return vyperRule((await fixture("arcade-vyper")).json);
+      if (id === VY_RULE) {
+        return vyperRule((await fixture("arcade-vyper")).json);
+      }
       const f = fixtureOf(id);
       if (!f) throw new Error(`no compilation ${id}`);
       return (await fixture(f)).compilation;

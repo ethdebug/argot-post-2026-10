@@ -106,7 +106,10 @@ export function Lens(props: { spec: LensSpec; project: Project;
   // the first bookmark, with its defaults (unless the page shows one)
   useEffect(() => {
     if (onReady) onReady(value);
-    else if (value.store.get().bookmark) value.show(value.store.get().bookmark!);
+    else {
+      const id = value.store.get().bookmark;
+      if (id) void value.show(id);
+    }
   }, [value, onReady]);
   const kinds: Kinds = { ...viewKinds, ...props.kinds };
   const areas: Record<string, ReactNode[]> = {};
