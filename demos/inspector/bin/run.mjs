@@ -1723,6 +1723,30 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
     }
     await page.evaluate((x) => window.select("mid", { sel: x }), `${B}.plays`);
   }
+  // players' own slot, 3, which holds none of its data, links to
+  // players both ways: hovering it lights the players row, a click
+  // selects players; hovering the players row tints slot 3's gutter
+  {
+    await page.evaluate(() => window.select("mid", { sel: null }));
+    const r3 = `#panel .view:not([hidden]) .wrow[data-slot="0x${
+      "0".repeat(63)}3"]`;
+    const prow = () => page.evaluate(() => document.querySelector(
+      '#tree li[data-path="players"] > .row').classList.contains("hl"));
+    await page.locator(`${r3} .b[data-i="10"]`).hover();
+    const viaByte = await prow();
+    await page.locator(`${r3} > .addr`).hover();
+    const viaAddr = await prow();
+    await row("players").hover();
+    const gut = await page.locator(`${r3}.gut`).count();
+    await page.locator(`${r3} .b[data-i="10"]`).click();
+    const sel = (await selected()).join();
+    if (!viaByte || !viaAddr || !gut || sel !== "players") {
+      problems.push(`slot 3 <-> players: ${JSON.stringify({ viaByte,
+        viaAddr, gut, sel })}`);
+    }
+    await page.evaluate((x) => window.select("mid", { sel: x }), `${B}.plays`);
+    await page.mouse.move(1, 1);
+  }
   // while it replays, pointing elsewhere changes nothing
   await page.locator('#details button[data-r="start"]').click();
   await page.mouse.move(1, 1);

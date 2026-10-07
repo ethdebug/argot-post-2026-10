@@ -548,6 +548,16 @@ export function forRow(m, path) {
     colors, gutters };
 }
 
+// The variable a slot links to when the slot is the variable's own but
+// holds none of its data (a mapping's slot): its bytes and its address
+// stand for that variable, as data bytes stand for their values
+export function baseOf(m, s) {
+  const v = m.bases?.get(BigInt(s))?.[0];
+  if (!v) return null;
+  const cov = m.cover.after.get(s) ?? m.cover.before.get(s);
+  return cov?.some((ids) => ids.length) ? null : v;
+}
+
 // The colours of a composite's immediate children: each child (a
 // mapping's entry, an array's element, a struct's member) gets one of
 // the child colours (pk1 …, in tree order, cycling); everything under a

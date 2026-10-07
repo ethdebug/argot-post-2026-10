@@ -6,7 +6,8 @@ import {
   storageState, mappingKeys, decodeStorage, typeName, commit, baseSlot,
 } from "./decode.js";
 import {
-  buildPanel, renderPanel, forRow, forBytes, forRegion, forSlot, paint,
+  buildPanel, renderPanel, forRow, baseOf, forBytes, forRegion, forSlot,
+  paint,
   shortKeys, steady, initialHash, setHash, locked, keySection, forStep,
   PICKS,
   short,
@@ -1535,6 +1536,9 @@ function target(el) {
   // the tray under the dumps belongs to what is lit now
   if (el.closest("#panel .tray")) return hover;
   const m = current.panel;
+  // (a variable's own slot that holds none of its data: that variable)
+  const base = baseRow(el);
+  if (base) return forRow(m, base);
   const cell = el.closest("#panel .b[data-g]");
   if (cell) return forBytes(m, cell);
   const addr = el.closest("#panel .wrow[data-slot] .addr");
@@ -1576,8 +1580,22 @@ document.addEventListener("focusout", (e) => {
   }
 });
 
+// The variable whose own slot (holding none of its data) a byte or an
+// address of the dump is in, if any
+function baseRow(el) {
+  const at = el.closest?.("#panel .wrow[data-slot] > .addr, " +
+    "#panel .wrow[data-slot] .b[data-g]");
+  return at ? baseOf(current.panel, at.closest(".wrow").dataset.slot) : null;
+}
+
 // What a click (or Enter) on an element does in the storage demo
 function act(el) {
+  // a variable's own slot selects the variable, or clears it
+  const base = baseRow(el);
+  if (base) {
+    hover = null;
+    return choose(base === chosen ? null : base), true;
+  }
   // a row selects its variable, or, when it is the selected one, clears
   const row = el.closest("#tree li[data-path] > .row");
   if (row) {
@@ -1669,7 +1687,8 @@ document.addEventListener("keydown", (e) => {
     e.preventDefault();
     return flip(h);
   }
-  if (e.target.closest?.("#tree .row, #panel .b[tabindex]")) {
+  if (e.target.closest?.("#tree .row, #panel .b[tabindex]") ||
+    baseRow(e.target)) {
     e.preventDefault();
     act(e.target);
   }
