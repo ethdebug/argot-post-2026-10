@@ -1416,12 +1416,47 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
   if (new Set(Object.values(cl.tree)).size !== 7 || !sameColours(cl)) {
     problems.push(`alice's members: ${JSON.stringify(cl)}`);
   }
+  // with alice's entry selected, pointing at one member (its row, or a
+  // byte of it, or the keyboard) mutes the other members, both sides
+  const muted = () => page.evaluate(() => ({
+    rows: [...document.querySelectorAll("#tree .row.hl.muted")].map((r) =>
+      r.parentElement.dataset.path),
+    vivid: [...document.querySelectorAll("#tree .row.hl:not(.muted)")]
+      .map((r) => r.parentElement.dataset.path),
+    bytes: [...new Set([...document.querySelectorAll(
+      "#panel .view:not([hidden]) .b.hl:not(.muted)")].map((c) =>
+      c.dataset.owners))],
+    mutedBytes: document.querySelectorAll(
+      "#panel .view:not([hidden]) .b.hl.muted").length }));
+  for (const [how, act] of [
+    ["row", () => page.locator(`#tree li[data-path="${A}.combo"] > .row`)
+      .hover()],
+    ["byte", () => page.locator(`#panel .view:not([hidden]) ` +
+      `.b[data-owners="${A}.combo"][data-i="22"]`).hover()],
+    ["focus", async () => {
+      await page.mouse.move(1, 1);
+      await page.locator(`#tree li[data-path="${A}.combo"] > .row`).focus();
+    }]]) {
+    await act();
+    const mu = await muted();
+    if (mu.vivid.join() !== `${A}.combo` || mu.rows.length !== 6 ||
+      mu.bytes.join() !== `${A}.combo` || !mu.mutedBytes) {
+      problems.push(`mute (${how}): ${JSON.stringify(mu)}`);
+    }
+  }
+  await page.evaluate(() => document.activeElement?.blur());
+  await page.mouse.move(1, 1);
+  if ((await muted()).rows.length) problems.push("mute: not restored");
   await page.locator(`#tree li[data-path="${A}.combo"] > .row`).click();
   await page.mouse.move(1, 1);
   cl = await colours();
   if (Object.values(cl.tree).join() !== "pk0") {
     problems.push(`a leaf: ${JSON.stringify(cl)}`);
   }
+  // a leaf selected: pointing at its bytes mutes nothing
+  await page.locator(`#panel .view:not([hidden]) ` +
+    `.b[data-owners="${A}.combo"][data-i="22"]`).hover();
+  if ((await muted()).mutedBytes) problems.push("mute: a leaf muted");
   await page.keyboard.press("Escape");
   if (/\((alice|bob|carol)\)/.test(await page.locator("#tree").innerText())) {
     problems.push("a name label after a key");

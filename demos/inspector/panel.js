@@ -782,7 +782,12 @@ export function steady(el, change) {
 export function locked(h, sel) {
   if (!sel || !h || h.step) return h;
   const mine = h.rows.size && [...h.rows].every((r) => sel.rows.has(r));
-  return mine ? { ...sel, label: h.label, info: h.info } : null;
+  if (!mine) return null;
+  // a selected composite: the one child pointed at (all its rows in one
+  // colour) stays vivid, and the other children mute
+  const ks = new Set([...h.rows].map((r) => sel.colors?.get(r)));
+  const focus = sel.colors && ks.size === 1 ? [...ks][0] : undefined;
+  return { ...sel, label: h.label, info: h.info, focus };
 }
 
 // A lit byte's or row's colour, from a composite's children (pk1 …):
@@ -807,9 +812,12 @@ export function paint(root, tree, h, opts = {}) {
       const hl = !!h && h.bytes.has(key(side, s, i));
       const isAt = !!at && i >= at.from && i <= at.to;
       c.classList.toggle("hl", hl);
-      pick(c, hl && h.colors && (c.dataset.owners ?? "").split("|")
+      const k = hl && h.colors && (c.dataset.owners ?? "").split("|")
         .map((id) => h.colors.get(id.replace(/#length$/, "")))
-        .find((k) => k !== undefined));
+        .find((x) => x !== undefined);
+      pick(c, k);
+      c.classList.toggle("muted", hl && h.focus !== undefined &&
+        k !== h.focus);
       c.classList.toggle("at", isAt);
       on ||= hl || isAt;
     }
@@ -833,7 +841,10 @@ export function paint(root, tree, h, opts = {}) {
   for (const r of tree.querySelectorAll("li[data-path]")) {
     const on = !!h && h.rows.has(r.dataset.path);
     r.firstElementChild.classList.toggle("hl", on);
-    pick(r.firstElementChild, on && h.colors?.get(r.dataset.path));
+    const k = on && h.colors?.get(r.dataset.path);
+    pick(r.firstElementChild, k);
+    r.firstElementChild.classList.toggle("muted", on &&
+      h.focus !== undefined && k !== h.focus);
   }
   const views = [...root.querySelectorAll(".view")].filter((v) => !v.hidden);
   // the other state's picture beside each lit run, in every mode
