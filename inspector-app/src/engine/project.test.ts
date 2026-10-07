@@ -62,7 +62,8 @@ it("each fixture's contract is its own compilation, whatever the fetch "
     .map((v) => v.identifier)).toEqual(["players"]);
   const d = await decode(p, p.decodings["sol:arcade-mid"],
     "arcade-mid:after");
-  expect(d.tree.map((n) => n.path)).toEqual(["total", "rounds"]);
+  expect(d.tree.map((n) => n.path))
+    .toEqual(["roster", "motd", "total", "rounds", "players"]);
   expect((await p.compilation("sol@arcade-mid")).stateVariables
     .map((v) => v.identifier))
     .toEqual(["roster", "motd", "total", "rounds", "players"]);

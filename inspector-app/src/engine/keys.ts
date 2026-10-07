@@ -1,0 +1,45 @@
+// Mapping keys (vanilla decode.js mappingKeys; main.js decode keysFor):
+// from the KECCAK256 inputs a trace saw (a mapping hashes key ++ slot),
+// or from a list in the same storage (roster lists players' keys)
+import type {
+  Decoding, Hex, InputNode, TxFacts, ValueNode,
+} from "./types";
+
+const word = (h: string): Hex =>
+  `0x${h.replace(/^0x/, "").toLowerCase().padStart(64, "0")}`;
+
+// The keys hashed with a base slot (any base, when none is given), in
+// the order first seen
+export function mappingKeys(tx: TxFacts, base?: Hex): Hex[] {
+  const out: Hex[] = [];
+  for (const words of tx.keccakInputs) {
+    if (words.length < 2) continue;
+    if (base && word(words[words.length - 1]) !== word(base)) continue;
+    const key = `0x${words.slice(0, -1).map((w) => w.slice(2)).join("")}`;
+    if (!out.includes(key as Hex)) out.push(key as Hex);
+  }
+  return out;
+}
+
+const find = (tree: ValueNode[], path: string): ValueNode | undefined => {
+  for (const n of tree) {
+    if (n.path === path) return n;
+    const c = n.children && find(n.children, path);
+    if (c) return c;
+  }
+};
+
+// The input `key` of a decoding's mappings: the items of its list (in
+// the tree decoded so far), or the trace's keys
+export function keysFor(d: Decoding, tree: ValueNode[], tx?: TxFacts,
+  base?: Hex): InputNode {
+  if (d.keys.from === "list") {
+    const list = d.keys.path;
+    const items = find(tree, list)?.children ?? [];
+    return { id: "key", name: "key", provenance: { list },
+      values: items.map((n) => ({ value: word(n.value!.text),
+        source: n.path })) };
+  }
+  return { id: "key", name: "key", provenance: "trace",
+    values: (tx ? mappingKeys(tx, base) : []).map((value) => ({ value })) };
+}

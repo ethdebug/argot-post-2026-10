@@ -12,6 +12,7 @@ afterEach(cleanup);
 const shape = (root: Element) => [...root.querySelectorAll("*")].map((e) =>
   `${e.tagName}#${e.id}`);
 const slow = { timeout: 5000 };
+const slot2 = "0x" + "2".padStart(64, "0");
 
 it("hovering a byte changes classes only, not the markup", async () => {
   const project = await testProject();
@@ -33,13 +34,14 @@ it("one word per row, its owners' bytes marked", async () => {
     project={project} />);
   // (the layout, then the words: the last byte reads 28)
   await waitFor(() => expect(container.querySelector(
-    '.view[data-side="after"] .rows .b[data-i="31"]')?.textContent)
+    `.view[data-side="after"] .wrow[data-slot="${slot2}"] .b[data-i="31"]`)
+    ?.textContent)
     .toBe("28"), slow);
   const view = container.querySelector('.view[data-side="after"]')!;
   expect(view.hasAttribute("hidden")).toBe(false);
   expect(container.querySelector('.view[data-side="before"]')!
     .hasAttribute("hidden")).toBe(true);
-  const row = view.querySelector(".rows .wrow")!;
+  const row = view.querySelector(`.rows .wrow[data-slot="${slot2}"]`)!;
   expect(row.getAttribute("data-slot")).toBe("0x" + "2".padStart(64, "0"));
   expect(row.getAttribute("data-name")).toBe("slot 2");
   const cells = [...row.querySelectorAll(".b")];

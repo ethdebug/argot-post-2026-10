@@ -5,7 +5,8 @@ import type {
   Compilation, CompilationId, Decoding, DecodingId, Timeline, TimelineId,
 } from "./types";
 import {
-  bookmarkOf, fixtureOf, fromFixture, solOf, type LegacyScene,
+  bookmarkOf, fixtureOf, fromFixture, keySourceOf, solOf,
+  type LegacyScene,
   type ProjectBookmark,
 } from "./fixtures/legacy";
 
@@ -26,7 +27,7 @@ export async function load(io: Io, manifest = "fixtures/index.json"):
   for (const b of bookmarks) {
     decodings[b.decoding] = { id: b.decoding, compilation: solOf(b.timeline),
       timeline: b.timeline, variables: "state",
-      keys: { from: "list", path: "roster" } };
+      keys: keySourceOf(b.timeline) };
   }
   const fetched = new Map<TimelineId,
     Promise<{ compilation: Compilation; timeline: Timeline }>>();
