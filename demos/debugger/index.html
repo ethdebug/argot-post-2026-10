@@ -389,20 +389,17 @@ decoding of values is a stand-in, for the format's planned
 interpretation layer.</p>
 <p><code>Arcade</code> in BUG (<a href="bug/arcade.bug">arcade.bug</a>),
 statement for statement as in Arcade.sol where BUG allows. It differs
-in a few ways: BUG has one entry point, so <code>join</code> and
+in three ways: BUG has one entry point, so <code>join</code> and
 <code>setMotd</code> are dispatched by hand; BUG has no
 <code>require</code>, so <code>join</code> and <code>play</code> check
-nothing; the roll mixes <code>block.number</code> and the sender,
-unhashed; the reset is written inline; and BUG has no
-<code>push</code>, so <code>join</code> writes
-<code>roster[joined]</code> and counts in <code>joined</code>, while
-<code>roster</code>'s length stays 0. bugc does not store strings yet,
-so <code>motd</code> and each player's <code>name</code> hold a memory
-address, not text. Look for: at -O0, the calls to
-<code>rolledHit</code> and <code>multiplied(points: 10, combo: 3)</code>
-in the call stack; at -O2, the inlined <code>multiplied</code>, with its
-local <code>m</code> going from 5 to 3, then <code>gained</code> (30).
-The tab has the same program at two optimization levels.</p>
+nothing; and the reset is written inline. The roll is the same as in
+Solidity. Look for: <code>roster</code> (the three players),
+<code>motd</code> (a 50-byte string), <code>total</code> going from 40
+to 70; at -O0, the calls to <code>rolledHit</code> and
+<code>multiplied(points: 10, combo: 3)</code> in the call stack; at
+-O2, the inlined <code>multiplied</code>, with its local <code>m</code>
+going from 5 to 3, then <code>gained</code> (30). The tab has the same
+program at two optimization levels.</p>
 <p class="muted">At both levels, bugc gives a local variable a pointer
 where its value is in memory. Where a local has no location (its value
 is not stored yet, or the optimizer folded it), bugc lists it by type
@@ -415,7 +412,9 @@ listed from the step after the inlined call starts to the step of the
 instruction that returns from it; the next step lists the caller's
 variables again. In the inlined body, the storage variables stay
 listed. The pointer for <code>players</code>, a mapping, names only its
-base slot, so the page shows no entries.</p>
+base slot, so the page shows no entries. bugc's pointer for a string
+names only its slot; the page reads the text by Solidity's string rule
+(part of the decoding stand-in).</p>
 </div>
 
 <div class="about" data-about="old" hidden>

@@ -609,25 +609,31 @@ const layoutFails = [];
 }
 // What the transaction gives each variable, checked by hand against the
 // sources (sol/Arcade.sol, bug/arcade.bug) and the story
-// (arcade-story.json): three joins; alice hits twice (+10, +20), bob
-// hits (+10), carol misses; then the traced call, alice's third play,
-// a hit. Before it: alice's combo 2; total 40, rounds 3, three players
-// joined. In it: combo = 2 + 1 = 3; multiplied(10, 3): m = 5, then 3
-// (3 < 5), so gained = 10 * 3 = 30; then total = 40 + 30 = 70, rounds =
-// 4. BUG: `joined` counts the roster (3); the roster's length slot
-// stays 0 (no push), so roster reads as length 0; motd holds a memory
-// address (160, 0xa0), not its text (a known bugc gap). players'
-// pointer names only its base slot. <no location>: a local listed by
-// type only.
+// (arcade-story.json): deploy with a 50-byte motd; alice, bob and carol
+// join (accounts 1, 2, 3); alice hits twice (+10, +20), bob hits (+10),
+// carol misses; then the traced call, alice's third play, a hit. Before
+// it: alice's combo 2; total 40, rounds 3. In it: hit = true; combo = 2
+// + 1 = 3; multiplied(10, 3): m = 5, then 3 (3 < 5), so gained = 10 * 3
+// = 30; then total = 40 + 30 = 70, rounds = 4. roster: the three
+// players, in the order they joined. players' pointer names only its
+// base slot. <no location>: a local listed by type only.
 const NONE = "<no location>";
+const MOTD = "season 2 starts friday, see you on the leaderboard";
+const ROSTER = ["0x70997970c51812dc3a010c7d01b50e0d17dc79c8",
+  "0x3c44cdddb6a900fa2b585dd299e03d12fa4293bc",
+  "0x90f79bf6eb2c4f870365e785982e1f101e93b906"];
 const EXPECT = {
   values: { points: ["10"], combo: ["3"], m: ["5", "3"], gained: ["30"],
-    total: ["40", "70"], rounds: ["3", "4"], joined: ["3"],
-    motd: ["160"], roster: ["length 0: []"],
+    hit: ["true"], total: ["40", "70"], rounds: ["3", "4"],
+    motd: [JSON.stringify(MOTD)],
+    roster: [`length 3: [${ROSTER.join(", ")}]`],
     players: ["<mapping at slot 4>"] },
-  last: { players: "<mapping at slot 4>", roster: "length 0: []",
-    total: "70", rounds: "4", joined: "3" },
-  storage: ["players", "roster", "motd", "total", "rounds", "joined"],
+  last: { players: "<mapping at slot 4>",
+    roster: `length 3: [${ROSTER.join(", ")}]`,
+    motd: JSON.stringify(MOTD), total: "70", rounds: "4" },
+  storage: ["roster", "motd", "total", "rounds", "players"],
+  // The names as joined (story): each stored by Solidity's string rule.
+  names: ["alice", "bob", "carol, the unstoppable combo queen"],
   // soldb's state at the Solidity tab's last step (play never reads
   // roster or motd, so the trace has no value for them).
   sol: { total: "70", rounds: "4", roster: "<unknown>" },
@@ -838,6 +844,25 @@ for (const [name, b] of Object.entries(all)) {
     check(name, "BUG O0 the real call, with its arguments",
       u.bug.O0.scan.stacks.some((st) => st.some((f) =>
         f.startsWith(EXPECT.call))));
+    // The names, from the storage before the transaction (written by
+    // the joins): a short name sits in its slot with 2 * length in the
+    // last byte; a long one has 2 * length + 1 there and its bytes in
+    // the words from keccak256(slot) on.
+    for (const lvl of ["O0", "O2"]) {
+      const st = Object.values(rd(`bug/arcade-${lvl}/tx.storage-before.json`))
+        .map((w) => w.slice(2));
+      const ok = EXPECT.names.every((n) => {
+        const hex = Buffer.from(n).toString("hex");
+        if (n.length < 32) {
+          return st.includes(hex.padEnd(62, "0") +
+            (2 * n.length).toString(16).padStart(2, "0"));
+        }
+        return st.includes((2 * n.length + 1).toString(16).padStart(64, "0"))
+          && st.includes(hex.slice(0, 64))
+          && st.includes(hex.slice(64).padEnd(64, "0"));
+      });
+      check(name, `BUG ${lvl} names stored as joined`, ok);
+    }
     check(name, "BUG O0 nothing inlined", !BUG.O0.inline.size
       && u.bug.O0.inlineLocals.length === 0);
     const xs = u.bug.O2.inlineLocals;

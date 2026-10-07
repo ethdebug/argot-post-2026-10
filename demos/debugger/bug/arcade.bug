@@ -11,16 +11,10 @@ define {
     name: string;        // the next slot
   };
 
-  // a toy roll (not safe randomness): 2 in 3 is a hit.
-  // bugc on origin/main has no block.prevrandao and cannot hash two
-  // words, so the roll mixes block.number and the sender, unhashed.
-  // NEEDS ethdebug/format #363 (block.prevrandao) AND #365
-  // (keccak256 over words): with both, the roll matches Solidity's
-  // keccak256(abi.encode(block.prevrandao, msg.sender)) % 3 != 0:
-  //   return (keccak256(block.prevrandao, msg.sender) as uint256)
-  //     % 3 != 0;
+  // a toy roll (not safe randomness): 2 in 3 is a hit. Equal to
+  // Solidity's keccak256(abi.encode(block.prevrandao, msg.sender))
   function rolledHit() -> bool {
-    return (block.number + (msg.sender as uint256)) % 3 != 0;
+    return (keccak256(block.prevrandao, msg.sender) as uint256) % 3 != 0;
   };
 
   function multiplied(points: uint64, combo: uint32) -> uint64 {
@@ -38,7 +32,6 @@ storage {
   [2] total: uint128;          // all players' points
   [3] rounds: uint64;          // the number of hits
   [4] players: mapping<address, Player>;
-  [5] joined: uint256;         // roster length (no push, no storage .length)
 }
 
 create {
@@ -56,14 +49,14 @@ code {
   if (msg.data[0:4] as bytes4 == 0x6a786b07) {
     let len = msg.data[36:68] as bytes32 as uint256;
     players[msg.sender].name = msg.data[68:68 + len] as string;
-    roster[joined] = msg.sender;
-    joined = joined + 1;
+    roster.push(msg.sender);
     return;
   }
   // play()
   players[msg.sender].plays = players[msg.sender].plays + 1;
   players[msg.sender].lastBlock = block.number as uint64;
-  if (rolledHit() == false) {   // bugc compiles `!` as bitwise NOT
+  let hit = rolledHit();
+  if (!hit) {
     players[msg.sender].combo = 0;   // resetCombo, inlined by hand
     return;
   }
