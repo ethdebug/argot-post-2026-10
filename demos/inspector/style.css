@@ -337,9 +337,15 @@ li.same > .row .name, li.same > .row .type { opacity: 0.55; }
   row-gap: 16px;
   font-family: var(--mono);
   font-variant-numeric: tabular-nums;
-  /* gutter, 32 cells and three gaps: about 52 em of monospace,
-     more in some fonts */
-  font-size: clamp(0.66rem, calc(100cqi / 56), 0.95rem);
+  /* the largest size at which a row (gutter, 32 cells and three gaps;
+     16 cells on a narrow box) fits the box: --k32 and --k16 are a row's
+     width in em, measured once in this font (main.js fitDumps); 12px is
+     the rows' padding and border */
+  font-size: clamp(10px, calc((100cqi - 12px) / var(--k32, 56)), 20px);
+}
+@container (max-width: 559.98px) {
+  .views { font-size: clamp(10px, calc((100cqi - 12px) / var(--k16, 30)),
+    20px); }
 }
 .swipe { display: none; margin: 0 0 6px; }
 /* On a narrow panel (a phone), each word is two lines of 16 bytes, so

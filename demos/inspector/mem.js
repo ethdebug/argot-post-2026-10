@@ -710,6 +710,7 @@ function render() {
   if (!two()) mode = "after";
   $("mtree").innerHTML = renderValues(model);
   $("mpanel").innerHTML = renderDumps(model);
+  window.fitDumps?.();
   for (const v of $("mpanel").querySelectorAll(".view")) {
     v.hidden = v.dataset.side !== mode;
   }
