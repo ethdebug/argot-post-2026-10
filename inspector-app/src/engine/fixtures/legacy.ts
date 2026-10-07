@@ -28,6 +28,8 @@ interface Fixture {
   trace: { kept: Step[] };
   // mapping keys gathered from other traces: [base slot, [{ key }]]
   keys?: [Hex, { key: Hex }[]][];
+  // Vyper's own records (the Vyper fixture): its slot, then each key
+  vyper?: { base: string; entries: { key: Hex }[] };
   slots: Record<Hex, { before: Hex; after: Hex }>;
 }
 
@@ -61,8 +63,12 @@ function facts(f: Fixture): TxFacts {
       keccakInputs.push(pre.match(/.{64}/g)!.map((w) => `0x${w}` as Hex));
     }
   }
-  const gathered = (f.keys ?? []).flatMap(([base, ks]) =>
-    ks.map(({ key }) => [key, base]));
+  // (the Vyper fixture's keys as Solidity's rule reads them, key . slot,
+  // and as Vyper hashed them, slot . key)
+  const vy = f.vyper ? f.vyper.entries.map(({ key }) =>
+    [slotHex(BigInt(f.vyper!.base)), word(key)]) : [];
+  const gathered = [...(f.keys ?? []).flatMap(([base, ks]) =>
+    ks.map(({ key }) => [key, base])), ...vy];
   return { ...f.tx, reads, writes,
     keccakInputs: f.keys ? gathered : keccakInputs };
 }
@@ -95,6 +101,12 @@ export function fromFixture(json: unknown, fixtureId: string):
 export type ProjectBookmark = Bookmark &
   { timeline: TimelineId; decoding: DecodingId };
 
+// The decoding a scene shows: solc's rule over its fixture's storage;
+// over the Vyper fixture's, that is "vyAsSol" (Vyper's own rule,
+// written by hand, is "vyRule")
+export const decodingOf = (fixture: string): DecodingId =>
+  fixture === "arcade-vyper" ? "vyAsSol" : `sol:${fixture}`;
+
 export function bookmarkOf(scene: LegacyScene): ProjectBookmark {
   const points = scene.points.map((s) => `${scene.fixture}:${s}`) as
     [PointId] | [PointId, PointId];
@@ -102,7 +114,7 @@ export function bookmarkOf(scene: LegacyScene): ProjectBookmark {
     id: scene.id, title: scene.title, points, select: scene.select,
     ...(points.length === 2 ? { side: scene.mode ?? "after" } : {}),
     ...(scene.calldata ? { calldata: scene.calldata } : {}),
-    timeline: scene.fixture, decoding: `sol:${scene.fixture}`,
+    timeline: scene.fixture, decoding: decodingOf(scene.fixture),
   };
 }
 
