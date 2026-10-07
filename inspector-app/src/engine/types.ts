@@ -196,6 +196,8 @@ export interface Light {                // DERIVED per view, never stored
 }
 export interface Filter {               // truncation, per view
   roots?: Path[];                       // only these subtrees
-  rows?: "values" | "all" | Hex[];      // dump rows: owned-only, all known
+  // dump rows: the values' (and own slots); also the slots the point's
+  // transaction read or wrote; or the values' and these
+  rows?: "values" | "touched" | Hex[];
   maxRows?: number;
 }

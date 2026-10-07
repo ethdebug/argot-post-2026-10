@@ -92,7 +92,7 @@ function Present({ v, View }: { v: ViewSpec; View: ComponentType<any> }) {
   return <View {...v} hidden={!!side && shown !== side} title={title}
     when={side ? WHEN[side] : undefined}
     compare={side ? other : undefined}
-    filter={side && !single ? { ...v.filter, rows: "all" } : v.filter} />;
+    filter={side && !single ? { ...v.filter, rows: "touched" } : v.filter} />;
 }
 
 export function Lens(props: { spec: LensSpec; project: Project;

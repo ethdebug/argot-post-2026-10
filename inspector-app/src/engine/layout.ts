@@ -5,7 +5,7 @@
 // with its inputs), not from a guess by nearby hashes.
 import type {
   ByteKey, Decoded, DerefGraph, Filter, Hex, Instance, Layout, Location,
-  Path, ResolvedRegion, Row, ValueNode,
+  Path, ResolvedRegion, Row, TimelinePoint, ValueNode,
 } from "./types";
 import { byteKey, short, slotHex, toBig } from "./hex";
 
@@ -101,9 +101,14 @@ const shortKeys = (path: string) =>
   path.replace(/\[(0x[0-9a-fA-F]{16,})\]/g, (_, h) => `[${short(h)}]`);
 
 // `others`: decodings of the same point whose words are shown but own
-// no bytes here, named from their graphs ("Vyper's keccak(…)")
+// no bytes here, named from their graphs ("Vyper's keccak(…)").
+// `point`: the timeline point (for rows "touched": the values' rows and
+// the slots its transaction read or wrote, as far as the point knows
+// them; with no point or transaction, as "values")
 export function layout(d: Decoded, location: Location, filter: Filter = {},
-  others: { d: Decoded; who?: string }[] = []): Layout {
+  o: { others?: { d: Decoded; who?: string }[]; point?: TimelinePoint }
+    = {}): Layout {
+  const others = o.others ?? [];
   const cover = new Map<ByteKey, Path[]>();
   const owned = new Map<Path, Set<ByteKey>>();
   // row -> owner groups (a path, or its length part) -> first byte
@@ -155,7 +160,11 @@ export function layout(d: Decoded, location: Location, filter: Filter = {},
     const v = declared?.instances[0]?.value;
     if (v && !first.has(slotHex(toBig(v)))) own.set(slotHex(toBig(v)), n.path);
   }
-  const listed = Array.isArray(filter.rows) ? filter.rows : [];
+  const tx = o.point?.transaction;
+  const listed = Array.isArray(filter.rows) ? filter.rows
+    : filter.rows === "touched" && tx
+      ? [...new Set([...tx.reads, ...tx.writes])].filter((s) =>
+        o.point!.snapshot.storage.has(s)) : [];
 
   const addresses = [...new Set<Hex>([...first.keys(), ...own.keys(),
     ...extra.keys(), ...listed])].sort((a, b) =>
