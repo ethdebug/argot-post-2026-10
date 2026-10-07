@@ -33,9 +33,12 @@ it("slot labels", async () => {
   expect(label(slotHex(2n))).toBe("slot 2 : rounds · total");
   expect(label(slotHex(0n))).toBe("slot 0 : length");
   expect(label(recordOf(d, A, 1)))
-    .toMatch(/^keccak\(0x7099…79c8, slot 3\) \+ 1 : name · name$/);
-  expect(label(recordOf(d, A, 0))).toBe(
-    "keccak(0x7099…79c8, slot 3) : lastBlock · hitCount · plays +3");
+    .toMatch(/^keccak\(0x7099…79c8, slot 3\) \+ 1 : name · name\.length$/);
+  // (all of them: the popover fits them to its box, vanilla 9728db0)
+  expect(label(recordOf(d, A, 0))).toBe("keccak(0x7099…79c8, slot 3) : " +
+    "lastBlock · hitCount · plays · bestCombo · combo · score");
+  // a value's other region alone in its slot: by its role
+  expect(label(slotHex(1n))).toBe("slot 1 : motd.length");
   // roster's items, after keccak(slot 0)
   const item1 = slotHex(d.byPath.get("roster[1]")!.regions[0].slot!);
   expect(label(item1)).toBe("keccak(slot 0) + 1 : roster[1]");
