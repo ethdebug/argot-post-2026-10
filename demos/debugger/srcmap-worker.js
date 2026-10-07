@@ -18,16 +18,15 @@
 // It implements the engine interface of engine.js. Messages:
 // { id, op, args } in; { id, value } or { id, error } out, and
 // { id, progress } while a file arrives or a phase starts.
-//   load(dataset)          "old-record" or "old-history": a Loaded
+//   load(dataset)          "old": a Loaded
 //   callStack(dataset, i)  Frame[] at step i, innermost first
 //   requests()             this worker's resource timing entries
 
 import { fetcher, serve, textOf } from "./fetch-progress.js";
 
 const now = () => performance.now();
-const TRACES = { "old-record": "old/record.trace.json",
-  "old-history": "old/history.trace.json" };
-const NAME = "Scores.sol";
+const TRACE = "old/play.trace.json";
+const NAME = "Arcade.sol";
 
 // The offset of each instruction in the code: index k is the kth
 // instruction, the one the kth source map entry describes. PUSH1 to
@@ -85,13 +84,13 @@ async function load(report, key) {
   const [combined, src, traceText] = await Promise.all([
     text("old/combined.json", "solc's bytecode, source map and AST"),
     text(`sol/${NAME}`, "the source"),
-    text(TRACES[key], "the transaction trace"),
+    text(TRACE, "the transaction trace"),
   ]);
   times["fetch bytecode, source map, AST, source, trace"] = now() - t;
   report({ phase: "The source map stepper maps each step" });
   t = now();
   const out = JSON.parse(combined);
-  const c = out.contracts[`${NAME}:Scores`];
+  const c = out.contracts[`${NAME}:Arcade`];
   const pcs = instructionPcs(c["bin-runtime"]);
   const map = decode(c["srcmap-runtime"]);
   const entryAt = new Map(pcs.map((pc, k) => [pc, map[k]]));

@@ -1,0 +1,6 @@
+{
+  "about": "The calls every tab gets (make-arcade-txs.mjs). The deployer is anvil account 0; alice is account 1. deploy: the constructor's arguments (BUG sets motd in its create block). setup: sent first, in order. tx: the traced transaction. Each play must roll the outcome given in hit; the script replays it from a snapshot until it does.",
+  "deploy": { "sig": "constructor(string)", "args": ["gl hf"] },
+  "setup": [{ "from": 1, "call": "play()", "args": [], "hit": true }],
+  "tx": { "from": 1, "call": "play()", "args": [], "hit": true }
+}

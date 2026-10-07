@@ -14,8 +14,7 @@ const BROWSERS = (process.env.BROWSERS ?? "chromium,firefox,webkit")
 const CDN = ["esm.sh", "cdn.jsdelivr.net"];
 const runs = +(process.argv[2] ?? 3);
 // Every data set: a tab, or a tab and its variant.
-const DATASETS = ["sol", "fe", "bug-O0", "bug-O2", "old-record",
-  "old-history"];
+const DATASETS = ["sol", "fe", "bug-O0", "bug-O2", "old"];
 const all = {};
 // The page loads only its default tab at first; the rest loads when
 // opened. The checks load everything (window.loadAll), then wait until
@@ -365,11 +364,10 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
       }
       // The old way, both data sets: at every step, the step line, the
       // source note and the call stack (from the source map's i and o).
-      out.old = {};
-      for (const v of ["record", "history"]) {
-        await window.selectLevel(v);
-        const w = window.walked[`old-${v}`];
-        const o = out.old[v] = { steps: [], aboutShown: !document
+      {
+        await window.select("old");
+        const w = window.walked.old;
+        const o = out.old = { steps: [], aboutShown: !document
           .querySelector(".about[data-about=old]").hidden,
           framesShown: !frames.querySelector("ol").hidden,
           varsShown: !panel.querySelector("table").hidden };
@@ -390,8 +388,7 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
       const skip = document.getElementById("skip");
       const setSkip = (on) => { if (skip.checked !== on) skip.click(); };
       out.skip = { default: skip.checked };
-      for (const ds of ["sol", "fe", "bug-O0", "bug-O2", "old-record",
-        "old-history"]) {
+      for (const ds of ["sol", "fe", "bug-O0", "bug-O2", "old"]) {
         if (ds.includes("-")) await window.selectLevel(ds.split("-")[1]);
         else await window.select(ds);
         const w = window.walked[ds];
@@ -446,7 +443,7 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
     });
     r.ui = ui; r.shikiInfo = r.shiki;
     if (name === "chromium" && i === 0) {
-      // The Solidity tab at its first multi-line span in Scores.sol.
+      // The Solidity tab at its first multi-line span in Arcade.sol.
       const showcase = () => page.evaluate(async (i) => {
         await window.select("sol");
         const range = document.querySelector("#stepper input[type=range]");
@@ -497,12 +494,12 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
         fullPage: true });
       // The old way: the first step with a frame in its call stack.
       await page.evaluate(async (i) => {
-        await window.selectLevel("record");
+        await window.select("old");
         const range = document.querySelector("#stepper input[type=range]");
         range.value = String(i);
         range.dispatchEvent(new Event("input"));
         await window.stateReady();
-      }, ui.old.record.steps.findIndex((x) => x.stack.length > 0));
+      }, ui.old.steps.findIndex((x) => x.stack.length > 1));
       await page.screenshot({ path: "screenshot-old.png", fullPage: true });
     }
     all[name].runs.push(r);
@@ -574,8 +571,7 @@ const layoutFails = [];
         return [b.x, b.y + scrollY, b.width, b.height].map(Math.round)
           .join(",");
       }).join(" ");
-      for (const ds of ["sol", "fe", "bug-O0", "bug-O2", "old-record",
-        "old-history"]) {
+      for (const ds of ["sol", "fe", "bug-O0", "bug-O2", "old"]) {
         if (ds.includes("-")) await window.selectLevel(ds.split("-")[1]);
         else await window.select(ds);
         const at = [];
@@ -612,34 +608,33 @@ const layoutFails = [];
   await browser.close();
 }
 // What the transaction gives each variable, checked by hand against the
-// sources (sol/Scores.sol, bug/scores.bug) and the plan
-// (scores-txs.json): record(7), then record(30) from the same account.
-// Before record(30): score 7, streak 1, total 7, rounds 1. In record(30):
-// streak = 1, bonus(30, 1): b = 30 * 1 = 30 (not over 100), gained = 30
-// + 30 = 60; then total = 7 + 60 = 67, rounds = 2. bonus's parameters
-// are 30 and 1. BUG keeps no length for its storage array, so history
-// reads as length 0. players' pointer names only its base slot.
-// <no location>: a local listed by type only.
+// sources (sol/Arcade.sol, bug/arcade.bug) and the story
+// (arcade-story.json): alice's first play() is a hit (combo 1, +10),
+// and the traced one, her second, is a hit too. Before it: score 10,
+// combo 1, total 10, rounds 1. In it: combo = 1 + 1 = 2; multiplied(10,
+// 2): m = 5, then 2 (2 < 5), so gained = 10 * 2 = 20; then total = 10 +
+// 20 = 30, rounds = 2. BUG keeps no length for its storage array, so
+// hits reads as length 0. players' pointer names only its base slot.
+// motd: bugc stores a string's memory address, not its text (0xa0, 160:
+// a known bugc gap). <no location>: a local listed by type only.
 const NONE = "<no location>";
 const EXPECT = {
-  values: { points: ["30"], streak: ["1"], b: ["30"], gained: ["60"],
-    total: ["7", "67"], rounds: ["1", "2"],
-    history: ["length 0: []"], players: ["<mapping at slot 0>"] },
-  last: { players: "<mapping at slot 0>", history: "length 0: []",
-    total: "67", rounds: "2" },
-  storage: ["players", "history", "total", "rounds"],
-  // soldb's state at the Solidity tab's last step.
-  // history: two records, two elements.
-  sol: { total: "67", rounds: "2",
-    history: "<2 element(s); index it with [i]>" },
+  values: { points: ["10"], combo: ["2"], m: ["5", "2"], gained: ["20"],
+    total: ["10", "30"], rounds: ["1", "2"], motd: ["160"],
+    hits: ["length 0: []"], players: ["<mapping at slot 0>"] },
+  last: { players: "<mapping at slot 0>", hits: "length 0: []",
+    total: "30", rounds: "2" },
+  storage: ["players", "hits", "motd", "total", "rounds"],
+  // soldb's state at the Solidity tab's last step: two hits, two
+  // elements.
+  sol: { total: "30", rounds: "2",
+    hits: "<2 element(s); index it with [i]>" },
   // The real call at -O0, as the call stack lists it.
-  call: "bonus(points: 30, streak: 1)",
+  call: "multiplied(points: 10, combo: 2)",
 };
 const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
 const rd = (f) => JSON.parse(fs.readFileSync(new URL(f, import.meta.url),
   "utf8"));
-// The function the traced transaction calls (record).
-const TXFN = rd("scores-txs.json").tx.call.split("(")[0];
 // From bugc's program and its trace at each level, not from the page:
 // for each function, the pcs where a real call enters it (its entry
 // JUMPDEST, with an invoke) and leaves it (a return); and, for each
@@ -651,8 +646,8 @@ const contexts = (c, out = []) => {
   return out;
 };
 const bugFacts = (lvl) => {
-  const program = rd(`bug/scores-${lvl}/scores.program.json`);
-  const pcs = rd(`bug/scores-${lvl}/tx.debug-trace.json`).structLogs
+  const program = rd(`bug/arcade-${lvl}/arcade.program.json`);
+  const pcs = rd(`bug/arcade-${lvl}/tx.debug-trace.json`).structLogs
     .map((l) => l.pc);
   const at = new Map(program.instructions.map((i) =>
     [i.offset, { op: i.operation?.mnemonic, cs: contexts(i.context) }]));
@@ -673,9 +668,13 @@ const bugFacts = (lvl) => {
     }
   }
   // An inlined body: a run of steps whose instruction carries transform
-  // "inline", named by the invoke in it. Contexts are postconditions, so
-  // the page lists it from the step after its first instruction to the
-  // step after its last.
+  // "inline", from the one with the inlined invoke. Contexts are
+  // postconditions, so the page lists it from the step after its first
+  // instruction through the step of its inlined return, or, if the run
+  // ends before a return, to the step after its last. (A run without an
+  // invoke, such as a hoisted msg.sender, opens no body. At -O2, bugc
+  // leaves the transform off part of multiplied's body, so its frame
+  // closes early; a known bugc gap.)
   const spans = {};
   let run = null;
   pcs.forEach((pc, i) => {
@@ -685,53 +684,35 @@ const bugFacts = (lvl) => {
       return;
     }
     const f = cs.find((c) => c.invoke)?.invoke.identifier;
-    if (!run) (spans[f] ??= []).push(run = []);
-    run.push(i + 1);
+    if (!run && f) (spans[f] ??= []).push(run = []);
+    if (run && cs.some((c) => c.return)) {
+      run = null;
+      return;
+    }
+    run?.push(i + 1);
   });
   return { pcs, inline, real, spans };
 };
 const BUG = { O0: bugFacts("O0"), O2: bugFacts("O2") };
-// The old way: solc's optimized runtime code, instruction by
-// instruction (PUSH1 to PUSH32 carry data).
+// The old way: the source and the AST's function definitions (name,
+// range) of solc's optimized build.
 const OLD = (() => {
-  const hex = rd("old/combined.json").contracts["Scores.sol:Scores"]
-    ["bin-runtime"];
-  const code = Buffer.from(hex, "hex");
-  const ins = new Map();
-  for (let pc = 0; pc < code.length;) {
-    const op = code[pc], n = op >= 0x60 && op <= 0x7f ? op - 0x5f : 0;
-    ins.set(pc, { op, arg: code.subarray(pc + 1, pc + 1 + n)
-      .toString("hex") });
-    pc += 1 + n;
-  }
-  return { ins, record: rd("old/record.trace.json").structLogs };
-})();
-// Does the code from pc on (to its first JUMP) check an addition for
-// overflow: ADD, then GT, then a JUMPI to a block that reverts with
-// Panic(0x11) (selector 4e487b71)?
-const checkedAdd = (pc) => {
-  const seen = [];
-  let push = null;
-  for (let at = pc; OLD.ins.has(at);) {
-    const { op, arg } = OLD.ins.get(at);
-    if (op === 0x56) break;
-    if (op === 0x57 && push !== null) {
-      const panic = [];
-      for (let q = push, k = 0; OLD.ins.has(q) && k < 12; k++) {
-        const x = OLD.ins.get(q);
-        panic.push(x.arg);
-        q += 1 + x.arg.length / 2;
-      }
-      seen.push(panic.includes("4e487b71") && panic.includes("11")
-        ? "panic11" : "jumpi");
+  const out = rd("old/combined.json");
+  const src = fs.readFileSync(new URL("sol/Arcade.sol", import.meta.url),
+    "utf8");
+  const fns = {};
+  const walk = (x) => {
+    if (Array.isArray(x)) return x.forEach(walk);
+    if (!x || typeof x !== "object") return;
+    if (x.nodeType === "FunctionDefinition") {
+      const [s, l] = x.src.split(":").map(Number);
+      fns[x.name] = src.slice(s, s + l);
     }
-    if (op === 0x01) seen.push("add");
-    if (op === 0x11) seen.push("gt");
-    if (op === 0x61) push = parseInt(arg, 16);
-    at += 1 + arg.length / 2;
-  }
-  return seen.join(" ") === "add gt panic11";
-};
+    Object.values(x).forEach(walk);
+  };
+  walk(out.sources["Arcade.sol"].AST);
+  return { fns };
+})();
 const fails = [];
 const check = (name, what, ok) => { if (!ok) fails.push(`${name}: ${what}`); };
 const med = (xs) => xs.slice().sort((a, b) => a - b)[Math.floor(xs.length / 2)];
@@ -866,47 +847,49 @@ for (const [name, b] of Object.entries(all)) {
     check(name, "BUG O2 inline marker", BUG.O2.inline.has(u.bug.O2.inline?.fn)
       && u.bug.O2.inline.noteVisible === "visible"
       && u.bug.O2.inline.site > 0);
-    // The old way. (1) Most steps of record(30) map to the whole
-    // contract. (2) The view call runs no code of record, yet a step
-    // maps into record. (3) The function that bugc inlines at -O2
-    // (bonus; solc inlines it too): at every step that maps into its
-    // body, the call stack from i and o has no frame for it; the first
-    // frame opened at its call site is a helper whose code is checked
-    // addition, with no function in the AST.
-    const old = u.old, rec = old.record.steps;
+    // The old way. (1) Most steps map to the whole contract. (2) After
+    // rolledHit has returned (from the first step in multiplied on),
+    // three steps map to the 3 of `% 3` in rolledHit (hand-checked:
+    // pc 1424, 1441 and 1556 push the constant 3, the slot of total and
+    // rounds, and a shift by 3). (3) No inlined helper gets a frame:
+    // rolledHit and multiplied run (bugc inlines both at -O2; solc
+    // inlines all three), with no frame named for any helper; the only
+    // jump marked i inside rolledHit has the range of abi.encode(...)
+    // and enters code with no function in the AST.
+    const old = u.old, rec = old.steps;
     const whole = rec.filter((x) => /the whole contract/.test(x.note));
     check(name, "old: most steps map to the whole contract",
-      whole.length > rec.length / 2
-      && whole.length === r.old.record.whole
+      whole.length > 0.7 * rec.length && whole.length === r.old.whole
       && rec.every((x) => / source map -?\d+:-?\d+:-?\d+:[io-]$/
         .test(x.where)));
-    check(name, `old: the view call steps into ${TXFN}`,
-      old.history.steps.some((x) =>
-        new RegExp(`, function ${TXFN},`).test(x.where) && x.hl));
-    for (const fn of BUG.O2.inline) {
-      const inBody = rec.filter((x) =>
-        new RegExp(`, function ${fn},`).test(x.where));
-      check(name, `old: ${fn} runs with no frame for it`,
-        inBody.length > 0 && rec.every((x) =>
-          !x.stack.some((f) => f.startsWith(fn))));
-      const first = r.old.record.jumps.find((j) =>
-        j.site?.includes(`${fn}(`));
-      const k = rec.findIndex((x) => x.stack.length > 0);
-      check(name, `old: the frame at ${fn}'s call site is checked ` +
-        "addition", !!first && first.name === null
-        && checkedAdd(OLD.record[first.opens].pc)
-        && /^unknown function called at line \d+: .*\(/.test(rec[k]
-          .stack[0]) && rec[k].stack[0].includes(`${fn}(`));
-    }
-    check(name, "old: the panels", old.record.aboutShown
-      && old.record.framesShown && !old.record.varsShown);
+    const after = rec.findIndex((x) => /, function multiplied,/
+      .test(x.where));
+    const threes = rec.slice(after).filter((x) =>
+      /, function rolledHit,/.test(x.where) && x.hl === "3");
+    check(name, "old: three steps on the 3 of `% 3` after rolledHit",
+      after > 0 && threes.length === 3
+      && OLD.fns.rolledHit.includes("% 3"));
+    const helpers = ["rolledHit", "multiplied", "resetCombo"];
+    check(name, "old: no frame for an inlined helper",
+      ["rolledHit", "multiplied"].every((fn) => rec.some((x) =>
+        new RegExp(`, function ${fn},`).test(x.where)))
+      && rec.every((x) => !x.stack.some((f) =>
+        helpers.some((h) => f.startsWith(h)))));
+    const inRolled = r.old.jumps.filter((j) => j.site
+      && OLD.fns.rolledHit.includes(j.site));
+    check(name, "old: the only i in rolledHit enters abi.encode's code",
+      inRolled.length === 1 && inRolled[0].name === null
+      && /^abi\.encode\(/.test(inRolled[0].site)
+      && rec.some((x) => /^unknown function called at line 23: abi\.encode/
+        .test(x.stack[0] ?? "")));
+    check(name, "old: the panels", old.aboutShown && old.framesShown
+      && !old.varsShown);
     check(name, "skip compiler code on by default", u.skip.default);
     // Panels: call stack, inlining, variables on every tab; those without
     // data give their reason (expected: the data set's whyNot).
     const NAMES = ["Call stack", "Variables", "Inlining"];
-    const missing = { sol: ["Call stack", "Inlining"], fe: NAMES, "bug-O0": ["Inlining"],
-      "bug-O2": [], "old-record": ["Variables", "Inlining"],
-      "old-history": ["Variables", "Inlining"] };
+    const missing = { sol: ["Call stack", "Inlining"], fe: NAMES,
+      "bug-O0": ["Inlining"], "bug-O2": [], old: ["Variables", "Inlining"] };
     for (const [ds, want] of Object.entries(missing)) {
       const ps = u.panels[ds];
       check(name, `${ds} panels`, same(ps.map((x) => x.name), NAMES)
@@ -946,7 +929,7 @@ for (const [name, b] of Object.entries(all)) {
     check(name, "loading state", r.frames.loadingShown);
     check(name, `main thread free (gap < ${LONG} ms)`, r.frames.max < LONG);
     check(name, "worker requests listed", r.requests.some((u) =>
-      u.endsWith("/sol/record.trace.json")));
+      u.endsWith("/sol/play.trace.json")));
   }
   check(name, "no console errors", errors.length === 0);
   check(name, "no foreign requests",
@@ -1082,7 +1065,7 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
   const ctx = await browser.newContext();
   const page = await ctx.newPage();
   let block = true;
-  await ctx.route("**/sol/record.trace.json", (route) =>
+  await ctx.route("**/sol/play.trace.json", (route) =>
     block ? route.abort() : route.continue());
   try {
     await page.goto(PAGE);

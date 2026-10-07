@@ -1,0 +1,57 @@
+name Arcade;
+
+define {
+  struct Player {
+    score: uint64;
+    combo: uint32;
+    active: bool;
+  };
+
+  // a toy roll (not safe randomness): 2 in 3 is a hit.
+  // BUG has no block.prevrandao and cannot hash two words,
+  // so the roll mixes block.number and the sender, unhashed.
+  function rolledHit() -> bool {
+    return (block.number + (msg.sender as uint256)) % 3 != 0;
+  };
+
+  function multiplied(points: uint64, combo: uint32) -> uint64 {
+    let m: uint64 = 5;
+    if (combo < 5) {
+      m = combo;
+    }
+    return points * m;
+  };
+}
+
+storage {
+  [0] players: mapping<address, Player>;
+  [1] hits: array<uint256>;    // every hit's points, in order
+  [2] motd: string;            // the server's message of the day
+  [3] total: uint128;          // all players' points
+  [4] rounds: uint64;          // the number of hits
+}
+
+create {
+  motd = "gl hf";
+}
+
+code {
+  // setMotd(string): the only other entrypoint
+  if (msg.data[0:4] as bytes4 == 0x5fe59b9d) {
+    let len = msg.data[36:68] as bytes32 as uint256;
+    motd = msg.data[68:68 + len] as string;
+    return;
+  }
+  // play()
+  players[msg.sender].active = true;
+  if (rolledHit() == false) {   // bugc compiles `!` as bitwise NOT
+    players[msg.sender].combo = 0;   // resetCombo, inlined by hand
+    return;
+  }
+  players[msg.sender].combo = players[msg.sender].combo + 1;
+  let gained = multiplied(10, players[msg.sender].combo);
+  players[msg.sender].score = players[msg.sender].score + gained;
+  hits[rounds] = gained;
+  total = total + gained;
+  rounds = rounds + 1;
+}

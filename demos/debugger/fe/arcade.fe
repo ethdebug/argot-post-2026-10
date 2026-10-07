@@ -1,0 +1,67 @@
+use std::abi::sol
+use core::abi::DynString
+use std::evm::{Ctx, StorageBytes, StorageMap, keccak_words}
+
+msg ArcadeMsg {
+    #[selector = sol("play()")]
+    Play,
+    #[selector = sol("setMotd(string)")]
+    SetMotd { text: DynString },
+}
+
+// Fe's StorageMap values must fit in one word: one map per Player field.
+struct ArcadeStore {
+    scores: StorageMap<Address, u64, 0>,
+    combos: StorageMap<Address, u32, 1>,
+    actives: StorageMap<Address, bool, 2>,
+    hits: StorageMap<u256, u256, 3>,   // every hit's points, by index
+    total: u128,                       // all players' points
+    rounds: u64,                       // the number of hits
+}
+
+type Motd = StorageBytes<u256, 4, 5>   // the server's message of the day
+
+// a toy roll (not safe randomness): 2 in 3 is a hit
+fn rolled_hit() -> bool uses (ctx: Ctx) {
+    return keccak_words([ctx.prevrandao(), ctx.caller().inner]) % 3 != 0
+}
+
+fn reset_combo(who: Address) uses (store: mut ArcadeStore) {
+    store.combos.set(key: who, value: 0)
+}
+
+fn multiplied(points: u64, combo: u32) -> u64 {
+    if combo < 5 {
+        return points * (combo as u64)
+    }
+    return points * 5
+}
+
+pub contract Arcade uses (ctx: Ctx) {
+    mut store: ArcadeStore
+    mut motd: Motd
+
+    init(m: DynString) uses (mut motd) {
+        motd.store_view(key: 0, view: m.as_bytes().view())
+    }
+
+    recv ArcadeMsg {
+        Play uses (mut store, ctx) {
+            let me: Address = ctx.caller()
+            store.actives.set(key: me, value: true)
+            if !rolled_hit() {   // a miss
+                reset_combo(who: me)
+                return
+            }
+            store.combos.set(key: me, value: store.combos.get(key: me) + 1)
+            let gained: u64 = multiplied(points: 10, combo: store.combos.get(key: me))
+            store.scores.set(key: me, value: store.scores.get(key: me) + gained)
+            store.hits.set(key: store.rounds as u256, value: gained as u256)
+            store.total = store.total + gained as u128
+            store.rounds = store.rounds + 1
+        }
+        SetMotd { text } uses (mut motd) {
+            motd.store_view(key: 0, view: text.as_bytes().view())
+        }
+    }
+}

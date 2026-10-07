@@ -1,13 +1,12 @@
 // The page: UI, highlighting and stepping. Engines do the debugging,
 // each in a Web Worker behind engine.js; the page only displays what an
-// engine reports. Every tab steps the same contract, Scores, and the
-// same transaction, record(30) after record(7). One viewer steps every
+// engine reports. Every tab steps the same contract, Arcade, and the
+// same transaction, alice's second play(). One viewer steps every
 // data set with the same code: the Solidity build (solc's ethdebug) and
 // the Fe build (Fe's ethdebug), by soldb-wasm; the BUG build at two
 // optimization levels (bugc's ethdebug), by ethdebug's reference
 // implementation; and an optimized Solidity build with no ethdebug, by
-// a source-map stepper ("The old way"), with a second data set, a call
-// of history(0). The details run a soldb check on another BUG
+// a source-map stepper ("The old way"). The details run a soldb check on another BUG
 // transaction. Part B (details) replays a transaction with the replay
 // build. Results go to the DOM and to window.results.
 //
@@ -473,8 +472,8 @@ const ref = refEngine();
 const srcmap = sourceMapEngine();
 const entries = (times) => Object.entries(times);
 
-// Solidity: Scores record(30), soldb's saved trace, the ethdebug output of
-// solc 0.8.37. Fe: Scores Record{points: 30} on anvil, Fe 26.4.1's
+// Solidity: Arcade play(), soldb's saved trace, the ethdebug output of
+// Walnut's solc fork. Fe: Arcade Play on anvil, Fe 26.4.1's
 // ethdebug; the engine adapts only the file layout (listed on the page).
 // What each data set's details show, from the engine's summary.
 const detail = {
@@ -489,7 +488,7 @@ const detail = {
   ],
   fe: (r) => [
     ["trace", `${kb(r.traceBytes)}, ${r.steps} steps, ${r.mapped} with a ` +
-      `source span (${r.userSteps} in scores.fe, ${r.mapped - r.userSteps} ` +
+      `source span (${r.userSteps} in arcade.fe, ${r.mapped - r.userSteps} ` +
       `in Fe's standard library), ${r.lineChanges} line changes`],
     ["soldb's debug info", `${r.debugInfo.instructions} ` +
       `instructions, ${r.sourceCount} sources, variables at ` +
@@ -535,7 +534,7 @@ async function loadSoldb(key, part, onProgress) {
   return ds;
 }
 
-// BUG: Scores on anvil, at optimization level 0 or 2, by bugc from
+// BUG: Arcade on anvil, at optimization level 0 or 2, by bugc from
 // ethdebug/format main; debugged by ethdebug's reference
 // implementation (ref-worker.js), not soldb.
 const refRows = { times: [], rows: [] };
@@ -555,20 +554,17 @@ async function loadRef(lvl, onProgress) {
   return ds;
 }
 
-// The old way: Scores, solc 0.8.37 --via-ir --optimize, stepped with its
-// source map only (srcmap-worker.js): record(30), or a call of history(0).
-const oldRows = { times: [], rows: [] };
-async function loadOld(v, onProgress) {
-  const ds = await load(`old-${v}`, srcmap, onProgress)
+// The old way: Arcade, stock solc 0.8.37 --via-ir --optimize, stepped
+// with its source map only (srcmap-worker.js).
+async function loadOld(onProgress) {
+  const ds = await load("old", srcmap, onProgress)
     .catch((e) => { bad($("old-status"), e); throw e; });
   const s = ds.summary;
-  results.old = { ...results.old, ok: true, [v]: s };
-  for (const [k, t] of entries(s.times)) oldRows.times.push([`${v}: ${k}`, t]);
-  oldRows.rows.push([`${v}: trace`, `${kb(s.traceBytes)}, ${s.steps} ` +
-    `steps: ${s.whole} map to the whole contract, ${s.none} to no source ` +
-    `(-1), ${s.specific} to a smaller range; ${s.into} jumps marked i, ` +
-    `${s.outOf} marked o`]);
-  showTimes($("old-times"), oldRows.times, oldRows.rows);
+  results.old = s;
+  showTimes($("old-times"), entries(s.times), [["trace",
+    `${kb(s.traceBytes)}, ${s.steps} steps: ${s.whole} map to the whole ` +
+    `contract, ${s.none} to no source (-1), ${s.specific} to a smaller ` +
+    `range; ${s.into} jumps marked i, ${s.outOf} marked o`]]);
   ok($("old-status"), "Works. No ethdebug.");
   return ds;
 }
@@ -639,10 +635,8 @@ const SECTIONS = {
     "implementation", load: (p) => loadRef("O0", p) },
   "bug-O2": { tab: "bug", start: "Starting ethdebug's reference " +
     "implementation", load: (p) => loadRef("O2", p) },
-  "old-record": { tab: "old", start: "Starting the source map stepper",
-    load: (p) => loadOld("record", p) },
-  "old-history": { tab: "old", start: "Starting the source map stepper",
-    load: (p) => loadOld("history", p) },
+  old: { tab: "old", start: "Starting the source map stepper",
+    load: loadOld },
   details: { load: details },
 };
 
@@ -765,10 +759,10 @@ function retryButton(onclick) {
   return b;
 }
 
-// Show a tab, loading its data set first if needed. Two tabs show one
-// of two data sets, picked below the tabs: BUG, the same program at
-// optimization level 0 or 2; the old way, record(30) or history(0).
-const variant = { bug: "O0", old: "record" };
+// Show a tab, loading its data set first if needed. The BUG tab shows
+// one of two data sets, picked below the tabs: the same program at
+// optimization level 0 or 2.
+const variant = { bug: "O0" };
 async function select(tab) {
   const key = variant[tab] ? `${tab}-${variant[tab]}` : tab;
   current = key;
@@ -888,8 +882,7 @@ function prefetch() {
   const c = navigator.connection;
   if (c && (c.saveData || /2g/.test(c.effectiveType ?? ""))) return;
   const queue = [() => ensure("fe"), () => ensure("bug-O0"),
-    () => ensure("bug-O2"), () => ensure("old-record"),
-    () => ensure("old-history"),
+    () => ensure("bug-O2"), () => ensure("old"),
     () => fetch("pkg-replay/soldb_wasm_bg.wasm", { priority: "low" })
       .then((r) => r.arrayBuffer())];
   const idle = (f) => window.requestIdleCallback

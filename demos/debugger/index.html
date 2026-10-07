@@ -232,14 +232,7 @@ names its engine. The page only shows what the engine reports.</p>
       <button role="radio" data-lvl="O0" aria-checked="true">-O0: no
         inlining</button>
       <button role="radio" data-lvl="O2" aria-checked="false">-O2:
-        <code>bonus</code> inlined</button>
-    </div>
-    <div class="picker levels" data-about="old" hidden role="radiogroup"
-      aria-label="transaction">
-      <button role="radio" data-lvl="record"
-        aria-checked="true"><code>record(30)</code></button>
-      <button role="radio" data-lvl="history" aria-checked="false">a call
-        of <code>history(0)</code></button>
+        helpers inlined</button>
     </div>
   </div>
   <p class="engine" data-about="sol fe">Engine: soldb, Walnut's
@@ -340,12 +333,16 @@ names its engine. The page only shows what the engine reports.</p>
 </div>
 
 <div class="dbg-about">
-<p>Every tab steps the same contract, <code>Scores</code>
-(<a href="sol/Scores.sol">Scores.sol</a>), and the same transaction:
-<code>record(30)</code>, after a <code>record(7)</code> from the same
-account. The first call makes a streak of 1, so <code>record(30)</code>
-pays a bonus: <code>bonus(30, 1)</code> is 30, and <code>gained</code>
-is 60. Each transaction ran on a local anvil node.</p>
+<p>Every tab steps the same contract, <code>Arcade</code>
+(<a href="sol/Arcade.sol">Arcade.sol</a>), and the same transaction. In
+<code>Arcade</code>, a player calls <code>play()</code>, and a roll from
+the block gives a hit or a miss. A hit raises the player's combo by one
+and scores 10 &times; combo (up to 5&times;); a miss resets the combo.
+The transaction is alice's second <code>play()</code>, a hit at combo 2:
+<code>multiplied(10, 2)</code> is 20. Her first, a hit too, comes before
+it. Each ran on a local anvil node. anvil cannot set the block's
+randomness, so the script replays a <code>play()</code> from a snapshot
+until it rolls the story's outcome.</p>
 
 <p data-about="sol fe"><strong>soldb and this page step
 through Solidity and Fe with the same code. Both compilers write
@@ -355,8 +352,8 @@ ethdebug.</strong></p>
 <p>Compiler: Walnut's solc fork (walnuthq/solidity PR #10, head
 <code>c434b2ea</code>), with ethdebug output. Its pointers let soldb
 read the contract's state. solc writes ethdebug only with the optimizer
-off, so this build is via-IR without the optimizer. The trace is soldb's saved
-trace of <code>record(30)</code> (0.8 MB, 1,796 EVM steps). soldb parses
+off, so this build is via-IR without the optimizer. The trace is soldb's
+saved trace of the transaction (0.6 MB, 1,683 EVM steps). soldb parses
 the trace (<code>Trace.fromJson</code>) and reads the ethdebug
 (<code>attachEthdebug</code>). Then it maps each step to its source
 (<code>step(i)</code>) and reads the contract's state
@@ -367,14 +364,12 @@ the trace (<code>Trace.fromJson</code>) and reads the ethdebug
 <p>soldb, a Solidity debugger, steps through a Fe contract. It uses
 only Fe's ethdebug output. The page changes only the file layout (see
 the list below).</p>
-<p><code>Scores</code> in Fe (<a href="fe/scores.fe">scores.fe</a>).
-Compiler: Fe 26.4.1, at <code>-O 0</code>. A Fe
-<code>StorageMap</code> value must fit in one word, so this port keeps
-one map per field, <code>scores</code> and <code>streaks</code>, and has
-no <code>active</code>, <code>history</code> or <code>motto</code>. The
-transaction is <code>Record{points: 30}</code> (the same calldata as
-<code>record(30)</code>). The page loads the node's saved responses with
-soldb's <code>Trace.fromTransaction</code>, then calls
+<p><code>Arcade</code> in Fe (<a href="fe/arcade.fe">arcade.fe</a>).
+Compiler: Fe 26.4.1, at <code>-O 0</code>. A Fe <code>StorageMap</code>
+value must fit in one word, so this port keeps one map per
+<code>Player</code> field; <code>hits</code> is a map keyed by index.
+The page loads the node's saved responses with soldb's
+<code>Trace.fromTransaction</code>, then calls
 <code>attachEthdebug</code> and <code>step(i)</code>, as on the
 Solidity tab.</p>
 </div>
@@ -384,29 +379,31 @@ Solidity tab.</p>
 not soldb: <code>@ethdebug/pointers</code>, <code>@ethdebug/evm</code>
 and the trace reconstruction from
 <code>@ethdebug/programs-react</code>. Compiler: bugc, BUG's compiler,
-from ethdebug/format main; the local variables come from it. Only the decoding of
-values is a stand-in, for the format's planned interpretation
-layer.</p>
-<p><code>Scores</code> in BUG (<a href="bug/scores.bug">scores.bug</a>),
-statement for statement as in Scores.sol, with three differences. A BUG
-contract has one entry point, its code block, so the program is
-<code>record</code> alone: no <code>setMotto</code> and no
-<code>motto</code>. BUG has no <code>push</code>, so
-<code>record</code> writes <code>history[rounds]</code>. bugc stores no
-length for a dynamic array in storage, so <code>history</code> reads as
-length 0. Look for: the call stack (from bugc's <code>invoke</code> and
-<code>return</code> contexts), with <code>bonus(points: 30, streak:
-1)</code> at -O0; at -O2, the inlined <code>bonus</code>, with its local
-<code>b</code> (30) inside the inlined body, then <code>gained</code>
-(60). The tab has the same program at two optimization levels.</p>
+from ethdebug/format main; the local variables come from it. Only the
+decoding of values is a stand-in, for the format's planned
+interpretation layer.</p>
+<p><code>Arcade</code> in BUG (<a href="bug/arcade.bug">arcade.bug</a>),
+statement for statement as in Arcade.sol where BUG allows. It differs
+in a few ways: BUG has one entry point, so <code>setMotd</code> is
+dispatched by hand; the roll mixes <code>block.number</code> and the
+sender, unhashed; the reset is written inline; and BUG has no
+<code>push</code>, so <code>play</code> writes
+<code>hits[rounds]</code>, and bugc stores no length for it, so
+<code>hits</code> reads as length 0. bugc does not store strings yet,
+so <code>motd</code> holds a memory address, not its text. Look for: at
+-O0, the calls to <code>rolledHit</code> and
+<code>multiplied(points: 10, combo: 2)</code> in the call stack; at
+-O2, the inlined <code>multiplied</code>, with its local
+<code>m</code> going from 5 to 2, then <code>gained</code> (20). The tab
+has the same program at two optimization levels.</p>
 <p class="muted">At both levels, bugc gives a local variable a pointer
 where its value is in memory. Where a local has no location (its value
 is not stored yet, or the optimizer folded it), bugc lists it by type
 only: the format cannot yet say "the value is this expression"
-(ethdebug/format#291). At -O2, bugc inlines <code>bonus</code>. The
-inlined instructions carry <code>transform: ["inline"]</code> and keep
-the source range of the call <code>bonus(points, streak)</code>. The
-locals of the inlined <code>bonus</code> are marked "inline". They are
+(ethdebug/format#291). At -O2, bugc inlines <code>rolledHit</code> and
+<code>multiplied</code>. The inlined instructions carry
+<code>transform: ["inline"]</code> and keep the source range of the
+call. The locals of an inlined function are marked "inline". They are
 listed from the step after the inlined call starts to the step of the
 instruction that returns from it; the next step lists the caller's
 variables again. In the inlined body, the storage variables stay
@@ -417,23 +414,22 @@ base slot, so the page shows no entries.</p>
 <div class="about" data-about="old" hidden>
 <p>No ethdebug on this tab. Compiler: stock solc 0.8.37 (the official
 build), with <code>--via-ir --optimize</code>, on the same
-<code>Scores</code>. The tab has
-what tools had before ethdebug: the bytecode, its source map and the
-AST, from <code>solc --combined-json</code>. A source map gives each
-instruction one entry, <code>s:l:f:j</code>: the start and length of a
-source range, a file index (-1: no source), and a jump type:
-<code>i</code> into a function, <code>o</code> out of one,
-<code>-</code> neither. The stepper on this page highlights each step's
-range and shows its entry. It builds the call stack as older debuggers
-did, from the <code>i</code> and <code>o</code> jumps, and names a
-frame by the AST function that holds the jump's target.</p>
-<p><code>record(30)</code>: 313 steps; 258 map to the whole contract,
-30 to no source and 25 to a smaller range. The second data set is a
-call of the public getter <code>history(0)</code> after
-<code>record(30)</code> (<code>eth_call</code>, traced with
-<code>debug_traceCall</code>, 97 steps). Look for: in
-<code>record(30)</code>, the steps of <code>bonus</code> (lines 22 and
-23) and the call stack; in <code>history(0)</code>, line 33.</p>
+<code>Arcade</code>. The tab has what tools had before ethdebug: the
+bytecode, its source map and the AST, from <code>solc
+--combined-json</code>. A source map gives each instruction one entry,
+<code>s:l:f:j</code>: the start and length of a source range, a file
+index (-1: no source), and a jump type: <code>i</code> into a function,
+<code>o</code> out of one, <code>-</code> neither. The stepper on this
+page highlights each step's range and shows its entry. It builds the
+call stack as older debuggers did, from the <code>i</code> and
+<code>o</code> jumps, and names a frame by the AST function that holds
+the jump's target.</p>
+<p>The transaction: 338 steps; 257 map to the whole contract, 38 to no
+source and 43 to a smaller range. solc inlined <code>rolledHit</code>
+and <code>multiplied</code> into <code>play</code>. Look for: the steps
+on the <code>3</code> of <code>% 3</code> (line 23) after the roll is
+done, and the call stack while <code>rolledHit</code> and
+<code>multiplied</code> run.</p>
 </div>
 
 <p class="muted" data-about="bug old" hidden>"over" and "out"
@@ -459,7 +455,7 @@ build does not expose them yet.</p>
     <code>programs</code> list. The page passes the runtime one
     (<code>environment: "call"</code>).</li>
   <li><code>sources</code>: Fe lists its sources without their text. The
-    page supplies the text: <code>scores.fe</code>, and 10
+    page supplies the text: <code>arcade.fe</code>, and 11
     standard-library files (<code>builtin-core:/…</code>,
     <code>builtin-std:/…</code>) copied from the Fe repository at tag
     v26.4.1. Their blake3 hashes match the ones in Fe's file.</li>
