@@ -286,7 +286,11 @@ export async function replay(pointer, { state, templates }) {
       renames.push(yields);
       await walk(t.for, variables, [
         ...steps,
-        { kind: "template", name: p.template, expect: t.expect, yields },
+        { kind: "template", name: p.template, expect: t.expect, yields,
+          // (the values the template takes: its expected inputs, bound)
+          inputs: Object.fromEntries((t.expect ?? []).filter((e) =>
+            variables[e] !== undefined).map((e) => [e,
+            showValue(variables[e])])) },
       ]);
       renames.pop();
       for (const [from, to] of Object.entries(yields)) {

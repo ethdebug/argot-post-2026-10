@@ -1269,38 +1269,50 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
     "keccak(slot 0) + 1": range(12, 31).join(),
     "keccak(slot 0) + 2": range(12, 31).join() };
   const cdata = `keccak(${cl0} + 1)`;
+  // (cap, lit, at full strength, the band's line, the gutters)
   const wantPlayers = [
     // (its own slot named, not read: the gutter only)
     ["players is declared at slot 3; that slot holds nothing",
-      {}, null, "slot: 0x03"],
+      {}, null, "slot: 0x03", ["slot 3"]],
+    // (a template entered: the inputs it takes; the keys' items lit)
+    ["The template mapping(address => Player) takes slot = 3, key = each " +
+      "address in roster", roster, null, "expect: [slot, key]", ["slot 3"]],
     // (all three entries at once, and the roster items of their keys)
     ["Each record is at keccak(key, 3); the keys are the addresses in roster",
       { [al]: "all", [rec]: "all", [cl0]: "all", ...roster }, null,
-      "$keccak256"],
+      "$keccak256", []],
+    ["The template Player takes slot = each record's slot", {}, null,
+      "expect: [slot]", [al, rec, cl0]],
     // (alice, the focus, at full strength; bob and carol echo, muted)
     ["A record is two slots: stats, then name", { [al]: "all",
       [`${al} + 1`]: "0,1,2,3,4,31", [rec]: "all", [`${rec} + 1`]: "0,1,2,31",
       [cl0]: "all", [`${cl0} + 1`]: "all" },
-    { [al]: "all", [`${al} + 1`]: "0,1,2,3,4,31" }, "$sum: [slot, 0x01]"],
+    { [al]: "all", [`${al} + 1`]: "0,1,2,3,4,31" }, "$sum: [slot, 0x01]", []],
     ["The stats share one slot, packed from the right",
       { [al]: stats, [rec]: stats, [cl0]: stats }, { [al]: stats },
-      "name: score"],
+      "name: score", []],
+    ["The template string takes slot = each record's name slot", {}, null,
+      "expect: [slot]", [`${al} + 1`, `${rec} + 1`, `${cl0} + 1`]],
     // (both branches: alice's and bob's short names, carol's long one)
     ["The last byte decides name's form", { [`${al} + 1`]: "0,1,2,3,4,31",
       [`${rec} + 1`]: "0,1,2,31", [`${cl0} + 1`]: "all", [cdata]: "all",
-      [`${cdata} + 1`]: "0,1" }, null, "else:"],
+      [`${cdata} + 1`]: "0,1" }, null, "else:", []],
   ];
-  if (w.length !== 5 || w.ctl !== 1 || w[0].gut.join() !== "slot 3") {
+  const P = Object.fromEntries(["decl", "map", "entries", "player", "record",
+    "fields", "string", "name"].map((k, i) => [k, i]));
+  if (w.length !== 8 || w.ctl !== 1) {
     problems.push(`replay players: ${w.length} steps, controls at ${w.ctl}`);
   }
-  for (const [k, [cap, lit0, full0, ptr]] of wantPlayers.entries()) {
+  for (const [k, [cap, lit0, full0, ptr, gut]] of wantPlayers.entries()) {
     const x = w[k];
     if (!x?.cap.startsWith(cap) || !same(x.lit, lit0) ||
       !same(x.full, full0 ?? lit0) || !x.dim || !x.fits ||
-      x.count !== `${k + 1} / 5` || !x.short ||
+      x.count !== `${k + 1} / 8` || !x.short ||
+      [...x.gut].sort().join() !== [...gut].sort().join() ||
       !x.ptr.some((l) => l.includes(ptr))) {
       problems.push(`players step ${k + 1}: ${JSON.stringify({ cap: x?.cap,
-        lit: x?.lit, full: x?.full, fits: x?.fits, ptr: x?.ptr })}`);
+        lit: x?.lit, full: x?.full, gut: x?.gut, fits: x?.fits,
+        ptr: x?.ptr })}`);
     }
     const chips = wantPlayers.map((_, j) => j < k ? "done" : j === k ? "cur"
       : "later").join();
@@ -1308,24 +1320,29 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
   }
   // step 2's instances, one row a key; step 5's two branches
   if (!["0x7099…79c8 alice→…aa80", "0x3c44…93bc bob→…7527",
-    "0x90f7…b906 carol→…9978"].every((x) => w[1]?.form.includes(x)) ||
-    !w[4]?.form.includes("even: 0x0a → 5 bytes inline") ||
-    !w[4]?.form.includes("odd: 0x45 → 34 bytes at keccak(…9979)")) {
-    problems.push(`players forms: ${w[1]?.form} | ${w[4]?.form}`);
+    "0x90f7…b906 carol→…9978"].every((x) => w[P.entries]?.form
+    .includes(x)) ||
+    !w[P.name]?.form.includes("even: 0x0a → 5 bytes inline") ||
+    !w[P.name]?.form.includes("odd: 0x45 → 34 bytes at keccak(…9979)")) {
+    problems.push(`players forms: ${w[P.entries]?.form} | ${w[P.name]
+      ?.form}`);
   }
   // the chips: one per rule, with its storage noun
   {
     await page.evaluate(() => window.select("mid", { sel: "players" }));
     const cs = await page.locator("#chips .chip").evaluateAll((cs) =>
       cs.map((c) => c.textContent).join("|"));
-    if (cs !== "slot 3mapping|keccak(key, 3)records|2 slotsrecord|" +
-      "6 fieldsfields|name: short | longstring") problems.push(`chips: ${cs}`);
+    if (cs !== "slot 3mapping|mapping(address => Player)template|" +
+      "keccak(key, 3)records|Playertemplate|2 slotsrecord|" +
+      "6 fieldsfields|stringtemplate|name: short | longstring") {
+      problems.push(`chips: ${cs}`);
+    }
   }
   // the focus picker: bob at full strength in steps 3 and 4, and in the
   // formulas; nothing moves
   {
     await page.locator('#details button[data-r="start"]').click();
-    await page.locator('#chips .chip[data-k="3"]').click();
+    await page.locator(`#chips .chip[data-k="${P.fields}"]`).click();
     await page.mouse.move(1, 1);
     const boxes = () => page.evaluate(() => JSON.stringify([
       ...document.querySelectorAll("#details, #dpanel, #dpick button, " +
@@ -1340,9 +1357,9 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
     const b1 = await boxes();
     const pressed = await page.locator('#dpick button[aria-pressed="true"]')
       .innerText();
-    await page.locator('#chips .chip[data-k="2"]').click();
+    await page.locator(`#chips .chip[data-k="${P.record}"]`).click();
     const y = await stepNow();
-    if (b0 !== b1 || pressed !== "bob" || x.count !== "4 / 5" ||
+    if (b0 !== b1 || pressed !== "bob" || x.count !== "6 / 8" ||
       !same(litNamed({ lit: x.full }), { [rec]: stats }) ||
       !y.form.startsWith("bob: …7527") || !same(litNamed({ lit: y.full }),
         { [rec]: "all", [`${rec} + 1`]: "0,1,2,31" })) {
@@ -1354,7 +1371,7 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
   // the key's list items light at step 2, in their entries' colours
   {
     await page.locator('#details button[data-r="start"]').click();
-    await page.locator('#chips .chip[data-k="1"]').click();
+    await page.locator(`#chips .chip[data-k="${P.entries}"]`).click();
     await page.mouse.move(1, 1);
     const pairs = await page.evaluate((es) => es.map((e, i) => {
       const c = (p) => document.querySelector(`#tree li[data-path="${p}"] ` +
@@ -1377,8 +1394,9 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
     await page.keyboard.press("Escape");
     return hs;
   };
-  const entryHues = [...new Set([...await huesAt(1), ...await huesAt(2)])];
-  const fieldHues = await huesAt(3);
+  const entryHues = [...new Set([...await huesAt(P.entries),
+    ...await huesAt(P.record)])];
+  const fieldHues = await huesAt(P.fields);
   if (entryHues.length !== 3 || fieldHues.length !== 6 ||
     fieldHues.some((x) => entryHues.includes(x))) {
     problems.push(`hues: entries ${entryHues}, fields ${fieldHues}`);
@@ -1392,21 +1410,23 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
       r.querySelector(":scope > .addr").classList.contains("grp")])));
     await page.locator('#details button[data-r="start"]').click();
     const seen = [];
-    for (let k = 0; k < 5; k++) {
+    for (let k = 0; k < 8; k++) {
       await page.locator(`#chips .chip[data-k="${k}"]`).click();
       await page.mouse.move(1, 1);
       seen.push(await labelled());
     }
     const data = cdata;
     const bad = [];
-    // (all three entries from step 2)
-    for (let k = 1; k < 5; k++) {
+    // (all three entries from the entries step)
+    for (let k = P.entries; k < 8; k++) {
       for (const [who, e] of [["alice", al], ["bob", rec], ["carol", cl0]]) {
         if (!seen[k][e]) bad.push(`${who} ${k + 1}`);
       }
     }
-    for (let k = 0; k < 4; k++) if (seen[k][data]) bad.push(`carol ${k + 1}`);
-    if (!seen[4][data]) bad.push("carol 5");
+    for (let k = 0; k < P.name; k++) {
+      if (seen[k][data]) bad.push(`carol ${k + 1}`);
+    }
+    if (!seen[P.name][data]) bad.push("carol at the name");
     await page.locator('#details button[data-r="prev"]').click();
     if ((await labelled())[data]) bad.push("◀ kept carol's data");
     // the current step's labels are dark; earlier ones are muted
@@ -1427,7 +1447,7 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
     await page.evaluate(() => window.select("mid", { sel: "players" }));
     await page.locator('#details button[data-r="start"]').click();
     const hrefs = [];
-    for (let k = 0; k < 5; k++) {
+    for (let k = 0; k < 8; k++) {
       await page.locator(`#chips .chip[data-k="${k}"]`).click();
       hrefs.push(...await page.locator("#dpanel .fnotes a").evaluateAll(
         (as) => as.map((a) => a.href)));
@@ -1504,13 +1524,14 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
     await page.keyboard.press("Escape");
   }
   // a single value takes the rules on its path, with its entry in focus:
-  // bob's plays 1, 2, 3, 4 (bob's plays alone at full strength in 4);
-  // carol's name 1, 2, 3, 5
+  // bob's plays: all but the string's rules (bob's plays alone at full
+  // strength in the stats); carol's name: all but the stats
   w = await walk(`${B}.plays`);
-  if (w.map((x) => x.cap.split(" ")[0]).join() !== "players,Each,A,The" ||
-    !w[1].form.includes("0x3c44…93bc") || !w[2].form.startsWith("bob:") ||
-    !same(w[3].full, { [rec]: range(12, 15).join() }) ||
-    !same(w[3].lit, { [al]: stats, [rec]: stats, [cl0]: stats }) ||
+  if (w.map((x) => x.cap.split(" ")[1]).join() !==
+    "is,template,record,template,record,stats" ||
+    !w[2].form.includes("0x3c44…93bc") || !w[4].form.startsWith("bob:") ||
+    !same(w[5].full, { [rec]: range(12, 15).join() }) ||
+    !same(w[5].lit, { [al]: stats, [rec]: stats, [cl0]: stats }) ||
     w.ctl !== 1) {
     problems.push(`replay bob's plays: ${JSON.stringify(w.map((x) =>
       [x.cap, x.full]))}`);
@@ -1522,8 +1543,9 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
     problems.push(`replay end: ${JSON.stringify(st)}`);
   }
   w = await walk(`${C}.name`);
-  if (w.map((x) => x.cap.split(" ")[0]).join() !== "players,Each,A,The" ||
-    !w[3]?.cap.includes("form") || !w[2]?.form.startsWith("carol:") ||
+  if (w.map((x) => x.cap.split(" ")[1]).join() !==
+    "is,template,record,template,record,template,last" ||
+    !w[6]?.cap.includes("form") || !w[4]?.form.startsWith("carol:") ||
     w.ctl !== 1) {
     problems.push(`replay carol's name: ${JSON.stringify(w.map((x) =>
       x.cap))}`);
@@ -1549,32 +1571,32 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
   }
   await page.locator('#details button[data-r="start"]').dblclick();
   bs = await barNow();
-  if (!bs.tint || bs.mode !== "Replay" || bs.count !== "1 / 4" ||
+  if (!bs.tint || bs.mode !== "Replay" || bs.count !== "1 / 6" ||
     bs.off !== "first,prev" || !bs.exit) {
     problems.push(`bar at step 1 (after a double click): ${JSON.stringify(bs)}`);
   }
   await page.locator('#details button[data-r="last"]').click();
   bs = await barNow();
-  if (bs.count !== "4 / 4" || bs.off !== "next,last") {
+  if (bs.count !== "6 / 6" || bs.off !== "next,last") {
     problems.push(`⏭: ${JSON.stringify(bs)}`);
   }
   // ▶ at the last step: disabled; → stays
   await page.keyboard.press("ArrowRight");
   bs = await barNow();
-  if (bs.count !== "4 / 4" || !bs.tint) problems.push(`→ at the end: ${bs.count}`);
+  if (bs.count !== "6 / 6" || !bs.tint) problems.push(`→ at the end: ${bs.count}`);
   await page.locator('#details button[data-r="first"]').click();
-  if ((await barNow()).count !== "1 / 4") problems.push("⏮");
+  if ((await barNow()).count !== "1 / 6") problems.push("⏮");
   // keys after a mouse click on ▶, and from anywhere (the focus moved)
   await page.locator('#details button[data-r="next"]').click();
   await page.keyboard.press("ArrowRight");
-  if ((await barNow()).count !== "3 / 4") {
+  if ((await barNow()).count !== "3 / 6") {
     problems.push(`→ after a click: ${(await barNow()).count}`);
   }
   await page.evaluate(() => document.activeElement?.blur());
   await page.keyboard.press("Home");
-  if ((await barNow()).count !== "1 / 4") problems.push("Home");
+  if ((await barNow()).count !== "1 / 6") problems.push("Home");
   await page.keyboard.press("End");
-  if ((await barNow()).count !== "4 / 4") problems.push("End");
+  if ((await barNow()).count !== "6 / 6") problems.push("End");
   // ✕ Exit
   await page.locator('#details button[data-r="exit"]').click();
   if ((await barNow()).tint) problems.push("✕ Exit did not exit");
@@ -1582,15 +1604,15 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
   await page.locator('#details button[data-r="start"]').click();
   await page.locator('#chips .chip[data-k="1"]').click();
   st = await stepNow();
-  if (st.count !== "2 / 4") problems.push(`chip jump: ${st.count}`);
+  if (st.count !== "2 / 6") problems.push(`chip jump: ${st.count}`);
   await page.locator("#details").focus();
   await page.keyboard.press("ArrowLeft");
   st = await stepNow();
-  if (st.count !== "1 / 4") problems.push(`←: ${st.count}`);
+  if (st.count !== "1 / 6") problems.push(`←: ${st.count}`);
   await page.keyboard.press("ArrowRight");
   await page.keyboard.press("ArrowRight");
   st = await stepNow();
-  if (st.count !== "3 / 4") problems.push(`→: ${st.count}`);
+  if (st.count !== "3 / 6") problems.push(`→: ${st.count}`);
   await page.keyboard.press("Escape");
   st = await stepNow();
   if (!st.resolved || (await selected()).join() !== `${B}.plays`) {
@@ -2083,22 +2105,23 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
   const rwant = [
     ["roster is declared at slot 0", {}, "slot 0", "in: { template: " +
       "address[] }"],
+    ["The template address[] takes slot = 0", {}, "slot 0", "expect: [slot]"],
     ["slot 0 holds the length: 3", { "slot 0": "all" }, "",
       "- { name: length, location: storage, slot: slot }"],
     ["The items start at keccak(0), one slot each, for length items",
       roster, "", "count: { $read: length }"]];
-  if (w.length !== 3 || rwant.some(([cap, lit, gut, band], k) =>
+  if (w.length !== 4 || rwant.some(([cap, lit, gut, band], k) =>
     w[k].cap !== cap || !same(w[k].lit, lit) || w[k].gut.join() !== gut ||
-    !w[k].ptr.includes(band) || (k === 1 && w[k].ptr.length !== 1)) ||
-    w[1].form !== "length = 3" ||
-    w[2].form !== "keccak256(0) = …e563; items 0…2 at + i") {
+    !w[k].ptr.includes(band) || (k === 2 && w[k].ptr.length !== 1)) ||
+    w[2].form !== "length = 3" ||
+    w[3].form !== "keccak256(0) = …e563; items 0…2 at + i") {
     problems.push(`replay roster: ${JSON.stringify(w.map((x) =>
       [x.cap, x.form, x.lit, x.gut, x.ptr]))}`);
   }
   // an item: the same rules, cut to it
   w = await walk("roster[1]");
-  if (w.length !== 3 || !w[0].gut.includes("slot 0") ||
-    !w[1].lit["slot 0"] || !w[2].lit["keccak(slot 0) + 1"]) {
+  if (w.length !== 4 || !w[0].gut.includes("slot 0") ||
+    !w[2].lit["slot 0"] || !w[3].lit["keccak(slot 0) + 1"]) {
     problems.push(`replay roster[1]: ${JSON.stringify(w.map((x) =>
       [x.cap, x.lit]))}`);
   }
@@ -2240,7 +2263,7 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
         await tap('#details button[data-r="start"]');
       }
     }
-    for (let k = 1; k < 5; k++) {
+    for (let k = 1; k < 8; k++) {
       await tap('#details button[data-r="next"]');
       const bx = await check(`step ${k + 1}`, null, true);
       if (await pg.evaluate(() => scrollY) !== top[1]) {
@@ -2286,7 +2309,7 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
     await pg.evaluate(() => document.querySelector(
       '#details button[data-r="start"]').click());
     const bad = [];
-    for (let k = 0; k < 5; k++) {
+    for (let k = 0; k < 8; k++) {
       await pg.evaluate((x) => document.querySelector(
         `#chips .chip[data-k="${x}"]`).click(), k);
       const covered = [];
@@ -2363,7 +2386,7 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
     const a3 = await full();
     await page.emulateMedia({ reducedMotion: "reduce" });
     if (!r0.panel || r0.wrap !== r0.panel || r1.wrap || r1.replaying ||
-      a0.wrap >= a0.panel || a0.count !== "1 / 5" ||
+      a0.wrap >= a0.panel || a0.count !== "1 / 8" ||
       a1.wrap !== a1.panel || !a1.panel || !a2.replaying ||
       a3.wrap || a3.replaying) {
       problems.push(`unfold: ${JSON.stringify([r0, r1, a0, a1, a2, a3])}`);
@@ -2749,7 +2772,7 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
     if (!first) problems.push("step 1: the block's top is cut");
     // (at a step in the middle of the YAML: the block's top a third of
     // the way down the visible box, within a line)
-    await page.locator('#chips .chip[data-k="3"]').click();
+    await page.locator('#chips .chip[data-k="5"]').click();
     const mid = await page.evaluate(() => {
       const box = document.querySelector("#ptr");
       const on = box.querySelector(".line.on");

@@ -522,6 +522,23 @@ function replaySteps(path, side, focus) {
         }
       } else if (r.kind === "template") {
         const t = types[r.s.name];
+        // each template entered: a rule of its own, with the inputs it
+        // takes (inside a mapping's entries, mapSteps has them)
+        const R = recOf(leaf);
+        if (R && t?.kind === "struct") R.tslot = r.s.inputs?.slot?.hex;
+        if (R && t?.kind === "string") R.sslot = r.s.inputs?.slot?.hex;
+        if (!R || t?.kind === "mapping") {
+          add(`tmpl:${r.s.name}`, (p) => {
+            p.tname = r.s.name;
+            p.kind = t?.kind;
+            p.var = top(leaf);
+            p.inputs ??= [];
+            const x = JSON.stringify(r.s.inputs ?? {});
+            if (!p.inputs.some((y) => JSON.stringify(y) === x)) {
+              p.inputs.push(r.s.inputs ?? {});
+            }
+          });
+        }
         if (t?.kind === "struct" && recOf(leaf)) recOf(leaf).struct = t;
         else if (t?.kind === "struct") {
           add("record", (p) => {
@@ -612,7 +629,7 @@ function replaySteps(path, side, focus) {
       form: `<span class="itab">${rs.map((r) => `<span>${addr(r.key)}</span>` +
         `<span class="prose">→</span><span class="pk${kOf(r)} isw">${esc(
           tail(r.slot))}</span>`).join("")}</span>`,
-      constructs: ["$keccak256", "define", "template"], source: keySource,
+      constructs: ["$keccak256", "define"], source: keySource,
       chip: `keccak(key, ${small(base)})`, chipLabel: "records",
       parts: [{ slots: rs.map((r) => word(r.slot)),
         regions: items.filter((x) => x.item).map((x) => x.item[side].region),
@@ -621,6 +638,24 @@ function replaySteps(path, side, focus) {
         colors: new Map([...ec, ...items.filter((x) => x.item).map((x) =>
           [x.item.path, kOf(x.r)])]) }],
       rows: rs.map((r) => r.path) }));
+    // a template the entries enter: the slot each takes, by entry
+    const tmpl = (kind, slotOf, what) => {
+      const id = Object.keys(types).find((n) => types[n].kind === kind &&
+        (kind !== "struct" || types[n] === rs[0].struct) &&
+        current.f.contract.pointers[n]);
+      const tn = id ? typeName(types[id], types) : kind;
+      steps.push(all({ phase: "template", tkind: kind,
+        cap: `The template \`${tn}\` takes slot = each ${what}`,
+        form: `<span class="itab">${rs.map((r) => `<span>${esc(who(r))
+          }</span><span class="prose">→</span><span class="pk${kOf(r)
+          } isw">${esc(tail(slotOf(r)))}</span>`).join("")}</span>`,
+        constructs: ["template"], source: "compiler",
+        chip: tn, chipLabel: "template",
+        gutters: rs.map((r) => word(slotOf(r))),
+        parts: [{ rows: rs.map((r) => r.path), colors: ec }],
+        rows: rs.map((r) => r.path) }));
+    };
+    tmpl("struct", (r) => r.tslot ?? r.slot, "record's slot");
     // (3) a record's slots: those its fields and its string's flag are in
     const slotsOf = (r) => [...new Set([...r.fields.map((x) => x.region.slot),
       ...(r.name ? [r.name.flag.slot] : [])].map(word))]
@@ -675,6 +710,8 @@ function replaySteps(path, side, focus) {
     // (5) the string: its slot's last byte says short (even) or long
     // (odd), both at once
     if (rs.some((r) => r.name && picked.has(r.name.leaf.path))) {
+      tmpl("string", (r) => r.sslot ?? r.name?.flag.slot ?? r.slot,
+        "record's name slot");
       const withName = rs.filter((r) => r.name);
       const fl = (r) => wordAt(r.name.flag.slot).slice(-2);
       const shorts = withName.filter((r) => r.name.mode !== "long");
@@ -732,6 +769,41 @@ function replaySteps(path, side, focus) {
             ? "array" : "value",
         slots: dyn ? [] : [...p.slots], regions: dyn ? [] : p.regions,
         gutters: dyn ? [word(p.slot)] : [], rows: [p.var] });
+    } else if (p.k.startsWith("tmpl:")) {
+      const tn = typeName(types[p.tname], types);
+      const ks = Object.keys(p.inputs[0] ?? {});
+      const one = (k) => {
+        const vs = [...new Set(p.inputs.map((x) => x[k]?.hex))];
+        return vs.length === 1 ? small(vs[0]) : null;
+      };
+      const items = ks.includes("key") ? p.inputs.map((x) => keyItem(
+        x.key.hex)).filter(Boolean) : [];
+      const ec = forRow(current.panel, p.var).colors ?? new Map();
+      const entryOf = (x) => `${p.var}[${word(x.key.hex).slice(-40)
+        .replace(/^/, "0x")}]`;
+      step({ phase: "template", tkind: p.kind, var: p.var,
+        cap: `The template \`${tn}\` takes ${ks.map((k) => one(k) !== null
+          ? `${k} = ${one(k)}` : k === "key" && keyList
+            ? `${k} = each address in \`${keyList}\`` : `each ${k}`)
+          .join(", ")}`,
+        form: p.inputs.length > 1 && ks.includes("key")
+          ? `<span class="itab">${p.inputs.map((x) => `<span>${addr(
+            x.key.hex)}</span><span class="prose">→</span><span>${ks.filter(
+            (k) => k !== "key").map((k) => `${k} ${esc(small(x[k].hex))}`)
+            .join(", ")}</span>`).join("")}</span>`
+          : esc(ks.map((k) => `${k} = ${small(p.inputs[0][k].hex)}`)
+            .join(", ")),
+        constructs: ["template"], source: items.length
+          ? `compiler · keys from ${keyList}` : "compiler",
+        sourceTint: !!items.length,
+        chip: tn, chipLabel: "template",
+        gutters: ks.includes("slot") ? [...new Set(p.inputs.map((x) =>
+          word(x.slot.hex)))] : [],
+        parts: [{ regions: items.map((i) => i[side].region),
+          rows: [p.var, ...items.map((i) => i.path)],
+          colors: new Map(items.map((i, n) => [i.path,
+            ec.get(entryOf(p.inputs[n])) ?? 1])) }],
+        rows: [p.var] });
     } else if (p.k === "length") {
       const n = num(wordAt(p.region.slot) ?? "0x0");
       step({ phase: "length", var: p.var,
@@ -993,12 +1065,15 @@ function activeLines(lines, st) {
     case "declared": return pick((l) => has(l, "var"));
     case "entries": return pick((l) => has(l, "t:mapping") &&
       l.tags.some((t) => t.startsWith("define:")) && !has(l, "item"));
+    case "template": return pick((l) => has(l, `t:${st.tkind}`) &&
+      (has(l, "head") || has(l, "expect")));
     case "length": return pick((l) => has(l, "t:array") &&
       has(l, "region:length"));
     case "item": return pick((l) => has(l, "t:array") && has(l, "item") &&
       !has(l, "region:length"));
     // (the record: the whole struct template, its group of members)
-    case "record": return pick((l) => has(l, "t:struct"));
+    case "record": return pick((l) => has(l, "t:struct") &&
+      !has(l, "head") && !has(l, "expect"));
     case "fields": {
       const names = new Set((st.names ?? st.rows.map((p) => p.split(".")
         .pop())).map((n) => `region:${n}`));
@@ -1109,6 +1184,7 @@ function shortCap(st) {
     case "declared": return `\`${st.var}\`${st.var.endsWith("s") ? "'"
       : "'s"} own slot`;
     case "entries": return "every record, from its key";
+    case "template": return "a template's inputs";
     case "length": return "the length";
     case "item": return "the items, from a hash";
     case "record": return "a record's slots";

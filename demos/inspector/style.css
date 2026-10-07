@@ -1016,7 +1016,7 @@ main[data-single] > .cols :is(.chglegend, .legend .bchg, .intro .two) {
    few lines of the pointer; the rest scrolls inside it) */
 @media (max-width: 759px) {
   .dpanel { grid-template-columns: minmax(0, 1fr);
-    grid-template-rows: auto 5.4em; height: 16.6em; gap: 4px;
+    grid-template-rows: auto 5.4em; height: 17.9em; gap: 4px;
     padding: 6px 10px; }
   .dleft { grid-template-rows: auto 1.9em; }
   .dpanel .chips, .dpanel .rsrc, .dpanel .fnotes, .ptr .plabel {
@@ -1034,7 +1034,7 @@ main[data-single] > .cols :is(.chglegend, .legend .bchg, .intro .two) {
 .rsrc { margin: 4px 0 0; height: 1.6em; overflow: hidden;
   white-space: nowrap; }
 @media (max-width: 759px) {
-  .rcap { height: 2.7em; font-size: 0.95rem; }
+  .rcap { height: 4.05em; font-size: 0.95rem; }
   .rform { height: 5.6em; font-size: 0.8rem; }
 }
 .rcount { margin-left: 6px; color: var(--muted); font-size: 0.85rem;
