@@ -1212,6 +1212,8 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
       full: [...document.querySelectorAll(
         "#panel .view:not([hidden]) .b.hl:not(.muted)")].map((c) =>
         `${c.closest(".wrow").dataset.slot} ${c.dataset.i}`),
+      gut: [...document.querySelectorAll(
+        "#panel .view:not([hidden]) .wrow.gut")].map((r) => r.dataset.slot),
       src: [...document.querySelectorAll(
         "#panel .view:not([hidden]) .b.hl.pksrc")].length,
       dim: document.querySelector("#panel").classList.contains("active"),
@@ -1238,7 +1240,8 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
       const x = await stepNow();
       ctl.add(x.ctl);
       out.push({ ...x, lit: litNamed(x, nm),
-        full: litNamed({ lit: x.full }, nm) });
+        full: litNamed({ lit: x.full }, nm),
+        gut: x.gut.map((sl) => nm[sl] ?? sl) });
       if (await page.locator('#details button[data-r="next"]').isDisabled()) {
         break;
       }
@@ -1267,8 +1270,9 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
     "keccak(slot 0) + 2": range(12, 31).join() };
   const cdata = `keccak(${cl0} + 1)`;
   const wantPlayers = [
+    // (its own slot named, not read: the gutter only)
     ["players is declared at slot 3; that slot holds nothing",
-      { "slot 3": "all" }, null, "slot: 0x03"],
+      {}, null, "slot: 0x03"],
     // (all three entries at once, and the roster items of their keys)
     ["Each record is at keccak(key, 3); the keys are the addresses in roster",
       { [al]: "all", [rec]: "all", [cl0]: "all", ...roster }, null,
@@ -1283,10 +1287,10 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
       "name: score"],
     // (both branches: alice's and bob's short names, carol's long one)
     ["The last byte decides name's form", { [`${al} + 1`]: "0,1,2,3,4,31",
-      [`${rec} + 1`]: "0,1,2,31", [`${cl0} + 1`]: "31", [cdata]: "all",
+      [`${rec} + 1`]: "0,1,2,31", [`${cl0} + 1`]: "all", [cdata]: "all",
       [`${cdata} + 1`]: "0,1" }, null, "else:"],
   ];
-  if (w.length !== 5 || w.ctl !== 1) {
+  if (w.length !== 5 || w.ctl !== 1 || w[0].gut.join() !== "slot 3") {
     problems.push(`replay players: ${w.length} steps, controls at ${w.ctl}`);
   }
   for (const [k, [cap, lit0, full0, ptr]] of wantPlayers.entries()) {
@@ -1681,6 +1685,44 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
     if (!m) problems.push("alice's rows not one block after players");
     await page.evaluate((x) => window.select("mid", { sel: x }), `${B}.plays`);
   }
+  // every slot popover sits the same: its arrow's tip the same distance
+  // from its address's tint (players and roster[1] selected, a replay
+  // step), the mapping's root slot included
+  {
+    const gaps = () => page.evaluate(() => [...document.querySelectorAll(
+      "#panel .view:not([hidden]) .pop")].map((p) => {
+      const a = p.parentElement;
+      const ar = a.getBoundingClientRect();
+      const pr = p.getBoundingClientRect();
+      const bf = getComputedStyle(a, "::before");
+      const arrow = getComputedStyle(p, "::after");
+      const ah = parseFloat(arrow.borderTopWidth) +
+        parseFloat(arrow.borderBottomWidth);
+      const under = p.classList.contains("under");
+      const tip = under ? pr.top - ah : pr.bottom + ah;
+      return [p.textContent.slice(0, 12), Math.round(under
+        ? tip - (ar.bottom - (parseFloat(bf.bottom) || 0))
+        : ar.top + (parseFloat(bf.top) || 0) - tip)];
+    }));
+    const seen = [];
+    for (const x of ["players", "roster[1]"]) {
+      await page.evaluate((y) => window.select("mid", { sel: y }), x);
+      await page.mouse.move(1, 1);
+      seen.push(...await gaps());
+    }
+    await page.evaluate(() => window.select("mid", { sel: "players" }));
+    await page.locator('#details button[data-r="start"]').click();
+    await page.locator('#chips .chip[data-k="1"]').click();
+    await page.mouse.move(1, 1);
+    seen.push(...await gaps());
+    await page.keyboard.press("Escape");
+    const ds = seen.map((x) => x[1]);
+    if (seen.length < 8 || Math.max(...ds) - Math.min(...ds) > 1 ||
+      !seen.some((x) => x[0].startsWith("slot 3"))) {
+      problems.push(`popover gaps: ${JSON.stringify(seen)}`);
+    }
+    await page.evaluate((x) => window.select("mid", { sel: x }), `${B}.plays`);
+  }
   // while it replays, pointing elsewhere changes nothing
   await page.locator('#details button[data-r="start"]').click();
   await page.mouse.move(1, 1);
@@ -1692,9 +1734,29 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
   }
   await page.keyboard.press("Escape");
   // the roster's item; a value with no template
+  // roster: three rules: declared (slot 0's gutter only), the length
+  // (slot 0's bytes; the length region's line), the items (all three,
+  // at once; the define and the list, whose count reads the length)
+  w = await walk("roster");
+  const rwant = [
+    ["roster is declared at slot 0", {}, "slot 0", "in: { template: " +
+      "address[] }"],
+    ["slot 0 holds the length: 3", { "slot 0": "all" }, "",
+      "- { name: length, location: storage, slot: slot }"],
+    ["The items start at keccak(0), one slot each, for length items",
+      roster, "", "count: { $read: length }"]];
+  if (w.length !== 3 || rwant.some(([cap, lit, gut, band], k) =>
+    w[k].cap !== cap || !same(w[k].lit, lit) || w[k].gut.join() !== gut ||
+    !w[k].ptr.includes(band) || (k === 1 && w[k].ptr.length !== 1)) ||
+    w[1].form !== "length = 3" ||
+    w[2].form !== "keccak256(0) = …e563; items 0…2 at + i") {
+    problems.push(`replay roster: ${JSON.stringify(w.map((x) =>
+      [x.cap, x.form, x.lit, x.gut, x.ptr]))}`);
+  }
+  // an item: the same rules, cut to it
   w = await walk("roster[1]");
-  if (w.length !== 2 || !w[0].lit["slot 0"] ||
-    !w[1].lit["keccak(slot 0) + 1"]) {
+  if (w.length !== 3 || !w[0].gut.includes("slot 0") ||
+    !w[1].lit["slot 0"] || !w[2].lit["keccak(slot 0) + 1"]) {
     problems.push(`replay roster[1]: ${JSON.stringify(w.map((x) =>
       [x.cap, x.lit]))}`);
   }

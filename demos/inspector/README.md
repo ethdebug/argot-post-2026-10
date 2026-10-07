@@ -398,6 +398,17 @@ page but a flag byte read from the state). For players:
 5. the last byte decides the name's form: the `if`'s both branches at
    once (alice and bob short, carol long).
 
+A mapping's, an array's or a string's own slot is first only named
+(its gutter lit, not its bytes); a region a later rule reads gets its
+own step or is lit in the step that reads it, so the YAML band and the
+lit bytes agree. roster: declared at slot 0 (gutter); slot 0 holds
+the length, 3 (the length region); the items at keccak(0), one slot
+each, for `length` items (all three at once). motd: declared at slot
+1 (gutter); its flag and the branch taken (the length-flag region, the
+if, and then or else, with long-length lit for a long string).
+players' 5 lights carol's long-length word likewise. total and rounds
+are one region each: one step.
+
 In 3 and 4 the focus entry is at full strength and the others echo
 it, muted; the picker (alice, bob, carol) changes the focus and the
 formula's numbers, and moves nothing. A single value takes the rules
