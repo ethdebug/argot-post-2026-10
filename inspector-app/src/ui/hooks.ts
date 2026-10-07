@@ -4,7 +4,8 @@ import { createContext, useContext, useEffect, useMemo, useState,
   useSyncExternalStore } from "react";
 import type { Project } from "../engine/project";
 import type {
-  Decoded, Decoding, Filter, Hex, Layout, Light, Snapshot, TimelinePoint,
+  Compilation, Decoded, Decoding, Filter, Hex, Layout, Light, Snapshot,
+  TimelinePoint,
 } from "../engine/types";
 import { decode } from "../engine/decode";
 import { layout } from "../engine/layout";
@@ -199,16 +200,42 @@ export function useLight(id: string, filter?: Filter): Light {
     return noLight;
   }, [d, l, link, collapsed]);
 }
+// The compilation a view's decoding reads with (its provenance: a
+// hand-written one is badged)
+export function useCompilation(ref: DataRef | undefined):
+  Compilation | undefined {
+  const lens = useLens();
+  const key = useLensState((s) => {
+    const at = ref && resolveRef(ref, s, lens.project);
+    return at ? decodingOf(lens, at.decoding)?.compilation ?? "" : "";
+  });
+  const [got, setGot] = useState<Compilation>();
+  useEffect(() => {
+    if (!key) return;
+    let live = true;
+    lens.project.compilation(key).then((c) => live && setGot(c),
+      (e) => console.error(e));
+    return () => {
+      live = false;
+    };
+  }, [lens, key]);
+  return got?.id === key ? got : undefined;
+}
+
 // The timeline point a view shows (a dump's words, its transaction)
-export function usePoint(ref: DataRef | undefined):
-  TimelinePoint | undefined {
+export const usePoint = (ref: DataRef | undefined) => usePointAt(ref)?.p;
+
+// … and its place in its timeline
+export function usePointAt(ref: DataRef | undefined):
+  { p: TimelinePoint; i: number } | undefined {
   const lens = useLens();
   const { project } = lens;
   const key = useLensState((s) => {
     const at = ref && resolveRef(ref, s, project);
     return at ? `${at.decoding}\n${at.point}` : "";
   });
-  const [got, setGot] = useState<{ key: string; p: TimelinePoint }>();
+  const [got, setGot] = useState<{ key: string;
+    at: { p: TimelinePoint; i: number } }>();
   useEffect(() => {
     if (!key) return;
     const [decoding, point] = key.split("\n");
@@ -216,14 +243,14 @@ export function usePoint(ref: DataRef | undefined):
     const dc = decodingOf(lens, decoding);
     if (!dc) return;
     project.timeline(dc.timeline).then((t) => {
-      const at = t.points.find((x) => x.id === point);
-      if (live && at) setGot({ key, p: at });
+      const i = t.points.findIndex((x) => x.id === point);
+      if (live && i >= 0) setGot({ key, at: { p: t.points[i], i } });
     }, (e) => console.error(e));
     return () => {
       live = false;
     };
   }, [lens, project, key]);
-  return got?.key === key ? got.p : undefined;
+  return got?.key === key ? got.at : undefined;
 }
 
 export const useSnapshot = (ref: DataRef | undefined): Snapshot | undefined =>

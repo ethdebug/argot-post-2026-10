@@ -10,7 +10,7 @@ import type {
 } from "../engine/types";
 import { byteKey, short } from "../engine/hex";
 import {
-  useDecoded, useLayout, useLens, useLight, useLink, usePoint,
+  useDecoded, useLayout, useLens, useLight, useLink, usePointAt,
 } from "./hooks";
 import { blockOf, resolveTarget } from "../engine/target";
 import { readWritten } from "../engine/timeline";
@@ -132,9 +132,11 @@ export function Dump(p: { id: ViewId; location: Location; data: DataRef;
   side?: "before" | "after"; hidden?: boolean; title?: string;
   when?: string; compare?: DataRef }) {
   const { l } = useLayout(p.id, p.filter);
-  const here = usePoint(p.data);
+  const hereAt = usePointAt(p.data);
+  const thereAt = usePointAt(p.compare);
+  const here = hereAt?.p;
   const snap = here?.snapshot;
-  const otherPoint = usePoint(p.compare);
+  const otherPoint = thereAt?.p;
   const light = useLight(p.id, p.filter);
   const [link, setLink] = useLink(p.link);
   const d = useDecoded(p.data);
@@ -242,7 +244,8 @@ export function Dump(p: { id: ViewId; location: Location; data: DataRef;
         aria-hidden="true" />);
     }
     // what the transaction did to the slot (a pair only)
-    const [b, a] = p.side === "before" ? [here, otherPoint]
+    // (the earlier point is before the transaction between them)
+    const [b, a] = (hereAt?.i ?? 0) < (thereAt?.i ?? 0) ? [here, otherPoint]
       : [otherPoint, here];
     const facts = !p.compare || !a || !b ? ""
       : readWritten(b, a, r.address) ?? "not read or written";
