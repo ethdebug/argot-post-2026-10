@@ -3,7 +3,7 @@
 import { createContext, useContext, useEffect, useMemo, useState,
   useSyncExternalStore } from "react";
 import type { Project } from "../engine/project";
-import type { Decoded, Layout, Light } from "../engine/types";
+import type { Decoded, Layout, Light, Snapshot } from "../engine/types";
 import { decode } from "../engine/decode";
 import { layout } from "../engine/layout";
 import { forBytes, forPath, noLight } from "../engine/light";
@@ -125,4 +125,27 @@ export function useLight(id: string): Light {
     if (hover?.bytes) return forBytes(d, l, hover.bytes);
     return noLight;
   }, [d, l, link, view.collapsed]);
+}
+
+// The snapshot at a view's timeline point (a dump's words)
+export function useSnapshot(ref: DataRef | undefined): Snapshot | undefined {
+  const { project } = useLens();
+  const key = useLensState((s) => {
+    const at = ref && resolveRef(ref, s, project);
+    return at ? `${at.decoding}\n${at.point}` : "";
+  });
+  const [got, setGot] = useState<{ key: string; s: Snapshot }>();
+  useEffect(() => {
+    if (!key) return;
+    const [decoding, point] = key.split("\n");
+    let live = true;
+    project.timeline(project.decodings[decoding].timeline).then((t) => {
+      const at = t.points.find((x) => x.id === point);
+      if (live && at) setGot({ key, s: at.snapshot });
+    }, (e) => console.error(e));
+    return () => {
+      live = false;
+    };
+  }, [project, key]);
+  return got?.key === key ? got.s : undefined;
 }
