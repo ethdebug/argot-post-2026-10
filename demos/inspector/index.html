@@ -411,6 +411,7 @@ contract Scores {
   // the size of each file, in bytes (bin/sizes.mjs writes this)
   const SIZES = /* sizes */{
     "vendor/pointers.js": 278654,
+    "vendor/shiki.js": 201406,
     "fixtures/index.json": 1744,
     "fixtures/memory.json": 8154,
     "fixtures/scores-motto.json": 8598,
@@ -534,16 +535,43 @@ contract Scores {
   // The decoder, the index, the scene the page opens with, and the
   // memory section's data, all at once
   // The contract's source: its line count, and open or closed as this
-  // viewer left it
+  // viewer left it. The colouring (Shiki's core, its JavaScript regex
+  // engine, the Solidity grammar and two themes, vendor/shiki.js) loads
+  // the first time it opens; until then the source is plain text.
   {
     const box = document.getElementById("contract-box");
-    const src = document.getElementById("contract-src").textContent;
+    const pre = document.getElementById("contract-src");
+    const src = pre.textContent;
+    let coloured = null;
+    const colour = () => coloured ??= (async () => {
+      const code = await load("vendor/shiki.js",
+        { label: "the colouring", text: true });
+      const url = URL.createObjectURL(
+        new Blob([code], { type: "text/javascript" }));
+      const s = await import(url);
+      URL.revokeObjectURL(url);
+      const hl = await s.createHighlighterCore({
+        themes: [s.light, s.dark], langs: [s.solidity],
+        engine: s.createJavaScriptRegexEngine() });
+      const html = hl.codeToHtml(src, { lang: "solidity",
+        themes: { light: "github-light", dark: "github-dark" },
+        defaultColor: false });
+      const t = document.createElement("template");
+      t.innerHTML = html;
+      pre.innerHTML = t.content.querySelector("code").innerHTML;
+      pre.classList.add("coloured");
+    })().catch((e) => {
+      coloured = null;
+      console.warn("the colouring did not load; the source stays plain", e);
+    });
     box.querySelector(".srclines").textContent =
       src.replace(/\n$/, "").split("\n").length;
     try {
       box.open = localStorage.getItem("inspector-source-open") === "1";
     } catch {}
+    if (box.open) colour();
     box.addEventListener("toggle", () => {
+      if (box.open) colour();
       try {
         localStorage.setItem("inspector-source-open", box.open ? "1" : "0");
       } catch {}
