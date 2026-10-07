@@ -1208,6 +1208,10 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
       lit: [...document.querySelectorAll(
         "#panel .view:not([hidden]) .b.hl")].map((c) =>
         `${c.closest(".wrow").dataset.slot} ${c.dataset.i}`),
+      // (at full strength: not an echo)
+      full: [...document.querySelectorAll(
+        "#panel .view:not([hidden]) .b.hl:not(.muted)")].map((c) =>
+        `${c.closest(".wrow").dataset.slot} ${c.dataset.i}`),
       src: [...document.querySelectorAll(
         "#panel .view:not([hidden]) .b.hl.pksrc")].length,
       dim: document.querySelector("#panel").classList.contains("active"),
@@ -1233,7 +1237,8 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
     for (let k = 0; k < 20; k++) {
       const x = await stepNow();
       ctl.add(x.ctl);
-      out.push({ ...x, lit: litNamed(x, nm) });
+      out.push({ ...x, lit: litNamed(x, nm),
+        full: litNamed({ lit: x.full }, nm) });
       if (await page.locator('#details button[data-r="next"]').isDisabled()) {
         break;
       }
@@ -1247,7 +1252,8 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
   const al = "keccak(0x7099…79c8, slot 3)";
   const rec = "keccak(0x3c44…93bc, slot 3)";
   const cl0 = "keccak(0x90f7…b906, slot 3)";
-  // players: seven steps; the lines of the pointer each uses
+  // players: five steps, one per rule, each for all three entries at
+  // once; the lines of the pointer each uses
   {
     await page.evaluate(() => window.select("mid", { sel: "players" }));
     const t = await page.locator("#details .rsel").innerText();
@@ -1255,40 +1261,107 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
     await page.evaluate(() => window.select("mid", { sel: null }));
   }
   let w = await walk("players");
+  const stats = "all";
+  const roster = { "keccak(slot 0)": range(12, 31).join(),
+    "keccak(slot 0) + 1": range(12, 31).join(),
+    "keccak(slot 0) + 2": range(12, 31).join() };
+  const cdata = `keccak(${cl0} + 1)`;
   const wantPlayers = [
-    ["players gets slot 3 but stores nothing there", { "slot 3": "all" },
-      "slot: 0x03"],
-    ["The template needs a key: alice's address, from roster",
-      { [al]: "all", "keccak(slot 0)": range(12, 31).join() }, "$keccak256"],
-    ["The same template for every key", { [rec]: "all", [cl0]: "all" },
-      "expect: [slot, key]"],
-    ["A Player is 2 slots", { [al]: "all", [`${al} + 1`]: "0,1,2,3,4,31" },
-      "$sum: [slot, 0x01]"],
-    ["The fields share one slot, packed from the right", { [al]: "all" },
+    ["players is declared at slot 3; that slot holds nothing",
+      { "slot 3": "all" }, null, "slot: 0x03"],
+    // (all three entries at once, and the roster items of their keys)
+    ["Each record is at keccak(key, 3); the keys are the addresses in roster",
+      { [al]: "all", [rec]: "all", [cl0]: "all", ...roster }, null,
+      "$keccak256"],
+    // (alice, the focus, at full strength; bob and carol echo, muted)
+    ["A record is two slots: stats, then name", { [al]: "all",
+      [`${al} + 1`]: "0,1,2,3,4,31", [rec]: "all", [`${rec} + 1`]: "0,1,2,31",
+      [cl0]: "all", [`${cl0} + 1`]: "all" },
+    { [al]: "all", [`${al} + 1`]: "0,1,2,3,4,31" }, "$sum: [slot, 0x01]"],
+    ["The stats share one slot, packed from the right",
+      { [al]: stats, [rec]: stats, [cl0]: stats }, { [al]: stats },
       "name: score"],
-    ["A short string sits at the left of its slot",
-      { [`${al} + 1`]: "0,1,2,3,4,31" }, "length-flag"],
-    ["carol's name, 34 bytes, is too long for its slot", {
-      [`${cl0} + 1`]: "31", [`keccak(${cl0} + 1)`]: "all",
-      [`keccak(${cl0} + 1) + 1`]: "0,1" }, "else:"],
+    // (both branches: alice's and bob's short names, carol's long one)
+    ["The last byte decides name's form", { [`${al} + 1`]: "0,1,2,3,4,31",
+      [`${rec} + 1`]: "0,1,2,31", [`${cl0} + 1`]: "31", [cdata]: "all",
+      [`${cdata} + 1`]: "0,1" }, null, "else:"],
   ];
-  if (w.length !== 7 || w.ctl !== 1) {
+  if (w.length !== 5 || w.ctl !== 1) {
     problems.push(`replay players: ${w.length} steps, controls at ${w.ctl}`);
   }
-  for (const [k, [cap, lit0, ptr]] of wantPlayers.entries()) {
+  for (const [k, [cap, lit0, full0, ptr]] of wantPlayers.entries()) {
     const x = w[k];
-    if (!x?.cap.startsWith(cap) || !same(x.lit, lit0) || !x.dim ||
-      !x.fits || x.count !== `${k + 1} / 7` || !x.short ||
+    if (!x?.cap.startsWith(cap) || !same(x.lit, lit0) ||
+      !same(x.full, full0 ?? lit0) || !x.dim || !x.fits ||
+      x.count !== `${k + 1} / 5` || !x.short ||
       !x.ptr.some((l) => l.includes(ptr))) {
       problems.push(`players step ${k + 1}: ${JSON.stringify({ cap: x?.cap,
-        lit: x?.lit, fits: x?.fits, ptr: x?.ptr })}`);
+        lit: x?.lit, full: x?.full, fits: x?.fits, ptr: x?.ptr })}`);
     }
     const chips = wantPlayers.map((_, j) => j < k ? "done" : j === k ? "cur"
       : "later").join();
     if (x?.chips !== chips) problems.push(`players chips ${k + 1}: ${x?.chips}`);
   }
-  // the key's list item lights at step 2, in the key's tint
-  if (!w[1]?.src) problems.push("step 2: roster's item not lit");
+  // step 2's instances, one row a key; step 5's two branches
+  if (!["0x7099…79c8 alice→…aa80", "0x3c44…93bc bob→…7527",
+    "0x90f7…b906 carol→…9978"].every((x) => w[1]?.form.includes(x)) ||
+    !w[4]?.form.includes("even: 0x0a → 5 bytes inline") ||
+    !w[4]?.form.includes("odd: 0x45 → 34 bytes at keccak(…9979)")) {
+    problems.push(`players forms: ${w[1]?.form} | ${w[4]?.form}`);
+  }
+  // the chips: one per rule, with its storage noun
+  {
+    await page.evaluate(() => window.select("mid", { sel: "players" }));
+    const cs = await page.locator("#chips .chip").evaluateAll((cs) =>
+      cs.map((c) => c.textContent).join("|"));
+    if (cs !== "slot 3mapping|keccak(key, 3)records|2 slotsrecord|" +
+      "6 fieldsfields|name: short | longstring") problems.push(`chips: ${cs}`);
+  }
+  // the focus picker: bob at full strength in steps 3 and 4, and in the
+  // formulas; nothing moves
+  {
+    await page.locator('#details button[data-r="start"]').click();
+    await page.locator('#chips .chip[data-k="3"]').click();
+    await page.mouse.move(1, 1);
+    const boxes = () => page.evaluate(() => JSON.stringify([
+      ...document.querySelectorAll("#details, #dpanel, #dpick button, " +
+        "#chips .chip, #panel .view:not([hidden]) .wrow, #tree")].map((e) => {
+      const r = e.getBoundingClientRect();
+      return [r.left, r.top, r.width, r.height].map(Math.round);
+    })));
+    const b0 = await boxes();
+    await page.locator('#dpick button', { hasText: "bob" }).click();
+    await page.mouse.move(1, 1);
+    const x = await stepNow();
+    const b1 = await boxes();
+    const pressed = await page.locator('#dpick button[aria-pressed="true"]')
+      .innerText();
+    await page.locator('#chips .chip[data-k="2"]').click();
+    const y = await stepNow();
+    if (b0 !== b1 || pressed !== "bob" || x.count !== "4 / 5" ||
+      !same(litNamed({ lit: x.full }), { [rec]: stats }) ||
+      !y.form.startsWith("bob: …7527") || !same(litNamed({ lit: y.full }),
+        { [rec]: "all", [`${rec} + 1`]: "0,1,2,31" })) {
+      problems.push(`focus picker: ${b0 !== b1 ? "moved " : ""}${pressed} ${
+        x.count} ${JSON.stringify(litNamed({ lit: x.full }))} ${y.form}`);
+    }
+    await page.keyboard.press("Escape");
+  }
+  // the key's list items light at step 2, in their entries' colours
+  {
+    await page.locator('#details button[data-r="start"]').click();
+    await page.locator('#chips .chip[data-k="1"]').click();
+    await page.mouse.move(1, 1);
+    const pairs = await page.evaluate((es) => es.map((e, i) => {
+      const c = (p) => document.querySelector(`#tree li[data-path="${p}"] ` +
+        "> .row")?.className.match(/pk\d/)?.[0];
+      return [c(`roster[${i}]`), c(e)];
+    }), [A, B, C]);
+    if (pairs.some(([a, b]) => !a || a !== b)) {
+      problems.push(`step 2 roster colours: ${JSON.stringify(pairs)}`);
+    }
+    await page.keyboard.press("Escape");
+  }
   // entries and fields never share a colour
   const huesAt = async (k) => {
     await page.locator('#details button[data-r="start"]').click();
@@ -1301,13 +1374,13 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
     return hs;
   };
   const entryHues = [...new Set([...await huesAt(1), ...await huesAt(2)])];
-  const fieldHues = await huesAt(4);
+  const fieldHues = await huesAt(3);
   if (entryHues.length !== 3 || fieldHues.length !== 6 ||
     fieldHues.some((x) => entryHues.includes(x))) {
     problems.push(`hues: entries ${entryHues}, fields ${fieldHues}`);
   }
   // a row a step has derived keeps its label at later steps; carol's
-  // data rows get theirs only at step 7; ◀ takes it back
+  // data rows get theirs only at step 5; ◀ takes it back
   {
     const labelled = () => page.evaluate(() => Object.fromEntries([
       ...document.querySelectorAll("#panel .view:not([hidden]) .wrow" +
@@ -1315,16 +1388,21 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
       r.querySelector(":scope > .addr").classList.contains("grp")])));
     await page.locator('#details button[data-r="start"]').click();
     const seen = [];
-    for (let k = 0; k < 7; k++) {
+    for (let k = 0; k < 5; k++) {
       await page.locator(`#chips .chip[data-k="${k}"]`).click();
       await page.mouse.move(1, 1);
       seen.push(await labelled());
     }
-    const data = `keccak(${cl0} + 1)`;
+    const data = cdata;
     const bad = [];
-    for (let k = 2; k < 7; k++) if (!seen[k][al]) bad.push(`alice ${k + 1}`);
-    for (let k = 0; k < 6; k++) if (seen[k][data]) bad.push(`carol ${k + 1}`);
-    if (!seen[6][data]) bad.push("carol 7");
+    // (all three entries from step 2)
+    for (let k = 1; k < 5; k++) {
+      for (const [who, e] of [["alice", al], ["bob", rec], ["carol", cl0]]) {
+        if (!seen[k][e]) bad.push(`${who} ${k + 1}`);
+      }
+    }
+    for (let k = 0; k < 4; k++) if (seen[k][data]) bad.push(`carol ${k + 1}`);
+    if (!seen[4][data]) bad.push("carol 5");
     await page.locator('#details button[data-r="prev"]').click();
     if ((await labelled())[data]) bad.push("◀ kept carol's data");
     // the current step's labels are dark; earlier ones are muted
@@ -1345,7 +1423,7 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
     await page.evaluate(() => window.select("mid", { sel: "players" }));
     await page.locator('#details button[data-r="start"]').click();
     const hrefs = [];
-    for (let k = 0; k < 7; k++) {
+    for (let k = 0; k < 5; k++) {
       await page.locator(`#chips .chip[data-k="${k}"]`).click();
       hrefs.push(...await page.locator("#dpanel .fnotes a").evaluateAll(
         (as) => as.map((a) => a.href)));
@@ -1421,14 +1499,17 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
     }
     await page.keyboard.press("Escape");
   }
-  // a single value cuts the steps to its own path: bob's plays 1, 2, 4,
-  // 5; carol's name 1, 2, 4, 7
+  // a single value takes the rules on its path, with its entry in focus:
+  // bob's plays 1, 2, 3, 4 (bob's plays alone at full strength in 4);
+  // carol's name 1, 2, 3, 5
   w = await walk(`${B}.plays`);
-  if (w.map((x) => x.cap.split(" ")[0]).join() !== "players,The,A,plays" ||
-    !w[1].form.includes("0x3c44…93bc") || !same(w[3].lit,
-      { [rec]: range(12, 15).join() }) || w.ctl !== 1) {
+  if (w.map((x) => x.cap.split(" ")[0]).join() !== "players,Each,A,The" ||
+    !w[1].form.includes("0x3c44…93bc") || !w[2].form.startsWith("bob:") ||
+    !same(w[3].full, { [rec]: range(12, 15).join() }) ||
+    !same(w[3].lit, { [al]: stats, [rec]: stats, [cl0]: stats }) ||
+    w.ctl !== 1) {
     problems.push(`replay bob's plays: ${JSON.stringify(w.map((x) =>
-      [x.cap, x.lit]))}`);
+      [x.cap, x.full]))}`);
   }
   // after ✕ Exit: the resolved view, with the same entry button
   let st = await stepNow();
@@ -1437,7 +1518,8 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
     problems.push(`replay end: ${JSON.stringify(st)}`);
   }
   w = await walk(`${C}.name`);
-  if (w.map((x) => x.cap.split(" ")[0]).join() !== "players,The,A,carol's" ||
+  if (w.map((x) => x.cap.split(" ")[0]).join() !== "players,Each,A,The" ||
+    !w[3]?.cap.includes("form") || !w[2]?.form.startsWith("carol:") ||
     w.ctl !== 1) {
     problems.push(`replay carol's name: ${JSON.stringify(w.map((x) =>
       x.cap))}`);
@@ -1492,7 +1574,7 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
   // ✕ Exit
   await page.locator('#details button[data-r="exit"]').click();
   if ((await barNow()).tint) problems.push("✕ Exit did not exit");
-  // a chip jumps
+  // a chip jumps (and a click on it stays in the replay)
   await page.locator('#details button[data-r="start"]').click();
   await page.locator('#chips .chip[data-k="1"]').click();
   st = await stepNow();
@@ -1592,9 +1674,18 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
       const p = dp.getBoundingClientRect();
       return { bar: Math.abs(b.height - lh) < 1.5 &&
         [...bar.children].every((c) => c.getClientRects().length <= 1),
-      // the panel: only in a replay, right under the bar, in view
-      panel: dp.hidden || (Math.abs(p.top - b.bottom) <= 12 &&
-        p.bottom <= innerHeight + 0.5),
+      // the panel: only in a replay, joined to the bar (one box: no gap,
+      // the same edges, the same tint), in view at the scroll the entry
+      // sets; in the page's flow (nothing sticky or fixed)
+      panel: dp.hidden || (Math.abs(p.top - b.bottom) < 1 &&
+        Math.abs(p.left - b.left) < 1 && Math.abs(p.width - b.width) < 1 &&
+        getComputedStyle(dp).backgroundColor ===
+          getComputedStyle(bar).backgroundColor &&
+        getComputedStyle(bar).borderBottomLeftRadius === "0px" &&
+        getComputedStyle(dp).borderTopLeftRadius === "0px" &&
+        p.bottom <= innerHeight + 0.5) &&
+        [bar, dp, dp.parentElement].every((e) =>
+          !/sticky|fixed/.test(getComputedStyle(e).position)),
       shown: !dp.hidden };
     });
     await pg.evaluate(() => window.select("mid", { sel: null }));
@@ -1643,7 +1734,21 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
       bad.push(`entry: the bar at ${top[0]}, the line above at ${top[2]}`);
     }
     const s1 = await check("step 1", null, true);
-    for (let k = 1; k < 7; k++) {
+    // (a click anywhere in the details does not leave the replay)
+    for (const q of ["#ptr", "#dpanel", "#dtext .rcap", "#dpanel .fnotes"]) {
+      await pg.evaluate((x) => {
+        const e = document.querySelector(x);
+        const r = e.getBoundingClientRect();
+        e.dispatchEvent(new MouseEvent("click", { bubbles: true,
+          clientX: r.right - 2, clientY: r.bottom - 2 }));
+      }, q);
+      if (!await pg.evaluate(() => document.querySelector("#details")
+        .classList.contains("replaying"))) {
+        bad.push(`a click on ${q} left the replay`);
+        await tap('#details button[data-r="start"]');
+      }
+    }
+    for (let k = 1; k < 5; k++) {
       await tap('#details button[data-r="next"]');
       const bx = await check(`step ${k + 1}`, null, true);
       if (await pg.evaluate(() => scrollY) !== top[1]) {
@@ -1681,32 +1786,39 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
     if (bad.length) problems.push(`${tag}: ${bad.slice(0, 4)}`);
   };
   await still(page, "1440");
-  // at every step of players' replay, all of its lit rows can be in
-  // view at once, under the bar and above the sheet (on a phone); and the
+  // at every step of players' replay, nothing covers a lit row (the
+  // panel is in the page's flow: nothing overlays the dump); and the
   // panel's parts keep to their own room
   const fitsInView = async (pg, tag) => {
     await pg.evaluate(() => window.select("mid", { sel: "players" }));
     await pg.evaluate(() => document.querySelector(
       '#details button[data-r="start"]').click());
     const bad = [];
-    for (let k = 0; k < 7; k++) {
+    for (let k = 0; k < 5; k++) {
       await pg.evaluate((x) => document.querySelector(
         `#chips .chip[data-k="${x}"]`).click(), k);
+      const covered = [];
+      const rows = await pg.evaluate(() => [...document.querySelectorAll(
+        "#panel .view:not([hidden]) .wrow")].filter((r) =>
+        r.querySelector(".b.hl")).map((r) => r.dataset.slot));
+      for (const sl of rows) {
+        const hit = await pg.evaluate((x) => {
+          const c = document.querySelector(`#panel .view:not([hidden]) ` +
+            `.wrow[data-slot="${x}"] .b.hl`);
+          c.scrollIntoView({ block: "center" });
+          const r = c.getBoundingClientRect();
+          const e = document.elementFromPoint(r.left + r.width / 2,
+            r.top + r.height / 2);
+          return e === c || c.contains(e);
+        }, sl);
+        if (!hit) covered.push(sl.slice(-4));
+      }
+      if (covered.length) bad.push(`step ${k + 1}: covered ${covered}`);
       const f = await pg.evaluate(() => {
-        const rows = [...document.querySelectorAll(
-          "#panel .view:not([hidden]) .wrow")].filter((r) =>
-          r.querySelector(".b.hl"));
-        const top = Math.min(...rows.map((r) => r.getBoundingClientRect().top));
-        const bot = Math.max(...rows.map((r) =>
-          r.getBoundingClientRect().bottom));
-        const bar = document.querySelector("#details").getBoundingClientRect()
-          .height;
         const dp = document.querySelector("#dpanel");
-        // (the panel, stuck under the bar, takes room from the view)
-        const sheet = dp.getBoundingClientRect().height;
         // the panel's parts: each within its room, none on another
         const parts = [...dp.querySelectorAll(".rcap, .rform, .rsrc, " +
-          ".fnotes, .chips, .ptrscroll")].filter((e) => e.offsetHeight);
+          ".fnotes, .dpick, .chips, .ptrscroll")].filter((e) => e.offsetHeight);
         const hit = (a, b) => a.left < b.right - 0.5 && b.left < a.right -
           0.5 && a.top < b.bottom - 0.5 && b.top < a.bottom - 0.5;
         const over = parts.filter((e) => !e.matches(".chips, .ptrscroll") &&
@@ -1720,15 +1832,51 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
               parts[i + 1 + j].className}`);
           });
         });
-        return { fits: bot - top <= innerHeight - bar - sheet, over };
+        return { over };
       });
-      if (!f.fits) bad.push(`step ${k + 1}: lit rows do not fit`);
       if (f.over.length) bad.push(`step ${k + 1}: ${f.over}`);
     }
     await pg.keyboard.press("Escape");
     if (bad.length) problems.push(`${tag}: ${bad.slice(0, 4)}`);
   };
   await fitsInView(page, "1440 view");
+  // the entry and the exit: the details unfold under the bar (they reach
+  // their full height) and fold back into it; with reduced motion, at
+  // once. While they move, the replay takes no step
+  {
+    const full = () => page.evaluate(() => {
+      const w = document.querySelector("#dwrap").getBoundingClientRect();
+      const d = document.querySelector("#dpanel");
+      return { wrap: Math.round(w.height), panel: d.hidden ? 0
+        : Math.round(d.getBoundingClientRect().height),
+      replaying: document.querySelector("#details").classList
+        .contains("replaying"),
+      count: document.querySelector("#details .rcount").textContent };
+    });
+    await page.evaluate(() => window.select("mid", { sel: "players" }));
+    // (reduced motion: at once)
+    await page.locator('#details button[data-r="start"]').click();
+    const r0 = await full();
+    await page.keyboard.press("Escape");
+    const r1 = await full();
+    await page.emulateMedia({ reducedMotion: "no-preference" });
+    await page.locator('#details button[data-r="start"]').click();
+    await page.keyboard.press("ArrowRight");
+    const a0 = await full();
+    await page.waitForTimeout(700);
+    const a1 = await full();
+    await page.keyboard.press("Escape");
+    const a2 = await full();
+    await page.waitForTimeout(700);
+    const a3 = await full();
+    await page.emulateMedia({ reducedMotion: "reduce" });
+    if (!r0.panel || r0.wrap !== r0.panel || r1.wrap || r1.replaying ||
+      a0.wrap >= a0.panel || a0.count !== "1 / 5" ||
+      a1.wrap !== a1.panel || !a1.panel || !a2.replaying ||
+      a3.wrap || a3.replaying) {
+      problems.push(`unfold: ${JSON.stringify([r0, r1, a0, a1, a2, a3])}`);
+    }
+  }
   // names from the code in monospace; the tree as tall as the dump,
   // scrolled inside to the selection; a struct's "7 fields"
   {
@@ -2106,16 +2254,18 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
       return on.top >= clip + 4 && getComputedStyle(p).maskImage === "none";
     });
     if (!first) problems.push("step 1: the block's top is cut");
+    // (at a step in the middle of the YAML: the block's top a third of
+    // the way down the visible box, within a line)
     await page.locator('#chips .chip[data-k="3"]').click();
     const mid = await page.evaluate(() => {
       const box = document.querySelector("#ptr");
       const on = box.querySelector(".line.on");
       const lh = on.getBoundingClientRect().height;
-      const b = box.getBoundingClientRect();
+      const b = box.getBoundingClientRect().top + box.clientTop;
       const top = on.getBoundingClientRect().top;
       const end = box.scrollTop <= 0 || box.scrollTop >= box.scrollHeight -
         box.clientHeight - 1;
-      return end || Math.abs(top - (b.top + box.clientHeight / 2)) <= lh;
+      return !end && Math.abs(top - (b + box.clientHeight / 3)) <= lh;
     });
     await page.keyboard.press("Escape");
     if (al.ids || !al.aliases || !mid) {

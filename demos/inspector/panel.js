@@ -890,8 +890,8 @@ export function paint(root, tree, h, opts = {}) {
         .find((x) => x !== undefined);
       pick(c, k);
       // (the selected item's own colour, 0, never mutes)
-      c.classList.toggle("muted", hl && h.focus !== undefined &&
-        !!k && k !== h.focus);
+      c.classList.toggle("muted", hl && ((h.focus !== undefined &&
+        !!k && k !== h.focus) || !!h.dim?.has(key(side, s, i))));
       c.classList.toggle("at", isAt);
       on ||= hl || isAt;
     }
@@ -924,7 +924,8 @@ export function paint(root, tree, h, opts = {}) {
     const k = on && h.colors?.get(r.dataset.path);
     pick(r.firstElementChild, k);
     r.firstElementChild.classList.toggle("muted", on &&
-      h.focus !== undefined && !!k && k !== h.focus);
+      ((h.focus !== undefined && !!k && k !== h.focus) ||
+        !!h.dimRows?.has(r.dataset.path)));
   }
   // A run of rows in one colour is one block: the outermost item whose
   // lit rows all have its colour carries the background (its key line

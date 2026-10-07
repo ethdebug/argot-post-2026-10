@@ -895,17 +895,17 @@ main[data-single] > .cols :is(.chglegend, .legend .bchg, .intro .two) {
 .colhead { margin-top: 0; }
 /* the dump's state is in the bar and the Show toggle */
 .scols .view-name { display: none; }
-/* the bar: one line, at one height, always, stuck to the top of the
-   window: the selection in a fixed-width spot, then the controls, then
+/* the bar: one line, at one height, always, in the page's flow: the
+   selection in a fixed-width spot, then the controls, then
    the short caption, which is cut at its end if it must be */
 .rbar { display: grid; align-items: center; gap: 10px; height: 2.6em;
   line-height: 1.2;
-  box-sizing: border-box; padding: 0 10px; margin: 0 0 10px;
+  box-sizing: border-box; padding: 0 10px; margin: 0;
   grid-template-columns: 4.6em minmax(0, 34ch) 15em 3.6em minmax(0, 1fr)
     6em;
   background: var(--panel); border: 1px solid var(--line);
   border-left: 3px solid var(--accent); border-radius: 6px;
-  white-space: nowrap; position: sticky; top: 0; z-index: 9; }
+  white-space: nowrap; position: relative; z-index: 1; }
 /* (each slot as tall as the bar, whatever it holds) */
 .rbar > * { overflow: hidden; text-overflow: ellipsis; min-width: 0;
   align-self: stretch; }
@@ -915,9 +915,16 @@ main[data-single] > .cols :is(.chglegend, .legend .bchg, .intro .two) {
   overflow: visible; }
 .rbar .rctl .btn { padding: 1px 10px; }
 .rshort { font-weight: 600; }
-/* a replay: the whole bar tinted, "Replay" at its start */
-.rbar.replaying { background: color-mix(in srgb, var(--accent) 10%,
+/* a replay: the whole bar tinted, "Replay" at its start; the details
+   joined under it, in the same tint: one panel, the bar its header row */
+.rbar.replaying, .dpanel { background: color-mix(in srgb, var(--accent) 10%,
   var(--panel)); }
+.rbar.replaying { border-bottom-left-radius: 0;
+  border-bottom-right-radius: 0;
+  border-bottom-color: color-mix(in srgb, var(--accent) 25%, var(--line)); }
+/* (it unfolds at entry and folds at exit: main.js fold) */
+.dwrap { margin: 0 0 10px; }
+.dwrap.folding { overflow: hidden; }
 .rmode { font-size: 0.72rem; font-weight: 700; text-transform: uppercase;
   letter-spacing: 0.06em; color: var(--accent); }
 .rbar .rcount { margin: 0; text-align: right; }
@@ -936,18 +943,31 @@ main[data-single] > .cols :is(.chglegend, .legend .bchg, .intro .two) {
   .rbar .rexit .btn { padding: 1px 4px; font-size: 0.8rem; }
   .rbar .rstart { font-size: 0.8rem; }
 }
-/* under the bar, stuck under it, during a replay only, at one size:
+/* under the bar, joined to it, during a replay only, at one size:
    the step (its caption, formula, constructs, footnote; then the chips,
    one row) and the pointer. Each part has its own fixed room. */
 .dpanel { display: grid; gap: 14px; grid-template-columns: minmax(0, 1fr)
-  minmax(0, 1fr); height: 15.5em; box-sizing: border-box;
-  margin: -6px 0 10px; padding: 8px 12px; background: var(--panel);
-  border: 1px solid var(--line); border-left: 3px solid var(--accent);
-  border-radius: 6px; position: sticky; top: 2.6em; z-index: 8;
-  box-shadow: 0 4px 12px rgb(0 0 0 / 0.08); }
+  minmax(0, 1fr); height: 17.4em; box-sizing: border-box;
+  margin: 0; padding: 8px 12px;
+  border: 1px solid var(--line); border-top: 0;
+  border-left: 3px solid var(--accent); border-radius: 0 0 6px 6px; }
 .dpanel[hidden] { display: none; }
-.dleft { display: grid; grid-template-rows: auto 3.4em; min-height: 0;
-  gap: 6px; }
+.dleft { display: grid; grid-template-rows: minmax(0, 1fr) 1.9em 3.4em;
+  min-height: 0; gap: 6px; }
+/* the focus entry: one fixed row; empty but there when there is none */
+.dpick { display: flex; align-items: center; gap: 4px; min-width: 0;
+  overflow: hidden; white-space: nowrap; }
+.dpick .plab { font-size: 0.72rem; font-weight: 700; text-transform:
+  uppercase; letter-spacing: 0.06em; color: var(--muted); margin-right: 4px; }
+.dpick .btn { padding: 1px 10px; font-size: 0.85rem; }
+/* (pressed: as the scene picker's choice, without bold: nothing moves) */
+.dpick .btn[aria-pressed="true"] { border-color: var(--accent);
+  box-shadow: inset 0 0 0 1px var(--accent); }
+/* a rule's instances, one row each: key → slot */
+.itab { display: grid; grid-template-columns: max-content max-content
+  max-content; gap: 0 8px; }
+.itab .isw { padding: 0 3px; border-radius: 3px; background: var(--pk);
+  color: var(--pk-fg); }
 .dtext { min-height: 0; overflow: hidden; }
 .dtext dl { margin: 0; display: grid; grid-template-columns: auto 1fr;
   gap: 0 10px; font-size: 0.85rem; line-height: 1.35; }
@@ -988,9 +1008,9 @@ main[data-single] > .cols :is(.chglegend, .legend .bchg, .intro .two) {
    few lines of the pointer; the rest scrolls inside it) */
 @media (max-width: 759px) {
   .dpanel { grid-template-columns: minmax(0, 1fr);
-    grid-template-rows: auto 5.4em; height: 14.5em; gap: 4px;
+    grid-template-rows: auto 5.4em; height: 16.6em; gap: 4px;
     padding: 6px 10px; }
-  .dleft { grid-template-rows: auto; }
+  .dleft { grid-template-rows: auto 1.9em; }
   .dpanel .chips, .dpanel .rsrc, .dpanel .fnotes, .ptr .plabel {
     display: none; }
   .ptr { grid-template-rows: minmax(0, 1fr); }
