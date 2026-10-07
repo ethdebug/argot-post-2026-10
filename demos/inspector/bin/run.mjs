@@ -1757,12 +1757,15 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
       await click();
       return (await selected()).join();
     };
+    const gut = `#panel .view:not([hidden]) .wrow:has(.b[data-owners="${
+      A}.score"]) > .addr`;
     const got = [
       await at("players", () => row(`${A}.score`).click()),
       await at("players", () => page.locator(sc).first().click()),
+      await at("players", () => page.locator(gut).first().click()),
       await at(A, () => row(`${A}.score`).click()),
       await at(null, () => row(`${A}.score`).click())];
-    if (got.join() !== [A, A, `${A}.score`, `${A}.score`].join()) {
+    if (got.join() !== [A, A, A, `${A}.score`, `${A}.score`].join()) {
       problems.push(`child blocks: ${got}`);
     }
     await page.evaluate((x) => window.select("mid", { sel: x }), `${B}.plays`);
@@ -1815,6 +1818,94 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
       s1.lit === s0.lit && s1.sel === "players" && s1.dump === s0.dump &&
       !s2.shut && s2.aria === "true" && s2.hues > 0 && s3.shut &&
       !s4.shut && s4.sel === `${A}.score` && s4.dump === s0.dump;
+    // the chevron: a visible box, its right edge on the values' right
+    // edge; the tree's content as wide with a scrollbar as without
+    const geo = await page.evaluate(() => {
+      const c = document.querySelector('#tree li[data-path="players"] > .chev');
+      const v = document.querySelector('#tree li[data-path="total"] .val');
+      const pad = parseFloat(getComputedStyle(v).paddingRight) +
+        parseFloat(getComputedStyle(v).borderRightWidth);
+      const cs = getComputedStyle(c);
+      return { edge: Math.abs(c.getBoundingClientRect().right -
+        (v.getBoundingClientRect().right - pad)),
+      box: true };
+    });
+    const widths = [];
+    for (const open of [false, true]) {
+      await page.evaluate((o) => {
+        for (const b of document.querySelectorAll("#tree .chev")) {
+          if ((b.getAttribute("aria-expanded") === "true") !== o) b.click();
+        }
+      }, open);
+      widths.push(await page.evaluate(() => [
+        document.querySelector("#tree").clientWidth,
+        document.querySelector("#tree").scrollHeight >
+          document.querySelector("#tree").clientHeight]));
+    }
+    // the chevron at rest: plain (no box); a box on hover and focus,
+    // about 1em, its target at least 28 px, centred on the row's name.
+    // The row's geometry is one in every state: rest, hover, selected,
+    // focused
+    {
+      await page.evaluate(() => window.select("mid", { sel: null }));
+      const g = () => page.evaluate(() => {
+        const li = document.querySelector('#tree li[data-path="players"]');
+        const c = li.querySelector(":scope > .chev");
+        const r = (e) => [...Object.values(e.getBoundingClientRect()
+          .toJSON())].slice(0, 4).map((x) => Math.round(x * 2) / 2);
+        const cs = getComputedStyle(c);
+        const svg = c.querySelector("svg").getBoundingClientRect();
+        const name = li.querySelector(":scope > .row .name")
+          .getBoundingClientRect();
+        const cb = c.getBoundingClientRect();
+        const rr = li.querySelector(":scope > .row").getBoundingClientRect();
+        void name;
+        return { geo: JSON.stringify([r(li.querySelector(":scope > .row")),
+          r(li.querySelector(":scope > .row .sum")), r(c)]),
+        box: cs.borderTopColor !== "rgba(0, 0, 0, 0)" &&
+          cs.borderTopColor !== "transparent",
+        size: [svg.width, cb.width, cb.height],
+        centre: Math.abs(cb.top + cb.height / 2 - (rr.top + rr.height / 2)),
+        inside: cb.top >= rr.top - 0.5 && cb.bottom <= rr.bottom + 0.5 };
+      });
+      await page.mouse.move(1, 1);
+      const rest = await g();
+      await row("players").hover();
+      const hov = await g();
+      await chev("players").hover();
+      const chov = await g();
+      await page.mouse.move(1, 1);
+      await row("players").click();
+      await page.mouse.move(1, 1);
+      const act = await g();
+      // (focus after a key: the keyboard's focus)
+      await row("players").focus();
+      await page.keyboard.press("Tab");
+      const foc = await g();
+      const fs = parseFloat(await page.evaluate(() => getComputedStyle(
+        document.querySelector("#tree .name")).fontSize));
+      if (rest.box || !chov.box || !foc.box ||
+        [rest, hov, chov, act, foc].some((x) => x.centre > 1 || !x.inside) ||
+        rest.size[0] < fs * 0.8 || rest.size[1] < 28 || rest.size[2] < 28 ||
+        [hov, chov, act, foc].some((x) => x.geo !== rest.geo)) {
+        problems.push(`chevron states: ${JSON.stringify({ rest, hov, chov,
+          act, foc })}`);
+      }
+      await page.evaluate(() => window.select("mid", { sel: "players" }));
+    }
+    // (an inner group keeps its state when its parent closes and opens)
+    await chev(A).click();
+    await chev("players").click();
+    await chev("players").click();
+    const inner = await page.evaluate((x) => x.map((p) =>
+      document.querySelector(`#tree li[data-path="${p}"]`).classList
+        .contains("collapsed")), [A, B]);
+    if (inner.join() !== "true,false") problems.push(`inner state: ${inner}`);
+    await chev(A).click();
+    if (geo.edge > 1 || !geo.box || widths[0][0] !== widths[1][0] ||
+      widths[0][1] === widths[1][1]) {
+      problems.push(`chevron: ${JSON.stringify({ geo, widths })}`);
+    }
     if (!ok) {
       problems.push(`expand/collapse: ${JSON.stringify([s0, s1, s2, s3, s4]
         .map(({ dump, ...x }) => ({ ...x, dump: dump === s0.dump })))}`);
