@@ -293,7 +293,8 @@ reports.</p>
       <p class="ph">Call stack</p>
       <div class="skel" aria-hidden="true"><i></i><i></i><i></i></div>
       <p data-has>Innermost first, from <code>invoke</code> and
-      <code>return</code> contexts.</p>
+      <code>return</code> contexts. A frame can stay listed for a
+      step or two after control is back in the caller.</p>
       <ol aria-label="call stack" data-has></ol>
       <p class="why"></p>
       <p class="extra"></p>
@@ -392,7 +393,8 @@ shows no entries.</p>
 
 <p class="muted" data-about="bug" hidden>"over" and "out"
 use the call stack depth. "over" steps over a call or an inlined body.
-"out" runs to the caller. Shiki has no BUG grammar, so the code is
+"out" runs until the call stack is one frame shorter, which
+can be a step or two into the caller. Shiki has no BUG grammar, so the code is
 coloured as Rust.</p>
 <p class="muted" data-about="sol fe">The page computes each
 step from two fields that soldb reports: the source span and the EVM
