@@ -328,6 +328,8 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
     viewport: { width: 1280, height: 900 },
   });
   const page = await ctx.newPage();
+  // (no smooth scrolling in the checks: a replay's entry scrolls at once)
+  await page.emulateMedia({ reducedMotion: "reduce" });
   const logs = [];
   const foreign = [];
   await ctx.route("**/*", (route) => {
@@ -512,11 +514,9 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
   let sel = await selected();
   if (sel.join() !== `${A}.plays`) problems.push(`pick 13: ${sel}`);
   // the details of the selected value, under the dump
-  const fd = `${await page.locator("#details").innerText()} ${
-    await page.locator("#dtext").innerText()}`.replace(/\s+/g, " ");
-  if (!fd.includes("players[0x7099…79c8].plays uint32 = 3 (after)") ||
-    !fd.includes("slot …aa80 (keccak(0x7099…79c8, slot 3)), bytes " +
-      "12–15 (before: 2)")) {
+  const fd = (await page.locator("#details").innerText())
+    .replace(/\s+/g, " ");
+  if (!fd.includes("players[0x7099…79c8].plays uint32 = 3 (after)")) {
     problems.push(`details plays: ${fd}`);
   }
   await pickByte(`${A}.combo`, 22);
@@ -680,10 +680,9 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
     problems.push("one point: a card");
   }
   await page.locator(`#tree li[data-path="${A}.combo"] > .row`).click();
-  const box1 = `${await page.locator("#details").innerText()} ${
-    await page.locator("#dtext").innerText()}`;
+  const box1 = await page.locator("#details").innerText();
   if (!box1.includes("players[0x7099…79c8].combo uint32 = 2") ||
-    /\((before|after)/.test(box1) || !box1.includes("How was this found? ▸")) {
+    /\((before|after)/.test(box1) || !box1.includes("▸ Show how it was found")) {
     problems.push(`one point: box ${box1}`);
   }
   await page.keyboard.press("Escape");
@@ -1193,11 +1192,12 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
       return !e || e.scrollHeight <= e.clientHeight + 1;
     };
     return {
-      cap: document.querySelector("#details .rcount") ? document
+      cap: document.querySelector("#details .rcount")?.textContent ? document
         .querySelector("#dtext .rcap")?.textContent.trim() : null,
       form: document.querySelector("#dtext .rform")?.textContent.trim(),
       short: document.querySelector("#details .rshort")?.textContent,
-      count: document.querySelector("#details .rcount")?.textContent,
+      count: document.querySelector("#details .rcount")?.textContent ||
+        undefined,
       resolved: !!document.querySelector('#details button[data-r="start"]'),
       ctl: box("#details .rctl"),
       fits: fits("#dtext .rcap") && fits("#dtext .rform"),
@@ -1229,13 +1229,18 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
     await page.locator('#details button[data-r="start"]').click();
     const out = [];
     const ctl = new Set();
+    // (▶ stops at the last step; ✕ Exit leaves)
     for (let k = 0; k < 20; k++) {
       const x = await stepNow();
       ctl.add(x.ctl);
-      if (x.resolved) break;
       out.push({ ...x, lit: litNamed(x, nm) });
+      if (await page.locator('#details button[data-r="next"]').isDisabled()) {
+        break;
+      }
       await page.locator('#details button[data-r="next"]').click();
     }
+    await page.locator('#details button[data-r="exit"]').click();
+    ctl.add((await stepNow()).ctl);
     out.ctl = ctl.size;
     return out;
   };
@@ -1425,9 +1430,10 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
     problems.push(`replay bob's plays: ${JSON.stringify(w.map((x) =>
       [x.cap, x.lit]))}`);
   }
-  // the end is the resolved view, with "Replay ▸"
+  // after ✕ Exit: the resolved view, with the same entry button
   let st = await stepNow();
-  if (!st.resolved || !(await how()).includes("Replay ▸")) {
+  if (!st.resolved || !(await how()).includes("▸ Show how it was found") ||
+    await page.locator("#details.replaying").count()) {
     problems.push(`replay end: ${JSON.stringify(st)}`);
   }
   w = await walk(`${C}.name`);
@@ -1436,9 +1442,57 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
     problems.push(`replay carol's name: ${JSON.stringify(w.map((x) =>
       x.cap))}`);
   }
-  // keys: → steps, ← steps back, Escape leaves; ⏭ leaves too; a chip
-  // jumps
+  // The bar: at rest, the entry; in a replay, tinted, "Replay", ⏮ ◀ ▶ ⏭
+  // (each disabled at its end), the count, ✕ Exit. ▶ and ⏭ never exit;
+  // only ✕ Exit and Escape do. Keys work from anywhere, also after a
+  // mouse click; a double click on the entry does not skip a step
   await row(`${B}.plays`).click();
+  const barNow = () => page.evaluate(() => {
+    const b = document.querySelector("#details");
+    const dis = (r) => b.querySelector(`button[data-r="${r}"]`)?.disabled;
+    return { tint: b.classList.contains("replaying"),
+      mode: b.querySelector(".rmode").textContent,
+      count: b.querySelector(".rcount").textContent,
+      off: ["first", "prev", "next", "last"].filter(dis).join(),
+      exit: !!b.querySelector('button[data-r="exit"]'),
+      start: b.querySelector('button[data-r="start"]')?.textContent };
+  });
+  let bs = await barNow();
+  if (bs.tint || bs.mode || bs.exit || bs.start !== "▸ Show how it was found") {
+    problems.push(`bar at rest: ${JSON.stringify(bs)}`);
+  }
+  await page.locator('#details button[data-r="start"]').dblclick();
+  bs = await barNow();
+  if (!bs.tint || bs.mode !== "Replay" || bs.count !== "1 / 4" ||
+    bs.off !== "first,prev" || !bs.exit) {
+    problems.push(`bar at step 1 (after a double click): ${JSON.stringify(bs)}`);
+  }
+  await page.locator('#details button[data-r="last"]').click();
+  bs = await barNow();
+  if (bs.count !== "4 / 4" || bs.off !== "next,last") {
+    problems.push(`⏭: ${JSON.stringify(bs)}`);
+  }
+  // ▶ at the last step: disabled; → stays
+  await page.keyboard.press("ArrowRight");
+  bs = await barNow();
+  if (bs.count !== "4 / 4" || !bs.tint) problems.push(`→ at the end: ${bs.count}`);
+  await page.locator('#details button[data-r="first"]').click();
+  if ((await barNow()).count !== "1 / 4") problems.push("⏮");
+  // keys after a mouse click on ▶, and from anywhere (the focus moved)
+  await page.locator('#details button[data-r="next"]').click();
+  await page.keyboard.press("ArrowRight");
+  if ((await barNow()).count !== "3 / 4") {
+    problems.push(`→ after a click: ${(await barNow()).count}`);
+  }
+  await page.evaluate(() => document.activeElement?.blur());
+  await page.keyboard.press("Home");
+  if ((await barNow()).count !== "1 / 4") problems.push("Home");
+  await page.keyboard.press("End");
+  if ((await barNow()).count !== "4 / 4") problems.push("End");
+  // ✕ Exit
+  await page.locator('#details button[data-r="exit"]').click();
+  if ((await barNow()).tint) problems.push("✕ Exit did not exit");
+  // a chip jumps
   await page.locator('#details button[data-r="start"]').click();
   await page.locator('#chips .chip[data-k="1"]').click();
   st = await stepNow();
@@ -1456,9 +1510,7 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
   if (!st.resolved || (await selected()).join() !== `${B}.plays`) {
     problems.push(`Escape in a replay: ${JSON.stringify(st)}`);
   }
-  await page.locator('#details button[data-r="start"]').click();
-  await page.locator('#details button[data-r="end"]').click();
-  if (!(await stepNow()).resolved) problems.push("⏭ did not end it");
+
   // while it replays, pointing elsewhere changes nothing
   await page.locator('#details button[data-r="start"]').click();
   await page.mouse.move(1, 1);
@@ -1483,6 +1535,25 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
       [x.cap, x.lit]))}`);
   }
   await page.keyboard.press("Escape");
+  // the dump and the tree are always shown: at rest, with a selection,
+  // in a replay, in every scene
+  for (const id of Object.keys(expected)) {
+    const seen = [];
+    await page.evaluate((x) => window.select(x, { sel: null }), id);
+    const vis = () => page.evaluate(() => ["#panel .view:not([hidden]) .rows",
+      "#tree"].every((q) => {
+      const r = document.querySelector(q)?.getBoundingClientRect();
+      return r && r.width > 50 && r.height > 50;
+    }));
+    seen.push(await vis());
+    await page.evaluate((x) => window.select(x), id);
+    seen.push(await vis());
+    await page.evaluate(() => document.querySelector(
+      '#details button[data-r="start"]')?.click());
+    seen.push(await vis());
+    await page.keyboard.press("Escape");
+    if (!seen.every(Boolean)) problems.push(`${id}: dump or tree hidden ${seen}`);
+  }
   // the keys come from roster, and are the trace's keys
   if (!(await page.evaluate(() => window.results.keysMatch ?? []))
     .every(Boolean)) problems.push("roster's keys differ from the trace's");
@@ -1494,62 +1565,119 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
   // and the panel keep their boxes through a selection, a hover, a
   // replay and its end; the bar is one line; the panel is in view at
   // every step; the columns are equal and start at one height
+  // Nothing moves on selecting or hovering; the panel appears under
+  // the bar when a replay starts (the columns move down once) and goes
+  // when it ends (they move back); while stepping, nothing moves. The
+  // bar is one line; the panel is in view at every step
   const still = async (pg, tag) => {
     const boxes = () => pg.evaluate(() => JSON.stringify([
       ...document.querySelectorAll("#panel .view:not([hidden]) .rows > *, " +
-        "#tree li > .row, #details, #chips, #dpanel")].map((e) => {
+        "#tree li > .row, #tree, #details, #details > .rctl, " +
+        "#details > .rexit, #details > .rmode, #details > .rcount, " +
+        "#dpanel:not([hidden]), #chips")]
+      .map((e) => {
       const r = e.getBoundingClientRect();
-      // (whole pixels: a 0.1 px change is subpixel rounding)
-      return [r.left, r.top, r.width, r.height].map(Math.round);
-    })));
+      // (whole pixels: a 0.1 px change is subpixel rounding; page
+      // coordinates; "t" for a tree row, which may scroll in its box)
+      // ("s": the bar and the panel, stuck to the top of the window)
+      return [e.matches("#tree li > .row") ? "t" : e.closest("#details, " +
+        "#dpanel") ? "s" : "",
+        ...[r.left, r.top + scrollY, r.width, r.height].map(Math.round)];
+    }).filter((v) => v[3] || v[4])));
     const facts = () => pg.evaluate(() => {
-      const r = (q) => document.querySelector(q).getBoundingClientRect();
       const bar = document.querySelector("#details");
       const lh = parseFloat(getComputedStyle(bar).fontSize) * 2.6;
-      const p = r("#dpanel");
-      return { bar: Math.abs(bar.getBoundingClientRect().height - lh) < 1.5 &&
+      const dp = document.querySelector("#dpanel");
+      const b = bar.getBoundingClientRect();
+      const p = dp.getBoundingClientRect();
+      return { bar: Math.abs(b.height - lh) < 1.5 &&
         [...bar.children].every((c) => c.getClientRects().length <= 1),
-      // (a sheet on a phone: in view; on a wide page, a row in the page)
-      panel: getComputedStyle(document.querySelector("#dpanel")).position !==
-        "fixed" || (p.top >= 0 && p.bottom <= innerHeight + 0.5) };
+      // the panel: only in a replay, right under the bar, in view
+      panel: dp.hidden || (Math.abs(p.top - b.bottom) <= 12 &&
+        p.bottom <= innerHeight + 0.5),
+      shown: !dp.hidden };
     });
     await pg.evaluate(() => window.select("mid", { sel: null }));
     await pg.evaluate(() => window.scrollTo(0,
       document.querySelector("#details").offsetTop - 4));
     await pg.mouse.move(1, 1);
-    const b0 = await boxes();
     const bad = [];
-    const diff = (x) => {
-      const [p0, p1] = [JSON.parse(b0), JSON.parse(x)];
+    const diff = (a, x) => {
+      const [p0, p1] = [JSON.parse(a), JSON.parse(x)];
       const k = p0.findIndex((v, i) => JSON.stringify(v) !==
         JSON.stringify(p1[i]));
       return `#${k}/${p0.length} ${p0[k]} -> ${p1[k]}`;
     };
-    const check = async (what) => {
+    const check = async (what, base, replaying) => {
       await pg.mouse.move(1, 1);
       const bx = await boxes();
-      if (bx !== b0) bad.push(`${what} moved ${diff(bx)}`);
+      if (base && bx !== base) bad.push(`${what} moved ${diff(base, bx)}`);
       const f = await facts();
       if (!f.bar) bad.push(`${what}: bar not one line`);
-      if (!f.panel) bad.push(`${what}: panel not in view`);
+      if (!f.panel) bad.push(`${what}: panel not under the bar`);
+      if (f.shown !== replaying) bad.push(`${what}: panel ${f.shown}`);
+      return bx;
     };
     // (clicks and hovers by events, so the browser does not scroll to the
     // tree, which comes after the dump on a phone)
     const tap = (q) => pg.evaluate((x) => document.querySelector(x).click(),
       q);
+    const b0 = await check("rest", null, false);
     await tap('#tree li[data-path="players"] > .row');
-    await check("select");
+    // (the tree may scroll inside itself to the selection: compare
+    // without its rows)
+    const noTree = (x) => JSON.stringify(JSON.parse(x).filter((v) =>
+      v[0] !== "t"));
+    const sel = await check("select", null, false);
+    if (noTree(sel) !== noTree(b0)) bad.push(`select moved ${diff(b0, sel)}`);
     await pg.dispatchEvent(`#tree li[data-path="${A}.combo"] > .row`,
       "pointerover");
-    if (await boxes() !== b0) bad.push("hover moved");
+    if (await boxes() !== sel) bad.push("hover moved");
     await tap('#details button[data-r="start"]');
-    for (let k = 0; k < 7; k++) {
-      await check(`step ${k + 1}`);
-      await tap('#details button[data-r="next"]');
+    // the bar at the top of the window, once the page has scrolled
+    await pg.waitForTimeout(900);
+    const top = await pg.evaluate(() => [document.querySelector("#details")
+      .getBoundingClientRect().top, scrollY, document.querySelector(
+      ".howread").getBoundingClientRect().bottom]);
+    if (Math.abs(top[0]) > 2 || top[2] > 2) {
+      bad.push(`entry: the bar at ${top[0]}, the line above at ${top[2]}`);
     }
-    await check("end");
+    const s1 = await check("step 1", null, true);
+    for (let k = 1; k < 7; k++) {
+      await tap('#details button[data-r="next"]');
+      const bx = await check(`step ${k + 1}`, null, true);
+      if (await pg.evaluate(() => scrollY) !== top[1]) {
+        bad.push(`step ${k + 1} scrolled the page`);
+      }
+      // the step's lines: one block each run, no gap; the text inset
+      const yb = await pg.evaluate(() => {
+        const ls = [...document.querySelectorAll("#ptr .line")];
+        const out = [];
+        ls.forEach((l, i) => {
+          if (!l.classList.contains("on")) return;
+          const n = ls[i + 1];
+          if (n?.classList.contains("on") && Math.abs(
+            n.getBoundingClientRect().top - l.getBoundingClientRect()
+              .bottom) > 0.5) out.push("gap");
+          const pad = parseFloat(getComputedStyle(l).paddingLeft);
+          if (pad < parseFloat(getComputedStyle(l).fontSize) * 0.75) {
+            out.push("no inset");
+          }
+        });
+        return out;
+      });
+      if (yb.length) bad.push(`step ${k + 1}: yaml ${yb}`);
+      if (noTree(bx) !== noTree(s1)) {
+        bad.push(`step ${k + 1} moved ${diff(s1, bx)}`);
+      }
+    }
+    await tap('#details button[data-r="exit"]');
+    const ex = await check("exit", null, false);
+    // (back where it was: all but what is stuck to the window's top)
+    const flow = (x) => JSON.stringify(JSON.parse(x).filter((v) =>
+      !v[0]));
+    if (flow(ex) !== flow(sel)) bad.push(`exit moved ${diff(sel, ex)}`);
     await tap('#tree li[data-path="players"] > .row');
-    await check("clear");
     if (bad.length) problems.push(`${tag}: ${bad.slice(0, 4)}`);
   };
   await still(page, "1440");
@@ -1574,8 +1702,8 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
         const bar = document.querySelector("#details").getBoundingClientRect()
           .height;
         const dp = document.querySelector("#dpanel");
-        const sheet = getComputedStyle(dp).position === "fixed"
-          ? dp.getBoundingClientRect().height : 0;
+        // (the panel, stuck under the bar, takes room from the view)
+        const sheet = dp.getBoundingClientRect().height;
         // the panel's parts: each within its room, none on another
         const parts = [...dp.querySelectorAll(".rcap, .rform, .rsrc, " +
           ".fnotes, .chips, .ptrscroll")].filter((e) => e.offsetHeight);
@@ -1601,6 +1729,36 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
     if (bad.length) problems.push(`${tag}: ${bad.slice(0, 4)}`);
   };
   await fitsInView(page, "1440 view");
+  // names from the code in monospace; the tree as tall as the dump,
+  // scrolled inside to the selection; a struct's "7 fields"
+  {
+    await page.evaluate((x) => window.select("mid", { sel: x }), A);
+    const m = await page.evaluate(() => {
+      const mono = (e) => e && /mono|Menlo|Courier/i.test(
+        getComputedStyle(e).fontFamily);
+      const sel = document.querySelector("#tree .row.sel");
+      const t = document.querySelector("#tree").getBoundingClientRect();
+      const r = sel.getBoundingClientRect();
+      const d = document.querySelector("#dump").getBoundingClientRect();
+      return { names: [...document.querySelectorAll("#tree .name")]
+        .every(mono), bar: mono(document.querySelector("#details .rsel code")),
+      type: !mono(document.querySelector("#tree .type")),
+      height: Math.abs(t.bottom - d.bottom) <= 1,
+      inView: r.top >= t.top - 1 && r.bottom <= t.bottom + 1,
+      fields: document.querySelector("#details").textContent
+        .includes("7 fields") };
+    });
+    await page.locator('#details button[data-r="start"]').click();
+    m.cap = await page.evaluate(() => [...document.querySelectorAll(
+      "#dpanel .rcap code.id")].every((c) => /mono|Menlo/i.test(
+      getComputedStyle(c).fontFamily)) && !!document.querySelector(
+      "#dpanel .rcap code.id"));
+    await page.keyboard.press("Escape");
+    if (!Object.values(m).every(Boolean)) {
+      problems.push(`names, tree, words: ${JSON.stringify(m)}`);
+    }
+    await page.evaluate(() => window.select("mid", { sel: null }));
+  }
   // equal columns, the first rows at one height, in every scene
   for (const id of Object.keys(expected)) {
     await scene(id);
@@ -2035,6 +2193,8 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
       problems.push(`vyper words ${key}: ${JSON.stringify(bad)}`);
     }
   }
+  // (Vyper's words are listed in the replay's panel)
+  await page.locator('#details button[data-r="start"]').click();
   text = (await how()).replace(/\s+/g, " ");
   if (!text.includes("Vyper's rule") ||
     !/score = 30[\s\S]*combo = 2[\s\S]*name \(length\) = 5[\s\S]*name \(bytes\) = "alice"/
@@ -2042,28 +2202,22 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
     problems.push(`vyper how: ${text.slice(-300)}`);
   }
   const vslot = "0xb30699257deee3310afa7d2dbc412cc509c9ed82f6154467e3c1401f09460446";
-  await page.locator("#ptr ol.vyper li").first().hover();
-  const vlit = await lit();
-  if (Object.keys(vlit).join() !== `after ${vslot}` ||
-    Object.values(vlit)[0].length !== 32) {
-    problems.push(`vyper step lit: ${JSON.stringify(vlit)}`);
-  }
-  // (its popover may have no room: the Vyper words are next to each
-  // other; the details name the slot)
-  const vp = (await pops()).join();
-  // (the step itself gives the slot)
-  if ((vp && vp !== "Vyper's keccak(slot 108, 0x7099…79c8)") ||
-    !(await page.locator("#ptr ol.vyper li").first().innerText())
-      .includes("0xb306")) {
+  // (the list gives each Vyper word's slot; during a replay, the dump
+  // shows the step)
+  const vp = "";
+  if (!(await page.locator("#ptr ol.vyper li").first().innerText())
+    .includes(vslot.slice(0, 6))) {
     problems.push(`vyper pops: ${vp}`);
   }
   // carol, selected: her Vyper words, her long name over two words
   await page.locator(`#tree li[data-path="${C}.score"] > .row`).click();
+  await page.locator('#details button[data-r="start"]').click();
   text = (await how()).replace(/\s+/g, " ");
   if (!/plays = 1[\s\S]*name \(length\) = 34[\s\S]*"carol, the unstoppable combo que"[\s\S]*"en"/
     .test(text)) {
     problems.push(`vyper how carol: ${text.slice(-300)}`);
   }
+  await page.keyboard.press("Escape");
   await page.keyboard.press("Escape");
   await page.locator("h1").hover();
 
@@ -2458,6 +2612,7 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
     ? { viewport: { width: 390, height: 844 } }
     : { ...devices["iPhone 13"] });
   const pp = await phone.newPage();
+  await pp.emulateMedia({ reducedMotion: "reduce" });
   pp.on("pageerror", (e) => problems.push(`phone pageerror: ${e}`));
   pp.on("console", (m) => {
     if (m.type() === "error") problems.push(`phone console: ${m.text()}`);
@@ -2497,25 +2652,13 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
   await pp.waitForFunction(() => window.memResults?.done);
   // the bar offers the replay; nothing moves on the phone either
   if (!(await pp.locator("#details").innerText()).includes(
-    "How was this found? ▸")) {
+    "▸ Show how it was found")) {
     problems.push("phone: no replay button");
   }
   await still(pp, "390");
-  // (as on the desktop: the lit rows fit, the sheet's parts keep to
-  // their room; and the page can scroll the dump's end above the sheet)
-  {
-    const fitsPhone = fitsInView;
-    await fitsPhone(pp, "390 view");
-    const room = await pp.evaluate(() => {
-      const rows = [...document.querySelectorAll(
-        "#panel .view:not([hidden]) .rows > .wrow")];
-      const last = rows.at(-1).getBoundingClientRect().bottom + scrollY;
-      const sheet = document.querySelector("#dpanel").getBoundingClientRect()
-        .height;
-      return document.documentElement.scrollHeight - last >= sheet;
-    });
-    if (!room) problems.push("390: the dump's end cannot clear the sheet");
-  }
+  // (as on the desktop: the lit rows fit, the panel's parts keep to
+  // their room)
+  await fitsInView(pp, "390 view");
   // multiplied at -O0, both steps: before, the frame pointer (32
   // bytes), points (8), m = 5 (8) and combo (4); after, the same but m
   // = 3 over combo's word (8, combo's 4 among them)
