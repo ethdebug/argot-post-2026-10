@@ -325,6 +325,10 @@ function replaySteps(path, side, focus) {
   const varNode = find(current.tree, path.split(/[.[]/)[0]);
   const isMap = types[varNode?.typeId]?.kind === "mapping";
   visit(isMap ? varNode : node);
+  // (an array's items are counted by its length: an item takes the
+  // length's step too)
+  if (types[varNode?.typeId]?.kind === "array" && varNode !== node &&
+    varNode[side]) leaves.unshift(varNode);
   const picked = new Set();
   const visitPicked = (n) => {
     picked.add(n.path);
@@ -417,7 +421,7 @@ function replaySteps(path, side, focus) {
         branch = r.s.branch;
         mode = branch === "then" ? "short" : "long";
       } else if (r.kind === "list") {
-        add("item", (p) => p.index = r.s.index);
+        add("item", (p) => (p.indexes ??= []).push(r.s.index));
       } else if (r.kind === "region" && r.region) {
         const n = r.s.name;
         const g = r.region;
@@ -427,7 +431,7 @@ function replaySteps(path, side, focus) {
         } else if (n === "long-length") {
           leaf._long = g;
         } else if (n === "data" && recOf(leaf)) {
-          recOf(leaf).name = { leaf, flag: leaf._flag, data: g,
+          recOf(leaf).name = { leaf, flag: leaf._flag, long: leaf._long, data: g,
             mode: mode ?? "short" };
         } else if (n === "data") {
           add(mode ?? "short", (p) => p.items.push({ leaf, flag: leaf._flag,
@@ -435,7 +439,10 @@ function replaySteps(path, side, focus) {
         } else if (n === "item") {
           add("item", (p) => p.regions.push(g));
         } else if (n === "length" && !entryPath(leaf)) {
-          add("declared", (p) => p.regions.push(g));
+          add("length", (p) => {
+            p.region = g;
+            p.var = top(leaf);
+          });
         } else if (recOf(leaf)) {
           recOf(leaf).fields.push({ leaf, name: n, region: g });
         } else {
@@ -580,8 +587,9 @@ function replaySteps(path, side, focus) {
         constructs: ["if", "$read", "$keccak256"],
         source: "read from storage",
         chip: `${nm}: short | long`, chipLabel: "string",
-        parts: [{ regions: withName.flatMap((r) => [r.name.flag,
-          r.name.data]), rows: withName.map((r) => r.name.leaf.path),
+        parts: [{ regions: withName.flatMap((r) => [r.name.mode === "long"
+          ? r.name.long ?? r.name.flag : r.name.flag, r.name.data]),
+        rows: withName.map((r) => r.name.leaf.path),
         colors: ec }],
         rows: withName.map((r) => r.name.leaf.path) }));
     }
@@ -591,30 +599,47 @@ function replaySteps(path, side, focus) {
     if (p.k === "declared") {
       const w = wordAt(p.slot);
       const kind = p.typeKind ?? "value";
+      // (a mapping's, an array's or a string's own slot: named here, read
+      // by a later rule; its gutter only)
+      const dyn = !p.context && ["mapping", "array", "string"].includes(kind);
       step({ phase: "declared", var: p.var,
         cap: p.context ? `\`${p.var}\` is at slot ${small(p.slot)}, ${
           p.context.length} bytes from offset ${p.context.offset}`
           : kind === "mapping" && w !== undefined && !num(w)
             ? `\`${p.var}\` is declared at slot ${small(p.slot)}; that slot ` +
               "holds nothing"
-            : kind === "array" ? `\`${p.var}\` gets slot ${small(p.slot)}; ` +
-              "that slot holds its length"
+            : dyn ? `\`${p.var}\` is declared at slot ${small(p.slot)}`
               : `\`${p.var}\` gets slot ${small(p.slot)}`,
         form: esc(p.context ? `slot ${small(p.slot)}, bytes ${
           p.context.offset}–${p.context.offset + p.context.length - 1}`
-          : `slot ${small(p.slot)}${w === undefined ? "" : ` = ${small(w)}`}`),
+          : `slot ${small(p.slot)}${w === undefined || (dyn &&
+            kind !== "mapping") ? "" : ` = ${small(w)}`}`),
         constructs: ["pointer"], source: "from solc's pointer",
         chip: `slot ${small(p.slot)}`, chipLabel: kind === "struct" ? "record"
           : ["mapping", "string"].includes(kind) ? kind : kind === "array"
             ? "array" : "value",
-        slots: [...p.slots], regions: p.regions, rows: [p.var] });
+        slots: dyn ? [] : [...p.slots], regions: dyn ? [] : p.regions,
+        gutters: dyn ? [word(p.slot)] : [], rows: [p.var] });
+    } else if (p.k === "length") {
+      const n = num(wordAt(p.region.slot) ?? "0x0");
+      step({ phase: "length", var: p.var,
+        cap: `slot ${small(p.region.slot)} holds the length: ${n}`,
+        form: esc(`length = ${n}`), constructs: ["region"],
+        source: "read from storage", chip: `length ${n}`, chipLabel: "array",
+        regions: [p.region], rows: [p.var] });
     } else if (p.k === "entry") {
       out.push(...mapSteps(p.var));
     } else if (p.k === "item") {
+      const ix = [...new Set(p.indexes ?? [])].sort((a, b) => a - b);
+      const one = ix.length > 1 && p.regions.every((r) =>
+        num(r.offset ?? "0x0") === num(p.regions[0].offset ?? "0x0"));
       step({ phase: "item", var: p.var,
-        cap: `The items start at the hash of slot ${small(p.base)}`,
-        form: esc(`keccak256(${small(p.base)}) = ${tail(p.data)}${p.index
-          !== undefined ? `; item ${p.index} at + ${p.index}` : ""}`),
+        cap: ix.length > 1 ? `The items start at keccak(${small(p.base)}), ${
+          one ? "one slot each, " : ""}for \`length\` items`
+          : `The items start at keccak(${small(p.base)})`,
+        form: esc(`keccak256(${small(p.base)}) = ${tail(p.data)}${ix.length > 1
+          ? `; items ${ix[0]}…${ix.at(-1)} at + i` : ix.length
+            ? `; item ${ix[0]} at + ${ix[0]}` : ""}`),
         constructs: ["$keccak256", "list"], source: "from solc's pointer",
         chip: `keccak(${small(p.base)})`, chipLabel: "items",
         slots: p.regions.length ? [] : [word(p.data)], regions: p.regions,
@@ -708,7 +733,8 @@ function replaySteps(path, side, focus) {
         constructs: ["if", "$read", "$keccak256"], source: "read from storage",
         chip: `keccak(${tail(x.flag.slot)})`,
         chipLabel: entryPath(x.leaf) ? "name" : "value",
-        regions: ds.flatMap((y) => [y.flag, y.data]), rows: [x.leaf.path] });
+        regions: ds.flatMap((y) => [y.long ?? y.flag, y.data]),
+        rows: [x.leaf.path] });
     }
   }
   return out;
@@ -855,8 +881,10 @@ function activeLines(lines, st) {
     case "declared": return pick((l) => has(l, "var"));
     case "entries": return pick((l) => has(l, "t:mapping") &&
       l.tags.some((t) => t.startsWith("define:")) && !has(l, "item"));
-    case "item": return pick((l) => has(l, "t:array") && !l.tags.some((t) =>
-      t === "region:length"));
+    case "length": return pick((l) => has(l, "t:array") &&
+      has(l, "region:length"));
+    case "item": return pick((l) => has(l, "t:array") && has(l, "item") &&
+      !has(l, "region:length"));
     // (the record: the whole struct template, its group of members)
     case "record": return pick((l) => has(l, "t:struct"));
     case "fields": {
@@ -867,10 +895,11 @@ function activeLines(lines, st) {
     }
     case "short": return pick((l) => has(l, "t:string") && (has(l,
       "region:length-flag") || has(l, "if") || has(l, "then")));
-    case "long": return pick((l) => has(l, "t:string") && (has(l, "if") ||
+    case "long": return pick((l) => has(l, "t:string") && (has(l,
+      "region:length-flag") || has(l, "if") || has(l, "else")));
+    case "name": return pick((l) => has(l, "t:string") && (has(l,
+      "region:length-flag") || has(l, "if") || has(l, "then") ||
       has(l, "else")));
-    case "name": return pick((l) => has(l, "t:string") && (has(l, "if") ||
-      has(l, "then") || has(l, "else")));
     default: return [];
   }
 }
@@ -900,6 +929,7 @@ function stepLight(st) {
   const h = st.parts ? partsLight(st) : forStep(current.panel, replay.side,
     st);
   if (!st.parts) h.rows = new Set(st.rows);
+  if (st.gutters?.length) h.gutters = new Set(st.gutters);
   if (st.colorsOf) h.colors = forRow(current.panel, st.colorsOf).colors;
   // a record's slots in its entry's one colour (fields come later)
   if (st.oneColor) {
@@ -930,6 +960,7 @@ function stepLight(st) {
   // the slots the steps so far have derived keep their labels
   h.known = new Set();
   for (const x of replay.steps.slice(0, replay.i + 1)) {
+    for (const g of x.gutters ?? []) h.known.add(g);
     for (const k of (x.parts ? partsLight(x)
       : forStep(current.panel, replay.side, x)).bytes) {
       h.known.add(k.split("|")[1]);
@@ -966,6 +997,7 @@ function shortCap(st) {
     case "declared": return `\`${st.var}\`${st.var.endsWith("s") ? "'"
       : "'s"} own slot`;
     case "entries": return "every record, from its key";
+    case "length": return "the length";
     case "item": return "the items, from a hash";
     case "record": return "a record's slots";
     case "fields": return st.rows.length > 1 ? "packed fields" : "its field";
