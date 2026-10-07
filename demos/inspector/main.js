@@ -111,9 +111,10 @@ function row(node, top) {
     val = `<span class="val sum">${n} ${words[n === 1 ? 0 : 1]}</span>`;
   }
   const shut = group && !!collapsed[current.id]?.has(node.path);
-  const chev = group ? `<button type="button" class="chev" aria-expanded="${
-    !shut}" aria-label="${shut ? "Expand" : "Collapse"} ${esc(node.label)}">${
-    shut ? "▸" : "▾"}</button>` : "";
+  // (tabindex: Safari leaves buttons out of the Tab order otherwise)
+  const chev = group ? `<button type="button" class="chev" tabindex="0"` +
+    ` aria-expanded="${!shut}" aria-label="${shut ? "Expand" : "Collapse"} ${
+      esc(node.label)}">${CHEV}</button>` : "";
   const kids = node.children?.length
     ? `<ul>${node.children.map((c) => row(c)).join("")}</ul>`
     : node.children && !node.before && !node.after
@@ -128,6 +129,10 @@ function row(node, top) {
     `<span class="type">${esc(tname)}</span>${val}</div>${chev}${kids}</li>`;
 }
 
+// a chevron, pointing down (open); turned to point right when closed
+const CHEV = '<svg viewBox="0 0 16 16" aria-hidden="true"><path ' +
+  'd="M3.5 6 8 10.5 12.5 6" fill="none" stroke="currentColor" ' +
+  'stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>';
 // The groups the reader has collapsed, by scene (all open by default;
 // kept while on the page)
 const collapsed = {};
@@ -142,7 +147,6 @@ function setOpen(li, open, animate = true) {
   btn.setAttribute("aria-expanded", String(open));
   btn.setAttribute("aria-label", `${open ? "Collapse" : "Expand"} ${
     li.querySelector(":scope > .row .name").textContent}`);
-  btn.textContent = open ? "▾" : "▸";
   const ul = li.querySelector(":scope > ul");
   const done = () => {
     li.classList.toggle("collapsed", !open);
@@ -1702,6 +1706,18 @@ function act(el, keys = false) {
     const p = blockOf(row.parentElement.dataset.path);
     hover = null;
     return choose(p === chosen ? null : p), true;
+  }
+  // a slot's address, inside a selected composite: the child whose
+  // block holds all of the slot's values
+  const addr = !keys && el.closest("#panel .wrow[data-slot] > .addr");
+  if (addr && chosen) {
+    const ts = new Set([...addr.parentElement.querySelectorAll(
+      ".b[data-owners]")].map((c) => blockOf(ownerRow(c))));
+    const [t] = ts;
+    if (ts.size === 1 && t && t !== chosen) {
+      hover = null;
+      return choose(t), true;
+    }
   }
   // a byte selects its value, or, when it is the selected one's, clears
   const cell = el.closest("#panel .b[data-g]");

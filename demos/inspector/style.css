@@ -1111,6 +1111,9 @@ html { overflow-anchor: none; }
 #contract-src .line.decl { background: var(--mark); border-radius: 2px; }
 /* the variables: a box as tall as the storage dump, scrolled inside */
 .scols #tree { overflow-y: auto; overflow-x: hidden; box-sizing: border-box;
+  /* (the scrollbar's room kept: the width never changes when it comes
+     and goes) */
+  scrollbar-gutter: stable;
   /* room inside the scrolling box for the bars and bands that reach out
      of a row (the selection's bar, 7px), without moving the rows */
   margin: 0 -8px 0 -10px; padding-left: 10px; padding-right: 8px; }
@@ -1119,16 +1122,33 @@ html { overflow-anchor: none; }
   Menlo, monospace; font-weight: 600; }
 .rcap code.id, .rshort code.id { background: none; padding: 0; border: 0;
   font-size: 0.95em; }
-/* a group's chevron: at the right end of its row, one column for all
-   (every row keeps the room, so the values align) */
-#tree .row { padding-right: 1.7em; }
-#tree li > .chev { position: absolute; right: 0; top: 2px; width: 1.5em;
-  height: 1.5em; padding: 0; border: 0; border-radius: 4px; background: none;
-  color: var(--muted); font: inherit; font-size: 1.1rem; line-height: 1.5em;
-  cursor: pointer; z-index: 1; }
-#tree li.top > .chev { top: 6px; }
-#tree li > .chev:hover { color: var(--fg); }
-#tree li > .chev:focus-visible { outline: 2px solid var(--accent); }
+/* a group's chevron: plain at rest, at the right end of its row, its
+   box's right edge on the values' right edge (inside their 8px padding
+   and border); a box behind it only on hover, focus and press, in room
+   kept for it (nothing moves). The group's summary moves in to make
+   room; leaf rows keep theirs. */
+#tree li:has(> .chev) > .row { padding-right: calc(28px + 13px); }
+/* (the row and its chevron share one grid cell: the chevron centred on
+   the row's height, whatever it is; the members below) */
+#tree li:has(> .chev) { display: grid; grid-template-columns: minmax(0, 1fr); }
+#tree li:has(> .chev) > .row { grid-area: 1 / 1; }
+#tree li:has(> .chev) > ul, #tree li:has(> .chev) > .empty { grid-column: 1; }
+#tree li > .chev { grid-area: 1 / 1; justify-self: end; align-self: center;
+  margin-right: 9px; width: 28px;
+  height: 28px; padding: 0; box-sizing: border-box;
+  border: 1px solid transparent; border-radius: 6px; background: none;
+  color: var(--fg); font-size: 1.05rem; cursor: pointer; z-index: 1;
+  display: grid; place-items: center; }
+#tree li > .chev svg { width: 1em; height: 1em; transition: transform 0.15s; }
+#tree li > .chev[aria-expanded="false"] svg { transform: rotate(-90deg); }
+#tree li > .chev:is(:hover, :focus-visible, :active) {
+  background: var(--panel); border-color: var(--line); }
+#tree li > .chev:active { border-color: var(--accent); }
+#tree li > .chev:focus-visible { outline: 2px solid var(--accent);
+  outline-offset: 1px; }
+@media (prefers-reduced-motion: reduce) {
+  #tree li > .chev svg { transition: none; }
+}
 #tree li.collapsed > ul { display: none; }
 .val.sum { color: var(--muted); font-size: 0.85rem; }
 /* a block of tree rows in one colour: the item, key line and parts */
