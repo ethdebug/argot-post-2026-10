@@ -125,17 +125,18 @@ and parameter in `fixtures/index.json` (`calldata`).
   the first scene, `total` selected by a click on its byte;
   `desktop-dark.png`: Alice plays, `combo` selected, with "How this was
   found"; `insets.png`: Alice plays, After, alice's entry lit, with its
-  "before" card; `memory.png`: the memory section, `names[1]` selected,
-  A = array built, B = name replaced; `memory-phone.png`: the memory
-  section on a phone; `phone.png`: the motd scene on a phone, `motd`
+  "before" card; `memory.png`: the lower section, "Inside one play", at O0,
+  inside `multiplied`, `multiplied` selected; `memory-phone.png`: the
+  lower section on a phone; `phone.png`: the motd scene on a phone, `motd`
   selected). It also checks the loading (below): the sizes, the picker
   and the intros in `index.html`, the contract in `index.html`, no local
   paths in the files, a failed load and Retry in each browser, and, in
   Chromium, the page on "Slow 3G" (it prints each request with its
   size). Run it with `PAGE=<the page's URL>`; the slow-link check
   serves the repo itself.
-- `mem.js`, `bug/rename.bug`, `bin/make-memory-fixture.mjs`,
-  `fixtures/memory.json`: the memory section (below).
+- `mem.js`, `bug/arcade.bug`, `bin/make-memory-fixture.mjs`,
+  `fixtures/memory.json`: the lower section, "Inside one play" (below).
+  `bug/arcade.bug` is a copy of `private/arcade/arcade.bug`.
 - `contracts/`: `Arcade.sol` and `Arcade.vy`, copied from the post's
   shared example (`private/arcade/`).
 
@@ -327,12 +328,12 @@ offsets.
   pointer was last pressed in. The Before | After toggle is shown only
   in a scene with two points.
 - The URL hash keeps the view, e.g.
-  `#ex=motd&mode=before&sel=motd&a=built&b=replaced&mmode=after`
+  `#ex=motd&mode=before&sel=motd&mopt=2&mpt=mult&mmode=after`
   (`insets=0` when the cards are off)
   (`ex`: the scene id: `mid`, `alice`, `motd`, `vyper`;
   `mode`: only for a scene with two points; `sel`: the tree path, empty
   when the scene's default selection was cleared, absent for the
-  scene's default; `a`, `b`, `mmode`, `msel`: the memory section, which has its own keys; storage
+  scene's default; `mopt`, `mpt`, `mmode`, `msel`: the lower section, which has its own keys; storage
   keys never change it). The
   format is the old one; only the `ex` values changed, and an old one
   (`token`, `strings`, `packed`, `combo`, …) is stale. It is updated with
@@ -422,77 +423,78 @@ is imported from the package's dist (it is not a public export).
   Arcade has none.
 - No calldata pointer from solc: the calldata view uses the ABI rules.
 
-## Memory, with BUG (preview: bugc from ethdebug/format main)
+## Inside one play: locals in memory, with BUG (bugc from ethdebug/format main)
 
-A separate section under the storage demo shows memory at two points
-of one run of a BUG program, as the same kind of dumps (A, then B), with
-the program's local variables as a tree. It works like the storage
-demo: a Show control (A | B, B by default), "How this was found" for
-the selected value, cards beside the lit words with the same words at
-the other point, and its own URL keys (`a`, `b`, `mmode`, `msel`).
-Since PR #328 (`ac1164cd9`, merged, not yet released), bugc on `main`
-emits, for each instruction, a pointer for each local in scope; since
-PR #343 (with the bounds checks of #344 and the bytes-literal fix of
-#345, at `2fd7e781b`), it compiles writes to memory array elements. For a
-dynamic array, the pointer names the local's word, a length region at
-the address the word holds (`{"$read": "names"}`), and a `list` of
-element words at `base + 32 + 32*i`; for a string or `bytes`, a length
-region and a data region sized by the length. Element references
-compose the same way. Structs and fixed-size arrays in memory have
-types only (bugc cannot build them in memory yet).
+A separate section under the storage demo shows alice's third hit
+(combo 3, +30) in Arcade's BUG port, `bug/arcade.bug`, paused at three
+points inside `play()`, with memory at each point and the locals bugc
+lists there as a tree. bugc (ethdebug/format main, from PR #368 on)
+compiles the port as written: the roll is
+`keccak256(block.prevrandao, msg.sender) % 3 != 0`, as in Solidity;
+`!hit`; `roster.push(msg.sender)`; names and the motd as text. Each
+instruction's `variables` context gives each local in scope, and a
+pointer for those it has a location for. bugc keeps play()'s locals in
+memory, at -O0 and at -O2 (it gives a stack pointer only to a value it
+never stores in memory; in Arcade, only `len` in `join` and
+`setMotd`).
 
-The program, `bug/rename.bug`, replaces one name in
-`["ada", "grace", "alan"]` with a longer one: `names[1] = "grace
-hopper"`. `names` is an `array<string>`. Its word (0xa0) holds the
-address of its length (0x140), and the element words follow (0x160,
-0x180, 0x1a0); each holds the address of a string: a length word, then
-the bytes. bugc writes `"grace hopper"` at free memory (0x280) and
-then puts that address in the element's word (0x180). `"grace"` stays
-at 0x200, and no value owns it any more (its bytes are dim at B).
-Like the storage section's `motd`, the value moved: the element's word
-changed, and the old data was left behind. The points:
+Two pickers: Compiled (O0 | O2) and Paused (the three points). Each
+point is picked by how many locals have a location there, not by line
+(`bin/make-memory-fixture.mjs`):
 
-- "Array built" (A by default): the first step of the literal
-  `"grace hopper"`, with `names` listed; `names[1]` = "grace" at 0x220.
-- "New string written": the last step of the literal: the new length
-  and bytes are at 0x280 and 0x2a0, and `names[1]` is still "grace".
-- "Name replaced" (B by default): the MSTORE to the element's word;
-  `names[1]` = "grace hopper" at 0x2a0. (bugc's code range for this
-  instruction is `names[1] `, the target of the assignment.)
+- After the roll: the first step where `hit` has a location (`true`).
+  It is the only local listed; at O0 for 11 steps, at O2 for 10.
+- Inside multiplied: two steps, with all three of `points` (10),
+  `combo` (3) and `m` located: the last with `m` = 5, the first with
+  `m` = 3 (around `m = combo`). A two-step point has Show: Before |
+  After and the cards, as the storage scenes with two points. At O0,
+  `multiplied` is a real call: each local's pointer reads the frame's
+  address from the word at 0x80 (region `-frame`) and adds an offset.
+  At O2 it is inlined: fixed offsets, no frame. In the tree,
+  `multiplied` holds the three; selected, its own bytes (the frame
+  pointer, at O0) take the selection colour, and each local a child
+  colour. After `m = combo`, bugc points `m` at a word that holds
+  `combo`'s bytes too, so those bytes have two owners.
+- Before the writes: `gained` = 30, at the last step before the SSTORE
+  of `score`, and `hit` listed with no location. Alice's record slot is
+  at the end of the dump, as the trace has it at that step (every
+  counter but `score` written). It is the page's own: bugc's pointer
+  for `players` gives only its base slot (4), so the slot,
+  keccak256(alice . 4), and the six packed members (low-order bytes
+  first, as Solidity) follow BUG's rules. Its members each get a child
+  colour.
 
-`names[1]`'s derivation: the array's word, its length (3), item 1, the
-element's word (0x200 at A, 0x280 at B), the string's length (5, then
-12), its bytes. With `names[1]` selected, a card beside the element's
-word shows it at A.
+A one-step point shows one dump ("Memory") and no Before | After, no
+cards, no change marks. A local listed with no pointer shows its type
+and "no location at this point". That is not only the optimizer: at
+O0, bugc also lists `hit` with no pointer after its `if`. Linking,
+selecting, child colours and muting work as in the storage scenes.
+The URL hash keys are `mopt`, `mpt`, `mmode` (at a two-step point)
+and `msel`.
 
 How the fixture was made:
 
-1. A detached worktree of ethdebug/format main at `2fd7e781b`, `yarn
-   install --frozen-lockfile && yarn build`.
-2. `anvil --steps-tracing --port 8547 --silent` (without
+1. A detached worktree of ethdebug/format main (at `1d45fea4c`, #368),
+   `yarn install --frozen-lockfile` (it builds the packages).
+2. `anvil --steps-tracing --port 8558 --silent` (without
    `--steps-tracing`, anvil returns no steps).
-3. `BUGC=<worktree>/packages/bugc RPC_URL=http://127.0.0.1:8547 node
-   bin/make-memory-fixture.mjs`. It compiles `bug/rename.bug` (`OPT`
-   sets the level; 0 by default; levels 1 to 3 give the same values
-   and pass the script's checks, at other steps), deploys it, calls it
-   once, traces with memory, and saves the three points: the step, its
-   instruction's `variables` context (as bugc emitted it, with the
-   source path made relative), its code range, and memory after the
-   step (a context describes the state after its instruction). It
-   checks the values, that the element's word changed, and that the old
-   string's bytes did not.
+3. `BUGC=<worktree>/packages/bugc node bin/make-memory-fixture.mjs`
+   (`RPC_URL` defaults to `http://127.0.0.1:8558`), then
+   `node bin/sizes.mjs`. For -O0 and -O2, it compiles `bug/arcade.bug`,
+   deploys it, plays the story to alice's third hit (each play in a
+   snapshot, as `bin/make-fixtures.mjs` does), traces it with memory,
+   and saves each point: the step, its instruction's locals (as bugc
+   emitted them, with the source path made relative), its code range,
+   and memory after the step (a context describes the state after its
+   instruction). It checks the values by hand (above), the record's
+   members (score 30, combo 3, bestCombo 3, plays 3, hitCount 3,
+   lastBlock = the block), and that the roster holds three players.
+   Hashes and blocks differ from run to run; values and steps do not.
 
-The page dereferences each memory pointer with `@ethdebug/pointers`
-against that point's memory (`decode.js` `decodeLocals`), and walks
-the regions by name: the local's word, `-length`, `-element` for each
-item, `-data` for a string's bytes. Each value keeps the regions read
-to find it (its parts); "How this was found" replays the pointer with
-the library's evaluator, as for storage, and each step names what its
-region holds (an address, a length, the bytes). Each region is owned
-by the first value that reads it, so an array's word and length belong
-to the array, and an element's word and length to the element.
-`size` is in storage and is not shown. Shown words: those a value
-lives in at A or B, and those that changed; other words are a "⋯" gap.
+The page dereferences each pointer with `@ethdebug/pointers` against
+that point's memory (`decode.js` `decodeLocals`). "How this was found"
+replays it with the library's evaluator, as for storage: the frame
+pointer, if any, then the local's region.
 
 ## Loading on a slow link
 
@@ -500,14 +502,14 @@ What the page fetches (GitHub Pages gzips text):
 
 | File | gzip | size |
 | --- | ---: | ---: |
-| `index.html` (with the loader) | 9.3 KB | 27.7 KB |
-| `main.js`, `panel.js`, `decode.js`, `mem.js`, `calldata.js` | 42.5 KB | 126.2 KB |
-| `style.css`, `../../shared/appendix.css` | 9.1 KB | 30.9 KB |
+| `index.html` (with the loader) | 9.5 KB | 28.2 KB |
+| `main.js`, `panel.js`, `decode.js`, `mem.js`, `calldata.js` | 46.3 KB | 137.1 KB |
+| `style.css`, `../../shared/appendix.css` | 9.9 KB | 33.9 KB |
 | `vendor/pointers.js` (minified) | 69.0 KB | 272.1 KB |
-| `fixtures/index.json`, `memory.json` | 1.5 KB | 9.5 KB |
-| the first scene's data (`arcade-mid.json`) | 3.2 KB | 13.4 KB |
-| the other three fixtures, idle-time | 10.1 KB | 48.6 KB |
-| total | 144.9 KB | 528.2 KB |
+| `fixtures/index.json`, `memory.json` | 2.9 KB | 35.6 KB |
+| the first scene's data (`arcade-mid.json`) | 3.3 KB | 13.8 KB |
+| the other three fixtures, idle-time | 10.3 KB | 49.2 KB |
+| total | 151.3 KB | 569.8 KB |
 | `vendor/shiki.js`, only when the source is opened | 58.6 KB | 196.7 KB |
 
 The bundle was 86.8 KB gzip (411 KB) before it was minified.
@@ -539,6 +541,6 @@ gzipped as on GitHub Pages; `bin/run.mjs` measures it): before, the
 page painted nothing until 1.3 s, showed "Loading…" with no progress,
 and was usable at 5.3 s (all four examples decoded at 6.6 s). Now
 progress shows at about 0.6 s (first paint 0.46 s), the first scene
-is usable at about 3.8 s, a prefetched scene shows in under 0.1 s,
+is usable at about 3.9 s, a prefetched scene shows in under 0.1 s,
 and nothing moves (layout shift 0.000).
 
