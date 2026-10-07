@@ -120,9 +120,11 @@ export function bookmarkOf(scene: LegacyScene): ProjectBookmark {
   };
 }
 
-// Where a fixture's decoding finds mapping keys: the fixtures name it
-// (`keysIn: { players: "roster" }`); the Vyper fixture has none (its
-// roster is Vyper's own layout), so its keys come from the traces
-export const keySourceOf = (fixtureId: string): Decoding["keys"] =>
-  fixtureId === "arcade-vyper" ? { from: "trace" }
-    : { from: "list", path: "roster" };
+// Where a fixture's decoding finds mapping keys, as the fixture says:
+// `keysIn: { players: "roster" }` (the list's items); none (the Vyper
+// fixture: its roster is Vyper's own layout), the traces' keys
+export const keySourceOf = (json: unknown): Decoding["keys"] => {
+  const list = Object.values((json as { keysIn?: Record<string,
+    string> }).keysIn ?? {})[0];
+  return list ? { from: "list", path: list } : { from: "trace" };
+};
