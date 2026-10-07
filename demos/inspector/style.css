@@ -844,3 +844,11 @@ main[data-single] > .cols :is(.chglegend, .legend .bchg, .intro .two) {
     -7px 0 0 var(--accent); }
 .row.hl:is(.pk1, .pk2, .pk3, .pk4, .pk5, .pk6) :is(.type, .val) {
   color: inherit; }
+
+/* With a composite selected, pointing at one child (or focusing it)
+   mutes the other children's colours, in the tree and the dump */
+.b.hl.muted, .row.hl.muted { filter: saturate(0.25); opacity: 0.55; }
+.b.hl, .row.hl { transition: opacity 0.12s, filter 0.12s; }
+@media (prefers-reduced-motion: reduce) {
+  .b, .tree .row, .b.hl, .row.hl { transition: none; }
+}
