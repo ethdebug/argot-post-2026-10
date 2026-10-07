@@ -7,7 +7,7 @@ import {
 } from "./decode.js";
 import {
   buildPanel, renderPanel, forRow, forBytes, forRegion, forSlot, paint,
-  shortKeys, steady, initialHash, setHash, locked,
+  shortKeys, steady, initialHash, setHash, locked, keySection,
   details,
 } from "./panel.js";
 import { showCalldata } from "./calldata.js";
@@ -681,8 +681,7 @@ const flip = (h) => {
 };
 document.addEventListener("keydown", (e) => {
   if (e.key === "Escape") {
-    const f = document.activeElement;
-    if (chosen && !f?.closest?.("#memory, #calldata")) choose(null);
+    if (chosen && keySection() === "storage") choose(null);
     return;
   }
   if (e.key !== "Enter" && e.key !== " ") return;

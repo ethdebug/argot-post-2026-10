@@ -6,7 +6,7 @@
 // regions over words. The decoding to a value is the page's own.
 import { decodeLocals, typeName } from "./decode.js";
 import {
-  octets, ruler, paint, initialHash, setHash, locked, details,
+  octets, ruler, paint, initialHash, setHash, locked, details, keySection,
 } from "./panel.js";
 
 const $ = (id) => document.getElementById(id);
@@ -606,8 +606,7 @@ function wire() {
   });
   document.addEventListener("keydown", (e) => {
     if (e.key !== "Escape" || !chosen) return;
-    const f = document.activeElement;
-    if (f?.closest?.("#memory") || !f || f === document.body) clear();
+    if (keySection() === "memory") clear();
   });
   sec.addEventListener("keydown", (e) => {
     if (e.key !== "Enter" && e.key !== " ") return;
