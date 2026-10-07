@@ -220,7 +220,10 @@ export async function replay(pointer, { state, templates }) {
     return { value, step };
   }
 
-  async function walk(p, variables, steps) {
+  // (`block`, `at`: where the node is: the template it is in, "" for
+  // the pointer itself, and its path of keys in it)
+  async function walk(p, variables, steps, block = "", at = []) {
+    const where = (...ks) => ({ block, at: [...at, ...ks] });
     if (isRegion(p)) {
       const region = { ...p };
       const fields = [];
@@ -237,12 +240,15 @@ export async function replay(pointer, { state, templates }) {
       if (p.name !== undefined) regions[p.name] = region;
       out.push({
         region: { ...region, name },
-        steps: [...steps, { kind: "region", name: p.name, fields }],
+        steps: [...steps, { kind: "region", name: p.name, fields,
+          ...where() }],
       });
       return;
     }
     if ("group" in p) {
-      for (const child of p.group) await walk(child, variables, steps);
+      for (const [i, child] of p.group.entries()) {
+        await walk(child, variables, steps, block, [...at, "group", i]);
+      }
       return;
     }
     if ("list" in p) {
@@ -253,8 +259,9 @@ export async function replay(pointer, { state, templates }) {
         const vars = { ...variables, [each]: { sort: "integer", value: i } };
         await walk(is, vars, [
           ...steps,
-          { kind: "list", each, index: i.toString(), count: c.step },
-        ]);
+          { kind: "list", each, index: i.toString(), count: c.step,
+            ...where("list") },
+        ], block, [...at, "list", "is"]);
       }
       return;
     }
@@ -264,8 +271,8 @@ export async function replay(pointer, { state, templates }) {
       if (p[branch] === undefined) return;
       await walk(p[branch], variables, [
         ...steps,
-        { kind: "if", cond: c.step, branch },
-      ]);
+        { kind: "if", cond: c.step, branch, ...where("if") },
+      ], block, [...at, branch]);
       return;
     }
     if ("define" in p) {
@@ -274,9 +281,9 @@ export async function replay(pointer, { state, templates }) {
       for (const [id, expr] of Object.entries(p.define)) {
         const { value, step } = await explain(expr, vars);
         vars[id] = value;
-        defs.push({ kind: "define", id, ...step });
+        defs.push({ kind: "define", id, ...step, ...where("define", id) });
       }
-      await walk(p.in, vars, [...steps, ...defs]);
+      await walk(p.in, vars, [...steps, ...defs], block, [...at, "in"]);
       return;
     }
     if ("template" in p) {
@@ -290,8 +297,8 @@ export async function replay(pointer, { state, templates }) {
           // (the values the template takes: its expected inputs, bound)
           inputs: Object.fromEntries((t.expect ?? []).filter((e) =>
             variables[e] !== undefined).map((e) => [e,
-            showValue(variables[e])])) },
-      ]);
+            showValue(variables[e])])), block: p.template, at: [] },
+      ], p.template, ["for"]);
       renames.pop();
       for (const [from, to] of Object.entries(yields)) {
         if (from in regions && to !== from) {

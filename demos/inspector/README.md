@@ -412,50 +412,42 @@ same panel is compact (the caption, the formula, the picker, a few
 lines of the pointer). During a replay, the bytes of a lit slot that
 no value owns stay muted.
 
-The replay shows the rules the selection's pointers follow: the steps
-are rules, and each rule's instances appear together. The page walks
-the raw steps that `decode.js` `replay()` recorded for every value
-under the variable, in the state shown (nothing is computed by the
-page but a flag byte read from the state). For players:
+The walkthrough follows general rules, built from the raw steps that
+`decode.js` `replay()` records for every value under the selection (in
+the state shown), each with its place in the pointer (its block: the
+variable's pointer or a template; and its path of keys). Nothing is
+computed by the page but a flag byte read from the state.
 
-1. declared at slot 3, which holds nothing (its gutter is lit);
-2. each record at `keccak(key, 3)`: all three at once, with the
-   `roster` items their keys come from (decoded from storage, and
-   checked to equal the trace's keys), in the entries' colours, and a
-   table of key → slot;
-3. a record is two slots (a group; the name at `$sum(slot, 1)`);
-4. the stats packed in one slot, in colours of their own (never an
-   entry's), with the byte positions under the slot;
-5. the last byte decides the name's form: the `if`'s both branches at
-   once (alice and bob short, carol long).
+1. Inputs first: facts the page supplies, not ethdebug (a mapping's
+   keys, from `roster` or the trace), with no band; the source lights.
+2. Then the pointer's nodes in the YAML's document order: the band
+   only moves down.
+3. Every template entered is a step: its frame (name, `expect`,
+   `for:`) and the inputs it takes, the bound slot's gutter.
+4. The define that hands off into a nested template is a step of its
+   own (its define, `in:` and `template:` lines; the computed slot's
+   gutter).
+5. Every region read by an expression (an array's `length`, a
+   string's `length-flag`) and every `if` is a step; the `if` takes in
+   the reads and defines in its branch (`long-length`, `length`);
+   other defines and a list fold into the region that uses them.
+   Sibling regions in one group (a record's packed fields) are one
+   step.
+6. Several instances (a mapping's entries, an array's items) share
+   each step; where they take different branches, the `if` is one
+   fork step showing both, followed by each branch's steps.
 
-A mapping's, an array's or a string's own slot is first only named
-(its gutter lit, not its bytes); a region a later rule reads gets its
-own step or is lit in the step that reads it, so the YAML band and the
-lit bytes agree. Each template entered is a step of its own: its header
-and `expect` lines, the inputs it takes ("the template `address[]`
-takes slot = 0"), the bound slot's gutter (and, for a mapping's keys,
-the `roster` items they come from); no new bytes. roster: declared at
-slot 0 (gutter); the template `address[]` takes slot = 0; slot 0 holds
-the length, 3 (the length region); the items at keccak(0), one slot
-each, for `length` items (all three at once). motd: declared at slot
-1; the template `string` takes slot = 1; its flag and the branch taken
-(the length-flag region, the if, and then or else, with long-length
-lit for a long string). players: declared; the mapping template
-(slot = 3, key = each address in roster); each record at
-keccak(key, 3); the `Player` template (slot = each record's slot); a
-record's two slots; the packed stats; the `string` template (slot =
-each name slot); the name's form.
-players' 5 lights carol's long-length word likewise. total and rounds
-are one region each: one step.
-
-In 3 and 4 the focus entry is at full strength and the others echo
-it, muted; the picker (alice, bob, carol) changes the focus and the
-formula's numbers, and moves nothing. A single value takes the rules
-on its path with its entry in focus (bob's plays: 1–4, only his plays
-at full strength in 4; carol's name: 1, 2, 3, 5). A row a step has
-derived keeps its label (a muted popover) at later steps; the current
-step's popovers are dark.
+Carol's record: the key from `roster[2]`; players declared at slot 3;
+the mapping template takes slot = 3 and her key; her record at
+keccak(key, 3) = …9978; the `Player` template; the six packed fields;
+the next slot holds `name`, a string (…9979); the `string` template;
+the length flag, 0x45; odd → long, length 34; the text at
+keccak(…9979). `players` as a whole: the same, for all three, with the
+fork (alice and bob short, carol long): 12 steps. `roster`: 4 steps;
+`motd`: 5; `total`: 1; bob's `plays`: 6. In the packed-fields step the
+focus entry is at full strength and the others echo it, muted; the
+picker (alice, bob, carol) changes the focus and moves nothing. A row a
+step has derived keeps its label (a muted popover) at later steps.
 
 ## Annotations in the dumps
 
