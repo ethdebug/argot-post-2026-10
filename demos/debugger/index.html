@@ -431,12 +431,13 @@ page highlights each step's range and shows its entry. It builds the
 call stack as older debuggers did, from the <code>i</code> and
 <code>o</code> jumps, and names a frame by the AST function that holds
 the jump's target.</p>
-<p>The transaction: 486 steps; 327 map to the whole contract, 93 to no
-source and 66 to a smaller range. solc inlined <code>rolledHit</code>,
+<p>The transaction: 486 steps; 327 map to the whole contract, 95 to no
+source and 64 to a smaller range. solc inlined <code>rolledHit</code>,
 <code>multiplied</code> and <code>resetCombo</code> into the functions
-that call them. Look for: line 35, which this hit runs; and the call
-stack while <code>rolledHit</code> and <code>multiplied</code>
-run.</p>
+that call them. Look for: the step just before the roll (line 40),
+which pushes the <code>3</code> of <code>% 3</code> and shows
+<code>players</code> on line 26; and the call stack while
+<code>rolledHit</code> and <code>multiplied</code> run.</p>
 </div>
 
 <p class="muted" data-about="bug old" hidden>"over" and "out"

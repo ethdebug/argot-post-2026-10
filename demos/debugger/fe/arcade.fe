@@ -13,20 +13,20 @@ msg ArcadeMsg {
 
 // Fe's StorageMap values must fit in one word: one map per Player field.
 struct ArcadeStore {
-    scores: StorageMap<Address, u64, 0>,
-    combos: StorageMap<Address, u32, 1>,
-    best_combos: StorageMap<Address, u32, 2>,
-    plays: StorageMap<Address, u32, 3>,
-    hit_counts: StorageMap<Address, u32, 4>,
-    last_blocks: StorageMap<Address, u64, 5>,   // when they last played
-    roster: StorageMap<u256, Address, 6>,   // everyone who has joined (a mapping can't list its keys)
+    roster: StorageMap<u256, Address, 0>,   // everyone who has joined (a mapping can't list its keys)
     roster_len: u256,                       //   (no dynamic array: a map by index + a length)
     total: u128,                            // all players' points
     rounds: u64,                            // the number of hits
+    scores: StorageMap<Address, u64, 3>,
+    combos: StorageMap<Address, u32, 4>,
+    best_combos: StorageMap<Address, u32, 5>,
+    plays: StorageMap<Address, u32, 6>,
+    hit_counts: StorageMap<Address, u32, 7>,
+    last_blocks: StorageMap<Address, u64, 8>,   // when they last played
 }
 
-type Names = StorageBytes<Address, 7, 8>   // each player's name
-type Motd = StorageBytes<u256, 9, 10>      // the server's message of the day
+type Motd = StorageBytes<u256, 1, 2>       // the server's message of the day
+type Names = StorageBytes<Address, 9, 10>  // each player's name
 
 // a toy roll (not safe randomness): 2 in 3 is a hit
 fn rolled_hit() -> bool uses (ctx: Ctx) {
@@ -46,8 +46,8 @@ fn multiplied(points: u64, combo: u32) -> u64 {
 
 pub contract Arcade uses (ctx: Ctx) {
     mut store: ArcadeStore
-    mut names: Names
     mut motd: Motd
+    mut names: Names
 
     init(m: DynString) uses (mut motd) {
         motd.store_view(key: 0, view: m.as_bytes().view())

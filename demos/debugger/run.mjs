@@ -624,8 +624,8 @@ const EXPECT = {
   values: { points: ["10"], combo: ["3"], m: ["5", "3"], gained: ["30"],
     total: ["40", "70"], rounds: ["3", "4"], joined: ["3"],
     motd: ["160"], roster: ["length 0: []"],
-    players: ["<mapping at slot 0>"] },
-  last: { players: "<mapping at slot 0>", roster: "length 0: []",
+    players: ["<mapping at slot 4>"] },
+  last: { players: "<mapping at slot 4>", roster: "length 0: []",
     total: "70", rounds: "4", joined: "3" },
   storage: ["players", "roster", "motd", "total", "rounds", "joined"],
   // soldb's state at the Solidity tab's last step (play never reads
@@ -849,10 +849,8 @@ for (const [name, b] of Object.entries(all)) {
     check(name, "BUG O2 inline marker", BUG.O2.inline.has(u.bug.O2.inline?.fn)
       && u.bug.O2.inline.noteVisible === "visible"
       && u.bug.O2.inline.site > 0);
-    // The old way. (1) Most steps map to the whole contract. (2) Line 35,
-    // `p.score += gained; total += gained; rounds += 1;`, runs (the
-    // transaction is a hit: total goes from 40 to 70) but no step maps
-    // to it. (3) No inlined helper gets a frame: rolledHit and
+    // The old way. (1) Most steps map to the whole contract. (3) No
+    // inlined helper gets a frame: rolledHit and
     // multiplied run, with no frame named for any of the three
     // helpers; instead, five jumps marked i open frames with no
     // function in the AST, three of them on `+= 1` statements.
@@ -862,10 +860,18 @@ for (const [name, b] of Object.entries(all)) {
       whole.length > 0.6 * rec.length && whole.length === r.old.whole
       && rec.every((x) => / source map -?\d+:-?\d+:-?\d+:[io-]$/
         .test(x.where)));
-    check(name, "old: line 35 never shows",
-      OLD.lines[35].includes("total += gained")
-      && rec.some((x) => /Arcade\.sol:34,/.test(x.where))
-      && !rec.some((x) => /Arcade\.sol:35,/.test(x.where)));
+    // (2) The roll's `% 3`: its constant 3, pushed just before the roll
+    // starts and used by the roll's MOD (hand-checked: pc 1986 PUSH1 03,
+    // the operand of the MOD at pc 2023), maps to `players` on line 26.
+    // So the step before rolledHit (line 40) shows line 26.
+    const mod = rec.findIndex((x) => / MOD,/.test(x.where));
+    const k = rec.findLastIndex((x, i) => i < mod
+      && /Arcade\.sol:26,/.test(x.where) && x.hl === "players");
+    check(name, "old: the roll's 3 maps to players on line 26",
+      OLD.lines[40].includes("% 3") && OLD.lines[26].includes("players")
+      && mod > 0 && k > 0 && / pc 1986 PUSH1,/.test(rec[k].where)
+      && /Arcade\.sol:40,/.test(rec.slice(k + 1).find((x) => x.hl)?.where)
+      && /the whole contract/.test(rec[mod].note));
     const helpers = ["rolledHit", "multiplied", "resetCombo"];
     check(name, "old: no frame for an inlined helper",
       ["rolledHit", "multiplied"].every((fn) => rec.some((x) =>

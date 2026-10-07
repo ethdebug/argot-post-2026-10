@@ -1,6 +1,7 @@
 {
   "about": "The calls every tab gets (make-arcade-txs.mjs). Accounts: anvil's, by index; the deployer is 0, alice 1, bob 2, carol 3. deploy: the constructor's arguments (BUG sets motd in its create block). setup: sent first, in order. tx: the traced transaction, alice's combo-3 hit. A play with hit must roll that outcome; the script replays it from a snapshot until it does.",
-  "deploy": { "sig": "constructor(string)", "args": ["gl hf"] },
+  "deploy": { "sig": "constructor(string)",
+    "args": ["season 2 starts friday, see you on the leaderboard"] },
   "setup": [
     { "from": 1, "call": "join(string)", "args": ["alice"] },
     { "from": 2, "call": "join(string)", "args": ["bob"] },

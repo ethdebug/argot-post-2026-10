@@ -58,7 +58,8 @@ fresh `anvil --steps-tracing --port 8556` (anvil 1.2.3):
 - `bug/arcade-O0/`, `bug/arcade-O2/`: bugc at `-O 0` and `-O 2`, from
   `bug/arcade.bug` (`bug/compile.mjs`).
 - The transactions (`make-arcade-txs.mjs`, from `arcade-story.json`):
-  each build is deployed (motd "gl hf"), then gets the story: alice,
+  each build is deployed (a long motd: "season 2 starts friday, see you
+  on the leaderboard", 50 bytes), then gets the story: alice,
   bob and carol join; alice hits twice, bob hits, carol misses; then
   the traced call, alice's third `play()`, a hit. The roll depends on
   the block, and anvil cannot set prevrandao, so each `play()` runs
