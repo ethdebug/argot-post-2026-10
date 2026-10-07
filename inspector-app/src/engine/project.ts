@@ -5,7 +5,8 @@ import type {
   Compilation, CompilationId, Decoding, DecodingId, Timeline, TimelineId,
 } from "./types";
 import {
-  bookmarkOf, fixtureOf, fromFixture, solOf, type LegacyScene, type ProjectBookmark,
+  bookmarkOf, fixtureOf, fromFixture, solOf, type LegacyScene,
+  type ProjectBookmark,
 } from "./fixtures/legacy";
 
 export interface Project {

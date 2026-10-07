@@ -45,7 +45,8 @@ it("a path absent here lights nothing and does not throw", () => {
 
 it("a lit row hidden by a collapse lights its nearest visible ancestor",
   () => {
-    const g = forPath(at.d, at.l, "a[1].b", { collapsed: new Set(["a", "a[1]"]) });
+    const g = forPath(at.d, at.l, "a[1].b",
+      { collapsed: new Set(["a", "a[1]"]) });
     expect([...g.rows]).toEqual(["a[1].b", "a"]);
   });
 
