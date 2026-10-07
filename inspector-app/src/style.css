@@ -918,7 +918,7 @@ main[data-single] > .cols :is(.chglegend, .legend .bchg, .intro .two) {
 .rbar { display: grid; align-items: center; gap: 10px; height: 2.6em;
   line-height: 1.2;
   box-sizing: border-box; padding: 0 10px; margin: 0;
-  grid-template-columns: 4.6em minmax(0, 34ch) 15em 3.6em minmax(0, 1fr)
+  grid-template-columns: 7.4em minmax(0, 32ch) 15em 3.6em minmax(0, 1fr)
     6em;
   background: var(--panel); border: 1px solid var(--line);
   border-left: 3px solid var(--accent); border-radius: 6px;
@@ -945,6 +945,13 @@ main[data-single] > .cols :is(.chglegend, .legend .bchg, .intro .two) {
 .rmode { font-size: 0.72rem; font-weight: 700; text-transform: uppercase;
   letter-spacing: 0.06em; color: var(--accent); }
 .rbar .rcount { margin: 0; text-align: right; }
+/* a re-targeted walkthrough's cue: over the bar, taking no room */
+.rbar .rcue { position: absolute; right: 7em; top: 50%;
+  transform: translateY(-50%); padding: 1px 8px; border-radius: 999px;
+  background: var(--accent); color: #fff; font-size: 0.75rem;
+  font-weight: 600; pointer-events: none; transition: opacity 0.4s;
+  overflow: visible; }
+.rbar .rcue.gone { opacity: 0; }
 .rbar .rexit { display: flex; justify-content: flex-end; overflow: visible; }
 .rbar .rstart { width: 100%; padding: 1px 6px; overflow: hidden;
   text-overflow: ellipsis; }
@@ -1137,20 +1144,22 @@ html { overflow-anchor: none; }
   Menlo, monospace; font-weight: 600; }
 .rcap code.id, .rshort code.id { background: none; padding: 0; border: 0;
   font-size: 0.95em; }
-/* the tree's box, and the strips on its edges (overlays: they push no
-   rows): the colours of the lit rows past that edge, a chevron, no
-   text; they fade in and out */
+/* the tree's box, and the circle buttons on its edges (overlays: they
+   push no rows): the selection yellow, an arrow, no text; they fade in
+   and out */
 .treebox { position: relative; }
-.tedge { position: absolute; left: -10px; right: -8px; height: 18px;
-  z-index: 3; display: grid; place-items: center; padding: 0; border: 0;
-  color: var(--fg); cursor: pointer; opacity: 0; pointer-events: none;
-  transition: opacity 0.15s; font-size: 14px; }
+.tedge { position: absolute; left: 50%; width: 30px; height: 30px;
+  margin-left: -15px; z-index: 3; display: grid; place-items: center;
+  padding: 0; border: 1px solid color-mix(in srgb, var(--fg) 25%,
+  transparent); border-radius: 50%; background: var(--mark);
+  color: var(--chg-fg); cursor: pointer; opacity: 0; pointer-events: none;
+  box-shadow: 0 2px 6px rgb(0 0 0 / 0.2); transition: opacity 0.15s; }
 .tedge.on { opacity: 1; pointer-events: auto; }
-.tedge svg { width: 14px; height: 14px; }
-.tedge.up { top: 0; border-radius: 6px 6px 0 0; }
-.tedge.down { bottom: 0; border-radius: 0 0 6px 6px; }
-.tedge:hover { filter: brightness(0.92) saturate(1.2); }
-.tedge:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+.tedge svg { width: 16px; height: 16px; }
+.tedge.up { top: 6px; }
+.tedge.down { bottom: 6px; }
+.tedge:hover { filter: brightness(0.92) saturate(1.3); }
+.tedge:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 @media (prefers-reduced-motion: reduce) { .tedge { transition: none; } }
 /* a group's chevron: plain at rest, at the right end of its row, its
    box's right edge on the values' right edge (inside their 8px padding
