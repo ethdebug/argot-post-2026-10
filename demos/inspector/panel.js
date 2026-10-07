@@ -982,7 +982,8 @@ function annotate(root, v, compare, names, tray, taken, room, force) {
   // unlit row's may be covered, as by a card)
   const words = [...v.querySelectorAll(".rows > .wrow > .word")]
     .map((e) => ({ row: e.closest(".wrow"), r: e.getBoundingClientRect() }));
-  const labels = [...v.querySelectorAll(".rows > .wrow > .addr")]
+  const labels = [...v.querySelectorAll(
+    ".rows > .wrow:is(.on, .only, .known) > .addr")]
     .map((e) => ({ row: e.closest(".wrow"), r: e.getBoundingClientRect() }));
   const pinned = [];
   for (const run of all) {
@@ -1006,8 +1007,9 @@ function annotate(root, v, compare, names, tray, taken, room, force) {
       // row's address; it may cover unlit bytes.
       const ways = side === "before" ? ["over", "under"] : ["under", "over"];
       let placed = false;
-      for (const [way, beside] of ways.flatMap((x) => [[x, false],
-        [x, true]])) {
+      // (always at the gutter, its arrow on the address: only over or
+      // under differs)
+      for (const [way, beside] of ways.map((x) => [x, false])) {
         const prow = way === "over" ? run[0] : run.at(-1);
         const addr = prow.querySelector(".addr");
         pop.classList.toggle("under", way === "under");

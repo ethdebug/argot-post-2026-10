@@ -719,14 +719,14 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
         const hit = (a, b) => a.left < b.right - 0.5 &&
           b.left < a.right - 0.5 && a.top < b.bottom - 0.5 &&
           b.top < a.bottom - 0.5;
-        // (a popover may cover unlit bytes, not lit bytes, another row's
+        // (a popover may cover unlit rows, not lit bytes, a lit row's
         // address or another popover)
         const v = document.querySelector('#panel .view:not([hidden])');
         const pops = [...v.querySelectorAll(".pop")];
         for (const pop of pops) {
           const own = pop.closest(".wrow");
           const r = pop.getBoundingClientRect();
-          for (const a of v.querySelectorAll(".rows > .wrow > .addr, " +
+          for (const a of v.querySelectorAll(".rows > .wrow.on > .addr, " +
             ".rows > .wrow > .word .b.hl")) {
             if (a.closest(".wrow") !== own && hit(r, a.getBoundingClientRect())) {
               out.push(`pop on ${a.textContent}`);
@@ -851,8 +851,7 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
         const g = rows[0].querySelector(":scope > .addr")
           .getBoundingClientRect();
         const pop = rows.map((x) => x.querySelector(".pop")).find(Boolean);
-        // (in the tray, or beside the gutter: its arrow on the bytes)
-        if (!pop || pop.classList.contains("beside")) continue;
+        if (!pop) continue; // in the tray
         const tip = pop.getBoundingClientRect().left +
           parseFloat(pop.style.getPropertyValue("--ax"));
         if (tip < g.left || tip > g.right) {
@@ -923,10 +922,8 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
     // left edge a little left of the gutter's (as the cards), the
     // arrow within the address cell
     const tip = r.left + parseFloat(p.style.getPropertyValue("--ax"));
-    // (beside the gutter, when there is no room at it: just right of it)
-    const at = p.classList.contains("beside")
-      ? Math.abs(r.left - (g.right + 4)) < 5
-      : Math.abs(r.left - (g.left - 6)) < 5 && tip >= a.left && tip <= a.right;
+    const at = Math.abs(r.left - (g.left - 6)) < 5 && tip >= a.left &&
+      tip <= a.right;
     return at && r.right <= document.documentElement.clientWidth &&
       (side === "before" ? r.bottom <= a.top : r.top >= a.bottom);
   }));
@@ -1990,6 +1987,28 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
     return `${pop.textContent}${on ? " on lit" : ""}`;
   });
   if (r1 !== "keccak(slot 0) + 1") problems.push(`roster[1] popover: ${r1}`);
+  // every slot popover is placed as a gap line's: its left edge 6 px
+  // left of the gutter, its arrow on the middle of its address
+  {
+    const off = [];
+    for (const p of ["roster[1]", "players", "total"]) {
+      await page.evaluate((x) => window.select("mid", { sel: x }), p);
+      await page.mouse.move(1, 1);
+      off.push(...await page.evaluate(() => [...document.querySelectorAll(
+        "#panel .view:not([hidden]) .pop")].map((pop) => {
+        const g = pop.closest(".addr").getBoundingClientRect();
+        const a = pop.closest(".addr").querySelector(".a")
+          .getBoundingClientRect();
+        const r = pop.getBoundingClientRect();
+        const tip = r.left + parseFloat(pop.style.getPropertyValue("--ax"));
+        return Math.abs(r.left - (g.left - 6)) <= 1 &&
+          Math.abs(tip - (a.left + a.width / 2)) <= 1 ? null
+          : pop.textContent;
+      }).filter(Boolean)));
+    }
+    if (off.length) problems.push(`popovers off the gutter: ${off}`);
+    await page.evaluate(() => window.select("mid", { sel: null }));
+  }
   await page.keyboard.press("Escape");
 
   // Vyper: Solidity's rule reads nothing at keccak(key . slot 3) for any
