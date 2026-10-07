@@ -7,7 +7,10 @@ import type {
 } from "react";
 import type { Filter, Hex, Layout, Light, Location } from "../engine/types";
 import { byteKey, short } from "../engine/hex";
-import { useLayout, useLight, useLink, useSnapshot } from "./hooks";
+import {
+  useLayout, useLight, useLink, usePoint,
+} from "./hooks";
+import { readWritten } from "../engine/timeline";
 import type { DataRef, LinkId, ViewId } from "./types";
 
 const TINTS = 5;
@@ -49,8 +52,9 @@ function Ruler() {
   </div></div>;
 }
 
-function Word({ l, row, word, side, name, light }: { l: Layout; row: Hex;
-  word?: Hex; side?: string; name: string; light: Light }) {
+function Word({ l, row, word, other, side, name, light }: { l: Layout;
+  row: Hex; word?: Hex; other?: Hex; side?: string; name: string;
+  light: Light }) {
   const loc = l.location;
   const owners = Array.from({ length: 32 }, (_, i) =>
     l.cover.get(byteKey(loc, row, i)) ?? []);
@@ -60,6 +64,7 @@ function Word({ l, row, word, side, name, light }: { l: Layout; row: Hex;
     if (!tint.has(id)) tint.set(id, tint.size);
   }
   const mine = pairs(word);
+  const theirs = other === undefined ? mine : pairs(other);
   const at = light.at?.row === row ? light.at : undefined;
   const cells: ReactElement[] = [];
   for (const g of groups(owners)) {
@@ -74,6 +79,7 @@ function Word({ l, row, word, side, name, light }: { l: Layout; row: Hex;
       if (i === g.from) cls.push("gs");
       if (i === g.to) cls.push("ge");
       if (mine[i] === "00") cls.push("z");
+      if (mine[i] !== theirs[i]) cls.push("chg");
       if (hl) cls.push("hl");
       if (isAt) cls.push("at");
       // (one outline a run, in each group of eight)
@@ -94,15 +100,18 @@ function Word({ l, row, word, side, name, light }: { l: Layout; row: Hex;
     <div className="bytes"><Octets cells={cells} /></div></div>;
 }
 
-// `side`: Phase 1's pair (data-side); `hidden`, `title`, `when`: the
-// lens's choice (Lens.tsx)
+// `side`: Phase 1's pair (data-side); `hidden`, `title`, `when`,
+// `compare` (the pair's other point: changed bytes, the slots' facts):
+// the lens's choice (Lens.tsx)
 export function Dump(p: { id: ViewId; location: Location; data: DataRef;
   filter?: Filter; link?: LinkId; domId?: string;
   side?: "before" | "after"; hidden?: boolean; title?: string;
-  when?: string }) {
-  const { l } = useLayout(p.id);
-  const snap = useSnapshot(p.data);
-  const light = useLight(p.id);
+  when?: string; compare?: DataRef }) {
+  const { l } = useLayout(p.id, p.filter);
+  const here = usePoint(p.data);
+  const snap = here?.snapshot;
+  const otherPoint = usePoint(p.compare);
+  const light = useLight(p.id, p.filter);
   const [, setLink] = useLink(p.link);
   const side = p.side;
   const title = p.title ?? "Storage";
@@ -178,20 +187,32 @@ export function Dump(p: { id: ViewId; location: Location; data: DataRef;
       lines.push(<div key={`r${k}`} className="gap room"
         aria-hidden="true" />);
     }
+    // what the transaction did to the slot (a pair only)
+    const [b, a] = p.side === "before" ? [here, otherPoint]
+      : [otherPoint, here];
+    const facts = !p.compare || !a || !b ? ""
+      : readWritten(b, a, r.address) ?? "not read or written";
+    const words = [b, a].map((x) => x?.snapshot.storage.get(r.address));
+    const same = !!p.compare && words[0] === words[1];
+    const ring = same && !!a?.transaction?.writes.has(r.address);
     const what = `${name}${name.startsWith("slot") ? ""
-      : ` (slot ${short(r.address)})`}`;
+      : ` (slot ${short(r.address)})`}${facts ? `; ${facts}` : ""}`;
     const on = [...Array(32).keys()].some((i) =>
       light.bytes.has(byteKey(p.location, r.address, i)));
-    const cls = ["wrow", k % 2 ? "zb" : "", on ? "on" : ""]
+    const cls = ["wrow", same ? "same" : "", k % 2 ? "zb" : "",
+      on ? "on" : ""]
       .filter(Boolean).join(" ");
     lines.push(<div key={r.address} className={cls} data-slot={r.address}
-      data-name={name} data-facts=""
+      data-name={name} data-facts={facts}
       {...(name === slotRef(r.address) ? {}
         : { "data-full": `= ${r.address}` })}>
       <span className="addr" tabIndex={0}
         aria-label={`${r.address}; ${what}`}>
+        {ring && <span className="ring" aria-label="written, same value" />}
         <span className="a">{tail(r.address)}</span></span>
       {l && <Word l={l} row={r.address} word={snap?.storage.get(r.address)}
+        other={p.compare ? otherPoint?.snapshot.storage.get(r.address)
+          ?? undefined : undefined}
         side={side} name={name} light={light} />}
     </div>);
   });

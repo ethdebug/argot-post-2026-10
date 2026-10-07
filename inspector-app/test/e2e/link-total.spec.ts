@@ -26,6 +26,9 @@ test("byte 31 of slot 2 selects total", async ({ page }) => {
 test("hovering total's row lights its bytes; the rest mutes",
   async ({ page }) => {
     await page.goto("./shell.html#lens=inspector");
+    // (the scene selects alice's record; a click on it clears)
+    await page.locator("#tree .row.sel").click();
+    await expect(page.locator("#tree .row.sel")).toHaveCount(0);
     await page.locator('#tree li[data-path="total"] > .row').hover();
     expect(await lit(page)).toHaveLength(16);
     await expect(page.locator("#panel")).toHaveClass(/\bactive\b/);

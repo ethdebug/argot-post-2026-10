@@ -36,9 +36,13 @@ export type ViewSpec = { id: ViewId; area: string; link?: LinkId;
   & ({ kind: "dump"; location: Location; data: DataRef; filter?: Filter;
       // Phase 1's pair: the side of it this dump is (shown when the lens
       // shows that side; titled Before/After); else its own title
-      side?: "before" | "after"; title?: string }
+      side?: "before" | "after"; title?: string;
+      // other decodings of the same point whose words it shows, owned
+      // by none here, named "<who> keccak(…)" (Phase 1: Vyper's)
+      others?: { decoding: DecodingId; who?: string }[] }
     | { kind: "tree"; data: DataRef; filter?: Filter;
-      variant?: "tree" | "table" });
+      variant?: "tree" | "table" }
+    | { kind: "picker"; of: "bookmarks" | "points" | "side" | "level" });
 export type ViewKind = ViewSpec["kind"];
 
 export interface LensSpec {     // a composition for one post section
