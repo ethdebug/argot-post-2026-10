@@ -506,7 +506,7 @@ export function forOwner(m, id) {
 }
 
 // A tree row, and everything under it
-export function forRow(m, path) {
+export function forRow(m, path, { roots = false } = {}) {
   const ids = [...m.owners.values()]
     .filter((o) => o.row === path || o.row.startsWith(path + ".") ||
       o.row.startsWith(path + "["))
@@ -537,9 +537,17 @@ export function forRow(m, path) {
   // a variable whose own slot holds no data (a mapping's): that slot's
   // gutter shows its role, with its label; its bytes stay plain
   const gutters = new Set();
+  // (and, for a selection (`roots`), the own slot of every variable it is
+  // inside, needed to find it: a mapping's, an array's length word)
   for (const [slot, vars] of m.bases ?? []) {
-    if (!vars.includes(path)) continue;
     const s = word(slot);
+    const inside = vars.some((v) => path.startsWith(v + "[") ||
+      path.startsWith(v + "."));
+    if (inside) {
+      if (roots) gutters.add(s);
+      continue;
+    }
+    if (!vars.includes(path)) continue;
     const cov = m.cover.after.get(s) ?? m.cover.before.get(s);
     if (!cov?.some((ids) => ids.length)) gutters.add(s);
   }
@@ -675,6 +683,13 @@ export function forRegion(m, r, side, name) {
 // page), shift the body and keep the arrow where it is.
 function place(pop, a, beside = false) {
   let clip = { left: 0, right: document.documentElement.clientWidth };
+  // (inside the dump's box, short of its right edge)
+  const dump = pop.closest(".dump")?.getBoundingClientRect();
+  if (dump) {
+    // (its left edge may stand a little out, as the gutter's cards do)
+    clip = { left: Math.max(0, dump.left - 12), right: Math.min(clip.right,
+      dump.right - 12) };
+  }
   for (let e = pop.parentElement.parentElement; e; e = e.parentElement) {
     const cs = getComputedStyle(e);
     if (cs.overflowX !== "visible" || cs.overflowY !== "visible") {
@@ -746,68 +761,184 @@ function whatIn(all) {
   // earlier step found)
   const lit = all.filter((r) => r.classList.contains("on"));
   const rows = lit.length ? lit : all;
-  const owners = [];
-  for (const r of rows) {
+  // each row's owners, in byte order
+  const perRow = rows.map((r) => {
+    const os = [];
     for (const c of r.querySelectorAll(":scope > .word .b[data-owners]")) {
       for (const id of c.dataset.owners.split("|")) {
-        if (!owners.some((o) => o.id === id)) owners.push({ id, cells: [] });
-        owners.find((o) => o.id === id).cells.push(c);
+        if (!os.some((o) => o.id === id)) os.push({ id, cells: [] });
+        os.find((o) => o.id === id).cells.push(c);
       }
     }
-  }
-  if (!owners.length) return "";
+    return os;
+  });
+  const owners = perRow.flat();
+  if (!owners.length) return [];
   const path = (id) => id.replace(/#length$/, "");
   const ids = [...document.querySelectorAll(".b[data-owners]")]
     .flatMap((c) => c.dataset.owners.split("|")).map(path);
+  // a name's colour: its bytes' now (the selection's yellow, pk0, for a
+  // lit byte with no child colour); none where they are not lit
   const colour = (cells) => {
-    const ks = new Set(cells.filter((c) => c.classList.contains("hl"))
-      .map((c) => [...c.classList].find((x) => /^pk\d$/.test(x)) ?? ""));
-    return ks.size === 1 ? [...ks][0] : "";
+    const on = cells.filter((c) => c.classList.contains("hl"));
+    if (!on.length) return null;
+    return [...on[0].classList].find((x) => /^pk\d$/.test(x)) ?? "pk0";
   };
   // (muted where its bytes are: an echo)
   const muted = (cells) => cells.some((c) => c.classList.contains("hl")) &&
     cells.filter((c) => c.classList.contains("hl")).every((c) =>
       c.classList.contains("muted"));
-  const name = (o, text) => {
-    const k = colour(o.cells);
-    return `<code class="pname${k ? ` ${k}` : ""}${k && muted(o.cells)
-      ? " muted" : ""}">${esc(text)}</code>`;
+  const item = (cells, text, sep = " · ") => ({ text, k: colour(cells),
+    muted: muted(cells), sep });
+  // (several slots in one colour: the value they make up, by its path)
+  const ks = new Set(owners.map((o) => colour(o.cells)));
+  const ps = [...new Set(owners.map((o) => path(o.id)))];
+  let common = ps[0];
+  while (common && !ps.every((p) => p === common ||
+    p.startsWith(common + ".") || p.startsWith(common + "["))) {
+    common = common.replace(/(\.[^.[\]]+|\[[^\]]*\])$/, "");
+    if (!/[.[]/.test(common) && !ps.every((p) => p.startsWith(common))) {
+      common = "";
+    }
+  }
+  if (rows.length > 1 && ks.size <= 1) {
+    return [item(owners.flatMap((o) => o.cells), common ? shortKeys(common)
+      : ps.map(shortKeys).join(" · "))];
+  }
+  // (each slot's values left to right; " / " between slots; a value's
+  // other regions by their role: its length)
+  const parent = (p) => p.match(/^(.*)(\.[^.[\]]+|\[[^\]]*\])$/)?.[1] ??
+    "";
+  const base = rows.length > 1 ? common : null;
+  const named = (p, one) => {
+    if (base && p.startsWith(base) && p !== base) {
+      return p.slice(base.length).replace(/^\./, "");
+    }
+    return one || parent(p) === "" ? shortKeys(p) : p.slice(
+      parent(p).length).replace(/^\./, "");
   };
-  let names;
-  if (rows.length > 1) {
-    // (the deepest path all of them are under)
-    const ps = owners.map((o) => path(o.id));
-    let common = ps[0];
-    while (common && !ps.every((p) => p === common ||
-      p.startsWith(common + ".") || p.startsWith(common + "["))) {
-      common = common.replace(/(\.[^.[\]]+|\[[^\]]*\])$/, "");
-      if (!/[.[]/.test(common) && !ps.every((p) => p.startsWith(common))) {
-        common = "";
+  // (a value's other region, by its role, under the value's name: an
+  // array's own word, alone in its slot, is just its length)
+  const label = (o, one) => {
+    const p = path(o.id);
+    const own = ids.some((q) => q.startsWith(p + "["));
+    if (one && own) return "length";
+    if (o.id.endsWith("#length") || own) return `${named(p, one)}.length`;
+    return named(p, one);
+  };
+  const out = [];
+  perRow.forEach((os, r) => {
+    os.forEach((o, n) => {
+      const x = item(o.cells, label(o, owners.length === 1), n === 0 && r
+        ? " / " : " · ");
+      x.seg = r;
+      // (a value running on into the next slot: named once)
+      const prev = out.at(-1);
+      if (prev && prev.id === o.id) return;
+      x.id = o.id;
+      out.push(x);
+    });
+  });
+  // (a value's length takes the value's colour)
+  for (const x of out) {
+    if (x.id?.endsWith("#length") && !x.k) {
+      x.k = out.find((y) => y.id === x.id.replace(/#length$/, ""))?.k ??
+        null;
+    }
+  }
+  return out;
+}
+// The names a popover shows, `keep` of them (indices), in byte order,
+// slot by slot (" / " between slots): a coloured one as a badge in its
+// bytes' colour, the rest plain; "…" where names or slots were cut
+function whatHtml(items, keep) {
+  const kept = new Set(keep);
+  const segs = [...new Set(items.map((x) => x.seg ?? 0))];
+  const cut = '<span class="pcut">…</span>';
+  const parts = [];
+  for (const g of segs) {
+    const idx = items.map((x, i) => [x, i]).filter(([x]) => (x.seg ?? 0) ===
+      g).map(([, i]) => i);
+    const on = idx.filter((i) => kept.has(i));
+    if (!on.length) {
+      if (parts.at(-1) !== cut) parts.push(cut);
+      continue;
+    }
+    let seg = "";
+    let last = idx[0] - 1;
+    for (const i of on) {
+      if (i !== last + 1) seg += `${seg ? " · " : ""}${cut}`;
+      const x = items[i];
+      seg += `${seg ? " · " : ""}<code class="pname${x.k ? ` chip ${x.k}`
+        : ""}${x.k && x.muted ? " muted" : ""}">${esc(x.text)}</code>`;
+      last = i;
+    }
+    if (last !== idx.at(-1)) seg += ` · ${cut}`;
+    parts.push(seg);
+  }
+  return parts.join(" / ");
+}
+// Fit a popover's names to its room. One slot: drop plain names first,
+// farthest from the coloured ones; never a coloured one, unless all that
+// is left is coloured: then from the middle, keeping the first and last.
+// Several slots: plain names first (never a slot's first or last), then
+// each slot down to its first and last, then the middle slots (never the
+// first or last slot). Then the "how" part's addresses, shorter.
+function fitWhat(pop) {
+  const items = pop._what;
+  const what = pop.querySelector(".pwhat");
+  if (!items?.length || !what) return;
+  // (the whole label, its suffix too, against the popover's room)
+  const over = () => pop.scrollWidth > pop.clientWidth + 1;
+  let keep = items.map((_, i) => i);
+  const segs = [...new Set(items.map((x) => x.seg ?? 0))];
+  const segOf = (i) => items[i].seg ?? 0;
+  // (a slot's first or last name)
+  const ends = (i) => !(items.some((x, j) => segOf(j) === segOf(i) &&
+    j < i) && items.some((x, j) => segOf(j) === segOf(i) && j > i));
+  const C = keep.filter((i) => items[i].k);
+  const near = (i) => C.length ? Math.min(...C.map((c) => Math.abs(c - i)))
+    : i;
+  const render = () => {
+    what.innerHTML = whatHtml(items, keep);
+  };
+  const many = segs.length > 1;
+  while (over()) {
+    const plain = keep.filter((i) => !items[i].k && (!many || !ends(i)));
+    if (plain.length) {
+      // (the farthest from a coloured name; the later one on a tie)
+      const far = plain.reduce((a, b) => near(b) >= near(a) ? b : a);
+      keep = keep.filter((i) => i !== far);
+    } else if (!many) {
+      if (keep.length <= 2) break;
+      keep.splice(Math.floor(keep.length / 2), 1);
+    } else {
+      // (the fullest slot, down by its middle name)
+      const inner = segs.map((g) => keep.filter((i) => segOf(i) === g))
+        .filter((l) => l.length > 2).sort((a, b) => b.length - a.length)[0];
+      if (inner) {
+        const m = inner[Math.floor(inner.length / 2)];
+        keep = keep.filter((i) => i !== m);
+      } else {
+        // (a middle slot, whole)
+        const mid = segs.slice(1, -1).filter((g) => keep.some((i) =>
+          segOf(i) === g));
+        if (!mid.length) break;
+        const g = mid[Math.floor(mid.length / 2)];
+        keep = keep.filter((i) => segOf(i) !== g);
       }
     }
-    names = [name({ cells: owners.flatMap((o) => o.cells) },
-      common ? shortKeys(common) : ps.map(shortKeys).join(" · "))];
-  } else {
-    // (one slot: its values left to right)
-    const one = owners.length === 1;
-    const parent = (p) => p.match(/^(.*)(\.[^.[\]]+|\[[^\]]*\])$/)?.[1] ??
-      "";
-    const label = (o) => {
-      const p = path(o.id);
-      // (a composite's own word: an array's length)
-      if (!o.id.endsWith("#length") && ids.some((q) =>
-        q.startsWith(p + "["))) return "length";
-      return one || parent(p) === "" ? shortKeys(p) : p.slice(
-        parent(p).length).replace(/^\./, "");
-    };
-    const shown = owners.slice(0, 3).map((o) => name(o, label(o)));
-    names = [shown.join(" · ") + (owners.length > 3
-      ? ` <span class="pmore">+${owners.length - 3}</span>` : "")];
-    // (one colour for all of them: plain; the order carries the link)
-    const ks = new Set(owners.map((o) => colour(o.cells)));
-    if (ks.size === 1) names = names.map((n) => n.replace(/ pk\d/g, ""));
+    render();
   }
-  return names.join("");
+  // (still too wide: the "how" part's addresses shorter; never the
+  // names kept or the suffix)
+  const how = pop.querySelector(".phow");
+  if (over() && how) {
+    how.textContent = how.textContent.replace(/0x[0-9a-f]+…([0-9a-f]{4})/g,
+      "…$1");
+  }
+  // (and if even that is too wide, a narrow box: it wraps)
+  if (over()) pop.classList.add("wrap");
 }
 function popFor(rows, more) {
   const facts = [...new Set(rows.map((r) => r.dataset.facts))]
@@ -816,15 +947,18 @@ function popFor(rows, more) {
   pop.className = "pop";
   pop.setAttribute("role", "status");
   const what = whatIn(rows);
+  pop._what = what;
   // (several slots: "how : what, n slots"; a run with one lit row names
   // that row's values: "how : what")
   const one = rows.filter((r) => r.classList.contains("on")).length === 1 &&
     rows.length > 1;
   const [, how, n] = runName(rows).match(/^(.*?)(, \d+ slots)?$/);
   const count = one ? "" : n;
-  pop.innerHTML = `<span class="pop-how">${esc(what ? how : runName(rows))}${
-    what ? ` : ${what}${count ?? ""}` : ""}${facts.length ? ` · ${esc(facts.join(" / "))}`
-    : ""}${more ? ` · +${more} more` : ""}</span>`;
+  pop.innerHTML = `<span class="pop-how"><span class="phow">${esc(
+    what.length ? how : runName(rows))}</span>${what.length
+    ? ` : <span class="pwhat">${whatHtml(what, what.map((_, i) => i))
+    }</span>${count ?? ""}` : ""}${facts.length ? ` · ${esc(facts.join(
+    " / "))}` : ""}${more ? ` · +${more} more` : ""}</span>`;
   return pop;
 }
 
@@ -1174,6 +1308,11 @@ function annotate(root, v, compare, names, tray, taken, room, force) {
         addr.append(pop);
         addr.classList.add("popped");
         place(pop, prow.querySelector(".a"), beside);
+        // (its names, cut to its room; then placed again, at its width)
+        if (pop.scrollWidth > pop.clientWidth + 1) {
+          fitWhat(pop);
+          place(pop, prow.querySelector(".a"), beside);
+        }
         const r = pop.getBoundingClientRect();
         // (a muted label, for a run found at an earlier step, covers no
         // other row's bytes either: it would hide data)
