@@ -2020,8 +2020,11 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
       const p = document.querySelector(`#edge-${x}`);
       const t = document.querySelector("#tree").getBoundingClientRect();
       const r = p.getBoundingClientRect();
-      return p.hidden ? null : { text: p.textContent, inside: r.top >= t.top &&
-        r.bottom <= t.bottom, bg: getComputedStyle(p).backgroundColor };
+      return !p.classList.contains("on") ? null : {
+        text: p.textContent.trim(), label: p.getAttribute("aria-label"),
+        title: p.hasAttribute("title"), inside: r.top >= t.top - 1 &&
+          r.bottom <= t.bottom + 1,
+        bg: getComputedStyle(p).backgroundColor };
     }, w);
     const t0 = await tops();
     const cp = `#panel .view:not([hidden]) .b[data-owners="${C}.plays"]`;
@@ -2044,9 +2047,18 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
     await page.locator(`#panel .view:not([hidden]) .b[data-owners="roster[0]"]`)
       .first().hover();
     const up = await pill("up");
-    if (!down?.text.includes("↓ players[0x90f7…b906].plays") ||
+    const mark = await page.evaluate(() => {
+      const e = document.createElement("i");
+      e.style.background = "var(--mark)";
+      document.body.append(e);
+      const c = getComputedStyle(e).backgroundColor;
+      e.remove();
+      return c;
+    });
+    if (!down || down.text || down.title || down.bg !== mark ||
+      !down.label.includes(`to ${C}.plays`) ||
       !down.inside || t1 !== t0 || !inView ||
-      !up?.text.includes("↑ roster[0]") || !up.inside) {
+      !up || up.text || !up.label.includes("to roster[0]") || !up.inside) {
       problems.push(`edge pills: ${JSON.stringify({ down, up, inView,
         moved: t1 !== t0 })}`);
     }
