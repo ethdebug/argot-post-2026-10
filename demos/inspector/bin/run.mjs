@@ -1913,6 +1913,59 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
     await page.evaluate((x) => window.select("mid", { sel: x }), `${B}.plays`);
     await page.mouse.move(1, 1);
   }
+  // a lit row out of the tree's view: a pill on the box's edge, down or
+  // up, with its path; a click scrolls the tree to it; nothing in the
+  // pane moves
+  {
+    await page.evaluate(() => window.select("mid", { sel: null }));
+    await page.evaluate(() => {
+      document.querySelector("#tree").style.height = "260px";
+      document.querySelector("#tree").scrollTop = 0;
+    });
+    const tops = () => page.evaluate(() => JSON.stringify([
+      ...document.querySelectorAll("#tree li > .row")].map((r) =>
+      r.offsetTop)));
+    const pill = (w) => page.evaluate((x) => {
+      const p = document.querySelector(`#edge-${x}`);
+      const t = document.querySelector("#tree").getBoundingClientRect();
+      const r = p.getBoundingClientRect();
+      return p.hidden ? null : { text: p.textContent, inside: r.top >= t.top &&
+        r.bottom <= t.bottom, bg: getComputedStyle(p).backgroundColor };
+    }, w);
+    const t0 = await tops();
+    const cp = `#panel .view:not([hidden]) .b[data-owners="${C}.plays"]`;
+    await page.locator(cp).first().hover();
+    const down = await pill("down");
+    const t1 = await tops();
+    await page.locator("#edge-down").click();
+    await page.waitForTimeout(100);
+    const inView = await page.evaluate((c) => {
+      const r = document.querySelector(`#tree li[data-path="${c}"] > .row`)
+        .getBoundingClientRect();
+      const t = document.querySelector("#tree").getBoundingClientRect();
+      return r.top >= t.top - 1 && r.bottom <= t.bottom + 1;
+    }, `${C}.plays`);
+    // (upward: the tree scrolled to its end, a roster byte pointed at)
+    await page.evaluate(() => {
+      const t = document.querySelector("#tree");
+      t.scrollTop = t.scrollHeight;
+    });
+    await page.locator(`#panel .view:not([hidden]) .b[data-owners="roster[0]"]`)
+      .first().hover();
+    const up = await pill("up");
+    if (!down?.text.includes("↓ players[0x90f7…b906].plays") ||
+      !down.inside || t1 !== t0 || !inView ||
+      !up?.text.includes("↑ roster[0]") || !up.inside) {
+      problems.push(`edge pills: ${JSON.stringify({ down, up, inView,
+        moved: t1 !== t0 })}`);
+    }
+    await page.mouse.move(1, 1);
+    await page.evaluate(() => {
+      document.querySelector("#tree").style.height = "";
+      window.dispatchEvent(new Event("resize"));
+    });
+    await page.evaluate((x) => window.select("mid", { sel: x }), `${B}.plays`);
+  }
   // while it replays, pointing elsewhere changes nothing
   await page.locator('#details button[data-r="start"]').click();
   await page.mouse.move(1, 1);

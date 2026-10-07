@@ -237,6 +237,9 @@ function treeTo(path) {
   }
 }
 addEventListener("resize", () => current && alignColumns());
+document.addEventListener("scroll", (e) => {
+  if (e.target.id === "tree") edges();
+}, true);
 
 function render() {
   $("tree").style.paddingTop = "";
@@ -1519,6 +1522,7 @@ function show() {
   paint($("panel"), $("tree"), h, { cards: !replay && showOther(),
     single: !!current?.single, chosen: !!replay || !!chosen });
   treeCard(h);
+  edges();
   // with a value selected, the box is its own (renderBox)
   if (!chosen) $("dtext").innerHTML = details(h, PROBE);
   // a step's field names, in their fields' colours
@@ -1531,6 +1535,45 @@ function show() {
   $("viewing").style.visibility = chosen ? "visible" : "hidden";
   $("viewing").textContent = chosen
     ? `viewing ${shortKeys(chosen)} · Esc to clear` : "\u00a0";
+}
+
+// A lit tree row out of the tree box's view (it scrolls inside itself):
+// a pill on the box's edge, pointing down or up, with the row's path
+// (and how many more lit rows are past that edge); a click scrolls the
+// tree, inside itself, to it. Hover alone never scrolls the tree.
+function edges() {
+  const tree = $("tree");
+  const b = tree.getBoundingClientRect();
+  const rows = [...tree.querySelectorAll("li[data-path] > .row.hl")]
+    .filter((r) => r.offsetParent);
+  const past = { up: rows.filter((r) => r.getBoundingClientRect().bottom <=
+    b.top + 1), down: rows.filter((r) => r.getBoundingClientRect().top >=
+    b.bottom - 1) };
+  // (the nearest row past each edge first)
+  past.up.reverse();
+  for (const [way, list] of Object.entries(past)) {
+    const pill = $(`edge-${way}`);
+    pill.hidden = !list.length;
+    if (!list.length) continue;
+    const r = list[0];
+    const path = r.parentElement.dataset.path;
+    const k = [...r.classList].find((c) => /^pk\d$/.test(c));
+    pill.className = `tedge ${way}${k ? ` ${k}` : ""}`;
+    pill.dataset.path = path;
+    pill.innerHTML = `<span aria-hidden="true">${way === "up" ? "↑" : "↓"
+      }</span> <code>${esc(shortKeys(path))}</code>${list.length > 1
+      ? ` <span class="more">· ${list.length - 1} more</span>` : ""}`;
+    pill.setAttribute("aria-label", `Scroll the variables to ${path}`);
+  }
+}
+function edgeGo(pill) {
+  const tree = $("tree");
+  const r = tree.querySelector(`li[data-path="${CSS.escape(
+    pill.dataset.path)}"] > .row`)?.getBoundingClientRect();
+  if (!r) return;
+  const b = tree.getBoundingClientRect();
+  tree.scrollTo({ top: tree.scrollTop + r.top - b.top - (b.height -
+    r.height) / 2, behavior: still() ? "auto" : "smooth" });
 }
 
 // While a value is lit, a card by its tree row gives its value in the
@@ -1647,6 +1690,8 @@ const same = (a, b) => a?.label === b?.label &&
   JSON.stringify(a?.at) === JSON.stringify(b?.at);
 
 function onOver(e) {
+  // (over an edge pill, what is lit stays lit: the pill is for it)
+  if (e.target.closest?.(".tedge")) return;
   if (e.target.closest?.("#memory, #calldata")) {
     if (hover) {
       hover = null;
@@ -1746,6 +1791,8 @@ document.addEventListener("click", (e) => {
     applyMode();
     return keep();
   }
+  const ed = t.closest(".tedge");
+  if (ed) return edgeGo(ed);
   const cv = t.closest("#tree .chev");
   if (cv) return setOpen(cv.parentElement, cv.getAttribute(
     "aria-expanded") !== "true");

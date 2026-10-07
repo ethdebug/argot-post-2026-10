@@ -1122,6 +1122,22 @@ html { overflow-anchor: none; }
   Menlo, monospace; font-weight: 600; }
 .rcap code.id, .rshort code.id { background: none; padding: 0; border: 0;
   font-size: 0.95em; }
+/* the tree's box, and the pills on its edges (overlays: they push no
+   rows; opaque) */
+.treebox { position: relative; }
+.tedge { position: absolute; left: 50%; transform: translateX(-50%);
+  z-index: 3; max-width: calc(100% - 24px); overflow: hidden;
+  text-overflow: ellipsis; white-space: nowrap; padding: 3px 10px;
+  border: 1px solid color-mix(in srgb, var(--fg) 20%, transparent);
+  border-radius: 999px; background: var(--pk, var(--mark));
+  color: var(--pk-fg, var(--chg-fg)); font: inherit; font-size: 0.8rem;
+  cursor: pointer; box-shadow: 0 2px 6px rgb(0 0 0 / 0.18); }
+.tedge.up { top: 6px; }
+.tedge.down { bottom: 6px; }
+.tedge[hidden] { display: none; }
+.tedge code { font-family: ui-monospace, Menlo, monospace; background: none;
+  border: 0; padding: 0; color: inherit; }
+.tedge:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 /* a group's chevron: plain at rest, at the right end of its row, its
    box's right edge on the values' right edge (inside their 8px padding
    and border); a box behind it only on hover, focus and press, in room

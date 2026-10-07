@@ -367,6 +367,13 @@ a click or hover anywhere in alice's block (in the tree or the dump)
 targets alice's entry; with alice selected, her members are the
 blocks. With nothing selected, the most specific value is the target.
 
+When a lit tree row is out of the tree box's view (it scrolls inside
+itself), a pill on the box's edge points to it (`↓` below, `↑` above),
+with its path in mono and how many more lit rows are past that edge,
+in the row's colour; a click scrolls the tree, inside itself, to the
+row. Hover alone never scrolls the tree. The pills are overlays: no row
+moves.
+
 Nothing moves when a value is selected, pointed at or stepped through:
 emphasis is lighting and muting only. The bar (`#details`) is one line
 over both columns, in the page's flow (nothing on the page is sticky

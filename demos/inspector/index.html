@@ -291,9 +291,17 @@ contract Arcade {
       <h2 class="label colhead">Variables
         <span class="legend chglegend"><span class="chg">changed</span>
         <span class="same">unchanged</span></span></h2>
+      <!-- the tree scrolls inside its box; a pill at its top or bottom
+      edge points to a lit row out of view (main.js edges) -->
+      <div class="treebox">
       <div id="tree" class="tree">
         <div class="skel" aria-hidden="true"><i></i><i></i><i></i><i></i>
         <i></i><i></i><i></i><i></i></div></div>
+      <button type="button" id="edge-up" class="tedge up" tabindex="0"
+        hidden></button>
+      <button type="button" id="edge-down" class="tedge down" tabindex="0"
+        hidden></button>
+      </div>
     </section>
   </div>
 
