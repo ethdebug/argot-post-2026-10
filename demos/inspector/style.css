@@ -957,11 +957,10 @@ main[data-single] > .cols :is(.chglegend, .legend .bchg, .intro .two) {
 .ptr .plabel { margin: 0 0 4px; font-size: 0.75rem; font-weight: 700;
   text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); }
 .ptr .pnote { font-weight: 400; text-transform: none; letter-spacing: 0; }
-/* the excerpt scrolls inside itself; its edges fade, to show there is
-   more */
+/* the excerpt scrolls inside itself, inset under the header (a clear
+   gap; no fade at its edges) */
 .ptrscroll { min-height: 0; overflow: auto; position: relative;
-  mask-image: linear-gradient(to bottom, transparent 0, #000 0.9em,
-    #000 calc(100% - 0.9em), transparent 100%); }
+  margin: 6px 0 0; border-top: 1px solid var(--line); }
 #ptr code { background: none; padding: 0; border: 0; font-size: inherit; }
 .ptrlines { margin: 0; padding: 0.9em 0; font-size: 0.72rem;
   display: block;

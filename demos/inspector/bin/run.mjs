@@ -2099,10 +2099,11 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
     // (at step 1, the block at the first line shows whole, under the
     // header)
     const first = await page.evaluate(() => {
-      const box = document.querySelector("#ptr").getBoundingClientRect();
-      const on = document.querySelector("#ptr .line.on")
-        .getBoundingClientRect();
-      return on.top >= box.top + 2;
+      // (against the scroll box's clip edge: inside its border)
+      const p = document.querySelector("#ptr");
+      const clip = p.getBoundingClientRect().top + p.clientTop;
+      const on = p.querySelector(".line.on").getBoundingClientRect();
+      return on.top >= clip + 4 && getComputedStyle(p).maskImage === "none";
     });
     if (!first) problems.push("step 1: the block's top is cut");
     await page.locator('#chips .chip[data-k="3"]').click();
