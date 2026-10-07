@@ -26,7 +26,7 @@ test("g opens the list; a lens in it shows that lens", async ({ page }) => {
   await expect(list).toBeVisible();
   await list.locator(`[data-lens="${lenses[0].id}"]`).click();
   await expect(list).toBeHidden();
-  await expect(page).toHaveURL(new RegExp(`#lens=${lenses[0].id}$`));
+  await expect(page).toHaveURL(new RegExp(`#lens=${lenses[0].id}(&|$)`));
   await expect(page.locator("#tree li[data-path]").first()).toBeVisible();
 });
 

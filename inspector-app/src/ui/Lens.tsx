@@ -8,6 +8,8 @@ import {
 import { createPortal } from "react-dom";
 import type { Project } from "../engine/project";
 import { decode } from "../engine/decode";
+import { fromHash, toHash } from "../engine/hash";
+import { readHash, writeHash, type Pending } from "./hash";
 import { createStore, type Store } from "./store";
 import {
   decodingOf, LensContext, useLensState, type LensContextValue,
@@ -102,8 +104,9 @@ function Present({ v, View }: { v: ViewSpec; View: ComponentType<any> }) {
 
 export function Lens(props: { spec: LensSpec; project: Project;
   hash?: boolean; kinds?: Kinds; mount?: Record<string, Element>;
-  // the page's handle on the lens (the parity page's window.select)
-  onReady?: (lens: LensContextValue) => void }) {
+  // the page's handle on the lens (the parity page's window.select),
+  // and when its first view is shown
+  onReady?: (lens: LensContextValue, ready: Promise<boolean>) => void }) {
   const { spec, project, mount, onReady } = props;
   const [store] = useState(() => createStore(initialState(spec, project)));
   const key = useId();
@@ -125,13 +128,83 @@ export function Lens(props: { spec: LensSpec; project: Project;
     return () => document.removeEventListener("pointerover", over);
   }, [key, store]);
   // the first bookmark, with its defaults (unless the page shows one)
+  // the view the URL hash asks for (`hash`), or the first bookmark with
+  // its defaults; then (with `hash`) every change goes back into it
+  const [pending] = useState<Pending>({});
   useEffect(() => {
-    if (onReady) onReady(value);
-    else {
-      const id = value.store.get().bookmark;
-      if (id) void value.show(id);
-    }
-  }, [value, onReady]);
+    const { store: st, show } = value;
+    const want = props.hash ? fromHash(spec, readHash(), project.bookmarks)
+      : undefined;
+    if (want) st.set((s) => ({ ...s, insets: want.insets }));
+    const id = want?.bookmark ?? st.get().bookmark;
+    const ready = id ? show(id, want && { mode: want.side,
+      sel: want.selection }) : Promise.resolve(true);
+    let live = true;
+    const unsub = props.hash ? (() => {
+      let off = () => {};
+      void ready.then(() => {
+        if (!live) return;
+        const write = () => {
+          const s = st.get();
+          writeHash(toHash(spec, { bookmark: s.bookmark,
+            side: s.side ?? "after", insets: s.insets,
+            selection: s.links[spec.links[0]]?.selection ?? null },
+          project.bookmarks), pending);
+        };
+        write();
+        off = st.subscribe(write);
+      });
+      return () => off();
+    })() : () => {};
+    onReady?.(value, ready);
+    return () => {
+      live = false;
+      unsub();
+    };
+  }, [value, onReady, props.hash, spec, project, pending]);
+
+  // Escape (in this lens: the focus is in it, or, with nothing focused,
+  // the pointer was last pressed in it): exits a walkthrough first, then
+  // clears the selection. A click on empty space clears it too (not on
+  // controls, text being selected, or another lens).
+  useEffect(() => {
+    const mine = (el: Element | null) => !!el?.closest?.(
+      `[data-view^="${key}:"]`);
+    const other = (el: Element | null) => !!el?.closest?.("[data-view]") &&
+      !mine(el);
+    let pressed = false;
+    const down = (e: Event) => {
+      pressed = mine(e.target as Element);
+    };
+    const clear = () => store.set((s) => ({ ...s, links: Object.fromEntries(
+      Object.entries(s.links).map(([k, l]) => [k, l.walk
+        ? { ...l, walk: null } : l.selection ? { ...l, selection: null }
+          : l])) }));
+    const keyed = (e: KeyboardEvent) => {
+      if (e.key !== "Escape") return;
+      const f = document.activeElement;
+      const here = !f || f === document.body ? pressed : mine(f);
+      if (here) clear();
+    };
+    const click = (e: MouseEvent) => {
+      const t = e.target as Element;
+      if ((e as MouseEvent & { acted?: boolean }).acted || other(t)) return;
+      if (t.closest?.("#picker, #details, #dwrap, .addr, .tray, a, " +
+        "button, summary, details, input, label, .shellbar")) return;
+      if (String(window.getSelection?.() ?? "")) return;
+      store.set((s) => ({ ...s, links: Object.fromEntries(Object.entries(
+        s.links).map(([k, l]) => [k, l.selection && !l.walk
+          ? { ...l, selection: null } : l])) }));
+    };
+    document.addEventListener("pointerdown", down, true);
+    document.addEventListener("keydown", keyed);
+    document.addEventListener("click", click);
+    return () => {
+      document.removeEventListener("pointerdown", down, true);
+      document.removeEventListener("keydown", keyed);
+      document.removeEventListener("click", click);
+    };
+  }, [key, store]);
   const kinds: Kinds = { ...viewKinds, ...props.kinds };
   const areas: Record<string, ReactNode[]> = {};
   for (const v of spec.views) {
