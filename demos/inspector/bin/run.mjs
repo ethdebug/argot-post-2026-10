@@ -2428,6 +2428,79 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
     }
     await page.evaluate((x) => window.select("mid", { sel: x }), `${B}.plays`);
   }
+  // every lit run has its popover, at every step of players' and carol's
+  // walkthroughs
+  {
+    const bare = [];
+    for (const x of ["players", C]) {
+      await page.evaluate((y) => window.select("mid", { sel: y }), x);
+      await page.locator('#details button[data-r="start"]').click();
+      for (let k = 0; k < 20; k++) {
+        await page.mouse.move(1, 1);
+        const miss = await page.evaluate(() => {
+          const out = [];
+          let run = null;
+          for (const el of document.querySelector(
+            "#panel .view:not([hidden]) .rows").children) {
+            if (el.classList.contains("wrow") && el.classList.contains("on")) {
+              if (!run) out.push(run = []);
+              run.push(el);
+            } else if (!el.classList.contains("cmp")) run = null;
+          }
+          return out.filter((r) => !r.some((e) => e.querySelector(".pop")))
+            .map((r) => r[0].dataset.slot.slice(-4));
+        });
+        if (miss.length) bare.push(`${x.slice(0, 12)} ${k}: ${miss}`);
+        const n = page.locator('#details button[data-r="next"]:not([disabled])');
+        if (!(await n.count())) break;
+        await n.click();
+      }
+      await page.keyboard.press("Escape");
+    }
+    if (bare.length) problems.push(`lit runs with no popover: ${bare}`);
+    await page.evaluate((x) => window.select("mid", { sel: x }), `${B}.plays`);
+  }
+  // every popover, black or muted, has an arrow: its outer triangle in a
+  // colour unlike the rows' fill behind it, its tip at the address
+  {
+    const arrows = () => page.evaluate(() => [...document.querySelectorAll(
+      "#panel .view:not([hidden]) .pop")].map((p) => {
+      const kept = p.classList.contains("kept");
+      const under = p.classList.contains("under");
+      const o = getComputedStyle(p, kept ? "::before" : "::after");
+      const r = p.getBoundingClientRect();
+      const a = p.parentElement.getBoundingClientRect();
+      const bf = getComputedStyle(p.parentElement, "::before");
+      const h = parseFloat(under ? o.borderBottomWidth : o.borderTopWidth);
+      const t = under ? r.bottom - parseFloat(o.bottom) - h
+        : r.top + parseFloat(o.top) + h;
+      const edge = under ? a.bottom - (parseFloat(bf.bottom) || 0)
+        : a.top + (parseFloat(bf.top) || 0);
+      const colour = under ? o.borderBottomColor : o.borderTopColor;
+      const behind = getComputedStyle(p.closest(".rows")).backgroundColor;
+      return { text: p.textContent.slice(0, 14), kept, shown:
+        o.display !== "none" && h > 0, colour, behind,
+      gap: Math.round((under ? t - edge : edge - t) * 2) / 2 };
+    }));
+    const seen = [];
+    await page.evaluate(() => window.select("mid", { sel: "players" }));
+    await page.locator('#details button[data-r="start"]').click();
+    await page.locator('#chips .chip[data-k="4"]').click();
+    await page.mouse.move(1, 1);
+    seen.push(...await arrows());
+    await page.keyboard.press("Escape");
+    await page.evaluate(() => window.select("mid", { sel: "roster[1]" }));
+    await page.mouse.move(1, 1);
+    seen.push(...await arrows());
+    const gaps = seen.map((x) => x.gap);
+    if (!seen.some((x) => x.kept) || seen.some((x) => !x.shown ||
+      x.colour === x.behind || x.colour === "rgba(0, 0, 0, 0)") ||
+      Math.max(...gaps) - Math.min(...gaps) > 2 ||
+      gaps.some((g) => Math.abs(g) > 3)) {
+      problems.push(`popover arrows: ${JSON.stringify(seen)}`);
+    }
+    await page.evaluate((x) => window.select("mid", { sel: x }), `${B}.plays`);
+  }
   // while it replays, pointing elsewhere changes nothing
   await page.locator('#details button[data-r="start"]').click();
   await page.mouse.move(1, 1);

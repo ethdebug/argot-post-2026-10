@@ -1107,9 +1107,20 @@ sup.fn { font-size: 0.7em; color: var(--accent); margin-left: 1px; }
   background: var(--panel); border-radius: 3px; }
 .bruler .b { font-size: 0.6rem; color: var(--muted); text-align: center; }
 /* a label for a run found at an earlier step of a replay: muted */
+/* (bolder and a step darker than muted text: it reads as clearly as a
+   black one, while its white fill and thin line keep it secondary) */
 .pop.kept { --pop-bg: var(--panel); background: var(--panel);
-  color: var(--muted); box-shadow: none; outline: 1px solid var(--line); }
-.pop.kept .pname:not(.chip) { color: var(--muted); }
+  color: color-mix(in srgb, var(--fg) 75%, var(--muted)); font-weight: 600;
+  box-shadow: none; outline: 1px solid var(--line); }
+/* (its arrow: the outline's colour outside, the fill inside, laid over
+   the outline at its base so the line does not cut across it) */
+.pop.kept::before { display: block; border-width: 6px;
+  border-top-color: var(--line); top: calc(100% + 1px); }
+.pop.kept.under::before { top: auto; bottom: calc(100% + 1px);
+  border-top-color: transparent; border-bottom-color: var(--line); }
+.pop.kept::after { top: calc(100% - 0.5px); }
+.pop.kept.under::after { top: auto; bottom: calc(100% - 0.5px); }
+.pop.kept .pname:not(.pbadge) { color: inherit; }
 #details:focus-visible { outline: 2px solid var(--accent);
   outline-offset: 2px; }
 /* the ninth child colour, and the tint of a step's input's source */
