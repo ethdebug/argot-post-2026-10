@@ -26,8 +26,10 @@ const params = () => new URLSearchParams(
 export const initialHash = params();
 
 // Set (or, with null, drop) keys in the hash, without a history entry
+let pending = null; // a hash the browser refused to set yet
 export function setHash(changes) {
-  const p = params();
+  const p = new URLSearchParams(pending ?? (location.hash.includes("=")
+    ? location.hash.slice(1) : ""));
   for (const [k, v] of Object.entries(changes)) {
     if (v === null || v === undefined) p.delete(k);
     else p.set(k, v);
@@ -35,8 +37,17 @@ export function setHash(changes) {
   const h = p.toString().replace(/%5B/g, "[").replace(/%5D/g, "]");
   // only on a change (some browsers limit how often a page may call it)
   if (`#${h}` === location.hash || (!h && !location.hash)) return;
-  history.replaceState(null, "", h ? `#${h}` : location.pathname +
-    location.search);
+  // (and some limit it to 100 calls in 10 s: then try again later, with
+  // the hash as it is then)
+  try {
+    history.replaceState(null, "", h ? `#${h}` : location.pathname +
+      location.search);
+    pending = null;
+  } catch {
+    pending = h;
+    clearTimeout(setHash.later);
+    setHash.later = setTimeout(() => setHash({}), 2000);
+  }
 }
 
 // 0x0000…f39f…2266 -> 0xf39f…2266
@@ -846,10 +857,12 @@ function annotate(root, v, compare, names, tray, taken, room, force) {
     return true;
   };
   // the address labels of the lit rows, which no popover may cover (an
-  // unlit row's may be covered, as by a card)
-  const labels = [...v.querySelectorAll(
-    ".rows > .wrow:is(.on, .only) > .addr .a")]
-    .map((e) => e.getBoundingClientRect());
+  // unlit row's may be covered, as by a card). At one point (`single`:
+  // no other state, no cards, no tray), no row's label may be covered.
+  const single = !!names.single;
+  const labels = [...v.querySelectorAll(single ? ".rows > .wrow > .addr .a"
+    : ".rows > .wrow:is(.on, .only) > .addr .a")]
+    .map((e) => ({ row: e.closest(".wrow"), r: e.getBoundingClientRect() }));
   const pinned = [];
   for (const run of all) {
     // the run's addresses, tinted as one rounded group in the gutter
@@ -865,9 +878,22 @@ function annotate(root, v, compare, names, tray, taken, room, force) {
       const addr = prow.querySelector(".addr");
       addr.append(pop);
       addr.classList.add("popped");
-      place(pop, prow.querySelector(".a"));
-      if (labels.some((t) => overlaps(t, pop.getBoundingClientRect())) ||
-        !fits(pop)) {
+      const ok = () => {
+        place(pop, prow.querySelector(".a"));
+        const r = pop.getBoundingClientRect();
+        return !labels.some((t) => !run.includes(t.row) && overlaps(t.r, r)) &&
+          fits(pop);
+      };
+      // at one point: under the run, else over it, else none
+      let placed = ok();
+      if (!placed && single) {
+        pop.classList.remove("under");
+        placed = ok();
+      }
+      if (!placed && single) {
+        pop.remove();
+        addr.classList.remove("popped");
+      } else if (!placed) {
         addr.classList.remove("popped");
         pop.classList.add("pinned");
         pinned.push({ run, el: pop });

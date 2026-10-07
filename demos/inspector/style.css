@@ -765,7 +765,8 @@ li.same > .row .name, li.same > .row .type { opacity: 0.55; }
    change legends (main[data-single]; the memory section keeps its own) */
 .intros p { max-width: 78ch; margin: 10px 0 0; }
 main[data-single] #storage :is(#mode-l, #mode, .chipcheck),
-main[data-single] > .cols :is(.chglegend, .legend .bchg) { display: none; }
+main[data-single] > .cols :is(.chglegend, .legend .bchg, .intro .two) {
+  display: none; }
 /* The contract, above the scenes; the calldata of setMotto, under its
    scene's storage */
 .contract p, .calldata .lede { max-width: 78ch; }

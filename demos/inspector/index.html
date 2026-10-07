@@ -229,16 +229,16 @@ contract Arcade {
       <h2 class="label" id="words-h">The words in storage
         <span class="legend"><span class="bchg">changed byte</span>
         <span class="bfree">no value shown</span></span></h2>
+      <!-- (.two: only in a scene with two points) -->
       <p class="muted small intro">Each slot holds one 32-byte word.
-      The dump shows storage at the scene's point (or, in a scene with
-      two, at the one picked above): the slots that hold the values on
-      this page (with two points, also the slots the transaction read or
-      wrote), in address order, one word to a line; "⋯" marks a jump in
-      address. Byte 0 is
-      the most significant. Point at a value, a byte or an address to
-      light it up. In a scene with two points, a card beside each lit
-      run shows the same words at the other point, in the same
-      columns.</p>
+      The dump shows storage at the scene's point<span class="two"> picked
+      above (Before | After)</span>: the slots that hold the values on
+      this page<span class="two">, and the slots the transaction read or
+      wrote</span>, in address order, one word to a line; "⋯" marks a jump
+      in address. Byte 0 is the most significant. Point at a value, a
+      byte or an address to light it up.<span class="two"> A card beside
+      each lit run shows the same words at the other point, in the same
+      columns.</span></p>
       <div id="dump" class="dump">
         <div id="panel" class="panel"></div>
       </div>
