@@ -233,10 +233,15 @@ offsets.
   The byte size follows the panel's width; on a phone the words scroll
   sideways inside the panel, the address gutter
   stays in view, and the page does not scroll sideways.
-- Order and gaps: slots by numeric address, ascending, so a run of
+- Order and gaps: one flat list of slots by numeric address, strictly
+  ascending (a mapping's records land where their hashes put them, so
+  related slots may be far apart), so a run of
   hashed slots (a long string's data) reads as one block. A "⋯" gap
   line comes first and wherever the next slot is not the address + 1,
-  and last.
+  and last. A gap line is tall enough for a slot popover (one line and
+  its arrow); a hashed slot that starts a value right after another
+  slot gets an empty line of the same height first, so its popover has
+  room too.
 - Gutter: only the end of the slot's address (`…0002`), right-aligned
   against the bytes like a hex dump's line labels. The one mark at rest
   is a small ring beside the address for a slot the transaction wrote
@@ -361,7 +366,9 @@ annotations stay inside the words' sideways scroll):
 
 - The slot popover (dark, with an arrow on the address): how the slots
   were found and what the transaction did to them, e.g.
-  `keccak(0xf39f…2266, slot 0) + 0 … + 1 · read, written`. Over the run
+  `keccak(0x7099…79c8, slot 0) + 0 … + 1 · read, written` (one line;
+  the full address is in the address's tooltip and in "How this was
+  found"). Over the run
   in Before, under it in After.
 - The card (light, labeled "after" or "before"): a picture of the same
   whole words in the other state, made by cloning those rows of the

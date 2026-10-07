@@ -325,13 +325,18 @@ export function renderPanel(m) {
     return { s, n, name, tint, same, facts, ring };
   });
   const gap = `<div class="gap" aria-hidden="true"><span>⋯</span></div>`;
+  const room = `<div class="gap room" aria-hidden="true"></div>`;
   const view = (side) => {
     const title = m.single ? "Storage" : side === "before" ? "Before"
       : "After";
     const lines = [];
     rows.forEach((x, k) => {
       const prev = rows[k - 1];
+      // a gap line where the addresses jump; and room for a popover
+      // before a hashed slot that starts a value right after another
+      // slot (a "room" line, with no "⋯")
       if (k === 0 || x.n !== prev.n + 1n) lines.push(gap);
+      else if (!/^slot \d+$|\+ \d+$/.test(x.name)) lines.push(room);
       const what = `${x.name}${x.name.startsWith("slot") ? "" : ` (slot ${
         short(x.s)})`}${x.facts ? `; ${x.facts}` : ""}`;
       lines.push(`<div class="wrow${x.same ? " same" : ""}${k % 2
@@ -657,15 +662,12 @@ function runName(rows) {
 function popFor(rows, more) {
   const facts = [...new Set(rows.map((r) => r.dataset.facts))]
     .filter(Boolean);
-  const full = rows[0].dataset.full;
   const pop = document.createElement("span");
   pop.className = "pop";
   pop.setAttribute("role", "status");
   pop.innerHTML = `<span class="pop-how">${esc(runName(rows))}${
     facts.length ? ` · ${esc(facts.join(" / "))}` : ""}${more
-    ? ` · +${more} more` : ""}</span>${full
-    ? `<span class="full">${esc(full)}${rows.length > 1 ? " …" : ""}</span>`
-    : ""}`;
+    ? ` · +${more} more` : ""}</span>`;
   return pop;
 }
 
