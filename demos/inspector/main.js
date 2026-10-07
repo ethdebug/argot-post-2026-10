@@ -177,8 +177,10 @@ function expandTo(path) {
 // A colour is a legend only where its rows show: a value whose row is
 // hidden in a collapsed group takes the colour of the row that shows
 // it, or the selection's yellow (0)
+// (and a lit row hidden in a collapsed group lights the row that shows
+// it: its nearest visible ancestor)
 function legend(h) {
-  if (!h?.colors || !$("tree").querySelector("li.collapsed")) return h;
+  if (!h || !$("tree").querySelector("li.collapsed")) return h;
   const shownAs = (p) => {
     const li = $("tree").querySelector(`li[data-path="${CSS.escape(p)}"]`);
     let v = li;
@@ -188,12 +190,14 @@ function legend(h) {
     }
     return v?.dataset.path ?? p;
   };
+  const rows = new Set([...h.rows ?? []].flatMap((p) => [p, shownAs(p)]));
+  if (!h.colors) return { ...h, rows };
   const colors = new Map();
   for (const [p, k] of h.colors) {
     const v = shownAs(p);
     colors.set(p, v === p || h.colors.get(v) === k ? k : 0);
   }
-  return { ...h, colors };
+  return { ...h, rows, colors };
 }
 
 function renderTree() {
@@ -1701,7 +1705,8 @@ function target(el) {
     return forRegion(m, r, step.dataset.side, r.name);
   }
   const li = el.closest("#tree li[data-path]");
-  if (li && el.closest(".row")) {
+  // (a group's chevron is part of its row, for pointing)
+  if (li && el.closest(".row, #tree li > .chev")) {
     return forRow(m, blockOfPointer(li.dataset.path));
   }
   return null;

@@ -1174,9 +1174,13 @@ html { overflow-anchor: none; }
 #tree li.collapsed > ul { display: none; }
 .val.sum { color: var(--muted); font-size: 0.85rem; }
 /* a block of tree rows in one colour: the item, key line and parts */
-.tree li.blk { background: var(--pk, var(--mark)); color: var(--pk-fg,
-  var(--chg-fg)); border-radius: 4px; box-shadow: -4px 0 0 var(--pk,
-  var(--mark)), 4px 0 0 var(--pk, var(--mark)); }
+/* (drawn behind the rows, from the first row's top to the last row's
+   bottom: a top-level item's padding and separator stay outside it, so
+   the block's edges are its rows' edges, as a single row's fill) */
+.tree li.blk { color: var(--pk-fg, var(--chg-fg)); z-index: 0; }
+.tree li.blk::before { content: ""; position: absolute; inset: 0 -4px;
+  z-index: -1; border-radius: 4px; background: var(--pk, var(--mark)); }
+.tree li.top.blk::before { top: 4px; bottom: 4px; }
 .tree li.blk .row.hl { background: none; box-shadow: none; }
 #tree li.blk .row { border-radius: 0; }
 .tree li.blk.muted { filter: saturate(0.25); opacity: 0.55; }
