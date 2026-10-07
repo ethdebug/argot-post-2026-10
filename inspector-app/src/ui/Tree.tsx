@@ -2,7 +2,9 @@
 // expandTo, treeTo, edges; panel.js paint for rows): a row a value, its
 // type and its value; groups collapse by their chevron; linked to the
 // dumps. A run of lit rows in one colour is one block (li.blk).
-import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import {
+  useEffect, useLayoutEffect, useRef, useState, type ReactNode,
+} from "react";
 import type { KeyboardEvent, MouseEvent, PointerEvent } from "react";
 import type { Colour, Decoded, Filter, Light, ValueNode } from
   "../engine/types";
@@ -28,7 +30,8 @@ const pk = (k: Colour | undefined) => k === "src" ? "pksrc"
   : k ? `pk${k}` : "";
 
 interface Ctx { light: Light; selection: string | null;
-  collapsed: ReadonlySet<string>; pair?: [Decoded, Decoded] }
+  collapsed: ReadonlySet<string>; pair?: [Decoded, Decoded];
+  card?: { path: string; side: string; node: ReactNode } }
 
 // a row's colour when lit (0: the selection's yellow)
 const colourOf = (c: Ctx, n: ValueNode) => c.light.colours.get(n.path) ?? 0;
@@ -70,6 +73,9 @@ function Row({ n, top, c, inBlk }: { n: ValueNode; top?: boolean; c: Ctx;
   const li = [pair ? (chg ? "chg" : "same") : "", top ? "top" : "",
     shut ? "collapsed" : "", blk ? "blk" : "", blk ? pk(blkK) : "",
     blk && mutedRow(c, n) ? "muted" : ""].filter(Boolean).join(" ");
+  // (the other state's card: under the row and its members in Before,
+  // over the row in After)
+  const card = c.card?.path === n.path ? c.card : undefined;
   return <li className={li || undefined} data-path={n.path}>
     <div className={cls} tabIndex={0} role="button"
       aria-pressed={sel ? "true" : "false"}>
@@ -80,6 +86,7 @@ function Row({ n, top, c, inBlk }: { n: ValueNode; top?: boolean; c: Ctx;
         <span>{n.value?.text ?? n.summary}</span></span>
         : group ? <span className="val sum">{n.summary}</span>
           : n.note ? <span className="muted">{n.note}</span> : null}
+      {card?.side === "after" && card.node}
     </div>
     {group && <button type="button" className="chev" tabIndex={0}
       aria-expanded={shut ? "false" : "true"}
@@ -90,7 +97,49 @@ function Row({ n, top, c, inBlk }: { n: ValueNode; top?: boolean; c: Ctx;
       : n.children && !n.value && !own
         ? <p className="muted empty">no keys hashed in this transaction</p>
         : null}
+    {card?.side === "before" && card.node}
   </li>;
+}
+
+// While a value is lit, a card by its row gives its value in the other
+// state (vanilla main.js treeCard): only where it differs; for a parent,
+// its changed members (at most 4, then "+N more")
+function treeCard(path: string | null, pair: [Decoded, Decoded],
+  side: string): Ctx["card"] {
+  if (!path) return undefined;
+  const [b, a] = pair;
+  const text = (d: Decoded, q: string) => {
+    const n = d.byPath.get(q);
+    return n?.value?.text ?? (n?.children && n.regions.some((r) =>
+      r.role === "length") ? n.summary : undefined);
+  };
+  const shown = side === "before" ? a : b;
+  const node = shown.byPath.get(path) ?? (side === "before" ? b : a)
+    .byPath.get(path);
+  if (!node) return undefined;
+  const changed: string[] = [];
+  const visit = (q: string) => {
+    const [x, y] = [text(b, q), text(a, q)];
+    if ((x !== undefined || y !== undefined) && x !== y) changed.push(q);
+    const kids = new Set([...(b.byPath.get(q)?.children ?? []),
+      ...(a.byPath.get(q)?.children ?? [])].map((k) => k.path));
+    kids.forEach(visit);
+  };
+  visit(path);
+  if (!changed.length) return undefined;
+  const other = side === "before" ? "after" : "before";
+  const val = (q: string) => {
+    const t = text(side === "before" ? a : b, q);
+    return t === undefined ? <i>none</i> : t;
+  };
+  const own = changed[0] === path;
+  return { path, side, node: <div className={`tcard ${side}`}
+    aria-hidden="true"><span className="cmp-tag">{other}</span>
+    {own ? <span className="tval">{val(path)}</span>
+      : <>{changed.slice(0, 4).map((q) => <span key={q} className="tval">
+        <b>{q.slice(path.length).replace(/^\./, "")}</b> {val(q)}</span>)}
+      {changed.length > 4 && <span className="tval muted">+{
+        changed.length - 4} more</span>}</>}</div> };
 }
 
 export function Tree(p: { id: ViewId; data: DataRef; filter?: Filter;
@@ -109,8 +158,13 @@ export function Tree(p: { id: ViewId; data: DataRef; filter?: Filter;
   // (a pair: before, after)
   const pair: [Decoded, Decoded] | undefined = p.compare && d && o
     ? (side === "before" ? [d, o] : [o, d]) : undefined;
+  const insets = useLensState((s) => s.insets);
+  const lit = link.selection && d?.byPath.has(link.selection)
+    ? link.selection : link.hover?.path ?? [...light.rows][0] ?? null;
   const c: Ctx = { light, selection: link.selection, pair,
-    collapsed: view.collapsed };
+    collapsed: view.collapsed,
+    card: pair && insets && light.muted ? treeCard(lit, pair, side)
+      : undefined };
   // only the filter's roots, and the groups that hold them
   const roots = p.filter?.roots;
   const keep = (n: ValueNode): ValueNode | null => {
