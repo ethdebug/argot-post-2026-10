@@ -872,3 +872,23 @@ main[data-single] > .cols :is(.chglegend, .legend .bchg, .intro .two) {
 @media (prefers-reduced-motion: reduce) {
   .b, .tree .row, .b.hl, .row.hl { transition: none; }
 }
+
+/* The replay, in the box under the dump: the step's number and its one
+   line, progress dots, and the controls */
+.rstep { margin: 0 0 6px; }
+.rnum { color: var(--accent); font-weight: 700; margin-right: 4px; }
+.rbar { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 12px;
+  margin: 8px 0 0; }
+.rctl { display: inline-flex; gap: 4px; }
+.rctl .btn[disabled] { opacity: 0.4; cursor: default; }
+.rdots { display: inline-flex; gap: 4px; }
+.rdots i { width: 7px; height: 7px; border-radius: 50%;
+  background: var(--line); }
+.rdots i.past { background: color-mix(in srgb, var(--accent) 45%,
+  var(--line)); }
+.rdots i.on { background: var(--accent); }
+.rrule summary { cursor: pointer; color: var(--muted); font-size: 0.85rem; }
+.rrule pre { max-height: 200px; overflow: auto; background: var(--code-bg);
+  padding: 8px; border-radius: 4px; font-size: 0.75rem; }
+#details:focus-visible { outline: 2px solid var(--accent);
+  outline-offset: 2px; }

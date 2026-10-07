@@ -554,8 +554,9 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
   }
   await page.locator(`#panel .word[data-side="after"] ` +
     `.b[data-owners="${A}.combo"][data-i="23"]`).hover();
+  // (its own bytes: the box stays the selection's)
   if (await look() !== locked0 ||
-    await page.locator("#details").textContent() === probe0) {
+    await page.locator("#details").textContent() !== probe0) {
     problems.push("locked: own byte hover");
   }
   await scoreByte.click();
@@ -665,10 +666,11 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
     problems.push("one point: a card");
   }
   await page.locator(`#tree li[data-path="${A}.combo"] > .row`).click();
-  if (!(await page.locator("#how").textContent())
-    .includes("For the state in the middle of the game.") ||
-    await page.locator("#how .branch, #how .evals").count()) {
-    problems.push("one point: derivation");
+  const box1 = await dl();
+  if (box1.Holds !== "2 (0x00000002)" || "Before" in box1 ||
+    !(await page.locator("#details").innerText())
+      .includes("How was this found? ▸")) {
+    problems.push(`one point: box ${JSON.stringify(box1)}`);
   }
   await page.keyboard.press("Escape");
 
@@ -1148,32 +1150,135 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
     await page.screenshot({ path: shot("desktop-packed.png") });
   }
 
-  // "How this was found": clicking any row selects it and shows its
-  // derivation, changed or not. bob's score did not change.
-  await scene("alice");
+  // The box under the dump: the selected value, resolved, and its
+  // replay. For bob's plays: the steps of the pointer's evaluation, one
+  // at a time, each lighting only what it knows; ⏭, Escape and the end
+  // give the resolved view back; ← → step while the box has the focus.
+  await scene("mid");
   const row = (p) => page.locator(`#tree li[data-path="${p}"] > .row`);
-  const how = () => page.locator("#how").textContent();
-  await row(`${B}.score`).click();
-  let text = await how();
-  for (const want of ["Template", "$keccak256", "Region", "offset",
-    "from the program context", "from the trace", "same bytes in both"]) {
-    if (!text.includes(want)) problems.push(`bob's score how lacks "${want}"`);
+  const how = () => page.locator("#details").innerText();
+  const mnames = await page.locator('#panel .view[data-side="after"] ' +
+    ".wrow[data-name]").evaluateAll((rs) => Object.fromEntries(
+    rs.map((r) => [r.dataset.slot, r.dataset.name])));
+  const stepNow = () => page.evaluate(() => ({
+    cap: document.querySelector("#details .rstep")?.textContent
+      .replace(/^\S+\s/, ""),
+    resolved: !!document.querySelector('#details button[data-r="start"]'),
+    lit: [...document.querySelectorAll(
+      "#panel .view:not([hidden]) .b.hl")].map((c) =>
+      `${c.closest(".wrow").dataset.slot} ${c.dataset.i}`),
+    dim: document.querySelector("#panel").classList.contains("active"),
+  }));
+  const litNamed = (st, nm = mnames) => {
+    const by = {};
+    for (const x of st.lit) {
+      const [sl, i] = x.split(" ");
+      (by[nm[sl] ?? sl] ??= []).push(+i);
+    }
+    return Object.fromEntries(Object.entries(by).map(([k, v]) =>
+      [k, v.join()]));
+  };
+  const rec = "keccak(0x3c44…93bc, slot 3)";
+  const wantSteps = [
+    ["players lives at slot 3 (program context); key 0x3c44…93bc (from " +
+      "the trace)", {}],
+    ["solc's rule for mapping(address => Player)", {}],
+    ["slot = keccak(0x3c44…93bc, 3) = 0x961e…7527",
+      { [rec]: range(0, 31).join() }],
+    ["solc's rule for Player", {}],
+    ["plays: slot 0x961e…7527, offset 12, length 4",
+      { [rec]: range(12, 15).join() }],
+  ];
+  await row(`${B}.plays`).click();
+  await page.mouse.move(1, 1);
+  const rest0 = await stepNow();
+  if (!rest0.resolved || !(await how()).includes("How was this found? ▸")) {
+    problems.push(`box at rest: ${await how()}`);
   }
-  // combo did change; its source mark and region step
+  await page.locator('#details button[data-r="start"]').click();
+  for (const [k, [cap, lit0]] of wantSteps.entries()) {
+    const st = await stepNow();
+    if (st.cap !== cap || !same(litNamed(st), lit0) || !st.dim) {
+      problems.push(`replay step ${k + 1}: ${JSON.stringify(
+        { cap: st.cap, lit: litNamed(st) })}`);
+    }
+    await page.locator('#details button[data-r="next"]').click();
+  }
+  // the end is the resolved view, with "Replay ▸"
+  let st = await stepNow();
+  if (!st.resolved || !(await how()).includes("Replay ▸") ||
+    !same(litNamed(st), { [rec]: range(12, 15).join() })) {
+    problems.push(`replay end: ${JSON.stringify(st)}`);
+  }
+  // keys: → steps, ← steps back, Escape leaves; ⏭ leaves too
+  await page.locator('#details button[data-r="start"]').click();
+  await page.keyboard.press("ArrowRight");
+  await page.keyboard.press("ArrowRight");
+  st = await stepNow();
+  if (st.cap !== wantSteps[2][0]) problems.push(`→: ${st.cap}`);
+  await page.keyboard.press("ArrowLeft");
+  st = await stepNow();
+  if (st.cap !== wantSteps[1][0]) problems.push(`←: ${st.cap}`);
+  await page.keyboard.press("Escape");
+  st = await stepNow();
+  if (!st.resolved || (await selected()).join() !== `${B}.plays`) {
+    problems.push(`Escape in a replay: ${JSON.stringify(st)}`);
+  }
+  await page.locator('#details button[data-r="start"]').click();
+  await page.locator('#details button[data-r="end"]').click();
+  st = await stepNow();
+  if (!st.resolved || !same(litNamed(st), { [rec]: range(12, 15).join() })) {
+    problems.push(`⏭: ${JSON.stringify(st)}`);
+  }
+  // while it replays, pointing elsewhere changes nothing
+  await page.locator('#details button[data-r="start"]').click();
+  const at0 = JSON.stringify(await stepNow());
+  await row("total").hover();
+  if (JSON.stringify(await stepNow()) !== at0) {
+    problems.push("replay: a hover changed the step");
+  }
+  await page.keyboard.press("Escape");
+  // a whole record: until its slots are found, then all of it; a long
+  // string: its length, then its data at keccak; the roster: its length,
+  // then its items; a value with no template: the program context
+  const walk = async (path, nm = mnames) => {
+    await row(path).click();
+    await page.mouse.move(1, 1);
+    await page.locator('#details button[data-r="start"]').click();
+    const out = [];
+    for (let k = 0; k < 20; k++) {
+      const x = await stepNow();
+      if (x.resolved) break;
+      out.push({ cap: x.cap, lit: litNamed(x, nm) });
+      await page.locator('#details button[data-r="next"]').click();
+    }
+    return out;
+  };
+  let w = await walk(B);
+  if (w.length !== 4 || w[2].cap !== wantSteps[2][0]) {
+    problems.push(`replay bob: ${JSON.stringify(w)}`);
+  }
+  w = await walk(`${C}.name`);
+  const cn = "keccak(keccak(0x90f7…b906, slot 3) + 1)";
+  if (!w.some((x) => /long-string layout/.test(x.cap)) ||
+    !w.some((x) => x.lit[cn])) {
+    problems.push(`replay carol's name: ${JSON.stringify(w)}`);
+  }
+  w = await walk("roster");
+  if (!w.some((x) => x.lit["slot 0"])) {
+    problems.push(`replay roster: ${JSON.stringify(w)}`);
+  }
+  w = await walk("total");
+  if (w.length !== 1 || !/from the program context/.test(w[0].cap) ||
+    !same(w[0].lit, { "slot 2": range(16, 31).join() })) {
+    problems.push(`replay total: ${JSON.stringify(w)}`);
+  }
+  await page.keyboard.press("Escape");
+  // combo: its source mark
+  await scene("alice");
   await row(`${A}.combo`).click();
   const mark = await page.locator("#src mark").innerText();
   if (!mark.includes("struct Player")) problems.push(`mark: ${mark}`);
-  await page.locator("#how li[data-region]").last().hover();
-  const step = await lit();
-  if (!Object.keys(step).every((k) => k.startsWith("after ")) ||
-    Object.values(step).flat().join() !== range(20, 23).join()) {
-    problems.push(`region step: ${JSON.stringify(step)}`);
-  }
-  // and a step lights its bytes on focus too
-  await page.locator("h1").hover();
-  await page.locator("#how li[data-region]").last().focus();
-  if (!Object.keys(await lit()).length) problems.push("region step focus");
-  await page.evaluate(() => document.activeElement.blur());
   if (name === "chromium") {
     await page.emulateMedia({ colorScheme: "dark" });
     await page.evaluate(() => window.scrollTo(0,
@@ -1183,36 +1288,34 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
     await page.screenshot({ path: shot("desktop-dark.png") });
     await page.emulateMedia({ colorScheme: "light" });
   }
-  // a value with no template: the program context gives its region
-  await row("total").click();
-  text = await how();
-  if (!text.includes("from the program context") ||
-    !text.includes("no template")) {
-    problems.push("total how");
-  }
+  let text;
 
   // The mode: Before or After shows that dump only, and the derivation
   // and the tree follow it (After by default)
   const views = () => page.locator("#panel .view").evaluateAll((vs) =>
     vs.filter((v) => !v.hidden && v.offsetHeight).map((v) =>
       v.dataset.side).join());
-  const sides = () => page.locator("#how li[data-region]").evaluateAll(
-    (ls) => [...new Set(ls.map((l) => l.dataset.side))].join());
+  // (the box gives both states; a replay runs in the state shown)
   await row(`${A}.score`).click();
-  for (const [m, val, whose] of [
-    ["before", "30", "in the middle of the game"],
-    ["after", "60", "after alice's third hit"]]) {
+  for (const [m, val] of [["before", "30"], ["after", "60"]]) {
     await setMode(m);
     const v = await views();
-    const d = await sides();
-    const t = await how();
+    const box = await dl();
     const shownVal = await row(`${A}.score`)
       .locator(".val > span:first-child").innerText();
     if (v !== m) problems.push(`mode ${m}: views ${v}`);
-    if (d !== m) problems.push(`mode ${m}: derivation for ${d}`);
-    if (!t.includes(`For the state ${whose}.`)) {
-      problems.push(`mode ${m}: panel does not say whose`);
+    if (box.Before !== "30 (0x000000000000001e)" ||
+      box.After !== "60 (0x000000000000003c)") {
+      problems.push(`mode ${m}: box ${JSON.stringify(box)}`);
     }
+    await page.locator('#details button[data-r="start"]').click();
+    await page.locator('#details button[data-r="next"]').click();
+    await page.locator('#details button[data-r="next"]').click();
+    const sideLit = await page.evaluate(() => [...new Set([...document
+      .querySelectorAll("#panel .b.hl")].map((c) =>
+      c.closest(".word").dataset.side))].join());
+    if (sideLit !== m) problems.push(`mode ${m}: replay lit ${sideLit}`);
+    await page.keyboard.press("Escape");
     if (shownVal.trim() !== val) {
       problems.push(`mode ${m}: tree shows ${shownVal}`);
     }
@@ -1281,72 +1384,22 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
   }
   await page.locator("h1").hover();
 
-  // motd goes short -> long. The panel forks where the two derivations
-  // part: the shared steps once, the IF with both evaluations, then one
-  // list per branch, this state's first
+  // motd goes long -> short: the replay takes the long-string layout
+  // before (its data at keccak(slot 1)) and the short one after
   await scene("motd");
-  const forkOf = () => page.evaluate(() => {
-    const how = document.querySelector("#how");
-    const shared = how.querySelector(":scope > ol.steps");
-    const lis = [...shared.children];
-    return {
-      shared: lis.length,
-      evals: [...(lis.at(-1).querySelector(".evals")?.children ?? [])]
-        .map((e) => e.textContent.replace(/\s+/g, " ").trim()),
-      branches: [...how.querySelectorAll(".branch")].map((b) => ({
-        cls: b.className, head: b.querySelector(".branch-head").textContent,
-        start: b.querySelector("ol").getAttribute("start"),
-        result: b.querySelector("li.final")?.dataset.side,
-      })),
-    };
-  });
-  await row("motd").click();
-  let fk = await forkOf();
-  if (fk.shared !== 4 || fk.evals.length !== 2 ||
-    !/^before .* → else$/.test(fk.evals[0]) ||
-    !/^after .* → then$/.test(fk.evals[1]) ||
-    fk.branches.length !== 2 || !fk.branches[0].cls.includes("mine") ||
-    fk.branches[0].head !== "after · then (short-string layout)" ||
-    fk.branches[1].head !== "before · else (long-string layout)" ||
-    fk.branches.some((b) => b.start !== "5") ||
-    fk.branches[0].result !== "after" || fk.branches[1].result !== "before") {
-    problems.push(`motd fork (after): ${JSON.stringify(fk)}`);
+  for (const [m, words, at] of [["after", "short-string layout", "slot 1"],
+    ["before", "long-string layout", "keccak(slot 1)"]]) {
+    await setMode(m);
+    const nm = await page.locator(`#panel .view[data-side="${m}"] ` +
+      ".wrow[data-name]").evaluateAll((rs) => Object.fromEntries(
+      rs.map((r) => [r.dataset.slot, r.dataset.name])));
+    const mw = await walk("motd", nm);
+    const lits = mw.flatMap((x) => Object.keys(x.lit));
+    if (!mw.some((x) => x.cap.includes(words)) || !lits.includes(at)) {
+      problems.push(`motd replay ${m}: ${JSON.stringify(mw)}`);
+    }
+    await page.keyboard.press("Escape");
   }
-  // in Before, the before branch comes first
-  await setMode("before");
-  fk = await forkOf();
-  if (fk.branches[0]?.head !== "before · else (long-string layout)" ||
-    fk.branches[0]?.result !== "before") {
-    problems.push(`motd fork (before): ${JSON.stringify(fk)}`);
-  }
-  // with "show other state" off: one list, this state's only
-  await page.locator("#insets").uncheck();
-  fk = await forkOf();
-  if (fk.branches.length || fk.evals.length) {
-    problems.push(`motd, other state off: ${JSON.stringify(fk)}`);
-  }
-  await page.locator("#insets").check();
-  await setMode("after");
-  // the result of this state's branch: slot 1, after; the long data,
-  // before
-  const result = () => page.locator("#how li.final").first().evaluate((l) =>
-    [l.dataset.side, JSON.parse(l.dataset.region).slot]);
-  let [rs, slot] = await result();
-  if (rs !== "after" || BigInt(slot) !== 1n ||
-    !(await how()).includes("so take then")) {
-    problems.push(`motd after: ${rs} ${slot}`);
-  }
-  await setMode("before");
-  [rs, slot] = await result();
-  if (rs !== "before" || !slot.startsWith("0xb10e") ||
-    !(await how()).includes("so take else")) {
-    problems.push(`motd before: ${rs} ${slot}`);
-  }
-  // hovering the result lights the before bytes now
-  await page.locator("#how li.final").first().hover();
-  const gl = [...new Set(Object.keys(await lit()).map((k) =>
-    k.split(" ")[0]))];
-  if (gl.join() !== "before") problems.push(`motd result lit: ${gl}`);
   await setMode("after");
   await page.keyboard.press("Escape");
 
@@ -1616,11 +1669,11 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
   text = (await how()).replace(/\s+/g, " ");
   if (!text.includes("Vyper's rule") ||
     !/score = 30[\s\S]*combo = 2[\s\S]*name \(length\) = 5[\s\S]*name \(bytes\) = "alice"/
-      .test(text) || !text.includes("→ 0")) {
+      .test(text) || !text.includes("Holds 0 (")) {
     problems.push(`vyper how: ${text.slice(-300)}`);
   }
   const vslot = "0xb30699257deee3310afa7d2dbc412cc509c9ed82f6154467e3c1401f09460446";
-  await page.locator("#how ol.vyper li").first().hover();
+  await page.locator("#details ol.vyper li").first().hover();
   const vlit = await lit();
   if (Object.keys(vlit).join() !== `after ${vslot}` ||
     Object.values(vlit)[0].length !== 32) {
@@ -1629,9 +1682,10 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
   // (its popover may have no room: the Vyper words are next to each
   // other; the details name the slot)
   const vp = (await pops()).join();
+  // (the step itself gives the slot)
   if ((vp && vp !== "Vyper's keccak(slot 108, 0x7099…79c8)") ||
-    !(await page.locator("#details").innerText()).includes(
-      "Vyper's keccak(slot 108, 0x7099…79c8)")) {
+    !(await page.locator("#details ol.vyper li").first().innerText())
+      .includes("0xb306")) {
     problems.push(`vyper pops: ${vp}`);
   }
   // carol, selected: her Vyper words, her long name over two words
@@ -1968,7 +2022,6 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
     ex: document.querySelector('#picker [aria-checked="true"]')?.dataset.id,
     mode: document.querySelector('#mode [aria-checked="true"]')?.dataset.mode,
     sel: document.querySelector("#tree .row.sel")?.parentElement.dataset.path,
-    how: document.querySelector("#how li.final")?.dataset.side,
     mopt: document.querySelector('#mlevel [aria-checked="true"]')
       ?.dataset.opt,
     mpt: document.querySelector('#mpoint [aria-checked="true"]')
@@ -1981,7 +2034,7 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
     insets: document.querySelector("#insets").checked,
   }));
   if (!same(hs, { ex: "motd", mode: "before", sel: "roster",
-    how: "before", mopt: "2", mpt: "mult", mmode: "before",
+    mopt: "2", mpt: "mult", mmode: "before",
     msel: "m",
     insets: false, hash: hs.hash }) || !hs.hash.includes("ex=motd") ||
     !hs.hash.includes("sel=roster")) {
@@ -2072,9 +2125,10 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
       document.documentElement.clientWidth);
   if (scrollX) problems.push("phone: page scrolls sideways");
   await pp.waitForFunction(() => window.memResults?.done);
-  // the derivation panel forks into the two branches
-  if (await pp.locator("#how .branch").count() !== 2) {
-    problems.push("phone: no difference shown for motd");
+  // the box offers the replay
+  if (!(await pp.locator("#details").innerText()).includes(
+    "How was this found? ▸")) {
+    problems.push("phone: no replay button");
   }
   // multiplied at -O0, both steps: before, the frame pointer (32
   // bytes), points (8), m = 5 (8) and combo (4); after, the same but m

@@ -240,11 +240,6 @@ contract Arcade {
         <i></i><i></i><i></i><i></i></div></div>
     </section>
 
-    <section aria-labelledby="how-h" class="howbox">
-      <h2 class="label" id="how-h">How this was found</h2>
-      <div id="how" class="how" aria-live="polite"></div>
-    </section>
-
     <section aria-labelledby="words-h" class="words">
       <h2 class="label" id="words-h">The words in storage
         <span class="legend"><span class="bchg">changed byte</span>
@@ -262,7 +257,10 @@ contract Arcade {
       <div id="dump" class="dump">
         <div id="panel" class="panel"></div>
       </div>
-      <div id="details" class="details" aria-live="polite"></div>
+      <!-- the selected value, resolved, with its replay (main.js
+      renderBox); else what the pointer is on -->
+      <div id="details" class="details" aria-live="polite" tabindex="0"
+        aria-label="The selected value; how it was found"></div>
       <!-- the calldata of the scene's call (the message of the day only),
       next to the storage dump -->
       <section id="calldata" class="calldata" aria-labelledby="cd-h" hidden>

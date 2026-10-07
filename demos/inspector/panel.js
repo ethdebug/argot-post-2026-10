@@ -592,6 +592,19 @@ export function forSlot(m, s) {
     ...(m.single ? [] : [["Transaction", what]])] };
 }
 
+// A step of a replay: its slots' whole rows and its regions' bytes, in
+// one state (an empty step lights nothing, and the rest mutes)
+export function forStep(m, side, { slots = [], regions = [] }) {
+  const bytes = new Set();
+  for (const s of slots) {
+    for (let i = 0; i < 32; i++) bytes.add(key(side, s, i));
+  }
+  for (const r of regions) {
+    for (const [s, i] of regionBytes(r)) bytes.add(key(side, s, i));
+  }
+  return { bytes, rows: new Set(), step: true, label: "" };
+}
+
 // A region step of "How this was found"
 export function forRegion(m, r, side, name) {
   const bytes = new Set();

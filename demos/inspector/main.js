@@ -7,7 +7,8 @@ import {
 } from "./decode.js";
 import {
   buildPanel, renderPanel, forRow, forBytes, forRegion, forSlot, paint,
-  shortKeys, steady, initialHash, setHash, locked, keySection,
+  shortKeys, steady, initialHash, setHash, locked, keySection, forStep,
+  short,
   details,
 } from "./panel.js";
 import { showCalldata } from "./calldata.js";
@@ -150,8 +151,9 @@ function applyMode() {
     v.hidden = v.dataset.side !== mode;
   }
   $("panel").dataset.mode = mode;
+  replay = null;
   renderTree();
-  renderHow();
+  renderBox();
   show();
 }
 
@@ -206,88 +208,193 @@ function missing(node, side) {
 }
 
 
-function renderHow() {
-  const box = $("how");
-  const node = chosen && find(current.tree, chosen);
-  if (!node) {
-    box.innerHTML = `<p class="muted howrest">Click any value in the tree,
-      or a byte in the words, to see how the page found it.</p>`;
-    return;
+// ---------------------------------------------- the box under the dump
+
+// With a value selected, the box under the dump shows it, resolved: its
+// path, type, value and place (in two states, both), and a button to
+// replay how it was found. The replay steps through the pointer's
+// evaluation as the library did it (decode.js replay()): the start, the
+// template, each define, list item, branch and region, then the result.
+// At each step the dump lights only what that step knows (a computed
+// slot's row, a region's bytes) and mutes the rest.
+let replay = null; // { path, side, steps, i }
+
+const shortVal = (h) => {
+  const n = num(h);
+  return n < 1n << 32n ? String(n) : short(word(n));
+};
+const word = (n) => "0x" + n.toString(16).padStart(64, "0");
+
+// An expression, in short, with its inputs' values
+function exprText(s) {
+  const op = s.expr && typeof s.expr === "object" ? Object.keys(s.expr)[0]
+    : null;
+  const a = (s.args ?? []).map((x) => shortVal(x.value.hex));
+  switch (op) {
+    case "$keccak256": return `keccak(${a.join(", ")})`;
+    case "$sum": return a.join(" + ");
+    case "$difference": return a.join(" − ");
+    case "$product": return a.join(" × ");
+    case "$quotient": return a.join(" ÷ ");
+    case "$remainder": return a.join(" mod ");
+    case "$read": return `read ${s.expr.$read}`;
+    default: return a.join(", ");
   }
-  const { types } = current.f.contract;
-  const type = types[node.typeId];
-  const head = `<p class="howhead"><code>${esc(shortKeys(node.path))}</code>` +
-    `${type ? ` <span class="type">${esc(typeName(type, types))}</span>`
-      : ""}</p>`;
-  if (!node.before && !node.after) {
-    const n = node.children?.length ?? 0;
-    box.innerHTML = head + `<p class="small">${node.note ? esc(node.note)
-      : `This has no value of its own. ${n
-        ? `Pick one of the ${n} values below it in the tree.`
-        : "No values below it are shown."}`}</p>`;
-    return;
-  }
-  const side = mode;
-  const other = side === "before" ? "after" : "before";
-  const v = node[side];
-  if (!v) {
-    const w = WHEN()[side];
-    box.innerHTML = head + `<p class="small">${w[0].toUpperCase()
-      }${w.slice(1)}: ${esc(missing(node, side))}.</p>`;
-    return;
-  }
-  // The other state's derivation, beside this one (unless "show other
-  // state" is off): shared steps once, a step that evaluates
-  // differently with both evaluations, and where the two take
-  // different branches, the rest as two lists, this state's first
-  const o = showOther() ? node[other] : null;
-  const A = items(node, v, side);
-  const B = o ? items(node, o, other) : null;
-  let k = 0;
-  while (B && k < A.length && k < B.length && A[k].key === B[k].key &&
-    A[k].branch === B[k].branch) k++;
-  const forked = B && (k < A.length || k < B.length);
-  let shared = A;
-  let fork = "";
-  if (forked) {
-    // the step where they part (same test, other branch) is shared
-    if (A[k] && B[k] && A[k].key === B[k].key) k++;
-    shared = A.slice(0, k);
-    const label = (list, sd) => {
-      const b = [...list.slice(0, k)].reverse().find((x) => x.branch);
-      return `${sd}${b ? ` · ${b.branch} (${b.words})` : ""}`;
-    };
-    const branch = (list, sd, cls) => `<div class="branch ${cls}">` +
-      `<p class="branch-head"><span class="ev-tag">${esc(label(list, sd))
-      }</span></p><ol class="steps" start="${k + 1}"
-      style="counter-reset: step ${k}">${list.slice(k)
-        .map((x) => x.html).join("")}</ol></div>`;
-    fork = branch(A, side, "mine") + branch(B, other, "theirs");
-  }
-  const dual = (x, i) => {
-    const y = B?.[i];
-    if (!y || y.key !== x.key || x.eval === y.eval) return x.html;
-    const [b, a] = side === "before" ? [x, y] : [y, x];
-    return x.html.replace(/<\/div><\/li>\s*$/, `<div class="evals">` +
-      `<div><span class="ev-tag">before</span> ${b.eval}</div>` +
-      `<div><span class="ev-tag">after</span> ${a.eval}</div></div>` +
-      "</div></li>");
-  };
-  const same = B && !forked && A.every((x, i) => x.eval === B[i].eval);
-  const whose = `<p class="howside">For the state <b>${esc(WHEN()[side])
-  }</b>.` +
-    `${same ? " The same steps find the same bytes in both states." : ""}` +
-    "</p>";
-  const note = v.how.context
-    ? "The library read the region the program context gave."
-    : "The library's dereference() returned these regions and read " +
-      "them. The steps above replay the same template with the " +
-      "library's evaluator; they agree.";
-  box.innerHTML = head + whose + `<ol class="steps">${shared.map(dual)
-    .join("")}</ol>` + fork + `<p class="muted small">${note}</p>` +
-    vyperRule(node, side);
 }
 
+// The steps of a value's replay: { cap, regions, slots }
+function valueSteps(node, v, side) {
+  const { types } = current.f.contract;
+  const out = [];
+  const known = (h) => {
+    const w = word(num(h));
+    return current.f.slots[w] ? [w] : [];
+  };
+  if (v.how.context) {
+    const { variable, slot, offset, length } = v.how.context;
+    out.push({ cap: `${variable} is at slot ${shortVal(slot)}, ${length} ` +
+      `bytes at offset ${offset}, from the program context (no template ` +
+      "for a value type)", slots: [], regions: [v.region] });
+  } else {
+    const { origin } = v.how;
+    out.push({ cap: `${origin.variable} lives at slot ${shortVal(
+      origin.slot)} (program context)${origin.key ? `; key ${short(
+      origin.key)} (from the trace)` : ""}`, slots: known(origin.slot) });
+    const all = stepsOf(v);
+    let i = 0;
+    while (all[i]?.s.kind === "define") i++; // the page's own inputs
+    for (const { s, region } of all.slice(i)) {
+      if (s.kind === "template") {
+        const t = types[s.name];
+        out.push({ cap: `solc's rule for ${t ? typeName(t, types)
+          : s.name}`, rule: s.name });
+      } else if (s.kind === "define") {
+        const e = exprText(s);
+        out.push({ cap: `${s.id} = ${e ? `${e} = ` : ""}${shortVal(
+          s.value.hex)}`, slots: known(s.value.hex) });
+      } else if (s.kind === "list") {
+        out.push({ cap: `item ${s.each} = ${s.index} of ${shortVal(
+          s.count.value.hex)}` });
+      } else if (s.kind === "if") {
+        out.push({ cap: `${s.cond.args ? `${exprText(s.cond)} = ` : ""}${
+          shortVal(s.cond.value.hex)}, so ${branchWords(node, s)}` });
+      } else if (s.kind === "region") {
+        const f = Object.fromEntries(s.fields.map((x) =>
+          [x.field, shortVal(x.value.hex)]));
+        out.push({ cap: `${s.name}: slot ${f.slot ?? "?"}${f.offset
+          !== undefined ? `, offset ${f.offset}` : ""}${f.length
+          !== undefined ? `, length ${f.length}` : ""}`,
+        regions: region ? [region] : [] });
+      }
+    }
+  }
+  const r = v.region;
+  const o = Number(num(r.offset ?? "0x0"));
+  const n = r.length !== undefined ? Number(num(r.length)) : 32 - o;
+  out.push({ cap: `${o === 0 && n === 32 ? "all 32 bytes" : `bytes ${o}–${
+    o + n - 1}`} → ${v.hex === "0x" ? "no bytes" : v.hex.length > 22
+    ? `${v.hex.slice(0, 12)}…` : v.hex} = ${v.text}`, final: true });
+  return out;
+}
+
+// The steps for any selection. A value: its own. A composite with no
+// value of its own (a mapping, a struct): its first value's steps, up to
+// where that value's own regions start, then the whole composite. An
+// array: its length's steps, then the whole array.
+function replaySteps(path, side) {
+  const node = find(current.tree, path);
+  const own = node[side];
+  let steps;
+  if (own) {
+    steps = valueSteps(node, own, side);
+  } else {
+    let leaf = null;
+    const visit = (n) => {
+      if (leaf) return;
+      if (n[side]) leaf = n;
+      else (n.children ?? []).forEach(visit);
+    };
+    visit(node);
+    if (!leaf) return [];
+    steps = valueSteps(leaf, leaf[side], side);
+    const k = steps.findIndex((x) => x.regions?.length || x.final);
+    steps = steps.slice(0, k < 0 ? steps.length : k);
+  }
+  if (!own || node.children?.length) {
+    steps.push({ cap: `${shortKeys(path)}: ${node.children?.length ?? 0} ` +
+      `${node.children?.length === 1 ? "part" : "parts"}, lit in their ` +
+      "colours", final: true });
+  }
+  return steps;
+}
+
+// The highlight of a step: its slots' rows and its regions' bytes (the
+// final step: the selection, resolved)
+function stepLight(st) {
+  if (st.final) return forRow(current.panel, replay.path);
+  return forStep(current.panel, replay.side, st);
+}
+
+const CIRCLED = "①②③④⑤⑥⑦⑧⑨⑩⑪⑫⑬⑭⑮⑯⑰⑱⑲⑳";
+
+function renderBox() {
+  const box = $("details");
+  const node = chosen && find(current.tree, chosen);
+  if (!node) return;
+  if (replay) {
+    const { steps, i } = replay;
+    const st = steps[i];
+    const rule = st.rule && current.f.contract.pointers[st.rule];
+    box.innerHTML = `<p class="rstep"><span class="rnum">${CIRCLED[i] ??
+      i + 1}</span> ${esc(st.cap)}</p>` +
+      (rule ? `<details class="rrule"><summary>The rule as solc wrote it` +
+        `</summary><pre>${esc(JSON.stringify(rule, null, 1))}</pre>` +
+        "</details>" : "") +
+      `<div class="rbar"><span class="rdots" aria-hidden="true">${
+        steps.map((_, k) => `<i class="${k === i ? "on" : k < i ? "past"
+          : ""}"></i>`).join("")}</span>` +
+      `<span class="rctl"><button type="button" class="btn" data-r="prev"` +
+      ` aria-label="Previous step"${i ? "" : " disabled"}>◀</button>` +
+      `<button type="button" class="btn" data-r="next" aria-label=` +
+      `"Next step">▶</button>` +
+      `<button type="button" class="btn" data-r="end" aria-label=` +
+      `"Jump to the resolved value">⏭</button></span>` +
+      `<span class="muted small">step ${i + 1} of ${steps.length}; ← →, ` +
+      "Esc</span></div>";
+    return;
+  }
+  const h = forRow(current.panel, chosen);
+  const done = replay === false; // just finished a replay
+  box.innerHTML = details(h, PROBE) +
+    (node[mode] ? "" : `<p class="small">${esc(missing(node, mode))}</p>`) +
+    `<p class="rbar"><button type="button" class="btn" data-r="start">${
+      done ? "Replay ▸" : "How was this found? ▸"}</button></p>` +
+    vyperRule(node, mode);
+}
+
+// Start, step or leave the replay
+function stepTo(i) {
+  if (!replay) return;
+  // the last step is the resolved view: the box as at rest, "Replay ▸"
+  if (i >= replay.steps.length - 1) return endReplay();
+  replay.i = Math.max(0, i);
+  renderBox();
+  show();
+}
+function startReplay() {
+  if (!chosen) return;
+  const steps = replaySteps(chosen, mode);
+  if (!steps.length) return;
+  replay = { path: chosen, side: mode, steps, i: 0 };
+  renderBox();
+  show();
+  $("details").focus({ preventScroll: true });
+}
+function endReplay() {
+  replay = false;
+  renderBox();
+  show();
+}
 // The Vyper scene: the same entry by Vyper's own rule, which no ethdebug
 // gives (Vyper emits none). Its words are the ones Vyper uses for the
 // selected player (the fixture script read them from the node and
@@ -312,135 +419,6 @@ function vyperRule(node, side) {
     in its own slot, the name's length and bytes after them.</p>
     <ol class="steps vyper">${e.members.map(item).join("")}</ol>`;
 }
-
-// The steps of one state's derivation, each with a key for its
-// structure (what it does, not the values it finds), its evaluation in
-// short, and the HTML of its list item
-function items(node, v, side) {
-  const { types } = current.f.contract;
-  const r = v.region;
-  const linked = (region) => ` data-region="${esc(JSON.stringify(region))}"` +
-    ` data-side="${side}" tabindex="0"`;
-  const out = [];
-  if (v.how.context) {
-    const { variable, slot, offset, length } = v.how.context;
-    out.push({ key: "context", eval: "",
-      html: `<li><span class="k">Start</span>
-      <code>${esc(variable)}</code> is at slot ${hex(slot)}, ${length}
-      bytes at offset ${offset} (from the high end of the word)
-      <span class="tag">from the program context</span><br>
-      solc emits no template for a value type at the top level: its
-      pointer in the program context is the region.</li>` });
-  } else {
-    const { origin } = v.how;
-    out.push({ key: "start", eval: "", html: `<li><span class="k">Start</span>
-      <code>${esc(origin.variable)}</code> starts at slot
-      ${hex(origin.slot)} <span class="tag">from the program context</span>
-      ${origin.key ? `<br>Key ${hex(origin.key)}: ${current.f.keysFrom
-        ? `from ${esc(current.f.keysFrom)}`
-        : "this transaction hashed it with that slot"}
-      <span class="tag">from the trace</span>` : ""}
-      </li>` });
-    const all = stepsOf(v);
-    let i = 0;
-    while (all[i]?.s.kind === "define") i++; // the page's own inputs
-    for (const { s, region } of all.slice(i)) {
-      // a region step lights its bytes in the words
-      out.push({
-        key: structure(s), eval: evaluation(s),
-        branch: s.kind === "if" ? s.branch : undefined,
-        words: s.kind === "if" ? branchWords(node, s) : undefined,
-        html: stepHtml(s, types).replace(/^<li>/,
-          region ? `<li${linked(region)}>` : "<li>"),
-      });
-    }
-  }
-  const bytes = (len) => {
-    const o = Number(num(r.offset ?? "0x0"));
-    const n = len ?? 32 - o;
-    return o === 0 && n === 32 ? "the whole word"
-      : `bytes ${o}–${o + n - 1} (offset ${o}, length ${n})`;
-  };
-  const len = r.length !== undefined ? Number(num(r.length)) : undefined;
-  const raw = (h) => (h === "0x" ? "no bytes" : hex(h, 14));
-  // each item as two columns: its kind, and the rest
-  const cols = (html) => html.trim().replace(
-    /^(<li[^>]*>)\s*(<span class="k">[^<]*<\/span>)([\s\S]*)<\/li>$/,
-    '$1$2<div class="c">$3</div></li>');
-  const done = (x) => ({ ...x, html: cols(x.html) });
-  out.push({ key: "result", eval: `${raw(v.hex)} → <b>${esc(v.text)}</b>`,
-    html: `<li class="final"${linked(r)}><span class="k">Result</span>
-    ${esc(r.location)} slot ${hex(r.slot, 14)}, ${bytes(len)}.
-    <div>Read ${esc(WHEN()[side])}: ${raw(v.hex)} → <b>${esc(v.text)
-    }</b></div>
-    </li>` });
-  return out.map(done);
-}
-
-// What a step does, without the values it finds
-function structure(s) {
-  switch (s.kind) {
-    case "template": return `template ${s.name}`;
-    case "define": return `define ${s.id} ${JSON.stringify(s.expr)}`;
-    case "list": return `list ${s.each} ${JSON.stringify(s.count.expr)}`;
-    case "if": return `if ${JSON.stringify(s.cond.expr)}`;
-    case "region": return `region ${s.name} ${JSON.stringify(
-      s.fields.map((f) => [f.field, f.expr]))}`;
-    default: return s.kind;
-  }
-}
-
-// A step's evaluation, in short: its inputs, its value, its branch
-function evaluation(s) {
-  const ins = (x) => x.args ? `${x.args.map((a) => shown(a.value))
-    .join(", ")} → ` : "";
-  switch (s.kind) {
-    case "define": return `${ins(s)}${shown(s.value)}`;
-    case "if": return `${ins(s.cond)}${shown(s.cond.value)} → ${s.branch}`;
-    case "list": return `item ${esc(s.index)} of ${shown(s.count.value)}`;
-    case "region": return s.fields.map((f) =>
-      `${f.field} ${shown(f.value)}`).join("; ");
-    default: return "";
-  }
-}
-
-function stepHtml(s, types) {
-  switch (s.kind) {
-    case "template": {
-      const t = types[s.name];
-      const what = t ? ` for <b>${esc(typeName(t, types))}</b>` : "";
-      const rule = current.f.contract.pointers[s.name];
-      return `<li><span class="k">Template</span> solc's rule${what},
-        <code class="wrap">${esc(s.name)}</code>. It expects
-        ${s.expect.map((x) => `<code>${esc(x)}</code>`).join(" and ")}.
-        <details><summary>The rule as solc wrote it</summary>
-        <pre>${esc(JSON.stringify(rule, null, 1))}</pre></details></li>`;
-    }
-    case "define":
-      return `<li><span class="k">Define</span> <code>${esc(s.id)}</code>
-        = ${expr(s.expr)} = ${shown(s.value)}${args(s)}</li>`;
-    case "list":
-      return `<li><span class="k">Item</span> <code>${esc(s.each)}</code>
-        = <b>${esc(s.index)}</b>, of ${expr(s.count.expr)} =
-        ${shown(s.count.value)} items</li>`;
-    case "if":
-      return `<li><span class="k">If</span> ${expr(s.cond.expr)} =
-        ${shown(s.cond.value)}, so take <b>${s.branch}</b>${args(s.cond)}
-        </li>`;
-    case "region":
-      return `<li><span class="k">Region</span> <code>${esc(s.name)}</code>:
-        ${s.fields.map((x) => `${x.field} ${expr(x.expr)} =
-          ${shown(x.value)}${args(x)}`).join("; ")}</li>`;
-    default:
-      return "";
-  }
-}
-
-const args = (s) =>
-  s.args
-    ? `<div class="args">where ${s.args.map((a) =>
-      `${expr(a.expr)} = ${shown(a.value)}`).join(", ")}</div>`
-    : "";
 
 // The declaration to mark in the source
 function declaration(node) {
@@ -498,8 +476,9 @@ const PROBE = "Point at a value or a byte for its details.";
 
 function show() {
   const sel = chosen ? forRow(current.panel, chosen) : null;
-  const h = hover ?? sel;
-  paint($("panel"), $("tree"), h, { cards: showOther(),
+  // a replay shows its step, whatever the pointer is on
+  const h = replay ? stepLight(replay.steps[replay.i]) : hover ?? sel;
+  paint($("panel"), $("tree"), h, { cards: !replay && showOther(),
     single: !!current?.single });
   treeCard(h);
   for (const r of $("tree").querySelectorAll("li[data-path] > .row")) {
@@ -507,7 +486,8 @@ function show() {
     r.classList.toggle("sel", on);
     r.setAttribute("aria-pressed", String(on));
   }
-  $("details").innerHTML = details(h, PROBE);
+  // with a value selected, the box is its own (renderBox)
+  if (!chosen) $("details").innerHTML = details(h, PROBE);
   // the locked state: what the view is on, and the way out
   $("viewing").hidden = !chosen;
   $("viewing").textContent = chosen
@@ -558,9 +538,10 @@ function treeCard(h) {
 function choose(path, anchor, quiet) {
   chosen = path;
   const node = path && find(current.tree, path);
+  replay = null;
   steady(anchor, () => {
     markSource(node);
-    renderHow();
+    renderBox();
     show();
   });
   keep();
@@ -585,7 +566,7 @@ function target(el) {
   if (cell) return forBytes(m, cell);
   const addr = el.closest("#panel .wrow[data-slot] .addr");
   if (addr) return forSlot(m, addr.parentElement.dataset.slot);
-  const step = el.closest("#how li[data-region]");
+  const step = el.closest("#details li[data-region]");
   if (step) {
     const r = JSON.parse(step.dataset.region);
     return forRegion(m, r, step.dataset.side, r.name);
@@ -656,10 +637,18 @@ document.addEventListener("click", (e) => {
     applyMode();
     return keep();
   }
+  const r = t.closest("#details button[data-r]");
+  if (r) {
+    const k = r.dataset.r;
+    if (k === "start") startReplay();
+    else if (k === "end") endReplay();
+    else stepTo(replay.i + (k === "next" ? 1 : -1));
+    return;
+  }
   if (act(t)) return;
   // Empty space clears the selection; controls, text and the panels
   // that explain do not
-  if (t.closest("#how, #picker, #details, #src, .addr, .tray, a, " +
+  if (t.closest("#picker, #details, #src, .addr, .tray, a, " +
     "button, " +
     "summary, details, input, label")) return;
   if (String(window.getSelection?.() ?? "")) return;
@@ -671,8 +660,15 @@ const flip = (h) => {
 };
 document.addEventListener("keydown", (e) => {
   if (e.key === "Escape") {
+    if (replay && keySection() === "storage") return endReplay();
     if (chosen && keySection() === "storage") choose(null);
     return;
+  }
+  // ← → step a replay while its box has the focus
+  if (replay && e.target.closest?.("#details") &&
+    ["ArrowLeft", "ArrowRight"].includes(e.key)) {
+    e.preventDefault();
+    return stepTo(replay.i + (e.key === "ArrowRight" ? 1 : -1));
   }
   if (e.key !== "Enter" && e.key !== " ") return;
   const h = e.target.closest?.(".hex.short");

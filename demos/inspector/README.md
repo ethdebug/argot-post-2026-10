@@ -90,7 +90,7 @@ templates, so the page cannot ask ethdebug where `text` is, and says so.
 then words by offset) and labels the parts by the ABI encoding rules:
 the selector, `text`'s head word (the offset, 32), its length (5) and
 its bytes ("gl hf"). The linking works both ways: click a byte to select its
-part, a part (or `text`) to light its bytes; "How this was found" lists
+part, a part (or `text`) to light its bytes; its "How this was found" lists
 the ABI steps, each lighting its bytes. The scene names its function
 and parameter in `fixtures/index.json` (`calldata`).
 
@@ -279,7 +279,7 @@ offsets.
 - Zebra: every other word line has a very light stripe, which fades
   further while something is lit.
 - Linking: hover or focus a tree row, a byte, an address, or a region
-  step of "How this was found", and the value's bytes light up
+  step of a replay, and the value's bytes light up
   (`--mark`), with its tree row. A byte outlines its byte positions;
   an address outlines its whole word. A lit run's addresses get one
   soft rounded tint in the gutter (the slot popover points at it).
@@ -341,28 +341,35 @@ offsets.
   to the first scene with its defaults.
   `#storage` and `#memory` link to the sections.
 
-## How this was found
+## The box under the dump, and the replay
 
-One panel, under the tree (on a phone: between the tree and the
-words), shows the selected variable's derivation: where it starts, the
-template, each define with its inputs and value, the branch each `if`
-took, the list item and count, and each region (a string's
-`length-flag` and `long-length` regions go in where the template
-reaches them). Hover or focus a region step to light its bytes.
+With a value selected, the box under the dump shows it resolved: its
+path and type, where it is (slot and bytes; the full slot address is
+in the address's details when nothing is selected), its value (in a
+scene with two points, Before and After), and a button, "How was this
+found? ▸". (In the Vyper scene, the box also lists Vyper's own words
+for the selected player, each lighting its word.)
 
-The panel follows the toggle and says whose derivation it is. With
-"show other state" on, it also shows the other state's derivation:
-steps the two share appear once; a step that evaluates differently
-shows both evaluations on two lines ("before …", "after …"); and where
-the two take different branches (for `motd`, the If on
-the length flag), the rest splits into two lists, one per branch,
-labeled with state and branch (e.g. "after · then (short-string
-layout)"), this state's first and the other muted. Step numbers go on
-in each list, and each list's region steps light their bytes. When
-the two are the same, one list says so. The toggle is the switch
-between the two states. A value that exists in one
-state only says so
-(e.g. `xs[0]` before: "no such value (xs has 0 items)").
+The button replays the pointer's evaluation from the top, one step at
+a time: the steps `decode.js` `replay()` records while it walks the
+template with the library's evaluator (and checks against the regions
+`dereference()` returned): the start (the variable's slot from the
+program context, and a mapping key from the trace), each template,
+each define (e.g. `slot = keccak(0x3c44…93bc, 3) = 0x961e…7527`), each
+list item, each branch (e.g. "so long-string layout"), and each
+region. Each step is one line, numbered, with progress dots. In the
+dump, the step's computed slot lights its whole row, a region lights
+its bytes, and everything else mutes, as for a hover; while it
+replays, the pointer changes nothing. ◀ ▶ step, ⏭ jumps to the
+resolved view; ← → step while the box has the focus; Escape leaves
+the replay (and, at rest, clears the selection). The last step is the
+resolved view, and the button then reads "Replay ▸". A composite
+(a mapping, a record) replays its first value's steps until its own
+slot is found, then lights all of it; an array, its length's steps,
+then all of it. A replay runs in the state shown. Leaving the right
+column's old "How this was found" panel: the fork view (both states'
+derivations side by side) and its per-step hover are gone; "The rule
+as solc wrote it" shows during a template step.
 
 ## Annotations in the dumps
 
@@ -376,7 +383,7 @@ annotations stay inside the words' sideways scroll):
   were found and what the transaction did to them, e.g.
   `keccak(0x7099…79c8, slot 3), 2 slots · read, written` (one line; a
   run of several slots says how many; the full address is in the
-  details and in "How this was found"). Over the run in Before, under
+  details and in the replay). Over the run in Before, under
   it in After; if that would cover lit bytes, a lit row's address or
   another annotation, the other way (it may cover unlit rows: a gap
   line, or a neighbour's dim bytes and address); if both would, it is
