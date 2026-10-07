@@ -64,7 +64,10 @@ function record(id: string, [before, after]: Decoded[]) {
 try {
   const project = await load(fetchIo(import.meta.env.BASE_URL));
   const mount = { pick: place($("picker")), mode: place($("mode")),
-    dump: place($("panel")), tree: place($("tree")) };
+    dump: place($("panel")), tree: place($("tree")),
+    bar: place($("details")) };
+  // (the walkthrough panel draws the details under its bar)
+  $("dwrap").remove();
   // (the tree view draws its own edge buttons)
   $("edge-up").remove();
   $("edge-down").remove();
@@ -81,6 +84,15 @@ try {
     document.querySelector("main")!.toggleAttribute("data-single",
       bm.points.length === 1);
     $("summary").textContent = bm.summary ?? "";
+    // the locked state: what the view is on, and the way out (it keeps
+    // its room)
+    const sel = s.links.storage?.selection;
+    $("viewing").style.visibility = sel ? "visible" : "hidden";
+    $("viewing").textContent = sel ? `viewing ${sel.replace(
+      /\[(0x[0-9a-fA-F]{16,})\]/g, (_, h: string) => {
+        const x = "0x" + (h.replace(/^0x0*/, "") || "0");
+        return `[${x.slice(0, 6)}…${x.slice(-4)}]`;
+      })} · Esc to clear` : "\u00a0";
   };
 
   // (a scene's values are recorded the first time it shows: picked, or
