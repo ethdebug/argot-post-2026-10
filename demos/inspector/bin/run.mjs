@@ -1893,6 +1893,75 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
       }
       await page.evaluate(() => window.select("mid", { sel: "players" }));
     }
+    // one fill box for every row kind in every state: a collapsed and an
+    // expanded top-level group, a nested group, a leaf; at rest, hovered,
+    // selected, focused. The fill: the row's, or its block's (a hovered
+    // open group lights its rows as one block, which starts at the
+    // row's top and keeps its left and right edges)
+    {
+      const kinds = ["players", "roster", A, "total"];
+      const fill = (p) => page.evaluate((x) => {
+        const li = document.querySelector(`#tree li[data-path="${x}"]`);
+        const r = li.querySelector(":scope > .row").getBoundingClientRect();
+        let f = [r.top, r.bottom, r.left, r.right];
+        if (li.classList.contains("blk")) {
+          const l = li.getBoundingClientRect();
+          const b = getComputedStyle(li, "::before");
+          f = [l.top + parseFloat(b.top), li.querySelector(":scope > ul")
+            ? null : l.bottom - parseFloat(b.bottom), l.left, l.right];
+        }
+        return { row: [r.top, r.height, r.left, r.width].map((v) =>
+          Math.round(v * 2) / 2).join(), fill: f.map((v) => v === null ? v
+          : Math.round(v * 2) / 2) };
+      }, p);
+      const bad = [];
+      for (const k of kinds) {
+        await page.evaluate(() => window.select("mid", { sel: null }));
+        // (players: collapsed)
+        if (k === "players") await chev("players").click();
+        await page.mouse.move(1, 1);
+        const states = [await fill(k)];
+        await row(k).hover();
+        states.push(await fill(k));
+        await row(k).click();
+        await page.mouse.move(1, 1);
+        states.push(await fill(k));
+        await row(k).focus();
+        states.push(await fill(k));
+        if (k === "players") {
+          await page.evaluate(() => window.select("mid", { sel: null }));
+          await chev("players").click();
+        }
+        const [r0] = states;
+        for (const x of states) {
+          if (x.row !== r0.row || x.fill[0] !== r0.fill[0] ||
+            x.fill[2] !== r0.fill[2] || x.fill[3] !== r0.fill[3] ||
+            (x.fill[1] !== null && x.fill[1] !== r0.fill[1])) {
+            bad.push(`${k.slice(0, 12)} ${JSON.stringify(x)} vs ${
+              JSON.stringify(r0)}`);
+          }
+        }
+      }
+      if (bad.length) problems.push(`row geometry: ${bad.slice(0, 3)}`);
+      // (pointing at a chevron points at its row: the row's hover, its
+      // bytes lit)
+      await page.evaluate(() => window.select("mid", { sel: null }));
+      await chev("roster").hover();
+      const ch = await page.evaluate(() => [document.querySelector(
+        '#tree li[data-path="roster"] > .row').classList.contains("hl"),
+      document.querySelectorAll("#panel .view:not([hidden]) .b.hl").length]);
+      if (!ch[0] || ch[1] !== 92) problems.push(`chevron hover: ${ch}`);
+      // (roster collapsed: pointing at roster[0]'s bytes lights the row
+      // that shows it, roster's)
+      await chev("roster").click();
+      await page.locator('#panel .view:not([hidden]) .b[data-owners="roster[0]"]')
+        .first().hover();
+      const anc = await page.evaluate(() => document.querySelector(
+        '#tree li[data-path="roster"] > .row').classList.contains("hl"));
+      await chev("roster").click();
+      if (!anc) problems.push("a hidden row's ancestor not lit");
+      await page.evaluate(() => window.select("mid", { sel: "players" }));
+    }
     // (an inner group keeps its state when its parent closes and opens)
     await chev(A).click();
     await chev("players").click();
@@ -2619,7 +2688,8 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
       return li.classList.contains("blk") && !!k &&
         rows.every((r) => /rgba\(0, 0, 0, 0\)|transparent/.test(bg(r)) &&
           parseFloat(getComputedStyle(r).borderTopLeftRadius) === 0) &&
-        parseFloat(getComputedStyle(li).borderTopLeftRadius) > 0 ? k : null;
+        parseFloat(getComputedStyle(li, "::before").borderTopLeftRadius) > 0
+        ? k : null;
     }), [A, B, C]);
     if (bl.some((x) => !x) || new Set(bl).size !== 3) {
       problems.push(`entry blocks: ${bl}`);

@@ -954,7 +954,9 @@ export function paint(root, tree, h, opts = {}) {
     if (li.parentElement.closest("li.blk")) continue;
     // (a block is a composite's rows; the selected row keeps its own
     // highlight and bar, as any row)
-    if (!li.querySelector("li[data-path]") || li.querySelector(".row.sel")) {
+    // (nor a collapsed group: its one row shows; its fill is the row's)
+    if (!li.querySelector("li[data-path]") || li.querySelector(".row.sel") ||
+      li.classList.contains("collapsed")) {
       continue;
     }
     const ks = new Set([...li.querySelectorAll(".row.hl")].map(colourOf));
