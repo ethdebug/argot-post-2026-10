@@ -3,7 +3,7 @@
 // before and after its transaction), its contract as a Compilation, and
 // each scene as a Bookmark of one or two points
 import type {
-  Bookmark, Compilation, DecodingId, Hex, Path, PointId, Timeline,
+  Bookmark, Compilation, Decoding, DecodingId, Hex, Path, PointId, Timeline,
   TimelineId, TimelinePoint, TxFacts, Variable,
 } from "../types";
 import { slotHex, toBig } from "../hex";
@@ -26,6 +26,8 @@ interface Fixture {
     pointers: Compilation["templates"];
   };
   trace: { kept: Step[] };
+  // mapping keys gathered from other traces: [base slot, [{ key }]]
+  keys?: [Hex, { key: Hex }[]][];
   slots: Record<Hex, { before: Hex; after: Hex }>;
 }
 
@@ -38,8 +40,10 @@ export const SIDES = ["before", "after"] as const;
 
 const word = (h: string) => slotHex(toBig(h.startsWith("0x") ? h : "0x" + h));
 
-// The slots the transaction read and wrote, and its mapping hashes'
-// inputs (KECCAK256 of more than one word: key words, then the slot)
+// The slots the transaction read and wrote, and the mapping hashes'
+// inputs (KECCAK256 of more than one word: key words, then the slot):
+// the fixture's keys gathered from the story's traces, when it has them
+// (as vanilla), else this transaction's
 function facts(f: Fixture): TxFacts {
   const reads = new Set<Hex>();
   const writes = new Set<Hex>();
@@ -57,7 +61,10 @@ function facts(f: Fixture): TxFacts {
       keccakInputs.push(pre.match(/.{64}/g)!.map((w) => `0x${w}` as Hex));
     }
   }
-  return { ...f.tx, reads, writes, keccakInputs };
+  const gathered = (f.keys ?? []).flatMap(([base, ks]) =>
+    ks.map(({ key }) => [key, base]));
+  return { ...f.tx, reads, writes,
+    keccakInputs: f.keys ? gathered : keccakInputs };
 }
 
 export function fromFixture(json: unknown, fixtureId: string):
@@ -98,3 +105,10 @@ export function bookmarkOf(scene: LegacyScene): ProjectBookmark {
     timeline: scene.fixture, decoding: `sol:${scene.fixture}`,
   };
 }
+
+// Where a fixture's decoding finds mapping keys: the fixtures name it
+// (`keysIn: { players: "roster" }`); the Vyper fixture has none (its
+// roster is Vyper's own layout), so its keys come from the traces
+export const keySourceOf = (fixtureId: string): Decoding["keys"] =>
+  fixtureId === "arcade-vyper" ? { from: "trace" }
+    : { from: "list", path: "roster" };

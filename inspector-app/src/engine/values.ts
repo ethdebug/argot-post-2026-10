@@ -1,5 +1,5 @@
 // Values by ethdebug type (vanilla decode.js decodeValue, typeName)
-import type { Format, TypeId } from "./types";
+import type { Format, TypeId, ValueNode } from "./types";
 import { toBig, toHex } from "./hex";
 
 type Types = Record<TypeId, Format.Type>;
@@ -82,4 +82,17 @@ export function isValueType(type: Format.Type, types: Types): boolean {
   const t = resolve(as(type), types);
   return !["struct", "mapping", "array", "string", "bytes"]
     .includes(t.kind) || (t.kind === "bytes" && t.size !== undefined);
+}
+
+// A composite's summary, as its tree row shows it: an array's length
+// ("length 3", from its length word), a mapping's entries ("3
+// entries"), a struct's fields ("7 fields")
+export function summary(n: ValueNode): string | undefined {
+  if (!n.children || n.value) return undefined;
+  const k = n.children.length;
+  if (n.regions.some((r) => r.role === "length")) return `length ${k}`;
+  const [one, many] = n.typeText.startsWith("mapping(")
+    ? ["entry", "entries"] : /\[\d*\]$/.test(n.typeText)
+      ? ["item", "items"] : ["field", "fields"];
+  return `${k} ${k === 1 ? one : many}`;
 }

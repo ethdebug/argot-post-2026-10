@@ -9,6 +9,9 @@ function Row({ n, top, light, selection, single, side }: { n: ValueNode;
   top?: boolean; light: Light; selection: string | null; single: boolean;
   side: string }) {
   const on = light.rows.has(n.path);
+  // an array's length is its value (vanilla); a group's summary
+  const own = n.summary !== undefined &&
+    n.regions.some((r) => r.role === "length");
   const sel = n.path === selection;
   const cls = ["row", sel ? "sel" : "", on ? "hl" : ""]
     .filter(Boolean).join(" ");
@@ -17,13 +20,17 @@ function Row({ n, top, light, selection, single, side }: { n: ValueNode;
       aria-pressed={sel ? "true" : "false"}>
       <span className="name">{n.label}</span>
       <span className="type">{n.typeText}</span>
-      {n.value ? <span className={`val${single ? "" : " same"}`}>
-        <span>{n.value.text}</span></span>
-        : n.note ? <span className="muted">{n.note}</span> : null}
+      {n.value || own ? <span className={`val${single ? "" : " same"}`}>
+        <span>{n.value?.text ?? n.summary}</span></span>
+        : n.children?.length ? <span className="val sum">{n.summary}</span>
+          : n.note ? <span className="muted">{n.note}</span> : null}
     </div>
     {n.children?.length ? <ul>{n.children.map((c) => <Row key={c.path}
       n={c} light={light} selection={selection} single={single}
-      side={side} />)}</ul> : null}
+      side={side} />)}</ul>
+      : n.children && !n.value && !own
+        ? <p className="muted empty">no keys hashed in this transaction</p>
+        : null}
   </li>;
 }
 
