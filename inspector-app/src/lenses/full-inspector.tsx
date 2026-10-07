@@ -1,5 +1,5 @@
-// The Phase 1 page as a lens: the storage scenes. M1: the first
-// bookmark, the dumps (before, after) and the tree, linked.
+// The Phase 1 page as a lens: the storage scenes (bookmarks), the
+// dumps (before, after) and the tree, linked; Before | After
 import type { ReactNode } from "react";
 import { useLensState, useLink } from "../ui/hooks";
 import type { LensSpec } from "../ui/types";
@@ -18,19 +18,27 @@ function Panel({ children }: { children: ReactNode }) {
   </div>;
 }
 
+// (the Vyper scene's dump shows Vyper's own words: no value owns them)
+const VYPER = [{ decoding: "vyRule", who: "Vyper's" }];
+
 export const fullInspector: LensSpec = {
   id: "inspector", title: "Storage, by name",
-  timelines: ["arcade-mid"], decodings: ["sol:arcade-mid"],
-  bookmarks: ["mid"],
-  grid: '"dump tree"',
+  timelines: ["arcade-mid", "arcade-alice", "arcade-motd", "arcade-vyper"],
+  decodings: ["sol:arcade-mid", "sol:arcade-alice", "sol:arcade-motd",
+    "vyAsSol", "vyRule"],
+  bookmarks: ["mid", "alice", "motd", "vyper"],
+  grid: '"pick pick" "mode mode" "dump tree"',
   links: ["storage"],
   views: [
+    { id: "pick", kind: "picker", of: "bookmarks", area: "pick",
+      domId: "picker" },
+    { id: "mode", kind: "picker", of: "side", area: "mode", domId: "mode" },
     { id: "before", kind: "dump", area: "dump", location: "storage",
       link: "storage", data: { decoding: "$bm", point: { slot: "a" } },
-      side: "before" },
+      side: "before", others: VYPER },
     { id: "after", kind: "dump", area: "dump", location: "storage",
       link: "storage", data: { decoding: "$bm", point: { slot: "b" } },
-      side: "after" },
+      side: "after", others: VYPER },
     { id: "tree", kind: "tree", area: "tree", link: "storage",
       domId: "tree", data: { decoding: "$bm", point: { slot: "$side" } } },
   ],

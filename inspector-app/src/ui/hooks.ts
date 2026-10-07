@@ -4,7 +4,7 @@ import { createContext, useContext, useEffect, useMemo, useState,
   useSyncExternalStore } from "react";
 import type { Project } from "../engine/project";
 import type {
-  Decoded, Decoding, Layout, Light, Snapshot,
+  Decoded, Decoding, Filter, Hex, Layout, Light, Snapshot, TimelinePoint,
 } from "../engine/types";
 import { decode } from "../engine/decode";
 import { layout } from "../engine/layout";
@@ -16,6 +16,10 @@ import type {
 
 export interface LensContextValue {
   spec: LensSpec; project: Project; store: Store<LensState>;
+  // show a bookmark (its points, side and selection); false when its
+  // data did not load (Lens.tsx)
+  show(id: string, view?: { mode?: "before" | "after";
+    sel?: string | null }): Promise<boolean>;
 }
 export const LensContext = createContext<LensContextValue | null>(null);
 
@@ -42,7 +46,8 @@ export const NO_LINK: LinkState = { selection: null, hover: null,
 export const NO_VIEW: ViewState = { collapsed: new Set() };
 
 // A DataRef in this lens's state: "$bm" is the bookmark's decoding; a
-// point slot is the point it holds ("$side": the side shown)
+// point slot is the point it holds ("$side": the side shown; "$other":
+// the other one of the pair)
 export function resolveRef(ref: DataRef, s: LensState, p: Project):
   DataAt | undefined {
   const decoding = ref.decoding === "$bm"
@@ -50,7 +55,8 @@ export function resolveRef(ref: DataRef, s: LensState, p: Project):
     : ref.decoding;
   const slot = typeof ref.point === "string" ? null : ref.point.slot;
   const point = slot === null ? ref.point as string
-    : s.points[slot === "$side" ? (s.side === "before" ? "a" : "b") : slot];
+    : s.points[slot === "$side" ? (s.side === "before" ? "a" : "b")
+      : slot === "$other" ? (s.side === "before" ? "b" : "a") : slot];
   return decoding && point ? { decoding, point } : undefined;
 }
 
@@ -112,20 +118,41 @@ export function useViewSpec(id: string): ViewSpec {
   return v;
 }
 
-// A view's data and its layout (a dump's location; storage otherwise)
-export function useLayout(id: string): { d?: Decoded; l?: Layout } {
+// A view's data and its layout (a dump's location; storage otherwise).
+// `filter`: the lens's (Lens.tsx Present), else the view's own; rows
+// "all" adds the slots the point's transaction read or wrote. A dump's
+// `others` (decodings of its timeline) show their words, owned by none.
+export function useLayout(id: string, filter?: Filter):
+  { d?: Decoded; l?: Layout } {
   const v = useViewSpec(id);
-  const d = useDecoded(v.data);
+  const lens = useLens();
+  const data = "data" in v ? v.data : undefined;
+  const d = useDecoded(data);
+  const point = usePoint(data);
+  const f = filter ?? ("filter" in v ? v.filter : undefined);
+  const others = v.kind === "dump" ? v.others ?? [] : [];
+  const timeline = d && decodingOf(lens, d.decoding)?.timeline;
+  const mine = others.filter((o) =>
+    decodingOf(lens, o.decoding)?.timeline === timeline);
+  const o1 = useDecoded(mine[0] && d &&
+    { decoding: mine[0].decoding, point: d.point });
   const location = v.kind === "dump" ? v.location : "storage";
-  const l = useMemo(() => d && layout(d, location, v.filter),
-    [d, location, v.filter]);
+  const l = useMemo(() => {
+    if (!d || (mine[0] && !o1)) return undefined;
+    const tx = point?.transaction;
+    const rows = f?.rows === "all" && tx
+      ? [...new Set<Hex>([...tx.reads, ...tx.writes])]
+        .filter((s) => point!.snapshot.storage.has(s)) : f?.rows;
+    return layout(d, location, { ...f, rows },
+      o1 ? [{ d: o1, who: mine[0].who }] : []);
+  }, [d, o1, point, location, f, mine[0]?.who]);
   return { d, l };
 }
 
 // What a view lights: its link's selection, or else what is pointed at
-export function useLight(id: string): Light {
+export function useLight(id: string, filter?: Filter): Light {
   const v = useViewSpec(id);
-  const { d, l } = useLayout(id);
+  const { d, l } = useLayout(id, filter);
   const [link] = useLink(v.link);
   const [view] = useView(id);
   return useMemo(() => {
@@ -139,15 +166,16 @@ export function useLight(id: string): Light {
   }, [d, l, link, view.collapsed]);
 }
 
-// The snapshot at a view's timeline point (a dump's words)
-export function useSnapshot(ref: DataRef | undefined): Snapshot | undefined {
+// The timeline point a view shows (a dump's words, its transaction)
+export function usePoint(ref: DataRef | undefined):
+  TimelinePoint | undefined {
   const lens = useLens();
   const { project } = lens;
   const key = useLensState((s) => {
     const at = ref && resolveRef(ref, s, project);
     return at ? `${at.decoding}\n${at.point}` : "";
   });
-  const [got, setGot] = useState<{ key: string; s: Snapshot }>();
+  const [got, setGot] = useState<{ key: string; p: TimelinePoint }>();
   useEffect(() => {
     if (!key) return;
     const [decoding, point] = key.split("\n");
@@ -156,11 +184,14 @@ export function useSnapshot(ref: DataRef | undefined): Snapshot | undefined {
     if (!dc) return;
     project.timeline(dc.timeline).then((t) => {
       const at = t.points.find((x) => x.id === point);
-      if (live && at) setGot({ key, s: at.snapshot });
+      if (live && at) setGot({ key, p: at });
     }, (e) => console.error(e));
     return () => {
       live = false;
     };
   }, [lens, project, key]);
-  return got?.key === key ? got.s : undefined;
+  return got?.key === key ? got.p : undefined;
 }
+
+export const useSnapshot = (ref: DataRef | undefined): Snapshot | undefined =>
+  usePoint(ref)?.snapshot;

@@ -98,8 +98,9 @@ export function fromFixture(json: unknown, fixtureId: string):
     bookmarks: [] } };
 }
 
+// (Phase 1 parity: a scene's summary line, for the page)
 export type ProjectBookmark = Bookmark &
-  { timeline: TimelineId; decoding: DecodingId };
+  { timeline: TimelineId; decoding: DecodingId; summary?: string };
 
 // The decoding a scene shows: solc's rule over its fixture's storage;
 // over the Vyper fixture's, that is "vyAsSol" (Vyper's own rule,
@@ -115,6 +116,7 @@ export function bookmarkOf(scene: LegacyScene): ProjectBookmark {
     ...(points.length === 2 ? { side: scene.mode ?? "after" } : {}),
     ...(scene.calldata ? { calldata: scene.calldata } : {}),
     timeline: scene.fixture, decoding: decodingOf(scene.fixture),
+    summary: scene.summary,
   };
 }
 
