@@ -12,8 +12,13 @@ define {
   };
 
   // a toy roll (not safe randomness): 2 in 3 is a hit.
-  // BUG has no block.prevrandao and cannot hash two words,
-  // so the roll mixes block.number and the sender, unhashed.
+  // bugc on origin/main has no block.prevrandao and cannot hash two
+  // words, so the roll mixes block.number and the sender, unhashed.
+  // NEEDS ethdebug/format #363 (block.prevrandao) AND #365
+  // (keccak256 over words): with both, the roll matches Solidity's
+  // keccak256(abi.encode(block.prevrandao, msg.sender)) % 3 != 0:
+  //   return (keccak256(block.prevrandao, msg.sender) as uint256)
+  //     % 3 != 0;
   function rolledHit() -> bool {
     return (block.number + (msg.sender as uint256)) % 3 != 0;
   };
@@ -28,16 +33,16 @@ define {
 }
 
 storage {
-  [0] players: mapping<address, Player>;
-  [1] roster: array<address>;  // everyone who has joined (a mapping can't list its keys)
-  [2] motd: string;            // the server's message of the day
-  [3] total: uint128;          // all players' points
-  [4] rounds: uint64;          // the number of hits
+  [0] roster: array<address>;  // everyone who has joined (a mapping can't list its keys)
+  [1] motd: string;            // the server's message of the day
+  [2] total: uint128;          // all players' points
+  [3] rounds: uint64;          // the number of hits
+  [4] players: mapping<address, Player>;
   [5] joined: uint256;         // roster length (no push, no storage .length)
 }
 
 create {
-  motd = "gl hf";
+  motd = "season 2 starts friday, see you on the leaderboard";
 }
 
 code {

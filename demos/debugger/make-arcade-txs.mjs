@@ -66,18 +66,18 @@ const play = async (to, c, totalSlot) => {
 };
 
 const hex = (f) => fs.readFileSync(f, "utf8").trim().replace(/^0x/, "");
-// total's slot: Solidity packs it with rounds in slot 3; Fe's store
-// puts it in slot 12; BUG declares it at slot 3.
+// total's slot: Solidity packs it with rounds in slot 2; Fe's store
+// puts it in slot 12; BUG declares it at slot 2.
 const targets = {
-  sol: { create: hex("sol/ethdebug/Arcade.bin") + ctorArgs, total: 3 },
+  sol: { create: hex("sol/ethdebug/Arcade.bin") + ctorArgs, total: 2 },
   old: { create: JSON.parse(fs.readFileSync("old/combined.json", "utf8"))
-    .contracts["Arcade.sol:Arcade"].bin + ctorArgs, total: 3 },
+    .contracts["Arcade.sol:Arcade"].bin + ctorArgs, total: 2 },
   fe: { create: hex("fe/out/Arcade.bin") + ctorArgs,
     runtime: hex("fe/out/Arcade.runtime.bin"), total: 12 },
   "bug/arcade-O0": { create: hex("bug/arcade-O0/out/Arcade.bin"),
-    runtime: hex("bug/arcade-O0/out/Arcade.runtime.bin"), total: 3 },
+    runtime: hex("bug/arcade-O0/out/Arcade.runtime.bin"), total: 2 },
   "bug/arcade-O2": { create: hex("bug/arcade-O2/out/Arcade.bin"),
-    runtime: hex("bug/arcade-O2/out/Arcade.runtime.bin"), total: 3 },
+    runtime: hex("bug/arcade-O2/out/Arcade.runtime.bin"), total: 2 },
 };
 const out = {};
 const write = (f, v) => fs.writeFileSync(f, JSON.stringify(v));
