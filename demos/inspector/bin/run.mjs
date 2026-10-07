@@ -1768,6 +1768,60 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
     await page.evaluate((x) => window.select("mid", { sel: x }), `${B}.plays`);
     await page.mouse.move(1, 1);
   }
+  // groups expand and collapse by their chevron (a button at the right
+  // end of the row; the row still selects): by click and by keys, with
+  // aria-expanded; a collapsed selection lights its bytes all yellow; a
+  // click on a hidden value's bytes opens the path to it; the dump
+  // never moves
+  {
+    await page.evaluate(() => window.select("mid", { sel: "players" }));
+    await page.mouse.move(1, 1);
+    const chev = (p) => page.locator(`#tree li[data-path="${p}"] > .chev`);
+    const st = () => page.evaluate(() => {
+      const li = document.querySelector('#tree li[data-path="players"]');
+      return { shut: li.classList.contains("collapsed"),
+        aria: li.querySelector(":scope > .chev").getAttribute("aria-expanded"),
+        kids: li.querySelector(":scope > ul").offsetHeight,
+        hues: [...document.querySelectorAll(
+          "#panel .view:not([hidden]) .b.hl")].filter((b) =>
+          /\bpk\d/.test(b.className)).length,
+        lit: document.querySelectorAll("#panel .view:not([hidden]) .b.hl")
+          .length,
+        sel: document.querySelector("#tree .row.sel")?.parentElement
+          .dataset.path,
+        dump: JSON.stringify([...document.querySelectorAll(
+          "#panel .view:not([hidden]) .wrow")].map((r) => {
+          const b = r.getBoundingClientRect();
+          return [b.left, b.top + scrollY].map(Math.round);
+        })) };
+    });
+    const s0 = await st();
+    await chev("players").click();
+    await page.mouse.move(1, 1);
+    const s1 = await st();
+    await chev("players").focus();
+    await page.keyboard.press("Enter");
+    const s2 = await st();
+    await page.keyboard.press(" ");
+    const s3 = await st();
+    // (closed: a click on alice's score bytes selects it and opens the
+    // path to it)
+    await page.evaluate(() => window.select("mid", { sel: null }));
+    await page.locator(`#panel .view:not([hidden]) .b[data-owners="${A}.score"]`)
+      .first().click();
+    const s4 = await st();
+    const ok = !s0.shut && s0.aria === "true" && s0.hues > 0 &&
+      s1.shut && s1.aria === "false" && !s1.kids && !s1.hues &&
+      s1.lit === s0.lit && s1.sel === "players" && s1.dump === s0.dump &&
+      !s2.shut && s2.aria === "true" && s2.hues > 0 && s3.shut &&
+      !s4.shut && s4.sel === `${A}.score` && s4.dump === s0.dump;
+    if (!ok) {
+      problems.push(`expand/collapse: ${JSON.stringify([s0, s1, s2, s3, s4]
+        .map(({ dump, ...x }) => ({ ...x, dump: dump === s0.dump })))}`);
+    }
+    await page.evaluate((x) => window.select("mid", { sel: x }), `${B}.plays`);
+    await page.mouse.move(1, 1);
+  }
   // while it replays, pointing elsewhere changes nothing
   await page.locator('#details button[data-r="start"]').click();
   await page.mouse.move(1, 1);

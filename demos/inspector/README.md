@@ -352,6 +352,21 @@ selected value's declaration is marked (its lines) in the contract's
 source at the top of the page, the one source block. The tree's top padding is set so its first row and
 the dump's first line share a height (`alignColumns()`).
 
+Every group in the tree (an array, a mapping, a struct, an entry)
+shows a summary at the right end of its row (`length 3`, `3 entries`,
+`7 fields`) and a chevron button after it, in one column; the button
+expands or collapses the group (a click on the row still selects). All
+groups start open; the state is kept per scene while on the page. A
+toggle animates the tree's height briefly (at once with reduced
+motion); the dump never moves. Colours are a legend only where their
+rows show: a collapsed selection lights its bytes all in the selection
+yellow, as does a replay step whose coloured rows are hidden. A
+selection or a replay step inside a collapsed group opens the path to
+it. With a composite selected, its children's blocks are the targets:
+a click or hover anywhere in alice's block (in the tree or the dump)
+targets alice's entry; with alice selected, her members are the
+blocks. With nothing selected, the most specific value is the target.
+
 Nothing moves when a value is selected, pointed at or stepped through:
 emphasis is lighting and muting only. The bar (`#details`) is one line
 over both columns, in the page's flow (nothing on the page is sticky

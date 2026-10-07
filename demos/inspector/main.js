@@ -100,18 +100,96 @@ function row(node, top) {
   } else if (node.note) {
     val = `<span class="muted">${esc(node.note)}</span>`;
   }
+  // a group (an array, a mapping, a struct, an entry): its summary at
+  // the right end of its row (an array's length is its value), then its
+  // chevron, a button of its own (a click on the row selects)
+  const group = !!node.children?.length;
+  const n = node.children?.length ?? 0;
+  if (group && !v) {
+    const words = type?.kind === "mapping" ? ["entry", "entries"]
+      : type?.kind === "struct" ? ["field", "fields"] : ["item", "items"];
+    val = `<span class="val sum">${n} ${words[n === 1 ? 0 : 1]}</span>`;
+  }
+  const shut = group && !!collapsed[current.id]?.has(node.path);
+  const chev = group ? `<button type="button" class="chev" aria-expanded="${
+    !shut}" aria-label="${shut ? "Expand" : "Collapse"} ${esc(node.label)}">${
+    shut ? "▸" : "▾"}</button>` : "";
   const kids = node.children?.length
     ? `<ul>${node.children.map((c) => row(c)).join("")}</ul>`
     : node.children && !node.before && !node.after
       ? `<p class="muted empty">no keys hashed in this transaction</p>`
       : "";
   const cls = current.single ? "" : node.changed ? "chg" : "same";
-  return `<li class="${cls}${top ? " top" : ""}"`.replace('class=" ',
-    'class="') +
+  return `<li class="${cls}${top ? " top" : ""}${shut ? " collapsed" : ""}"`
+    .replace('class=" ', 'class="') +
     ` data-path="${esc(node.path)}">` +
     `<div class="row" tabindex="0" role="button" aria-pressed="false">` +
     `<span class="name">${esc(node.label)}</span>` +
-    `<span class="type">${esc(tname)}</span>${val}</div>${kids}</li>`;
+    `<span class="type">${esc(tname)}</span>${val}</div>${chev}${kids}</li>`;
+}
+
+// The groups the reader has collapsed, by scene (all open by default;
+// kept while on the page)
+const collapsed = {};
+// Open or close a group: a deliberate action, so the tree may change
+// (a quick height animation; at once with reduced motion). The dump
+// does not move.
+function setOpen(li, open, animate = true) {
+  const set = (collapsed[current.id] ??= new Set());
+  if (open) set.delete(li.dataset.path);
+  else set.add(li.dataset.path);
+  const btn = li.querySelector(":scope > .chev");
+  btn.setAttribute("aria-expanded", String(open));
+  btn.setAttribute("aria-label", `${open ? "Collapse" : "Expand"} ${
+    li.querySelector(":scope > .row .name").textContent}`);
+  btn.textContent = open ? "▾" : "▸";
+  const ul = li.querySelector(":scope > ul");
+  const done = () => {
+    li.classList.toggle("collapsed", !open);
+    show();
+  };
+  if (!ul || !animate || still()) return done();
+  li.classList.remove("collapsed");
+  const h = ul.scrollHeight;
+  ul.style.overflow = "hidden";
+  ul.animate([{ height: `${open ? 0 : h}px` },
+    { height: `${open ? h : 0}px` }],
+    { duration: 180, easing: open ? "ease-out" : "ease-in" }).finished
+    .then(() => {
+      ul.style.overflow = "";
+      done();
+    });
+  if (open) show();
+}
+// Open the groups a path is inside (a selection or a replay step there)
+function expandTo(path) {
+  let li = path && $("tree").querySelector(
+    `li[data-path="${CSS.escape(path)}"]`);
+  for (li = li?.parentElement.closest("li"); li;
+    li = li.parentElement.closest("li")) {
+    if (li.classList.contains("collapsed")) setOpen(li, true, false);
+  }
+}
+// A colour is a legend only where its rows show: a value whose row is
+// hidden in a collapsed group takes the colour of the row that shows
+// it, or the selection's yellow (0)
+function legend(h) {
+  if (!h?.colors || !$("tree").querySelector("li.collapsed")) return h;
+  const shownAs = (p) => {
+    const li = $("tree").querySelector(`li[data-path="${CSS.escape(p)}"]`);
+    let v = li;
+    for (let a = li?.parentElement.closest("li"); a;
+      a = a.parentElement.closest("li")) {
+      if (a.classList.contains("collapsed")) v = a;
+    }
+    return v?.dataset.path ?? p;
+  };
+  const colors = new Map();
+  for (const [p, k] of h.colors) {
+    const v = shownAs(p);
+    colors.set(p, v === p || h.colors.get(v) === k ? k : 0);
+  }
+  return { ...h, colors };
 }
 
 function renderTree() {
@@ -143,6 +221,7 @@ function alignColumns() {
 
 // Scroll the tree, inside its box only, to show a row
 function treeTo(path) {
+  expandTo(path);
   const tree = $("tree");
   const li = path && tree.querySelector(`li[data-path="${CSS.escape(path)}"]` +
     " > .row");
@@ -1425,7 +1504,8 @@ const PROBE = "Point at a value or a byte for its details.";
 function show() {
   const sel = chosen ? forRow(current.panel, chosen) : null;
   // a replay shows its step, whatever the pointer is on
-  const h = replay ? stepLight(replay.steps[replay.i]) : hover ?? sel;
+  const h = legend(replay ? stepLight(replay.steps[replay.i])
+    : hover ?? sel);
   // (the selected row first: paint's merged blocks depend on it)
   for (const r of $("tree").querySelectorAll("li[data-path] > .row")) {
     const on = r.parentElement.dataset.path === chosen;
@@ -1650,6 +1730,9 @@ document.addEventListener("click", (e) => {
     applyMode();
     return keep();
   }
+  const cv = t.closest("#tree .chev");
+  if (cv) return setOpen(cv.parentElement, cv.getAttribute(
+    "aria-expanded") !== "true");
   const fb = t.closest("#dpick button[data-focus]");
   if (fb) return setFocus(fb.dataset.focus);
   const chip = t.closest("#chips .chip");
@@ -1707,6 +1790,7 @@ document.addEventListener("keydown", (e) => {
     e.preventDefault();
     return flip(h);
   }
+  if (e.target.closest?.(".chev")) return;
   if (e.target.closest?.("#tree .row, #panel .b[tabindex]") ||
     baseRow(e.target)) {
     e.preventDefault();
