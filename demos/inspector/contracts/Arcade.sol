@@ -11,11 +11,11 @@ contract Arcade {
         uint64 lastBlock;   // ┘ when they last played
         string name;        //   the next slot
     }
-    mapping(address => Player) public players;
     address[] public roster;   // everyone who has joined (a mapping can't list its keys)
     string public motd;        // the server's message of the day
     uint128 public total;      // all players' points, packed with
     uint64 public rounds;      //   the number of hits
+    mapping(address => Player) public players;
     constructor(string memory m) { motd = m; }
     function join(string calldata name) external {   // pick a name, once
         require(bytes(name).length > 0 && bytes(players[msg.sender].name).length == 0);

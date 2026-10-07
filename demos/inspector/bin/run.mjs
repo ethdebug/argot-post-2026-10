@@ -17,7 +17,7 @@ const shot = (name) => path.join(root, "screenshots", name);
 const A = "players[0x70997970c51812dc3a010c7d01b50e0d17dc79c8]";
 const B = "players[0x3c44cdddb6a900fa2b585dd299e03d12fa4293bc]";
 const C = "players[0x90f79bf6eb2c4f870365e785982e1f101e93b906]";
-const MOTD = ["gl hf", "season 2 starts friday, see you on the leaderboard"];
+const MOTD = ["season 2 starts friday, see you on the leaderboard", "gl hf"];
 // [path, before, after] for each scene, from the story in
 // bin/make-fixtures.mjs. A scene with one point shows the same state on
 // both sides.
@@ -128,6 +128,14 @@ if (!sizesCurrent()) {
   if (pre !== fs.readFileSync(path.join(root, "contracts", "Arcade.sol"),
     "utf8")) {
     console.log("index.html: the contract differs from contracts/Arcade.sol");
+    failed++;
+  }
+}
+// No native tooltips: no title attribute in the page's markup or code
+for (const f of ["index.html", "main.js", "panel.js", "mem.js",
+  "calldata.js"]) {
+  if (/\stitle="/.test(fs.readFileSync(path.join(root, f), "utf8"))) {
+    console.log(`${f} sets a title attribute`);
     failed++;
   }
 }
@@ -492,7 +500,7 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
   // the details of the selected value, under the dump
   const fd = await dl();
   if (fd.Value !== `players[0x7099…79c8].plays (uint32)` ||
-    !/^slot …d101 \(keccak\(0x7099…79c8, slot 0\)\), bytes 12–15$/
+    !/^slot …aa80 \(keccak\(0x7099…79c8, slot 3\)\), bytes 12–15$/
       .test(fd.Where) || fd.Before !== "2 (0x00000002)" ||
     fd.After !== "3 (0x00000003)" || fd.scrolls) {
     problems.push(`details plays: ${JSON.stringify(fd)}`);
@@ -563,12 +571,12 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
   const slotNames = () => page.locator("#panel .wrow[data-name]")
     .evaluateAll((rs) => [...new Set(rs.map((r) => r.dataset.name))]);
   let named = await slotNames();
-  if (!named.includes("keccak(slot 1) + 1") || !named.includes("slot 3") ||
-    !named.includes("keccak(0x7099…79c8, slot 0)")) {
+  if (!named.includes("keccak(slot 0) + 1") || !named.includes("slot 2") ||
+    !named.includes("keccak(0x7099…79c8, slot 3)")) {
     problems.push(`combo slots: ${named}`);
   }
-  // slot 3 holds rounds, then total, in byte order
-  const slot3 = "0x" + "0".repeat(63) + "3";
+  // slot 2 holds rounds, then total, in byte order
+  const slot3 = "0x" + "0".repeat(63) + "2";
   const owners = await page.locator('#panel .word[data-side="after"]' +
     `[data-slot="${slot3}"] .b[data-owners]`).evaluateAll((cs) =>
     [...new Set(cs.map((c) => c.dataset.owners))]);
@@ -608,14 +616,14 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
     problems.push(`dimming: ${JSON.stringify(dim)}`);
   }
   const info = await dl();
-  if (info.Value !== "rounds (uint64)" || info.Where !== "slot 3, bytes 8–15" ||
+  if (info.Value !== "rounds (uint64)" || info.Where !== "slot 2, bytes 8–15" ||
     info.Before !== "3 (0x0000000000000003)" ||
     info.After !== "4 (0x0000000000000004)" ||
     info.scrolls) problems.push(`details rounds: ${JSON.stringify(info)}`);
-  // and a popover at slot 3's address, in the dump shown
+  // and a popover at slot 2's address, in the dump shown
   const pops = () => page.locator("#panel .pop").allInnerTexts();
   let pp0 = await pops();
-  if (pp0.join("|") !== "slot 3 · read, written") {
+  if (pp0.join("|") !== "slot 2 · read, written") {
     problems.push(`pops rounds: ${pp0}`);
   }
   pp0 = [];
@@ -646,11 +654,11 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
   await page.locator(`#panel .word[data-side="after"][data-slot="${slot3}"]` +
     ' .b[data-i="31"]').hover();
   const one = await dl();
-  if (one.Value !== "total (uint128)" || one.Where !== "slot 3, bytes 16–31" ||
+  if (one.Value !== "total (uint128)" || one.Where !== "slot 2, bytes 16–31" ||
     one.Holds !== "40 (0x…000028)" || "Before" in one || "After" in one) {
     problems.push(`one point details: ${JSON.stringify(one)}`);
   }
-  if ((await pops()).join("|") !== "slot 3") {
+  if ((await pops()).join("|") !== "slot 2") {
     problems.push(`one point pops: ${await pops()}`);
   }
   if (await page.locator("#panel .cmp, #tree .tcard").count()) {
@@ -695,12 +703,23 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
         const hit = (a, b) => a.left < b.right - 0.5 &&
           b.left < a.right - 0.5 && a.top < b.bottom - 0.5 &&
           b.top < a.bottom - 0.5;
+        // (a popover may cover unlit rows, not lit bytes, a lit row's
+        // address or another popover)
         const v = document.querySelector('#panel .view:not([hidden])');
-        for (const pop of v.querySelectorAll(".pop")) {
+        const pops = [...v.querySelectorAll(".pop")];
+        for (const pop of pops) {
           const own = pop.closest(".wrow");
-          for (const a of v.querySelectorAll(".rows > .wrow > .addr .a")) {
-            if (a.closest(".wrow") !== own && hit(pop.getBoundingClientRect(),
-              a.getBoundingClientRect())) out.push(`pop on ${a.textContent}`);
+          const r = pop.getBoundingClientRect();
+          for (const a of v.querySelectorAll(".rows > .wrow.on > .addr .a, " +
+            ".rows > .wrow > .word .b.hl")) {
+            if (a.closest(".wrow") !== own && hit(r, a.getBoundingClientRect())) {
+              out.push(`pop on ${a.textContent}`);
+            }
+          }
+          for (const q of pops) {
+            if (q !== pop && hit(r, q.getBoundingClientRect())) {
+              out.push("pop on pop");
+            }
           }
         }
         return out;
@@ -710,7 +729,7 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
     }
   }
 
-  // A string outgrows its slot. Short: the data and the length byte
+  // A string moves into its slot. Short: the data and the length byte
   // share the string's slot. Long: the slot holds the length word, and
   // the data lives at keccak(slot) on. Slots are named here as the page
   // names them (from the template's defines).
@@ -720,9 +739,9 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
     rs.map((r) => [r.dataset.slot, r.dataset.name])));
   {
     const sides = {
-      before: { "slot 2": [...range(0, 4), 31] },
-      after: { "slot 2": range(0, 31), "keccak(slot 2)": range(0, 31),
-        "keccak(slot 2) + 1": range(0, 17) },
+      before: { "slot 1": range(0, 31), "keccak(slot 1)": range(0, 31),
+        "keccak(slot 1) + 1": range(0, 17) },
+      after: { "slot 1": [...range(0, 4), 31] },
     };
     await page.locator('#tree li[data-path="motd"] > .row').hover();
     const named = {};
@@ -737,18 +756,23 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
       problems.push(`motd bytes: ${JSON.stringify(named)}`);
     }
   }
-  // A slot used only in the other state is marked: the long data run in
-  // the Before dump
-  await setMode("before");
+  // A slot used only in the other state is marked: the old data run in
+  // the After dump (zeroed by solc)
+  await setMode("after");
   await page.locator('#tree li[data-path="motd"] > .row').hover();
   const only = await page.evaluate(() => [...document.querySelectorAll(
-    '#panel .view[data-side="before"] .wrow.only')].map((r) =>
+    '#panel .view[data-side="after"] .wrow.only')].map((r) =>
     r.dataset.slot));
+  const zeroed = await page.evaluate(() => [...document.querySelectorAll(
+    '#panel .view[data-side="after"] .wrow.only > .word')].every((w) =>
+    [...w.querySelectorAll(".b")].every((c) => c.textContent === "00")));
+  if (!zeroed) problems.push("motd: the old data is not zeroed After");
+  await setMode("before");
   if (only.map((x) => names[x]).join() !==
-    "keccak(slot 2),keccak(slot 2) + 1") {
+    "keccak(slot 1),keccak(slot 1) + 1") {
     problems.push(`motd only: ${only.map((x) => names[x])}`);
   }
-  // In Before, both runs (slot 2, lit; its new data, used only After)
+  // In Before, both runs (slot 1 and its long data, both lit)
   // get their derivation label; no popover or card covers a lit row's
   // address label
   await page.locator('#tree li[data-path="motd"] > .row').click();
@@ -773,8 +797,8 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
       covered };
   });
   if (labelled.pops.length !== 2 ||
-    !labelled.pops.some((t) => t.startsWith("slot 2")) ||
-    !labelled.pops.some((t) => t.startsWith("keccak(slot 2) + 0 … + 1")) ||
+    !labelled.pops.some((t) => t.startsWith("slot 1")) ||
+    !labelled.pops.some((t) => t.startsWith("keccak(slot 1), 2 slots")) ||
     labelled.covered.length) {
     problems.push(`motd labels: ${JSON.stringify(labelled)}`);
   }
@@ -846,8 +870,8 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
   // the long data is a run of two consecutive slots, with no gap
   const run = await page.locator('#panel .view[data-side="after"] .rows')
     .evaluate((r) => [...r.children].map((c) => c.dataset.name ?? "gap"));
-  const k0 = run.indexOf("keccak(slot 2)");
-  if (k0 < 0 || run[k0 + 1] !== "keccak(slot 2) + 1") {
+  const k0 = run.indexOf("keccak(slot 1)");
+  if (k0 < 0 || run[k0 + 1] !== "keccak(slot 1) + 1") {
     problems.push(`motd run: ${run}`);
   }
 
@@ -867,7 +891,7 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
   await page.locator(`#tree li[data-path="${A}.combo"] > .row`).hover();
   pp0 = await pops();
   if (pp0.length !== 1 || !pp0[0].startsWith(
-    "keccak(0x7099…79c8, slot 0) · read, written")) {
+    "keccak(0x7099…79c8, slot 3) · read, written")) {
     problems.push(`pops combo: ${pp0}`);
   }
   // each popover's left edge is at the gutter's, its arrow at its
@@ -948,9 +972,9 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
     })));
   // (relative to the panel: hovering a tree row may scroll the page)
   const tops = () => page.locator("#panel .wrow:not(.cmp *)")
-    .evaluateAll((rs) => rs.map((r) => Math.round(r.getBoundingClientRect()
-      .top - document.querySelector("#panel").getBoundingClientRect().top))
-      .join());
+    .evaluateAll((rs) => rs.filter((r) => r.offsetHeight).map((r) =>
+      Math.round(r.getBoundingClientRect().top - document.querySelector(
+        "#panel").getBoundingClientRect().top)).join());
   const clashes = () => page.evaluate(() => {
     const hit = (a, b) => a.left < b.right - 0.5 && b.left < a.right - 0.5 &&
       a.top < b.bottom - 0.5 && b.top < a.bottom - 0.5;
@@ -1018,7 +1042,9 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
     }
     const c = await clashes();
     if (c.length) problems.push(`${m}: clashes: ${c}`);
-    if (await tops() !== rest) problems.push(`${m}: rows moved while lit`);
+    if (await tops() !== rest) {
+      problems.push(`${m}: rows moved while lit: ${rest} -> ${await tops()}`);
+    }
     const litBoxes = await boxes();
     if (litBoxes !== restBoxes) {
       problems.push(`${m}: a box changed size while lit: ${restBoxes} ` +
@@ -1067,7 +1093,10 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
         c.classList.contains("gap") ? "gap" : c.dataset.slot));
     const want = [];
     n.forEach((x, k) => {
-      if (k === 0 || x !== n[k - 1] + 1n) want.push("gap");
+      // (no gap line before slot 0)
+      if ((k === 0 && x !== 0n) || (k && x !== n[k - 1] + 1n)) {
+        want.push("gap");
+      }
       want.push(b[k]);
     });
     want.push("gap");
@@ -1103,7 +1132,7 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
     problems.push(...l.out.map((x) => `${width}: ${x}`));
     if (l.scrolls) problems.push(`${width}: words scroll sideways`);
   }
-  // The first scene, as its intro asks: a click on a byte of slot 3
+  // The first scene, as its intro asks: a click on a byte of slot 2
   await page.locator('#picker button[data-id="mid"]').click();
   await page.locator('#panel .word[data-side="after"] ' +
     '.b[data-owners="total"][data-i="31"]').click();
@@ -1274,11 +1303,11 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
   await row("motd").click();
   let fk = await forkOf();
   if (fk.shared !== 4 || fk.evals.length !== 2 ||
-    !/^before .* → then$/.test(fk.evals[0]) ||
-    !/^after .* → else$/.test(fk.evals[1]) ||
+    !/^before .* → else$/.test(fk.evals[0]) ||
+    !/^after .* → then$/.test(fk.evals[1]) ||
     fk.branches.length !== 2 || !fk.branches[0].cls.includes("mine") ||
-    fk.branches[0].head !== "after · else (long-string layout)" ||
-    fk.branches[1].head !== "before · then (short-string layout)" ||
+    fk.branches[0].head !== "after · then (short-string layout)" ||
+    fk.branches[1].head !== "before · else (long-string layout)" ||
     fk.branches.some((b) => b.start !== "5") ||
     fk.branches[0].result !== "after" || fk.branches[1].result !== "before") {
     problems.push(`motd fork (after): ${JSON.stringify(fk)}`);
@@ -1286,7 +1315,7 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
   // in Before, the before branch comes first
   await setMode("before");
   fk = await forkOf();
-  if (fk.branches[0]?.head !== "before · then (short-string layout)" ||
+  if (fk.branches[0]?.head !== "before · else (long-string layout)" ||
     fk.branches[0]?.result !== "before") {
     problems.push(`motd fork (before): ${JSON.stringify(fk)}`);
   }
@@ -1298,24 +1327,25 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
   }
   await page.locator("#insets").check();
   await setMode("after");
-  // the result of this state's branch: the long data, after; slot 2,
+  // the result of this state's branch: slot 1, after; the long data,
   // before
   const result = () => page.locator("#how li.final").first().evaluate((l) =>
     [l.dataset.side, JSON.parse(l.dataset.region).slot]);
   let [rs, slot] = await result();
-  if (rs !== "after" || !slot.startsWith("0x4057") ||
-    !(await how()).includes("so take else")) {
+  if (rs !== "after" || BigInt(slot) !== 1n ||
+    !(await how()).includes("so take then")) {
     problems.push(`motd after: ${rs} ${slot}`);
   }
   await setMode("before");
   [rs, slot] = await result();
-  if (rs !== "before" || BigInt(slot) !== 2n ||
-    !(await how()).includes("so take then")) {
+  if (rs !== "before" || !slot.startsWith("0xb10e") ||
+    !(await how()).includes("so take else")) {
     problems.push(`motd before: ${rs} ${slot}`);
   }
   // hovering the result lights the before bytes now
   await page.locator("#how li.final").first().hover();
-  const gl = Object.keys(await lit()).map((k) => k.split(" ")[0]);
+  const gl = [...new Set(Object.keys(await lit()).map((k) =>
+    k.split(" ")[0]))];
   if (gl.join() !== "before") problems.push(`motd result lit: ${gl}`);
   await setMode("after");
   await page.keyboard.press("Escape");
@@ -1336,7 +1366,7 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
     const c = await cdl();
     if (c.chosen !== "m-length") problems.push(`calldata byte: ${c.chosen}`);
     const cdetails = await dl("#cdetails");
-    if (cdetails.Holds !== "50" ||
+    if (cdetails.Holds !== "5" ||
       cdetails.Where !== "bytes 0x0024–0x0043") {
       problems.push(`calldata details: ${JSON.stringify(cdetails)}`);
     }
@@ -1344,7 +1374,7 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
     await page.locator('#ctree li[data-part="m"] > .row').hover();
     const cl = await page.evaluate(() => [...document.querySelectorAll(
       "#cpanel .b.hl")].map((b) => +b.dataset.i));
-    if (cl.join() !== range(4, 117).join()) {
+    if (cl.join() !== range(4, 72).join()) {
       problems.push(`calldata m lit: ${cl.length}`);
     }
     if (!(await page.locator("#chow").textContent()).includes(
@@ -1369,7 +1399,7 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
     }
   }
 
-  // Three players: each record at its own keccak(address, slot 0), far
+  // Three players: each record at its own keccak(address, slot 3), far
   // apart, its name in the next slot (carol's long name's bytes at
   // keccak of that slot); the mapping's row lights them all, a byte
   // selects its player's field
@@ -1382,10 +1412,10 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
     k.startsWith("after ")).map((k) => tnames[k.split(" ")[1]]).sort();
   const wantThree = [];
   for (const k of ["0x3c44…93bc", "0x7099…79c8", "0x90f7…b906"]) {
-    wantThree.push(`keccak(${k}, slot 0)`, `keccak(${k}, slot 0) + 1`);
+    wantThree.push(`keccak(${k}, slot 3)`, `keccak(${k}, slot 3) + 1`);
   }
-  wantThree.push("keccak(keccak(0x90f7…b906, slot 0) + 1)",
-    "keccak(keccak(0x90f7…b906, slot 0) + 1) + 1");
+  wantThree.push("keccak(keccak(0x90f7…b906, slot 3) + 1)",
+    "keccak(keccak(0x90f7…b906, slot 3) + 1) + 1");
   if (three.join() !== wantThree.sort().join()) {
     problems.push(`three players: ${three}`);
   }
@@ -1507,8 +1537,8 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
     for (const p of pops) {
       const r = p.getBoundingClientRect();
       const own = p.closest(".wrow");
-      for (const e of v.querySelectorAll(".rows > .wrow > .addr .a, " +
-        ".rows > .wrow > .word .b")) {
+      for (const e of v.querySelectorAll(".rows > .wrow.on > .addr .a, " +
+        ".rows > .wrow > .word .b.hl")) {
         if (e.closest(".wrow") !== own && hit(r, e.getBoundingClientRect())) {
           cover.push(`${p.textContent.slice(0, 20)} on ${e.textContent}`);
         }
@@ -1518,15 +1548,18 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
       .sort(), tray: document.querySelectorAll("#panel .tray, .pinned")
       .length, cover: cover.slice(0, 3) };
   });
+  if (room.pops.some((t) => t.includes("… +"))) {
+    problems.push(`a range in a label: ${room.pops}`);
+  }
   if (room.tray || room.cover.length || room.pops.join("|") !== [
-    "keccak(0x3c44…93bc, slot 0) + 0 … + 1",
-    "keccak(0x7099…79c8, slot 0) + 0 … + 1",
-    "keccak(0x90f7…b906, slot 0) + 0 … + 1",
-    "keccak(keccak(0x90f7…b906, slot 0) + 1) + 0 … + 1"].join("|")) {
+    "keccak(0x3c44…93bc, slot 3), 2 slots",
+    "keccak(0x7099…79c8, slot 3), 2 slots",
+    "keccak(0x90f7…b906, slot 3), 2 slots",
+    "keccak(keccak(0x90f7…b906, slot 3) + 1), 2 slots"].join("|")) {
     problems.push(`popover room: ${JSON.stringify(room)}`);
   }
   await page.keyboard.press("Escape");
-  // a byte of bob's record selects its field; the roster at keccak(slot 1)
+  // a byte of bob's record selects its field; the roster at keccak(slot 0)
   await page.locator(`#panel .word[data-side="after"] ` +
     `.b[data-owners="${B}.score"][data-i="31"]`).click();
   await page.locator("h1").hover();
@@ -1537,10 +1570,27 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
   await page.locator('#tree li[data-path="roster[2]"] > .row').hover();
   const rl = Object.keys(await lit()).filter((k) => k.startsWith("after "))
     .map((k) => tnames[k.split(" ")[1]]);
-  if (rl.join() !== "keccak(slot 1) + 2") problems.push(`roster[2]: ${rl}`);
+  if (rl.join() !== "keccak(slot 0) + 2") problems.push(`roster[2]: ${rl}`);
+  // roster[1], selected: the middle of the roster's run, with no gap
+  // line beside it; its popover sits on the unlit row under it
+  await page.locator('#tree li[data-path="roster[1]"] > .row').click();
+  await page.mouse.move(1, 1);
+  const r1 = await page.evaluate(() => {
+    const v = document.querySelector('#panel .view:not([hidden])');
+    const pop = v.querySelector(".pop");
+    if (!pop) return "none";
+    const hit = (a, b) => a.left < b.right - 0.5 && b.left < a.right - 0.5 &&
+      a.top < b.bottom - 0.5 && b.top < a.bottom - 0.5;
+    const r = pop.getBoundingClientRect();
+    const on = [...v.querySelectorAll(".b.hl")].some((c) =>
+      hit(r, c.getBoundingClientRect()));
+    return `${pop.textContent}${on ? " on lit" : ""}`;
+  });
+  if (r1 !== "keccak(slot 0) + 1") problems.push(`roster[1] popover: ${r1}`);
+  await page.keyboard.press("Escape");
 
-  // Vyper: Solidity's rule reads nothing at keccak(key . slot 0) for any
-  // player; Vyper's own words, keccak(slot 0 . key) + 0 … (the six
+  // Vyper: Solidity's rule reads nothing at keccak(key . slot 3) for any
+  // player; Vyper's own words, keccak(slot 108 . key) and on (the six
   // counters, the name's length, its bytes), hold the real values, and
   // no value shown owns them. "How this was found" lists the selected
   // player's, and each lights its word.
@@ -1556,10 +1606,10 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
     ["0x7099…79c8", ["1e", "02", "02", "02", "02"], "05"],
     ["0x3c44…93bc", ["0a", "01", "01", "01", "01"], "03"],
     ["0x90f7…b906", ["00", "00", "00", "01", "00"], "22"]]) {
-    const n = (k) => `Vyper's keccak(slot 0, ${key})${k ? ` + ${k}` : ""}`;
+    const n = (k) => `Vyper's keccak(slot 108, ${key})${k ? ` + ${k}` : ""}`;
     const bad = [...vals.map((x, k) => [n(k), `${x} 32`]),
       [n(6), `${len} 32`]].filter(([k, v]) => vy[k] !== v);
-    if (bad.length || !(`keccak(${key}, slot 0)` in vy)) {
+    if (bad.length || !(`keccak(${key}, slot 3)` in vy)) {
       problems.push(`vyper words ${key}: ${JSON.stringify(bad)}`);
     }
   }
@@ -1569,7 +1619,7 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
       .test(text) || !text.includes("→ 0")) {
     problems.push(`vyper how: ${text.slice(-300)}`);
   }
-  const vslot = "0xd3a93e7218b271cb9ca81fec1cdfcf6e7686ea0002660580b37e3bb93bc52785";
+  const vslot = "0xb30699257deee3310afa7d2dbc412cc509c9ed82f6154467e3c1401f09460446";
   await page.locator("#how ol.vyper li").first().hover();
   const vlit = await lit();
   if (Object.keys(vlit).join() !== `after ${vslot}` ||
@@ -1579,9 +1629,9 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
   // (its popover may have no room: the Vyper words are next to each
   // other; the details name the slot)
   const vp = (await pops()).join();
-  if ((vp && vp !== "Vyper's keccak(slot 0, 0x7099…79c8)") ||
+  if ((vp && vp !== "Vyper's keccak(slot 108, 0x7099…79c8)") ||
     !(await page.locator("#details").innerText()).includes(
-      "Vyper's keccak(slot 0, 0x7099…79c8)")) {
+      "Vyper's keccak(slot 108, 0x7099…79c8)")) {
     problems.push(`vyper pops: ${vp}`);
   }
   // carol, selected: her Vyper words, her long name over two words
@@ -1942,7 +1992,7 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
       await vbox()}`);
   }
   const phoneLit = await pp.locator("#panel .b.hl:not(.cmp *)").count();
-  // before: 5 bytes of "gl hf" and its length byte; after: the
+  // after: 5 bytes of "gl hf" and its length byte; before: the
   // long-length word (holds the flag byte) and 50 bytes of data across
   // two slots
   if (phoneLit !== 6 + 32 + 50) {
@@ -1981,6 +2031,26 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
   problems.push(...await retryCheck(browser,
     "fixtures/arcade-mid.json", { via: "#tree .error button" }));
   if (name === "chromium") problems.push(...await slowLink(browser));
+  // slot 0, when shown, is the first line of the dump, at the top of
+  // its box (no gap line, no extra space above it)
+  await scene("mid");
+  const top0 = await page.evaluate(() => {
+    const rows = document.querySelector("#panel .view:not([hidden]) .rows");
+    const first = rows.firstElementChild;
+    return [first.dataset.slot ?? first.className,
+      Math.round(first.getBoundingClientRect().top -
+        rows.getBoundingClientRect().top)];
+  });
+  // (only the box's border and padding, 5 px, above it)
+  if (BigInt(top0[0] ?? 1) !== 0n || top0[1] > 6) {
+    problems.push(`slot 0 at the top: ${top0}`);
+  }
+  // and no title in the rendered page either
+  for (const pg of [page]) {
+    const n = await pg.evaluate(() =>
+      document.querySelectorAll("[title]").length);
+    if (n) problems.push(`${n} elements with a title`);
+  }
   problems.push(...logs, ...foreign.map((u) => `foreign ${u}`));
 
   console.log(`${name} ${browser.version()}: ${problems.length

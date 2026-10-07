@@ -99,10 +99,10 @@ end of the body fetches the decoder and the data. -->
     the next slot; <code>roster</code> lists who joined, since a mapping
     cannot list its keys; <code>total</code> and <code>rounds</code>
     count all points and hits; <code>setMotd</code> sets the message of
-    the day. The story: deploy with motd "gl hf"; alice, bob and carol
+    the day. The story: deploy with a 50-byte motd; alice, bob and carol
     join; alice hits twice, bob hits, carol misses (the middle of the
-    game); alice hits a third time; then a long motd. Each player is an
-    anvil account.</p>
+    game); alice hits a third time; then the motd becomes "gl hf". Each
+    player is an anvil account.</p>
     <!-- the contract's source (bin/make-fixtures.mjs writes it; bin/run.mjs
     checks that it matches); collapsed by default, open or closed as the
     viewer left it (localStorage) -->
@@ -122,11 +122,11 @@ contract Arcade {
         uint64 lastBlock;   // ┘ when they last played
         string name;        //   the next slot
     }
-    mapping(address =&gt; Player) public players;
     address[] public roster;   // everyone who has joined (a mapping can't list its keys)
     string public motd;        // the server's message of the day
     uint128 public total;      // all players' points, packed with
     uint64 public rounds;      //   the number of hits
+    mapping(address =&gt; Player) public players;
     constructor(string memory m) { motd = m; }
     function join(string calldata name) external {   // pick a name, once
         require(bytes(name).length &gt; 0 &amp;&amp; bytes(players[msg.sender].name).length == 0);
@@ -169,7 +169,7 @@ contract Arcade {
       <button role="radio" data-id="alice"
         data-fixture="arcade-alice">Alice plays</button>
       <button role="radio" data-id="motd"
-        data-fixture="arcade-motd">The message of the day</button>
+        data-fixture="arcade-motd">A string moves into its slot</button>
       <button role="radio" data-id="vyper" data-fixture="arcade-vyper"
         data-single>Vyper reads it differently</button></div>
     <!-- one intro per scene (fixtures/index.json); the loader shows the
@@ -178,13 +178,14 @@ contract Arcade {
       <p data-scene="mid" hidden>The game, halfway: alice, bob and carol
       have joined and played. Each player's record is found by hashing
       the player's address with the mapping's slot,
-      keccak256(address . slot 0), so the three records land far apart.
+      keccak256(address . slot 3), so the three records land far apart.
       Each is one word with six counters packed in it: click any byte to
       find its field, or a field to find its bytes. The name is in the
       next slot: alice's and bob's fit in it; carol's is 34 bytes, so its
       bytes move to keccak256(that slot). <code>roster</code> keeps its
-      length in slot 1 and its items from keccak256(slot 1);
-      <code>total</code> and <code>rounds</code> share slot 3. alice's
+      length in slot 0 and its items from keccak256(slot 0);
+      <code>motd</code> is slot 1; <code>total</code> and
+      <code>rounds</code> share slot 2. alice's
       record is selected.</p>
       <p data-scene="alice" hidden>alice hits a third time: combo 3, so
       she scores 10 × 3 = 30. In her one slot, score goes from 30 to 60,
@@ -193,20 +194,24 @@ contract Arcade {
       <code>rounds</code> from 3 to 4. Before is the middle of the game,
       After is after her hit. Beside the lit word, a card shows it in the
       other state.</p>
-      <p data-scene="motd" hidden><code>setMotd</code> replaces the
-      5-byte "gl hf" with a 50-byte message. A string of 31 bytes or less
-      lives in its slot, with 2 × its length in the last byte. A longer
-      string keeps only 2 × its length + 1 in its slot, and its bytes
-      move to keccak256(slot 2) and the slots after it. "How this was
-      found" shows where the two rules part. The calldata of the call is
-      under the storage.</p>
+      <p data-scene="motd" hidden>Arcade was deployed with a 50-byte
+      message of the day. A string that long keeps only 2 × its length + 1
+      in its slot, slot 1, and its bytes at keccak256(slot 1) and the slot
+      after it. <code>setMotd("gl hf")</code> makes it 5 bytes: short
+      enough that Solidity stores it in slot 1 itself, its bytes from the
+      high end and 2 × its length in the last byte. solc writes zeros to
+      the two old data slots; they are in the dump After. "How this was
+      found" shows where the two rules part. The call's calldata is under
+      the storage.</p>
       <p data-scene="vyper" hidden>The same three players, in the same
       game compiled by Vyper 0.4.3 (<code>contracts/Arcade.vy</code>), at
       the same middle of the game. The rule from the first scene,
-      keccak256(address . slot 0), is Solidity's; it finds nothing here:
+      keccak256(address . slot 3), is Solidity's; it finds nothing here:
       the tree shows each player with zeros and no name, with no error.
-      Vyper hashes the slot first, keccak256(slot 0 . address), and puts
-      each counter in its own slot, then the name's length and bytes. So
+      Vyper does not pack and keeps its arrays inline, so its
+      <code>players</code> is slot 108, not 3; it hashes the slot first,
+      keccak256(108 . address), and puts each counter in its own slot,
+      then the name's length and bytes. So
       the real records sit elsewhere: those words are in the dump, and no
       value shown owns them. Vyper emits no ethdebug, so the page has no
       rule from Vyper; "How this was found" lists the selected player's
@@ -389,6 +394,8 @@ contract Arcade {
     </div>
 
     <ul class="mknown small muted">
+      <li>"not listed": bugc's variables context at that point does not
+      list the variable.</li>
       <li>Memory is not freed: after the replace, the old string's
       bytes are still in memory, but no value owns them, so they are
       dim.</li>
@@ -411,11 +418,11 @@ contract Arcade {
   const SIZES = /* sizes */{
     "vendor/pointers.js": 278654,
     "vendor/shiki.js": 201406,
-    "fixtures/arcade-alice.json": 17062,
-    "fixtures/arcade-mid.json": 13673,
-    "fixtures/arcade-motd.json": 13131,
-    "fixtures/arcade-vyper.json": 19528,
-    "fixtures/index.json": 1512,
+    "fixtures/arcade-alice.json": 17514,
+    "fixtures/arcade-mid.json": 14125,
+    "fixtures/arcade-motd.json": 13316,
+    "fixtures/arcade-vyper.json": 19541,
+    "fixtures/index.json": 1594,
     "fixtures/memory.json": 8154
   }/* end sizes */;
   const bar = document.getElementById("loadbar");

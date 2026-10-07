@@ -26,7 +26,7 @@ function hex(h, keep = 10) {
   if (h.length <= keep * 2 + 6) return `<span class="hex">${esc(h)}</span>`;
   const short = `${h.slice(0, keep)}…${h.slice(-keep + 2)}`;
   return `<span class="hex short" data-full="${esc(h)}"` +
-    ` data-short="${esc(short)}" title="${esc(h)}" tabindex="0">` +
+    ` data-short="${esc(short)}" aria-label="${esc(h)}" tabindex="0">` +
     `${esc(short)}</span>`;
 }
 
@@ -306,9 +306,10 @@ function vyperRule(node, side) {
       : `${hex(e.slot, 14)}: `}<code>${esc(m.name)}</code> = <b>${
       esc(m.text)}</b></div></li>`;
   return `<p class="howside">Vyper's rule, for contrast: not from
-    ethdebug (Vyper emits none). Vyper hashes the slot first,
-    <code>keccak256(slot 0 . key)</code>, and puts each member in its own
-    slot, the name's length and bytes after them.</p>
+    ethdebug (Vyper emits none). Vyper's <code>players</code> is slot
+    ${esc(vy.base)}; it hashes the slot first,
+    <code>keccak256(slot ${esc(vy.base)} . key)</code>, and puts each member
+    in its own slot, the name's length and bytes after them.</p>
     <ol class="steps vyper">${e.members.map(item).join("")}</ol>`;
 }
 
@@ -718,7 +719,7 @@ function vyperNames(f) {
   const vy = f.vyper;
   if (!vy) return undefined;
   return Object.fromEntries(vy.entries.flatMap(({ key, members }) =>
-    members.map(({ slot }, k) => [slot, `Vyper's keccak(slot 0, 0x${
+    members.map(({ slot }, k) => [slot, `Vyper's keccak(slot ${vy.base}, 0x${
       key.slice(2, 6)}…${key.slice(-4)})${k ? ` + ${k}` : ""}`])));
 }
 

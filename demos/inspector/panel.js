@@ -335,7 +335,10 @@ export function renderPanel(m) {
       // a gap line where the addresses jump; and room for a popover
       // before a hashed slot that starts a value right after another
       // slot (a "room" line, with no "⋯")
-      if (k === 0 || x.n !== prev.n + 1n) lines.push(gap);
+      // (nothing comes before slot 0: no line at all)
+      if (k === 0 && x.n === 0n) {
+        // slot 0 at the top
+      } else if (k === 0 || x.n !== prev.n + 1n) lines.push(gap);
       else if (!/^slot \d+$|\+ \d+$/.test(x.name)) lines.push(room);
       const what = `${x.name}${x.name.startsWith("slot") ? "" : ` (slot ${
         short(x.s)})`}${x.facts ? `; ${x.facts}` : ""}`;
@@ -344,9 +347,10 @@ export function renderPanel(m) {
         ` data-slot="${x.s}" data-name="${esc(x.name)}"` +
         ` data-facts="${esc(x.facts)}"${x.name === slotRef(x.s) ? ""
           : ` data-full="= ${x.s}"`}>` +
-        `<span class="addr" tabindex="0" title="${esc(`${x.s}\n${what}`)}"` +
-        ` aria-label="${esc(what)}">${x.ring ? `<span class="ring"` +
-          ` title="written, same value"></span>` : ""}<span class="a">${
+        `<span class="addr" tabindex="0"` +
+        ` aria-label="${esc(`${x.s}; ${what}`)}">${x.ring
+          ? `<span class="ring"` +
+          ` aria-label="written, same value"></span>` : ""}<span class="a">${
           tail(x.s)}</span></span>` +
         wordHtml(m, x.s, side, x.tint, x.name) + `</div>`);
     });
@@ -643,7 +647,7 @@ function runs(view) {
 }
 
 // One name for a run of slots: "slot 0", "slots 0–2",
-// "keccak(slot 0) + 0 … + 1", or the names in turn
+// "keccak(slot 0), 2 slots", or the names in turn
 function runName(rows) {
   const names = rows.map((r) => r.dataset.name);
   if (names.length === 1) return names[0];
@@ -654,7 +658,7 @@ function runName(rows) {
   const ps = names.map((n) => n.match(/^(.*?)(?: \+ (\d+))?$/));
   const k = ps.map((p) => BigInt(p[2] ?? 0));
   if (ps.every((p, i) => p[1] === ps[0][1] && k[i] === k[0] + BigInt(i))) {
-    return `${ps[0][1]} + ${k[0]} … + ${k.at(-1)}`;
+    return `${ps[0][1]}${k[0] ? ` + ${k[0]}` : ""}, ${names.length} slots`;
   }
   return names.join(" · ");
 }
@@ -921,11 +925,9 @@ function annotate(root, v, compare, names, tray, taken, room, force) {
     return true;
   };
   // the address labels of the lit rows, which no popover may cover (an
-  // unlit row's may be covered, as by a card). At one point (`single`:
-  // no other state, no cards, no tray), no row's label may be covered.
-  const single = !!names.single;
-  const labels = [...v.querySelectorAll(single ? ".rows > .wrow > .addr .a"
-    : ".rows > .wrow:is(.on, .only) > .addr .a")]
+  // unlit row's may be covered, as by a card)
+  const labels = [...v.querySelectorAll(
+    ".rows > .wrow:is(.on, .only) > .addr .a")]
     .map((e) => ({ row: e.closest(".wrow"), r: e.getBoundingClientRect() }));
   const pinned = [];
   for (const run of all) {
@@ -933,35 +935,31 @@ function annotate(root, v, compare, names, tray, taken, room, force) {
     run.forEach((r, k) => r.querySelector(":scope > .addr").classList.add(
       "grp", ...(k === 0 ? ["grp-top"] : []),
       ...(k === run.length - 1 ? ["grp-end"] : [])));
-    // the slot popover: over the first row (Before), under the last
-    // (After), for every run (also one used only in the other state)
+    // the slot popover, for every run (also one used only in the other
+    // state): over the first row (Before) or under the last (After); if
+    // that would cover lit bytes, a lit row's address or another
+    // annotation, the other way; if both would, none. It may cover
+    // unlit rows (a gap line, or a neighbour's dim bytes and address).
     {
-      const prow = side === "before" ? run[0] : run.at(-1);
       const pop = popFor(run, 0);
-      if (side === "after") pop.classList.add("under");
-      const addr = prow.querySelector(".addr");
-      addr.append(pop);
-      addr.classList.add("popped");
-      const ok = () => {
+      const ways = side === "before" ? ["over", "under"] : ["under", "over"];
+      let placed = false;
+      for (const way of ways) {
+        const prow = way === "over" ? run[0] : run.at(-1);
+        const addr = prow.querySelector(".addr");
+        pop.classList.toggle("under", way === "under");
+        addr.append(pop);
+        addr.classList.add("popped");
         place(pop, prow.querySelector(".a"));
         const r = pop.getBoundingClientRect();
-        return !labels.some((t) => !run.includes(t.row) && overlaps(t.r, r)) &&
-          fits(pop);
-      };
-      // at one point: under the run, else over it, else none
-      let placed = ok();
-      if (!placed && single) {
-        pop.classList.remove("under");
-        placed = ok();
-      }
-      if (!placed && single) {
-        pop.remove();
+        if (!labels.some((t) => !run.includes(t.row) && overlaps(t.r, r)) &&
+          fits(pop)) {
+          placed = true;
+          break;
+        }
         addr.classList.remove("popped");
-      } else if (!placed) {
-        addr.classList.remove("popped");
-        pop.classList.add("pinned");
-        pinned.push({ run, el: pop });
       }
+      if (!placed) pop.remove();
     }
     // the compare block: under the last row (Before), over the first
     // (After)

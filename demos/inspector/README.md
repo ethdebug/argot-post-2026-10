@@ -32,19 +32,21 @@ point), so that the page does not move when the data comes;
 
 1. The middle of the game: one point, after alice's two hits, bob's
    hit and carol's miss. All three players: each record is one full
-   packed slot at keccak(address . slot 0) (score, combo, bestCombo,
+   packed slot at keccak(address . slot 3) (score, combo, bestCombo,
    plays, hitCount, lastBlock), the name in the next slot (alice's and
    bob's inline; carol's 34-byte name at keccak of that slot, over two
-   slots); the roster at keccak(slot 1) + i; `total` and `rounds` packed
-   in slot 3. `players[alice]` selected.
+   slots); the roster (slot 0) at keccak(slot 0) + i; `motd` in slot 1;
+   `total` and `rounds` packed in slot 2. `players[alice]` selected.
 2. Alice plays: the middle of the game → after her third hit (combo 3,
    +30): score 30 → 60, combo, bestCombo, plays and hitCount 2 → 3,
    lastBlock; `total` 40 → 70, `rounds` 3 → 4. `players[alice]`
    selected.
-3. The message of the day: before and after
-   `setMotd("season 2 starts friday, see you on the leaderboard")` (50
-   bytes; the motd was "gl hf"). `motd` selected. This scene also shows
-   the calldata (below).
+3. A string moves into its slot: before and after `setMotd("gl hf")`.
+   The motd was deployed with 50 bytes ("season 2 starts friday, see you
+   on the leaderboard": slot 1 holds 0x65, the bytes at keccak(slot 1)
+   and the next slot); after, slot 1 holds the 5 bytes and 0x0a, and
+   solc has zeroed the two old data slots (shown After). `motd`
+   selected. This scene also shows the calldata (below).
 4. Vyper reads it differently: the same three players in Vyper's build,
    at the middle of the game (see "Vyper" below). One point.
 
@@ -63,15 +65,16 @@ scene is the smallest honest version, and follows from the first scene:
 plays to the middle of the game. The page applies solc's rule for
 `players` (from Arcade.sol's ethdebug output, `players` only) to the
 Vyper contract's real storage, with the three players' keys.
-keccak256(key . slot 0) holds nothing for any of them (alice:
-`0x14e0…d101`), so the tree shows each with zeros and no name, with no
+keccak256(key . slot 3) holds nothing for any of them (alice:
+`0x9c35…aa80`), so the tree shows each with zeros and no name, with no
 error: what a tool built on Solidity's rules reads. Vyper's own rule,
-keccak256(slot 0 . key), puts each counter in its own slot, then the
-name's length and bytes: alice at `0xd3a9…2785` (30, 2, 2, 2, 2, her
-lastBlock, length 5, "alice"); bob at `0xd8fe…c835` (10, 1, 1, 1, 1, …,
-length 3, "bob"); carol at `0xb8dc…ba99` (0, 0, 0, 1, 0, …, length 34,
+with `players` at slot 108 (its arrays are inline, nothing is packed),
+keccak256(108 . key), puts each counter in its own slot, then the
+name's length and bytes: alice at `0xb306…0446` (30, 2, 2, 2, 2, her
+lastBlock, length 5, "alice"); bob at `0x87c6…f242` (10, 1, 1, 1, 1, …,
+length 3, "bob"); carol at `0x51eb…c89e` (0, 0, 0, 1, 0, …, length 34,
 two words of name). Those words are in the dump, named "Vyper's
-keccak(slot 0, …)", and no value owns them. "How this was found" ends
+keccak(slot 108, …)", and no value owns them. "How this was found" ends
 with "Vyper's rule, for contrast: not from ethdebug", one step per word
 of the selected player, each lighting its word. The script reads those
 words from the node and checks them against the getter. How to show
@@ -85,8 +88,8 @@ instructions carry `code` contexts only) and no calldata types or
 templates, so the page cannot ask ethdebug where `text` is, and says so.
 `calldata.js` shows the input like the other dumps (the selector line,
 then words by offset) and labels the parts by the ABI encoding rules:
-the selector, `text`'s head word (the offset, 32), its length (50) and
-its bytes. The linking works both ways: click a byte to select its
+the selector, `text`'s head word (the offset, 32), its length (5) and
+its bytes ("gl hf"). The linking works both ways: click a byte to select its
 part, a part (or `text`) to light its bytes; "How this was found" lists
 the ABI steps, each lighting its bytes. The scene names its function
 and parameter in `fixtures/index.json` (`calldata`).
@@ -154,11 +157,12 @@ and parameter in `fixtures/index.json` (`calldata`).
    with the program-level context), bytecode and the AST. No
    storageLayout.
 3. The story, on a fresh anvil (deployer: account 0; alice, bob,
-   carol: accounts 1, 2, 3): deploy with motd "gl hf"; alice, bob and
-   carol join (names "alice", "bob", "carol, the unstoppable combo
+   carol: accounts 1, 2, 3): deploy with the 50-byte motd; alice, bob
+   and carol join (names "alice", "bob", "carol, the unstoppable combo
    queen"); alice hits; alice hits; bob hits; carol misses (the middle
-   of the game); alice hits (combo 3); `setMotd("season 2 starts
-   friday, see you on the leaderboard")`. A play rolls from prevrandao,
+   of the game); alice hits (combo 3); `setMotd("gl hf")`, after a
+   deploy with the motd "season 2 starts friday, see you on the
+   leaderboard". A play rolls from prevrandao,
    which anvil draws at random and cannot be told, so each play is sent
    in an `evm_snapshot`; on the wrong outcome the script reverts, mines
    an empty block and sends again (as `private/arcade/tools/story.py`
@@ -237,7 +241,8 @@ offsets.
   ascending (a mapping's records land where their hashes put them, so
   related slots may be far apart), so a run of
   hashed slots (a long string's data) reads as one block. A "⋯" gap
-  line comes first and wherever the next slot is not the address + 1,
+  line comes first (unless the first slot is slot 0, which then sits at
+  the top of the box) and wherever the next slot is not the address + 1,
   and last. A gap line is tall enough for a slot popover (one line and
   its arrow); a hashed slot that starts a value right after another
   slot gets an empty line of the same height first, so its popover has
@@ -246,16 +251,17 @@ offsets.
   against the bytes like a hex dump's line labels. The one mark at rest
   is a small ring beside the address for a slot the transaction wrote
   without changing it (nothing else would show that; none of the
-  current fixtures has one). The full address and what the transaction
-  did to the slot are in the address's tooltip.
+  current fixtures has one). Pointing at an address puts the full
+  address and what the transaction did to the slot in the details
+  under the dump (and in the address's `aria-label`). The page sets no
+  `title` anywhere, so it shows no native tooltips.
 - No names in the dump: names stay in the tree, and the two relate by
   highlighting only.
 - Popover: for each run of lit slots (below), and for a run the value
   uses only in the other state, a dark label with an arrow says how
   the slots were found, what the transaction did to them ("read only",
   "written", "read, written", "written, same value", "cleared (written
-  to zero)"), and the full address, e.g. `keccak(0xf39f…2266, slot 0) +
-  1 · read, written`. It sits over the run in Before and under it in
+  to zero)"), e.g. `keccak(0x7099…79c8, slot 3) · read, written`. It sits over the run in Before and under it in
   After, its left edge at the gutter's, its arrow on the address. Like
   a card, it may cover unlit rows (addresses included), never a lit
   row, a lit row's address or another annotation; nothing shows at
@@ -367,10 +373,13 @@ annotations stay inside the words' sideways scroll):
 
 - The slot popover (dark, with an arrow on the address): how the slots
   were found and what the transaction did to them, e.g.
-  `keccak(0x7099…79c8, slot 0) + 0 … + 1 · read, written` (one line;
-  the full address is in the address's tooltip and in "How this was
-  found"). Over the run
-  in Before, under it in After.
+  `keccak(0x7099…79c8, slot 3), 2 slots · read, written` (one line; a
+  run of several slots says how many; the full address is in the
+  details and in "How this was found"). Over the run in Before, under
+  it in After; if that would cover lit bytes, a lit row's address or
+  another annotation, the other way (it may cover unlit rows: a gap
+  line, or a neighbour's dim bytes and address); if both would, it is
+  not drawn.
 - The card (light, labeled "after" or "before"): a picture of the same
   whole words in the other state, made by cloning those rows of the
   hidden dump (addresses, tints, highlight, change marks), muted a
@@ -379,22 +388,22 @@ annotations stay inside the words' sideways scroll):
   where a lit byte differs in the other state are in a card; a run
   with none gets no card. The "after" card goes under the run in Before; the
   "before" card over it in After.
-- A word the value uses only in the other state (`motd`'s long data
-  in Before) is in the dump too, and gets a
+- A word the value uses only in the other state (`motd`'s old long
+  data in After, zeroed by solc) is in the dump too, and gets a
   card, with no other mark.
-- Fallback: an annotation may cover rows that are not lit (they are
-  dimmed), but not lit bytes or another annotation, and it may not
-  leave the content of a box that scrolls. One that cannot be placed
+- Fallback: a card may cover rows that are not lit (they are dimmed),
+  but not lit bytes or another annotation, and it may not leave the
+  content of a box that scrolls. A card that cannot be placed
   is not moved around: it goes, labeled, to a tray fixed at the bottom
   of the window, which takes no room in the page. The tray is the same
   in Before and After: if a run's card cannot be placed in one state,
   it goes to the tray in both (the page lays the hidden dump out for a
   moment to find out).
 
-Highlights that still use the tray (desktop and phone): two lit runs
-with only a "⋯" line between them, where one run's popover and the
-next run's card need the same space: `motd` (slot 2, then its long
-data after a "⋯" line), in both states.
+Highlights whose cards may use the tray (desktop and phone): two lit
+runs with only a "⋯" line between them, where one run's popover and the
+next run's card need the same space: `motd` (slot 1, then its long
+data).
 
 ## How the derivation is found
 
