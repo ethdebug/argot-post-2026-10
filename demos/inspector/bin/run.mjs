@@ -1285,10 +1285,9 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
     ["Each record is at keccak(key, 3)", {}, null, "$keccak256", rows3],
     ["The template Player takes slot = each record's slot", {}, null,
       "expect: [slot]", rows3],
-    // (alice, the focus, at full strength; bob and carol echo, muted)
+    // (focus "all": all three at full strength)
     ["The first slot packs six fields, from the right",
-      { [al]: stats, [rec]: stats, [cl0]: stats }, { [al]: stats },
-      "name: score", []],
+      { [al]: stats, [rec]: stats, [cl0]: stats }, null, "name: score", []],
     ["The next slot holds name, a string", {}, null, "$sum: [slot, 0x01]",
       rows3.map((x) => `${x} + 1`)],
     ["The template string takes slot = each name slot", {}, null,
@@ -1392,6 +1391,41 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
       "keccak(slot)text") {
       problems.push(`chips: ${cs}`);
     }
+  }
+  // the focus: "all" first and by default for players (every record at
+  // full strength at every step); alice gives the echo; carol's record
+  // alone is in focus, with nothing muted
+  {
+    await page.evaluate(() => window.select("mid", { sel: "players" }));
+    await page.locator('#details button[data-r="start"]').click();
+    const btns = await page.locator("#dpick button").evaluateAll((bs) =>
+      bs.map((b) => `${b.textContent}${b.getAttribute("aria-pressed") ===
+        "true" ? "*" : ""}`).join());
+    const muted = [];
+    for (let k = 0; k < N; k++) {
+      await page.locator(`#chips .chip[data-k="${k}"]`).click();
+      muted.push(await page.locator(
+        "#panel .view:not([hidden]) .b.hl.muted").count());
+    }
+    await page.locator(`#chips .chip[data-k="${P.fields}"]`).click();
+    await page.locator("#dpick button", { hasText: "alice" }).click();
+    const echo = await page.locator(
+      "#panel .view:not([hidden]) .b.hl.muted").count();
+    await page.keyboard.press("Escape");
+    await page.evaluate((x) => window.select("mid", { sel: x }), C);
+    await page.locator('#details button[data-r="start"]').click();
+    let cm = 0;
+    for (let k = 0; k < 11; k++) {
+      await page.locator(`#chips .chip[data-k="${k}"]`).click();
+      cm += await page.locator("#panel .view:not([hidden]) .b.hl.muted")
+        .count();
+    }
+    await page.keyboard.press("Escape");
+    if (btns !== "all*,alice,bob,carol" || muted.some(Boolean) || !echo ||
+      cm) {
+      problems.push(`focus all: ${JSON.stringify({ btns, muted, echo, cm })}`);
+    }
+    await page.evaluate(() => window.select("mid", { sel: "players" }));
   }
   // the focus picker: bob at full strength in steps 3 and 4, and in the
   // formulas; nothing moves
