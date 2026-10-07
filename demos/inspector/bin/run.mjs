@@ -906,8 +906,8 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
   await page.locator(`#tree li[data-path="${A}.combo"] > .row`).hover();
   pp0 = await pops();
   if (pp0.length !== 1 || !pp0[0].startsWith(
-    "keccak(0x7099…79c8, slot 3) : lastBlock · hitCount · plays +3 · read, " +
-    "written")) {
+    "keccak(0x7099…79c8, slot 3) : ") || !pp0[0].includes("combo") ||
+    !pp0[0].endsWith(" · read, written") || /\+\d/.test(pp0[0])) {
     problems.push(`pops combo: ${pp0}`);
   }
   // each popover's left edge is at the gutter's, its arrow at its
@@ -2184,12 +2184,12 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
       "keccak(0x7099…79c8, slot 3) :"));
     if (!t("roster").includes("slot 0 : length") ||
       !t("total").includes("slot 2 : rounds · total") ||
-      got.total[0]?.ks.some(Boolean) ||
+      got.total[0]?.ks.join() !== ",pk0" ||
       !t("players").includes(
         "keccak(0x7099…79c8, slot 3) : players[0x7099…79c8], 2 slots") ||
-      alice?.text !== "keccak(0x7099…79c8, slot 3) : lastBlock · hitCount · " +
-        "plays +3" || alice.ks.join() !== fk.join() || !fk.every(Boolean) ||
-      new Set(fk).size !== 3) {
+      !alice?.text.startsWith("keccak(0x7099…79c8, slot 3) : lastBlock · ") ||
+      !alice.text.endsWith(" · score") || alice.ks[0] !== fk[0] ||
+      !fk.every(Boolean) || new Set(fk).size !== 3) {
       problems.push(`slot labels: ${JSON.stringify({ got, fk })}`);
     }
     await page.evaluate((x) => window.select("mid", { sel: x }), `${B}.plays`);
@@ -2223,6 +2223,129 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
       !r2.on || !r2.cap.startsWith("The template Player") ||
       !r3.on || r3.sel !== "total" || r3.count !== "1 / 1") {
       problems.push(`re-target: ${JSON.stringify([r1, r2, r3])}`);
+    }
+    await page.evaluate((x) => window.select("mid", { sel: x }), `${B}.plays`);
+  }
+  // popovers: white cards; a lit value's name a chip in its bytes'
+  // colour (the selection's yellow too), others plain; coloured names
+  // never cut: score selected, "… · score" at the end; alice's entry on
+  // a narrow dump, its first and last chips with "…" between
+  {
+    const popOf = (slotEnd, how) => page.evaluate(([e, h]) => {
+      const r = [...document.querySelectorAll(
+        "#panel .view:not([hidden]) .wrow[data-slot]")].find((x) =>
+        x.dataset.slot.endsWith(e));
+      const pop = [...document.querySelectorAll(
+        "#panel .view:not([hidden]) .pop")].find((p) =>
+        p.querySelector(".phow")?.textContent === h);
+      if (!pop) return null;
+      const kids = [...pop.querySelector(".pwhat")?.children ?? []];
+      const lit = r ? [...r.querySelectorAll(".b.hl")].map((c) =>
+        getComputedStyle(c).backgroundColor) : [];
+      return { bg: getComputedStyle(pop).backgroundColor,
+        parts: kids.map((k) => k.classList.contains("pcut") ? "…"
+          : k.classList.contains("chip") ? `[${k.textContent}]`
+            : k.textContent),
+        chipBgs: kids.filter((k) => k.classList.contains("chip")).map((k) =>
+          getComputedStyle(k).backgroundColor),
+        chipFgs: kids.filter((k) => k.classList.contains("chip")).map((k) =>
+          getComputedStyle(k).color), lit: [...new Set(lit)] };
+    }, [slotEnd, how]);
+    await page.evaluate((x) => window.select("mid", { sel: x }), `${A}.score`);
+    await page.mouse.move(1, 1);
+    const sc = await popOf("aa80", "keccak(0x7099…79c8, slot 3)");
+    await page.evaluate(() => window.select("mid", { sel: "players" }));
+    await page.mouse.move(1, 1);
+    const pl = await popOf("9978", "keccak(0x90f7…b906, slot 3)");
+    // (the tree's text colour for a value lit in a colour: its tone)
+    const tone = (k) => page.evaluate((c) => {
+      const e = document.createElement("span");
+      e.className = `row hl ${c}`;
+      document.querySelector("#tree").append(e);
+      const v = getComputedStyle(e).color;
+      e.remove();
+      return v;
+    }, k);
+    const light = (c) => {
+      const [r, g, b] = c.match(/\d+/g).map(Number);
+      return (r + g + b) / 3 > 200;
+    };
+    const black = await page.evaluate(() => getComputedStyle(
+      document.body).color);
+    if (sc?.bg !== black || sc.parts.at(-1) !== "[score]" || !light(sc.chipBgs[0]) ||
+      sc.chipFgs[0] === black || !light(pl?.chipBgs[0]) ||
+      pl.chipFgs[0] !== await tone("pk3") || pl.parts.join() !==
+      "[players[0x90f7…b906]]") {
+      problems.push(`popover v2: ${JSON.stringify({ sc, pl })}`);
+    }
+    // (alice's entry at 1280, 1440 and 1920: inside the dump's box, cut
+    // by names only (never by CSS, never the suffix), slots apart by
+    // " / ", no badge twice in a row; her root slot's gutter tinted)
+    const full = [];
+    for (const wd of [1280, 1440, 1920]) {
+      await page.setViewportSize({ width: wd, height: 900 });
+      await page.waitForTimeout(100);
+      await page.evaluate((x) => window.select("mid", { sel: x }), A);
+      await page.mouse.move(1, 1);
+      const x = await popOf("aa80", "keccak(0x7099…79c8, slot 3)");
+      const t = await page.evaluate(() => [...document.querySelectorAll(
+        "#panel .view:not([hidden]) .pop")].map((p) => ({ text:
+        p.textContent, css: getComputedStyle(p.querySelector(".pop-how"))
+        .textOverflow, over: p.scrollWidth > p.clientWidth + 1,
+      out: p.getBoundingClientRect().right > p.closest(".dump")
+        .getBoundingClientRect().right - 8 })));
+      const gut = await page.locator(`#panel .view:not([hidden]) ` +
+        `.wrow.gut[data-slot="0x${"0".repeat(63)}3"]`).count();
+      const ps = x?.parts ?? [];
+      full.push({ wd, parts: ps.join(" "), t, gut });
+      // (her two slots: the stats, then the name; each slot's first and
+      // last names kept, and as many more as fit)
+      const segs = (t.find((y) => y.text.startsWith(
+        "keccak(0x7099…79c8, slot 3) :"))?.text ?? "").replace(/, 2 slots$/,
+        "").split(" : ")[1]?.split(" / ") ?? [];
+      const stats = segs[0]?.split(" · ").filter((y) => y !== "…") ?? [];
+      if (ps[0] !== "[lastBlock]" || ps.at(-1) !== "[name.length]" ||
+        segs.length !== 2 || segs[1] !== "name · name.length" ||
+        stats.at(-1) !== "score" || stats.length < (wd === 1280 ? 2 : 3) ||
+        ps.some((y, i) => i && y === ps[i - 1] && y !== "…") ||
+        t.some((y) => y.over || y.out || y.css === "ellipsis") ||
+        !t.some((y) => y.text.endsWith(", 2 slots")) ||
+        !t.some((y) => / \/ (name|…) · |score \/ /.test(y.text) ||
+          y.text.includes(" / ")) || !gut) {
+        problems.push(`popover full at ${wd}: ${JSON.stringify(full.at(-1))}`);
+      }
+    }
+    await page.setViewportSize({ width: 760, height: 900 });
+    await page.waitForTimeout(100);
+    await page.evaluate((x) => window.select("mid", { sel: x }), A);
+    await page.mouse.move(1, 1);
+    const al0 = await popOf("aa80", "keccak(0x7099…79c8, slot 3)");
+    await page.setViewportSize({ width: 1280, height: 900 });
+    await page.waitForTimeout(100);
+    const chips = al0?.parts.filter((x) => x.startsWith("["));
+    if (!al0 || al0.parts[0] !== "[lastBlock]" || al0.parts.at(-1) !==
+      "[name.length]" || !al0.parts.includes("…") || chips.length < 2 ||
+      al0.parts.some((x) => !x.startsWith("[") && x !== "…")) {
+      problems.push(`popover many chips: ${JSON.stringify(al0)}`);
+    }
+    await page.evaluate((x) => window.select("mid", { sel: x }), `${B}.plays`);
+  }
+  // a selection inside a mapping: the mapping's root slot's gutter is
+  // tinted, with its popover; its bytes stay plain
+  {
+    const r3 = `#panel .view:not([hidden]) .wrow[data-slot="0x${
+      "0".repeat(63)}3"]`;
+    const seen = [];
+    for (const x of [A, `${B}.plays`]) {
+      await page.evaluate((y) => window.select("mid", { sel: y }), x);
+      await page.mouse.move(1, 1);
+      seen.push(await page.evaluate((q) => ({
+        gut: !!document.querySelector(`${q}.gut`),
+        pop: !!document.querySelector(`${q} .pop`),
+        lit: document.querySelectorAll(`${q} .b.hl`).length }), r3));
+    }
+    if (seen.some((x) => !x.gut || !x.pop || x.lit)) {
+      problems.push(`root slot gutter: ${JSON.stringify(seen)}`);
     }
     await page.evaluate((x) => window.select("mid", { sel: x }), `${B}.plays`);
   }
@@ -3045,7 +3168,9 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
   await page.mouse.move(1, 1);
   const r1 = await page.evaluate(() => {
     const v = document.querySelector('#panel .view:not([hidden])');
-    const pop = v.querySelector(".pop");
+    // (roster's own slot has its gutter's popover too)
+    const pop = [...v.querySelectorAll(".pop")].find((p) =>
+      p.textContent.startsWith("keccak(slot 0) + 1"));
     if (!pop) return "none";
     const hit = (a, b) => a.left < b.right - 0.5 && b.left < a.right - 0.5 &&
       a.top < b.bottom - 0.5 && b.top < a.bottom - 0.5;

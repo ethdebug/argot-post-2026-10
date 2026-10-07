@@ -374,14 +374,21 @@ gives the first row's path and how many more); a click scrolls the
 tree, inside itself, to the first of them. Hover alone never scrolls
 the tree. The buttons are overlays that fade in and out: no row moves.
 
-A slot's label reads "how it is found : what it holds": the names of
-the values in that slot as the pointer names them, in byte order
-(`slot 2 : rounds · total`; an array's own word: `slot 0 : length`;
-the first three, then `+N`), or for a run of several slots, the path
-of the value they make up (`keccak(0x90f7…b906, slot 3) :
-players[0x90f7…b906], 2 slots`). Each name takes its bytes' colour
-when the colours tell values apart (a legend); else it is plain. One
-line, cut at its end where the box is narrow.
+A slot's label (a black popover) reads "how it is found : what it
+holds": the names of the values in its slots as the pointer names
+them, in byte order, " · " within a slot and " / " between slots
+(`slot 2 : rounds · total`; `keccak(0x7099…79c8, slot 3) : lastBlock ·
+… · score / name · name.length, 2 slots`); a value's other regions by
+their role under its name (`name.length`; an array's own word alone,
+`length`); a run of several slots in one colour, by the path of the
+value they make up. A name lit now is a light badge in its colour's
+text tone (the selection's yellow too); the rest are plain. The label
+stays inside the dump's box; when it must be shorter, panel.js
+`fitWhat` drops plain names first, then badges from the middle (each
+slot keeping its first and last), then middle slots, then shortens the
+"how" part's addresses; "…" marks each cut, and CSS never cuts it. A
+selection inside a mapping or an array also tints the own slot of the
+variable it is in (its gutter and popover; its bytes stay plain).
 
 Nothing moves when a value is selected, pointed at or stepped through:
 emphasis is lighting and muting only. The bar (`#details`) is one line

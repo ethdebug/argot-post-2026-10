@@ -1684,7 +1684,8 @@ let chosen = null; // the selected variable's path
 const PROBE = "Point at a value or a byte for its details.";
 
 function show() {
-  const sel = chosen ? forRow(current.panel, chosen) : null;
+  const sel = chosen ? forRow(current.panel, chosen, { roots: true })
+    : null;
   // a replay shows its step, whatever the pointer is on
   const h = legend(replay ? stepLight(replay.steps[replay.i])
     : hover ?? sel);
@@ -1835,7 +1836,8 @@ addEventListener("pointerdown", (e) => {
 function rehover() {
   const el = lastPt && document.elementFromPoint(...lastPt);
   if (!el?.closest?.("#panel, #tree")) return;
-  const h = locked(target(el), chosen && forRow(current.panel, chosen));
+  const h = locked(target(el), chosen && forRow(current.panel, chosen,
+    { roots: true }));
   if (!same(h, hover)) {
     hover = h;
     show();
@@ -1892,7 +1894,7 @@ function onOver(e) {
     return;
   }
   const h = locked(target(e.target),
-    chosen && forRow(current.panel, chosen));
+    chosen && forRow(current.panel, chosen, { roots: true }));
   if (!same(h, hover)) {
     hover = h;
     show();
