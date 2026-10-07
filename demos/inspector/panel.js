@@ -182,7 +182,16 @@ export function buildPanel(f, tree, { single = false, when, names } = {}) {
   // run of hashed slots (a long string's data) reads as one block
   order.sort((a, b) => (num(a) < num(b) ? -1 : num(a) > num(b) ? 1 : 0));
 
+  // every tree path, so a composite's own rows (an entry's key line, a
+  // record) light with its parts
+  const paths = [];
+  const walkPaths = (n) => {
+    paths.push(n.path);
+    (n.children ?? []).forEach(walkPaths);
+  };
+  tree.forEach(walkPaths);
   return { f, owners, order, hashes, cover, read, written, bases, single,
+    paths,
     when: when ?? { before: "before the transaction",
       after: "after the transaction" },
     names: new Map(Object.entries(names ?? {})) };
@@ -509,9 +518,34 @@ export function forRow(m, path) {
     : [["Value", `${code(shortKeys(path))}, ${below}`]];
   // (the row itself is lit too, in the selection colour, even when it
   // owns no bytes: a mapping, a struct)
+  // the composites under it light too (an entry's key line, a member
+  // that is itself a struct), each in its child's colour
+  const under = (m.paths ?? []).filter((p) => p.startsWith(path + ".") ||
+    p.startsWith(path + "["));
+  const colors = childColors(m, path, ids);
+  if (colors) {
+    const child = (row) => row.slice(path.length)
+      .match(/^(\.[^.[]+|\[[^\]]*\])/)?.[0];
+    for (const p of under) {
+      if (colors.has(p)) continue;
+      const c = child(p);
+      const k = [...colors].find(([q]) => q.slice(path.length)
+        .startsWith(c))?.[1];
+      if (k !== undefined) colors.set(p, k);
+    }
+  }
+  // a variable whose own slot holds no data (a mapping's): that slot's
+  // gutter shows its role, with its label; its bytes stay plain
+  const gutters = new Set();
+  for (const [slot, vars] of m.bases ?? []) {
+    if (!vars.includes(path)) continue;
+    const s = word(slot);
+    const cov = m.cover.after.get(s) ?? m.cover.before.get(s);
+    if (!cov?.some((ids) => ids.length)) gutters.add(s);
+  }
   return { bytes: ownerBytes(m, ids, new Set()), rows: new Set([path,
-    ...ids.map((id) => m.owners.get(id).row)]), label, info, path,
-    colors: childColors(m, path, ids) };
+    ...ids.map((id) => m.owners.get(id).row), ...under]), label, info, path,
+    colors, gutters };
 }
 
 // The colours of a composite's immediate children: each child (a
@@ -663,7 +697,8 @@ function runs(view) {
   let run = null;
   for (const el of view.querySelector(".rows").children) {
     if (el.classList.contains("wrow") && (el.classList.contains("on") ||
-      el.classList.contains("only") || el.classList.contains("known"))) {
+      el.classList.contains("only") || el.classList.contains("known") ||
+      el.classList.contains("gut"))) {
       if (!run) out.push(run = []);
       run.push(el);
     } else if (!el.classList.contains("cmp")) {
@@ -877,6 +912,8 @@ export function paint(root, tree, h, opts = {}) {
     // (its run's tint in the gutter, and its popover)
     w.closest(".wrow")?.classList.toggle("known", !on && !only &&
       !!h?.known?.has(s));
+    w.closest(".wrow")?.classList.toggle("gut", !on && !only &&
+      !!h?.gutters?.has(s));
   }
   // While something is lit, the rest steps back (style.css .active)
   root.classList.toggle("active", !!h);
@@ -888,6 +925,26 @@ export function paint(root, tree, h, opts = {}) {
     pick(r.firstElementChild, k);
     r.firstElementChild.classList.toggle("muted", on &&
       h.focus !== undefined && !!k && k !== h.focus);
+  }
+  // A run of rows in one colour is one block: the outermost item whose
+  // lit rows all have its colour carries the background (its key line
+  // and its parts, one left edge, rounded at its ends)
+  const colourOf = (row) => [...row.classList].find((c) => /^pk\d$/.test(c))
+    ?? "pk0";
+  for (const li of tree.querySelectorAll("li[data-path]")) {
+    li.classList.remove("blk", "muted", ...[...li.classList].filter((c) =>
+      /^pk\d$/.test(c)));
+  }
+  for (const li of tree.querySelectorAll("li[data-path]")) {
+    const own = li.firstElementChild;
+    if (!own.classList.contains("hl")) continue;
+    if (li.parentElement.closest("li.blk")) continue;
+    const ks = new Set([...li.querySelectorAll(".row.hl")].map(colourOf));
+    if (ks.size !== 1) continue;
+    const k = [...ks][0];
+    li.classList.add("blk");
+    if (k !== "pk0") li.classList.add(k);
+    li.classList.toggle("muted", own.classList.contains("muted"));
   }
   const views = [...root.querySelectorAll(".view")].filter((v) => !v.hidden);
   // the other state's picture beside each lit run, in every mode

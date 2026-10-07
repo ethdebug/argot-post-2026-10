@@ -1095,3 +1095,13 @@ html { overflow-anchor: none; }
   Menlo, monospace; font-weight: 600; }
 .rcap code.id, .rshort code.id { background: none; padding: 0; border: 0;
   font-size: 0.95em; }
+/* a block of tree rows in one colour: the item, key line and parts */
+.tree li.blk { background: var(--pk, var(--mark)); color: var(--pk-fg,
+  var(--chg-fg)); border-radius: 4px; box-shadow: -4px 0 0 var(--pk,
+  var(--mark)), 4px 0 0 var(--pk, var(--mark)); }
+.tree li.blk .row.hl { background: none; box-shadow: none; }
+#tree li.blk .row { border-radius: 0; }
+.tree li.blk > .row.hl.sel { box-shadow: -7px 0 0 var(--accent); }
+.tree li.blk.muted { filter: saturate(0.25); opacity: 0.55; }
+.tree li.blk .row.hl.muted { filter: none; opacity: 1; }
+.tree li.blk .row:not(.hl) { opacity: 0.45; }
