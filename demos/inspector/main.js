@@ -1540,7 +1540,11 @@ function target(el) {
   const base = baseRow(el);
   if (base) return forRow(m, base);
   const cell = el.closest("#panel .b[data-g]");
-  if (cell) return forBytes(m, cell);
+  if (cell) {
+    const p = ownerRow(cell);
+    const b = blockOfPointer(p);
+    return b !== p ? forRow(m, b) : forBytes(m, cell);
+  }
   const addr = el.closest("#panel .wrow[data-slot] .addr");
   if (addr) return forSlot(m, addr.parentElement.dataset.slot);
   const step = el.closest("#ptr li[data-region]");
@@ -1549,7 +1553,9 @@ function target(el) {
     return forRegion(m, r, step.dataset.side, r.name);
   }
   const li = el.closest("#tree li[data-path]");
-  if (li && el.closest(".row")) return forRow(m, li.dataset.path);
+  if (li && el.closest(".row")) {
+    return forRow(m, blockOfPointer(li.dataset.path));
+  }
   return null;
 }
 
@@ -1580,6 +1586,18 @@ document.addEventListener("focusout", (e) => {
   }
 });
 
+// What a pointer at `path` targets: with a composite selected, the
+// selection's immediate child whose block holds it (its children are
+// the blocks); else `path` itself
+function blockOfPointer(path) {
+  if (!chosen || !path || path === chosen ||
+    !(path.startsWith(chosen + ".") || path.startsWith(chosen + "["))) {
+    return path;
+  }
+  const child = /^(\.[^.[]+|\[[^\]]*\])/;
+  return chosen + path.slice(chosen.length).match(child)[0];
+}
+
 // The variable whose own slot (holding none of its data) a byte or an
 // address of the dump is in, if any
 function baseRow(el) {
@@ -1589,7 +1607,9 @@ function baseRow(el) {
 }
 
 // What a click (or Enter) on an element does in the storage demo
-function act(el) {
+function act(el, keys = false) {
+  // (by keyboard: the row or byte itself, as before)
+  const blockOf = keys ? (p) => p : blockOfPointer;
   // a variable's own slot selects the variable, or clears it
   const base = baseRow(el);
   if (base) {
@@ -1599,7 +1619,7 @@ function act(el) {
   // a row selects its variable, or, when it is the selected one, clears
   const row = el.closest("#tree li[data-path] > .row");
   if (row) {
-    const p = row.parentElement.dataset.path;
+    const p = blockOf(row.parentElement.dataset.path);
     hover = null;
     return choose(p === chosen ? null : p), true;
   }
@@ -1607,7 +1627,7 @@ function act(el) {
   const cell = el.closest("#panel .b[data-g]");
   if (cell) {
     hover = null;
-    const p = ownerRow(cell);
+    const p = blockOf(ownerRow(cell));
     return choose(p && p === chosen ? null : p, cell), true;
   }
   return false;
@@ -1690,7 +1710,7 @@ document.addEventListener("keydown", (e) => {
   if (e.target.closest?.("#tree .row, #panel .b[tabindex]") ||
     baseRow(e.target)) {
     e.preventDefault();
-    act(e.target);
+    act(e.target, true);
   }
 });
 
