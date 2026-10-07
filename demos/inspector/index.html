@@ -261,6 +261,8 @@ contract Arcade {
       renderBox); else what the pointer is on -->
       <div id="details" class="details" aria-live="polite" tabindex="0"
         aria-label="The selected value; how it was found"></div>
+      <!-- the replay's steps, one chip each (main.js renderBox) -->
+      <div id="chips" class="chips"></div>
       <!-- the calldata of the scene's call (the message of the day only),
       next to the storage dump -->
       <section id="calldata" class="calldata" aria-labelledby="cd-h" hidden>
@@ -423,10 +425,10 @@ contract Arcade {
   const SIZES = /* sizes */{
     "vendor/pointers.js": 278654,
     "vendor/shiki.js": 201406,
-    "fixtures/arcade-alice.json": 17514,
-    "fixtures/arcade-mid.json": 14125,
-    "fixtures/arcade-motd.json": 13316,
-    "fixtures/arcade-vyper.json": 19541,
+    "fixtures/arcade-alice.json": 17770,
+    "fixtures/arcade-mid.json": 14381,
+    "fixtures/arcade-motd.json": 13572,
+    "fixtures/arcade-vyper.json": 19767,
     "fixtures/index.json": 1594,
     "fixtures/memory.json": 34785
   }/* end sizes */;

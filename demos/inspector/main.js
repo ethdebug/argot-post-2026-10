@@ -3,7 +3,7 @@
 // (before and after one). Loads the scene's fixture, decodes the
 // contract's storage (decode.js), and draws it.
 import {
-  storageState, mappingKeys, decodeStorage, typeName, commit,
+  storageState, mappingKeys, decodeStorage, typeName, commit, baseSlot,
 } from "./decode.js";
 import {
   buildPanel, renderPanel, forRow, forBytes, forRegion, forSlot, paint,
@@ -219,173 +219,366 @@ function missing(node, side) {
 // slot's row, a region's bytes) and mutes the rest.
 let replay = null; // { path, side, steps, i }
 
+const word = (n) => "0x" + n.toString(16).padStart(64, "0");
 const shortVal = (h) => {
   const n = num(h);
   return n < 1n << 32n ? String(n) : short(word(n));
 };
-const word = (n) => "0x" + n.toString(16).padStart(64, "0");
+// "…7527": the end of a slot's address, as the gutter shows it
+const tailOf = (h) => `…${word(num(h)).slice(-4)}`;
+// a mapping key, by the player's name when it is one
+const keyName = (h) => {
+  const k = word(num(h)).slice(-40);
+  return Object.entries(current.f.players ?? {}).find(([a]) =>
+    a.toLowerCase().endsWith(k))?.[1] ?? short(h);
+};
 
-// An expression, in short, with its inputs' values
-function exprText(s) {
-  const op = s.expr && typeof s.expr === "object" ? Object.keys(s.expr)[0]
-    : null;
-  const a = (s.args ?? []).map((x) => shortVal(x.value.hex));
-  switch (op) {
-    case "$keccak256": return `keccak(${a.join(", ")})`;
-    case "$sum": return a.join(" + ");
-    case "$difference": return a.join(" − ");
-    case "$product": return a.join(" × ");
-    case "$quotient": return a.join(" ÷ ");
-    case "$remainder": return a.join(" mod ");
-    case "$read": return `read ${s.expr.$read}`;
-    default: return a.join(", ");
+// The raw steps of a value's evaluation, as decode.js replay() recorded
+// them (with the start), in order: { kind, s?, region? }
+function rawSteps(v) {
+  if (v.how.context) return [{ kind: "context", c: v.how.context }];
+  const out = [{ kind: "start", o: v.how.origin }];
+  const all = stepsOf(v);
+  let i = 0;
+  while (all[i]?.s.kind === "define") i++; // the page's own inputs
+  for (const { s, region } of all.slice(i)) {
+    out.push({ kind: s.kind, s, region });
   }
-}
-
-// The steps of a value's replay: { cap, regions, slots }
-function valueSteps(node, v, side) {
-  const { types } = current.f.contract;
-  const out = [];
-  const known = (h) => {
-    const w = word(num(h));
-    return current.f.slots[w] ? [w] : [];
-  };
-  if (v.how.context) {
-    const { variable, slot, offset, length } = v.how.context;
-    out.push({ cap: `${variable} is at slot ${shortVal(slot)}, ${length} ` +
-      `bytes at offset ${offset}, from the program context (no template ` +
-      "for a value type)", slots: [], regions: [v.region] });
-  } else {
-    const { origin } = v.how;
-    out.push({ cap: `${origin.variable} lives at slot ${shortVal(
-      origin.slot)} (program context)${origin.key ? `; key ${short(
-      origin.key)} (from the trace)` : ""}`, slots: known(origin.slot) });
-    const all = stepsOf(v);
-    let i = 0;
-    while (all[i]?.s.kind === "define") i++; // the page's own inputs
-    for (const { s, region } of all.slice(i)) {
-      if (s.kind === "template") {
-        const t = types[s.name];
-        out.push({ cap: `solc's rule for ${t ? typeName(t, types)
-          : s.name}`, rule: s.name });
-      } else if (s.kind === "define") {
-        const e = exprText(s);
-        out.push({ cap: `${s.id} = ${e ? `${e} = ` : ""}${shortVal(
-          s.value.hex)}`, slots: known(s.value.hex) });
-      } else if (s.kind === "list") {
-        out.push({ cap: `item ${s.each} = ${s.index} of ${shortVal(
-          s.count.value.hex)}` });
-      } else if (s.kind === "if") {
-        out.push({ cap: `${s.cond.args ? `${exprText(s.cond)} = ` : ""}${
-          shortVal(s.cond.value.hex)}, so ${branchWords(node, s)}` });
-      } else if (s.kind === "region") {
-        const f = Object.fromEntries(s.fields.map((x) =>
-          [x.field, shortVal(x.value.hex)]));
-        out.push({ cap: `${s.name}: slot ${f.slot ?? "?"}${f.offset
-          !== undefined ? `, offset ${f.offset}` : ""}${f.length
-          !== undefined ? `, length ${f.length}` : ""}`,
-        regions: region ? [region] : [] });
-      }
-    }
-  }
-  const r = v.region;
-  const o = Number(num(r.offset ?? "0x0"));
-  const n = r.length !== undefined ? Number(num(r.length)) : 32 - o;
-  out.push({ cap: `${o === 0 && n === 32 ? "all 32 bytes" : `bytes ${o}–${
-    o + n - 1}`} → ${v.hex === "0x" ? "no bytes" : v.hex.length > 22
-    ? `${v.hex.slice(0, 12)}…` : v.hex} = ${v.text}`, final: true });
   return out;
 }
 
-// The steps for any selection. A value: its own. A composite with no
-// value of its own (a mapping, a struct): its first value's steps, up to
-// where that value's own regions start, then the whole composite. An
-// array: its length's steps, then the whole array.
+// bytes a–b of a region, or the slots it spans
+function bytesText(r) {
+  const o = Number(num(r.offset ?? "0x0"));
+  const n = r.length !== undefined ? Number(num(r.length)) : 32 - o;
+  if (o + n > 32) return `${Math.ceil((o + n) / 32)} slots`;
+  return o === 0 && n === 32 ? "the whole slot" : n === 1 ? `byte ${o}`
+    : `bytes ${o}–${o + n - 1}`;
+}
+
+// The replay of a selection: the rules its pointers follow, each shown
+// once, by example, then for the rest. The values under the selection
+// (in the state shown) are walked together; their raw steps are sorted
+// into one idea each, in order:
+//   declared  the variable's own slot (`define slot`, a literal; or the
+//             program context's region, for a value type)
+//   entry     a mapping's key, its template and `define slot :=
+//             keccak(key, slot)`: the first key, then the others
+//   item      an array's template and `define data := keccak(slot)`, the
+//             list item and its region
+//   record    a struct's template: the slots its members take
+//   fields    the members' regions in one packed slot
+//   short     a string's `define slot + n`, template and length flag,
+//             the branch, and the data region in the slot (short)
+//   long      … or the branch, `define length`, `define start :=
+//             keccak(slot)` and the data region there (long)
+// Nothing here computes a slot: every number comes from the library's
+// evaluation (decode.js), or from the state (a flag byte).
 function replaySteps(path, side) {
   const node = find(current.tree, path);
-  const own = node[side];
-  let steps;
-  if (own) {
-    steps = valueSteps(node, own, side);
-  } else {
-    let leaf = null;
-    const visit = (n) => {
-      if (leaf) return;
-      if (n[side]) leaf = n;
-      else (n.children ?? []).forEach(visit);
-    };
-    visit(node);
-    if (!leaf) return [];
-    steps = valueSteps(leaf, leaf[side], side);
-    const k = steps.findIndex((x) => x.regions?.length || x.final);
-    steps = steps.slice(0, k < 0 ? steps.length : k);
+  const { types } = current.f.contract;
+  const leaves = [];
+  // every value under the selection (an array's length too)
+  const visit = (n) => {
+    if (n[side]) leaves.push(n);
+    (n.children ?? []).forEach(visit);
+  };
+  visit(node);
+  if (!leaves.length) return [];
+  const word = (h) => "0x" + num(h).toString(16).padStart(64, "0");
+  const wordAt = (h) => current.f.slots[word(h)]?.[side];
+  const tail = (h) => `…${word(h).slice(-4)}`;
+  const small = (h) => num(h) < 1n << 32n ? String(num(h)) : tail(h);
+  const keyName = (h) => {
+    const k = word(h).slice(-40);
+    return Object.entries(current.f.players ?? {}).find(([a]) =>
+      a.toLowerCase().endsWith(k))?.[1] ?? short(h);
+  };
+  const top = (n) => n.path.split(/[.[]/)[0];
+  const entryPath = (n) => n.path.match(/^[^.[]+\[[^\]]*\]/)?.[0];
+  const ph = new Map(); // idea -> { order, ... }
+  const add = (k, f) => {
+    if (!ph.has(k)) ph.set(k, { k, order: ph.size, slots: new Set(),
+      regions: [], items: [] });
+    f(ph.get(k));
+  };
+  // the rules for what is inside an entry are shown by example: the
+  // first entry's (and for a long string, the first long one)
+  let example;
+  const mine = (leaf) => {
+    const e = entryPath(leaf);
+    example ??= e;
+    return !e || e === example;
+  };
+  for (const leaf of leaves) {
+    const v = leaf[side];
+    let branch = null;
+    let mode = null; // the string's layout, from its branch
+    for (const r of rawSteps(v)) {
+      if (r.kind === "context") {
+        add("declared", (p) => {
+          p.var = r.c.variable;
+          p.slot = r.c.slot;
+          p.regions.push(v.region);
+          p.context = r.c;
+        });
+      } else if (r.kind === "start") {
+        add("declared", (p) => {
+          p.var = r.o.variable;
+          p.slot = r.o.slot;
+          if (wordAt(r.o.slot) !== undefined) p.slots.add(word(r.o.slot));
+          p.typeKind = types[find(current.tree, r.o.variable)?.typeId]?.kind;
+        });
+      } else if (r.kind === "define") {
+        const op = r.s.expr && typeof r.s.expr === "object"
+          ? Object.keys(r.s.expr)[0] : null;
+        const a = (r.s.args ?? []).map((x) => x.value.hex);
+        if (op === "$keccak256" && a.length === 2) {
+          add("entry", (p) => {
+            const key = a[0];
+            if (!p.items.some((x) => x.key === key)) {
+              p.items.push({ key, base: a[1], slot: r.s.value.hex,
+                path: entryPath(leaf) });
+            }
+            p.var = top(leaf);
+          });
+        } else if (op === "$keccak256" && r.s.id === "data") {
+          add("item", (p) => {
+            p.base = a[0];
+            p.data = r.s.value.hex;
+            p.var = top(leaf);
+          });
+        } else if (op === "$keccak256") {
+          add("long", (p) => p.items.push({ leaf, from: a[0],
+            to: r.s.value.hex }));
+        }
+      } else if (r.kind === "template") {
+        const t = types[r.s.name];
+        if (t?.kind === "struct" && mine(leaf)) {
+          add("record", (p) => {
+            p.struct = t;
+            p.entry ??= entryPath(leaf);
+          });
+        }
+      } else if (r.kind === "if") {
+        branch = r.s.branch;
+        mode = branch === "then" ? "short" : "long";
+      } else if (r.kind === "list") {
+        add("item", (p) => p.index = r.s.index);
+      } else if (r.kind === "region" && r.region) {
+        const n = r.s.name;
+        const g = r.region;
+        if (n === "length-flag") {
+          // the string's layout is known from the next branch: later
+          leaf._flag = g;
+        } else if (n === "long-length") {
+          leaf._long = g;
+        } else if (n === "data") {
+          if (mode !== "long" && !mine(leaf)) continue;
+          add(mode ?? "short", (p) => p.items.push({ leaf, flag: leaf._flag,
+            long: leaf._long, data: g }));
+        } else if (n === "item") {
+          add("item", (p) => p.regions.push(g));
+        } else if (n === "length" && !entryPath(leaf)) {
+          add("declared", (p) => p.regions.push(g));
+        } else if (mine(leaf)) {
+          add("fields", (p) => p.items.push({ leaf, name: n, region: g }));
+        }
+      }
+    }
   }
-  if (!own || node.children?.length) {
-    steps.push({ cap: `${shortKeys(path)}: ${node.children?.length ?? 0} ` +
-      `${node.children?.length === 1 ? "part" : "parts"}, lit in their ` +
-      "colours", final: true });
+  const keyBadge = current.f.keysIn ? "roster" : "trace";
+  const keysFrom = current.f.keysIn
+    ? `keys: the addresses in ${Object.values(current.f.keysIn)[0]}`
+    : "keys: from the trace";
+  const out = [];
+  const step = (x) => out.push({ badges: [], slots: [], regions: [], ...x });
+  const name = (n) => n.path.slice((entryPath(n) ?? top(n)).length)
+    .replace(/^\./, "") || n.label;
+  for (const p of [...ph.values()].sort((a, b) => a.order - b.order)) {
+    if (p.k === "declared") {
+      const w = wordAt(p.slot);
+      const held = w === undefined ? "" : ` = ${small(w)}`;
+      step({ cap: p.context ? `${p.var} is declared at slot ${small(
+        p.slot)}, ${p.context.length} bytes` : `${p.var} is declared at ${
+        p.typeKind === "mapping" ? "slot" : "slot"} ${small(p.slot)}${
+        w !== undefined && !num(w) ? "; that slot holds nothing"
+          : p.typeKind === "array" ? "; it holds the length" : ""}`,
+      form: p.context ? `slot ${small(p.slot)}, bytes ${p.context.offset}–${
+        p.context.offset + p.context.length - 1}` : `slot ${small(
+        p.slot)}${held}`, badges: ["compiler"], chip: `slot ${small(p.slot)}`,
+      chipLabel: p.typeKind ?? "value", slots: [...p.slots],
+      regions: p.regions });
+    } else if (p.k === "entry") {
+      const [first, ...rest] = p.items;
+      const what = (x) => `${keyName(x.key)}`;
+      step({ cap: `Each record is at the hash of its key and ${small(
+        first.base)}`, form: `keccak(${what(first)}, ${small(first.base)}) = ${
+        tail(first.slot)}; ${keysFrom}`, badges: ["hash", keyBadge],
+      chip: `keccak(${what(first)}, ${small(first.base)})`,
+      chipLabel: "record", slots: [word(first.slot)],
+      colorsOf: rest.length ? p.var : first.path });
+      if (rest.length) {
+        step({ cap: "The same rule for every key", form: rest.map((x) =>
+          `${what(x)} → ${tail(x.slot)}`).join(" · "), badges: ["hash",
+          keyBadge], chip: "the others", chipLabel: "records",
+        slots: rest.map((x) => word(x.slot)), colorsOf: p.var });
+      }
+    } else if (p.k === "item") {
+      step({ cap: `The items start at the hash of slot ${small(p.base)}`,
+        form: `keccak(${small(p.base)}) = ${tail(p.data)}${p.index
+          !== undefined ? `; item ${p.index} at + ${p.index}` : ""}`,
+        badges: ["hash"], chip: `keccak(${small(p.base)})`, chipLabel: "items",
+        slots: p.regions.length ? [] : [word(p.data)],
+        regions: p.regions, colorsOf: p.var });
+    } else if (p.k === "record") {
+      // the record's own slots: those its members' regions are in
+      const entry = find(current.tree, p.entry);
+      const base = num(ph.get("entry")?.items.find((x) =>
+        x.path === p.entry)?.slot ?? "0x0");
+      const own = new Set();
+      const visit2 = (n) => {
+        const v = n[side];
+        for (const r of [v?.region, ...(v?.parts ?? []).map((q) => q.region)]) {
+          const d = r ? num(r.slot) - base : -1n;
+          if (d >= 0n && d < 64n) own.add(word(r.slot));
+        }
+        (n.children ?? []).forEach(visit2);
+      };
+      if (entry) visit2(entry);
+      const slots = [...own].sort((a, b) => (num(a) < num(b) ? -1 : 1));
+      const per = slots.map((sl) => {
+        const ms = p.struct.contains.filter((m) => {
+          const c = entry.children.find((x) => x.label === m.name);
+          const r = c?.[side]?.parts?.[0]?.region ?? c?.[side]?.region;
+          return r && word(r.slot) === sl;
+        }).map((m) => m.name);
+        return ms;
+      });
+      step({ cap: `A ${p.struct.definition?.name ?? "record"} is ${
+        slots.length} slot${slots.length === 1 ? "" : "s"}${per.length === 2
+        ? `: ${per[0].length} fields, then ${per[1].join(", ")}` : ""}`,
+      form: slots.map(tail).join(", "), badges: ["compiler"],
+      chip: `${slots.length} slots`, chipLabel: "record", slots,
+      colorsOf: p.entry });
+    } else if (p.k === "fields") {
+      const sameSlot = new Set(p.items.map((x) => x.region.slot)).size === 1;
+      step({ cap: p.items.length > 1 && sameSlot
+        ? "The fields share one slot, packed from the right"
+        : `${name(p.items[0].leaf)} is in its record's slot`,
+      form: p.items.map((x) => `${name(x.leaf)} ${bytesText(x.region)
+        .replace(/^bytes? /, "")}`).join(" · "), badges: ["compiler"],
+      chip: p.items.length > 1 ? `${p.items.length} fields`
+        : bytesText(p.items[0].region), chipLabel: p.items.length > 1
+        ? "fields" : name(p.items[0].leaf), regions: p.items.map((x) =>
+        x.region), colorsOf: p.items.length > 1
+        ? entryPath(p.items[0].leaf) : null });
+    } else if (p.k === "short") {
+      const x = p.items[0];
+      const fl = wordAt(x.flag.slot).slice(-2);
+      step({ cap: "Short string: in its slot; last byte = 2 × length",
+        form: `0x${fl} → ${num("0x" + fl) / 2n} bytes: ${x.leaf[side].text}`,
+        badges: ["compiler", "storage"],
+        chip: `0x${fl}`, chipLabel: "short",
+        regions: [x.flag, x.data] });
+    } else if (p.k === "long") {
+      // (the first long string, by example)
+      const ds = p.items.filter((y) => y.data).slice(0, 1);
+      const x = ds[0] ?? p.items[0];
+      const fl = wordAt(x.flag.slot).slice(-2);
+      const len = (num(wordAt(x.flag.slot)) - 1n) / 2n;
+      const to = p.items.find((y) => y.to && y.leaf === x.leaf)?.to;
+      step({ cap: "Odd last byte: long; the data moves to its hash",
+        form: `0x${fl} → ${len} bytes, at keccak(${tail(x.flag.slot)}) = ${
+          to ? tail(to) : "?"}`, badges: ["compiler", "hash"],
+        chip: `keccak(${tail(x.flag.slot)})`, chipLabel: "long",
+        regions: ds.flatMap((y) => [y.flag, y.data]) });
+    }
   }
-  return steps;
+  return out;
 }
 
-// The highlight of a step: its slots' rows and its regions' bytes (the
-// final step: the selection, resolved)
+// The highlight of a step: its slots' rows and its regions' bytes, in
+// the colours of the composite it is about
 function stepLight(st) {
-  if (st.final) return forRow(current.panel, replay.path);
-  return forStep(current.panel, replay.side, st);
+  const h = forStep(current.panel, replay.side, st);
+  if (st.colorsOf) h.colors = forRow(current.panel, st.colorsOf).colors;
+  return h;
 }
-
-const CIRCLED = "①②③④⑤⑥⑦⑧⑨⑩⑪⑫⑬⑭⑮⑯⑰⑱⑲⑳";
 
 function renderBox() {
   const box = $("details");
   const node = chosen && find(current.tree, chosen);
-  if (!node) return;
+  if (!node) {
+    $("chips").innerHTML = "";
+    return;
+  }
+  const { types } = current.f.contract;
+  const t = types[node.typeId];
+  const v = node[mode];
+  const side = current.single ? "" : ` <span class="muted">(${mode})</span>`;
+  const title = `<p class="rtitle"><code>${esc(shortKeys(chosen))}</code>` +
+    `${t ? ` <span class="type">${esc(typeName(t, types))}</span>` : ""}${
+      v ? ` = <b>${esc(v.text)}</b>` : node.children
+        ? ` <span class="muted">${node.children.length} parts</span>` : ""
+    }${side}</p>`;
+  const steps = replay ? replay.steps : replaySteps(chosen, mode);
+  const badge = (b) => `<span class="badge">${esc(b)}</span>`;
+  let ctl;
+  let cur;
   if (replay) {
-    const { steps, i } = replay;
+    const { i } = replay;
     const st = steps[i];
-    const rule = st.rule && current.f.contract.pointers[st.rule];
-    box.innerHTML = `<p class="rstep"><span class="rnum">${CIRCLED[i] ??
-      i + 1}</span> ${esc(st.cap)}</p>` +
-      (rule ? `<details class="rrule"><summary>The rule as solc wrote it` +
-        `</summary><pre>${esc(JSON.stringify(rule, null, 1))}</pre>` +
-        "</details>" : "") +
-      `<div class="rbar"><span class="rdots" aria-hidden="true">${
-        steps.map((_, k) => `<i class="${k === i ? "on" : k < i ? "past"
-          : ""}"></i>`).join("")}</span>` +
-      `<span class="rctl"><button type="button" class="btn" data-r="prev"` +
-      ` aria-label="Previous step"${i ? "" : " disabled"}>◀</button>` +
+    ctl = `<button type="button" class="btn" data-r="prev" aria-label=` +
+      `"Previous step"${i ? "" : " disabled"}>◀</button>` +
       `<button type="button" class="btn" data-r="next" aria-label=` +
       `"Next step">▶</button>` +
       `<button type="button" class="btn" data-r="end" aria-label=` +
-      `"Jump to the resolved value">⏭</button></span>` +
-      `<span class="muted small">step ${i + 1} of ${steps.length}; ← →, ` +
-      "Esc</span></div>";
-    return;
+      `"Jump to the resolved value">⏭</button>` +
+      `<span class="rcount">${i + 1} / ${steps.length}</span>`;
+    cur = `<span class="rlabel">${esc(st.cap)}</span> <code class=` +
+      `"rform">${esc(st.form)}</code> ${st.badges.map(badge).join(" ")}`;
+  } else {
+    const h = forRow(current.panel, chosen);
+    const where = h.info.find(([k]) => k === "Where" || k ===
+      "Where after")?.[1] ?? "";
+    const other = !current.single && v && node[mode === "before" ? "after"
+      : "before"];
+    ctl = `<button type="button" class="btn" data-r="start">${
+      replay === false ? "Replay ▸" : "How was this found? ▸"}</button>`;
+    cur = v ? `<span class="rform rwhere">${where}</span>${other &&
+      other.text !== v.text ? ` <span class="muted">(${mode === "after"
+        ? "before" : "after"}: ${esc(other.text)})</span>` : ""}`
+      : `<span class="rform rwhere">${node[mode] === undefined &&
+        !node.children ? esc(missing(node, mode))
+        : `${node.children?.length ?? 0} parts, lit in their colours`}</span>`;
   }
-  const h = forRow(current.panel, chosen);
-  const done = replay === false; // just finished a replay
-  box.innerHTML = details(h, PROBE) +
-    (node[mode] ? "" : `<p class="small">${esc(missing(node, mode))}</p>`) +
-    `<p class="rbar"><button type="button" class="btn" data-r="start">${
-      done ? "Replay ▸" : "How was this found? ▸"}</button></p>` +
-    vyperRule(node, mode);
+  box.innerHTML = title + `<div class="rbody"><div class="rctl">${ctl}` +
+    `</div><div class="rcur">${cur}</div></div>` +
+    (replay ? "" : vyperRule(node, mode));
+  // the chips: one per step, done, current or later; all done at rest
+  const at = replay ? replay.i : steps.length;
+  $("chips").innerHTML = steps.map((st, k) => `<button type="button"` +
+    ` class="chip ${k < at ? "done" : k === at ? "cur" : "later"}"` +
+    ` data-k="${k}" aria-label="${esc(`Step ${k + 1}: ${st.cap}, ${
+      st.form}`)}"><span class="ctext">${esc(st.chip)}</span>` +
+    `<span class="clabel">${esc(st.chipLabel)}</span></button>`)
+    .join('<span class="carrow" aria-hidden="true">→</span>');
 }
 
-// Start, step or leave the replay
+// Start, step or leave the replay. Past the last step: the resolved view.
 function stepTo(i) {
   if (!replay) return;
-  // the last step is the resolved view: the box as at rest, "Replay ▸"
-  if (i >= replay.steps.length - 1) return endReplay();
+  if (i >= replay.steps.length) return endReplay();
   replay.i = Math.max(0, i);
   renderBox();
   show();
 }
-function startReplay() {
+function startReplay(at = 0) {
   if (!chosen) return;
   const steps = replaySteps(chosen, mode);
   if (!steps.length) return;
-  replay = { path: chosen, side: mode, steps, i: 0 };
+  replay = { path: chosen, side: mode, steps, i: at };
   renderBox();
   show();
   $("details").focus({ preventScroll: true });
@@ -637,6 +830,11 @@ document.addEventListener("click", (e) => {
     applyMode();
     return keep();
   }
+  const chip = t.closest("#chips .chip");
+  if (chip) {
+    const k = +chip.dataset.k;
+    return replay ? stepTo(k) : startReplay(k);
+  }
   const r = t.closest("#details button[data-r]");
   if (r) {
     const k = r.dataset.r;
@@ -648,7 +846,7 @@ document.addEventListener("click", (e) => {
   if (act(t)) return;
   // Empty space clears the selection; controls, text and the panels
   // that explain do not
-  if (t.closest("#picker, #details, #src, .addr, .tray, a, " +
+  if (t.closest("#picker, #details, #chips, #src, .addr, .tray, a, " +
     "button, " +
     "summary, details, input, label")) return;
   if (String(window.getSelection?.() ?? "")) return;
@@ -687,16 +885,35 @@ document.addEventListener("keydown", (e) => {
 async function decode(f) {
   // mapping keys: from the fixture (gathered from another trace), or
   // from this transaction's KECCAK256 inputs
-  const keys = f.keys ? new Map(f.keys) : mappingKeys(f.trace.kept);
+  const traced = f.keys ? new Map(f.keys) : mappingKeys(f.trace.kept);
   const side = (when) => storageState(async (slot) => {
     const e = f.slots[slot];
     if (!e) throw new Error(`slot ${slot} is not in the fixture`);
     return e[when];
   });
-  const [before, after] = await Promise.all([
-    decodeStorage(f.contract, side("before"), keys),
-    decodeStorage(f.contract, side("after"), keys),
-  ]);
+  // or, where the contract lists a mapping's keys (`keysIn`: players'
+  // keys are the addresses in roster), from that list, decoded from the
+  // same state through its own pointer
+  const keysFor = async (when) => {
+    if (!f.keysIn) return traced;
+    const first = await decodeStorage(f.contract, side(when), new Map());
+    const keys = new Map(traced);
+    for (const [m, list] of Object.entries(f.keysIn)) {
+      const v = f.contract.variables.find((x) => x.identifier === m);
+      const items = first.find((n) => n.path === list)?.children ?? [];
+      keys.set(baseSlot(v), items.map((n) => ({ key: "0x" +
+        n.value.text.slice(2).toLowerCase().padStart(64, "0"), from: list })));
+    }
+    // (the traced keys must be the same set)
+    const same = [...keys].every(([b, ks]) => {
+      const t = (traced.get(b) ?? []).map((k) => k.key).sort().join();
+      return t === ks.map((k) => k.key).sort().join();
+    });
+    window.results.keysMatch = [...(window.results.keysMatch ?? []), same];
+    return keys;
+  };
+  const [before, after] = await Promise.all(["before", "after"].map(
+    async (w) => decodeStorage(f.contract, side(w), await keysFor(w))));
   return merge(before, after);
 }
 

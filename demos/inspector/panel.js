@@ -164,6 +164,10 @@ export function buildPanel(f, tree, { single = false, when, names } = {}) {
   // (at one point, only the values' slots: the transaction is not shown;
   // and any slot given a name)
   if (!single) [...read, ...written].forEach(addSlot);
+  // each variable's own slot (a mapping's holds nothing)
+  for (const v of f.contract.variables) {
+    if (v.pointer.location !== "code") addSlot(baseSlot(v));
+  }
   Object.keys(names ?? {}).forEach(addSlot);
 
   // slot number -> variables, from the program-level context
