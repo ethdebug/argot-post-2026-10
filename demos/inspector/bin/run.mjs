@@ -1318,6 +1318,13 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
       : "later").join();
     if (x?.chips !== chips) problems.push(`players chips ${k + 1}: ${x?.chips}`);
   }
+  // a template step's band is its frame (name, expect, for:); the next
+  // step's band starts inside it (group:)
+  if (w[P.player]?.ptr.join("|") !== "Player:|expect: [slot]|for:" ||
+    w[P.record]?.ptr[0] !== "group:") {
+    problems.push(`template frame: ${w[P.player]?.ptr} | ${w[P.record]
+      ?.ptr.slice(0, 2)}`);
+  }
   // step 2's instances, one row a key; step 5's two branches
   if (!["0x7099…79c8 alice→…aa80", "0x3c44…93bc bob→…7527",
     "0x90f7…b906 carol→…9978"].every((x) => w[P.entries]?.form
