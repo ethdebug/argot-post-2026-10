@@ -9,6 +9,9 @@ import {
   type LegacyScene,
   type ProjectBookmark,
 } from "./fixtures/legacy";
+import { vyperRule } from "./fixtures/vyper-rule";
+
+const VY_RULE = "arcade-vy-rule";
 
 export interface Project {
   bookmarks: ProjectBookmark[];
@@ -29,14 +32,19 @@ export async function load(io: Io, manifest = "fixtures/index.json"):
       timeline: b.timeline, variables: "state",
       keys: keySourceOf(b.timeline) };
   }
-  const fetched = new Map<TimelineId,
-    Promise<{ compilation: Compilation; timeline: Timeline }>>();
+  // Vyper's own layout, over the same storage (hand-written)
+  if (decodings.vyAsSol) {
+    decodings.vyRule = { id: "vyRule", compilation: VY_RULE,
+      timeline: "arcade-vyper", variables: "state", keys: { from: "trace" } };
+  }
+  const fetched = new Map<TimelineId, Promise<{ compilation: Compilation;
+    timeline: Timeline; json: unknown }>>();
   const fixture = (id: TimelineId) => {
     if (!fetched.has(id)) {
       const p = io.json(`fixtures/${id}.json`).then((json) => {
         const out = fromFixture(json, id);
         out.timeline.bookmarks = bookmarks.filter((b) => b.timeline === id);
-        return out;
+        return { ...out, json };
       });
       // (a failed fetch is not kept: the next ask tries again)
       p.catch(() => fetched.get(id) === p && fetched.delete(id));
@@ -49,6 +57,7 @@ export async function load(io: Io, manifest = "fixtures/index.json"):
     timeline: async (id) => (await fixture(id)).timeline,
     // a fixture's contract: from that fixture
     async compilation(id) {
+      if (id === VY_RULE) return vyperRule((await fixture("arcade-vyper")).json);
       const f = fixtureOf(id);
       if (!f) throw new Error(`no compilation ${id}`);
       return (await fixture(f)).compilation;

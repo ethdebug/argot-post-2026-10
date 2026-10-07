@@ -218,11 +218,13 @@ async function instantiate(pointer: Pointer, state: State, c: Compilation,
     },
     // the regions a string or bytes value reads to find its length: the
     // nearest "length-flag" before its data, and a "long-length" between
+    // (or a length word of its own: Vyper's, "length")
     lengthParts(prefix, index) {
       const flag = join(prefix, "length-flag");
       const long = join(prefix, "long-length");
+      const word = join(prefix, "length");
       let f = index - 1;
-      while (f >= 0 && all[f].name !== flag) f--;
+      while (f >= 0 && all[f].name !== flag && all[f].name !== word) f--;
       if (f < 0) return [];
       const parts = [at(f, "length")];
       for (let i = f + 1; i < index; i++) {
