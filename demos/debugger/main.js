@@ -1,12 +1,15 @@
 // The page: UI, highlighting and stepping. Engines do the debugging,
 // each in a Web Worker behind engine.js; the page only displays what an
-// engine reports. One viewer steps every data set with the same code: a
-// Solidity transaction (solc's ethdebug) and a Fe transaction (Fe's
-// ethdebug), by soldb-wasm; a BUG transaction at two optimization
-// levels (bugc's ethdebug), by ethdebug's reference implementation. The
-// details run a soldb check on another BUG transaction. Part B
-// (details) replays a transaction with the replay build. Results go to
-// the DOM and to window.results.
+// engine reports. Every tab steps the same contract, Scores, and the
+// same transaction, record(30) after record(7). One viewer steps every
+// data set with the same code: the Solidity build (solc's ethdebug) and
+// the Fe build (Fe's ethdebug), by soldb-wasm; the BUG build at two
+// optimization levels (bugc's ethdebug), by ethdebug's reference
+// implementation; and an optimized Solidity build with no ethdebug, by
+// a source-map stepper ("The old way"), with a second data set, a call
+// of history(0). The details run a soldb check on another BUG
+// transaction. Part B (details) replays a transaction with the replay
+// build. Results go to the DOM and to window.results.
 //
 // Loading: only the default tab (Solidity) loads at first. Each other
 // tab, each BUG level and the details load when first opened, and, once
@@ -15,10 +18,10 @@
 // a status line, from the engine's progress reports; on failure, the
 // reason and a retry button.
 
-import { soldbEngine, refEngine } from "./engine.js";
+import { soldbEngine, refEngine, sourceMapEngine } from "./engine.js";
 
-const results = { env: {}, a: null, fe: null, ref: null, bug: null,
-  b: null, shiki: null, tabs: {} };
+const results = { env: {}, a: null, fe: null, ref: null, old: null,
+  bug: null, b: null, shiki: null, tabs: {} };
 window.results = results;
 
 const $ = (id) => document.getElementById(id);
@@ -196,6 +199,9 @@ const viewer = (() => {
     why(stateBox, !!vars, no.variables);
     stateBox.querySelector(".locals").textContent = no.locals ?? "";
     why(framesBox, !!caps.callStack, no.callStack);
+    for (const p of framesBox.querySelectorAll("[data-from]")) {
+      p.hidden = p.dataset.from !== caps.callStack;
+    }
     // Without a call stack: the engine's own function detection, if it
     // has one, labelled as such and never drawn as a stack.
     const fn = !caps.callStack && ds.steps.functions[i];
@@ -234,10 +240,11 @@ const viewer = (() => {
         li.append(` ${f.inline ? "inlined at" : "called at"} line ` +
           `${f.site.line}: `, code(f.site.text.trim()));
       }
+      if (f.note) li.append(`; ${f.note}`);
     }
     const li = framesList.appendChild(document.createElement("li"));
     li.className = "muted";
-    li.textContent = "the code block (transaction entry)";
+    li.textContent = ds.stackBase ?? "the transaction entry";
   };
   const drawState = (i, vars) => {
     stateBox.dataset.step = String(i);
@@ -313,8 +320,10 @@ const viewer = (() => {
     const fn = st.functions[i] ? `, function ${st.functions[i]}` : "";
     const loc = st.files[i] ? `${base(st.files[i])}:${st.lineNo[i]}`
       : "no source range";
+    // The source map stepper: the step's source map entry.
+    const entry = st.entries ? `, source map ${st.entries[i]}` : "";
     where.textContent = `step ${i} / ${ds.walked.n - 1}: ` +
-      `pc ${st.pcs[i]} ${st.ops[i]}, ${loc}${fn}`;
+      `pc ${st.pcs[i]} ${st.ops[i]}, ${loc}${fn}${entry}`;
     const src = ds.sources[span ? span[0] : ds.main];
     shown = src.id;
     msg.textContent = "";
@@ -324,7 +333,9 @@ const viewer = (() => {
       b.disabled = b.target === undefined ||
         (ds.walked.flat && b.dataset.go !== "into");
       b.title = b.disabled && ds.walked.flat && b.dataset.go !== "into"
-        ? "Every step here is at EVM call depth 1." : "";
+        ? ds.capabilities.callStack
+          ? "The call stack has the same depth at every step."
+          : "Every step here is at EVM call depth 1." : "";
     }
     // An inlined body (reference engine): the step's span is in the
     // body; the marker names the function and its call site.
@@ -336,8 +347,12 @@ const viewer = (() => {
     srcEl.innerHTML = render(src, span, inl && inl.site);
     showState(i);
     srcEl.classList.toggle("faded", !span);
-    note.textContent = !span
-      ? "Compiler-generated code: no source range."
+    // Without a span, the source map stepper says what the entry covers.
+    const e = st.entries?.[i]?.split(":");
+    note.textContent = !span ? e
+      ? `Source map entry ${st.entries[i]}: ` + (+e[0] < 0 || +e[2] < 0
+        ? "no source (-1)." : "the whole contract.")
+      : "Compiler-generated code: no source range."
       : src.lib ? `In Fe's standard library: ${src.lib}` : "";
     if (inl) {
       note.append(badge("inline"), ` The body of ${inl.fn ?? "?"}, ` +
@@ -455,10 +470,11 @@ window.walked = {};
 
 const engine = soldbEngine();
 const ref = refEngine();
+const srcmap = sourceMapEngine();
 const entries = (times) => Object.entries(times);
 
-// Solidity: Shop `place`, saved native trace, solc's ethdebug (Walnut's
-// solidity PR #10). Fe: Tally `Add{n: 4}` on anvil, Fe 26.4.1's
+// Solidity: Scores record(30), soldb's saved trace, the ethdebug output of
+// solc 0.8.37. Fe: Scores Record{points: 30} on anvil, Fe 26.4.1's
 // ethdebug; the engine adapts only the file layout (listed on the page).
 // What each data set's details show, from the engine's summary.
 const detail = {
@@ -467,11 +483,13 @@ const detail = {
     ["trace", `${kb(r.traceBytes)}, ${r.steps} steps, ` +
       `${r.mapped} with a source line (${r.generated} compiler-generated, ` +
       `whole-contract span), ${r.lineChanges} line changes`],
+    ["functions", `${r.withFunction} steps (soldb's own function ` +
+      "detection)"],
     ["WebAssembly memory after", kb(r.wasmMemory)],
   ],
   fe: (r) => [
     ["trace", `${kb(r.traceBytes)}, ${r.steps} steps, ${r.mapped} with a ` +
-      `source span (${r.userSteps} in tally.fe, ${r.mapped - r.userSteps} ` +
+      `source span (${r.userSteps} in scores.fe, ${r.mapped - r.userSteps} ` +
       `in Fe's standard library), ${r.lineChanges} line changes`],
     ["soldb's debug info", `${r.debugInfo.instructions} ` +
       `instructions, ${r.sourceCount} sources, variables at ` +
@@ -534,6 +552,24 @@ async function loadRef(lvl, onProgress) {
     `${s.maxDepth} frames; ${s.withInline} steps in an inlined body`]);
   showTimes($("ref-times"), refRows.times, refRows.rows);
   ok($("ref-status"), `Works. ethdebug/format at ${s.commit.slice(0, 9)}.`);
+  return ds;
+}
+
+// The old way: Scores, solc 0.8.37 --via-ir --optimize, stepped with its
+// source map only (srcmap-worker.js): record(30), or a call of history(0).
+const oldRows = { times: [], rows: [] };
+async function loadOld(v, onProgress) {
+  const ds = await load(`old-${v}`, srcmap, onProgress)
+    .catch((e) => { bad($("old-status"), e); throw e; });
+  const s = ds.summary;
+  results.old = { ...results.old, ok: true, [v]: s };
+  for (const [k, t] of entries(s.times)) oldRows.times.push([`${v}: ${k}`, t]);
+  oldRows.rows.push([`${v}: trace`, `${kb(s.traceBytes)}, ${s.steps} ` +
+    `steps: ${s.whole} map to the whole contract, ${s.none} to no source ` +
+    `(-1), ${s.specific} to a smaller range; ${s.into} jumps marked i, ` +
+    `${s.outOf} marked o`]);
+  showTimes($("old-times"), oldRows.times, oldRows.rows);
+  ok($("old-status"), "Works. No ethdebug.");
   return ds;
 }
 
@@ -603,6 +639,10 @@ const SECTIONS = {
     "implementation", load: (p) => loadRef("O0", p) },
   "bug-O2": { tab: "bug", start: "Starting ethdebug's reference " +
     "implementation", load: (p) => loadRef("O2", p) },
+  "old-record": { tab: "old", start: "Starting the source map stepper",
+    load: (p) => loadOld("record", p) },
+  "old-history": { tab: "old", start: "Starting the source map stepper",
+    load: (p) => loadOld("history", p) },
   details: { load: details },
 };
 
@@ -725,11 +765,12 @@ function retryButton(onclick) {
   return b;
 }
 
-// Show a tab, loading its data set first if needed. The BUG tab shows
-// one of two data sets: the same program at optimization level 0 or 2.
-let bugLevel = "O0";
+// Show a tab, loading its data set first if needed. Two tabs show one
+// of two data sets, picked below the tabs: BUG, the same program at
+// optimization level 0 or 2; the old way, record(30) or history(0).
+const variant = { bug: "O0", old: "record" };
 async function select(tab) {
-  const key = tab === "bug" ? `bug-${bugLevel}` : tab;
+  const key = variant[tab] ? `${tab}-${variant[tab]}` : tab;
   current = key;
   for (const t of document.querySelectorAll("[role=tab]")) {
     t.setAttribute("aria-selected", String(t.dataset.ds === tab));
@@ -771,11 +812,12 @@ for (const t of document.querySelectorAll("[role=tab]")) {
 }
 for (const b of document.querySelectorAll("[data-lvl]")) {
   b.onclick = () => {
-    bugLevel = b.dataset.lvl;
-    for (const c of document.querySelectorAll("[data-lvl]")) {
+    const tab = b.closest("[data-about]").dataset.about;
+    variant[tab] = b.dataset.lvl;
+    for (const c of b.parentElement.querySelectorAll("[data-lvl]")) {
       c.setAttribute("aria-checked", String(c === b));
     }
-    return select("bug");
+    return select(tab);
   };
 }
 window.select = select;
@@ -796,7 +838,8 @@ async function listRequests() {
   el.innerHTML = "";
   const seen = new Set();
   const reqs = [...performance.getEntriesByType("resource"),
-    ...await engine.requests(), ...await ref.requests()]
+    ...await engine.requests(), ...await ref.requests(),
+    ...await srcmap.requests()]
     .filter((e) => !e.name.endsWith("/events")
     && !seen.has(e.name) && seen.add(e.name));
   results.requests = reqs.map((e) => e.name);
@@ -845,7 +888,8 @@ function prefetch() {
   const c = navigator.connection;
   if (c && (c.saveData || /2g/.test(c.effectiveType ?? ""))) return;
   const queue = [() => ensure("fe"), () => ensure("bug-O0"),
-    () => ensure("bug-O2"),
+    () => ensure("bug-O2"), () => ensure("old-record"),
+    () => ensure("old-history"),
     () => fetch("pkg-replay/soldb_wasm_bg.wasm", { priority: "low" })
       .then((r) => r.arrayBuffer())];
   const idle = (f) => window.requestIdleCallback

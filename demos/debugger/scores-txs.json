@@ -1,0 +1,6 @@
+{
+  "about": "The transactions every tab gets (make-scores-txs.mjs). from: an anvil account index. setup: sent first, in order. tx: the traced transaction. view: a call after tx, traced for the old way only.",
+  "setup": [{ "from": 0, "call": "record(uint256)", "args": ["7"] }],
+  "tx": { "from": 0, "call": "record(uint256)", "args": ["30"] },
+  "view": { "from": 0, "call": "history(uint256)", "args": ["0"] }
+}

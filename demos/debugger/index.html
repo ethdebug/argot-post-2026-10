@@ -208,9 +208,8 @@
 <h1>Step through a transaction</h1>
 <p>This page steps through real transactions in this browser tab,
 offline, from saved files. At each EVM step, it highlights the source
-range. A debugger engine, compiled for the browser, does the debugging.
-Each tab names its engine. The page only shows what the engine
-reports.</p>
+range. A debugger engine does the debugging, in the browser. Each tab
+names its engine. The page only shows what the engine reports.</p>
 <p class="appendix-nav">Part of the ethdebug post appendix, with
 <a href="../inspector/">Storage, by name</a> and
 <a href="../../companion/">ethdebug in depth</a>.</p>
@@ -225,19 +224,31 @@ reports.</p>
       <button role="tab" data-ds="fe" aria-selected="false">Fe</button>
       <button role="tab" data-ds="bug" aria-selected="false">BUG
         (preview)</button>
+      <button role="tab" data-ds="old" aria-selected="false">The old
+        way</button>
     </div>
     <div class="picker levels" data-about="bug" hidden role="radiogroup"
       aria-label="optimization level">
       <button role="radio" data-lvl="O0" aria-checked="true">-O0: no
         inlining</button>
       <button role="radio" data-lvl="O2" aria-checked="false">-O2:
-        <code>sq</code> inlined</button>
+        <code>bonus</code> inlined</button>
+    </div>
+    <div class="picker levels" data-about="old" hidden role="radiogroup"
+      aria-label="transaction">
+      <button role="radio" data-lvl="record"
+        aria-checked="true"><code>record(30)</code></button>
+      <button role="radio" data-lvl="history" aria-checked="false">a call
+        of <code>history(0)</code></button>
     </div>
   </div>
   <p class="engine" data-about="sol fe">Engine: soldb, Walnut's
   debugger</p>
   <p class="engine" data-about="bug" hidden>Engine: ethdebug's
   reference implementation, not soldb</p>
+  <p class="engine" data-about="old" hidden>Engine: a source map
+  stepper on this page (<code>srcmap-worker.js</code>), with no
+  ethdebug</p>
 </div>
 
 <div id="stepper" class="loading" aria-busy="true">
@@ -292,8 +303,11 @@ reports.</p>
     <div class="panel frames">
       <p class="ph">Call stack</p>
       <div class="skel" aria-hidden="true"><i></i><i></i><i></i></div>
-      <p data-has>Innermost first, from <code>invoke</code> and
-      <code>return</code> contexts.</p>
+      <p data-has data-from="contexts">Innermost first, from
+      <code>invoke</code> and <code>return</code> contexts.</p>
+      <p data-has data-from="jumps" hidden>Innermost first, from the
+      source map's jump types: a <code>JUMP</code> marked <code>i</code>
+      opens a frame, one marked <code>o</code> closes it.</p>
       <ol aria-label="call stack" data-has></ol>
       <p class="why"></p>
       <p class="extra"></p>
@@ -301,16 +315,10 @@ reports.</p>
     <div class="panel state">
       <p class="ph">Variables</p>
       <div class="skel" aria-hidden="true"><i></i><i></i><i></i></div>
-      <p data-cap="state">Contract state, from ethdebug alone: solc's
-      pointers for storage, the deployed code for immutables. No
-      storage layout.</p>
       <p data-cap="variables" hidden>Variables in scope, from the
       context's <code>variables</code>. Each is read through its pointer
       with <code>dereference</code>.</p>
       <table aria-label="contract state" data-has></table>
-      <p class="muted" data-cap="state">A trace holds only the storage
-      that the transaction touches. A value shows as unknown until the
-      transaction reads or writes it.</p>
       <p class="muted" data-cap="variables" hidden>Decoding is a simple
       stand-in (uint, address, and arrays and structs of these) for the
       format's planned interpretation layer.</p>
@@ -327,29 +335,39 @@ reports.</p>
 </div>
 
 <div class="dbg-about">
+<p>Every tab steps the same contract, <code>Scores</code>
+(<a href="sol/Scores.sol">Scores.sol</a>), and the same transaction:
+<code>record(30)</code>, after a <code>record(7)</code> from the same
+account. The first call makes a streak of 1, so <code>record(30)</code>
+pays a bonus: <code>bonus(30, 1)</code> is 30, and <code>gained</code>
+is 60. Each transaction ran on a local anvil node.</p>
+
 <p data-about="sol fe"><strong>soldb and this page step
 through Solidity and Fe with the same code. Both compilers write
 ethdebug.</strong></p>
 
 <div class="about" data-about="sol">
-<p><code>Shop.place</code>: a saved trace of a real transaction (4.4 MB,
-3,736 EVM steps). The ethdebug output comes from Walnut's solc
-(walnuthq/solidity PR #10). soldb parses the trace
-(<code>Trace.fromJson</code>) and reads the ethdebug
+<p>solc 0.8.37 (the official build) compiled <code>Scores</code> with
+ethdebug output. solc writes ethdebug only with the optimizer off, so
+this build is via-IR without the optimizer. The trace is soldb's saved
+trace of <code>record(30)</code> (0.8 MB, 1,796 EVM steps). soldb parses
+the trace (<code>Trace.fromJson</code>) and reads the ethdebug
 (<code>attachEthdebug</code>). Then it maps each step to its source
-(<code>step(i)</code>) and reads the contract's state
-(<code>state(i)</code>).</p>
+(<code>step(i)</code>).</p>
 </div>
 
 <div class="about" data-about="fe" hidden>
 <p>soldb, a Solidity debugger, steps through a Fe contract. It uses
 only Fe's ethdebug output. The page changes only the file layout (see
 the list below).</p>
-<p><code>Tally.Add{n: 4}</code> (<a href="fe/tally.fe">tally.fe</a>) has
-a loop, an internal call to <code>weight</code> and a branch. Fe 26.4.1
-compiled it at <code>-O 0</code>. The transaction ran on a local anvil
-node. The page loads the node's saved responses with soldb's
-<code>Trace.fromTransaction</code>, then calls
+<p><code>Scores</code> in Fe (<a href="fe/scores.fe">scores.fe</a>),
+compiled by Fe 26.4.1 at <code>-O 0</code>. A Fe
+<code>StorageMap</code> value must fit in one word, so this port keeps
+one map per field, <code>scores</code> and <code>streaks</code>, and has
+no <code>active</code>, <code>history</code> or <code>motto</code>. The
+transaction is <code>Record{points: 30}</code> (the same calldata as
+<code>record(30)</code>). The page loads the node's saved responses with
+soldb's <code>Trace.fromTransaction</code>, then calls
 <code>attachEthdebug</code> and <code>step(i)</code>, as on the
 Solidity tab.</p>
 </div>
@@ -362,38 +380,60 @@ and the trace reconstruction from
 bugc, BUG's compiler, on ethdebug/format main. Only the decoding of
 values is a stand-in, for the format's planned interpretation
 layer.</p>
-<p><code>Scores</code> (<a href="bug/scores.bug">scores.bug</a>)
-scores three rounds. Each round writes its score to one element of the
-memory array <code>recent</code> (<code>recent[i - 1] = s</code>) and
-adds it to a total in the packed storage struct <code>stats</code>.
-<code>score</code> calls <code>sq</code> and <code>sumTo</code>, which
-calls itself. Look for: the call stack (up to five frames, from bugc's
-<code>invoke</code> and <code>return</code> contexts);
-<code>recent</code> as it fills, one element per round, read through
-its pointer (length, then each element); at -O2, the inlined
-<code>sq</code> and the folded local <code>bonus</code>. The tab has the
-same program at two optimization levels.</p>
+<p><code>Scores</code> in BUG (<a href="bug/scores.bug">scores.bug</a>),
+statement for statement as in Scores.sol, with three differences. A BUG
+contract has one entry point, its code block, so the program is
+<code>record</code> alone: no <code>setMotto</code> and no
+<code>motto</code>. BUG has no <code>push</code>, so
+<code>record</code> writes <code>history[rounds]</code>. bugc stores no
+length for a dynamic array in storage, so <code>history</code> reads as
+length 0. Look for: the call stack (from bugc's <code>invoke</code> and
+<code>return</code> contexts), with <code>bonus(points: 30, streak:
+1)</code> at -O0; at -O2, the inlined <code>bonus</code>, with its local
+<code>b</code> (30) inside the inlined body, then <code>gained</code>
+(60). The tab has the same program at two optimization levels.</p>
 <p class="muted">At both levels, bugc gives a local variable a pointer
 where its value is in memory. Where a local has no location (its value
 is not stored yet, or the optimizer folded it), bugc lists it by type
 only: the format cannot yet say "the value is this expression"
-(ethdebug/format#291). At -O0, <code>bonus</code> is in memory. At
--O2, the optimizer folds it into the sum, so it is listed by type only.
-At -O2, bugc also inlines <code>sq</code>. The inlined instructions
-carry <code>transform: ["inline"]</code> and keep the source range of
-the call <code>sq(k)</code>. The local <code>x</code> of the inlined
-<code>sq</code> is marked "inline". It is listed from the step after
-the inlined call starts to the step of the instruction that returns
-from it; the next step lists the caller's variables again. In the
-inlined body, the storage variables stay listed. The pointer for
-<code>last</code>, a mapping, names only its base slot, so the page
-shows no entries.</p>
+(ethdebug/format#291). At -O2, bugc inlines <code>bonus</code>. The
+inlined instructions carry <code>transform: ["inline"]</code> and keep
+the source range of the call <code>bonus(points, streak)</code>. The
+locals of the inlined <code>bonus</code> are marked "inline". They are
+listed from the step after the inlined call starts to the step of the
+instruction that returns from it; the next step lists the caller's
+variables again. In the inlined body, the storage variables stay
+listed. The pointer for <code>players</code>, a mapping, names only its
+base slot, so the page shows no entries.</p>
 </div>
 
-<p class="muted" data-about="bug" hidden>"over" and "out"
-use the call stack depth. "over" steps over a call or an inlined body.
-"out" runs until the call stack is one frame shorter. Shiki has no BUG grammar, so the code is
-coloured as Rust.</p>
+<div class="about" data-about="old" hidden>
+<p>No ethdebug on this tab. solc 0.8.37 compiled the same
+<code>Scores</code> with <code>--via-ir --optimize</code>. The tab has
+what tools had before ethdebug: the bytecode, its source map and the
+AST, from <code>solc --combined-json</code>. A source map gives each
+instruction one entry, <code>s:l:f:j</code>: the start and length of a
+source range, a file index (-1: no source), and a jump type:
+<code>i</code> into a function, <code>o</code> out of one,
+<code>-</code> neither. The stepper on this page highlights each step's
+range and shows its entry. It builds the call stack as older debuggers
+did, from the <code>i</code> and <code>o</code> jumps, and names a
+frame by the AST function that holds the jump's target.</p>
+<p><code>record(30)</code>: 313 steps; 258 map to the whole contract,
+30 to no source and 25 to a smaller range. The second data set is a
+call of the public getter <code>history(0)</code> after
+<code>record(30)</code> (<code>eth_call</code>, traced with
+<code>debug_traceCall</code>, 97 steps). Look for: in
+<code>record(30)</code>, the steps of <code>bonus</code> (lines 22 and
+23) and the call stack; in <code>history(0)</code>, line 33.</p>
+</div>
+
+<p class="muted" data-about="bug old" hidden>"over" and "out"
+use the call stack depth. "over" steps over a call<span
+data-about="bug"> or an inlined body</span>. "out" runs until the call
+stack is one frame shorter.</p>
+<p class="muted" data-about="bug" hidden>Shiki has no BUG grammar, so
+the code is coloured as Rust.</p>
 <p class="muted" data-about="sol fe">The page computes each
 step from two fields that soldb reports: the source span and the EVM
 call depth. "into" goes to the next new span. "over" goes to the next
@@ -411,10 +451,10 @@ build does not expose them yet.</p>
     <code>programs</code> list. The page passes the runtime one
     (<code>environment: "call"</code>).</li>
   <li><code>sources</code>: Fe lists its sources without their text. The
-    page supplies the text: <code>tally.fe</code>, and 7 standard-library
-    files (<code>builtin-core:/…</code>, <code>builtin-std:/…</code>)
-    copied from the Fe repository at tag v26.4.1. Their blake3 hashes
-    match the ones in Fe's file.</li>
+    page supplies the text: <code>scores.fe</code>, and 10
+    standard-library files (<code>builtin-core:/…</code>,
+    <code>builtin-std:/…</code>) copied from the Fe repository at tag
+    v26.4.1. Their blake3 hashes match the ones in Fe's file.</li>
   <li><code>metadata</code>: Fe's whole file, unchanged. soldb reads the
     source ids and paths from its <code>compilation</code>. soldb needs
     no types or pointers, so the page adds none. <code>name</code> is
@@ -456,6 +496,14 @@ When it loads, it maps each step and builds its call stack. It reads
 variables and call arguments when the page shows a step.</p>
 <p class="status" id="ref-status">Loads with the BUG tab.</p>
 <table id="ref-times"></table>
+
+<h3>The old way: a source map stepper</h3>
+<p>The old way's engine (<code>srcmap-worker.js</code>, about 150 lines)
+reads solc's bytecode, source map and AST, and the node's trace. It
+reads no ethdebug.</p>
+<p class="status" id="old-status">Loads with the tab "The old
+way".</p>
+<table id="old-times"></table>
 
 <h3>BUG: soldb check, lean build, node responses</h3>
 <p>A saved transaction of <code>Tally</code>

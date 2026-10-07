@@ -217,7 +217,8 @@ async function load(report, key) {
     noCode, whole,
     traceBytes: dbg.length };
   return [{ summary, steps, sources: { 0: { text: src } }, main: 0,
-    lang: "rust", capabilities: { callStack: true, variables: true,
+    lang: "rust", stackBase: "the code block (transaction entry)",
+    capabilities: { callStack: "contexts", variables: true,
       inline: withInline > 0,
       generated: "for bugc, an instruction with no code range" } },
   [pcs.buffer, spans.buffer, lineNo.buffer, depths.buffer]];
@@ -273,7 +274,8 @@ const typeName = (t) => {
 };
 
 // The value a pointer names at step i, by its type: an array, from the
-// regions bugc names `<name>-length` and `<name>-element`; a struct,
+// regions bugc names `<name>-length` and `<name>-element` (memory) or
+// `array-length` and `element` (storage); a struct,
 // from one region per member; else the region named `name`, or the
 // last region. A mapping's pointer names only its base slot, so the
 // page shows no entries.
@@ -286,9 +288,11 @@ async function valueAt(ds, i, pointer, name, type) {
   const view = await cursor.view(state);
   const read = async (r, t) => decode(await view.read(r), t);
   if (type?.kind === "array") {
-    const length = view.regions.named(`${name}-length`)?.at(-1);
+    const named = (...ks) => ks.map((k) => view.regions.named(k))
+      .find((x) => x?.length) ?? [];
+    const length = named(`${name}-length`, "array-length").at(-1);
     const items = [];
-    for (const r of view.regions.named(`${name}-element`) ?? []) {
+    for (const r of named(`${name}-element`, "element")) {
       items.push(await read(r, type.contains?.type));
     }
     if (length) {

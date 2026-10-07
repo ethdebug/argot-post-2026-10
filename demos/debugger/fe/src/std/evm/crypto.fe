@@ -1,0 +1,498 @@
+/// Cryptographic primitives and EVM math builtins.
+///
+/// Safe, typed wrappers around EVM precompiles and modular arithmetic opcodes.
+/// Raw memory and call operations should go through the effects system
+/// (RawMem, RawOps, Ctx traits) instead.
+///
+/// Fixed-output precompile wrappers assume the addressed precompile exists on
+/// the active fork and intentionally do not check returndata length on the hot
+/// path. Use `Call.raw_staticcall` for fork probing or explicit handling of
+/// absent precompiles.
+
+use core::option::Option
+use core::ptr::{self, FixedMemBuffer, MemBuffer, MemSpan}
+use core::result::Result
+use super::effects::{Address, RawMem}
+use super::ops
+use super::packed
+
+fn offset(_ base: *u8, _ bytes: u256) -> *u8 {
+    ptr::offset_bytes(base, bytes)
+}
+
+pub const ECRECOVER_ADDRESS: u256 = 0x01
+pub const SHA256_ADDRESS: u256 = 0x02
+pub const RIPEMD160_ADDRESS: u256 = 0x03
+pub const IDENTITY_ADDRESS: u256 = 0x04
+pub const MODEXP_ADDRESS: u256 = 0x05
+pub const BN254_ADD_ADDRESS: u256 = 0x06
+pub const BN254_MUL_ADDRESS: u256 = 0x07
+pub const BN254_PAIRING_ADDRESS: u256 = 0x08
+pub const BLAKE2F_ADDRESS: u256 = 0x09
+pub const KZG_POINT_EVALUATION_ADDRESS: u256 = 0x0a
+pub const BLS12_G1_ADD_ADDRESS: u256 = 0x0b
+pub const BLS12_G1_MSM_ADDRESS: u256 = 0x0c
+pub const BLS12_G2_ADD_ADDRESS: u256 = 0x0d
+pub const BLS12_G2_MSM_ADDRESS: u256 = 0x0e
+pub const BLS12_PAIRING_ADDRESS: u256 = 0x0f
+pub const BLS12_MAP_FP_TO_G1_ADDRESS: u256 = 0x10
+pub const BLS12_MAP_FP2_TO_G2_ADDRESS: u256 = 0x11
+pub const P256VERIFY_ADDRESS: u256 = 0x100
+
+pub const BLAKE2F_INPUT_LEN: u256 = 213
+pub const KZG_POINT_EVALUATION_INPUT_LEN: u256 = 192
+pub const BLS12_G1_LEN: u256 = 128
+pub const BLS12_G2_LEN: u256 = 256
+pub const BLS12_G1_ADD_INPUT_LEN: u256 = 256
+pub const BLS12_G1_MSM_PAIR_LEN: u256 = 160
+pub const BLS12_G2_ADD_INPUT_LEN: u256 = 512
+pub const BLS12_G2_MSM_PAIR_LEN: u256 = 288
+pub const BLS12_PAIRING_PAIR_LEN: u256 = 384
+pub const BLS12_FP_LEN: u256 = 64
+pub const BLS12_FP2_LEN: u256 = 128
+pub const P256VERIFY_INPUT_LEN: u256 = 160
+
+const SECP256K1_ORDER: u256 = 0xfffffffffffffffffffffffffffffffebaaedce6af48a03bbfd25e8cd0364141
+const SECP256K1_HALF_ORDER: u256 = 0x7fffffffffffffffffffffffffffffff5d576e7357a4501ddfe92f46681b20a0
+
+pub enum PrecompileError {
+    CallFailed,
+    InvalidInputLength,
+}
+
+impl Copy for PrecompileError {}
+
+fn valid_exact_len(data: MemSpan, expected: u256) -> bool {
+    data.len() == expected
+}
+
+fn valid_chunks(data: MemSpan, chunk_len: u256, allow_empty: bool) -> bool {
+    (allow_empty || !data.is_empty()) && data.len() % chunk_len == 0
+}
+
+fn staticcall_memory(
+    addr: u256,
+    args: MemSpan,
+    ret_len: u256,
+) -> Result<PrecompileError, MemBuffer> {
+    let mut out = MemBuffer::with_capacity(ret_len)
+    let ok: u256 = ops::staticcall(
+        gas: ops::gas(),
+        addr: addr,
+        args_offset: args.ptr(),
+        args_len: args.len(),
+        ret_offset: out.ptr(),
+        ret_len,
+    )
+
+    if ok == 0 {
+        return Result::Err(PrecompileError::CallFailed)
+    }
+
+    let returned = ops::returndatasize()
+    out.set_len(if returned < ret_len { returned } else { ret_len })
+    Result::Ok(out)
+}
+
+// Shared fixed-output precompile call helper. The typed wrappers that use this
+// helper trade fork-probing diagnostics for gas by trusting the known output
+// length of existing precompiles.
+#[inline(always)]
+fn staticcall_fixed<const N: usize>(
+    addr: u256,
+    args: MemSpan,
+) -> Result<PrecompileError, FixedMemBuffer<N>> {
+    let out = FixedMemBuffer<N>::alloc()
+    let ok: u256 = ops::staticcall(
+        gas: ops::gas(),
+        addr,
+        args_offset: args.ptr(),
+        args_len: args.len(),
+        ret_offset: out.ptr(),
+        ret_len: out.len(),
+    )
+
+    if ok == 0 {
+        return Result::Err(PrecompileError::CallFailed)
+    }
+
+    Result::Ok(out)
+}
+
+fn staticcall_word(addr: u256, args: MemSpan) -> Result<PrecompileError, u256> {
+    match staticcall_fixed<32>(addr, args) {
+        Result::Ok(out) => Result::Ok(ops::mload(out.ptr())),
+        Result::Err(err) => Result::Err(err),
+    }
+}
+
+fn staticcall_pair_words(addr: u256, args: MemSpan) -> Result<PrecompileError, (u256, u256)> {
+    match staticcall_fixed<64>(addr, args) {
+        Result::Ok(out) => Result::Ok((
+            ops::mload(out.ptr()),
+            ops::mload(offset(out.ptr(), 32)),
+        )),
+        Result::Err(err) => Result::Err(err),
+    }
+}
+
+fn staticcall_g1_words(
+    addr: u256,
+    args: MemSpan,
+) -> Result<PrecompileError, (u256, u256, u256, u256)> {
+    match staticcall_fixed<128>(addr, args) {
+        Result::Ok(out) => Result::Ok((
+            ops::mload(out.ptr()),
+            ops::mload(offset(out.ptr(), 32)),
+            ops::mload(offset(out.ptr(), 64)),
+            ops::mload(offset(out.ptr(), 96)),
+        )),
+        Result::Err(err) => Result::Err(err),
+    }
+}
+
+fn staticcall_g2_words(
+    addr: u256,
+    args: MemSpan,
+) -> Result<PrecompileError, (u256, u256, u256, u256, u256, u256, u256, u256)> {
+    match staticcall_fixed<256>(addr, args) {
+        Result::Ok(out) => Result::Ok((
+            ops::mload(out.ptr()),
+            ops::mload(offset(out.ptr(), 32)),
+            ops::mload(offset(out.ptr(), 64)),
+            ops::mload(offset(out.ptr(), 96)),
+            ops::mload(offset(out.ptr(), 128)),
+            ops::mload(offset(out.ptr(), 160)),
+            ops::mload(offset(out.ptr(), 192)),
+            ops::mload(offset(out.ptr(), 224)),
+        )),
+        Result::Err(err) => Result::Err(err),
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Math builtins (pure, no state effects)
+// ---------------------------------------------------------------------------
+
+/// Modular addition: `(a + b) % m` with 512-bit intermediate precision.
+pub const fn addmod(_ a: u256, _ b: u256, _ m: u256) -> u256 {
+    core::num::addmod(a, b, m)
+}
+
+/// Modular multiplication: `(a * b) % m` with 512-bit intermediate precision.
+pub const fn mulmod(_ a: u256, _ b: u256, _ m: u256) -> u256 {
+    core::num::mulmod(a, b, m)
+}
+
+// ---------------------------------------------------------------------------
+// Hash functions
+// ---------------------------------------------------------------------------
+
+/// Keccak256 hash of a memory region.
+pub fn keccak256(_ data: MemSpan) -> u256 {
+    ops::keccak256(offset: data.ptr(), len: data.len())
+}
+
+/// Keccak256 of the concatenated 32-byte words, e.g. `keccak_words([a, b])`
+/// for Solidity's `keccak256(abi.encode(a, b))` over word-sized values.
+///
+/// Much cheaper than `keccak_packed` for word tuples: the words are written
+/// into one buffer without the packed builder's per-field bookkeeping.
+pub fn keccak_words<const N: usize>(_ words: [u256; N]) -> u256 {
+    let buffer = MemBuffer::alloc(N as u256 * 32)
+    let mut i: usize = 0
+    while i < N {
+        ops::mstore(addr: offset(buffer.ptr(), i as u256 * 32), value: words[i])
+        i += 1
+    }
+    ops::keccak256(offset: buffer.ptr(), len: N as u256 * 32)
+}
+
+/// Address of a contract created with `CREATE2` by `deployer`:
+/// the low 20 bytes of `keccak256(0xff ++ deployer ++ salt ++ init_code_hash)`.
+pub fn create2_address(deployer: Address, salt: u256, init_code_hash: u256) -> Address {
+    if deployer.inner >> 160 != 0 {
+        ops::revert_empty()
+    }
+    let preimage = MemBuffer::alloc(85)
+    ops::mstore(addr: preimage.ptr(), value: (0xff << 248) | (deployer.inner << 88))
+    ops::mstore(addr: offset(preimage.ptr(), 21), value: salt)
+    ops::mstore(addr: offset(preimage.ptr(), 53), value: init_code_hash)
+    Address { inner: ops::keccak256(offset: preimage.ptr(), len: 85) & ADDRESS_MASK }
+}
+
+const ADDRESS_MASK: u256 = 0xffffffffffffffffffffffffffffffffffffffff
+
+/// SHA256 hash of a memory region (precompile 0x02).
+pub fn sha256(_ data: MemSpan) -> Result<PrecompileError, u256> {
+    staticcall_word(addr: SHA256_ADDRESS, args: data)
+}
+
+/// EIP-712 typed-data digest:
+/// `keccak256(0x19 ++ 0x01 ++ domain_separator ++ struct_hash)`.
+#[inline(always)]
+pub fn eip712_digest(domain_separator: u256, struct_hash: u256) -> u256
+uses (mem: mut RawMem)
+{
+    packed::keccak_packed((0x19 as u8, 0x01 as u8, domain_separator, struct_hash))
+}
+
+/// RIPEMD160 hash of a memory region (precompile 0x03).
+///
+/// The 20-byte digest is returned in the low 160 bits of the ABI word.
+pub fn ripemd160(_ data: MemSpan) -> Result<PrecompileError, u256> {
+    staticcall_word(addr: RIPEMD160_ADDRESS, args: data)
+}
+
+/// Copy a memory region through the identity precompile (precompile 0x04).
+pub fn identity(_ data: MemSpan) -> Result<PrecompileError, MemBuffer> {
+    staticcall_memory(addr: IDENTITY_ADDRESS, args: data, ret_len: data.len())
+}
+
+// ---------------------------------------------------------------------------
+// Signature recovery
+// ---------------------------------------------------------------------------
+
+fn is_canonical_ecrecover_signature(v: u256, r: u256, s: u256) -> bool {
+    (v == 27 || v == 28)
+        && r > 0
+        && r < SECP256K1_ORDER
+        && s > 0
+        && s <= SECP256K1_HALF_ORDER
+}
+
+/// Recover signer address from a message hash and ECDSA signature (precompile 0x01).
+/// Returns `Ok(Some(addr))` on successful recovery, `Ok(None)` for invalid
+/// or non-canonical signatures, and `Err` if the precompile call itself fails.
+pub fn ecrecover(
+    hash: u256,
+    v: u256,
+    r: u256,
+    s: u256,
+) -> Result<PrecompileError, Option<u256>> {
+    if !is_canonical_ecrecover_signature(v: v, r: r, s: s) {
+        return Result::Ok(Option::None)
+    }
+
+    ecrecover_raw(hash: hash, v: v, r: r, s: s)
+}
+
+/// Recover signer address through the ECRecover precompile without canonical
+/// secp256k1 signature checks.
+///
+/// This matches Solidity's `ecrecover` builtin acceptance behavior while still
+/// returning `Ok(None)` instead of a zero address for failed recovery.
+pub fn ecrecover_raw(
+    hash: u256,
+    v: u256,
+    r: u256,
+    s: u256,
+) -> Result<PrecompileError, Option<u256>> {
+    let buffer = FixedMemBuffer<128>::alloc()
+    ops::mstore(addr: buffer.ptr(), value: hash)
+    ops::mstore(addr: offset(buffer.ptr(), 32), value: v)
+    ops::mstore(addr: offset(buffer.ptr(), 64), value: r)
+    ops::mstore(addr: offset(buffer.ptr(), 96), value: s)
+    let ok: u256 = ops::staticcall(
+        gas: ops::gas(),
+        addr: ECRECOVER_ADDRESS,
+        args_offset: buffer.ptr(),
+        args_len: buffer.len(),
+        ret_offset: buffer.ptr(),
+        ret_len: 32,
+    )
+    if ok == 0 {
+        return Result::Err(PrecompileError::CallFailed)
+    }
+    if ops::returndatasize() == 0 {
+        return Result::Ok(Option::None)
+    }
+
+    let recovered = ops::mload(buffer.ptr())
+    if recovered == 0 {
+        return Result::Ok(Option::None)
+    }
+
+    Result::Ok(Option::Some(recovered))
+}
+
+// ---------------------------------------------------------------------------
+// EC precompile wrappers (BN254)
+// ---------------------------------------------------------------------------
+
+/// EC point addition on BN254 (precompile 0x06).
+pub fn ec_add(
+    ax: u256,
+    ay: u256,
+    bx: u256,
+    by: u256,
+) -> Result<PrecompileError, (u256, u256)> {
+    let buffer = FixedMemBuffer<128>::alloc()
+    ops::mstore(addr: buffer.ptr(), value: ax)
+    ops::mstore(addr: offset(buffer.ptr(), 32), value: ay)
+    ops::mstore(addr: offset(buffer.ptr(), 64), value: bx)
+    ops::mstore(addr: offset(buffer.ptr(), 96), value: by)
+    match staticcall_fixed<64>(addr: BN254_ADD_ADDRESS, args: buffer.span()) {
+        Result::Ok(out) => Result::Ok((
+            ops::mload(out.ptr()),
+            ops::mload(offset(out.ptr(), 32)),
+        )),
+        Result::Err(err) => Result::Err(err),
+    }
+}
+
+/// EC scalar multiplication on BN254 (precompile 0x07).
+pub fn ec_mul(px: u256, py: u256, s: u256) -> Result<PrecompileError, (u256, u256)> {
+    let buffer = FixedMemBuffer<96>::alloc()
+    ops::mstore(addr: buffer.ptr(), value: px)
+    ops::mstore(addr: offset(buffer.ptr(), 32), value: py)
+    ops::mstore(addr: offset(buffer.ptr(), 64), value: s)
+    match staticcall_fixed<64>(addr: BN254_MUL_ADDRESS, args: buffer.span()) {
+        Result::Ok(out) => Result::Ok((
+            ops::mload(out.ptr()),
+            ops::mload(offset(out.ptr(), 32)),
+        )),
+        Result::Err(err) => Result::Err(err),
+    }
+}
+
+/// EC pairing check on a pre-built memory span (precompile 0x08).
+///
+/// The span must contain N pairs, each 192 bytes:
+/// `G1.x, G1.y, G2.x_imag, G2.x_real, G2.y_imag, G2.y_real`.
+/// Total length must be `N * 192`.
+///
+/// Returns true if the pairing equation holds:
+/// `e(a1, b1) * e(a2, b2) * ... * e(aN, bN) == 1`
+///
+/// Use effects (RawMem) to build the buffer, then pass it here.
+pub fn ec_pairing(_ data: MemSpan) -> Result<PrecompileError, bool> {
+    if !valid_chunks(data, chunk_len: 192, allow_empty: true) {
+        return Result::Err(PrecompileError::InvalidInputLength)
+    }
+    match staticcall_word(addr: BN254_PAIRING_ADDRESS, args: data) {
+        Result::Ok(word) => Result::Ok(word != 0),
+        Result::Err(err) => Result::Err(err),
+    }
+}
+
+/// Modular exponentiation (precompile 0x05).
+/// Computes `base^exp % modulus` for u256-sized inputs.
+pub fn modexp(base: u256, exp: u256, modulus: u256) -> Result<PrecompileError, u256> {
+    let buffer = FixedMemBuffer<192>::alloc()
+    ops::mstore(addr: buffer.ptr(), value: 32)
+    ops::mstore(addr: offset(buffer.ptr(), 32), value: 32)
+    ops::mstore(addr: offset(buffer.ptr(), 64), value: 32)
+    ops::mstore(addr: offset(buffer.ptr(), 96), value: base)
+    ops::mstore(addr: offset(buffer.ptr(), 128), value: exp)
+    ops::mstore(addr: offset(buffer.ptr(), 160), value: modulus)
+    match staticcall_fixed<32>(addr: MODEXP_ADDRESS, args: buffer.span()) {
+        Result::Ok(out) => Result::Ok(ops::mload(out.ptr())),
+        Result::Err(err) => Result::Err(err),
+    }
+}
+
+/// Raw modular exponentiation with caller-provided input and return size.
+pub fn modexp_raw(_ data: MemSpan, ret_len: u256) -> Result<PrecompileError, MemBuffer> {
+    staticcall_memory(addr: MODEXP_ADDRESS, args: data, ret_len)
+}
+
+/// BLAKE2 compression function F (precompile 0x09).
+///
+/// The input must be the 213-byte EIP-152 payload.
+pub fn blake2f(_ data: MemSpan) -> Result<PrecompileError, (u256, u256)> {
+    if !valid_exact_len(data, expected: BLAKE2F_INPUT_LEN) {
+        return Result::Err(PrecompileError::InvalidInputLength)
+    }
+    staticcall_pair_words(addr: BLAKE2F_ADDRESS, args: data)
+}
+
+/// KZG point evaluation (precompile 0x0a).
+///
+/// The input must be the 192-byte EIP-4844 payload. The return is
+/// `(FIELD_ELEMENTS_PER_BLOB, BLS_MODULUS)`.
+pub fn kzg_point_evaluation(_ data: MemSpan) -> Result<PrecompileError, (u256, u256)> {
+    if !valid_exact_len(data, expected: KZG_POINT_EVALUATION_INPUT_LEN) {
+        return Result::Err(PrecompileError::InvalidInputLength)
+    }
+    staticcall_pair_words(addr: KZG_POINT_EVALUATION_ADDRESS, args: data)
+}
+
+/// BLS12-381 G1 addition (precompile 0x0b).
+pub fn bls12_g1_add(_ data: MemSpan) -> Result<PrecompileError, (u256, u256, u256, u256)> {
+    if !valid_exact_len(data, expected: BLS12_G1_ADD_INPUT_LEN) {
+        return Result::Err(PrecompileError::InvalidInputLength)
+    }
+    staticcall_g1_words(addr: BLS12_G1_ADD_ADDRESS, args: data)
+}
+
+/// BLS12-381 G1 multiscalar multiplication (precompile 0x0c).
+pub fn bls12_g1_msm(_ data: MemSpan) -> Result<PrecompileError, (u256, u256, u256, u256)> {
+    if !valid_chunks(data, chunk_len: BLS12_G1_MSM_PAIR_LEN, allow_empty: false) {
+        return Result::Err(PrecompileError::InvalidInputLength)
+    }
+    staticcall_g1_words(addr: BLS12_G1_MSM_ADDRESS, args: data)
+}
+
+/// BLS12-381 G2 addition (precompile 0x0d).
+pub fn bls12_g2_add(
+    _ data: MemSpan,
+) -> Result<PrecompileError, (u256, u256, u256, u256, u256, u256, u256, u256)> {
+    if !valid_exact_len(data, expected: BLS12_G2_ADD_INPUT_LEN) {
+        return Result::Err(PrecompileError::InvalidInputLength)
+    }
+    staticcall_g2_words(addr: BLS12_G2_ADD_ADDRESS, args: data)
+}
+
+/// BLS12-381 G2 multiscalar multiplication (precompile 0x0e).
+pub fn bls12_g2_msm(
+    _ data: MemSpan,
+) -> Result<PrecompileError, (u256, u256, u256, u256, u256, u256, u256, u256)> {
+    if !valid_chunks(data, chunk_len: BLS12_G2_MSM_PAIR_LEN, allow_empty: false) {
+        return Result::Err(PrecompileError::InvalidInputLength)
+    }
+    staticcall_g2_words(addr: BLS12_G2_MSM_ADDRESS, args: data)
+}
+
+/// BLS12-381 pairing check (precompile 0x0f).
+pub fn bls12_pairing(_ data: MemSpan) -> Result<PrecompileError, bool> {
+    if !valid_chunks(data, chunk_len: BLS12_PAIRING_PAIR_LEN, allow_empty: false) {
+        return Result::Err(PrecompileError::InvalidInputLength)
+    }
+    match staticcall_word(addr: BLS12_PAIRING_ADDRESS, args: data) {
+        Result::Ok(word) => Result::Ok(word != 0),
+        Result::Err(err) => Result::Err(err),
+    }
+}
+
+/// BLS12-381 map field element to G1 (precompile 0x10).
+pub fn bls12_map_fp_to_g1(_ data: MemSpan) -> Result<PrecompileError, (u256, u256, u256, u256)> {
+    if !valid_exact_len(data, expected: BLS12_FP_LEN) {
+        return Result::Err(PrecompileError::InvalidInputLength)
+    }
+    staticcall_g1_words(addr: BLS12_MAP_FP_TO_G1_ADDRESS, args: data)
+}
+
+/// BLS12-381 map field element pair to G2 (precompile 0x11).
+pub fn bls12_map_fp2_to_g2(
+    _ data: MemSpan,
+) -> Result<PrecompileError, (u256, u256, u256, u256, u256, u256, u256, u256)> {
+    if !valid_exact_len(data, expected: BLS12_FP2_LEN) {
+        return Result::Err(PrecompileError::InvalidInputLength)
+    }
+    staticcall_g2_words(addr: BLS12_MAP_FP2_TO_G2_ADDRESS, args: data)
+}
+
+/// secp256r1 P-256 signature verification (precompile 0x100).
+///
+/// The input must be the 160-byte RIP-7212 payload. Invalid
+/// signatures return `Ok(false)`.
+pub fn p256_verify(_ data: MemSpan) -> Result<PrecompileError, bool> {
+    if !valid_exact_len(data, expected: P256VERIFY_INPUT_LEN) {
+        return Result::Err(PrecompileError::InvalidInputLength)
+    }
+    match staticcall_word(addr: P256VERIFY_ADDRESS, args: data) {
+        Result::Ok(word) => Result::Ok(ops::returndatasize() != 0 && word != 0),
+        Result::Err(err) => Result::Err(err),
+    }
+}
