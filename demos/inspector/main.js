@@ -809,8 +809,9 @@ function renderBox() {
   const sel = `<span class="rsel"><code>${esc(shortKeys(chosen))}</code>` +
     `${t ? ` <span class="type">${esc(typeName(t, types))}</span>` : ""}${
       v ? ` = <b>${esc(v.text)}</b>` : node.children
-        ? ` <span class="muted">${parts} ${parts === 1 ? "part" : "parts"
-        }</span>` : ""}${side}</span>`;
+        ? ` <span class="muted">${parts} ${t?.kind === "mapping"
+          ? parts === 1 ? "entry" : "entries" : parts === 1 ? "part"
+            : "parts"}</span>` : ""}${side}</span>`;
   const steps = replay ? replay.steps : replaySteps(chosen, mode);
   // footnote numbers: by first use in this replay
   const notes = [];
@@ -852,7 +853,8 @@ function renderBox() {
         ? "before" : "after"}: ${esc(other.text)})</span>` : ""}</p>`
       : `<p class="rcap rwhere">${node[mode] === undefined &&
         !node.children ? esc(missing(node, mode))
-        : `${parts} ${parts === 1 ? "part" : "parts"}`}</p>`;
+        : `${parts} ${t?.kind === "mapping" ? parts === 1 ? "entry"
+          : "entries" : parts === 1 ? "part" : "parts"}`}</p>`;
   }
   bar.innerHTML = sel + `<span class="rctl">${ctl}</span>` +
     `<span class="rshort">${short}</span>`;

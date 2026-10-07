@@ -343,11 +343,14 @@ li.same > .row .name, li.same > .row .type { opacity: 0.55; }
   font-size: clamp(0.66rem, calc(100cqi / 56), 0.95rem);
 }
 .swipe { display: none; margin: 0 0 6px; }
+/* On a narrow panel (a phone), each word is two lines of 16 bytes, so
+   every byte shows with no sideways scrolling; the address once, the
+   second line under the bytes */
 @container (max-width: 559.98px) {
-  .swipe { display: block; }
-  /* room under the last word for a popover under it */
-  .views { overflow-x: auto; overflow-y: hidden; padding-bottom: 3.2em; }
-  .view-name { position: sticky; left: 0; }
+  .views { padding-bottom: 3.2em; }
+  .word .bytes, .ruler .bytes, .bruler .bytes { display: grid;
+    grid-template-columns: repeat(2, max-content); }
+  .dump { --cell: 2.15ch; }
 }
 .view-head {
   position: sticky;
@@ -943,9 +946,14 @@ main[data-single] > .cols :is(.chglegend, .legend .bchg, .intro .two) {
 @media (prefers-color-scheme: dark) {
   #ptr .ptrlines span { color: var(--shiki-dark, inherit); }
 }
+/* on a phone: a sheet fixed to the bottom of the screen; the page has
+   room under its end for it */
 @media (max-width: 759px) {
   .dpanel { grid-template-columns: minmax(0, 1fr);
-    grid-template-rows: minmax(0, 1fr) 6.5em; height: 25em; }
+    grid-template-rows: minmax(0, 1fr) 6.5em; height: 22em;
+    position: fixed; left: 8px; right: 8px; bottom: 0; margin: 0;
+    border-radius: 6px 6px 0 0; }
+  body { padding-bottom: 22em; }
 }
 .rcap { margin: 0; font-size: 1rem; line-height: 1.35; height: 2.7em;
   overflow: hidden; }
@@ -1023,3 +1031,8 @@ sup.fn { font-size: 0.7em; color: var(--accent); margin-left: 1px; }
 main:not([data-single]) .words .dump { margin-bottom: 2.6em; }
 /* the source's note keeps its room as its text changes */
 #srcnote { height: 2.8em; overflow: hidden; }
+/* a popover beside the gutter (no room at it): its arrow at its left */
+.pop.beside::after { left: 8px; }
+/* no scroll anchoring: the page never scrolls by itself when a step
+   changes the dump's overlays */
+html { overflow-anchor: none; }

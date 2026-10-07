@@ -235,9 +235,10 @@ trace). Byte 0 is the most significant byte, as ethdebug counts
 offsets.
 
 - Lines: each word is one line of 32 bytes, in four groups of eight.
-  The byte size follows the panel's width; on a phone the words scroll
-  sideways inside the panel, the address gutter
-  stays in view, and the page does not scroll sideways.
+  The byte size follows the panel's width; on a phone each word is two
+  lines of 16 bytes (the address once, the second line under the
+  bytes), so every byte shows and nothing scrolls sideways. The details
+  panel is then a sheet fixed to the bottom of the screen.
 - Order and gaps: one flat list of slots by numeric address, strictly
   ascending (a mapping's records land where their hashes put them, so
   related slots may be far apart), so a run of
@@ -393,18 +394,17 @@ steps; the current step's popovers are dark.
 Lit rows are grouped into runs (consecutive addresses; a gap ends a
 run). Each run gets two annotations, which float over the neighboring
 rows. They never move the rows, grow a box or add a scrollbar (on a
-wide page the words column has no scroll box of its own; on a phone
-annotations stay inside the words' sideways scroll):
+wide page the words column has no scroll box of its own):
 
 - The slot popover (dark, with an arrow on the address): how the slots
   were found and what the transaction did to them, e.g.
   `keccak(0x7099…79c8, slot 3), 2 slots · read, written` (one line; a
   run of several slots says how many; the full address is in the
-  details and in the replay). Over the run in Before, under
-  it in After; if that would cover lit bytes, a lit row's address or
-  another annotation, the other way (it may cover unlit rows: a gap
-  line, or a neighbour's dim bytes and address); if both would, it is
-  not drawn.
+  details and in the replay). Over the run in Before, under it in
+  After, at the gutter; if that would cover another row's address, lit
+  bytes or another annotation, just right of the gutter (over unlit
+  bytes, its arrow at its left); then the other way; if all would, it
+  is not drawn.
 - The card (light, labeled "after" or "before"): a picture of the same
   whole words in the other state, made by cloning those rows of the
   hidden dump (addresses, tints, highlight, change marks), muted a

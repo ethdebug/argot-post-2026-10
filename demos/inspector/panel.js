@@ -622,7 +622,7 @@ export function forRegion(m, r, side, name) {
 // Put a popover at an address: its left edge on the gutter's, its arrow
 // on the address; near an edge of what clips it (the panel, or the
 // page), shift the body and keep the arrow where it is.
-function place(pop, a) {
+function place(pop, a, beside = false) {
   let clip = { left: 0, right: document.documentElement.clientWidth };
   for (let e = pop.parentElement.parentElement; e; e = e.parentElement) {
     const cs = getComputedStyle(e);
@@ -638,11 +638,14 @@ function place(pop, a) {
   const box = pop.parentElement.getBoundingClientRect();
   const w = pop.offsetWidth;
   const mid = at.left + at.width / 2;
-  // 6px left of the gutter, as the cards
-  const gutter = a.closest(".addr").getBoundingClientRect().left - 6;
+  // 6px left of the gutter, as the cards; or (`beside`) just right of
+  // it, over the bytes, clear of the addresses
+  const g = a.closest(".addr").getBoundingClientRect();
+  const gutter = beside ? g.right + 4 : g.left - 6;
   const left = Math.max(clip.left + 4, Math.min(gutter, clip.right - 4 - w));
   pop.style.left = `${left - box.left}px`;
-  pop.style.setProperty("--ax", `${mid - left}px`);
+  pop.style.setProperty("--ax", `${beside ? 8 : mid - left}px`);
+  pop.classList.toggle("beside", beside);
 }
 
 // The lit rows of a dump, as runs: rows next to each other in the dump
@@ -964,8 +967,7 @@ function annotate(root, v, compare, names, tray, taken, room, force) {
   };
   // the address labels of the lit rows, which no popover may cover (an
   // unlit row's may be covered, as by a card)
-  const labels = [...v.querySelectorAll(
-    ".rows > .wrow:is(.on, .only, .known) > .addr .a")]
+  const labels = [...v.querySelectorAll(".rows > .wrow > .addr")]
     .map((e) => ({ row: e.closest(".wrow"), r: e.getBoundingClientRect() }));
   const pinned = [];
   for (const run of all) {
@@ -984,15 +986,19 @@ function annotate(root, v, compare, names, tray, taken, room, force) {
       if (run.every((r) => r.classList.contains("known"))) {
         pop.classList.add("kept");
       }
+      // under the run (over it in Before), at the gutter; else beside the
+      // gutter, over the bytes; then the other way. Never over another
+      // row's address; it may cover unlit bytes.
       const ways = side === "before" ? ["over", "under"] : ["under", "over"];
       let placed = false;
-      for (const way of ways) {
+      for (const [way, beside] of ways.flatMap((x) => [[x, false],
+        [x, true]])) {
         const prow = way === "over" ? run[0] : run.at(-1);
         const addr = prow.querySelector(".addr");
         pop.classList.toggle("under", way === "under");
         addr.append(pop);
         addr.classList.add("popped");
-        place(pop, prow.querySelector(".a"));
+        place(pop, prow.querySelector(".a"), beside);
         const r = pop.getBoundingClientRect();
         if (!labels.some((t) => !run.includes(t.row) && overlaps(t.r, r)) &&
           fits(pop)) {
