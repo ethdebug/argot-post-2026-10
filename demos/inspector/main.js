@@ -1,4 +1,4 @@
-// Storage inspection demo: one contract, Scores, in scenes. Each scene
+// Storage inspection demo: one contract, Arcade, in scenes. Each scene
 // shows one point (the state after a transaction) or two to compare
 // (before and after one). Loads the scene's fixture, decodes the
 // contract's storage (decode.js), and draws it.
@@ -103,8 +103,10 @@ function row(node, top) {
       ? `<p class="muted empty">no keys hashed in this transaction</p>`
       : "";
   const cls = current.single ? "" : node.changed ? "chg" : "same";
-  const keyNote = node.key && node.key.toLowerCase().endsWith(
-    current.f.tx.from.slice(2).toLowerCase()) ? " (Alice)" : "";
+  // a player's name, for a mapping key that is one of the players
+  const who = node.key && Object.entries(current.f.players ?? {}).find(
+    ([a]) => node.key.toLowerCase().endsWith(a.slice(2).toLowerCase()))?.[1];
+  const keyNote = who ? ` (${who})` : "";
   return `<li class="${cls}${top ? " top" : ""}"`.replace('class=" ',
     'class="') +
     ` data-path="${esc(node.path)}">` +
@@ -291,27 +293,34 @@ function renderHow() {
 }
 
 // The Vyper scene: the same entry by Vyper's own rule, which no ethdebug
-// gives (Vyper emits none). Its words are the ones Vyper's record() wrote,
-// from its trace; each step lights its word.
+// gives (Vyper emits none). Its words are the ones Vyper's play() wrote
+// for the selected player, from its trace; each step lights its word.
 function vyperRule(node, side) {
   const vy = current.f.vyper;
   if (!vy || !node.path.startsWith("players[")) return "";
+  const entry = find(current.tree, node.path.match(/^players\[[^\]]*\]/)[0]);
+  const e = vy.entries.find((x) => entry.key.toLowerCase()
+    .endsWith(x.key.slice(2).toLowerCase()));
+  if (!e) return "";
   const word = (s) => current.f.slots[s][side];
+  // the members, with their types from solc's ethdebug (for a bool)
+  const { types } = current.f.contract;
+  const kind = (k) => types[types[entry.typeId]?.contains?.[k]?.type.id]
+    ?.kind;
   const item = (k, html) => `<li data-region="${esc(JSON.stringify({
-    name: `vyper-${vy.names[k]}`, location: "storage", slot: vy.members[k],
+    name: `vyper-${vy.names[k]}`, location: "storage", slot: e.members[k],
     offset: "0x0", length: "0x20" }))}" data-side="${side}" tabindex="0">` +
     `<span class="k">Slot ${k ? `+ ${k}` : ""}</span><div class="c">${html}` +
     `</div></li>`;
-  const val = (k) => num(word(vy.members[k]));
+  const val = (k) => num(word(e.members[k]));
+  const shownVal = (k) => kind(k) === "bool"
+    ? `<b>${val(k) ? "true" : "false"}</b> (${val(k)})` : `<b>${val(k)}</b>`;
   return `<p class="howside">Vyper's rule, for contrast: not from
     ethdebug (Vyper emits none). Vyper hashes the slot first,
     <code>keccak256(slot 0 . key)</code>, and puts each member in its own
-    slot.</p><ol class="steps vyper">${[
-    item(0, `${hex(vy.slot, 14)}: <code>score</code> =
-      <b>${val(0)}</b>`),
-    item(1, `<code>streak</code> = <b>${val(1)}</b>`),
-    item(2, `<code>active</code> = <b>${val(2) ? "true" : "false"}</b>
-      (${val(2)})`)].join("")}</ol>`;
+    slot.</p><ol class="steps vyper">${vy.names.map((n, k) =>
+    item(k, `${k ? "" : `${hex(e.slot, 14)}: `}<code>${esc(n)}</code> =
+      ${shownVal(k)}`)).join("")}</ol>`;
 }
 
 // The steps of one state's derivation, each with a key for its
@@ -719,9 +728,9 @@ function atPoint(f, side) {
 function vyperNames(f) {
   const vy = f.vyper;
   if (!vy) return undefined;
-  const key = `0x${f.tx.from.slice(2, 6)}…${f.tx.from.slice(-4)}`;
-  return Object.fromEntries(vy.members.map((s, k) =>
-    [s, `Vyper's keccak(slot 0, ${key})${k ? ` + ${k}` : ""}`]));
+  return Object.fromEntries(vy.entries.flatMap(({ key, members }) =>
+    members.map((s, k) => [s, `Vyper's keccak(slot 0, 0x${key.slice(2, 6)
+    }…${key.slice(-4)})${k ? ` + ${k}` : ""}`])));
 }
 
 // The view in the URL hash: scene, mode, selected variable

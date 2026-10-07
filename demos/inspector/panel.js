@@ -17,7 +17,7 @@ const TINTS = 5;
 // ------------------------------------------------------- the URL hash
 
 // What the page shows lives in the URL hash, so a reload (or a link)
-// comes back to it: e.g. #ex=motto&mode=before&sel=motto, and for
+// comes back to it: e.g. #ex=motd&mode=before&sel=motd, and for
 // the memory section a=…&b=…&mmode=…&msel=…. A hash without "=" (such
 // as #memory) is a plain link to a section. Read once, before either
 // section writes it.

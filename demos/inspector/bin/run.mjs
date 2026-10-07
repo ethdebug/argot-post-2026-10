@@ -13,49 +13,55 @@ const PAGE = process.env.PAGE ?? "http://localhost:8000/demos/inspector/";
 const root = path.dirname(path.dirname(fileURLToPath(import.meta.url)));
 const shot = (name) => path.join(root, "screenshots", name);
 
-// Alice: anvil's first account, who sends every transaction
-const A = "players[0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266]";
-const MOTTO = ["play fair", "play fair, keep score, and write the scores down"];
-// [path, before, after] for each scene, from the calls in
+// alice, bob and carol: anvil's accounts 1, 2 and 3
+const A = "players[0x70997970c51812dc3a010c7d01b50e0d17dc79c8]";
+const B = "players[0x3c44cdddb6a900fa2b585dd299e03d12fa4293bc]";
+const C = "players[0x90f79bf6eb2c4f870365e785982e1f101e93b906]";
+const MOTD = ["gl hf", "season 2 starts friday, see you on the leaderboard"];
+// [path, before, after] for each scene, from the story in
 // bin/make-fixtures.mjs. A scene with one point shows the same state on
 // both sides.
-const recorded = [
-  [`${A}.score`, "7", "67"],
-  [`${A}.streak`, "1", "2"],
-  [`${A}.active`, "true", "true"],
-  ["history", "length 1", "length 2"],
-  ["history[0]", "7", "7"],
-  ["history[1]", undefined, "60"],
-  ["motto", '""', '""'],
-  ["total", "7", "67"],
-  ["rounds", "1", "2"],
-];
-const first = recorded.filter(([p]) => p !== "history[1]")
-  .map(([p, b]) => [p, b, b]);
+const same2 = (rows) => rows.map(([p, v]) => [p, v, v]);
+const ended = same2([
+  [`${A}.score`, "30"], [`${A}.combo`, "0"], [`${A}.active`, "true"],
+  [`${B}.score`, "10"], [`${B}.combo`, "1"], [`${B}.active`, "true"],
+  [`${C}.score`, "0"], [`${C}.combo`, "0"], [`${C}.active`, "true"],
+  ["hits", "length 3"], ["hits[0]", "10"], ["hits[1]", "20"],
+  ["hits[2]", "10"], ["motd", `"${MOTD[0]}"`], ["total", "40"],
+  ["rounds", "3"],
+]);
 const expected = {
-  packed: first,
-  alice: first,
-  streak: recorded,
-  motto: [
-    ["motto", `"${MOTTO[0]}"`, `"${MOTTO[1]}"`],
-    [`${A}.score`, "67", "67"],
-    ["total", "67", "67"],
-    ["rounds", "2", "2"],
-  ],
+  packed: ended,
+  players: ended,
   // Solidity's rule, applied to the Vyper contract's storage
-  vyper: [
-    [`${A}.score`, "0", "0"],
-    [`${A}.streak`, "0", "0"],
-    [`${A}.active`, "false", "false"],
+  vyper: same2([A, B, C].flatMap((p) => [[`${p}.score`, "0"],
+    [`${p}.combo`, "0"], [`${p}.active`, "false"]])),
+  combo: [
+    [`${A}.score`, "10", "30"],
+    [`${A}.combo`, "1", "2"],
+    [`${A}.active`, "true", "true"],
+    ["hits", "length 1", "length 2"],
+    ["hits[0]", "10", "10"],
+    ["hits[1]", undefined, "20"],
+    ["motd", `"${MOTD[0]}"`, `"${MOTD[0]}"`],
+    ["total", "10", "30"],
+    ["rounds", "1", "2"],
+  ],
+  motd: [
+    ["motd", `"${MOTD[0]}"`, `"${MOTD[1]}"`],
+    [`${A}.score`, "30", "30"],
+    [`${B}.score`, "10", "10"],
+    ["total", "40", "40"],
+    ["rounds", "3", "3"],
   ],
 };
 // Each scene's defaults: the mode shown and the variable selected
 const defaults = {
   packed: ["after", undefined],
-  alice: ["after", `${A}.streak`],
-  streak: ["after", A],
-  motto: ["after", "motto"],
+  players: ["after", A],
   vyper: ["after", `${A}.score`],
+  combo: ["after", A],
+  motd: ["after", "motd"],
 };
 
 // The same keys and values, in any order
@@ -110,14 +116,14 @@ if (!sizesCurrent()) {
     failed++;
   }
 }
-// The contract at the top of the page is contracts/Scores.sol
+// The contract at the top of the page is contracts/Arcade.sol
 {
   const html = fs.readFileSync(path.join(root, "index.html"), "utf8");
   const pre = html.match(/<pre id="contract-src" class="src">([\s\S]*?)<\/pre>/)
     ?.[1].replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&amp;/g, "&");
-  if (pre !== fs.readFileSync(path.join(root, "contracts", "Scores.sol"),
+  if (pre !== fs.readFileSync(path.join(root, "contracts", "Arcade.sol"),
     "utf8")) {
-    console.log("index.html: the contract differs from contracts/Scores.sol");
+    console.log("index.html: the contract differs from contracts/Arcade.sol");
     failed++;
   }
 }
@@ -263,11 +269,11 @@ async function slowLink(browser) {
   });
   if (!(progress <= 1000)) out.push(`progress shown at ${progress} ms`);
   if (!(t.paint <= 1000)) out.push(`first paint at ${t.paint} ms`);
-  if (t.fixtures !== "index.json,memory.json,scores-record.json") {
+  if (t.fixtures !== "arcade-plays.json,index.json,memory.json") {
     out.push(`fetched before usable: ${t.fixtures}`);
   }
   // the others, idle-time
-  await p.waitForFunction(() => ["scores-motto", "scores-vyper"]
+  await p.waitForFunction(() => ["arcade-vyper", "arcade-hit2", "arcade-motd"]
     .every((id) => performance.getEntriesByType("resource").some((e) =>
       e.name.endsWith(`fixtures/${id}.json`))),
   null, { timeout: 30000 }).catch(() => out.push("no prefetch"));
@@ -279,7 +285,7 @@ async function slowLink(browser) {
   await p.locator('#picker button[data-id="vyper"]').click();
   await p.waitForFunction(() => "vyper" in window.results.decoded &&
     document.querySelector('#picker [aria-checked="true"]')?.dataset.id ===
-    "vyper" && !document.querySelector('#tree li[data-path="history"]'));
+    "vyper" && !document.querySelector('#tree li[data-path="hits"]'));
   const pick = Date.now() - t1;
   const rows = await p.evaluate(() => [performance.getEntriesByType(
     "navigation")[0], ...performance.getEntriesByType("resource")]
@@ -298,8 +304,8 @@ async function slowLink(browser) {
   console.log(`  ${kb(sum(1))} KB gzip ${kb(sum(2))} KB  total`);
   await ctx.close();
   // a failure on the slow link: Retry loads it
-  out.push(...await retryCheck(browser, "fixtures/scores-motto.json",
-    { pick: "motto", throttle }));
+  out.push(...await retryCheck(browser, "fixtures/arcade-motd.json",
+    { pick: "motd", throttle }));
   return out.map((x) => `slow link: ${x}`);
 }
 
@@ -340,7 +346,7 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
       b.offsetHeight > b.querySelector("summary").offsetHeight + 40,
       b.querySelector("summary").textContent.replace(/\s+/g, " ").trim()]);
     let [open, seen, text] = await st();
-    if (open || seen || !/^Scores\.sol — the contract \(43 lines\)$/
+    if (open || seen || !/^Arcade\.sol — the contract \(\d+ lines\)$/
       .test(text)) problems.push(`source at rest: ${open} ${seen} ${text}`);
     if (await page.locator("#contract-src span").count()) {
       problems.push("source: coloured before it opened");
@@ -357,7 +363,7 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
         "span[style]")].map((s) => getComputedStyle(s).color)).size];
     });
     if (col[0] !== fs.readFileSync(path.join(root, "contracts",
-      "Scores.sol"), "utf8").trim() || col[1] < 3) {
+      "Arcade.sol"), "utf8").trim() || col[1] < 3) {
       problems.push(`source colouring: ${col[1]} colours`);
     }
     await page.reload();
@@ -423,7 +429,7 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
 
   // The words panel: hovering a value lights its bytes, counted from
   // the most significant byte, as the template's offset and length say
-  await scene("streak");
+  await scene("combo");
   const lit = () => page.evaluate(() => {
     const out = {};
     for (const c of document.querySelectorAll("#panel .b.hl:not(.cmp *)")) {
@@ -459,10 +465,10 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
       problems.push(`${what}: lit ${JSON.stringify(got)}`);
     }
   };
-  // Player packs score (8 bytes), streak (4) and active (1) into one
+  // Player packs score (8 bytes), combo (4) and active (1) into one
   // word, from the low end; before and after
   await want("score", `${A}.score`, range(24, 31), 2);
-  await want("streak", `${A}.streak`, range(20, 23), 2);
+  await want("combo", `${A}.combo`, range(20, 23), 2);
   await want("active", `${A}.active`, [19], 2);
   // Clicking a byte selects the variable that owns it (selection lives
   // on the tree row)
@@ -479,15 +485,15 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
   if (sel.join() !== `${A}.active`) problems.push(`pick 19: ${sel}`);
   // the details of the selected value, under the dump
   const fd = await dl();
-  if (fd.Value !== `players[0xf39f…2266].active (bool)` ||
-    !/^slot …a722 \(keccak\(0xf39f…2266, slot 0\)\), byte 19$/
+  if (fd.Value !== `players[0x7099…79c8].active (bool)` ||
+    !/^slot …d101 \(keccak\(0x7099…79c8, slot 0\)\), byte 19$/
       .test(fd.Where) || fd.Before !== "true (0x01)" ||
     fd.After !== "true (0x01)" || fd.scrolls) {
     problems.push(`details active: ${JSON.stringify(fd)}`);
   }
-  await pickByte(`${A}.streak`, 22);
+  await pickByte(`${A}.combo`, 22);
   sel = await selected();
-  if (sel.join() !== `${A}.streak`) problems.push(`pick 22: ${sel}`);
+  if (sel.join() !== `${A}.combo`) problems.push(`pick 22: ${sel}`);
   // and from the keyboard
   await page.locator(`#panel .view[data-side="after"] ` +
     `.b[data-owners="${A}.active"][tabindex]`).first().focus();
@@ -514,7 +520,7 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
   // While a variable is selected, the view stays on it: an unrelated
   // byte changes nothing; its own bytes only change the info line; a
   // click on an unrelated byte switches the selection
-  await tr(`${A}.streak`).click();
+  await tr(`${A}.combo`).click();
   const look = () => page.evaluate(() => JSON.stringify([
     [...document.querySelectorAll("#panel .b.hl:not(.cmp *)")].length,
     [...document.querySelectorAll("#panel .pop")].map((p) => p.innerText),
@@ -529,11 +535,11 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
     problems.push("locked: an unrelated hover changed the view");
   }
   if (!(await page.locator("#viewing").textContent())
-    .includes("viewing players[0xf39f…2266].streak · Esc to clear")) {
+    .includes("viewing players[0x7099…79c8].combo · Esc to clear")) {
     problems.push("locked: no viewing hint");
   }
   await page.locator(`#panel .word[data-side="after"] ` +
-    `.b[data-owners="${A}.streak"][data-i="23"]`).hover();
+    `.b[data-owners="${A}.combo"][data-i="23"]`).hover();
   if (await look() !== locked0 ||
     await page.locator("#details").textContent() === probe0) {
     problems.push("locked: own byte hover");
@@ -546,14 +552,14 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
   await page.keyboard.press("Escape");
   await page.locator("h1").hover();
 
-  // The slots are named as the templates computed them: history's
-  // elements and the long motto's data
+  // The slots are named as the templates computed them: hits'
+  // elements and the long motd's data
   const slotNames = () => page.locator("#panel .wrow[data-name]")
     .evaluateAll((rs) => [...new Set(rs.map((r) => r.dataset.name))]);
   let named = await slotNames();
   if (!named.includes("keccak(slot 1) + 1") || !named.includes("slot 3") ||
-    !named.includes("keccak(0xf39f…2266, slot 0)")) {
-    problems.push(`streak slots: ${named}`);
+    !named.includes("keccak(0x7099…79c8, slot 0)")) {
+    problems.push(`combo slots: ${named}`);
   }
   // slot 3 holds rounds, then total, in byte order
   const slot3 = "0x" + "0".repeat(63) + "3";
@@ -635,7 +641,7 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
     ' .b[data-i="31"]').hover();
   const one = await dl();
   if (one.Value !== "total (uint128)" || one.Where !== "slot 3, bytes 16–31" ||
-    one.Holds !== "7 (0x…000007)" || "Before" in one || "After" in one) {
+    one.Holds !== "40 (0x…000028)" || "Before" in one || "After" in one) {
     problems.push(`one point details: ${JSON.stringify(one)}`);
   }
   if ((await pops()).join("|") !== "slot 3") {
@@ -644,9 +650,9 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
   if (await page.locator("#panel .cmp, #tree .tcard").count()) {
     problems.push("one point: a card");
   }
-  await page.locator(`#tree li[data-path="${A}.streak"] > .row`).click();
+  await page.locator(`#tree li[data-path="${A}.combo"] > .row`).click();
   if (!(await page.locator("#how").textContent())
-    .includes("For the state after Alice's first record(7).") ||
+    .includes("For the state after the five plays.") ||
     await page.locator("#how .branch, #how .evals").count()) {
     problems.push("one point: derivation");
   }
@@ -656,17 +662,17 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
   // share the string's slot. Long: the slot holds the length word, and
   // the data lives at keccak(slot) on. Slots are named here as the page
   // names them (from the template's defines).
-  await scene("motto");
+  await scene("motd");
   const names = await page.locator('#panel .view[data-side="after"] ' +
     ".wrow[data-name]").evaluateAll((rs) => Object.fromEntries(
     rs.map((r) => [r.dataset.slot, r.dataset.name])));
   {
     const sides = {
-      before: { "slot 2": [...range(0, 8), 31] },
+      before: { "slot 2": [...range(0, 4), 31] },
       after: { "slot 2": range(0, 31), "keccak(slot 2)": range(0, 31),
-        "keccak(slot 2) + 1": range(0, 15) },
+        "keccak(slot 2) + 1": range(0, 17) },
     };
-    await page.locator('#tree li[data-path="motto"] > .row').hover();
+    await page.locator('#tree li[data-path="motd"] > .row').hover();
     const named = {};
     for (const [k, v] of Object.entries(await lit())) {
       const [side, s] = k.split(" ");
@@ -676,24 +682,24 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
       [side, Object.fromEntries(Object.entries(m).map(([k, v]) =>
         [k, v.join()]))]));
     if (!same(named, want)) {
-      problems.push(`motto bytes: ${JSON.stringify(named)}`);
+      problems.push(`motd bytes: ${JSON.stringify(named)}`);
     }
   }
   // A slot used only in the other state is marked: the long data run in
   // the Before dump
   await setMode("before");
-  await page.locator('#tree li[data-path="motto"] > .row').hover();
+  await page.locator('#tree li[data-path="motd"] > .row').hover();
   const only = await page.evaluate(() => [...document.querySelectorAll(
     '#panel .view[data-side="before"] .wrow.only')].map((r) =>
     r.dataset.slot));
   if (only.map((x) => names[x]).join() !==
     "keccak(slot 2),keccak(slot 2) + 1") {
-    problems.push(`motto only: ${only.map((x) => names[x])}`);
+    problems.push(`motd only: ${only.map((x) => names[x])}`);
   }
   // In Before, both runs (slot 2, lit; its new data, used only After)
   // get their derivation label; no popover or card covers a lit row's
   // address label
-  await page.locator('#tree li[data-path="motto"] > .row').click();
+  await page.locator('#tree li[data-path="motd"] > .row').click();
   await page.mouse.move(1, 1);
   const labelled = await page.evaluate(() => {
     const v = document.querySelector('#panel .view[data-side="before"]');
@@ -718,14 +724,14 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
     !labelled.pops.some((t) => t.startsWith("slot 2")) ||
     !labelled.pops.some((t) => t.startsWith("keccak(slot 2) + 0 … + 1")) ||
     labelled.covered.length) {
-    problems.push(`motto labels: ${JSON.stringify(labelled)}`);
+    problems.push(`motd labels: ${JSON.stringify(labelled)}`);
   }
   await page.keyboard.press("Escape");
   // Each run's addresses sit in one group box in the gutter, and its
   // popover's arrow lands within that box (both states)
   for (const m of ["before", "after"]) {
     await setMode(m);
-    await page.locator('#tree li[data-path="motto"] > .row').click();
+    await page.locator('#tree li[data-path="motd"] > .row').click();
     await page.mouse.move(1, 1);
     const bad = await page.evaluate((side) => {
       const v = document.querySelector(`#panel .view[data-side="${side}"]`);
@@ -768,7 +774,7 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
       }
       return out;
     }, m);
-    if (bad.length) problems.push(`motto ${m} groups: ${bad}`);
+    if (bad.length) problems.push(`motd ${m} groups: ${bad}`);
     await page.keyboard.press("Escape");
   }
   // The tray is the same in Before and After: each run's card is in
@@ -777,12 +783,12 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
     const n = [];
     for (const m of ["before", "after"]) {
       await setMode(m);
-      await page.locator('#tree li[data-path="motto"] > .row').hover();
+      await page.locator('#tree li[data-path="motd"] > .row').hover();
       n.push(await page.evaluate(() => [
         document.querySelectorAll("#panel .cmp:not(.pinned)").length,
         document.querySelectorAll("#panel .cmp.pinned").length].join("/")));
     }
-    if (n[0] !== n[1]) problems.push(`motto cards: ${n}`);
+    if (n[0] !== n[1]) problems.push(`motd cards: ${n}`);
   }
   await setMode("after");
   // the long data is a run of two consecutive slots, with no gap
@@ -790,12 +796,12 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
     .evaluate((r) => [...r.children].map((c) => c.dataset.name ?? "gap"));
   const k0 = run.indexOf("keccak(slot 2)");
   if (k0 < 0 || run[k0 + 1] !== "keccak(slot 2) + 1") {
-    problems.push(`motto run: ${run}`);
+    problems.push(`motd run: ${run}`);
   }
 
   // At rest: no popover, and nothing in the dumps but addresses and
   // bytes (names live in the tree)
-  await scene("streak");
+  await scene("combo");
   await page.locator("h1").hover();
   if ((await pops()).length) problems.push("popover at rest");
   await page.waitForTimeout(250);
@@ -806,11 +812,11 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
   const stray = dumpText.join(" ").replace(/[0-9a-f…⋯\s]/g, "");
   if (stray) problems.push(`text in the dump: ${stray.slice(0, 40)}`);
   // A hashed slot's popover says how it was found
-  await page.locator(`#tree li[data-path="${A}.streak"] > .row`).hover();
+  await page.locator(`#tree li[data-path="${A}.combo"] > .row`).hover();
   pp0 = await pops();
   if (pp0.length !== 1 || !pp0[0].startsWith(
-    "keccak(0xf39f…2266, slot 0) · read, written\n= 0x7230")) {
-    problems.push(`pops streak: ${pp0}`);
+    "keccak(0x7099…79c8, slot 0) · read, written\n= 0x14e0")) {
+    problems.push(`pops combo: ${pp0}`);
   }
   // each popover's left edge is at the gutter's, its arrow at its
   // address, and it stays on screen:
@@ -831,14 +837,14 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
   }));
   let aimed = await aim();
   await setMode("before");
-  await page.locator(`#tree li[data-path="${A}.streak"] > .row`).hover();
+  await page.locator(`#tree li[data-path="${A}.combo"] > .row`).hover();
   aimed = [...aimed, ...await aim()];
   await setMode("after");
   if (aimed.length !== 2 || !aimed.every(Boolean)) {
     problems.push(`aim: ${aimed}`);
   }
 
-  // The other state's picture beside the lit run. streak: an "after"
+  // The other state's picture beside the lit run. combo: an "after"
   // card under its row in Before, a "before" card over it in After, at
   // bytes 20-23, in the same columns as the row
   const cmp = () => page.evaluate(() => [...document.querySelectorAll(
@@ -935,7 +941,7 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
     const rest = await tops();
     const restBoxes = await boxes();
     const other = m === "before" ? "after" : "before";
-    await page.locator(`#tree li[data-path="${A}.streak"] > .row`)
+    await page.locator(`#tree li[data-path="${A}.combo"] > .row`)
       .hover();
     let blocks = await cmp();
     const b0 = blocks[0];
@@ -944,12 +950,12 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
       b0.lines[0].bytes.join() !== range(20, 23).join() ||
       b0.lines[0].text !== (m === "before" ? "00000002" : "00000001") ||
       !b0.lines[0].aligned || !b0.full) {
-      problems.push(`${m}: streak card: ${JSON.stringify(blocks)}`);
+      problems.push(`${m}: combo card: ${JSON.stringify(blocks)}`);
     }
     if (await popAt() !== (m === "before" ? "over" : "under")) {
       problems.push(`${m}: popover place: ${await popAt()}`);
     }
-    // Alice's whole entry lights one slot (her struct, packed): one
+    // alice's whole entry lights one slot (her struct, packed): one
     // card, one line, aligned; no clashes; nothing moves, no scrollbar
     await page.locator(`#tree li[data-path="${A}"] > .row`).hover();
     blocks = await cmp();
@@ -1033,7 +1039,7 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
     const v = document.querySelector("#panel .views");
     return { out, scrolls: v.scrollWidth > v.clientWidth + 1 };
   });
-  await scene("motto");
+  await scene("motd");
   const wide = await layout(page);
   problems.push(...wide.out);
   if (wide.scrolls) problems.push("wide: words scroll sideways");
@@ -1062,7 +1068,7 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
 
   // "How this was found": clicking any row selects it and shows its
   // derivation, changed or not. active did not change.
-  await scene("streak");
+  await scene("combo");
   const row = (p) => page.locator(`#tree li[data-path="${p}"] > .row`);
   const how = () => page.locator("#how").textContent();
   await row(`${A}.active`).click();
@@ -1071,8 +1077,8 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
     "from the program context", "from the trace", "same bytes in both"]) {
     if (!text.includes(want)) problems.push(`active how lacks "${want}"`);
   }
-  // streak did change; its source mark and region step
-  await row(`${A}.streak`).click();
+  // combo did change; its source mark and region step
+  await row(`${A}.combo`).click();
   const mark = await page.locator("#src mark").innerText();
   if (!mark.includes("struct Player")) problems.push(`mark: ${mark}`);
   await page.locator("#how li[data-region]").last().hover();
@@ -1112,8 +1118,8 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
     (ls) => [...new Set(ls.map((l) => l.dataset.side))].join());
   await row(`${A}.score`).click();
   for (const [m, val, whose] of [
-    ["before", "7", "after Alice's first record(7)"],
-    ["after", "67", "after her second record(30)"]]) {
+    ["before", "10", "after alice's first hit"],
+    ["after", "30", "after her second hit"]]) {
     await setMode(m);
     const v = await views();
     const d = await sides();
@@ -1131,8 +1137,8 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
   }
 
   // The tree's cards: none at rest; a lit changed value gets one with
-  // the other state's value (score: "after 67" under it in Before,
-  // "before 7" over it in After); an unchanged one gets none
+  // the other state's value (score: "after 30" under it in Before,
+  // "before 10" over it in After); an unchanged one gets none
   const tins = () => page.evaluate(() => [...document.querySelectorAll(
     "#tree .tcard")].map((c) => {
     const r = c.closest("li").querySelector(":scope > .row")
@@ -1143,8 +1149,8 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
         : b.bottom <= r.top + 0.5 ? "over" : "on" };
   }));
   await page.keyboard.press("Escape");
-  for (const [m, want, place] of [["before", "after67", "under"],
-    ["after", "before7", "over"]]) {
+  for (const [m, want, place] of [["before", "after30", "under"],
+    ["after", "before10", "over"]]) {
     await setMode(m);
     await page.locator("h1").hover();
     if ((await tins()).length) problems.push(`${m}: tree card at rest`);
@@ -1159,7 +1165,7 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
   }
   // No card for what did not change: selecting an unchanged value gives
   // none, in the tree or the dump, in either state
-  for (const p of ["history[0]", `${A}.active`, "motto"]) {
+  for (const p of ["hits[0]", `${A}.active`, "motd"]) {
     for (const m of ["before", "after"]) {
       await setMode(m);
       await row(p).click();
@@ -1172,7 +1178,7 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
   // "show other state" off: no tree cards, no dump cards; highlight
   // still works
   await page.locator("#insets").uncheck();
-  await row(`${A}.streak`).hover();
+  await row(`${A}.combo`).hover();
   if ((await tins()).length ||
     await page.locator("#panel .cmp").count() ||
     !Object.keys(await lit()).length) {
@@ -1189,10 +1195,10 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
   }
   await page.locator("h1").hover();
 
-  // motto goes short -> long. The panel forks where the two derivations
+  // motd goes short -> long. The panel forks where the two derivations
   // part: the shared steps once, the IF with both evaluations, then one
   // list per branch, this state's first
-  await scene("motto");
+  await scene("motd");
   const forkOf = () => page.evaluate(() => {
     const how = document.querySelector("#how");
     const shared = how.querySelector(":scope > ol.steps");
@@ -1208,7 +1214,7 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
       })),
     };
   });
-  await row("motto").click();
+  await row("motd").click();
   let fk = await forkOf();
   if (fk.shared !== 4 || fk.evals.length !== 2 ||
     !/^before .* → then$/.test(fk.evals[0]) ||
@@ -1218,20 +1224,20 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
     fk.branches[1].head !== "before · then (short-string layout)" ||
     fk.branches.some((b) => b.start !== "5") ||
     fk.branches[0].result !== "after" || fk.branches[1].result !== "before") {
-    problems.push(`motto fork (after): ${JSON.stringify(fk)}`);
+    problems.push(`motd fork (after): ${JSON.stringify(fk)}`);
   }
   // in Before, the before branch comes first
   await setMode("before");
   fk = await forkOf();
   if (fk.branches[0]?.head !== "before · then (short-string layout)" ||
     fk.branches[0]?.result !== "before") {
-    problems.push(`motto fork (before): ${JSON.stringify(fk)}`);
+    problems.push(`motd fork (before): ${JSON.stringify(fk)}`);
   }
   // with "show other state" off: one list, this state's only
   await page.locator("#insets").uncheck();
   fk = await forkOf();
   if (fk.branches.length || fk.evals.length) {
-    problems.push(`motto, other state off: ${JSON.stringify(fk)}`);
+    problems.push(`motd, other state off: ${JSON.stringify(fk)}`);
   }
   await page.locator("#insets").check();
   await setMode("after");
@@ -1242,22 +1248,22 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
   let [rs, slot] = await result();
   if (rs !== "after" || !slot.startsWith("0x4057") ||
     !(await how()).includes("so take else")) {
-    problems.push(`motto after: ${rs} ${slot}`);
+    problems.push(`motd after: ${rs} ${slot}`);
   }
   await setMode("before");
   [rs, slot] = await result();
   if (rs !== "before" || BigInt(slot) !== 2n ||
     !(await how()).includes("so take then")) {
-    problems.push(`motto before: ${rs} ${slot}`);
+    problems.push(`motd before: ${rs} ${slot}`);
   }
   // hovering the result lights the before bytes now
   await page.locator("#how li.final").first().hover();
   const gl = Object.keys(await lit()).map((k) => k.split(" ")[0]);
-  if (gl.join() !== "before") problems.push(`motto result lit: ${gl}`);
+  if (gl.join() !== "before") problems.push(`motd result lit: ${gl}`);
   await setMode("after");
   await page.keyboard.press("Escape");
 
-  // The calldata of setMotto (motto scene only), by the ABI encoding: a
+  // The calldata of setMotd (motd scene only), by the ABI encoding: a
   // byte selects its part of m; a part lights its bytes
   {
     const { keccak256 } = (await import("js-sha3")).default;
@@ -1266,14 +1272,14 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
       !document.querySelector("#calldata").hidden);
     const selector = await page.locator(
       '#ctree li[data-part="selector"] .val').innerText();
-    if (!shownCd || selector !== "0x" + keccak256("setMotto(string)")
+    if (!shownCd || selector !== "0x" + keccak256("setMotd(string)")
       .slice(0, 8)) problems.push(`calldata: ${shownCd} ${selector}`);
     // offset 32, then the length (48) at 0x24, then the bytes at 0x44
     await page.locator('#cpanel .b[data-i="40"]').click();
     const c = await cdl();
     if (c.chosen !== "m-length") problems.push(`calldata byte: ${c.chosen}`);
     const cdetails = await dl("#cdetails");
-    if (cdetails.Holds !== "48" ||
+    if (cdetails.Holds !== "50" ||
       cdetails.Where !== "bytes 0x0024–0x0043") {
       problems.push(`calldata details: ${JSON.stringify(cdetails)}`);
     }
@@ -1281,54 +1287,89 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
     await page.locator('#ctree li[data-part="m"] > .row').hover();
     const cl = await page.evaluate(() => [...document.querySelectorAll(
       "#cpanel .b.hl")].map((b) => +b.dataset.i));
-    if (cl.join() !== range(4, 115).join()) {
+    if (cl.join() !== range(4, 117).join()) {
       problems.push(`calldata m lit: ${cl.length}`);
     }
     if (!(await page.locator("#chow").textContent()).includes(
       "not by ethdebug")) problems.push("calldata: no why-not");
     await page.locator("h1").hover();
-    await scene("streak");
+    await scene("combo");
     if (!(await page.evaluate(() =>
       document.querySelector("#calldata").hidden))) {
       problems.push("calldata shown in another scene");
     }
   }
 
-  // Vyper: Solidity's rule reads 0 at keccak(key . slot 0); Vyper's own
-  // words, keccak(slot 0 . key) + 0, 1, 2, hold 67, 2 and 1, and no value
-  // shown owns them. "How this was found" lists them, and each lights
+  // Three players: each entry at its own keccak(address, slot 0), far
+  // apart; the mapping's row lights all three, a byte selects its
+  // player's value
+  await scene("players");
+  await page.locator('#tree li[data-path="players"] > .row').hover();
+  const three = Object.keys(await lit()).filter((k) =>
+    k.startsWith("after ")).map((k) => k.split(" ")[1]);
+  const tnames = await page.locator('#panel .view[data-side="after"] ' +
+    ".wrow[data-name]").evaluateAll((rs) => Object.fromEntries(
+    rs.map((r) => [r.dataset.slot, r.dataset.name])));
+  if (three.map((x) => tnames[x]).sort().join() !== [
+    "keccak(0x3c44…93bc, slot 0)", "keccak(0x7099…79c8, slot 0)",
+    "keccak(0x90f7…b906, slot 0)"].join()) {
+    problems.push(`three players: ${three.map((x) => tnames[x])}`);
+  }
+  await page.locator(`#panel .word[data-side="after"] ` +
+    `.b[data-owners="${B}.score"][data-i="31"]`).click();
+  await page.locator("h1").hover();
+  if ((await selected()).join() !== `${B}.score`) {
+    problems.push(`three players: byte selected ${await selected()}`);
+  }
+  await page.keyboard.press("Escape");
+
+  // Vyper: Solidity's rule reads 0 at keccak(key . slot 0) for each
+  // player; Vyper's own words, keccak(slot 0 . key) + 0, 1, 2 (score,
+  // combo, active), hold the real values, and no value shown owns them.
+  // "How this was found" lists the selected player's, and each lights
   // its word.
   await page.locator('#picker button[data-id="vyper"]').click();
   const vy = await page.evaluate(() => {
     const v = document.querySelector('#panel .view[data-side="after"]');
-    return [...v.querySelectorAll(".wrow[data-slot]")].map((r) => [
-      r.dataset.name, r.querySelector(".b[data-i='31']").textContent,
-      r.querySelectorAll(".b.free").length]);
+    return Object.fromEntries([...v.querySelectorAll(".wrow[data-slot]")]
+      .map((r) => [r.dataset.name, `${r.querySelector(".b[data-i='31']")
+        .textContent} ${r.querySelectorAll(".b.free").length}`]));
   });
-  const key = "0xf39f…2266";
-  if (!same(vy, [
-    [`Vyper's keccak(slot 0, ${key})`, "43", 32],
-    [`Vyper's keccak(slot 0, ${key}) + 1`, "02", 32],
-    [`Vyper's keccak(slot 0, ${key}) + 2`, "01", 32],
-    [`keccak(${key}, slot 0)`, "00", 19]])) {
+  const vwant = {};
+  for (const [key, vals] of [["0x7099…79c8", ["1e", "00", "01"]],
+    ["0x3c44…93bc", ["0a", "01", "01"]],
+    ["0x90f7…b906", ["00", "00", "01"]]]) {
+    vals.forEach((x, k) => {
+      vwant[`Vyper's keccak(slot 0, ${key})${k ? ` + ${k}` : ""}`] =
+        `${x} 32`;
+    });
+    vwant[`keccak(${key}, slot 0)`] = "00 19";
+  }
+  if (!same(vy, vwant)) {
     problems.push(`vyper words: ${JSON.stringify(vy)}`);
   }
   text = (await how()).replace(/\s+/g, " ");
   if (!text.includes("Vyper's rule") ||
-    !/score = 67[\s\S]*streak = 2[\s\S]*active = true/.test(text) ||
+    !/score = 30[\s\S]*combo = 0[\s\S]*active = true/.test(text) ||
     !text.includes("→ 0")) {
     problems.push(`vyper how: ${text.slice(-300)}`);
   }
+  const vslot = "0xd3a93e7218b271cb9ca81fec1cdfcf6e7686ea0002660580b37e3bb93bc52785";
   await page.locator("#how ol.vyper li").first().hover();
   const vlit = await lit();
-  if (Object.keys(vlit).join() !== `after ${await page.evaluate(() =>
-    document.querySelector('#panel .wrow[data-slot]').dataset.slot)}` ||
+  if (Object.keys(vlit).join() !== `after ${vslot}` ||
     Object.values(vlit)[0].length !== 32) {
     problems.push(`vyper step lit: ${JSON.stringify(vlit)}`);
   }
-  if ((await pops()).join() !== `Vyper's keccak(slot 0, ${key})\n= ` +
-    "0x5c63ee49f5c25cff0b1cb0da74779ad3703cfde276b4532ef9eec62c7e94fee4") {
+  if ((await pops()).join() !==
+    `Vyper's keccak(slot 0, 0x7099…79c8)\n= ${vslot}`) {
     problems.push(`vyper pops: ${await pops()}`);
+  }
+  // bob, selected: his Vyper words
+  await page.locator(`#tree li[data-path="${B}.score"] > .row`).click();
+  text = (await how()).replace(/\s+/g, " ");
+  if (!/score = 10[\s\S]*combo = 1[\s\S]*active = true/.test(text)) {
+    problems.push(`vyper how bob: ${text.slice(-200)}`);
   }
   await page.keyboard.press("Escape");
   await page.locator("h1").hover();
@@ -1493,7 +1534,7 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
   hp.on("console", (m) => {
     if (m.type() === "error") problems.push(`hash console: ${m.text()}`);
   });
-  await hp.goto(PAGE + "#ex=motto&mode=before&sel=history&a=written&" +
+  await hp.goto(PAGE + "#ex=motd&mode=before&sel=hits&a=written&" +
     "b=replaced&mmode=before&msel=names[1]&insets=0");
   await hp.waitForFunction(() => window.results?.done &&
     window.memResults?.done, null, { timeout: 60000 });
@@ -1513,11 +1554,11 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
     hash: location.hash,
     insets: document.querySelector("#insets").checked,
   }));
-  if (!same(hs, { ex: "motto", mode: "before", sel: "history",
+  if (!same(hs, { ex: "motd", mode: "before", sel: "hits",
     how: "before", a: "written", b: "replaced", mmode: "before",
     msel: "names[1]",
-    insets: false, hash: hs.hash }) || !hs.hash.includes("ex=motto") ||
-    !hs.hash.includes("sel=history")) {
+    insets: false, hash: hs.hash }) || !hs.hash.includes("ex=motd") ||
+    !hs.hash.includes("sel=hits")) {
     problems.push(`hash restore: ${JSON.stringify(hs)}`);
   }
   // changes go back into the hash
@@ -1539,12 +1580,12 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
   }
   // a link to a scene alone gives its defaults
   await hp.goto("about:blank");
-  await hp.goto(PAGE + "#ex=alice");
+  await hp.goto(PAGE + "#ex=players");
   await hp.waitForFunction(() => window.results?.done, null,
     { timeout: 60000 });
   const h4 = await hp.evaluate(() =>
     document.querySelector("#tree .row.sel")?.parentElement.dataset.path);
-  if (h4 !== `${A}.streak`) problems.push(`hash scene defaults: ${h4}`);
+  if (h4 !== A) problems.push(`hash scene defaults: ${h4}`);
   await hp.goto("about:blank");
   // (an old mode=compare shows After)
   await hp.goto(PAGE + "#ex=nope&mode=compare&sel=zzz&a=x&b=x");
@@ -1573,7 +1614,7 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
   await pp.goto(PAGE);
   await pp.waitForFunction(() => window.results?.done, null,
     { timeout: 60000 });
-  await pp.evaluate(() => window.select("motto"));
+  await pp.evaluate(() => window.select("motd"));
   // Both views, stacked, each word on one line; the words may scroll
   // sideways inside the panel, the page may not
   const narrow = await layout(pp);
@@ -1585,17 +1626,17 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
   });
   const vrest = await vbox();
   await pp.locator("h1").click();
-  await pp.locator('#tree li[data-path="motto"] > .row').click();
+  await pp.locator('#tree li[data-path="motd"] > .row').click();
   if (await vbox() !== vrest) {
     problems.push(`phone: the words' box changed: ${vrest} -> ${
       await vbox()}`);
   }
   const phoneLit = await pp.locator("#panel .b.hl:not(.cmp *)").count();
-  // before: 9 bytes of "play fair" and its length byte; after: the
-  // long-length word (holds the flag byte) and 48 bytes of data across
+  // before: 5 bytes of "gl hf" and its length byte; after: the
+  // long-length word (holds the flag byte) and 50 bytes of data across
   // two slots
-  if (phoneLit !== 10 + 32 + 48) {
-    problems.push(`phone: ${phoneLit} bytes lit for motto`);
+  if (phoneLit !== 6 + 32 + 50) {
+    problems.push(`phone: ${phoneLit} bytes lit for motd`);
   }
   const scrollX = await pp.evaluate(() =>
     document.documentElement.scrollWidth >
@@ -1604,7 +1645,7 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
   await pp.waitForFunction(() => window.memResults?.done);
   // the derivation panel forks into the two branches
   if (await pp.locator("#how .branch").count() !== 2) {
-    problems.push("phone: no difference shown for motto");
+    problems.push("phone: no difference shown for motd");
   }
   // names[1]: four words and the bytes, at A ("grace") and at B
   // ("grace hopper")
@@ -1628,7 +1669,7 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
   problems.push(...await retryCheck(browser, "vendor/pointers.js",
     { abort: true }));
   problems.push(...await retryCheck(browser,
-    "fixtures/scores-record.json", { via: "#tree .error button" }));
+    "fixtures/arcade-plays.json", { via: "#tree .error button" }));
   if (name === "chromium") problems.push(...await slowLink(browser));
   problems.push(...logs, ...foreign.map((u) => `foreign ${u}`));
 
