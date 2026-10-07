@@ -236,13 +236,24 @@ const word = async (address, slot) => hex32(await rpc("eth_getStorageAt",
 // anvil's account 0; alice, bob and carol are accounts 1, 2 and 3
 const [, ALICE, BOB, CAROL] = await rpc("eth_accounts");
 const PLAYERS = { [ALICE]: "alice", [BOB]: "bob", [CAROL]: "carol" };
+const NAMES = { [ALICE]: "alice", [BOB]: "bob",
+  [CAROL]: "carol, the unstoppable combo queen" };
 const MOTD = ["gl hf", "season 2 starts friday, see you on the leaderboard"];
-if (MOTD[0].length > 31 || MOTD[1].length <= 31) {
-  throw new Error("the motds must be short, then long");
+if (MOTD[0].length > 31 || MOTD[1].length <= 31 ||
+  NAMES[CAROL].length <= 31) {
+  throw new Error("the motds must be short, then long; carol's name long");
 }
-const STORY = [["alice", ALICE, true], ["alice", ALICE, true],
-  ["bob", BOB, true], ["carol", CAROL, false], ["alice", ALICE, false]];
+// the plays up to the middle of the game, then alice's third hit
+const STORY = [[ALICE, true], [ALICE, true], [BOB, true], [CAROL, false]];
 const ctor = (m) => cast("abi-encode", "f(string)", m);
+const joinAll = async (address) => {
+  const txs = [];
+  for (const who of [ALICE, BOB, CAROL]) {
+    txs.push(await send({ from: who, to: address,
+      data: cast("calldata", "join(string)", NAMES[who]) }));
+  }
+  return txs;
+};
 
 // A play rolls a hit or a miss from prevrandao, which anvil draws at
 // random for each block and cannot be told. So each play is sent inside
@@ -274,31 +285,32 @@ const keysOf = async (txs) => {
   }
   return keys;
 };
+const field = (w, from, n) =>
+  (BigInt(w) >> BigInt(8 * (32 - from - n))) & ((1n << BigInt(8 * n)) - 1n);
 
 const arcade = compile("Arcade");
 console.log("solc", arcade.compiler);
 {
   const address = await deploy(arcade, ctor(MOTD[0]));
-  const combo = async (who) =>
-    (BigInt(await word(address, keccak(who, 0))) >> 64n) & 0xffffffffn;
+  // combo: bytes 8-11 of the player's slot (byte 0 most significant)
+  const combo = async (who) => field(await word(address, keccak(who, 0)),
+    20, 4);
+  const joins = await joinAll(address);
   const plays = [];
-  for (const [, who, hit] of STORY) {
-    plays.push(await play(address, who, hit, combo));
-  }
-  const keys = await keysOf(plays);
-  const extra = { keysFrom: "the traces of the five plays",
+  for (const [who, hit] of STORY) plays.push(await play(address, who, hit, combo));
+  const keys = await keysOf([...joins, ...plays]);
+  const extra = { keysFrom: "the traces of the joins and plays",
     players: PLAYERS };
-  // alice's second hit: before it, her first hit; after it, combo 2
+  // the middle of the game: after carol's miss
   await fixture({
-    id: "arcade-hit2", contract: arcade, address, tx: plays[1],
-    keys: await keysOf(plays.slice(0, 2)),
-    extra: { ...extra, keysFrom: "the traces of alice's two hits" },
-    summary: "alice's second hit",
+    id: "arcade-mid", contract: arcade, address, tx: plays.at(-1), keys,
+    extra, summary: "the middle of the game",
   });
-  // the last play (alice misses): after it, the end of the plays
+  // alice plays: her third hit (combo 3, +30)
+  const third = await play(address, ALICE, true, combo);
   await fixture({
-    id: "arcade-plays", contract: arcade, address, tx: plays[4], keys,
-    extra, summary: "after the five plays",
+    id: "arcade-alice", contract: arcade, address, tx: third, keys, extra,
+    summary: "alice's third hit",
   });
   const motd = await send({ to: address,
     data: cast("calldata", "setMotd(string)", MOTD[1]) });
@@ -308,10 +320,10 @@ console.log("solc", arcade.compiler);
   });
 }
 
-// Vyper: the same program, the same story. Vyper emits no ethdebug, so
-// the fixture applies solc's rule for players (from Arcade.sol's ethdebug
-// output) to the Vyper contract's storage, and keeps the slots Vyper
-// itself wrote for alice, from its trace.
+// Vyper: the same program, the same story up to the middle of the game.
+// Vyper emits no ethdebug, so the fixture applies solc's rule for players
+// (from Arcade.sol's ethdebug output) to the Vyper contract's storage,
+// and keeps the slots Vyper itself uses for each player.
 {
   const VYPER = process.env.VYPER ?? "vyper";
   const vyVersion = execFileSync(VYPER, ["--version"], { encoding: "utf8" })
@@ -322,26 +334,44 @@ console.log("solc", arcade.compiler);
   const address = receipt.contractAddress;
   const combo = async (who) => BigInt(await word(address,
     add(keccak(0, who), 1)));
+  await joinAll(address);
   let last;
-  for (const [, who, hit] of STORY) last = await play(address, who, hit, combo);
+  for (const [who, hit] of STORY) last = await play(address, who, hit, combo);
   // Solidity's rule: keccak256(key . slot); Vyper's: keccak256(slot . key),
-  // and the struct unpacked, one member per slot. For each player:
-  const want = { [ALICE]: [30n, 0n, 1n], [BOB]: [10n, 1n, 1n],
-    [CAROL]: [0n, 0n, 1n] };
+  // the struct unpacked: six counters in s … s+5, the name's length at
+  // s+6 and its bytes from s+7. For each player (score, combo, bestCombo,
+  // plays, hitCount):
+  const want = { [ALICE]: [30n, 2n, 2n, 2n, 2n], [BOB]: [10n, 1n, 1n, 1n, 1n],
+    [CAROL]: [0n, 0n, 0n, 1n, 0n] };
+  const FIELDS = ["score", "combo", "bestCombo", "plays", "hitCount",
+    "lastBlock"];
   const entries = [];
   for (const [who, w] of Object.entries(want)) {
     const sol = keccak(who, 0);
     const vy = keccak(0, who);
-    const members = [0, 1, 2].map((k) => add(vy, k));
-    const got = await Promise.all(members.map((s) => word(address, s)));
-    if (got.some((x, k) => BigInt(x) !== w[k]) ||
-      BigInt(await word(address, sol)) !== 0n) {
+    const name = NAMES[who];
+    const words = 7 + Math.ceil(name.length / 32);
+    const members = [];
+    for (let k = 0; k < words; k++) {
+      const s = add(vy, k);
+      const v = BigInt(await word(address, s));
+      const what = k < 6 ? FIELDS[k] : k === 6 ? "name (length)"
+        : "name (bytes)";
+      const text = k < 6 || k === 6 ? String(v)
+        : JSON.stringify(Buffer.from(v.toString(16).padStart(64, "0"), "hex")
+          .toString("utf8").replace(/\0+$/, ""));
+      members.push({ slot: s, name: what, text });
+    }
+    const got = members.slice(0, 5).map((m) => BigInt(m.text));
+    if (got.some((x, k) => x !== w[k]) || members[6].text !==
+      String(name.length) || BigInt(await word(address, sol)) !== 0n) {
       throw new Error(`vyper: unexpected storage ${got}`);
     }
-    // the getter agrees: (score, combo, active)
+    // the getter agrees
     console.log(`vyper players(${PLAYERS[who]}):`, cast("call", "--rpc-url",
-      RPC, address, "players(address)(uint64,uint32,bool)", who)
-      .replace(/\s+/g, " "), "solidity rule", sol, "vyper rule", vy);
+      RPC, address, "players(address)((uint64,uint32,uint32,uint32,uint32," +
+      "uint64,string))", who).replace(/\s+/g, " "), "solidity rule", sol,
+      "vyper rule", vy);
     entries.push({ key: who, slot: vy, members });
   }
   const players = arcade.variables.find((v) => v.identifier === "players");
@@ -350,15 +380,14 @@ console.log("solc", arcade.compiler);
     contract: { ...arcade, variables: [players] },
     keys: new Map([[hex32(0), Object.keys(want).map((who) =>
       ({ key: hex32(who) }))]]),
-    keep: entries.flatMap((e) => e.members),
+    keep: entries.flatMap((e) => e.members.map((m) => m.slot)),
     extra: {
-      keysFrom: "the KECCAK256 inputs in the trace of Vyper's play()" +
-        " (there the slot comes first, then the key)",
+      keysFrom: "the KECCAK256 inputs in the traces of Vyper's joins and" +
+        " plays (there the slot comes first, then the key)",
       players: PLAYERS,
-      vyper: { compiler: vyVersion, entries,
-        names: ["score", "combo", "active"] },
+      vyper: { compiler: vyVersion, entries },
     },
-    summary: "Vyper: the five plays",
+    summary: "Vyper: the middle of the game",
   });
   for (const who of Object.keys(want)) {
     if (BigInt(after.get(keccak(who, 0))) !== 0n) {

@@ -293,8 +293,9 @@ function renderHow() {
 }
 
 // The Vyper scene: the same entry by Vyper's own rule, which no ethdebug
-// gives (Vyper emits none). Its words are the ones Vyper's play() wrote
-// for the selected player, from its trace; each step lights its word.
+// gives (Vyper emits none). Its words are the ones Vyper uses for the
+// selected player (the fixture script read them from the node and
+// checked them against the getter); each step lights its word.
 function vyperRule(node, side) {
   const vy = current.f.vyper;
   if (!vy || !node.path.startsWith("players[")) return "";
@@ -302,25 +303,17 @@ function vyperRule(node, side) {
   const e = vy.entries.find((x) => entry.key.toLowerCase()
     .endsWith(x.key.slice(2).toLowerCase()));
   if (!e) return "";
-  const word = (s) => current.f.slots[s][side];
-  // the members, with their types from solc's ethdebug (for a bool)
-  const { types } = current.f.contract;
-  const kind = (k) => types[types[entry.typeId]?.contains?.[k]?.type.id]
-    ?.kind;
-  const item = (k, html) => `<li data-region="${esc(JSON.stringify({
-    name: `vyper-${vy.names[k]}`, location: "storage", slot: e.members[k],
+  const item = (m, k) => `<li data-region="${esc(JSON.stringify({
+    name: `vyper-${m.name}`, location: "storage", slot: m.slot,
     offset: "0x0", length: "0x20" }))}" data-side="${side}" tabindex="0">` +
-    `<span class="k">Slot ${k ? `+ ${k}` : ""}</span><div class="c">${html}` +
-    `</div></li>`;
-  const val = (k) => num(word(e.members[k]));
-  const shownVal = (k) => kind(k) === "bool"
-    ? `<b>${val(k) ? "true" : "false"}</b> (${val(k)})` : `<b>${val(k)}</b>`;
+    `<span class="k">Slot ${k ? `+ ${k}` : ""}</span><div class="c">${k ? ""
+      : `${hex(e.slot, 14)}: `}<code>${esc(m.name)}</code> = <b>${
+      esc(m.text)}</b></div></li>`;
   return `<p class="howside">Vyper's rule, for contrast: not from
     ethdebug (Vyper emits none). Vyper hashes the slot first,
     <code>keccak256(slot 0 . key)</code>, and puts each member in its own
-    slot.</p><ol class="steps vyper">${vy.names.map((n, k) =>
-    item(k, `${k ? "" : `${hex(e.slot, 14)}: `}<code>${esc(n)}</code> =
-      ${shownVal(k)}`)).join("")}</ol>`;
+    slot, the name's length and bytes after them.</p>
+    <ol class="steps vyper">${e.members.map(item).join("")}</ol>`;
 }
 
 // The steps of one state's derivation, each with a key for its
@@ -729,8 +722,8 @@ function vyperNames(f) {
   const vy = f.vyper;
   if (!vy) return undefined;
   return Object.fromEntries(vy.entries.flatMap(({ key, members }) =>
-    members.map((s, k) => [s, `Vyper's keccak(slot 0, 0x${key.slice(2, 6)
-    }…${key.slice(-4)})${k ? ` + ${k}` : ""}`])));
+    members.map(({ slot }, k) => [slot, `Vyper's keccak(slot 0, 0x${
+      key.slice(2, 6)}…${key.slice(-4)})${k ? ` + ${k}` : ""}`])));
 }
 
 // The view in the URL hash: scene, mode, selected variable

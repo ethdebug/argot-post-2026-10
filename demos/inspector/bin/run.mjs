@@ -22,46 +22,50 @@ const MOTD = ["gl hf", "season 2 starts friday, see you on the leaderboard"];
 // bin/make-fixtures.mjs. A scene with one point shows the same state on
 // both sides.
 const same2 = (rows) => rows.map(([p, v]) => [p, v, v]);
-const ended = same2([
-  [`${A}.score`, "30"], [`${A}.combo`, "0"], [`${A}.active`, "true"],
-  [`${B}.score`, "10"], [`${B}.combo`, "1"], [`${B}.active`, "true"],
-  [`${C}.score`, "0"], [`${C}.combo`, "0"], [`${C}.active`, "true"],
-  ["hits", "length 3"], ["hits[0]", "10"], ["hits[1]", "20"],
-  ["hits[2]", "10"], ["motd", `"${MOTD[0]}"`], ["total", "40"],
-  ["rounds", "3"],
-]);
+const NAME_C = "carol, the unstoppable combo queen";
+const player = (p, [score, combo, best, plays, hc], name) => [
+  [`${p}.score`, score], [`${p}.combo`, combo], [`${p}.bestCombo`, best],
+  [`${p}.plays`, plays], [`${p}.hitCount`, hc], [`${p}.name`, name]];
+// the middle of the game
+const mid = [
+  ...player(A, ["30", "2", "2", "2", "2"], '"alice"'),
+  ...player(B, ["10", "1", "1", "1", "1"], '"bob"'),
+  ...player(C, ["0", "0", "0", "1", "0"], `"${NAME_C}"`),
+  ["roster", "length 3"],
+  ["roster[0]", "0x70997970c51812dc3a010c7d01b50e0d17dc79c8"],
+  ["roster[2]", "0x90f79bf6eb2c4f870365e785982e1f101e93b906"],
+  ["motd", `"${MOTD[0]}"`], ["total", "40"], ["rounds", "3"],
+];
 const expected = {
-  packed: ended,
-  players: ended,
-  // Solidity's rule, applied to the Vyper contract's storage
-  vyper: same2([A, B, C].flatMap((p) => [[`${p}.score`, "0"],
-    [`${p}.combo`, "0"], [`${p}.active`, "false"]])),
-  combo: [
-    [`${A}.score`, "10", "30"],
-    [`${A}.combo`, "1", "2"],
-    [`${A}.active`, "true", "true"],
-    ["hits", "length 1", "length 2"],
-    ["hits[0]", "10", "10"],
-    ["hits[1]", undefined, "20"],
-    ["motd", `"${MOTD[0]}"`, `"${MOTD[0]}"`],
-    ["total", "10", "30"],
-    ["rounds", "1", "2"],
+  mid: same2(mid),
+  alice: [
+    [`${A}.score`, "30", "60"],
+    [`${A}.combo`, "2", "3"],
+    [`${A}.bestCombo`, "2", "3"],
+    [`${A}.plays`, "2", "3"],
+    [`${A}.hitCount`, "2", "3"],
+    [`${A}.name`, '"alice"', '"alice"'],
+    [`${B}.score`, "10", "10"],
+    ["total", "40", "70"],
+    ["rounds", "3", "4"],
   ],
   motd: [
     ["motd", `"${MOTD[0]}"`, `"${MOTD[1]}"`],
-    [`${A}.score`, "30", "30"],
-    [`${B}.score`, "10", "10"],
-    ["total", "40", "40"],
-    ["rounds", "3", "3"],
+    [`${A}.score`, "60", "60"],
+    [`${C}.name`, `"${NAME_C}"`, `"${NAME_C}"`],
+    ["total", "70", "70"],
+    ["rounds", "4", "4"],
   ],
+  // Solidity's rule, applied to the Vyper contract's storage
+  vyper: same2([A, B, C].flatMap((p) => [[`${p}.score`, "0"],
+    [`${p}.combo`, "0"], [`${p}.name`, '""']])),
 };
 // Each scene's defaults: the mode shown and the variable selected
 const defaults = {
-  packed: ["after", undefined],
-  players: ["after", A],
-  vyper: ["after", `${A}.score`],
-  combo: ["after", A],
+  mid: ["after", A],
+  alice: ["after", A],
   motd: ["after", "motd"],
+  vyper: ["after", `${A}.score`],
 };
 
 // The same keys and values, in any order
@@ -269,11 +273,11 @@ async function slowLink(browser) {
   });
   if (!(progress <= 1000)) out.push(`progress shown at ${progress} ms`);
   if (!(t.paint <= 1000)) out.push(`first paint at ${t.paint} ms`);
-  if (t.fixtures !== "arcade-plays.json,index.json,memory.json") {
+  if (t.fixtures !== "arcade-mid.json,index.json,memory.json") {
     out.push(`fetched before usable: ${t.fixtures}`);
   }
   // the others, idle-time
-  await p.waitForFunction(() => ["arcade-vyper", "arcade-hit2", "arcade-motd"]
+  await p.waitForFunction(() => ["arcade-alice", "arcade-motd", "arcade-vyper"]
     .every((id) => performance.getEntriesByType("resource").some((e) =>
       e.name.endsWith(`fixtures/${id}.json`))),
   null, { timeout: 30000 }).catch(() => out.push("no prefetch"));
@@ -285,7 +289,7 @@ async function slowLink(browser) {
   await p.locator('#picker button[data-id="vyper"]').click();
   await p.waitForFunction(() => "vyper" in window.results.decoded &&
     document.querySelector('#picker [aria-checked="true"]')?.dataset.id ===
-    "vyper" && !document.querySelector('#tree li[data-path="hits"]'));
+    "vyper" && !document.querySelector('#tree li[data-path="roster"]'));
   const pick = Date.now() - t1;
   const rows = await p.evaluate(() => [performance.getEntriesByType(
     "navigation")[0], ...performance.getEntriesByType("resource")]
@@ -393,7 +397,7 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
       "#tree .val.chg, #tree .val.same, #panel .b.chg, #panel .wrow.same")
       .length,
   }));
-  if (!same(atRest, { scene: "packed", sel: 0, intro: "packed",
+  if (!same(atRest, { scene: "mid", sel: 1, intro: "mid",
     controls: "false,false,false", marks: 0 })) {
     problems.push(`first scene: ${JSON.stringify(atRest)}`);
   }
@@ -429,7 +433,7 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
 
   // The words panel: hovering a value lights its bytes, counted from
   // the most significant byte, as the template's offset and length say
-  await scene("combo");
+  await scene("alice");
   const lit = () => page.evaluate(() => {
     const out = {};
     for (const c of document.querySelectorAll("#panel .b.hl:not(.cmp *)")) {
@@ -465,11 +469,13 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
       problems.push(`${what}: lit ${JSON.stringify(got)}`);
     }
   };
-  // Player packs score (8 bytes), combo (4) and active (1) into one
-  // word, from the low end; before and after
+  // Player packs six counters into one full word, from the low end:
+  // score (8 bytes), combo, bestCombo, plays, hitCount (4 each),
+  // lastBlock (8); before and after
   await want("score", `${A}.score`, range(24, 31), 2);
   await want("combo", `${A}.combo`, range(20, 23), 2);
-  await want("active", `${A}.active`, [19], 2);
+  await want("hitCount", `${A}.hitCount`, range(8, 11), 2);
+  await want("lastBlock", `${A}.lastBlock`, range(0, 7), 2);
   // Clicking a byte selects the variable that owns it (selection lives
   // on the tree row)
   const pickByte = async (owner, i) => {
@@ -480,26 +486,26 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
   const selected = () => page.evaluate(() =>
     [...document.querySelectorAll("#tree .row.sel")].map((r) =>
       r.parentElement.dataset.path));
-  await pickByte(`${A}.active`, 19);
+  await pickByte(`${A}.plays`, 13);
   let sel = await selected();
-  if (sel.join() !== `${A}.active`) problems.push(`pick 19: ${sel}`);
+  if (sel.join() !== `${A}.plays`) problems.push(`pick 13: ${sel}`);
   // the details of the selected value, under the dump
   const fd = await dl();
-  if (fd.Value !== `players[0x7099…79c8].active (bool)` ||
-    !/^slot …d101 \(keccak\(0x7099…79c8, slot 0\)\), byte 19$/
-      .test(fd.Where) || fd.Before !== "true (0x01)" ||
-    fd.After !== "true (0x01)" || fd.scrolls) {
-    problems.push(`details active: ${JSON.stringify(fd)}`);
+  if (fd.Value !== `players[0x7099…79c8].plays (uint32)` ||
+    !/^slot …d101 \(keccak\(0x7099…79c8, slot 0\)\), bytes 12–15$/
+      .test(fd.Where) || fd.Before !== "2 (0x00000002)" ||
+    fd.After !== "3 (0x00000003)" || fd.scrolls) {
+    problems.push(`details plays: ${JSON.stringify(fd)}`);
   }
   await pickByte(`${A}.combo`, 22);
   sel = await selected();
   if (sel.join() !== `${A}.combo`) problems.push(`pick 22: ${sel}`);
   // and from the keyboard
   await page.locator(`#panel .view[data-side="after"] ` +
-    `.b[data-owners="${A}.active"][tabindex]`).first().focus();
+    `.b[data-owners="${A}.plays"][tabindex]`).first().focus();
   await page.keyboard.press("Enter");
   sel = await selected();
-  if (sel.join() !== `${A}.active`) problems.push(`key pick: ${sel}`);
+  if (sel.join() !== `${A}.plays`) problems.push(`key pick: ${sel}`);
   await page.keyboard.press("Escape"); // Escape clears the selection
   if ((await selected()).length) problems.push("Escape did not clear");
   // a row is focusable, and Enter selects it
@@ -514,8 +520,8 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
 
   // Clicking the selected row again clears it
   const tr = (p) => page.locator(`#tree li[data-path="${p}"] > .row`);
-  await tr(`${A}.active`).click();
-  await tr(`${A}.active`).click();
+  await tr(`${A}.plays`).click();
+  await tr(`${A}.plays`).click();
   if ((await selected()).length) problems.push("row click did not toggle");
   // While a variable is selected, the view stays on it: an unrelated
   // byte changes nothing; its own bytes only change the info line; a
@@ -552,7 +558,7 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
   await page.keyboard.press("Escape");
   await page.locator("h1").hover();
 
-  // The slots are named as the templates computed them: hits'
+  // The slots are named as the templates computed them: roster'
   // elements and the long motd's data
   const slotNames = () => page.locator("#panel .wrow[data-name]")
     .evaluateAll((rs) => [...new Set(rs.map((r) => r.dataset.name))]);
@@ -603,8 +609,8 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
   }
   const info = await dl();
   if (info.Value !== "rounds (uint64)" || info.Where !== "slot 3, bytes 8–15" ||
-    info.Before !== "1 (0x0000000000000001)" ||
-    info.After !== "2 (0x0000000000000002)" ||
+    info.Before !== "3 (0x0000000000000003)" ||
+    info.After !== "4 (0x0000000000000004)" ||
     info.scrolls) problems.push(`details rounds: ${JSON.stringify(info)}`);
   // and a popover at slot 3's address, in the dump shown
   const pops = () => page.locator("#panel .pop").allInnerTexts();
@@ -636,7 +642,7 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
 
   // A scene with one point: a byte names its owner and its hex, with no
   // before and after; the popover says how the slot was found only
-  await scene("packed");
+  await scene("mid");
   await page.locator(`#panel .word[data-side="after"][data-slot="${slot3}"]` +
     ' .b[data-i="31"]').hover();
   const one = await dl();
@@ -652,7 +658,7 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
   }
   await page.locator(`#tree li[data-path="${A}.combo"] > .row`).click();
   if (!(await page.locator("#how").textContent())
-    .includes("For the state after the five plays.") ||
+    .includes("For the state in the middle of the game.") ||
     await page.locator("#how .branch, #how .evals").count()) {
     problems.push("one point: derivation");
   }
@@ -663,7 +669,7 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
   // cards, no "Before" or "After" in the words, and no popover covers
   // another row's address
   for (const [id, [, dsel]] of Object.entries(defaults)) {
-    if (!["packed", "players", "vyper"].includes(id)) continue;
+    if (!["mid", "vyper"].includes(id)) continue;
     await page.locator(`#picker button[data-id="${id}"]`).click();
     await page.waitForFunction((x) => document.querySelector(
       '#picker [aria-checked="true"]')?.dataset.id === x, id);
@@ -847,7 +853,7 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
 
   // At rest: no popover, and nothing in the dumps but addresses and
   // bytes (names live in the tree)
-  await scene("combo");
+  await scene("alice");
   await page.locator("h1").hover();
   if ((await pops()).length) problems.push("popover at rest");
   await page.waitForTimeout(250);
@@ -994,7 +1000,7 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
     if (blocks.length !== 1 || b0.side !== m || b0.label !== other ||
       !(m === "before" ? b0.under : b0.over) ||
       b0.lines[0].bytes.join() !== range(20, 23).join() ||
-      b0.lines[0].text !== (m === "before" ? "00000002" : "00000001") ||
+      b0.lines[0].text !== (m === "before" ? "00000003" : "00000002") ||
       !b0.lines[0].aligned || !b0.full) {
       problems.push(`${m}: combo card: ${JSON.stringify(blocks)}`);
     }
@@ -1006,7 +1012,7 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
     await page.locator(`#tree li[data-path="${A}"] > .row`).hover();
     blocks = await cmp();
     if (blocks.length !== 1 || blocks[0].lines.length !== 1 ||
-      blocks[0].lines[0].bytes.join() !== range(19, 31).join() ||
+      blocks[0].lines[0].bytes.join() !== range(0, 31).join() ||
       !blocks[0].lines.every((l) => l.aligned) || !blocks[0].full) {
       problems.push(`${m}: struct card: ${JSON.stringify(blocks)}`);
     }
@@ -1097,7 +1103,7 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
     if (l.scrolls) problems.push(`${width}: words scroll sideways`);
   }
   // The first scene, as its intro asks: a click on a byte of slot 3
-  await page.locator('#picker button[data-id="packed"]').click();
+  await page.locator('#picker button[data-id="mid"]').click();
   await page.locator('#panel .word[data-side="after"] ' +
     '.b[data-owners="total"][data-i="31"]').click();
   await page.locator("h1").hover();
@@ -1113,15 +1119,15 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
   }
 
   // "How this was found": clicking any row selects it and shows its
-  // derivation, changed or not. active did not change.
-  await scene("combo");
+  // derivation, changed or not. bob's score did not change.
+  await scene("alice");
   const row = (p) => page.locator(`#tree li[data-path="${p}"] > .row`);
   const how = () => page.locator("#how").textContent();
-  await row(`${A}.active`).click();
+  await row(`${B}.score`).click();
   let text = await how();
   for (const want of ["Template", "$keccak256", "Region", "offset",
     "from the program context", "from the trace", "same bytes in both"]) {
-    if (!text.includes(want)) problems.push(`active how lacks "${want}"`);
+    if (!text.includes(want)) problems.push(`bob's score how lacks "${want}"`);
   }
   // combo did change; its source mark and region step
   await row(`${A}.combo`).click();
@@ -1164,8 +1170,8 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
     (ls) => [...new Set(ls.map((l) => l.dataset.side))].join());
   await row(`${A}.score`).click();
   for (const [m, val, whose] of [
-    ["before", "10", "after alice's first hit"],
-    ["after", "30", "after her second hit"]]) {
+    ["before", "30", "in the middle of the game"],
+    ["after", "60", "after alice's third hit"]]) {
     await setMode(m);
     const v = await views();
     const d = await sides();
@@ -1183,8 +1189,8 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
   }
 
   // The tree's cards: none at rest; a lit changed value gets one with
-  // the other state's value (score: "after 30" under it in Before,
-  // "before 10" over it in After); an unchanged one gets none
+  // the other state's value (score: "after 60" under it in Before,
+  // "before 30" over it in After); an unchanged one gets none
   const tins = () => page.evaluate(() => [...document.querySelectorAll(
     "#tree .tcard")].map((c) => {
     const r = c.closest("li").querySelector(":scope > .row")
@@ -1195,8 +1201,8 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
         : b.bottom <= r.top + 0.5 ? "over" : "on" };
   }));
   await page.keyboard.press("Escape");
-  for (const [m, want, place] of [["before", "after30", "under"],
-    ["after", "before10", "over"]]) {
+  for (const [m, want, place] of [["before", "after60", "under"],
+    ["after", "before30", "over"]]) {
     await setMode(m);
     await page.locator("h1").hover();
     if ((await tins()).length) problems.push(`${m}: tree card at rest`);
@@ -1206,12 +1212,12 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
       t[0].text !== want || t[0].place !== place) {
       problems.push(`tree card ${m}: ${JSON.stringify(t)}`);
     }
-    await row(`${A}.active`).hover();
+    await row(`${B}.score`).hover();
     if ((await tins()).length) problems.push(`${m}: card for unchanged`);
   }
   // No card for what did not change: selecting an unchanged value gives
   // none, in the tree or the dump, in either state
-  for (const p of ["hits[0]", `${A}.active`, "motd"]) {
+  for (const p of ["roster[0]", `${A}.name`, `${B}.score`, "motd"]) {
     for (const m of ["before", "after"]) {
       await setMode(m);
       await row(p).click();
@@ -1343,28 +1349,34 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
     if (!(await page.locator("#chow").textContent()).includes(
       "not by ethdebug")) problems.push("calldata: no why-not");
     await page.locator("h1").hover();
-    await scene("combo");
+    await scene("alice");
     if (!(await page.evaluate(() =>
       document.querySelector("#calldata").hidden))) {
       problems.push("calldata shown in another scene");
     }
   }
 
-  // Three players: each entry at its own keccak(address, slot 0), far
-  // apart; the mapping's row lights all three, a byte selects its
-  // player's value
-  await scene("players");
+  // Three players: each record at its own keccak(address, slot 0), far
+  // apart, its name in the next slot (carol's long name's bytes at
+  // keccak of that slot); the mapping's row lights them all, a byte
+  // selects its player's field
+  await scene("mid");
   await page.locator('#tree li[data-path="players"] > .row').hover();
-  const three = Object.keys(await lit()).filter((k) =>
-    k.startsWith("after ")).map((k) => k.split(" ")[1]);
   const tnames = await page.locator('#panel .view[data-side="after"] ' +
     ".wrow[data-name]").evaluateAll((rs) => Object.fromEntries(
     rs.map((r) => [r.dataset.slot, r.dataset.name])));
-  if (three.map((x) => tnames[x]).sort().join() !== [
-    "keccak(0x3c44…93bc, slot 0)", "keccak(0x7099…79c8, slot 0)",
-    "keccak(0x90f7…b906, slot 0)"].join()) {
-    problems.push(`three players: ${three.map((x) => tnames[x])}`);
+  const three = Object.keys(await lit()).filter((k) =>
+    k.startsWith("after ")).map((k) => tnames[k.split(" ")[1]]).sort();
+  const wantThree = [];
+  for (const k of ["0x3c44…93bc", "0x7099…79c8", "0x90f7…b906"]) {
+    wantThree.push(`keccak(${k}, slot 0)`, `keccak(${k}, slot 0) + 1`);
   }
+  wantThree.push("keccak(keccak(0x90f7…b906, slot 0) + 1)",
+    "keccak(keccak(0x90f7…b906, slot 0) + 1) + 1");
+  if (three.join() !== wantThree.sort().join()) {
+    problems.push(`three players: ${three}`);
+  }
+  // a byte of bob's record selects its field; the roster at keccak(slot 1)
   await page.locator(`#panel .word[data-side="after"] ` +
     `.b[data-owners="${B}.score"][data-i="31"]`).click();
   await page.locator("h1").hover();
@@ -1372,12 +1384,16 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
     problems.push(`three players: byte selected ${await selected()}`);
   }
   await page.keyboard.press("Escape");
+  await page.locator('#tree li[data-path="roster[2]"] > .row').hover();
+  const rl = Object.keys(await lit()).filter((k) => k.startsWith("after "))
+    .map((k) => tnames[k.split(" ")[1]]);
+  if (rl.join() !== "keccak(slot 1) + 2") problems.push(`roster[2]: ${rl}`);
 
-  // Vyper: Solidity's rule reads 0 at keccak(key . slot 0) for each
-  // player; Vyper's own words, keccak(slot 0 . key) + 0, 1, 2 (score,
-  // combo, active), hold the real values, and no value shown owns them.
-  // "How this was found" lists the selected player's, and each lights
-  // its word.
+  // Vyper: Solidity's rule reads nothing at keccak(key . slot 0) for any
+  // player; Vyper's own words, keccak(slot 0 . key) + 0 … (the six
+  // counters, the name's length, its bytes), hold the real values, and
+  // no value shown owns them. "How this was found" lists the selected
+  // player's, and each lights its word.
   await page.locator('#picker button[data-id="vyper"]').click();
   const vy = await page.evaluate(() => {
     const v = document.querySelector('#panel .view[data-side="after"]');
@@ -1385,23 +1401,22 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
       .map((r) => [r.dataset.name, `${r.querySelector(".b[data-i='31']")
         .textContent} ${r.querySelectorAll(".b.free").length}`]));
   });
-  const vwant = {};
-  for (const [key, vals] of [["0x7099…79c8", ["1e", "00", "01"]],
-    ["0x3c44…93bc", ["0a", "01", "01"]],
-    ["0x90f7…b906", ["00", "00", "01"]]]) {
-    vals.forEach((x, k) => {
-      vwant[`Vyper's keccak(slot 0, ${key})${k ? ` + ${k}` : ""}`] =
-        `${x} 32`;
-    });
-    vwant[`keccak(${key}, slot 0)`] = "00 19";
-  }
-  if (!same(vy, vwant)) {
-    problems.push(`vyper words: ${JSON.stringify(vy)}`);
+  // score, combo, bestCombo, plays, hitCount; the name's length
+  for (const [key, vals, len] of [
+    ["0x7099…79c8", ["1e", "02", "02", "02", "02"], "05"],
+    ["0x3c44…93bc", ["0a", "01", "01", "01", "01"], "03"],
+    ["0x90f7…b906", ["00", "00", "00", "01", "00"], "22"]]) {
+    const n = (k) => `Vyper's keccak(slot 0, ${key})${k ? ` + ${k}` : ""}`;
+    const bad = [...vals.map((x, k) => [n(k), `${x} 32`]),
+      [n(6), `${len} 32`]].filter(([k, v]) => vy[k] !== v);
+    if (bad.length || !(`keccak(${key}, slot 0)` in vy)) {
+      problems.push(`vyper words ${key}: ${JSON.stringify(bad)}`);
+    }
   }
   text = (await how()).replace(/\s+/g, " ");
   if (!text.includes("Vyper's rule") ||
-    !/score = 30[\s\S]*combo = 0[\s\S]*active = true/.test(text) ||
-    !text.includes("→ 0")) {
+    !/score = 30[\s\S]*combo = 2[\s\S]*name \(length\) = 5[\s\S]*name \(bytes\) = "alice"/
+      .test(text) || !text.includes("→ 0")) {
     problems.push(`vyper how: ${text.slice(-300)}`);
   }
   const vslot = "0xd3a93e7218b271cb9ca81fec1cdfcf6e7686ea0002660580b37e3bb93bc52785";
@@ -1419,11 +1434,12 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
       "Vyper's keccak(slot 0, 0x7099…79c8)")) {
     problems.push(`vyper pops: ${vp}`);
   }
-  // bob, selected: his Vyper words
-  await page.locator(`#tree li[data-path="${B}.score"] > .row`).click();
+  // carol, selected: her Vyper words, her long name over two words
+  await page.locator(`#tree li[data-path="${C}.score"] > .row`).click();
   text = (await how()).replace(/\s+/g, " ");
-  if (!/score = 10[\s\S]*combo = 1[\s\S]*active = true/.test(text)) {
-    problems.push(`vyper how bob: ${text.slice(-200)}`);
+  if (!/plays = 1[\s\S]*name \(length\) = 34[\s\S]*"carol, the unstoppable combo que"[\s\S]*"en"/
+    .test(text)) {
+    problems.push(`vyper how carol: ${text.slice(-300)}`);
   }
   await page.keyboard.press("Escape");
   await page.locator("h1").hover();
@@ -1602,7 +1618,7 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
       document.querySelector("#tree .row.sel")?.parentElement.dataset.path,
       document.querySelector("#insets").checked,
       document.querySelector("#tree").innerText]));
-    await scene("combo");
+    await scene("alice");
     await page.locator(`#tree li[data-path="${A}.combo"] > .row`).click();
     await mrow("names[1]").click();
     await page.locator("h1").hover();
@@ -1615,7 +1631,7 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
       ["a scene", () => page.locator('#picker button[data-id="motd"]')
         .click()],
       ["a one-point scene", () => page.locator(
-        '#picker button[data-id="packed"]').click()],
+        '#picker button[data-id="mid"]').click()],
       ["Escape", async () => {
         await page.locator('#tree li[data-path="total"] > .row').click();
         await page.evaluate(() => document.activeElement?.blur());
@@ -1630,7 +1646,7 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
         m0 = await memView();
       }
     }
-    await page.locator('#picker button[data-id="combo"]').click();
+    await page.locator('#picker button[data-id="alice"]').click();
     await page.locator(`#tree li[data-path="${A}.combo"] > .row`).click();
     await page.locator("h1").hover();
     let s0 = await storeView();
@@ -1665,12 +1681,17 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
   // The URL hash keeps the view: loading with one restores the scene,
   // the mode, the selection and the memory points; a stale one falls
   // back to the first scene, with its defaults
+  // (leave a page only once its idle-time fetches are done: WebKit
+  // reports a fetch cut off by leaving as a page error)
+  const idle = (pg) => pg.waitForFunction(() => !window.loading?.busy(),
+    null, { timeout: 30000 }).then(() => pg.waitForTimeout(1500))
+    .then(() => pg.waitForFunction(() => !window.loading?.busy()));
   const hp = await ctx.newPage();
   hp.on("pageerror", (e) => problems.push(`hash pageerror: ${e}`));
   hp.on("console", (m) => {
     if (m.type() === "error") problems.push(`hash console: ${m.text()}`);
   });
-  await hp.goto(PAGE + "#ex=motd&mode=before&sel=hits&a=written&" +
+  await hp.goto(PAGE + "#ex=motd&mode=before&sel=roster&a=written&" +
     "b=replaced&mmode=before&msel=names[1]&insets=0");
   await hp.waitForFunction(() => window.results?.done &&
     window.memResults?.done, null, { timeout: 60000 });
@@ -1690,11 +1711,11 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
     hash: location.hash,
     insets: document.querySelector("#insets").checked,
   }));
-  if (!same(hs, { ex: "motd", mode: "before", sel: "hits",
+  if (!same(hs, { ex: "motd", mode: "before", sel: "roster",
     how: "before", a: "written", b: "replaced", mmode: "before",
     msel: "names[1]",
     insets: false, hash: hs.hash }) || !hs.hash.includes("ex=motd") ||
-    !hs.hash.includes("sel=hits")) {
+    !hs.hash.includes("sel=roster")) {
     problems.push(`hash restore: ${JSON.stringify(hs)}`);
   }
   // changes go back into the hash
@@ -1715,13 +1736,15 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
     problems.push(`hash cleared: ${h3}`);
   }
   // a link to a scene alone gives its defaults
+  await idle(hp);
   await hp.goto("about:blank");
-  await hp.goto(PAGE + "#ex=players");
+  await hp.goto(PAGE + "#ex=mid");
   await hp.waitForFunction(() => window.results?.done, null,
     { timeout: 60000 });
   const h4 = await hp.evaluate(() =>
     document.querySelector("#tree .row.sel")?.parentElement.dataset.path);
   if (h4 !== A) problems.push(`hash scene defaults: ${h4}`);
+  await idle(hp);
   await hp.goto("about:blank");
   // (an old mode=compare shows After)
   await hp.goto(PAGE + "#ex=nope&mode=compare&sel=zzz&a=x&b=x");
@@ -1733,7 +1756,7 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
     document.querySelectorAll("#tree .row.sel").length,
     document.querySelector('#mpick-before [aria-checked="true"]')
       ?.dataset.id]);
-  if (stale.join() !== "packed,after,0,built") {
+  if (stale.join() !== "mid,after,1,built") {
     problems.push(`stale hash: ${stale}`);
   }
   await hp.close();
@@ -1805,7 +1828,7 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
   problems.push(...await retryCheck(browser, "vendor/pointers.js",
     { abort: true }));
   problems.push(...await retryCheck(browser,
-    "fixtures/arcade-plays.json", { via: "#tree .error button" }));
+    "fixtures/arcade-mid.json", { via: "#tree .error button" }));
   if (name === "chromium") problems.push(...await slowLink(browser));
   problems.push(...logs, ...foreign.map((u) => `foreign ${u}`));
 
