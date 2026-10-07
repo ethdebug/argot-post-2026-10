@@ -3,13 +3,15 @@
 // walk, walkMapping, instantiate's take and lengthParts)
 import { dereference, Data, type Pointer } from "./lib";
 import type {
-  Compilation, Decoded, Decoding, Format, Hex, PointId, ResolvedRegion,
-  TxFacts, ValueNode, Variable,
+  Compilation, Decoded, Decoding, DerefGraph, Format, Hex, InputNode,
+  PointId, ResolvedRegion, ValueNode, Variable,
 } from "./types";
 import type { Project } from "./project";
 import { machineState } from "./snapshot";
 import { decodeValue, isValueType, summary, typeName } from "./values";
 import { keysFor } from "./keys";
+import { walk as walkGraph } from "./deref/walk";
+import { regionsOf, sameAsLibrary } from "./deref/check";
 import { slotHex, toBig, toHex } from "./hex";
 
 type Types = Record<string, Format.Type>;
@@ -67,15 +69,16 @@ async function decodeAt(p: Project, d: Decoding, point: PointId):
   });
   // mappings last: their keys may come from a list decoded first
   const done = new Map<Variable, ValueNode>();
+  const graphs = new Map<string, DerefGraph>();
   const kind = (v: Variable) => c.types[typeIdOf(v)] &&
     as(c.types[typeIdOf(v)]).kind;
   for (const v of vars.filter((x) => kind(x) !== "mapping")) {
-    done.set(v, await variable(c, v, state, []));
+    done.set(v, await variable(c, v, state, undefined, graphs));
   }
   for (const v of vars.filter((x) => kind(x) === "mapping")) {
     const keys = keysFor(d, [...done.values()], at.transaction,
-      baseSlot(v)).values.map((x) => x.value);
-    done.set(v, await variable(c, v, state, keys));
+      baseSlot(v));
+    done.set(v, await variable(c, v, state, keys, graphs));
   }
   const tree = vars.map((v) => done.get(v)!);
   const byPath = new Map<string, ValueNode>();
@@ -84,12 +87,27 @@ async function decodeAt(p: Project, d: Decoding, point: PointId):
     n.children?.forEach(index);
   };
   tree.forEach(index);
-  return { decoding: d.id, point, tree, byPath, graphs: new Map(),
-    layouts: {} };
+  return { decoding: d.id, point, tree, byPath, graphs, layouts: {} };
+}
+
+// The graph of a variable's pointer (deref/walk), checked against the
+// library's regions (in dev and in tests); its region instances, in
+// order, name the regions the values own
+async function graphOf(c: Compilation, root: string, pointer: Pointer,
+  state: State, inputs: InputNode[], graphs: Map<string, DerefGraph>,
+  library: () => Promise<unknown[]>): Promise<string[]> {
+  const g = await walkGraph(pointer, { state, templates: c.templates,
+    inputs, root });
+  graphs.set(root, g);
+  if (import.meta.env?.DEV || import.meta.env?.MODE === "test") {
+    sameAsLibrary(g, await library() as never);
+  }
+  return regionsOf(g).map((r) => r.instance);
 }
 
 async function variable(c: Compilation, v: Variable, state: State,
-  keys: Hex[]): Promise<ValueNode> {
+  keys: InputNode | undefined, graphs: Map<string, DerefGraph>):
+  Promise<ValueNode> {
   const id = v.identifier;
   const typeId = typeIdOf(v);
   const type = c.types[typeId];
@@ -97,29 +115,46 @@ async function variable(c: Compilation, v: Variable, state: State,
     typeText: type ? typeName(type, c.types) : "", regions: [] };
   if (!type) return { ...node, note: `no ethdebug type ${typeId}` };
   if (isValueType(type, c.types)) {
-    return contextValue(node, v, type, c.types, state);
+    return contextValue(node, v, type, c.types, state, graphs);
   }
   const base = baseSlot(v);
+  const root = { define: { slot: base }, in: { template: typeId } } as
+    unknown as Pointer;
   if (as(type).kind === "mapping") {
+    const ks = keys?.values.map((x) => x.value) ?? [];
+    const ids = await graphOf(c, id, root, state, keys ? [keys] : [],
+      graphs, async () => {
+        const out: unknown[] = [];
+        for (const key of ks) {
+          const view = await viewOf({ define: { slot: base, key },
+            in: { template: typeId } } as unknown as Pointer, state, c);
+          out.push(...view.regions);
+        }
+        return out;
+      });
     const t = as(type);
     const keyType = c.types[t.contains.key.type.id];
     const valueId: string = t.contains.value.type.id;
     const children: ValueNode[] = [];
-    for (const key of keys) {
+    let from = 0;
+    for (const key of ks) {
       const k = isDynBytes(as(keyType)) ? Data.fromHex(key)
         : Data.fromHex(key).resizeTo(32);
       const keyText = decodeValue(keyType, k, c.types).text;
       const path = `${id}[${keyText}]`;
       const scope = await instantiate({ define: { slot: base, key },
-        in: { template: typeId } } as unknown as Pointer, state, c, path);
+        in: { template: typeId } } as unknown as Pointer, state, c,
+      ids.slice(from));
+      from += scope.count;
       children.push(await walk(c, scope, valueId, "value",
         { ...node, path, label: `[${keyText}]`, type: valueId,
           typeText: typeName(c.types[valueId], c.types) }));
     }
     return withSummary({ ...node, children });
   }
-  const scope = await instantiate({ define: { slot: base },
-    in: { template: typeId } } as unknown as Pointer, state, c, id);
+  const ids = await graphOf(c, id, root, state, [], graphs, async () =>
+    [...(await viewOf(root, state, c)).regions]);
+  const scope = await instantiate(root, state, c, ids);
   return walk(c, scope, typeId, "", node);
 }
 
@@ -132,7 +167,8 @@ const withSummary = (n: ValueNode): ValueNode => {
 // is the region. With no offset, the value starts at byte 0; with no
 // length, it fills the word.
 async function contextValue(node: ValueNode, v: Variable,
-  type: Format.Type, types: Types, state: State): Promise<ValueNode> {
+  type: Format.Type, types: Types, state: State,
+  graphs: Map<string, DerefGraph>): Promise<ValueNode> {
   const p = v.pointer as { slot?: unknown; offset?: unknown;
     length?: unknown };
   const region = { location: "storage", slot: p.slot,
@@ -141,28 +177,36 @@ async function contextValue(node: ValueNode, v: Variable,
   const view = await cursor.view(state);
   const r = view.regions[0];
   const bytes = await view.read(r);
+  const [instance] = await graphOf({ templates: {} } as never,
+    v.identifier, region, state, [], graphs, async () => [r]);
   return { ...node, value: decodeValue(type, bytes, types),
-    regions: [resolved(r as unknown as LibRegion, "value",
-      `${v.identifier}#0`)] };
+    regions: [resolved(r as unknown as LibRegion, "value", instance)] };
 }
 
 // The regions of one dereference, taken by name in order
 interface Scope {
+  count: number;
   take(name: string): Promise<{ bytes: Uint8Array; index: number;
     region: ResolvedRegion }>;
   lengthParts(prefix: string, index: number): ResolvedRegion[];
 }
 
-async function instantiate(pointer: Pointer, state: State, c: Compilation,
-  root: string): Promise<Scope> {
+async function viewOf(pointer: Pointer, state: State, c: Compilation) {
   const cursor = await dereference(pointer,
     { state, templates: c.templates });
-  const view = await cursor.view(state);
+  return cursor.view(state);
+}
+
+// `ids`: the graph's instance of each region, in order
+async function instantiate(pointer: Pointer, state: State, c: Compilation,
+  ids: string[]): Promise<Scope> {
+  const view = await viewOf(pointer, state, c);
   const all = [...view.regions] as unknown as LibRegion[];
   const used = new Map<string, number>();
   const at = (i: number, role: ResolvedRegion["role"]) =>
-    resolved(all[i], role, `${root}#${i}`);
+    resolved(all[i], role, ids[i]);
   return {
+    count: all.length,
     async take(name) {
       const list = view.regions.named(name);
       const i = used.get(name) ?? 0;
