@@ -1,6 +1,8 @@
 // @vitest-environment jsdom
 import { it, expect, afterEach } from "vitest";
-import { render, screen, fireEvent, cleanup, act } from "@testing-library/react";
+import {
+  render, screen, fireEvent, cleanup, act,
+} from "@testing-library/react";
 import { Lens } from "./Lens";
 import { useLink } from "./hooks";
 import type { LensSpec } from "./types";

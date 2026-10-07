@@ -24,3 +24,6 @@
   border-color: transparent; }
 .shelllist button[aria-current="page"] { border-color: var(--accent);
   font-weight: 600; }
+/* a lens's grid: its columns share the width */
+.shellpage .lens { grid-auto-columns: minmax(0, 1fr); gap: 0 28px;
+  align-items: start; }

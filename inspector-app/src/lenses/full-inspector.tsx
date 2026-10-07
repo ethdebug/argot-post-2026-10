@@ -18,27 +18,6 @@ function Panel({ children }: { children: ReactNode }) {
   </div>;
 }
 
-// The vanilla page's two columns: the storage dump, the variables
-function Columns({ areas }: { areas: Record<string, ReactNode> }) {
-  const single = useLensState((s) => s.points.a === s.points.b);
-  return <main data-single={single ? "" : undefined}>
-    <div className="cols scols">
-      <section aria-labelledby="words-h" className="words">
-        <h2 className="label colhead" id="words-h">Storage{" "}
-          <span className="legend"><span className="bchg">changed byte</span>
-            {" "}<span className="bfree">no value shown</span></span></h2>
-        <div id="dump" className="dump">{areas.dump}</div>
-      </section>
-      <section aria-label="Variables" className="storage">
-        <h2 className="label colhead">Variables{" "}
-          <span className="legend chglegend"><span className="chg">changed
-          </span>{" "}<span className="same">unchanged</span></span></h2>
-        <div className="treebox">{areas.tree}</div>
-      </section>
-    </div>
-  </main>;
-}
-
 export const fullInspector: LensSpec = {
   id: "inspector", title: "Storage, by name",
   timelines: ["arcade-mid"], decodings: ["sol:arcade-mid"],
@@ -47,13 +26,16 @@ export const fullInspector: LensSpec = {
   links: ["storage"],
   views: [
     { id: "before", kind: "dump", area: "dump", location: "storage",
-      link: "storage", data: { decoding: "$bm", point: { slot: "a" } } },
+      link: "storage", data: { decoding: "$bm", point: { slot: "a" } },
+      side: "before" },
     { id: "after", kind: "dump", area: "dump", location: "storage",
-      link: "storage", data: { decoding: "$bm", point: { slot: "b" } } },
+      link: "storage", data: { decoding: "$bm", point: { slot: "b" } },
+      side: "after" },
     { id: "tree", kind: "tree", area: "tree", link: "storage",
       domId: "tree", data: { decoding: "$bm", point: { slot: "$side" } } },
   ],
   hash: { prefix: "", legacy: true },
   wrap: { dump: Panel },
-  frame: Columns,
+  // (the grid cells: vanilla's dump box and tree box)
+  areas: { dump: "dump", tree: "treebox" },
 };

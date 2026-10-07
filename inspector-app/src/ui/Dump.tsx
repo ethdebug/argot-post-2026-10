@@ -7,14 +7,11 @@ import type {
 } from "react";
 import type { Filter, Hex, Layout, Light, Location } from "../engine/types";
 import { byteKey, short } from "../engine/hex";
-import { useLayout, useLensState, useLight, useLink, useSnapshot } from
-  "./hooks";
+import { useLayout, useLight, useLink, useSnapshot } from "./hooks";
 import type { DataRef, LinkId, ViewId } from "./types";
 
 const TINTS = 5;
 const PLAIN = 1n << 32n;
-const SIDE: Record<string, "before" | "after"> = { a: "before",
-  b: "after" };
 
 const pairs = (h?: string) =>
   (h ?? "0x" + "0".repeat(64)).slice(2).padStart(64, "0").match(/../g)!;
@@ -53,7 +50,7 @@ function Ruler() {
 }
 
 function Word({ l, row, word, side, name, light }: { l: Layout; row: Hex;
-  word?: Hex; side: string; name: string; light: Light }) {
+  word?: Hex; side?: string; name: string; light: Light }) {
   const loc = l.location;
   const owners = Array.from({ length: 32 }, (_, i) =>
     l.cover.get(byteKey(loc, row, i)) ?? []);
@@ -87,7 +84,9 @@ function Word({ l, row, word, side, name, light }: { l: Layout; row: Hex;
         data-g={`${g.from}-${g.to}`}
         data-owners={g.owners.length ? g.owners.join("|") : undefined}
         {...(first ? { tabIndex: 0, role: "button",
-          "aria-label": `${label}, ${range} of ${name}, ${side}` } : {})}>
+          "aria-label":
+            `${label}, ${range} of ${name}${side ? `, ${side}` : ""}` }
+          : {})}>
         {mine[i]}</span>);
     }
   }
@@ -95,19 +94,19 @@ function Word({ l, row, word, side, name, light }: { l: Layout; row: Hex;
     <div className="bytes"><Octets cells={cells} /></div></div>;
 }
 
+// `side`: Phase 1's pair (data-side); `hidden`, `title`, `when`: the
+// lens's choice (Lens.tsx)
 export function Dump(p: { id: ViewId; location: Location; data: DataRef;
-  filter?: Filter; link?: LinkId; domId?: string }) {
+  filter?: Filter; link?: LinkId; domId?: string;
+  side?: "before" | "after"; hidden?: boolean; title?: string;
+  when?: string }) {
   const { l } = useLayout(p.id);
   const snap = useSnapshot(p.data);
   const light = useLight(p.id);
   const [, setLink] = useLink(p.link);
-  const shown = useLensState((s) => s.side ?? "after");
-  const single = useLensState((s) => s.points.a === s.points.b);
-  const slot = typeof p.data.point === "string" ? "b" : p.data.point.slot;
-  const side = SIDE[slot] ?? "after";
-  const when = side === "before" ? "before the transaction"
-    : "after the transaction";
-  const title = single ? "Storage" : side === "before" ? "Before" : "After";
+  const side = p.side;
+  const title = p.title ?? "Storage";
+  const label = p.location[0].toUpperCase() + p.location.slice(1);
 
   // what the pointer is on: a run of bytes
   const target = (el: EventTarget) => {
@@ -149,7 +148,7 @@ export function Dump(p: { id: ViewId; location: Location; data: DataRef;
   // layout (32 bytes a line, or 16 on a narrow box) (vanilla fitDumps)
   const me = useRef<HTMLDivElement>(null);
   const rows = l?.rows ?? [];
-  const shownHere = shown === side;
+  const shownHere = !p.hidden;
   useLayoutEffect(() => {
     const fit = () => {
       const d = me.current?.closest<HTMLElement>(".dump");
@@ -200,7 +199,7 @@ export function Dump(p: { id: ViewId; location: Location; data: DataRef;
     <span>⋯</span></div>);
 
   return <div ref={me} className="view" data-side={side} role="group"
-    aria-label={`Storage ${when}`} hidden={shown !== side}
+    aria-label={p.when ? `${label} ${p.when}` : label} hidden={p.hidden}
     onPointerOver={point} onFocus={point}
     onPointerLeave={() => setLink((s) => s.hover ? { ...s, hover: null } : s)}
     onClick={(e: MouseEvent) => act(e.target)} onKeyDown={onKey}>
