@@ -430,7 +430,9 @@ li.same > .row .name, li.same > .row .type { opacity: 0.55; }
   border-radius: 50%;
   flex: none;
 }
-/* How a lit slot was found, over its address */
+/* How a lit slot was found, over its address: the "how", then the
+   "what" by name: a value lit now as a light badge in its colour's
+   text tone, the rest plain */
 .pop {
   position: absolute;
   left: 0;
@@ -438,7 +440,8 @@ li.same > .row .name, li.same > .row .type { opacity: 0.55; }
   z-index: 3;
   padding: 1px 7px;
   border-radius: 4px;
-  background: var(--fg);
+  --pop-bg: var(--fg);
+  background: var(--pop-bg);
   color: var(--bg);
   font-size: 0.68rem;
   line-height: 1.5;
@@ -446,16 +449,21 @@ li.same > .row .name, li.same > .row .type { opacity: 0.55; }
   box-shadow: 0 1px 3px rgb(0 0 0 / 0.2);
   width: max-content;
 }
-/* (one line; cut at its end where the box is narrower, as on a phone) */
-.pop .pop-how { display: block; white-space: nowrap; overflow: hidden;
-  text-overflow: ellipsis; }
-/* what a slot holds, by name; a name in its bytes' colour */
-.pop .pname { font: inherit; background: none; border: 0; padding: 0 2px;
-  color: inherit; border-radius: 3px; }
-.pop .pname:is(.pk1, .pk2, .pk3, .pk4, .pk5, .pk6, .pk7, .pk8, .pk9) {
-  background: var(--pk); color: var(--pk-fg); }
+/* (one line; its names cut to fit by panel.js fitWhat, never by CSS) */
+.pop .pop-how { display: block; white-space: nowrap; }
+.pop.wrap .pop-how { white-space: normal; }
+.pop .pname { font: inherit; background: none; border: 0; padding: 0 1px;
+  color: color-mix(in srgb, var(--bg) 70%, transparent); }
+.pop .pname.chip { padding: 0 4px; border-radius: 3px; font-weight: 700;
+  color: var(--pk-fg); background: color-mix(in srgb, var(--pk) 35%, #fff); }
+.pop .pname.chip.pk0 { --pk: var(--mark); --pk-fg: var(--chg-fg); }
+@media (prefers-color-scheme: dark) {
+  /* (the badge light, its text the colour's strong tone) */
+  .pop .pname.chip { color: var(--pk);
+    background: color-mix(in srgb, var(--pk-fg) 40%, #fff); }
+}
 .pop .pname.muted { filter: saturate(0.25); opacity: 0.7; }
-.pop .pmore { opacity: 0.75; }
+.pop .pcut { opacity: 0.7; }
 .pop .full {
   display: block;
   font-size: 0.9em;
@@ -465,15 +473,18 @@ li.same > .row .name, li.same > .row .type { opacity: 0.55; }
   word-break: break-all;
 }
 /* its arrow, pointing down at the address */
-.pop::after {
+/* (its arrow: the card's fill, over an outline in the card's border
+   colour) */
+.pop::after, .pop::before {
   content: "";
   position: absolute;
   top: 100%;
   left: var(--ax, 50%);
   transform: translateX(-50%);
   border: 5px solid transparent;
-  border-top-color: var(--fg);
+  border-top-color: var(--pop-bg);
 }
+.pop::before { display: none; }
 .wrow:hover .addr, .wrow.on .addr { color: var(--fg); }
 .gap {
   display: grid;
@@ -655,12 +666,13 @@ li.same > .row .name, li.same > .row .type { opacity: 0.55; }
   border-bottom-right-radius: 6px; }
 .cmp-photo .addr.grp::before { display: none; }
 .pop.under { bottom: auto; top: calc(100% + 6px); }
-.pop.under::after {
+.pop.under::after, .pop.under::before {
   top: auto;
   bottom: 100%;
   border-top-color: transparent;
-  border-bottom-color: var(--fg);
+  border-bottom-color: var(--pop-bg);
 }
+
 
 /* An annotation with no room beside its rows (it would cover lit
    bytes or the other annotation) waits, labeled, in a tray under the
@@ -698,7 +710,7 @@ li.same > .row .name, li.same > .row .type { opacity: 0.55; }
   animation: none; }
 .pop.pinned { position: static; display: inline-block; margin: 0 8px;
   pointer-events: auto; }
-.pop.pinned::after { display: none; }
+.pop.pinned::after, .pop.pinned::before { display: none; }
 
 
 /* ------------------------------------------- memory, with BUG */
@@ -1093,11 +1105,9 @@ sup.fn { font-size: 0.7em; color: var(--accent); margin-left: 1px; }
   background: var(--panel); border-radius: 3px; }
 .bruler .b { font-size: 0.6rem; color: var(--muted); text-align: center; }
 /* a label for a run found at an earlier step of a replay: muted */
-.pop.kept { background: var(--panel); color: var(--muted);
-  box-shadow: none; outline: 1px solid var(--line); }
-.pop.kept::after { border-top-color: var(--line); }
-.pop.kept.under::after { border-bottom-color: var(--line);
-  border-top-color: transparent; }
+.pop.kept { --pop-bg: var(--panel); background: var(--panel);
+  color: var(--muted); box-shadow: none; outline: 1px solid var(--line); }
+.pop.kept .pname:not(.chip) { color: var(--muted); }
 #details:focus-visible { outline: 2px solid var(--accent);
   outline-offset: 2px; }
 /* the ninth child colour, and the tint of a step's input's source */

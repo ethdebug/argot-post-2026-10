@@ -50,3 +50,15 @@ test("a vanilla commit missing from the ledger fails", () => {
   assert.strictEqual(r.status, 1);
   assert.match(r.stdout, /not in the ledger/);
 });
+
+test("a note after ';' is not a task", () => {
+  const ledger = header + real.split("\n").slice(1).map((l) =>
+    l.startsWith("0ded043")
+      ? "0ded043\tx\tdeferred: T3.2; S9 abc ported a part" : l)
+    .join("\n");
+  const open = check(ledger, "");
+  assert.strictEqual(open.status, 0, open.stdout);
+  const shut = check(ledger, "T3.2\nT2.2\nT4.2\nT4.3\nT4.4\nT4.5\nT5.2\n" +
+    "T5.3\n");
+  assert.match(shut.stdout, /0ded043.*tasks done but not ported/);
+});
