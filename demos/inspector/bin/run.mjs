@@ -1558,7 +1558,7 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
     problems.push(`replay carol's name: ${JSON.stringify(w.map((x) =>
       x.cap))}`);
   }
-  // The bar: at rest, the entry; in a replay, tinted, "Replay", ⏮ ◀ ▶ ⏭
+  // The bar: at rest, the entry; in a walkthrough, tinted, "Walkthrough", ⏮ ◀ ▶ ⏭
   // (each disabled at its end), the count, ✕ Exit. ▶ and ⏭ never exit;
   // only ✕ Exit and Escape do. Keys work from anywhere, also after a
   // mouse click; a double click on the entry does not skip a step
@@ -1579,7 +1579,7 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
   }
   await page.locator('#details button[data-r="start"]').dblclick();
   bs = await barNow();
-  if (!bs.tint || bs.mode !== "Replay" || bs.count !== "1 / 6" ||
+  if (!bs.tint || bs.mode !== "Walkthrough" || bs.count !== "1 / 6" ||
     bs.off !== "first,prev" || !bs.exit) {
     problems.push(`bar at step 1 (after a double click): ${JSON.stringify(bs)}`);
   }
