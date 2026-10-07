@@ -4,7 +4,8 @@ import type { ViewKind } from "./types";
 import { Dump } from "./Dump";
 import { Tree } from "./Tree";
 import { Picker } from "./Picker";
+import { WalkthroughPanel } from "./WalkthroughPanel";
 
 export const viewKinds: Partial<Record<ViewKind, ComponentType<any>>> = {
-  dump: Dump, tree: Tree, picker: Picker,
+  dump: Dump, tree: Tree, picker: Picker, walkthrough: WalkthroughPanel,
 };
