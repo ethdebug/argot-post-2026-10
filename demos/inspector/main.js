@@ -544,7 +544,7 @@ function replaySteps(path, side, focus) {
   if (keyed.length) {
     const items = keyed.map((i) => [i, keyItem(keyOf(i))]);
     const one = keyed.length === 1;
-    step({ phase: "input",
+    step({ phase: "input", id: "input",
       cap: one ? `key = ${who(keyed[0])}'s address, from \`${
         items[0][1]?.path ?? "the trace"}\`` : `The keys: the addresses in \`${
         keyList ?? "the trace"}\``,
@@ -564,7 +564,7 @@ function replaySteps(path, side, focus) {
     const kind = types[varNode?.typeId]?.kind ?? "value";
     if (declared.context) {
       const c = declared.context;
-      step({ phase: "declared",
+      step({ phase: "declared", id: `declared|${variable}`,
         cap: `\`${variable}\` is at slot ${small(c.slot)}, ${c.length} bytes ` +
           `from offset ${c.offset}`,
         form: esc(`slot ${small(c.slot)}, bytes ${c.offset}–${c.offset +
@@ -575,7 +575,7 @@ function replaySteps(path, side, focus) {
         rows: [variable] });
     } else {
       const w = wordAt(declared.slot);
-      step({ phase: "declared",
+      step({ phase: "declared", id: `declared|${variable}`,
         cap: kind === "mapping" && w !== undefined && !num(w)
           ? `\`${variable}\` is declared at slot ${small(declared.slot)}; ` +
             "that slot holds nothing"
@@ -631,7 +631,7 @@ function replaySteps(path, side, focus) {
       const many = new Set(xs.map((x) => JSON.stringify(x.s.inputs))).size >
         1;
       const rowsT = insts.filter((i) => i !== variable);
-      step({ phase: "template", tkind: t?.kind,
+      step({ phase: "template", tkind: t?.kind, id: nd.k,
         cap: `The template \`${tn(nd.s.name)}\` takes ${ks.map(what)
           .join(", ")}`,
         form: many ? table(xs.map((x) => [esc(who(x.inst)), esc(ks.map((k) =>
@@ -675,7 +675,7 @@ function replaySteps(path, side, focus) {
           .replace(/^\./, "") || leafOf(x).label;
         const many = xs.length > 1;
         const isRecord = t?.kind === "struct";
-        step({ phase: "handoff", tkind: t?.kind,
+        step({ phase: "handoff", tkind: t?.kind, id: nd.k,
           cap: isRecord ? many ? `Each record is at keccak(key, ${small(
             xs[0].s.args?.[1]?.value.hex ?? "0x0")})` : `The record is at ${
             formula(xs[0])}`
@@ -714,7 +714,7 @@ function replaySteps(path, side, focus) {
       const branches = [...new Set(xs.map((x) => x.s.branch))];
       openIf = { block: nd.block, branches: branches.map((b) => [...P, b]),
         absorbed: [], nd };
-      openIf.st = step({ phase: "if", node: nd, xs,
+      openIf.st = step({ phase: "if", node: nd, xs, id: nd.k,
         constructs: ["if"], source: "read from storage",
         chip: branches.length > 1 ? "short | long" : branches[0] === "then"
           ? "short" : "long", chipLabel: "branch",
@@ -744,7 +744,7 @@ function replaySteps(path, side, focus) {
       const lbl = name === "length-flag" ? "The last byte is the length flag"
         : name === "length" ? `slot ${small(vals[0][1].slot)} holds the length`
           : `\`${name}\` is read`;
-      step({ phase: "read", rname: name,
+      step({ phase: "read", rname: name, id: nd.k,
         cap: many ? `${name === "length-flag" ? "The last byte of each name " +
           "slot is its length flag" : lbl}` : `${lbl}${name === "length-flag"
           ? ", " : ": "}${byte(vals[0][1])}`,
@@ -774,7 +774,7 @@ function replaySteps(path, side, focus) {
       const is = idx ? [...idx.by.values()].map((x) => +x.s.index)
         .sort((a, b) => a - b) : [];
       const one = is.length === 1;
-      step({ phase: "item",
+      step({ phase: "item", id: nd.k,
         cap: one ? `The items start at keccak(${small(base)})`
           : `The items start at keccak(${small(base)}), one slot each, for ` +
             "`length` items",
@@ -795,7 +795,7 @@ function replaySteps(path, side, focus) {
       const many = xs.length > 1;
       const slots = (x) => Math.ceil(Number(lenOf(x)) / 32);
       const one = xs[0];
-      step({ phase: "data", long,
+      step({ phase: "data", long, id: nd.k,
         cap: many ? long ? "Each long text starts at keccak(its slot)"
           : "Each short text is in its slot, from the left"
           : long ? `The text starts at keccak(${tail(folded.length
@@ -824,6 +824,7 @@ function replaySteps(path, side, focus) {
       continue;
     }
     step({ phase: "fields", parent: `${nd.block}|${parent}`, nodes: [nd],
+      id: `fields|${nd.block}|${parent}`,
       band, constructs: ["region"], source: "from solc's pointer",
       chipLabel: "fields" });
   }
@@ -1498,6 +1499,57 @@ function setFocus(path) {
   renderBox();
   show();
 }
+// Re-target the walkthrough to another selection, keeping the place:
+// the steps are aligned by their identity (the pointer node and kind,
+// whatever the instance), longest common subsequence; the step shown
+// stays on its match, or the nearest earlier step that has one, or the
+// first. A cue in the bar says when the place moved.
+function retarget(path) {
+  const steps = replaySteps(path, replay.side);
+  if (!steps.length) return false;
+  const a = replay.steps.map((x) => x.id);
+  const b = steps.map((x) => x.id);
+  const L = Array.from({ length: a.length + 1 }, () =>
+    new Array(b.length + 1).fill(0));
+  for (let i = a.length - 1; i >= 0; i--) {
+    for (let j = b.length - 1; j >= 0; j--) {
+      L[i][j] = a[i] === b[j] ? L[i + 1][j + 1] + 1
+        : Math.max(L[i + 1][j], L[i][j + 1]);
+    }
+  }
+  const match = new Map();
+  for (let i = 0, j = 0; i < a.length && j < b.length;) {
+    if (a[i] === b[j]) match.set(i++, j++);
+    else if (L[i + 1][j] >= L[i][j + 1]) i++;
+    else j++;
+  }
+  let k = 0;
+  for (let i = replay.i; i >= 0; i--) {
+    if (match.has(i)) {
+      k = match.get(i);
+      break;
+    }
+  }
+  const moved = !(match.has(replay.i) && match.get(replay.i) === replay.i);
+  replay = { path, side: replay.side, steps, i: k,
+    focus: steps.find((x) => x.recs)?.focus };
+  renderBox();
+  show();
+  if (moved) cue(`→ step ${k + 1}`);
+  return true;
+}
+// a short note in the bar, over it (it takes no room), fading out
+function cue(text) {
+  const bar = $("details");
+  bar.querySelector(".rcue")?.remove();
+  const c = document.createElement("span");
+  c.className = "rcue";
+  c.setAttribute("aria-live", "polite");
+  c.textContent = text;
+  bar.append(c);
+  setTimeout(() => c.classList.add("gone"), still() ? 1200 : 1400);
+  setTimeout(() => c.remove(), 1800);
+}
 function stepTo(i) {
   if (!replay || unfolding) return;
   const k = Math.max(0, Math.min(replay.steps.length - 1, i));
@@ -1745,6 +1797,18 @@ function treeCard(h) {
 // above the words (on a narrow page) grows or shrinks. `quiet`: do not
 // scroll to it (when restoring from the URL).
 function choose(path, anchor, quiet) {
+  // during a walkthrough, a new selection re-targets it (only Exit or
+  // Escape leave it)
+  const was = chosen;
+  if (replay && path && path !== replay.path && (chosen = path,
+    retarget(path))) {
+    markSource(find(current.tree, path));
+    treeTo(path);
+    keep();
+    return;
+  }
+  chosen = was;
+  if (replay && path === null) return;
   chosen = path;
   const node = path && find(current.tree, path);
   replay = null;
@@ -2132,6 +2196,8 @@ window.select = async (id, view) => {
   mode = current.single ? "after" : view?.mode ?? scene.mode ?? "after";
   render();
   const sel = view ? view.sel : scene.select;
+  // (a scene, or a view asked for, leaves a walkthrough)
+  replay = null;
   choose(sel && find(current.tree, sel) ? sel : null, null, true);
   firstShown();
   return true;

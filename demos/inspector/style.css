@@ -945,6 +945,13 @@ main[data-single] > .cols :is(.chglegend, .legend .bchg, .intro .two) {
 .rmode { font-size: 0.72rem; font-weight: 700; text-transform: uppercase;
   letter-spacing: 0.06em; color: var(--accent); }
 .rbar .rcount { margin: 0; text-align: right; }
+/* a re-targeted walkthrough's cue: over the bar, taking no room */
+.rbar .rcue { position: absolute; right: 7em; top: 50%;
+  transform: translateY(-50%); padding: 1px 8px; border-radius: 999px;
+  background: var(--accent); color: #fff; font-size: 0.75rem;
+  font-weight: 600; pointer-events: none; transition: opacity 0.4s;
+  overflow: visible; }
+.rbar .rcue.gone { opacity: 0; }
 .rbar .rexit { display: flex; justify-content: flex-end; overflow: visible; }
 .rbar .rstart { width: 100%; padding: 1px 6px; overflow: hidden;
   text-overflow: ellipsis; }
