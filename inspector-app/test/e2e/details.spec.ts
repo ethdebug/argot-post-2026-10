@@ -76,5 +76,5 @@ test("selecting moves nothing", async ({ page }) => {
   const rest = await boxes();
   await page.locator('#tree li[data-path="total"] > .row').click();
   await page.mouse.move(1, 1);
-  expect(await boxes()).toEqual(rest);
+  await expect.poll(boxes).toEqual(rest);
 });

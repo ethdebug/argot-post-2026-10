@@ -160,10 +160,17 @@ test("hovering and clicking move nothing", async ({ page }) => {
       return [r.left + scrollX, r.top + scrollY, r.width, r.height]
         .map(Math.round).join();
     }));
-  const rest = await boxes();
+  await page.mouse.move(1, 1);
+  // (at rest: the same boxes twice)
+  let rest = await boxes();
+  await expect.poll(async () => {
+    const was = rest;
+    rest = await boxes();
+    return JSON.stringify(rest) === JSON.stringify(was);
+  }).toBe(true);
   await page.locator(`#panel .view:not([hidden]) .b[data-owners="${C}.plays"]`)
     .first().hover();
-  expect(await boxes()).toEqual(rest);
+  await expect.poll(boxes).toEqual(rest);
   await page.locator('#tree li[data-path="total"] > .row').click();
-  expect(await boxes()).toEqual(rest);
+  await expect.poll(boxes).toEqual(rest);
 });
