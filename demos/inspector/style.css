@@ -12,19 +12,19 @@
 main { max-width: 1440px; }
 
 /* Narrow: tree, "How this was found", words, source, one under the
-   other. Wide: the tree, the derivation and the source on the left, the
-   words beside them, held in view. */
+   other. Wide: the words (the raw bytes) on the left, held in view; the
+   tree, the derivation and the source beside them, on the right. */
 .cols { display: grid; grid-template-columns: minmax(0, 1fr); gap: 0 28px; }
 @media (min-width: 1100px) {
   .cols {
-    grid-template-columns: minmax(0, 5fr) minmax(0, 7fr);
+    grid-template-columns: minmax(0, 7fr) minmax(0, 5fr);
     grid-template-rows: auto auto 1fr;
   }
-  .storage { grid-column: 1; grid-row: 1; font-size: 1.05rem; }
-  .howbox { grid-column: 1; grid-row: 2; }
-  .source { grid-column: 1; grid-row: 3; }
+  .storage { grid-column: 2; grid-row: 1; font-size: 1.05rem; }
+  .howbox { grid-column: 2; grid-row: 2; }
+  .source { grid-column: 2; grid-row: 3; }
   .words {
-    grid-column: 2;
+    grid-column: 1;
     grid-row: 1 / span 3;
     position: sticky;
     top: 0;
