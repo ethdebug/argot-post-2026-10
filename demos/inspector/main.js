@@ -1393,14 +1393,15 @@ function show() {
   const sel = chosen ? forRow(current.panel, chosen) : null;
   // a replay shows its step, whatever the pointer is on
   const h = replay ? stepLight(replay.steps[replay.i]) : hover ?? sel;
-  paint($("panel"), $("tree"), h, { cards: !replay && showOther(),
-    single: !!current?.single });
-  treeCard(h);
+  // (the selected row first: paint's merged blocks depend on it)
   for (const r of $("tree").querySelectorAll("li[data-path] > .row")) {
     const on = r.parentElement.dataset.path === chosen;
     r.classList.toggle("sel", on);
     r.setAttribute("aria-pressed", String(on));
   }
+  paint($("panel"), $("tree"), h, { cards: !replay && showOther(),
+    single: !!current?.single, chosen: !!replay || !!chosen });
+  treeCard(h);
   // with a value selected, the box is its own (renderBox)
   if (!chosen) $("dtext").innerHTML = details(h, PROBE);
   // a step's field names, in their fields' colours
@@ -1468,6 +1469,26 @@ function choose(path, anchor, quiet) {
   // (no scrolling of the page; the tree scrolls inside its box)
   treeTo(path);
   keep();
+  // what is under the pointer now gets its hover at once (no wait for
+  // the mouse to move): after a click that clears, the row or byte
+  // clicked
+  rehover();
+}
+let lastPt = null; // the pointer's last position in the window
+addEventListener("pointermove", (e) => {
+  lastPt = e.pointerType === "touch" ? null : [e.clientX, e.clientY];
+}, { passive: true });
+addEventListener("pointerdown", (e) => {
+  lastPt = e.pointerType === "touch" ? null : [e.clientX, e.clientY];
+}, { passive: true });
+function rehover() {
+  const el = lastPt && document.elementFromPoint(...lastPt);
+  if (!el?.closest?.("#panel, #tree")) return;
+  const h = locked(target(el), chosen && forRow(current.panel, chosen));
+  if (!same(h, hover)) {
+    hover = h;
+    show();
+  }
 }
 
 // The tree row that owns a byte, if any
@@ -1532,10 +1553,12 @@ function act(el) {
     hover = null;
     return choose(p === chosen ? null : p), true;
   }
+  // a byte selects its value, or, when it is the selected one's, clears
   const cell = el.closest("#panel .b[data-g]");
   if (cell) {
     hover = null;
-    return choose(ownerRow(cell), cell), true;
+    const p = ownerRow(cell);
+    return choose(p && p === chosen ? null : p, cell), true;
   }
   return false;
 }

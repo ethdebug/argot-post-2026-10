@@ -915,8 +915,10 @@ export function paint(root, tree, h, opts = {}) {
     w.closest(".wrow")?.classList.toggle("gut", !on && !only &&
       !!h?.gutters?.has(s));
   }
-  // While something is lit, the rest steps back (style.css .active)
+  // While something is lit, the rest steps back (style.css .active);
+  // the active thing (a selection, a replay's step) gets the brown caps
   root.classList.toggle("active", !!h);
+  root.classList.toggle("chosen", !!h && !!opts.chosen);
   tree.classList.toggle("active", !!h);
   for (const r of tree.querySelectorAll("li[data-path]")) {
     const on = !!h && h.rows.has(r.dataset.path);
