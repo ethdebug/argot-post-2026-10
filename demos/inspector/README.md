@@ -409,10 +409,10 @@ wide page the words column has no scroll box of its own):
   `keccak(0x7099…79c8, slot 3), 2 slots · read, written` (one line; a
   run of several slots says how many; the full address is in the
   details and in the replay). Over the run in Before, under it in
-  After, at the gutter; if that would cover another row's address, lit
-  bytes or another annotation, just right of the gutter (over unlit
-  bytes, its arrow at its left); then the other way; if all would, it
-  is not drawn.
+  After, always at the gutter (its left edge 6 px left of it, its arrow
+  on the address); if that would cover lit bytes, a lit row's address
+  or another annotation, the other way; if both would, it is not drawn.
+  It may cover unlit rows, addresses included.
 - The card (light, labeled "after" or "before"): a picture of the same
   whole words in the other state, made by cloning those rows of the
   hidden dump (addresses, tints, highlight, change marks), muted a
