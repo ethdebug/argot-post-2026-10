@@ -2,7 +2,7 @@
 // bar to switch lenses (the picker; [ and ] previous/next, g the list),
 // and a "copy link" button. The hash (#lens=<id>&<lens keys>) is only
 // written here and by the lens; a reload shows the same lens.
-import { useEffect, useState } from "react";
+import { useEffect, useLayoutEffect, useState } from "react";
 import type { Project } from "../engine/project";
 import { Lens } from "../ui/Lens";
 import type { LensSpec } from "../ui/types";
@@ -24,7 +24,9 @@ export function Shell({ project, lenses }: { project: Project;
     if (fromHash() !== id) history.replaceState(null, "", `#lens=${id}`);
   }, [id]);
 
-  useEffect(() => {
+  // (bound at commit, not after paint: a key pressed as soon as the
+  // shell shows is not lost)
+  useLayoutEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if ((e.target as Element).closest?.("input, textarea, select") ||
         e.metaKey || e.ctrlKey || e.altKey) return;
