@@ -600,8 +600,15 @@ export function forSlot(m, s) {
 // one state (an empty step lights nothing, and the rest mutes)
 export function forStep(m, side, { slots = [], regions = [] }) {
   const bytes = new Set();
+  // a slot's bytes that values own (the rest stay muted, as unused);
+  // all of a slot no value owns (a mapping's own slot)
   for (const s of slots) {
-    for (let i = 0; i < 32; i++) bytes.add(key(side, s, i));
+    const cov = m.cover[side].get(s);
+    const owned = cov ? cov.map((ids, i) => ids.length ? i : -1)
+      .filter((i) => i >= 0) : [];
+    for (const i of owned.length ? owned : [...Array(32).keys()]) {
+      bytes.add(key(side, s, i));
+    }
   }
   for (const r of regions) {
     for (const [s, i] of regionBytes(r)) bytes.add(key(side, s, i));
@@ -924,8 +931,14 @@ export function paint(root, tree, h, opts = {}) {
       el.className = "bruler";
       el.setAttribute("aria-hidden", "true");
       el.style.left = `${w.offsetLeft}px`;
-      el.innerHTML = `<div class="bytes">${octets(Array.from({ length: 32 },
-        (_, i) => `<span class="b">${i}</span>`))}</div>`;
+      // (above the slot, over the "⋯" line before it, when there is one;
+      // labelled, so it does not read as a slot's bytes)
+      if (row.previousElementSibling?.classList.contains("gap")) {
+        el.classList.add("above");
+      }
+      el.innerHTML = `<span class="blabel">byte</span><div class="bytes">${
+        octets(Array.from({ length: 32 }, (_, i) =>
+          `<span class="b">${i}</span>`))}</div>`;
       row.append(el);
       taken.push(el.getBoundingClientRect());
     }
@@ -967,6 +980,8 @@ function annotate(root, v, compare, names, tray, taken, room, force) {
   };
   // the address labels of the lit rows, which no popover may cover (an
   // unlit row's may be covered, as by a card)
+  const words = [...v.querySelectorAll(".rows > .wrow > .word")]
+    .map((e) => ({ row: e.closest(".wrow"), r: e.getBoundingClientRect() }));
   const labels = [...v.querySelectorAll(".rows > .wrow > .addr")]
     .map((e) => ({ row: e.closest(".wrow"), r: e.getBoundingClientRect() }));
   const pinned = [];
@@ -1000,8 +1015,12 @@ function annotate(root, v, compare, names, tray, taken, room, force) {
         addr.classList.add("popped");
         place(pop, prow.querySelector(".a"), beside);
         const r = pop.getBoundingClientRect();
-        if (!labels.some((t) => !run.includes(t.row) && overlaps(t.r, r)) &&
-          fits(pop)) {
+        // (a muted label, for a run found at an earlier step, covers no
+        // other row's bytes either: it would hide data)
+        const kept = pop.classList.contains("kept") && words.some((t) =>
+          !run.includes(t.row) && overlaps(t.r, r));
+        if (!kept && !labels.some((t) => !run.includes(t.row) &&
+          overlaps(t.r, r)) && fits(pop)) {
           placed = true;
           break;
         }

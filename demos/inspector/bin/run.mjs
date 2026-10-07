@@ -1246,7 +1246,7 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
       { [al]: "all", "keccak(slot 0)": range(12, 31).join() }, "$keccak256"],
     ["The same template for every key", { [rec]: "all", [cl0]: "all" },
       "expect: [slot, key]"],
-    ["A Player is 2 slots", { [al]: "all", [`${al} + 1`]: "all" },
+    ["A Player is 2 slots", { [al]: "all", [`${al} + 1`]: "0,1,2,3,4,31" },
       "$sum: [slot, 0x01]"],
     ["The fields share one slot, packed from the right", { [al]: "all" },
       "name: score"],
@@ -1327,8 +1327,13 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
       f: "collection/conditional/", g: "collection/list/" }).map((x) =>
       `https://ethdebug.github.io/format/spec/pointer/${x}`));
     await page.evaluate(() => window.select("mid", { sel: "players" }));
-    const hrefs = await page.locator("#dpanel .fnotes a").evaluateAll((as) =>
-      as.map((a) => a.href));
+    await page.locator('#details button[data-r="start"]').click();
+    const hrefs = [];
+    for (let k = 0; k < 7; k++) {
+      await page.locator(`#chips .chip[data-k="${k}"]`).click();
+      hrefs.push(...await page.locator("#dpanel .fnotes a").evaluateAll(
+        (as) => as.map((a) => a.href)));
+    }
     if (!hrefs.length || hrefs.some((h) => !ok.has(h))) {
       problems.push(`footnotes: ${hrefs}`);
     }
@@ -1348,8 +1353,8 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
     const hdr = await page.evaluate(() => {
       const p = document.querySelector("#ptr");
       p.scrollTop = 200;
-      const h = document.querySelector("#ptr .plabel").getBoundingClientRect();
-      const r = p.getBoundingClientRect();
+      const h = document.querySelector(".ptr .plabel").getBoundingClientRect();
+      const r = p.closest(".ptr").getBoundingClientRect();
       const bands = [...document.querySelectorAll("#ptr .line:not(.on)")]
         .filter((l) => !/rgba\(0, 0, 0, 0\)|transparent/.test(
           getComputedStyle(l).backgroundColor)).length;
@@ -1361,6 +1366,9 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
       problems.push(`pointer view: ${JSON.stringify(hdr)}`);
     }
     const y = await page.evaluate(() => ({
+      // (no line cut at the right: the excerpt fits its box)
+      clipped: document.querySelector("#ptr").scrollWidth >
+        document.querySelector("#ptr").clientWidth + 1,
       text: [...document.querySelectorAll("#ptr .line")].map((l) =>
         l.textContent).join("\n"),
       wraps: [...document.querySelectorAll("#ptr .line")].some((l) =>
@@ -1385,8 +1393,14 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
       if (!n.startsWith("t_array")) want[nameOf(n)] = norm(f.contract.pointers[n]);
     }
     const got = norm(parse(y.text), false);
-    if (!same(got, want) || y.wraps || !y.ids.includes("t_mapping$")) {
-      problems.push(`pointer yaml: ${y.wraps ? "wraps " : ""}${
+    // a conditional's keys in the spec's order: if, then, else
+    const order = ["if:", "then:", "else:"].map((k) => y.text.split("\n")
+      .findIndex((l) => l.trim().replace(/^- /, "").startsWith(k)));
+    if (!same(got, want) || y.wraps || y.clipped ||
+      !y.ids.includes("t_mapping$") || order.some((x, k) => x < 0 ||
+        (k && x < order[k - 1]))) {
+      problems.push(`pointer yaml: ${y.wraps ? "wraps " : ""}${y.clipped
+        ? "clipped " : ""}${order} ${!same(got, want) ? "differs " : ""}${
         JSON.stringify(got).slice(0, 300)}`);
     }
     await page.keyboard.press("Escape");
@@ -1484,7 +1498,9 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
       const p = r("#dpanel");
       return { bar: Math.abs(bar.getBoundingClientRect().height - lh) < 1.5 &&
         [...bar.children].every((c) => c.getClientRects().length <= 1),
-      panel: p.top >= 0 && p.bottom <= innerHeight + 0.5 };
+      // (a sheet on a phone: in view; on a wide page, a row in the page)
+      panel: getComputedStyle(document.querySelector("#dpanel")).position !==
+        "fixed" || (p.top >= 0 && p.bottom <= innerHeight + 0.5) };
     });
     await pg.evaluate(() => window.select("mid", { sel: null }));
     await pg.evaluate(() => window.scrollTo(0,
@@ -1526,17 +1542,54 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
     if (bad.length) problems.push(`${tag}: ${bad.slice(0, 4)}`);
   };
   await still(page, "1440");
-  // the dump's last row can be read over the panel, scrolled down
-  {
-    const last = await page.evaluate(() => {
-      scrollTo(0, document.documentElement.scrollHeight);
-      const rows = [...document.querySelectorAll(
-        "#panel .view:not([hidden]) .rows > .wrow")];
-      return [rows.at(-1).getBoundingClientRect().bottom,
-        document.querySelector("#dpanel").getBoundingClientRect().top];
-    });
-    if (last[0] > last[1] + 0.5) problems.push(`last row under panel: ${last}`);
-  }
+  // at every step of players' replay, all of its lit rows can be in
+  // view at once, under the bar and above the sheet (on a phone); and the
+  // panel's parts keep to their own room
+  const fitsInView = async (pg, tag) => {
+    await pg.evaluate(() => window.select("mid", { sel: "players" }));
+    await pg.evaluate(() => document.querySelector(
+      '#details button[data-r="start"]').click());
+    const bad = [];
+    for (let k = 0; k < 7; k++) {
+      await pg.evaluate((x) => document.querySelector(
+        `#chips .chip[data-k="${x}"]`).click(), k);
+      const f = await pg.evaluate(() => {
+        const rows = [...document.querySelectorAll(
+          "#panel .view:not([hidden]) .wrow")].filter((r) =>
+          r.querySelector(".b.hl"));
+        const top = Math.min(...rows.map((r) => r.getBoundingClientRect().top));
+        const bot = Math.max(...rows.map((r) =>
+          r.getBoundingClientRect().bottom));
+        const bar = document.querySelector("#details").getBoundingClientRect()
+          .height;
+        const dp = document.querySelector("#dpanel");
+        const sheet = getComputedStyle(dp).position === "fixed"
+          ? dp.getBoundingClientRect().height : 0;
+        // the panel's parts: each within its room, none on another
+        const parts = [...dp.querySelectorAll(".rcap, .rform, .rsrc, " +
+          ".fnotes, .chips, .ptrscroll")].filter((e) => e.offsetHeight);
+        const hit = (a, b) => a.left < b.right - 0.5 && b.left < a.right -
+          0.5 && a.top < b.bottom - 0.5 && b.top < a.bottom - 0.5;
+        const over = parts.filter((e) => !e.matches(".chips, .ptrscroll") &&
+          e.scrollHeight > e.clientHeight + 1).map((e) => e.className);
+        const rs = parts.map((e) => e.getBoundingClientRect());
+        const box = dp.getBoundingClientRect();
+        rs.forEach((r, i) => {
+          if (r.bottom > box.bottom + 0.5) over.push(`${parts[i].className} out`);
+          rs.slice(i + 1).forEach((q, j) => {
+            if (hit(r, q)) over.push(`${parts[i].className} on ${
+              parts[i + 1 + j].className}`);
+          });
+        });
+        return { fits: bot - top <= innerHeight - bar - sheet, over };
+      });
+      if (!f.fits) bad.push(`step ${k + 1}: lit rows do not fit`);
+      if (f.over.length) bad.push(`step ${k + 1}: ${f.over}`);
+    }
+    await pg.keyboard.press("Escape");
+    if (bad.length) problems.push(`${tag}: ${bad.slice(0, 4)}`);
+  };
+  await fitsInView(page, "1440 view");
   // equal columns, the first rows at one height, in every scene
   for (const id of Object.keys(expected)) {
     await scene(id);
@@ -2409,10 +2462,21 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
     "How was this found? ▸")) {
     problems.push("phone: no replay button");
   }
+  await still(pp, "390");
+  // (as on the desktop: the lit rows fit, the sheet's parts keep to
+  // their room; and the page can scroll the dump's end above the sheet)
   {
-    const page0 = page;
-    await still(pp, "390");
-    void page0;
+    const fitsPhone = fitsInView;
+    await fitsPhone(pp, "390 view");
+    const room = await pp.evaluate(() => {
+      const rows = [...document.querySelectorAll(
+        "#panel .view:not([hidden]) .rows > .wrow")];
+      const last = rows.at(-1).getBoundingClientRect().bottom + scrollY;
+      const sheet = document.querySelector("#dpanel").getBoundingClientRect()
+        .height;
+      return document.documentElement.scrollHeight - last >= sheet;
+    });
+    if (!room) problems.push("390: the dump's end cannot clear the sheet");
   }
   // multiplied at -O0, both steps: before, the frame pointer (32
   // bytes), points (8), m = 5 (8) and combo (4); after, the same but m

@@ -456,7 +456,7 @@ function replaySteps(path, side) {
         cap: `The template needs a key: ${keyName(first.key)}'s address, ${
           keyList ? `from ${keyList}` : "from the trace"}`,
         form: `keccak256(${addr(first.key)}, ${small(first.base)}) = ${
-          esc(tail(first.slot))} <span class="muted">· keccak256 is a ` +
+          esc(tail(first.slot))} <span class="prose">· keccak256 is a ` +
           "hash; each input is padded to 32 bytes</span>",
         constructs: ["define", "$keccak256"], source: keySource,
         sourceTint: !!item,
@@ -470,7 +470,8 @@ function replaySteps(path, side) {
           cap: "The same template for every key: the pointer takes the " +
             "key as input",
           form: rest.map((x) => `${addr(x.key)} → ${esc(tail(x.slot))}`)
-            .join(" · "),
+            .join(" · ") + ` <span class="prose">· expect: the template's ` +
+            "inputs; for: what it expands to</span>",
           constructs: ["template"], source: keyList
             ? `keys from ${keyList}` : "keys from the trace",
           chip: rest.map((x) => keyName(x.key)).join(", "),
@@ -636,14 +637,35 @@ function pointerYaml(variable) {
     tags });
   const todo = [];
   // a mapping: `key: value`, in block style unless it is a leaf
+  // (keys in the spec's order: a conditional's if, then, else)
+  const COND = ["if", "then", "else"];
+  // (and a region's: name, location, slot, offset, length)
+  const ordered = (o) => "if" in o ? Object.entries(o).sort(([a], [b]) =>
+    (COND.indexOf(a) + 1 || 9) - (COND.indexOf(b) + 1 || 9))
+    : entriesOf(o);
+  // a value in flow style, if it is short enough for one line
+  const WIDE = 80;
+  const flowFits = (k, x, d) => `${"  ".repeat(d)}${k}: ${flowOf(x)}`
+    .length <= WIDE;
   const block = (o, d, tags) => {
-    for (const [k, x] of Object.entries(o)) {
+    for (const [k, x] of ordered(o)) {
       const own = k === "define" ? [`define:${Object.keys(x)[0]}`]
         : k === "if" ? ["if"] : k === "expect" ? ["expect"] : [];
       if (k === "template") todo.push(x);
-      if (typeof x !== "object" || isExpr(x) || isRegion(x) ||
-        allScalar(x) || (Array.isArray(x) && x.every((y) =>
-          typeof y !== "object"))) {
+      // (an expression too long for one line: its operator, then its
+      // operands, one a line)
+      if (isExpr(x) && !flowFits(k, x, d)) {
+        const [op] = Object.keys(x);
+        put(d, `${k}:`, [...tags, ...own]);
+        put(d + 1, `${op}:`, [...tags, ...own]);
+        for (const y of [].concat(x[op])) {
+          put(d + 2, `- ${flowOf(y)}`, [...tags, ...own]);
+        }
+        continue;
+      }
+      if (typeof x !== "object" || isExpr(x) ||
+        ((isRegion(x) || allScalar(x)) && flowFits(k, x, d)) ||
+        (Array.isArray(x) && x.every((y) => typeof y !== "object"))) {
         put(d, `${k}: ${flowOf(x, k === "template" ? short : null)}`,
           [...tags, ...own, ...(isRegion(x) ? [`region:${x.name}`] : [])]);
       } else if (Array.isArray(x)) {
@@ -658,12 +680,13 @@ function pointerYaml(variable) {
   };
   // a list item
   const item = (y, d, tags) => {
-    if (isRegion(y)) {
+    if (isRegion(y) && `${"  ".repeat(d)}- ${flowOf(y)}`.length <= WIDE) {
       put(d, `- ${flowOf(y)}`, [...tags, `region:${y.name}`]);
       return;
     }
     const at = lines.length;
-    block(y, d + 1, [...tags, "item"]);
+    block(isRegion(y) ? Object.fromEntries(entriesOf(y)) : y, d + 1,
+      [...tags, "item", ...(isRegion(y) ? [`region:${y.name}`] : [])]);
     lines[at].text = `${"  ".repeat(d)}- ${lines[at].text.trimStart()}`;
   };
   put(0, `${variable}:`, ["var"]);
@@ -696,8 +719,8 @@ function activeLines(lines, st) {
       has(l, "expect")));
     case "item": return pick((l) => has(l, "t:array") && !l.tags.some((t) =>
       t === "region:length"));
-    case "record": return pick((l) => has(l, "t:struct") && (has(l, "head") ||
-      has(l, "expect") || has(l, "item")));
+    // (the record: the whole struct template, its group of members)
+    case "record": return pick((l) => has(l, "t:struct"));
     case "fields": {
       const names = new Set(st.rows.map((p) => `region:${p.split(".").pop()}`));
       return pick((l) => has(l, "t:struct") && l.tags.some((t) =>
@@ -770,7 +793,8 @@ function stepLight(st) {
 // The short caption of a step, for the bar over the dump
 function shortCap(st) {
   switch (st.phase) {
-    case "declared": return `${st.var}'s own slot`;
+    case "declared": return `${st.var}${st.var.endsWith("s") ? "'" : "'s"
+      } own slot`;
     case "entry": return "the hash of the first key";
     case "others": return "the same for every key";
     case "item": return "the items, from a hash";
@@ -796,9 +820,10 @@ function renderBox() {
     bar.innerHTML = `<span class="rsel muted">Select a value to see how ` +
       "it was found.</span>";
     $("chips").innerHTML = "";
-    $("ptr").innerHTML = `<p class="plabel">The pointer solc wrote</p>` +
-      `<p class="muted small">Select a value to see the part of solc's ` +
-      "ethdebug pointer that finds it.</p>";
+    text.innerHTML = `<p class="rcap muted">Select a value, then "How was ` +
+      "this found? ▸\" to step through the pointer that finds it.</p>";
+    $("ptr").innerHTML = `<p class="muted small">Select a value to see ` +
+      "the part of solc's ethdebug pointer that finds it.</p>";
     return;
   }
   const { types } = current.f.contract;
@@ -863,11 +888,11 @@ function renderBox() {
   const fnote = (c) => `<span class="fnote"><sup>${notes.indexOf(c) + 1
     }</sup> <a href="${esc(FOOT[c][1])}" target="_blank" rel="noopener">${
     esc(FOOT[c][0])}</a></span>`;
-  text.innerHTML = full + `<p class="fnotes">${(replay
-    ? [footOf(steps[replay.i])].filter(Boolean) : notes).map(fnote)
-    .join(" ")}${replay ? "" : ` <span class="muted">Each step is one ` +
-      `part of the pointer solc wrote for ${esc(chosen.split(/[.[]/)[0])
-      }.</span>`}</p>`;
+  // (at rest: what the steps are, in one line)
+  text.innerHTML = full + `<p class="fnotes">${replay
+    ? [footOf(steps[replay.i])].filter(Boolean).map(fnote).join(" ")
+    : `<span class="muted">Each step is one part of the pointer solc ` +
+      `wrote for ${esc(chosen.split(/[.[]/)[0])}.</span>`}</p>`;
   // the chips: one per step, done, current or later; all done at rest
   const at = replay ? replay.i : steps.length;
   $("chips").innerHTML = steps.map((st, k) => `<button type="button"` +
@@ -876,10 +901,12 @@ function renderBox() {
     `<span class="ctext">${esc(st.chip)}</span>` +
     `<span class="clabel">${esc(st.chipLabel)}</span></button>`)
     .join('<span class="carrow" aria-hidden="true">→</span>');
-  // the current chip, scrolled into the chips' view (they scroll inside)
+  // the current chip, scrolled into the chips' row (one row; it scrolls
+  // sideways inside itself)
   const cur = $("chips").querySelector(".chip.cur");
-  $("chips").scrollTop = cur ? Math.max(0, cur.offsetTop -
-    $("chips").offsetTop - 4) : 0;
+  const right = cur ? cur.offsetLeft - $("chips").offsetLeft +
+    cur.offsetWidth : 0;
+  $("chips").scrollLeft = Math.max(0, right - $("chips").clientWidth + 8);
   // the pointer: the variable's pointer and its templates, as YAML;
   // during a replay, the lines the step uses are lit and the rest muted
   const variable = chosen.split(/[.[]/)[0];
@@ -889,20 +916,28 @@ function renderBox() {
   const lit = replay ? new Set(activeLines(lines, steps[replay.i])) : null;
   const fc = replay && footOf(steps[replay.i]);
   const ids = Object.entries(names).map(([id, n]) => `${n} = ${id}`);
+  void fc;
   $("ptr").classList.toggle("lit", !!lit?.size);
-  $("ptr").innerHTML = `<p class="plabel">The pointer solc wrote${fc
-    ? ` ${sup(fc)}` : ""}</p>` +
-    (replay ? "" : vyperRule(node, mode)) +
+  $("ptr").innerHTML = (replay ? "" : vyperRule(node, mode)) +
     `<pre class="ptrlines"><code>${lines.map((l, k) => `<span class="line${
       lit?.has(k) ? " on" : ""}">${html?.[k] ?? esc(l.text)}</span>`)
       .join("\n")}</code></pre>` +
     (ids.length ? `<p class="muted small pids">Template names shortened; ` +
       `solc's ids: ${ids.map((x) => `<code>${esc(x)}</code>`).join(", ")}</p>`
       : "");
-  // the lines a step uses, scrolled into the panel's view (it scrolls
-  // inside itself; nothing else moves)
-  const first = $("ptr").querySelector(".line.on");
-  $("ptr").scrollTop = first ? Math.max(0, first.offsetTop - 30) : 0;
+  // the lines a step uses, scrolled into the box's view (it scrolls
+  // inside itself; nothing else moves): the whole band, or, if it does
+  // not fit, its last lines
+  const on = [...$("ptr").querySelectorAll(".line.on")];
+  const box = $("ptr");
+  if (!on.length) box.scrollTop = 0;
+  else {
+    const top = on[0].offsetTop;
+    const bottom = on.at(-1).offsetTop + on.at(-1).offsetHeight;
+    box.scrollTop = bottom - top <= box.clientHeight - 16
+      ? Math.max(0, top - (box.clientHeight - (bottom - top)) / 2)
+      : bottom - box.clientHeight + 8;
+  }
 }
 
 // Start, step or leave the replay. Past the last step: the resolved view.
