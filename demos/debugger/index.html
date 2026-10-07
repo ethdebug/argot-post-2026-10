@@ -315,10 +315,15 @@ names its engine. The page only shows what the engine reports.</p>
     <div class="panel state">
       <p class="ph">Variables</p>
       <div class="skel" aria-hidden="true"><i></i><i></i><i></i></div>
+      <p data-cap="state">Contract state, from ethdebug alone: solc's
+      pointers for storage. No storage layout.</p>
       <p data-cap="variables" hidden>Variables in scope, from the
       context's <code>variables</code>. Each is read through its pointer
       with <code>dereference</code>.</p>
       <table aria-label="contract state" data-has></table>
+      <p class="muted" data-cap="state">A trace holds only the storage
+      that the transaction touches. A value shows as unknown until the
+      transaction reads or writes it.</p>
       <p class="muted" data-cap="variables" hidden>Decoding is a simple
       stand-in (uint, address, and arrays and structs of these) for the
       format's planned interpretation layer.</p>
@@ -347,21 +352,23 @@ through Solidity and Fe with the same code. Both compilers write
 ethdebug.</strong></p>
 
 <div class="about" data-about="sol">
-<p>solc 0.8.37 (the official build) compiled <code>Scores</code> with
-ethdebug output. solc writes ethdebug only with the optimizer off, so
-this build is via-IR without the optimizer. The trace is soldb's saved
+<p>Compiler: Walnut's solc fork (walnuthq/solidity PR #10, head
+<code>c434b2ea</code>), with ethdebug output. Its pointers let soldb
+read the contract's state. solc writes ethdebug only with the optimizer
+off, so this build is via-IR without the optimizer. The trace is soldb's saved
 trace of <code>record(30)</code> (0.8 MB, 1,796 EVM steps). soldb parses
 the trace (<code>Trace.fromJson</code>) and reads the ethdebug
 (<code>attachEthdebug</code>). Then it maps each step to its source
-(<code>step(i)</code>).</p>
+(<code>step(i)</code>) and reads the contract's state
+(<code>state(i)</code>).</p>
 </div>
 
 <div class="about" data-about="fe" hidden>
 <p>soldb, a Solidity debugger, steps through a Fe contract. It uses
 only Fe's ethdebug output. The page changes only the file layout (see
 the list below).</p>
-<p><code>Scores</code> in Fe (<a href="fe/scores.fe">scores.fe</a>),
-compiled by Fe 26.4.1 at <code>-O 0</code>. A Fe
+<p><code>Scores</code> in Fe (<a href="fe/scores.fe">scores.fe</a>).
+Compiler: Fe 26.4.1, at <code>-O 0</code>. A Fe
 <code>StorageMap</code> value must fit in one word, so this port keeps
 one map per field, <code>scores</code> and <code>streaks</code>, and has
 no <code>active</code>, <code>history</code> or <code>motto</code>. The
@@ -376,8 +383,8 @@ Solidity tab.</p>
 <p class="muted">This tab runs ethdebug's reference implementation,
 not soldb: <code>@ethdebug/pointers</code>, <code>@ethdebug/evm</code>
 and the trace reconstruction from
-<code>@ethdebug/programs-react</code>. The local variables come from
-bugc, BUG's compiler, on ethdebug/format main. Only the decoding of
+<code>@ethdebug/programs-react</code>. Compiler: bugc, BUG's compiler,
+from ethdebug/format main; the local variables come from it. Only the decoding of
 values is a stand-in, for the format's planned interpretation
 layer.</p>
 <p><code>Scores</code> in BUG (<a href="bug/scores.bug">scores.bug</a>),
@@ -408,8 +415,9 @@ base slot, so the page shows no entries.</p>
 </div>
 
 <div class="about" data-about="old" hidden>
-<p>No ethdebug on this tab. solc 0.8.37 compiled the same
-<code>Scores</code> with <code>--via-ir --optimize</code>. The tab has
+<p>No ethdebug on this tab. Compiler: stock solc 0.8.37 (the official
+build), with <code>--via-ir --optimize</code>, on the same
+<code>Scores</code>. The tab has
 what tools had before ethdebug: the bytecode, its source map and the
 AST, from <code>solc --combined-json</code>. A source map gives each
 instruction one entry, <code>s:l:f:j</code>: the start and length of a

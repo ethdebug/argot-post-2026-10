@@ -198,8 +198,7 @@ export function soldbEngine() {
           "contexts yet.",
         inline: "No inlining: solc emits ethdebug only with the " +
           "optimizer off.",
-        variables: "No variables: solc 0.8.37 emits no pointers for " +
-          "its state variables and no local variables yet.",
+        locals: "No local variables: solc does not emit them yet.",
         // solc's ethdebug gives every instruction the contract's own
         // source id, even code from imported files.
         library: { text: "Imported code: not detectable yet",

@@ -137,7 +137,8 @@ const loadLean = (io) => lean ??= (async () => {
 const traces = {};
 
 // Solidity: Scores `record(30)`, soldb's saved trace, the ethdebug output
-// of solc 0.8.37 (official build; via-IR, optimizer off).
+// of Walnut's solc fork (walnuthq/solidity PR #10; via-IR, optimizer
+// off), whose pointers give soldb the state variables.
 async function loadSolidity(io) {
   const dir = "./sol/ethdebug";
   const t = now();
@@ -162,17 +163,18 @@ async function loadSolidity(io) {
   const { steps, counts } = await timed(times,
     "step() every step + JSON.parse", () => walk(trace, sources));
   const summary = JSON.parse(trace.summary());
-  // soldb's state(i): empty here, as solc 0.8.37 emits no pointers.
+  const values = (i) => Object.fromEntries(state("sol", i)
+    .map((v) => [v.name, v.value]));
   const r = {
     ok: true, times: Object.fromEntries(times),
-    stateFirst: state("sol", 0), stateLast: state("sol", steps.n - 1),
+    stateFirst: values(0), stateLast: values(steps.n - 1),
     replayAvailable: mod.replayAvailable(), version: mod.version(),
     traceBytes: traceText.length, steps: steps.n, ...counts,
     debugInfo: summary.debugInfo, success: summary.success,
     wasmMemory: out.memory.buffer.byteLength,
   };
   return [{ summary: r, steps, sources: { 0: { text: sol } }, main: 0,
-    lang: "solidity", capabilities: {
+    lang: "solidity", capabilities: { state: true,
       generated: "for solc, a source range covering the whole contract" } },
   transfer(steps)];
 }

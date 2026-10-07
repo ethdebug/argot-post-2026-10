@@ -1,16 +1,18 @@
 #!/bin/bash
 # Makes the data of every tab: one contract, Scores, in Solidity, Fe and
 # BUG, and one transaction, record(30) after record(7), on each build.
-#   sol/ethdebug/  solc 0.8.37, ethdebug output (via-IR, optimizer off:
-#                  solc emits ethdebug only without the optimizer)
+#   sol/ethdebug/  Walnut's solc fork (walnuthq/solidity PR #10), ethdebug
+#                  output with pointers for the state variables (via-IR,
+#                  optimizer off: solc emits ethdebug only without it)
 #   sol/record.trace.json  soldb's saved trace of record(30), without the
 #                  flat copies of each step's state (SOURCE.md)
-#   old/combined.json  solc 0.8.37, --via-ir --optimize: bytecode,
+#   old/combined.json  stock solc 0.8.37, --via-ir --optimize: bytecode,
 #                  source map and AST, no ethdebug
 #   fe/            Fe 26.4.1 at -O 0: bytecode and ethdebug
 #   bug/scores-O0, bug/scores-O2  bugc at -O 0 and -O 2
 # and the transactions (make-scores-txs.mjs).
-# Usage: SOLC=<solc 0.8.37> FE=<fe 26.4.1> BUGC=<ethdebug/format
+# Usage: SOLC_WALNUT=<solc, walnuthq/solidity PR #10>
+# SOLC=<solc 0.8.37> FE=<fe 26.4.1> BUGC=<ethdebug/format
 # checkout>/packages/bugc SOLDB=<soldb CLI> ./make-scores.sh, with a
 # fresh `anvil --port 8556 --steps-tracing` running.
 set -euo pipefail
@@ -18,7 +20,7 @@ cd "$(dirname "$0")"
 PORT=${PORT:-8556}
 RPC=http://127.0.0.1:$PORT
 # From inside sol/, so the source path is plain `Scores.sol`.
-(cd sol && "$SOLC" --via-ir --experimental --debug-info ethdebug \
+(cd sol && "$SOLC_WALNUT" --via-ir --experimental --debug-info ethdebug,ast-id \
   --ethdebug-resources --ethdebug-program --ethdebug-program-runtime \
   --abi --bin --bin-runtime --overwrite -o ethdebug Scores.sol)
 (cd sol && "$SOLC" --via-ir --optimize \
