@@ -31,8 +31,10 @@ it("one word per row, its owners' bytes marked", async () => {
   const project = await testProject();
   const { container } = render(<Lens spec={fullInspector}
     project={project} />);
+  // (the layout, then the words: the last byte reads 28)
   await waitFor(() => expect(container.querySelector(
-    '.view[data-side="after"] .wrow')).toBeTruthy(), slow);
+    '.view[data-side="after"] .rows .b[data-i="31"]')?.textContent)
+    .toBe("28"), slow);
   const view = container.querySelector('.view[data-side="after"]')!;
   expect(view.hasAttribute("hidden")).toBe(false);
   expect(container.querySelector('.view[data-side="before"]')!
