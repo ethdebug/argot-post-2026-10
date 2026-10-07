@@ -1,7 +1,7 @@
 # Storage, by name
 
-A browser demo for the ethdebug/format blog post. One contract, Scores
-(`contracts/Scores.sol`, shown at the top of the page), in a list of
+A browser demo for the ethdebug/format blog post. One contract, Arcade
+(`contracts/Arcade.sol`, shown at the top of the page, collapsed), in a list of
 scenes. Its main point is linking both ways: click a byte inside a
 word of storage (a packed slot too), and the variable that owns it
 lights up; click a variable, and its bytes light up. "How this was
@@ -31,18 +31,19 @@ point), so that the page does not move when the data comes;
 `bin/run.mjs` checks that they match.
 
 1. A packed slot: `total` and `rounds` share slot 3. One point, after
-   Alice's `record(7)`. Nothing selected.
-2. Alice's entry: `players[alice]`, her `Player` packed in one slot at
-   keccak(alice . 0), and the derivation. One point, after
-   `record(7)`. `players[alice].streak` selected.
-3. Same slot, new values: before and after Alice's `record(30)` (her
-   streak bonus makes her score 67, streak 2). `players[alice]`
-   selected.
-4. A string outgrows its slot: before and after
-   `setMotto("play fair, keep score, and write the scores down")` (48
-   bytes), after `setMotto("play fair")`. `motto` selected. This scene
-   also shows the calldata (below).
-5. Vyper reads it differently: see "Vyper" below. One point.
+   the five plays (total 40, rounds 3). Nothing selected.
+2. Three players: alice, bob and carol's `Player` entries, each packed
+   in one word at keccak(address . slot 0), far apart. One point, after
+   the five plays. `players[alice]` selected.
+3. Vyper reads it differently: the same three players in Vyper's build
+   (see "Vyper" below). One point.
+4. Same slot, new values: before and after alice's second hit (combo 1
+   → 2, score 10 → 30). Its mapping keys: alice's only, from her two
+   hits. `players[alice]` selected.
+5. A string outgrows its slot: before and after
+   `setMotd("season 2 starts friday, see you on the leaderboard")` (50
+   bytes; the motd was "gl hf"). `motd` selected. This scene also shows
+   the calldata (below).
 
 A scene with one point has no other state: no Before | After, no "show
 other state", no change marks or cards, no popover facts ("read,
@@ -54,33 +55,35 @@ the fixture by using the one side's words as both sides (`atPoint()` in
 ## Vyper
 
 Vyper emits no ethdebug, so the page has no rule from Vyper. The Vyper
-scene is the smallest honest version: `contracts/Scores.vy` (Vyper
-0.4.3), deployed, then `record(7)` and `record(30)` from Alice. The page
-applies solc's rule for `players` (from Scores.sol's ethdebug output,
-`players` only) to the Vyper contract's real storage, with Alice's key.
-keccak256(key . slot 0) =
-`0x7230…a722` holds nothing, so the tree shows `score` 0, with no error:
-what a tool built on Solidity's rules reads. Vyper's own rule,
-keccak256(slot 0 . key) = `0x5c63…fee4`, puts each member in its own
-slot: 67, 2 and 1. Those three words (from the trace of Vyper's
-`record(30)`) are in the dump, named "Vyper's keccak(slot 0, …)", and no
-value owns them. "How this was found" ends with "Vyper's rule, for
-contrast: not from ethdebug", one step per word, each lighting its word.
-The script checks those values against the node and the getter.
+scene is the smallest honest version, and follows from "Three players":
+`contracts/Arcade.vy` (Vyper 0.4.3), deployed, then the same five plays.
+The page applies solc's rule for `players` (from Arcade.sol's ethdebug
+output, `players` only) to the Vyper contract's real storage, with the
+three players' keys. keccak256(key . slot 0) holds nothing for any of
+them (alice: `0x14e0…d101`), so the tree shows each with score 0, not
+active, with no error: what a tool built on Solidity's rules reads.
+Vyper's own rule, keccak256(slot 0 . key), puts each member in its own
+slot: alice at `0xd3a9…2785`: 30, 0, 1; bob at `0xd8fe…c835`: 10, 1, 1;
+carol at `0xb8dc…ba99`: 0, 0, 1. Those nine words are in the dump, named
+"Vyper's keccak(slot 0, …)", and no value owns them. "How this was
+found" ends with "Vyper's rule, for contrast: not from ethdebug", one
+step per word of the selected player, each lighting its word. The
+script checks those values against the node and the getter. How to
+show this point is still to be decided.
 
-## Calldata (the setMotto scene)
+## Calldata (the setMotd scene)
 
-`setMotto(string calldata m)`: `m` stays in the transaction's input.
-solc's ethdebug output here gives no pointer for a parameter (its
+`setMotd(string calldata text)`: `text` stays in the transaction's
+input. solc's ethdebug output here gives no pointer for a parameter (its
 instructions carry `code` contexts only) and no calldata types or
-templates, so the page cannot ask ethdebug where `m` is, and says so.
+templates, so the page cannot ask ethdebug where `text` is, and says so.
 `calldata.js` shows the input like the other dumps (the selector line,
 then words by offset) and labels the parts by the ABI encoding rules:
-the selector, `m`'s head word (the offset, 32), its length (48) and its
-bytes. The linking works both ways: click a byte to select its part, a
-part (or `m`) to light its bytes; "How this was found" lists the ABI
-steps, each lighting its bytes. The scene names its function and
-parameter in `fixtures/index.json` (`calldata`).
+the selector, `text`'s head word (the offset, 32), its length (50) and
+its bytes. The linking works both ways: click a byte to select its
+part, a part (or `text`) to light its bytes; "How this was found" lists
+the ABI steps, each lighting its bytes. The scene names its function
+and parameter in `fixtures/index.json` (`calldata`).
 
 ## Files
 
@@ -89,7 +92,7 @@ parameter in `fixtures/index.json` (`calldata`).
   intros and the contract's source.
 - `decode.js`: the decoding, shared by the page and the fixture script.
 - `panel.js`: the words panel (below).
-- `calldata.js`: the calldata view of the setMotto scene.
+- `calldata.js`: the calldata view of the setMotd scene.
 - `vendor/pointers.js`: `@ethdebug/pointers` bundled with esbuild from
   ethdebug/format `origin/main` at commit
   `ec7a81386` (includes #317, the scoping fix, not yet released),
@@ -111,11 +114,11 @@ parameter in `fixtures/index.json` (`calldata`).
 - `bin/run.mjs`: Playwright check in Chromium, Firefox and WebKit;
   writes `screenshots/` (only `desktop-packed.png` is committed:
   the first scene, `total` selected by a click on its byte;
-  `desktop-dark.png`: Same slot, `streak` selected, with "How this was
-  found"; `insets.png`: Same slot, After, Alice's entry lit, with its
+  `desktop-dark.png`: Same slot, `combo` selected, with "How this was
+  found"; `insets.png`: Same slot, After, alice's entry lit, with its
   "before" card; `memory.png`: the memory section, `names[1]` selected,
   A = array built, B = name replaced; `memory-phone.png`: the memory
-  section on a phone; `phone.png`: the motto scene on a phone, `motto`
+  section on a phone; `phone.png`: the motd scene on a phone, `motd`
   selected). It also checks the loading (below): the sizes, the picker
   and the intros in `index.html`, the contract in `index.html`, no local
   paths in the files, a failed load and Retry in each browser, and, in
@@ -124,8 +127,8 @@ parameter in `fixtures/index.json` (`calldata`).
   serves the repo itself.
 - `mem.js`, `bug/rename.bug`, `bin/make-memory-fixture.mjs`,
   `fixtures/memory.json`: the memory section (below).
-- `contracts/`: `Scores.sol` and `Scores.vy` (the program of the blog
-  post's painful examples).
+- `contracts/`: `Arcade.sol` and `Arcade.vy`, copied from the post's
+  shared example (`private/arcade/`).
 
 ## How the fixtures were made
 
@@ -137,21 +140,26 @@ parameter in `fixtures/index.json` (`calldata`).
    stock solc 0.8.37 gives ethdebug types and templates but no program
    context with the state variables, which the page needs. `<vyper>` is
    Vyper 0.4.3. Without them, the script runs `solc` and `vyper` from
-   your PATH. It compiles Scores.sol with `--standard-json`, viaIR,
+   your PATH. It compiles Arcade.sol with `--standard-json`, viaIR,
    optimizer off, `experimental: true`, `debug.debugInfo: ["ethdebug",
    "ast-id"]`, and outputs `ethdebug.resources` and
    `ethdebug.compilation` (together they give the global
    `ethdebug.resources`), `evm.deployedBytecode.ethdebug` (the program,
    with the program-level context), bytecode and the AST. No
    storageLayout.
-3. Transactions, all from Alice (anvil account 0), on a fresh anvil:
-   - Scores: deploy; `record(7)`; `record(30)` (fixture
-     `scores-record`: the scenes with one point use its before side);
-     `setMotto("play fair")`; `setMotto("play fair, keep score, and
-     write the scores down")` (fixture `scores-motto`; its mapping key
-     comes from the trace of `record(7)`, as setMotto hashes none).
-   - Scores.vy: deploy; `record(7)`; `record(30)` (fixture
-     `scores-vyper`; see "Vyper").
+3. The story, on a fresh anvil (deployer: account 0; alice, bob,
+   carol: accounts 1, 2, 3): deploy with motd "gl hf"; alice hits; alice
+   hits; bob hits; carol misses; alice misses; `setMotd("season 2
+   starts friday, see you on the leaderboard")`. A play rolls from
+   prevrandao, which anvil draws at random and cannot be told, so each
+   play is sent in an `evm_snapshot`; on the wrong outcome the script
+   reverts, mines an empty block and sends again (as
+   `private/arcade/tools/story.py` does). Hashes differ from run to
+   run; outcomes do not. Fixtures: `arcade-hit2` (alice's second hit),
+   `arcade-plays` (the last play: its after side is the end of the
+   plays), `arcade-motd` (setMotd); mapping keys from the plays' traces.
+   - Arcade.vy: deploy, the same five plays (fixture `arcade-vyper`;
+     see "Vyper").
 4. For each transaction the script saves:
    - the trace steps the page needs from `debug_traceTransaction`
      (with memory): KECCAK256 steps with memory (mapping keys), SLOAD
@@ -173,8 +181,9 @@ intros and buttons in `index.html`, and the expected values in
 `bin/run.mjs`; then rerun the script, `bin/sizes.mjs` and `bin/run.mjs`.
 
 `bin/run.mjs` checks the decoded values against the values the calls
-wrote (score 7 then 67, streak 1 then 2, history `[7, 60]`, total 67,
-rounds 2; and the Vyper storage values 67, 2 and 1).
+wrote (alice 10 then 30 with combo 1 then 2; at the end alice 30 /
+combo 0, bob 10 / 1, carol 0 / 0, all active; hits `[10, 20, 10]`,
+total 40, rounds 3; and the Vyper storage values).
 
 ## Which data is ethdebug, which is not
 
@@ -281,14 +290,14 @@ offsets.
   members. There is never a card for what did not change, in the tree
   or the dump. Highlighting works the same with the cards off.
 - The URL hash keeps the view, e.g.
-  `#ex=motto&mode=before&sel=motto&a=built&b=replaced&mmode=after`
+  `#ex=motd&mode=before&sel=motd&a=built&b=replaced&mmode=after`
   (`insets=0` when the cards are off)
-  (`ex`: the scene id: `packed`, `alice`, `streak`, `motto`, `vyper`;
+  (`ex`: the scene id: `packed`, `players`, `vyper`, `combo`, `motd`;
   `mode`: only for a scene with two points; `sel`: the tree path, empty
   when the scene's default selection was cleared, absent for the
   scene's default; `a`, `b`, `mmode`, `msel`: the memory section). The
   format is the old one; only the `ex` values changed, and an old one
-  (`token`, `strings`, …) is stale. It is updated with
+  (`token`, `strings`, `motd`, …) is stale. It is updated with
   `history.replaceState`, only when it changes; a stale hash falls back
   to the first scene with its defaults.
   `#storage` and `#memory` link to the sections.
@@ -306,7 +315,7 @@ The panel follows the toggle and says whose derivation it is. With
 "show other state" on, it also shows the other state's derivation:
 steps the two share appear once; a step that evaluates differently
 shows both evaluations on two lines ("before …", "after …"); and where
-the two take different branches (for `motto`, the If on
+the two take different branches (for `motd`, the If on
 the length flag), the rest splits into two lists, one per branch,
 labeled with state and branch (e.g. "after · then (short-string
 layout)"), this state's first and the other muted. Step numbers go on
@@ -336,7 +345,7 @@ annotations stay inside the words' sideways scroll):
   where a lit byte differs in the other state are in a card; a run
   with none gets no card. The "after" card goes under the run in Before; the
   "before" card over it in After.
-- A word the value uses only in the other state (`motto`'s long data
+- A word the value uses only in the other state (`motd`'s long data
   in Before) is in the dump too, and gets a
   card, with no other mark.
 - Fallback: an annotation may cover rows that are not lit (they are
@@ -350,7 +359,7 @@ annotations stay inside the words' sideways scroll):
 
 Highlights that still use the tray (desktop and phone): two lit runs
 with only a "⋯" line between them, where one run's popover and the
-next run's card need the same space: `motto` (slot 2, then its long
+next run's card need the same space: `motd` (slot 2, then its long
 data after a "⋯" line), in both states.
 
 ## How the derivation is found
@@ -367,7 +376,7 @@ is imported from the package's dist (it is not a public export).
 
 - Only mapping keys hashed in the transaction are shown.
 - Nested mappings need chaining templates (one per level); not done.
-  Scores has none.
+  Arcade has none.
 - No calldata pointer from solc: the calldata view uses the ABI rules.
 
 ## Memory, with BUG (preview: bugc from ethdebug/format main)
@@ -397,7 +406,7 @@ address of its length (0x140), and the element words follow (0x160,
 the bytes. bugc writes `"grace hopper"` at free memory (0x280) and
 then puts that address in the element's word (0x180). `"grace"` stays
 at 0x200, and no value owns it any more (its bytes are dim at B).
-Like the storage section's `motto`, the value moved: the element's word
+Like the storage section's `motd`, the value moved: the element's word
 changed, and the old data was left behind. The points:
 
 - "Array built" (A by default): the first step of the literal
@@ -448,14 +457,14 @@ What the page fetches (GitHub Pages gzips text):
 
 | File | gzip | size |
 | --- | ---: | ---: |
-| `index.html` (with the loader) | 8.0 KB | 24.2 KB |
-| `main.js`, `panel.js`, `decode.js`, `mem.js`, `calldata.js` | 41.8 KB | 124.2 KB |
+| `index.html` (with the loader) | 9.0 KB | 26.9 KB |
+| `main.js`, `panel.js`, `decode.js`, `mem.js`, `calldata.js` | 42.1 KB | 125.0 KB |
 | `style.css`, `../../shared/appendix.css` | 8.9 KB | 30.0 KB |
 | `vendor/pointers.js` (minified) | 69.0 KB | 272.1 KB |
 | `fixtures/index.json`, `memory.json` | 1.5 KB | 9.7 KB |
-| the first scene's data (`scores-record.json`) | 2.3 KB | 11.4 KB |
-| the other two fixtures, idle-time | 4.5 KB | 18.3 KB |
-| total | 136.0 KB | 489.9 KB |
+| the first scene's data (`arcade-plays.json`) | 2.7 KB | 10.0 KB |
+| the other three fixtures, idle-time | 7.9 KB | 31.8 KB |
+| total | 141.4 KB | 506.4 KB |
 | `vendor/shiki.js`, only when the source is opened | 58.6 KB | 196.7 KB |
 
 The bundle was 86.8 KB gzip (411 KB) before it was minified.

@@ -71,7 +71,7 @@ end of the body fetches the decoder and the data. -->
 <main>
   <header>
     <h1>Storage, by name</h1>
-    <p>One contract, Scores, in a few scenes. Click a byte in a word of
+    <p>One contract, Arcade, in a few scenes. Click a byte in a word of
     storage, and the variable that owns it lights up; click a variable,
     and its bytes light up. "How this was found" shows each step from
     the variable to its bytes. Some scenes compare two points (Before |
@@ -89,62 +89,50 @@ end of the body fetches the decoder and the data. -->
 
   <section id="contract" class="contract" aria-labelledby="contract-h">
     <h2 class="label" id="contract-h">The contract</h2>
-    <p>Every scene below shows one contract, Scores. A player calls
-    <code>record(points)</code>: the contract adds the points and a
-    streak bonus (points × streak, at most 100) to the caller's
-    <code>Player</code> in <code>players</code>, adds 1 to the streak,
-    appends the points gained to <code>history</code>, and adds to
-    <code>total</code> and <code>rounds</code>. <code>setMotto</code>
-    sets a string. The five state variables, <code>players</code> to
-    <code>rounds</code>, are what the scenes show. Alice, anvil's first account, sends every
-    transaction.</p>
+    <p>Every scene below shows one contract, Arcade: the scoreboard of a
+    big multiplayer game. A player calls <code>play()</code>, which rolls
+    a hit or a miss. A hit adds 1 to the player's combo and scores 10 ×
+    combo (at most 5×); a miss sets the combo back to 0, and the score
+    stays. Each player's <code>Player</code> (score, combo, active) is in
+    <code>players</code>; <code>hits</code> lists every hit's points;
+    <code>total</code> and <code>rounds</code> count all players' points
+    and hits; <code>setMotd</code> sets the message of the day. The
+    story: deploy with motd "gl hf"; alice hits, alice hits again, bob
+    hits, carol misses, alice misses; then a long motd. Each player is
+    an anvil account.</p>
     <!-- the contract's source (bin/make-fixtures.mjs writes it; bin/run.mjs
     checks that it matches); collapsed by default, open or closed as the
     viewer left it (localStorage) -->
     <details id="contract-box" class="srcbox">
-      <summary><span class="srcfile">Scores.sol</span> — the contract
+      <summary><span class="srcfile">Arcade.sol</span> — the contract
       (<span class="srclines"></span> lines)</summary>
     <pre id="contract-src" class="src">// SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
-contract Scores {
-    struct Player {
-        uint64 score;
-        uint32 streak;
-        bool active;
-    }
-
+contract Arcade {
+    struct Player { uint64 score; uint32 combo; bool active; }
     mapping(address =&gt; Player) public players;
-    uint256[] public history;
-    string public motto;
-    uint128 public total;
-    uint64 public rounds;
-
-    function bonus(uint256 points, uint256 streak)
-        internal
-        pure
-        returns (uint256)
-    {
-        uint256 b = points * streak;
-        if (b &gt; 100) {
-            b = 100;
-        }
-        return b;
+    uint256[] public hits;     // every hit's points, in order
+    string public motd;        // the server's message of the day
+    uint128 public total;      // all players' points, packed with
+    uint64 public rounds;      //   the number of hits
+    constructor(string memory m) { motd = m; }
+    function play() external {
+        Player storage p = players[msg.sender];
+        p.active = true;
+        if (!rolledHit()) { resetCombo(p); return; }   // a miss
+        p.combo += 1;
+        uint64 gained = multiplied(10, p.combo);
+        p.score += gained; hits.push(gained); total += gained; rounds += 1;
     }
-
-    function record(uint256 points) external {
-        uint256 streak = players[msg.sender].streak;
-        uint256 gained = points + bonus(points, streak);
-        players[msg.sender].score = uint64(players[msg.sender].score + gained);
-        players[msg.sender].streak = players[msg.sender].streak + 1;
-        players[msg.sender].active = true;
-        history.push(gained);
-        total = uint128(total + gained);
-        rounds = rounds + 1;
+    function setMotd(string calldata text) external { motd = text; }
+    // a toy roll (not safe randomness): 2 in 3 is a hit
+    function rolledHit() internal view returns (bool) {
+        return uint256(keccak256(abi.encode(block.prevrandao, msg.sender))) % 3 != 0;
     }
-
-    function setMotto(string calldata m) external {
-        motto = m;
+    function resetCombo(Player storage p) internal { p.combo = 0; }
+    function multiplied(uint64 points, uint32 combo) internal pure returns (uint64) {
+        return points * (combo &lt; 5 ? combo : 5);
     }
 }
 </pre>
@@ -156,16 +144,16 @@ contract Scores {
     <!-- the same buttons as main.js makes from fixtures/index.json, here
     so the page does not move when they come -->
     <div id="picker" class="picker" role="radiogroup" aria-label="Scene">
-      <button role="radio" data-id="packed" data-fixture="scores-record"
+      <button role="radio" data-id="packed" data-fixture="arcade-plays"
         data-single>A packed slot</button>
-      <button role="radio" data-id="alice" data-fixture="scores-record"
-        data-single>Alice's entry</button>
-      <button role="radio" data-id="streak"
-        data-fixture="scores-record">Same slot, new values</button>
-      <button role="radio" data-id="motto"
-        data-fixture="scores-motto">A string outgrows its slot</button>
-      <button role="radio" data-id="vyper" data-fixture="scores-vyper"
-        data-single>Vyper reads it differently</button></div>
+      <button role="radio" data-id="players" data-fixture="arcade-plays"
+        data-single>Three players</button>
+      <button role="radio" data-id="vyper" data-fixture="arcade-vyper"
+        data-single>Vyper reads it differently</button>
+      <button role="radio" data-id="combo"
+        data-fixture="arcade-hit2">Same slot, new values</button>
+      <button role="radio" data-id="motd"
+        data-fixture="arcade-motd">A string outgrows its slot</button></div>
     <!-- one intro per scene (fixtures/index.json); the loader shows the
     first one -->
     <div id="intros" class="intros">
@@ -173,37 +161,41 @@ contract Scores {
       <code>uint128</code>) and <code>rounds</code> (a
       <code>uint64</code>) share one slot, slot 3. Click a byte in that
       word: its variable lights up in the tree. Click a variable: its
-      bytes light up. Alice has called <code>record(7)</code> once, so
-      <code>total</code> is 7 and <code>rounds</code> is 1.</p>
-      <p data-scene="alice" hidden>Alice's <code>Player</code> is one
-      entry in the mapping <code>players</code>. Its slot is
-      keccak256(her address . slot 0), and <code>score</code>,
-      <code>streak</code> and <code>active</code> share that one word.
-      "How this was found" shows each step of solc's rule, from the
-      mapping's slot to the bytes of <code>streak</code>.</p>
-      <p data-scene="streak" hidden>Alice calls <code>record(30)</code>
-      after <code>record(7)</code>. Her streak was 1, so her bonus is 30
-      × 1 = 30: her score goes from 7 to 7 + 30 + 30 = 67, and her
-      streak goes to 2. The slot stays the same; bytes inside it change.
-      Before is after her first call, After after her second. Beside the
-      lit word, a card shows it in the other state.</p>
-      <p data-scene="motto" hidden><code>setMotto</code> replaces a
-      9-byte motto with a 48-byte one. A string of 31 bytes or less
+      bytes light up. After the five plays, <code>total</code> is 40 and
+      <code>rounds</code> is 3.</p>
+      <p data-scene="players" hidden>alice, bob and carol each have a
+      <code>Player</code> in the mapping <code>players</code>. Each
+      record is found by hashing the player's address with the mapping's
+      slot: keccak256(address . slot 0). So the three records land far
+      apart in the slot space, each in one word, where
+      <code>score</code>, <code>combo</code> and <code>active</code> are
+      packed. alice's is selected; click another player's bytes, or a
+      row, to switch. "How this was found" shows each step of solc's
+      rule.</p>
+      <p data-scene="vyper" hidden>The same three players, in the same
+      game compiled by Vyper 0.4.3 (<code>contracts/Arcade.vy</code>),
+      after the same five plays. The rule from the last scene,
+      keccak256(address . slot 0), is Solidity's; it finds nothing
+      here: the tree shows each player with score 0, not active, with no
+      error. Vyper hashes the slot first, keccak256(slot 0 . address),
+      and puts each member in its own slot. So alice's 30, bob's 10 and 1
+      and carol's 1 sit elsewhere: those words are in the dump, and no
+      value shown owns them. Vyper emits no ethdebug, so the page has no
+      rule from Vyper; "How this was found" lists the selected player's
+      Vyper words for contrast.</p>
+      <p data-scene="combo" hidden>alice hits twice. Her first hit sets
+      her combo to 1 and scores 10; her second sets it to 2 and scores
+      10 × 2 = 20, so her score goes from 10 to 30. The slot stays the
+      same; bytes inside it change. Before is after her first hit, After
+      after her second. Beside the lit word, a card shows it in the
+      other state.</p>
+      <p data-scene="motd" hidden><code>setMotd</code> replaces the
+      5-byte "gl hf" with a 50-byte message. A string of 31 bytes or less
       lives in its slot, with 2 × its length in the last byte. A longer
       string keeps only 2 × its length + 1 in its slot, and its bytes
       move to keccak256(slot 2) and the slots after it. "How this was
-      found" shows where the two rules part.</p>
-      <p data-scene="vyper" hidden>The same program, compiled by Vyper
-      0.4.3 (<code>contracts/Scores.vy</code>), after the same two
-      <code>record</code> calls. Vyper emits no ethdebug, so the page
-      has no rule from Vyper. Here it applies Solidity's rule (from
-      solc's ethdebug output) to the Vyper contract's real storage:
-      keccak256(key . slot 0) holds nothing, so the tree shows
-      <code>score</code> 0, with no error. Vyper's own rule hashes the
-      slot first, keccak256(slot 0 . key), and puts each member in its
-      own slot: 67, 2 and 1 (true). Those three words are in the dump,
-      and no value shown owns them; "How this was found" lists
-      them.</p>
+      found" shows where the two rules part. The calldata of the call is
+      under the storage.</p>
     </div>
     <div class="moderow"><span class="modelabel" id="mode-l">Show</span>
       <div id="mode" class="picker mode" role="radiogroup"
@@ -262,15 +254,15 @@ contract Scores {
   </div>
 
   <section id="calldata" class="calldata" aria-labelledby="cd-h" hidden>
-    <h2 class="label" id="cd-h">The calldata of setMotto</h2>
-    <p class="lede"><code>m</code> is a <code>string calldata</code>
+    <h2 class="label" id="cd-h">The calldata of setMotd</h2>
+    <p class="lede"><code>text</code> is a <code>string calldata</code>
     parameter: its bytes stay in the transaction's input. solc's ethdebug
-    output here gives no pointer for <code>m</code>: its instructions
+    output here gives no pointer for <code>text</code>: its instructions
     carry source ranges only, and its resources have no calldata types or
-    templates. So the page cannot ask ethdebug where <code>m</code> is.
+    templates. So the page cannot ask ethdebug where <code>text</code> is.
     The labels below come from the ABI encoding rules, which the page
     applies itself; nothing in this part comes from @ethdebug/pointers.
-    Click a byte to find its part of <code>m</code>, or a part to find
+    Click a byte to find its part of <code>text</code>, or a part to find
     its bytes.</p>
     <div class="cols">
       <section aria-label="Parameters" class="storage">
@@ -295,12 +287,12 @@ contract Scores {
     <h2>What is not done yet</h2>
     <ul>
       <li><b>Mapping keys.</b> A mapping does not list its keys. The page
-      shows only keys read from the KECCAK256 inputs in a trace (Alice's
-      address, from her <code>record</code> calls). Other entries may
+      shows only keys read from the KECCAK256 inputs in a trace (the
+      players' addresses, from their <code>play</code> calls). Other entries may
       exist but are not shown.</li>
       <li><b>Nested mappings.</b> A mapping inside a struct or another
       mapping needs one template applied after another, with a key for
-      each level. The page does not do that yet; Scores has none.</li>
+      each level. The page does not do that yet; Arcade has none.</li>
       <li><b>Vyper.</b> Vyper emits no ethdebug. Its scene applies
       solc's rule to Vyper's storage, to show what a tool built on
       Solidity's rules reads; Vyper's own slots come from its
@@ -412,11 +404,12 @@ contract Scores {
   const SIZES = /* sizes */{
     "vendor/pointers.js": 278654,
     "vendor/shiki.js": 201406,
-    "fixtures/index.json": 1744,
-    "fixtures/memory.json": 8154,
-    "fixtures/scores-motto.json": 8598,
-    "fixtures/scores-record.json": 11724,
-    "fixtures/scores-vyper.json": 9210
+    "fixtures/arcade-hit2.json": 11620,
+    "fixtures/arcade-motd.json": 10419,
+    "fixtures/arcade-plays.json": 10269,
+    "fixtures/arcade-vyper.json": 10531,
+    "fixtures/index.json": 1796,
+    "fixtures/memory.json": 8154
   }/* end sizes */;
   const bar = document.getElementById("loadbar");
   const files = new Map(); // url -> { got, size, label, shown, promise }

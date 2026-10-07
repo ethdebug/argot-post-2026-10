@@ -1,6 +1,6 @@
-// Makes the page's fixtures: compiles Scores (contracts/Scores.sol) with
+// Makes the page's fixtures: compiles Arcade (contracts/Arcade.sol) with
 // a native solc built from Walnut's fork (walnuthq/solidity PR #10) and
-// the Vyper version (contracts/Scores.vy) with vyper, deploys them on
+// the Vyper version (contracts/Arcade.vy) with vyper, deploys them on
 // anvil, runs the transactions, and saves for each fixture the trace
 // steps the page needs, the storage words the decoder reads (before and
 // after), and the compiler output.
@@ -107,7 +107,7 @@ function compile(name) {
 const [from] = await rpc("eth_accounts");
 
 async function send(tx) {
-  const hash = await rpc("eth_sendTransaction", [{ from, gas: hex(3000000n),
+  const hash = await rpc("eth_sendTransaction", [{ from, gas: hex(10000000n),
     ...tx }]);
   let receipt;
   for (let i = 0; i < 50 && !receipt; i++) {
@@ -191,6 +191,15 @@ async function fixture({ id, summary, contract, address, tx, keys, keep,
       throw new Error(`${id}: SSTORE ${slot} disagrees with the node`);
     }
   }
+  // and the slots to keep, read or not
+  for (const slot of keep ?? []) {
+    for (const [m, b] of [[before, block - 1n], [after, block]]) {
+      if (!m.has(slot)) {
+        const v = await rpc("eth_getStorageAt", [address, slot, hex(b)]);
+        m.set(slot, "0x" + v.slice(2).padStart(64, "0"));
+      }
+    }
+  }
   const slots = {};
   for (const slot of new Set([...before.keys(), ...after.keys()])) {
     slots[slot] = { before: before.get(slot), after: after.get(slot) };
@@ -223,89 +232,143 @@ const word = async (address, slot) => hex32(await rpc("eth_getStorageAt",
 
 // ------------------------------------------------------------ run it
 
-// Alice is anvil's first account, the sender of every transaction
-const ALICE = from;
-const MOTTO = ["play fair",
-  "play fair, keep score, and write the scores down"];
-if (MOTTO[0].length > 31 || MOTTO[1].length <= 31) {
-  throw new Error("the mottos must be short, then long");
+// The story (as private/arcade/tools/story.py plays it): the deployer is
+// anvil's account 0; alice, bob and carol are accounts 1, 2 and 3
+const [, ALICE, BOB, CAROL] = await rpc("eth_accounts");
+const PLAYERS = { [ALICE]: "alice", [BOB]: "bob", [CAROL]: "carol" };
+const MOTD = ["gl hf", "season 2 starts friday, see you on the leaderboard"];
+if (MOTD[0].length > 31 || MOTD[1].length <= 31) {
+  throw new Error("the motds must be short, then long");
 }
+const STORY = [["alice", ALICE, true], ["alice", ALICE, true],
+  ["bob", BOB, true], ["carol", CAROL, false], ["alice", ALICE, false]];
+const ctor = (m) => cast("abi-encode", "f(string)", m);
 
-const scores = compile("Scores");
-console.log("solc", scores.compiler);
+// A play rolls a hit or a miss from prevrandao, which anvil draws at
+// random for each block and cannot be told. So each play is sent inside
+// a snapshot: on the wrong outcome, revert, mine an empty block (a new
+// prevrandao) and send again. `combo(who)` reads the player's combo.
+async function play(address, who, hit, combo) {
+  for (let k = 0; k < 60; k++) {
+    const snap = await rpc("evm_snapshot");
+    const c0 = await combo(who);
+    const tx = await send({ from: who, to: address,
+      data: cast("calldata", "play()") });
+    const c1 = await combo(who);
+    if ((c1 === c0 + 1n) === hit) return tx;
+    await rpc("evm_revert", [snap]);
+    await rpc("anvil_mine", ["0x1"]);
+  }
+  throw new Error("no roll gave the outcome");
+}
+const keysOf = async (txs) => {
+  const keys = new Map();
+  for (const tx of txs) {
+    const t = await rpc("debug_traceTransaction", [tx.hash,
+      { enableMemory: true }]);
+    for (const [b, ks] of mappingKeys(trimTrace(t.structLogs))) {
+      const list = keys.get(b) ?? [];
+      for (const x of ks) if (!list.some((y) => y.key === x.key)) list.push(x);
+      keys.set(b, list);
+    }
+  }
+  return keys;
+};
+
+const arcade = compile("Arcade");
+console.log("solc", arcade.compiler);
 {
-  const address = await deploy(scores);
-  const first = await call(address, "record(uint256)", "7");
-  const second = await call(address, "record(uint256)", "30");
-  // the record fixture: the second record(), so the state before it is
-  // the state after the first
+  const address = await deploy(arcade, ctor(MOTD[0]));
+  const combo = async (who) =>
+    (BigInt(await word(address, keccak(who, 0))) >> 64n) & 0xffffffffn;
+  const plays = [];
+  for (const [, who, hit] of STORY) {
+    plays.push(await play(address, who, hit, combo));
+  }
+  const keys = await keysOf(plays);
+  const extra = { keysFrom: "the traces of the five plays",
+    players: PLAYERS };
+  // alice's second hit: before it, her first hit; after it, combo 2
   await fixture({
-    id: "scores-record", contract: scores, address, tx: second,
-    extra: { keysFrom: "the trace of Alice's record(30)" },
-    summary: "record(7), then record(30), from Alice",
+    id: "arcade-hit2", contract: arcade, address, tx: plays[1],
+    keys: await keysOf(plays.slice(0, 2)),
+    extra: { ...extra, keysFrom: "the traces of alice's two hits" },
+    summary: "alice's second hit",
   });
-  await call(address, "setMotto(string)", MOTTO[0]);
-  const motto = await call(address, "setMotto(string)", MOTTO[1]);
-  // setMotto hashes no mapping key: Alice's key comes from the trace of
-  // her first record()
-  const trace = await rpc("debug_traceTransaction", [first.hash,
-    { enableMemory: true }]);
+  // the last play (alice misses): after it, the end of the plays
   await fixture({
-    id: "scores-motto", contract: scores, address, tx: motto,
-    keys: mappingKeys(trimTrace(trace.structLogs)),
-    extra: { keysFrom: "the trace of Alice's record(7)" },
-    summary: `setMotto("${MOTTO[0]}"), then setMotto("${MOTTO[1]}")`,
+    id: "arcade-plays", contract: arcade, address, tx: plays[4], keys,
+    extra, summary: "after the five plays",
+  });
+  const motd = await send({ to: address,
+    data: cast("calldata", "setMotd(string)", MOTD[1]) });
+  await fixture({
+    id: "arcade-motd", contract: arcade, address, tx: motd, keys, extra,
+    summary: `setMotd("${MOTD[1]}")`,
   });
 }
 
-// Vyper: the same program, the same calls. Vyper emits no ethdebug, so
-// the fixture applies solc's rule for players (from Scores.sol's ethdebug
+// Vyper: the same program, the same story. Vyper emits no ethdebug, so
+// the fixture applies solc's rule for players (from Arcade.sol's ethdebug
 // output) to the Vyper contract's storage, and keeps the slots Vyper
-// itself wrote for Alice, from its trace.
+// itself wrote for alice, from its trace.
 {
   const VYPER = process.env.VYPER ?? "vyper";
   const vyVersion = execFileSync(VYPER, ["--version"], { encoding: "utf8" })
     .trim();
   const bytecode = execFileSync(VYPER, ["-f", "bytecode",
-    path.join(root, "contracts", "Scores.vy")], { encoding: "utf8" }).trim();
-  const { receipt } = await send({ data: bytecode });
+    path.join(root, "contracts", "Arcade.vy")], { encoding: "utf8" }).trim();
+  const { receipt } = await send({ data: bytecode + ctor(MOTD[0]).slice(2) });
   const address = receipt.contractAddress;
-  await call(address, "record(uint256)", "7");
-  const tx = await call(address, "record(uint256)", "30");
+  const combo = async (who) => BigInt(await word(address,
+    add(keccak(0, who), 1)));
+  let last;
+  for (const [, who, hit] of STORY) last = await play(address, who, hit, combo);
   // Solidity's rule: keccak256(key . slot); Vyper's: keccak256(slot . key),
-  // and the struct unpacked, one member per slot
-  const sol = keccak(ALICE, 0);
-  const vy = keccak(0, ALICE);
-  const members = [0, 1, 2].map((k) => add(vy, k));
-  const got = await Promise.all(members.map((s) => word(address, s)));
-  const want = [67n, 2n, 1n];
-  if (got.some((w, k) => BigInt(w) !== want[k]) ||
-    BigInt(await word(address, sol)) !== 0n) {
-    throw new Error(`vyper: unexpected storage ${got}`);
+  // and the struct unpacked, one member per slot. For each player:
+  const want = { [ALICE]: [30n, 0n, 1n], [BOB]: [10n, 1n, 1n],
+    [CAROL]: [0n, 0n, 1n] };
+  const entries = [];
+  for (const [who, w] of Object.entries(want)) {
+    const sol = keccak(who, 0);
+    const vy = keccak(0, who);
+    const members = [0, 1, 2].map((k) => add(vy, k));
+    const got = await Promise.all(members.map((s) => word(address, s)));
+    if (got.some((x, k) => BigInt(x) !== w[k]) ||
+      BigInt(await word(address, sol)) !== 0n) {
+      throw new Error(`vyper: unexpected storage ${got}`);
+    }
+    // the getter agrees: (score, combo, active)
+    console.log(`vyper players(${PLAYERS[who]}):`, cast("call", "--rpc-url",
+      RPC, address, "players(address)(uint64,uint32,bool)", who)
+      .replace(/\s+/g, " "), "solidity rule", sol, "vyper rule", vy);
+    entries.push({ key: who, slot: vy, members });
   }
-  // the getter agrees: (score, streak, active)
-  console.log("vyper players(alice):", cast("call", "--rpc-url", RPC,
-    address, "players(address)(uint64,uint32,bool)", ALICE)
-    .replace(/\s+/g, " "));
-  const players = scores.variables.find((v) => v.identifier === "players");
+  const players = arcade.variables.find((v) => v.identifier === "players");
   const { after } = await fixture({
-    id: "scores-vyper", address, tx,
-    contract: { ...scores, variables: [players] },
-    keys: new Map([[hex32(0), [{ key: hex32(ALICE) }]]]),
-    keep: members,
+    id: "arcade-vyper", address, tx: last,
+    contract: { ...arcade, variables: [players] },
+    keys: new Map([[hex32(0), Object.keys(want).map((who) =>
+      ({ key: hex32(who) }))]]),
+    keep: entries.flatMap((e) => e.members),
     extra: {
-      keysFrom: "the KECCAK256 inputs in the trace of Vyper's record(30)" +
+      keysFrom: "the KECCAK256 inputs in the trace of Vyper's play()" +
         " (there the slot comes first, then the key)",
-      vyper: { compiler: vyVersion, slot: vy, members,
-        names: ["score", "streak", "active"] },
+      players: PLAYERS,
+      vyper: { compiler: vyVersion, entries,
+        names: ["score", "combo", "active"] },
     },
-    summary: "Vyper: record(7), then record(30), from Alice",
+    summary: "Vyper: the five plays",
   });
-  if (BigInt(after.get(sol)) !== 0n) throw new Error("solc rule read");
-  console.log("vyper", vyVersion, "solidity rule", sol, "vyper rule", vy);
+  for (const who of Object.keys(want)) {
+    if (BigInt(after.get(keccak(who, 0))) !== 0n) {
+      throw new Error("solc rule read");
+    }
+  }
+  console.log("vyper", vyVersion);
 }
 
-// The contract at the top of the page: contracts/Scores.sol, as is, and
+// The contract at the top of the page: contracts/Arcade.sol, as is, and
 // its file name in the summary line
 {
   const html = path.join(root, "index.html");
@@ -313,7 +376,7 @@ console.log("solc", scores.compiler);
     .replace(/>/g, "&gt;");
   fs.writeFileSync(html, fs.readFileSync(html, "utf8").replace(
     /(<pre id="contract-src" class="src">)[\s\S]*?(<\/pre>)/,
-    (_, a, b) => a + esc(scores.source) + b).replace(
-    /(<span class="srcfile">)[^<]*(<\/span>)/, `$1${scores.file}$2`));
+    (_, a, b) => a + esc(arcade.source) + b).replace(
+    /(<span class="srcfile">)[^<]*(<\/span>)/, `$1${arcade.file}$2`));
 }
 // then: node bin/sizes.mjs
