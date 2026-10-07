@@ -38,9 +38,13 @@ it("a bookmark names its points, timeline and decoding", async () => {
     select: "players[0x70997970c51812dc3a010c7d01b50e0d17dc79c8]" });
   expect(alice).toMatchObject({ side: "after", points:
     ["arcade-alice:before", "arcade-alice:after"] });
+  // (keys: as the fixture says, `keysIn`, once it is loaded)
+  await p.timeline("arcade-mid");
   expect(p.decodings["sol:arcade-mid"]).toEqual({ id: "sol:arcade-mid",
     compilation: "sol@arcade-mid", timeline: "arcade-mid", variables: "state",
     keys: { from: "list", path: "roster" } });
+  await p.timeline("arcade-vyper");
+  expect(p.decodings.vyAsSol.keys).toEqual({ from: "trace" });
 });
 
 it("a point's snapshot is that side's storage", async () => {
