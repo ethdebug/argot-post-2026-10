@@ -124,7 +124,7 @@ export function useViewSpec(id: string): ViewSpec {
 
 // A view's data and its layout (a dump's location; storage otherwise).
 // `filter`: the lens's (Lens.tsx Present), else the view's own; rows
-// "all" adds the slots the point's transaction read or wrote. A dump's
+// "touched" adds the slots the point's transaction read or wrote. A dump's
 // `others` (decodings of its timeline) show their words, owned by none.
 export function useLayout(id: string, filter?: Filter):
   { d?: Decoded; l?: Layout } {
@@ -143,12 +143,8 @@ export function useLayout(id: string, filter?: Filter):
   const location = v.kind === "dump" ? v.location : "storage";
   const l = useMemo(() => {
     if (!d || (mine[0] && !o1)) return undefined;
-    const tx = point?.transaction;
-    const rows = f?.rows === "all" && tx
-      ? [...new Set<Hex>([...tx.reads, ...tx.writes])]
-        .filter((s) => point!.snapshot.storage.has(s)) : f?.rows;
-    return layout(d, location, { ...f, rows },
-      o1 ? [{ d: o1, who: mine[0].who }] : []);
+    return layout(d, location, f, { point,
+      others: o1 ? [{ d: o1, who: mine[0].who }] : [] });
   }, [d, o1, point, location, f, mine[0]?.who]);
   return { d, l };
 }
