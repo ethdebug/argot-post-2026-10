@@ -36,8 +36,8 @@ $R=$HOME/.rustup=/rustup $R=$HOME/.cargo=/cargo $R=<soldb>=/soldb"
 
 ## The data: one contract, one transaction
 
-Every tab steps `Scores` and the same transaction. `make-scores.sh`
-makes all of it, on a fresh `anvil --steps-tracing --port 8556` (anvil
+Every tab steps `Arcade` and the same transaction, alice's second
+`play()` (a hit at combo 2). `make-arcade.sh` makes all of it, on a fresh `anvil --steps-tracing --port 8556` (anvil
 1.2.3):
 
 - `sol/ethdebug/`: solc from pull request walnuthq/solidity#10 (head
@@ -45,35 +45,38 @@ makes all of it, on a fresh `anvil --steps-tracing --port 8556` (anvil
   --debug-info ethdebug,ast-id` with ethdebug output, optimizer off
   (solc writes ethdebug only without the optimizer). Its pointers give
   soldb the state variables (`state(i)`); stock 0.8.37 writes none.
-  From `sol/Scores.sol`.
+  From `sol/Arcade.sol`.
 - `old/combined.json`: stock solc 0.8.37 (official build,
   `0.8.37+commit.f401782d`), `--via-ir --optimize
   --combined-json bin,bin-runtime,srcmap-runtime,ast`: no ethdebug.
 - `fe/`: Fe 26.4.1 at `-O 0` (`fe build`, `fe dev trace emit`, `fe dev
-  debug emit --format ethdebug`) from `fe/scores.fe`. Fe writes the
+  debug emit --format ethdebug`) from `fe/arcade.fe`. Fe writes the
   source's absolute path into its file; the script replaces the local
   directory with `/work/`. `fe/src/` holds the standard-library files
   that Fe's file names, from the Fe repository at tag v26.4.1
   (`dbb291dbc`); their blake3 hashes match the ones in Fe's file.
-- `bug/scores-O0/`, `bug/scores-O2/`: bugc at `-O 0` and `-O 2`, from
-  `bug/scores.bug` (`bug/compile.mjs`).
-- The transactions (`make-scores-txs.mjs`, from `scores-txs.json`): each
-  build is deployed, then gets the plan's setup calls and its
-  transaction, from the same anvil accounts. The script saves the
-  node's responses (`fe/`, `bug/scores-O*/`: with each step's memory,
-  and the storage before, for the pointers), the old way's traces
-  (`old/`: each step's pc, op and depth only), and, for the old way, a
-  traced `eth_call` of the plan's view call after the transaction.
-- `sol/record.trace.json`: `soldb trace --save-trace` (soldb CLI built
+- `bug/arcade-O0/`, `bug/arcade-O2/`: bugc at `-O 0` and `-O 2`, from
+  `bug/arcade.bug` (`bug/compile.mjs`).
+- The transactions (`make-arcade-txs.mjs`, from `arcade-story.json`):
+  each build is deployed (motd "gl hf"), then gets alice's first
+  `play()` and the traced one, her second. The roll depends on the
+  block, and anvil cannot set prevrandao, so each `play()` runs inside
+  an `evm_snapshot`: if it does not roll a hit, the script reverts,
+  mines one empty block and sends it again. A hit writes at least three
+  storage slots, a miss at most two. The script saves the node's
+  responses (`fe/`, `bug/arcade-O*/`: with each step's memory, and the
+  storage before, for the pointers) and the old way's trace
+  (`old/play.trace.json`: each step's pc, op and depth only).
+- `sol/play.trace.json`: `soldb trace --save-trace` (soldb CLI built
   from the commit above), changed as below.
 
 ### The saved trace: one change
 
-`sol/record.trace.json` is the file that `soldb trace --save-trace`
+`sol/play.trace.json` is the file that `soldb trace --save-trace`
 writes, with one change: each step's flat `stack`, `memory` and
 `storage` fields are removed, and the JSON is on one line
 (`jq -c '.steps[] |= del(.stack, .memory, .storage)'`, in
-`make-scores.sh`).
+`make-arcade.sh`).
 
 soldb writes each step's state twice: in `snapshot`, and again in the
 flat fields, for older readers. When soldb reads a step whose
@@ -105,6 +108,6 @@ is made by `make-ref-vendor.sh <checkout>` after `yarn install` in that
 checkout. `ref-worker.js` uses it.
 
 The BUG data comes from bugc built from ethdebug/format main at
-`db7d0e4ee` (`make-scores.sh`, above). The details' soldb check uses
+`db7d0e4ee` (`make-arcade.sh`, above). The details' soldb check uses
 `bug/tally.bug` and its saved transaction (`bug/compile.mjs`,
 `bug/make-tx.mjs`).

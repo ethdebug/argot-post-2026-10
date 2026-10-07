@@ -10,7 +10,7 @@
 // and { id, progress } while a file arrives or a phase starts (see
 // fetch-progress.js).
 //   load(dataset)    "sol" or "fe": a Loaded (see engine.js), for
-//                    Scores record(30)
+//                    Arcade, alice's second play()
 //   state(dataset, i) soldb's state(i): the contract's state at step i
 //   run(job)         "bug-check" or "replay": a soldb-only check
 //   requests()       this worker's resource timing entries
@@ -136,7 +136,7 @@ const loadLean = (io) => lean ??= (async () => {
 // Traces kept for state(i).
 const traces = {};
 
-// Solidity: Scores `record(30)`, soldb's saved trace, the ethdebug output
+// Solidity: Arcade, alice's second `play()`, soldb's saved trace, the ethdebug output
 // of Walnut's solc fork (walnuthq/solidity PR #10; via-IR, optimizer
 // off), whose pointers give soldb the state variables.
 async function loadSolidity(io) {
@@ -144,10 +144,10 @@ async function loadSolidity(io) {
   const t = now();
   const [lean, traceText, metadata, program, sol] = await Promise.all([
     loadLean(io),
-    io.text("./sol/record.trace.json", "the transaction trace"),
+    io.text("./sol/play.trace.json", "the transaction trace"),
     io.json(`${dir}/ethdebug_resources.json`, "solc's ethdebug data"),
-    io.json(`${dir}/Scores_ethdebug-runtime.json`, "solc's ethdebug data"),
-    io.text("./sol/Scores.sol", "the source"),
+    io.json(`${dir}/Arcade_ethdebug-runtime.json`, "solc's ethdebug data"),
+    io.text("./sol/Arcade.sol", "the source"),
   ]);
   const { mod, out } = lean;
   const times = [...lean.times,
@@ -156,7 +156,7 @@ async function loadSolidity(io) {
   const trace = await timed(times, "Trace.fromJson (parse)", () =>
     mod.Trace.fromJson(traceText));
   await timed(times, "attachEthdebug", () => trace.attachEthdebug(
-    JSON.stringify({ name: "Scores", metadata, program,
+    JSON.stringify({ name: "Arcade", metadata, program,
       sources: { 0: sol } })));
   traces.sol = trace;
   const sources = { 0: source(0, sol) };
@@ -179,7 +179,7 @@ async function loadSolidity(io) {
   transfer(steps)];
 }
 
-// Fe: Scores `Record{points: 30}` on anvil, Fe 26.4.1's ethdebug (-O 0).
+// Fe: Arcade `Play`, alice's second, on anvil, Fe 26.4.1's ethdebug (-O 0).
 // The page adapts
 // only the file layout (listed on the page): it picks the `call`
 // program and supplies the source text that Fe's file leaves out.
@@ -197,7 +197,7 @@ async function loadFe(io) {
       io.text(`${FE}/tx.debug-trace.json`, node),
       io.text(`${FE}/tx.transaction.json`, node),
       io.text(`${FE}/tx.receipt.json`, node),
-      io.json(`${FE}/scores.ethdebug.json`, "Fe's ethdebug data"),
+      io.json(`${FE}/arcade.ethdebug.json`, "Fe's ethdebug data"),
     ]));
   // Adaptation 2 (below): Fe lists sources without contents; fetch the
   // text while soldb parses. The user file sits next to the artifact;

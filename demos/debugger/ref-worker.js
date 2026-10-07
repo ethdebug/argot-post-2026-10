@@ -39,9 +39,9 @@ async function timed(times, label, fn) {
 // One program, two optimization levels, by bugc from ethdebug/format
 // main (local variables at every level).
 const BUG = "bug";
-const FILE = "scores.bug";
-const DIRS = { "bug-O0": `${BUG}/scores-O0`,
-  "bug-O2": `${BUG}/scores-O2` };
+const FILE = "arcade.bug";
+const DIRS = { "bug-O0": `${BUG}/arcade-O0`,
+  "bug-O2": `${BUG}/arcade-O2` };
 
 // The context tree's `code` ranges, each marked when it sits in a
 // context with transform "inline" (an inlined body). In bugc's output
@@ -96,11 +96,11 @@ async function load(report, key) {
   const json = async (url, label) => JSON.parse(await text(url, label));
   const [program, dbg, src, before, runtime] = await timed(times,
     "fetch program, trace, source", () => Promise.all([
-      json(`${dir}/scores.program.json`, "bugc's ethdebug program"),
+      json(`${dir}/arcade.program.json`, "bugc's ethdebug program"),
       text(`${dir}/tx.debug-trace.json`, "the transaction trace"),
       text(`${BUG}/${FILE}`, "the source"),
       json(`${dir}/tx.storage-before.json`, "the storage before"),
-      text(`${dir}/out/Scores.runtime.bin`, "the deployed code"),
+      text(`${dir}/out/Arcade.runtime.bin`, "the deployed code"),
     ]));
   report({ phase: "The reference implementation maps each step" });
   const logs = await timed(times, "parse trace", () =>

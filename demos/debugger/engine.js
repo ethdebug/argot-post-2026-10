@@ -242,8 +242,8 @@ export function refEngine() {
 
 /**
  * @returns {Engine} a source-map stepper, with no ethdebug: solc's
- * bytecode, source map and AST, in a module Web Worker. Data sets
- * "old-record" and "old-history".
+ * bytecode, source map and AST, in a module Web Worker. Data set
+ * "old".
  */
 export function sourceMapEngine() {
   const call = client("the source map stepper", "./srcmap-worker.js");
@@ -251,12 +251,13 @@ export function sourceMapEngine() {
     variables: "No variables: a source map has none. solc writes no " +
       "output that says where a local variable is at a step.",
     inline: "No inlining: a source map has no inline marker. Here " +
-      "solc inlined bonus; its steps carry only their own ranges.",
+      "solc inlined rolledHit, resetCombo and multiplied; their steps " +
+      "carry only their own ranges.",
     library: { text: "Library code: none in this contract" },
   };
   return {
     name: "the source map stepper",
-    whyNot: { "old-record": no, "old-history": no },
+    whyNot: { old: no },
     load: (dataset, onProgress) => call("load", [dataset], onProgress),
     callStack: (dataset, i) => call("callStack", [dataset, i]),
     requests: async () => call.started() ? call("requests", []) : [],
