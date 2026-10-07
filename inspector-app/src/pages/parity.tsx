@@ -109,7 +109,7 @@ try {
     return recording.get(id)!;
   };
 
-  const ready = (lens: LensContextValue) => {
+  const ready = (lens: LensContextValue, shown: Promise<boolean>) => {
     // "show other state": the cards in the dump and by the tree's rows
     const box = $("insets") as HTMLInputElement;
     box.checked = lens.store.get().insets;
@@ -125,7 +125,8 @@ try {
       if (ok) await recorded(id);
       return ok;
     };
-    window.select(fullInspector.bookmarks![0]).then(() => {
+    // (the view the hash asks for, or the first scene: the lens shows it)
+    shown.then(() => recorded(lens.store.get().bookmark!)).then(() => {
       $("loadbar").hidden = true;
       window.results.usable = performance.now();
       window.results.done = true;
@@ -135,7 +136,7 @@ try {
   const host = document.createElement("div");
   document.body.append(host);
   createRoot(host).render(<Lens spec={fullInspector} project={project}
-    mount={mount} onReady={ready} />);
+    mount={mount} onReady={ready} hash />);
 } catch (e) {
   console.error(e);
   window.results.errors.push(String((e as Error)?.message ?? e));

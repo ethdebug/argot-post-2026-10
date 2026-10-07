@@ -318,7 +318,10 @@ export function Dump(p: { id: ViewId; location: Location; data: DataRef;
     aria-label={p.when ? `${label} ${p.when}` : label} hidden={p.hidden}
     data-view={`${lens.key}:${p.id}`}
     onPointerOver={point} onFocus={point}
-    onClick={(e: MouseEvent) => act(e.target)} onKeyDown={onKey}>
+    onClick={(e: MouseEvent) => {
+      // (the lens's click-to-clear leaves a click that acted alone)
+      if (act(e.target)) (e.nativeEvent as { acted?: boolean }).acted = true;
+    }} onKeyDown={onKey}>
     <div className="view-head"><span className="view-name">{title}</span>
       <div className="wrow head"><span className="addr" /><Ruler /></div>
     </div>
