@@ -8568,7 +8568,7 @@ function buildCallStack(trace, pcToInstruction, upToStep, programContext) {
           });
         }
       } else if (event.kind === "return" || event.kind === "revert") {
-        if (i < upToStep && stack.length > 0) {
+        if (stack.length > 0) {
           stack.pop();
         }
       }
@@ -8655,7 +8655,7 @@ function buildPcToInstructionMap(program) {
   return map2;
 }
 
-var commit = "2fd7e781b8138b22b08c5b0b837b52cce5ada2ac";
+var commit = "8714233076eb5de594de4a070b36d9bbd5363e86";
 export {
   Data2 as Data,
   buildCallStack,

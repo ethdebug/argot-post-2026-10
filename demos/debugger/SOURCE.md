@@ -67,19 +67,21 @@ changes; `run.mjs` checks that it matches.
 ## The BUG tab: ethdebug's reference implementation
 
 `vendor/ethdebug-ref.js` bundles, from ethdebug/format at commit
-`2fd7e781b8138b22b08c5b0b837b52cce5ada2ac` (main): `@ethdebug/pointers`
+`8714233076eb5de594de4a070b36d9bbd5363e86` (main): `@ethdebug/pointers`
 (`dereference`, `Data`), `@ethdebug/evm`'s Machine.State adapter
 (`createMachineState`, without its executor) and the trace
 reconstruction utilities of `@ethdebug/programs-react` (no React; with
-#342, which reads variables across `gather` and `pick`). It
+#342, which reads variables across `gather` and `pick`, and #349, which
+no longer pops a frame after its `return`). It
 is made by `make-ref-vendor.sh <checkout>` after `yarn install` in that
 checkout. `ref-worker.js` uses it.
 
 The BUG data (`bug/scores.bug`, `bug/scores-O0/`, `bug/scores-O2/`)
 comes from bugc built from ethdebug/format at the same commit,
-`2fd7e781b` (main: local variables at every level, #328; storage
+`871423307` (main: local variables at every level, #328; storage
 variables and the caller's variables right at inlined code, #341;
-writes to memory array elements, #343), with
+writes to memory array elements, #343; a function's `return` on its
+exit jump, #349: debug info only, the bytecode is unchanged), with
 `bug/compile.mjs <bugc> scores.bug <0|2> scores-O<0|2>` and, on
 `anvil --steps-tracing --port 8549`, `PORT=8549 bug/make-tx.mjs Scores
 scores-O<0|2> memory` (anvil 1.2.3). The trace has each step's memory;
