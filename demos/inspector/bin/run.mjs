@@ -1415,20 +1415,37 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
     !(p in c.dump) || c.dump[p] === k);
   await page.locator('#tree li[data-path="players"] > .row').click();
   await page.mouse.move(1, 1);
+  // (the selection colour, pk0, is the selected row's own, never a
+  // child's)
   let cl = await colours();
   const byEntry = [A, B, C].map((p) => new Set(Object.entries(cl.tree)
     .filter(([q]) => q.startsWith(p)).map(([, k]) => k)));
-  if (byEntry.some((x) => x.size !== 1) ||
+  if (byEntry.some((x) => x.size !== 1 || x.has("pk0")) ||
     new Set(byEntry.map((x) => [...x][0])).size !== 3 ||
-    !sameColours(cl) || cl.bg !== 3) {
+    cl.tree.players !== "pk0" || !sameColours(cl) || cl.bg !== 3) {
     problems.push(`players colours: ${JSON.stringify(cl)}`);
   }
   await page.locator(`#tree li[data-path="${A}"] > .row`).click();
   await page.mouse.move(1, 1);
   cl = await colours();
-  if (new Set(Object.values(cl.tree)).size !== 7 || !sameColours(cl)) {
+  const members = Object.entries(cl.tree).filter(([q]) => q !== A)
+    .map(([, k]) => k);
+  if (new Set(members).size !== 7 || members.includes("pk0") ||
+    cl.tree[A] !== "pk0" || !sameColours(cl)) {
     problems.push(`alice's members: ${JSON.stringify(cl)}`);
   }
+  // an array: its length (its own bytes) in the selection colour, its
+  // elements in child colours
+  await page.locator('#tree li[data-path="roster"] > .row').click();
+  await page.mouse.move(1, 1);
+  cl = await colours();
+  if (cl.tree.roster !== "pk0" || cl.dump.roster !== "pk0" ||
+    ["roster[0]", "roster[1]", "roster[2]"].some((q) =>
+      !cl.tree[q] || cl.tree[q] === "pk0") || !sameColours(cl)) {
+    problems.push(`roster colours: ${JSON.stringify(cl)}`);
+  }
+  await page.locator(`#tree li[data-path="${A}"] > .row`).click();
+  await page.mouse.move(1, 1);
   // with alice's entry selected, pointing at one member (its row, or a
   // byte of it, or the keyboard) mutes the other members, both sides
   const muted = () => page.evaluate(() => ({
@@ -1452,7 +1469,8 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
     }]]) {
     await act();
     const mu = await muted();
-    if (mu.vivid.join() !== `${A}.combo` || mu.rows.length !== 6 ||
+    // (the selected entry's own row keeps its colour)
+    if (mu.vivid.join() !== `${A},${A}.combo` || mu.rows.length !== 6 ||
       mu.bytes.join() !== `${A}.combo` || !mu.mutedBytes) {
       problems.push(`mute (${how}): ${JSON.stringify(mu)}`);
     }
@@ -1859,6 +1877,7 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
   }
   // a cleared default selection stays cleared ("sel=")
   await hp.locator('#tree li[data-path="total"] > .row').click();
+  await idle(hp);
   await hp.reload();
   await hp.waitForFunction(() => window.results?.done, null,
     { timeout: 60000 });

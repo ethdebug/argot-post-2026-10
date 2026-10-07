@@ -291,13 +291,14 @@ offsets.
 - Selecting a composite colours its immediate children apart, the same
   in the tree and the dump: a mapping's entries, an array's elements, a
   struct's members (a packed slot then shows its fields as bands).
-  Everything under a child takes its colour; the composite's own bytes
-  (an array's length) keep the first colour, the plain highlight
-  (`--mark`). Seven colours (`--pk1` … `--pk6` after `--mark`, light
-  and dark), cycling. A leaf keeps the one colour. Mapping keys show
+  Everything under a child takes its colour. The selection colour (the
+  plain highlight, `--mark`) is the selected item's own: its row, and
+  its own bytes (an array's length, a long string's length word); a
+  child never gets it. Eight child colours (`--pk1` … `--pk8`, light and
+  dark); only a ninth child repeats one. A leaf keeps the one colour. Mapping keys show
   the key only. With a composite selected, pointing at one child (its
-  row or its bytes, or keyboard focus) mutes the other children in the
-  tree and the dump (`.muted`, 120 ms, none with reduced motion).
+  row or its bytes, or keyboard focus) mutes the other children (not
+  the selected item's own row and bytes) in the tree and the dump (`.muted`, 120 ms, none with reduced motion).
 - While a variable is selected, the view stays on it: hovering other
   bytes, rows or addresses changes nothing. Hovering its own bytes
   only puts byte detail in the details; a chip beside the Before |

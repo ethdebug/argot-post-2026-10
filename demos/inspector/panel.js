@@ -499,30 +499,32 @@ export function forRow(m, path) {
   const label = own ? ownerLabel(m, own) : `${path} · ${below}`;
   const info = own ? ownerInfo(m, own)
     : [["Value", `${code(shortKeys(path))}, ${below}`]];
-  return { bytes: ownerBytes(m, ids, new Set()), rows: new Set(ids.map(
-    (id) => m.owners.get(id).row)), label, info, path,
+  // (the row itself is lit too, in the selection colour, even when it
+  // owns no bytes: a mapping, a struct)
+  return { bytes: ownerBytes(m, ids, new Set()), rows: new Set([path,
+    ...ids.map((id) => m.owners.get(id).row)]), label, info, path,
     colors: childColors(m, path, ids) };
 }
 
 // The colours of a composite's immediate children: each child (a
 // mapping's entry, an array's element, a struct's member) gets one of
-// PICKS colours, in tree order, cycling; everything under a child takes
-// its colour. The composite's own bytes (an array's length, a string's
-// length byte) keep the first colour, and then the children start at the
-// second. A leaf has no children: none (one colour, as before).
+// the child colours (pk1 …, in tree order, cycling); everything under a
+// child takes its colour. The selection colour (0, --mark) is the
+// composite's own: its row and its own bytes (an array's length, a
+// string's length word), never a child's. A leaf has no children: none
+// (one colour, as before).
 // Returns Map(tree path -> colour) or null.
-const PICKS = 7;
+const PICKS = 9;
 function childColors(m, path, ids) {
   const child = (row) => row.slice(path.length)
     .match(/^(\.[^.[]+|\[[^\]]*\])/)?.[0];
   const rows = ids.map((id) => m.owners.get(id).row);
   const kids = [...new Set(rows.map(child).filter(Boolean))];
   if (!kids.length) return null;
-  const start = rows.some((r) => r === path) ? 1 : 0;
-  const colors = new Map();
+  const colors = new Map([[path, 0]]);
   for (const r of rows) {
     const c = child(r);
-    colors.set(r, c ? (start + kids.indexOf(c)) % PICKS : 0);
+    colors.set(r, c ? 1 + kids.indexOf(c) % (PICKS - 1) : 0);
   }
   return colors;
 }
@@ -818,8 +820,9 @@ export function paint(root, tree, h, opts = {}) {
         .map((id) => h.colors.get(id.replace(/#length$/, "")))
         .find((x) => x !== undefined);
       pick(c, k);
+      // (the selected item's own colour, 0, never mutes)
       c.classList.toggle("muted", hl && h.focus !== undefined &&
-        k !== h.focus);
+        !!k && k !== h.focus);
       c.classList.toggle("at", isAt);
       on ||= hl || isAt;
     }
@@ -846,7 +849,7 @@ export function paint(root, tree, h, opts = {}) {
     const k = on && h.colors?.get(r.dataset.path);
     pick(r.firstElementChild, k);
     r.firstElementChild.classList.toggle("muted", on &&
-      h.focus !== undefined && k !== h.focus);
+      h.focus !== undefined && !!k && k !== h.focus);
   }
   const views = [...root.querySelectorAll(".view")].filter((v) => !v.hidden);
   // the other state's picture beside each lit run, in every mode
