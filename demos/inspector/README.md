@@ -353,18 +353,25 @@ the dump's first line share a height (`alignColumns()`).
 
 Nothing moves when a value is selected, pointed at or replayed:
 emphasis is lighting and muting only. The bar (`#details`) is one line
-over both columns: the selection, the controls (◀ ▶ ⏭ and "n / m", or
-"How was this found? ▸" at rest) in a fixed spot, and the step's short
-caption. The panel (`#dpanel`) is stuck to the bottom of the dump's
-column at one size: the step in full (caption, formula, the pointer
-constructs it uses, where its input came from), the footnote (a link
-to the spec page of the step's construct), the chips (one per step,
-done, current, later; a click jumps), and the pointer solc wrote, as
-YAML (template names shortened to their types' names; solc's ids
-listed under it), Shiki-coloured, the step's lines in a band and the
-rest muted, scrolled inside to keep them in view. With nothing
-selected, the panel shows what the pointer is on. The dump can be
-scrolled down past it.
+over both columns, stuck to the top of the window: the selection in a
+fixed-width spot, the controls (◀ ▶ ⏭ and "n / m", or "How was this
+found? ▸" at rest; the only controls), and the step's short caption.
+The panel (`#dpanel`) is a row under both columns, in the page, at one
+size, each part in its own room: the step in full (caption, formula,
+the pointer constructs it uses with one footnote marker, where its
+input came from), the footnote (a link to the spec page of the step's
+construct; at rest, one line on what the steps are), the chips (one
+row, scrolling sideways), and the pointer solc wrote, as YAML (keys in
+the spec's order: a conditional's if, then, else; a region's name,
+location, slot, offset, length; a line too long for the box in block
+style; template names shortened, solc's ids listed under it),
+Shiki-coloured, the step's lines in a band with a rule and the rest
+muted, the box scrolled inside to show the whole band (or its end),
+its edges faded. On a phone the panel is a small sheet fixed to the
+bottom of the screen (the caption, the formula, a few lines of the
+pointer), small enough that every step's lit rows fit between it and
+the bar. During a replay, the bytes of a lit slot that no value owns
+stay muted.
 
 The replay shows the rules the selection's pointers follow, each once,
 by example, then for the rest. The page walks the raw steps that

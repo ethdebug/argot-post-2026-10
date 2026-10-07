@@ -269,16 +269,6 @@ contract Arcade {
             <div id="chow" class="how"></div></div>
         </div>
       </section>
-      <!-- stuck to the bottom of this column, always there, at one size:
-      the step in full, the colours, the chips, the footnotes, and the
-      pointer solc wrote -->
-      <div id="dpanel" class="dpanel">
-        <div class="dleft">
-          <div id="dtext" class="dtext"></div>
-          <div id="chips" class="chips"></div>
-        </div>
-        <div id="ptr" class="ptr" aria-label="The pointer solc wrote"></div>
-      </div>
     </section>
 
     <section aria-label="Variables" class="storage">
@@ -296,6 +286,20 @@ contract Arcade {
       declared.</p>
       <pre id="src" class="src"></pre>
     </section>
+    <!-- a row under both columns (on a phone, a sheet at the bottom of
+    the screen), always there, at one size: the step in full, its
+    footnote, the chips, and the pointer solc wrote -->
+    <div id="dpanel" class="dpanel">
+      <div class="dleft">
+        <div id="dtext" class="dtext"></div>
+        <div id="chips" class="chips"></div>
+      </div>
+      <div class="ptr" aria-label="The pointer solc wrote">
+        <p class="plabel">The pointer solc wrote <span class="pnote">(as YAML;
+        template names shortened)</span></p>
+        <div id="ptr" class="ptrscroll"></div>
+      </div>
+    </div>
   </div>
 
   <section class="notes" aria-label="Notes">

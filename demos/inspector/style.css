@@ -349,7 +349,10 @@ li.same > .row .name, li.same > .row .type { opacity: 0.55; }
 @container (max-width: 559.98px) {
   .views { padding-bottom: 3.2em; }
   .word .bytes, .ruler .bytes, .bruler .bytes { display: grid;
-    grid-template-columns: repeat(2, max-content); }
+    grid-template-columns: repeat(2, max-content); row-gap: 0;
+    line-height: 1.4; }
+  /* (no byte ruler over the dump: on two lines it reads oddly) */
+  .wrow.head .ruler { visibility: hidden; }
   .dump { --cell: 2.15ch; }
 }
 .view-head {
@@ -887,84 +890,105 @@ main[data-single] > .cols :is(.chglegend, .legend .bchg, .intro .two) {
 @media (min-width: 1100px) {
   .scols { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
     grid-template-rows: auto 1fr; }
-  .scols .words { grid-column: 1; grid-row: 1 / span 2; }
+  .scols .words { grid-column: 1; grid-row: 1 / span 2; position: static; }
   .scols .storage { grid-column: 2; grid-row: 1; font-size: inherit; }
   .scols .source { grid-column: 2; grid-row: 2; }
 }
 .colhead { margin-top: 0; }
 /* the dump's state is in the bar and the Show toggle */
 .scols .view-name { display: none; }
-/* the bar: one line, at one height, always; the selection, then the
-   controls in a fixed-width spot, then the short caption, which is cut
-   at its end if it must be */
+/* the bar: one line, at one height, always, stuck to the top of the
+   window: the selection in a fixed-width spot, then the controls, then
+   the short caption, which is cut at its end if it must be */
 .rbar { display: grid; align-items: center; gap: 12px; height: 2.6em;
   box-sizing: border-box; padding: 0 10px; margin: 0 0 10px;
-  grid-template-columns: minmax(0, 2fr) 15em minmax(0, 2fr);
+  grid-template-columns: minmax(0, 40ch) 15em minmax(0, 1fr);
   background: var(--panel); border: 1px solid var(--line);
   border-left: 3px solid var(--accent); border-radius: 6px;
-  white-space: nowrap; }
+  white-space: nowrap; position: sticky; top: 0; z-index: 9; }
 .rbar > * { overflow: hidden; text-overflow: ellipsis; min-width: 0; }
 .rbar .rctl { display: flex; align-items: center; gap: 4px;
   overflow: visible; }
 .rbar .rctl .btn { padding: 1px 10px; }
 .rshort { font-weight: 600; }
 @media (max-width: 759px) {
+  /* (the selection and the controls; the caption is in the sheet) */
   .rbar { grid-template-columns: minmax(0, 1fr) 11.5em; height: 2.6em; }
-  .rbar .rsel { display: none; }
-  .rbar .rshort { grid-column: 1; grid-row: 1; }
-  .rbar .rctl { grid-column: 2; grid-row: 1; }
+  .rbar .rshort { display: none; }
+  .rbar .rsel .type, .rbar .rsel .muted { display: none; }
 }
-/* stuck to the bottom of the dump's column: the step in full, the
-   chips and footnotes, and the pointer. One size, always. */
-.dpanel { position: sticky; bottom: 0; z-index: 8; display: grid;
-  gap: 10px; grid-template-columns: minmax(0, 3fr) minmax(0, 2fr);
-  height: 15em; box-sizing: border-box; margin: 10px 0 0; padding: 8px 10px;
-  background: var(--panel); border: 1px solid var(--line);
-  border-left: 3px solid var(--accent); border-radius: 6px;
-  box-shadow: 0 -4px 12px rgb(0 0 0 / 0.08); }
-.dleft { display: grid; grid-template-rows: minmax(0, 1fr) auto;
-  min-height: 0; gap: 4px; }
+/* a row under both columns, in the page, at one size: the step (its
+   caption, formula, constructs, footnote; then the chips, one row) and
+   the pointer. Each part has its own fixed room. */
+.dpanel { display: grid; gap: 14px; grid-template-columns: minmax(0, 1fr)
+  minmax(0, 1fr); height: 15.5em; box-sizing: border-box;
+  margin: 14px 0 0; padding: 8px 12px; background: var(--panel);
+  border: 1px solid var(--line); border-left: 3px solid var(--accent);
+  border-radius: 6px; }
+@media (min-width: 1100px) {
+  .scols .dpanel { grid-column: 1 / -1; grid-row: 3; }
+}
+.dleft { display: grid; grid-template-rows: auto 3.4em; min-height: 0;
+  gap: 6px; }
 .dtext { min-height: 0; overflow: hidden; }
 .dtext dl { margin: 0; display: grid; grid-template-columns: auto 1fr;
   gap: 0 10px; font-size: 0.85rem; line-height: 1.35; }
 .dtext dd { margin: 0; overflow-wrap: anywhere; }
-.ptr { min-height: 0; overflow: auto; position: relative; }
+.ptr { min-height: 0; display: grid; grid-template-rows: auto
+  minmax(0, 1fr); }
 .ptr .plabel { margin: 0 0 4px; font-size: 0.75rem; font-weight: 700;
-  text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted);
-  position: sticky; left: 0; top: 0; z-index: 1; background: var(--panel);
-  padding: 2px 0; }
+  text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); }
+.ptr .pnote { font-weight: 400; text-transform: none; letter-spacing: 0; }
+/* the excerpt scrolls inside itself; its edges fade, to show there is
+   more */
+.ptrscroll { min-height: 0; overflow: auto; position: relative;
+  mask-image: linear-gradient(to bottom, transparent 0, #000 0.9em,
+    #000 calc(100% - 0.9em), transparent 100%); }
 #ptr code { background: none; padding: 0; border: 0; font-size: inherit; }
-.ptrlines { margin: 0; font-size: 0.72rem; line-height: 1.5;
-  white-space: pre; width: max-content; min-width: 100%; }
+.ptrlines { margin: 0; padding: 0.6em 0; font-size: 0.72rem;
+  line-height: 1.5; white-space: pre; width: max-content; min-width: 100%; }
 .ptrlines .line { display: inline-block; min-width: 100%;
   border-radius: 2px; background: none; }
-.ptr.lit .ptrlines .line:not(.on) { opacity: 0.4; }
-/* the one band: the step's lines */
-.ptrlines .line.on { background: color-mix(in srgb, var(--mark) 60%,
-  transparent); }
+.ptrscroll.lit .ptrlines .line:not(.on) { opacity: 0.4; }
+/* the one band: the step's lines, with a rule at their left */
+.ptrlines .line.on { background: color-mix(in srgb, var(--mark) 55%,
+  transparent); box-shadow: inset 3px 0 0 var(--accent); }
+@media (prefers-color-scheme: dark) {
+  .ptrlines .line.on { background: color-mix(in srgb, var(--accent) 22%,
+    transparent); }
+}
 #ptr .ptrlines span { color: var(--shiki-light, inherit); }
 @media (prefers-color-scheme: dark) {
   #ptr .ptrlines span { color: var(--shiki-dark, inherit); }
 }
-/* on a phone: a sheet fixed to the bottom of the screen; the page has
-   room under its end for it */
+/* on a phone: a small sheet fixed to the bottom of the screen (the
+   step's caption and formula, a few lines of the pointer; the rest
+   scrolls inside it); the page has room under its end for it */
 @media (max-width: 759px) {
   .dpanel { grid-template-columns: minmax(0, 1fr);
-    grid-template-rows: minmax(0, 1fr) 6.5em; height: 22em;
+    grid-template-rows: auto 5.4em; height: 14.5em; gap: 4px;
     position: fixed; left: 8px; right: 8px; bottom: 0; margin: 0;
-    border-radius: 6px 6px 0 0; }
-  body { padding-bottom: 22em; }
+    padding: 6px 10px; z-index: 9; border-radius: 6px 6px 0 0;
+    box-shadow: 0 -4px 12px rgb(0 0 0 / 0.12); }
+  body { padding-bottom: 15em; }
+  .dleft { grid-template-rows: auto; }
+  .dpanel .chips, .dpanel .rsrc, .dpanel .fnotes, .ptr .plabel {
+    display: none; }
+  .ptr { grid-template-rows: minmax(0, 1fr); }
 }
 .rcap { margin: 0; font-size: 1rem; line-height: 1.35; height: 2.7em;
   overflow: hidden; }
 .rform { margin: 0; font-family: ui-monospace, Menlo, monospace;
   font-size: 0.85rem; line-height: 1.4; height: 4.2em; overflow: hidden;
   overflow-wrap: anywhere; }
+.rform .prose { font-family: system-ui, -apple-system, "Segoe UI",
+  sans-serif; color: var(--muted); }
 .rwhere { font-family: inherit; height: auto; }
-.rsrc { margin: 2px 0 0; height: 1.6em; overflow: hidden; }
+.rsrc { margin: 4px 0 0; height: 1.6em; overflow: hidden;
+  white-space: nowrap; }
 @media (max-width: 759px) {
-  .rform { height: 5.6em; }
-  .rsrc { height: 3.2em; }
+  .rcap { height: 2.7em; font-size: 0.95rem; }
+  .rform { height: 5.6em; font-size: 0.8rem; }
 }
 .rcount { margin-left: 6px; color: var(--muted); font-size: 0.85rem;
   font-variant-numeric: tabular-nums; }
@@ -978,9 +1002,11 @@ main[data-single] > .cols :is(.chglegend, .legend .bchg, .intro .two) {
 .source.pksrc { background: var(--pksrc); color: var(--pksrc-fg);
   opacity: 1; padding: 0 6px; border-radius: 9px; }
 sup.fn { font-size: 0.7em; color: var(--accent); margin-left: 1px; }
-.chips { display: flex; flex-wrap: wrap; align-items: flex-start;
-  align-content: flex-start; gap: 4px 3px; margin: 0; height: 5em;
-  overflow: auto; }
+/* the chips: one row, which scrolls sideways inside itself */
+.chips { display: flex; flex-wrap: nowrap; align-items: flex-start;
+  gap: 3px; margin: 0; height: 3.4em; overflow-x: auto; overflow-y: hidden;
+  scrollbar-width: thin; }
+.chip { flex: none; }
 .chip { display: inline-flex; flex-direction: column; align-items: center;
   gap: 1px; max-width: 16em; padding: 2px 8px; border-radius: 10px;
   border: 1px solid var(--line); background: var(--panel); color: var(--fg);
@@ -993,10 +1019,10 @@ sup.fn { font-size: 0.7em; color: var(--accent); margin-left: 1px; }
 .chip.cur .clabel { color: inherit; }
 .chip.later { opacity: 0.45; }
 .carrow { color: var(--muted); align-self: center; font-size: 0.8rem; }
-.fnotes { margin: 2px 0 0; font-size: 0.75rem; height: 1.3em;
+.fnotes { margin: 4px 0 0; font-size: 0.75rem; height: 1.4em;
   overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
 .fnote { margin-right: 10px; }
-.fnote sup { color: var(--accent); }
+.fnote sup { color: var(--accent); line-height: 0; }
 .fname { font-weight: 700; }
 /* a slot's byte positions, under it, during a replay step about its
    bytes */
@@ -1036,3 +1062,9 @@ main:not([data-single]) .words .dump { margin-bottom: 2.6em; }
 /* no scroll anchoring: the page never scrolls by itself when a step
    changes the dump's overlays */
 html { overflow-anchor: none; }
+/* the byte positions of a step: over the "⋯" line above the slot when
+   there is one, with a label at the left */
+.bruler.above { top: auto; bottom: 100%; }
+.bruler .blabel { position: absolute; right: 100%; top: 0; padding: 0 6px;
+  font-size: 0.6rem; color: var(--accent); }
+.bruler .b { color: var(--accent); }
