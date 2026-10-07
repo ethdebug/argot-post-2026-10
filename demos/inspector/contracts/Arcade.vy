@@ -3,10 +3,14 @@
 struct Player:
     score: uint64
     combo: uint32
-    active: bool
+    bestCombo: uint32
+    plays: uint32
+    hitCount: uint32
+    lastBlock: uint64  # when they last played
+    name: String[64]
 
 players: public(HashMap[address, Player])
-hits: public(DynArray[uint256, 100])   # every hit's points, in order
+roster: public(DynArray[address, 100])  # everyone who has joined (a mapping can't list its keys)
 motd: public(String[100])              # the server's message of the day
 total: public(uint128)                 # all players' points
 rounds: public(uint64)                 # the number of hits
@@ -16,15 +20,25 @@ def __init__(m: String[100]):
     self.motd = m
 
 @external
+def join(name: String[64]):  # pick a name, once
+    assert len(name) > 0 and len(self.players[msg.sender].name) == 0
+    self.players[msg.sender].name = name
+    self.roster.append(msg.sender)
+
+@external
 def play():
-    self.players[msg.sender].active = True
+    assert len(self.players[msg.sender].name) > 0  # joined
+    self.players[msg.sender].plays += 1
+    self.players[msg.sender].lastBlock = convert(block.number, uint64)
     if not self._rolled_hit():
         self._reset_combo(msg.sender)  # a miss
         return
     self.players[msg.sender].combo += 1
+    self.players[msg.sender].hitCount += 1
+    if self.players[msg.sender].combo > self.players[msg.sender].bestCombo:
+        self.players[msg.sender].bestCombo = self.players[msg.sender].combo
     gained: uint64 = self._multiplied(10, self.players[msg.sender].combo)
     self.players[msg.sender].score += gained
-    self.hits.append(convert(gained, uint256))
     self.total += convert(gained, uint128)
     self.rounds += 1
 

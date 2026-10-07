@@ -30,20 +30,23 @@ are the picker's buttons, with `data-fixture` and `data-single` (one
 point), so that the page does not move when the data comes;
 `bin/run.mjs` checks that they match.
 
-1. A packed slot: `total` and `rounds` share slot 3. One point, after
-   the five plays (total 40, rounds 3). Nothing selected.
-2. Three players: alice, bob and carol's `Player` entries, each packed
-   in one word at keccak(address . slot 0), far apart. One point, after
-   the five plays. `players[alice]` selected.
-3. Vyper reads it differently: the same three players in Vyper's build
-   (see "Vyper" below). One point.
-4. Same slot, new values: before and after alice's second hit (combo 1
-   → 2, score 10 → 30). Its mapping keys: alice's only, from her two
-   hits. `players[alice]` selected.
-5. A string outgrows its slot: before and after
+1. The middle of the game: one point, after alice's two hits, bob's
+   hit and carol's miss. All three players: each record is one full
+   packed slot at keccak(address . slot 0) (score, combo, bestCombo,
+   plays, hitCount, lastBlock), the name in the next slot (alice's and
+   bob's inline; carol's 34-byte name at keccak of that slot, over two
+   slots); the roster at keccak(slot 1) + i; `total` and `rounds` packed
+   in slot 3. `players[alice]` selected.
+2. Alice plays: the middle of the game → after her third hit (combo 3,
+   +30): score 30 → 60, combo, bestCombo, plays and hitCount 2 → 3,
+   lastBlock; `total` 40 → 70, `rounds` 3 → 4. `players[alice]`
+   selected.
+3. The message of the day: before and after
    `setMotd("season 2 starts friday, see you on the leaderboard")` (50
    bytes; the motd was "gl hf"). `motd` selected. This scene also shows
    the calldata (below).
+4. Vyper reads it differently: the same three players in Vyper's build,
+   at the middle of the game (see "Vyper" below). One point.
 
 A scene with one point has no other state: no Before | After, no "show
 other state", no change marks or cards, no popover facts ("read,
@@ -55,21 +58,24 @@ the fixture by using the one side's words as both sides (`atPoint()` in
 ## Vyper
 
 Vyper emits no ethdebug, so the page has no rule from Vyper. The Vyper
-scene is the smallest honest version, and follows from "Three players":
-`contracts/Arcade.vy` (Vyper 0.4.3), deployed, then the same five plays.
-The page applies solc's rule for `players` (from Arcade.sol's ethdebug
-output, `players` only) to the Vyper contract's real storage, with the
-three players' keys. keccak256(key . slot 0) holds nothing for any of
-them (alice: `0x14e0…d101`), so the tree shows each with score 0, not
-active, with no error: what a tool built on Solidity's rules reads.
-Vyper's own rule, keccak256(slot 0 . key), puts each member in its own
-slot: alice at `0xd3a9…2785`: 30, 0, 1; bob at `0xd8fe…c835`: 10, 1, 1;
-carol at `0xb8dc…ba99`: 0, 0, 1. Those nine words are in the dump, named
-"Vyper's keccak(slot 0, …)", and no value owns them. "How this was
-found" ends with "Vyper's rule, for contrast: not from ethdebug", one
-step per word of the selected player, each lighting its word. The
-script checks those values against the node and the getter. How to
-show this point is still to be decided.
+scene is the smallest honest version, and follows from the first scene:
+`contracts/Arcade.vy` (Vyper 0.4.3), deployed, then the same joins and
+plays to the middle of the game. The page applies solc's rule for
+`players` (from Arcade.sol's ethdebug output, `players` only) to the
+Vyper contract's real storage, with the three players' keys.
+keccak256(key . slot 0) holds nothing for any of them (alice:
+`0x14e0…d101`), so the tree shows each with zeros and no name, with no
+error: what a tool built on Solidity's rules reads. Vyper's own rule,
+keccak256(slot 0 . key), puts each counter in its own slot, then the
+name's length and bytes: alice at `0xd3a9…2785` (30, 2, 2, 2, 2, her
+lastBlock, length 5, "alice"); bob at `0xd8fe…c835` (10, 1, 1, 1, 1, …,
+length 3, "bob"); carol at `0xb8dc…ba99` (0, 0, 0, 1, 0, …, length 34,
+two words of name). Those words are in the dump, named "Vyper's
+keccak(slot 0, …)", and no value owns them. "How this was found" ends
+with "Vyper's rule, for contrast: not from ethdebug", one step per word
+of the selected player, each lighting its word. The script reads those
+words from the node and checks them against the getter. How to show
+this point is still to be decided.
 
 ## Calldata (the setMotd scene)
 
@@ -114,8 +120,8 @@ and parameter in `fixtures/index.json` (`calldata`).
 - `bin/run.mjs`: Playwright check in Chromium, Firefox and WebKit;
   writes `screenshots/` (only `desktop-packed.png` is committed:
   the first scene, `total` selected by a click on its byte;
-  `desktop-dark.png`: Same slot, `combo` selected, with "How this was
-  found"; `insets.png`: Same slot, After, alice's entry lit, with its
+  `desktop-dark.png`: Alice plays, `combo` selected, with "How this was
+  found"; `insets.png`: Alice plays, After, alice's entry lit, with its
   "before" card; `memory.png`: the memory section, `names[1]` selected,
   A = array built, B = name replaced; `memory-phone.png`: the memory
   section on a phone; `phone.png`: the motd scene on a phone, `motd`
@@ -148,18 +154,21 @@ and parameter in `fixtures/index.json` (`calldata`).
    with the program-level context), bytecode and the AST. No
    storageLayout.
 3. The story, on a fresh anvil (deployer: account 0; alice, bob,
-   carol: accounts 1, 2, 3): deploy with motd "gl hf"; alice hits; alice
-   hits; bob hits; carol misses; alice misses; `setMotd("season 2
-   starts friday, see you on the leaderboard")`. A play rolls from
-   prevrandao, which anvil draws at random and cannot be told, so each
-   play is sent in an `evm_snapshot`; on the wrong outcome the script
-   reverts, mines an empty block and sends again (as
-   `private/arcade/tools/story.py` does). Hashes differ from run to
-   run; outcomes do not. Fixtures: `arcade-hit2` (alice's second hit),
-   `arcade-plays` (the last play: its after side is the end of the
-   plays), `arcade-motd` (setMotd); mapping keys from the plays' traces.
-   - Arcade.vy: deploy, the same five plays (fixture `arcade-vyper`;
-     see "Vyper").
+   carol: accounts 1, 2, 3): deploy with motd "gl hf"; alice, bob and
+   carol join (names "alice", "bob", "carol, the unstoppable combo
+   queen"); alice hits; alice hits; bob hits; carol misses (the middle
+   of the game); alice hits (combo 3); `setMotd("season 2 starts
+   friday, see you on the leaderboard")`. A play rolls from prevrandao,
+   which anvil draws at random and cannot be told, so each play is sent
+   in an `evm_snapshot`; on the wrong outcome the script reverts, mines
+   an empty block and sends again (as `private/arcade/tools/story.py`
+   does). Hashes and block numbers differ from run to run; outcomes do
+   not. Fixtures: `arcade-mid` (carol's miss: its after side is the
+   middle of the game), `arcade-alice` (alice's third hit),
+   `arcade-motd` (setMotd); mapping keys from the joins' and plays'
+   traces.
+   - Arcade.vy: deploy, the same joins and plays to the middle of the
+     game (fixture `arcade-vyper`; see "Vyper").
 4. For each transaction the script saves:
    - the trace steps the page needs from `debug_traceTransaction`
      (with memory): KECCAK256 steps with memory (mapping keys), SLOAD
@@ -181,9 +190,10 @@ intros and buttons in `index.html`, and the expected values in
 `bin/run.mjs`; then rerun the script, `bin/sizes.mjs` and `bin/run.mjs`.
 
 `bin/run.mjs` checks the decoded values against the values the calls
-wrote (alice 10 then 30 with combo 1 then 2; at the end alice 30 /
-combo 0, bob 10 / 1, carol 0 / 0, all active; hits `[10, 20, 10]`,
-total 40, rounds 3; and the Vyper storage values).
+wrote (at the middle of the game alice 30 / combo 2 / best 2 / plays 2
+/ hits 2, bob 10 / 1 / 1 / 1 / 1, carol 0 / 0 / 0 / 1 / 0, the names,
+the roster, total 40, rounds 3; after alice's third hit 60 / 3 / 3 / 3
+/ 3, total 70, rounds 4; and the Vyper storage values).
 
 ## Which data is ethdebug, which is not
 
@@ -297,13 +307,13 @@ offsets.
 - The URL hash keeps the view, e.g.
   `#ex=motd&mode=before&sel=motd&a=built&b=replaced&mmode=after`
   (`insets=0` when the cards are off)
-  (`ex`: the scene id: `packed`, `players`, `vyper`, `combo`, `motd`;
+  (`ex`: the scene id: `mid`, `alice`, `motd`, `vyper`;
   `mode`: only for a scene with two points; `sel`: the tree path, empty
   when the scene's default selection was cleared, absent for the
   scene's default; `a`, `b`, `mmode`, `msel`: the memory section, which has its own keys; storage
   keys never change it). The
   format is the old one; only the `ex` values changed, and an old one
-  (`token`, `strings`, `motd`, …) is stale. It is updated with
+  (`token`, `strings`, `packed`, `combo`, …) is stale. It is updated with
   `history.replaceState`, only when it changes; a stale hash falls back
   to the first scene with its defaults.
   `#storage` and `#memory` link to the sections.
@@ -463,14 +473,14 @@ What the page fetches (GitHub Pages gzips text):
 
 | File | gzip | size |
 | --- | ---: | ---: |
-| `index.html` (with the loader) | 9.0 KB | 26.9 KB |
-| `main.js`, `panel.js`, `decode.js`, `mem.js`, `calldata.js` | 42.1 KB | 125.0 KB |
-| `style.css`, `../../shared/appendix.css` | 8.9 KB | 30.0 KB |
+| `index.html` (with the loader) | 9.3 KB | 27.7 KB |
+| `main.js`, `panel.js`, `decode.js`, `mem.js`, `calldata.js` | 42.5 KB | 126.2 KB |
+| `style.css`, `../../shared/appendix.css` | 9.1 KB | 30.9 KB |
 | `vendor/pointers.js` (minified) | 69.0 KB | 272.1 KB |
-| `fixtures/index.json`, `memory.json` | 1.5 KB | 9.7 KB |
-| the first scene's data (`arcade-plays.json`) | 2.7 KB | 10.0 KB |
-| the other three fixtures, idle-time | 7.9 KB | 31.8 KB |
-| total | 141.4 KB | 506.4 KB |
+| `fixtures/index.json`, `memory.json` | 1.5 KB | 9.5 KB |
+| the first scene's data (`arcade-mid.json`) | 3.2 KB | 13.4 KB |
+| the other three fixtures, idle-time | 10.1 KB | 48.6 KB |
+| total | 144.9 KB | 528.2 KB |
 | `vendor/shiki.js`, only when the source is opened | 58.6 KB | 196.7 KB |
 
 The bundle was 86.8 KB gzip (411 KB) before it was minified.
