@@ -653,7 +653,7 @@ function runs(view) {
   let run = null;
   for (const el of view.querySelector(".rows").children) {
     if (el.classList.contains("wrow") && (el.classList.contains("on") ||
-      el.classList.contains("only"))) {
+      el.classList.contains("only") || el.classList.contains("known"))) {
       if (!run) out.push(run = []);
       run.push(el);
     } else if (!el.classList.contains("cmp")) {
@@ -860,6 +860,10 @@ export function paint(root, tree, h, opts = {}) {
       h.bytes.has(key(o, s, i)));
     w.closest(".wrow")?.classList.toggle("on", on);
     w.closest(".wrow")?.classList.toggle("only", only);
+    // a slot a replay has derived by now, lit or not: it keeps its label
+    // (its run's tint in the gutter, and its popover)
+    w.closest(".wrow")?.classList.toggle("known", !on && !only &&
+      !!h?.known?.has(s));
   }
   // While something is lit, the rest steps back (style.css .active)
   root.classList.toggle("active", !!h);
@@ -944,7 +948,7 @@ function annotate(root, v, compare, names, tray, taken, room, force) {
   // the address labels of the lit rows, which no popover may cover (an
   // unlit row's may be covered, as by a card)
   const labels = [...v.querySelectorAll(
-    ".rows > .wrow:is(.on, .only) > .addr .a")]
+    ".rows > .wrow:is(.on, .only, .known) > .addr .a")]
     .map((e) => ({ row: e.closest(".wrow"), r: e.getBoundingClientRect() }));
   const pinned = [];
   for (const run of all) {

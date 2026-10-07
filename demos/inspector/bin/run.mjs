@@ -1326,9 +1326,35 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
       .querySelectorAll("#panel .view:not([hidden]) .b.hl")].map((c) =>
       getComputedStyle(c).backgroundColor)).size);
     if (ks !== n) problems.push(`replay players step ${k + 1}: ${ks} colours`);
-    // the labels: only the lit runs have one
+    // the labels: bob's and carol's (lit), and what steps 1–2 derived
+    // (slot 3, alice's record)
     const pops = await page.locator("#panel .pop").count();
-    if (k === 2 && pops !== 2) problems.push(`step 3: ${pops} labels`);
+    if (k === 2 && pops !== 4) problems.push(`step 3: ${pops} labels`);
+    await page.keyboard.press("Escape");
+  }
+  // a row a step has derived keeps its label (its run's gutter group,
+  // and its popover where there is room) at later steps; carol's data
+  // rows get theirs only at step 7; ◀ takes it back
+  {
+    const labelled = () => page.evaluate(() => Object.fromEntries([
+      ...document.querySelectorAll("#panel .view:not([hidden]) .wrow" +
+        "[data-name]")].map((r) => [r.dataset.name,
+      r.querySelector(":scope > .addr").classList.contains("grp")])));
+    await page.locator('#details button[data-r="start"]').click();
+    const seen = [];
+    for (let k = 0; k < 7; k++) {
+      await page.locator(`#chips .chip[data-k="${k}"]`).click();
+      await page.mouse.move(1, 1);
+      seen.push(await labelled());
+    }
+    const data = `keccak(${cl0} + 1)`;
+    const bad = [];
+    for (let k = 2; k < 7; k++) if (!seen[k][al]) bad.push(`alice ${k + 1}`);
+    for (let k = 0; k < 6; k++) if (seen[k][data]) bad.push(`carol ${k + 1}`);
+    if (!seen[6][data]) bad.push("carol 7");
+    await page.locator('#details button[data-r="prev"]').click();
+    if ((await labelled())[data]) bad.push("◀ kept carol's data");
+    if (bad.length) problems.push(`reveal: ${bad}`);
     await page.keyboard.press("Escape");
   }
   // the blank row: players' own slot, 3, holds nothing
