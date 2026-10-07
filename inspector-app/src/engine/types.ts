@@ -28,7 +28,8 @@ export interface Compilation {          // one compiler's output, one contract
   templates: Format.Pointer.Templates;  // ethdebug resources
   stateVariables: Variable[];           // program-level context `variables`
 }
-export interface Variable {             // ethdebug/format/program/context/variables
+// ethdebug/format/program/context/variables
+export interface Variable {
   identifier: string;
   type: { id: TypeId } | Format.Type;
   pointer: Format.Pointer;
@@ -77,7 +78,8 @@ export interface Bookmark {             // a handpicked view of 1 or 2 points
   side?: "before" | "after";            // shown first (2 points)
   calldata?: { signature: string; param: string };
 }
-export interface TraceRef { url: string; steps: number; engine: "ref" | "soldb" }
+export interface TraceRef { url: string; steps: number;
+  engine: "ref" | "soldb" }
 
 // ------------------------------------------------- 1.3 Decoding and values
 
@@ -169,7 +171,7 @@ export interface Instance {
 export type InputId = string;
 export interface InputNode {            // a fact the pointer expects
   id: InputId; name: string;            // "key", "slot"
-  provenance: Provenance;               // ‹roster› ‹trace› ‹storage› ‹ABI›
+  provenance: Provenance;     // ‹roster› ‹trace› ‹storage› ‹ABI›
   values: { value: Hex; source?: Path }[];     // source: roster[i]
 }
 
