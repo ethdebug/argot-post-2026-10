@@ -1,0 +1,14 @@
+{
+  "name": "inspector-app",
+  "private": true,
+  "type": "module",
+  "description": "The storage inspector as a React + TypeScript app",
+  "scripts": {
+    "test": "node --test bin/"
+  },
+  "devDependencies": {
+    "pixelmatch": "^7.1.0",
+    "playwright": "1.63.0",
+    "pngjs": "^7.0.0"
+  }
+}
