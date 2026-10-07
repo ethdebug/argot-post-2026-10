@@ -120,9 +120,9 @@ export function layout(d: Decoded, location: Location, filter: Filter = {},
         const key = part ? `${n.path}#length` : n.path;
         for (const [row, i] of regionBytes(r)) {
           const k = byteKey(location, row, i);
-          cover.set(k, [...new Set([...(cover.get(k) ?? []), n.path])]);
-          if (!owned.has(n.path)) owned.set(n.path, new Set());
-          owned.get(n.path)!.add(k);
+          cover.set(k, [...new Set([...(cover.get(k) ?? []), key])]);
+          if (!owned.has(key)) owned.set(key, new Set());
+          owned.get(key)!.add(k);
           if (!first.has(row)) first.set(row, new Map());
           const f = first.get(row)!;
           const was = f.get(key);

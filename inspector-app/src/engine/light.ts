@@ -1,14 +1,18 @@
 // What to light (vanilla panel.js forRow, forBytes): a value's bytes
 // and rows, or the values that own some bytes. Derived per view from
 // its own Decoded and Layout; never stored.
-import type { ByteKey, Decoded, Layout, Light, Path, Target } from "./types";
-import { byteKey } from "./hex";
+import type {
+  ByteKey, Colour, Decoded, Hex, Layout, Light, Path, Target, ValueNode,
+} from "./types";
+import { byteKey, slotHex, toBig } from "./hex";
 
 export const noLight: Light = { bytes: new Set(), rows: new Set(),
   colours: new Map(), cap: new Set(), gutters: new Set(), muted: false };
 
 const under = (p: Path, root: Path) => p === root ||
   p.startsWith(root + ".") || p.startsWith(root + "[");
+// an owner id's value: `${path}#length` is a part of `path`
+export const ownerPath = (id: string): Path => id.replace(/#length$/, "");
 const parentOf = (p: Path) => p.replace(/(\.[^.[\]]+|\[[^\]]*\])$/, "");
 
 // A row hidden in a collapsed group shows as its outermost collapsed
@@ -25,20 +29,77 @@ function lit(l: Layout, owners: Path[]): Set<ByteKey> {
   return new Set(owners.flatMap((q) => [...l.owned.get(q) ?? []]));
 }
 
-// A value (a tree row) and everything under it
-export function forPath(d: Decoded, l: Layout, path: Path,
-  o: { collapsed?: ReadonlySet<Path> } = {}): Light {
-  const owners = [...l.owned.keys()].filter((q) => under(q, path));
-  const below = [...d.byPath.keys()].filter((q) => under(q, path));
-  let rows = [path, ...owners, ...below];
-  if (o.collapsed?.size) {
-    rows = rows.flatMap((p) => [p, shownAs(p, o.collapsed!)]);
-  }
-  return { ...noLight, bytes: lit(l, owners), rows: new Set(rows),
-    muted: true };
+const owns = (n: ValueNode): boolean =>
+  n.regions.length > 0 || !!n.children?.some(owns);
+
+// The colours of a composite's immediate children (vanilla panel.js
+// childColors): each child that holds bytes takes 1, 2, … in tree
+// order, cycling over `picks` (storage 9, memory 8: a vanilla quirk);
+// everything under a child takes its colour; the composite's own (its
+// row, its length word) is 0, the selection's yellow. A leaf: none.
+export function childColours(d: Decoded, path: Path, picks: 9 | 8):
+  ReadonlyMap<Path, Colour> {
+  const kids = (d.byPath.get(path)?.children ?? []).filter(owns);
+  if (!kids.length) return new Map();
+  const out = new Map<Path, Colour>([[path, 0]]);
+  kids.forEach((k, i) => {
+    const c = (1 + i % picks) as Colour;
+    for (const q of d.byPath.keys()) if (under(q, k.path)) out.set(q, c);
+  });
+  return out;
 }
 
-// Bytes from..to of one row: the values that own them
+// A variable's own (base) slot: its pointer's declared slot
+function baseSlotOf(d: Decoded, root: string): Hex | undefined {
+  const g = d.graphs.get(root);
+  const v = g && [...g.nodes.values()].find((n) => n.kind === "declared")
+    ?.instances[0]?.value;
+  return v ? slotHex(toBig(v)) : undefined;
+}
+
+// A value (a tree row) and everything under it, in its children's
+// colours. `selection`: also the own slot of the variable it is inside
+// (a mapping's, an array's length word), tinted in the gutter. A
+// variable whose own slot holds none of its data: that slot's gutter.
+// `collapsed`: a lit row hidden in a collapsed group lights the row
+// that shows it, in that row's colour (or 0).
+export function forPath(d: Decoded, l: Layout, path: Path,
+  o: { collapsed?: ReadonlySet<Path>; selection?: boolean } = {}): Light {
+  const owners = [...l.owned.keys()].filter((q) =>
+    under(ownerPath(q), path));
+  const below = [...d.byPath.keys()].filter((q) => under(q, path));
+  let rows = [path, ...owners.map(ownerPath), ...below];
+  let colours = childColours(d, path, 9) as Map<Path, Colour>;
+  if (o.collapsed?.size) {
+    const c = o.collapsed;
+    rows = rows.flatMap((p) => [p, shownAs(p, c)]);
+    colours = new Map([...colours].map(([p, k]) => {
+      const v = shownAs(p, c);
+      return [p, v === p || colours.get(v) === k ? k : 0];
+    }));
+  }
+  const gutters = new Set<Hex>();
+  const root = d.byPath.get(path)?.root ?? path.split(/[.[]/)[0];
+  if (path !== root && o.selection) {
+    const s = baseSlotOf(d, root);
+    if (s) gutters.add(s);
+  }
+  for (const r of l.rows) {
+    if (r.role === "own-slot" && r.what.some((w) => w.path === path)) {
+      gutters.add(r.address);
+    }
+  }
+  return { ...noLight, bytes: lit(l, owners), rows: new Set(rows),
+    colours, gutters, muted: true };
+}
+
+// A whole row, from its address in the gutter: pointed at, nothing lit
+export const forRow = (d: Decoded, l: Layout, row: Hex): Light =>
+  ({ ...noLight, at: { row, from: 0, to: 31, location: l.location },
+    muted: true });
+
+// Bytes from..to of one row: the owners of them (a value, or only its
+// length part), and their rows
 export function forBytes(d: Decoded, l: Layout,
   at: NonNullable<Target["bytes"]>): Light {
   const owners = new Set<Path>();
@@ -47,6 +108,6 @@ export function forBytes(d: Decoded, l: Layout,
       owners.add(p);
     }
   }
-  return { ...noLight, bytes: lit(l, [...owners]), rows: owners, at,
-    muted: true };
+  return { ...noLight, bytes: lit(l, [...owners]),
+    rows: new Set([...owners].map(ownerPath)), at, muted: true };
 }
