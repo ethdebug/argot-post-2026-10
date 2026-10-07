@@ -2,3 +2,5 @@ node_modules
 dist
 screenshots
 bin/run.gen.mjs
+test-results
+playwright-report
