@@ -1076,7 +1076,9 @@ function annotate(root, v, compare, names, tray, taken, room, force) {
     {
       const pop = popFor(run, 0);
       // a run a replay found at an earlier step: a muted label
-      if (run.every((r) => r.classList.contains("known"))) {
+      // (not the current step's gutters: those are its own)
+      if (run.every((r) => r.classList.contains("known") &&
+        !r.classList.contains("gut"))) {
         pop.classList.add("kept");
       }
       // under the run (over it in Before), at the gutter; else beside the

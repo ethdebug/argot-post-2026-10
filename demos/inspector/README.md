@@ -423,11 +423,20 @@ page but a flag byte read from the state). For players:
 A mapping's, an array's or a string's own slot is first only named
 (its gutter lit, not its bytes); a region a later rule reads gets its
 own step or is lit in the step that reads it, so the YAML band and the
-lit bytes agree. roster: declared at slot 0 (gutter); slot 0 holds
+lit bytes agree. Each template entered is a step of its own: its header
+and `expect` lines, the inputs it takes ("the template `address[]`
+takes slot = 0"), the bound slot's gutter (and, for a mapping's keys,
+the `roster` items they come from); no new bytes. roster: declared at
+slot 0 (gutter); the template `address[]` takes slot = 0; slot 0 holds
 the length, 3 (the length region); the items at keccak(0), one slot
 each, for `length` items (all three at once). motd: declared at slot
-1 (gutter); its flag and the branch taken (the length-flag region, the
-if, and then or else, with long-length lit for a long string).
+1; the template `string` takes slot = 1; its flag and the branch taken
+(the length-flag region, the if, and then or else, with long-length
+lit for a long string). players: declared; the mapping template
+(slot = 3, key = each address in roster); each record at
+keccak(key, 3); the `Player` template (slot = each record's slot); a
+record's two slots; the packed stats; the `string` template (slot =
+each name slot); the name's form.
 players' 5 lights carol's long-length word likewise. total and rounds
 are one region each: one step.
 
