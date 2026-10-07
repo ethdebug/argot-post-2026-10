@@ -1642,10 +1642,9 @@ function show() {
 }
 
 // Lit tree rows out of the tree box's view (it scrolls inside itself):
-// a strip on the box's edge past which they are, in their colours (one
-// segment a colour, in their order), with a chevron; no text (its
-// label, for screen readers, gives the first row's path and how many
-// more). A click scrolls the tree, inside itself, to the first of them.
+// a yellow circle button, centred on the box's edge past which they
+// are, with an arrow; no text (its label, for screen readers, gives the
+// first row's path and how many more). A click scrolls the tree, inside itself, to the first of them.
 // Hover alone never scrolls the tree.
 const ARROW = (d) => `<svg viewBox="0 0 16 16" aria-hidden="true"><path d="${
   d}" fill="none" stroke="currentColor" stroke-width="2"
@@ -1661,31 +1660,17 @@ function edges() {
   // (the nearest row past each edge first)
   past.up.reverse();
   for (const [way, list] of Object.entries(past)) {
-    const strip = $(`edge-${way}`);
+    const btn = $(`edge-${way}`);
     const on = !!list.length;
-    strip.classList.toggle("on", on);
-    strip.setAttribute("aria-hidden", String(!on));
+    btn.classList.toggle("on", on);
+    btn.setAttribute("aria-hidden", String(!on));
     // (in the Tab order for the selection's rows only)
-    strip.tabIndex = on && chosen && !hover ? 0 : -1;
+    btn.tabIndex = on && chosen && !hover ? 0 : -1;
     if (!on) continue;
     const path = list[0].parentElement.dataset.path;
-    strip.dataset.path = path;
-    // its colours: each lit row's (a block's, for a row inside one), in
-    // order, one segment each run
-    const colour = (r) => [...(r.closest("li.blk") ?? r).classList]
-      .find((c) => /^pk\d$/.test(c)) ?? [...r.classList].find((c) =>
-      /^pk\d$/.test(c));
-    const ks = [];
-    for (const r of way === "up" ? [...list].reverse() : list) {
-      const k = colour(r) ?? "mark";
-      if (ks.at(-1) !== k) ks.push(k);
-    }
-    const v = (k) => k === "mark" ? "var(--mark)" : `var(--${k})`;
-    strip.style.background = ks.length === 1 ? v(ks[0])
-      : `linear-gradient(to right, ${ks.map((k, i) => `${v(k)} ${
-        100 * i / ks.length}% ${100 * (i + 1) / ks.length}%`).join(", ")})`;
-    strip.innerHTML = ARROW(way === "up" ? "M4 10l4-4 4 4" : "M4 6l4 4 4-4");
-    strip.setAttribute("aria-label", `Scroll the variables ${way} to ${
+    btn.dataset.path = path;
+    btn.innerHTML = ARROW(way === "up" ? "M4 10l4-4 4 4" : "M4 6l4 4 4-4");
+    btn.setAttribute("aria-label", `Scroll the variables ${way} to ${
       path}${list.length > 1 ? `, and ${list.length - 1} more lit rows` : ""}`);
   }
 }

@@ -2032,7 +2032,11 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
         text: p.textContent.trim(), label: p.getAttribute("aria-label"),
         title: p.hasAttribute("title"), inside: r.top >= t.top - 1 &&
           r.bottom <= t.bottom + 1,
-        bg: getComputedStyle(p).backgroundColor };
+        bg: getComputedStyle(p).backgroundColor,
+        round: getComputedStyle(p).borderTopLeftRadius === "50%" &&
+          Math.abs(r.width - r.height) < 1 && r.width < 40,
+        centred: Math.abs((r.left + r.right) / 2 - (t.left + t.right) / 2) <
+          12 };
     }, w);
     const t0 = await tops();
     const cp = `#panel .view:not([hidden]) .b[data-owners="${C}.plays"]`;
@@ -2064,6 +2068,8 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
       return c;
     });
     if (!down || down.text || down.title || down.bg !== mark ||
+      !down.round || !down.centred || !up?.round || !up.centred ||
+      up.bg !== mark ||
       !down.label.includes(`to ${C}.plays`) ||
       !down.inside || t1 !== t0 || !inView ||
       !up || up.text || !up.label.includes("to roster[0]") || !up.inside) {

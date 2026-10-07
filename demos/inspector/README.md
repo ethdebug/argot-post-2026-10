@@ -368,12 +368,11 @@ targets alice's entry; with alice selected, her members are the
 blocks. With nothing selected, the most specific value is the target.
 
 When lit tree rows are out of the tree box's view (it scrolls inside
-itself), a strip on the box's edge past which they are (bottom or top)
-shows their colours, one segment a colour in their order, with a
-chevron and no text (its aria-label gives the first row's path and how
-many more); a click scrolls the tree, inside itself, to the first of
-them. Hover alone never scrolls the tree. The strips are overlays that
-fade in and out: no row moves.
+itself), a yellow circle button, centred on the box's edge past which
+they are (bottom or top), shows an arrow and no text (its aria-label
+gives the first row's path and how many more); a click scrolls the
+tree, inside itself, to the first of them. Hover alone never scrolls
+the tree. The buttons are overlays that fade in and out: no row moves.
 
 A slot's label reads "how it is found : what it holds": the names of
 the values in that slot as the pointer names them, in byte order
