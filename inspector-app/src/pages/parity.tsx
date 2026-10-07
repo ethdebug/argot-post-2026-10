@@ -60,6 +60,9 @@ try {
   const project = await load(fetchIo(import.meta.env.BASE_URL));
   const mount = { pick: place($("picker")), mode: place($("mode")),
     dump: place($("panel")), tree: place($("tree")) };
+  // (the tree view draws its own edge buttons)
+  $("edge-up").remove();
+  $("edge-down").remove();
 
   // the scene's intro and summary, and no Before | After at one point
   const scene = (lens: LensContextValue) => {

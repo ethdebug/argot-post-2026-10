@@ -1,0 +1,136 @@
+// Mirrors bin/run.mjs's collapse and edge-button checks (vanilla
+// 2ff37ec), on the parity page
+import { test, expect, type Page } from "@playwright/test";
+import { A, B, C } from "../expect";
+
+type W = { select(id: string, view?: { sel?: string | null }):
+  Promise<boolean>; results: { done: boolean } };
+const w = (page: Page) => page as unknown as Page;
+const select = (page: Page, sel: string | null) => page.evaluate((x) =>
+  (window as unknown as W).select("mid", { sel: x }), sel);
+const ready = async (page: Page) => {
+  await w(page).goto("./");
+  await page.waitForFunction(() => (window as unknown as W).results?.done);
+};
+const chev = (page: Page, p: string) =>
+  page.locator(`#tree li[data-path="${p}"] > .chev`);
+const st = (page: Page) => page.evaluate(() => {
+  const li = document.querySelector('#tree li[data-path="players"]')!;
+  return { shut: li.classList.contains("collapsed"),
+    aria: li.querySelector(":scope > .chev")!.getAttribute("aria-expanded"),
+    kids: (li.querySelector(":scope > ul") as HTMLElement).offsetHeight,
+    hues: [...document.querySelectorAll(
+      "#panel .view:not([hidden]) .b.hl")].filter((b) =>
+      /\bpk\d/.test(b.className)).length,
+    lit: document.querySelectorAll("#panel .view:not([hidden]) .b.hl")
+      .length,
+    sel: (document.querySelector("#tree .row.sel")?.parentElement as
+      HTMLElement | undefined)?.dataset.path,
+    dump: JSON.stringify([...document.querySelectorAll(
+      "#panel .view:not([hidden]) .wrow")].map((r) => {
+      const b = r.getBoundingClientRect();
+      return [b.left, b.top + scrollY].map(Math.round);
+    })) };
+});
+
+test("groups collapse by their chevron; the dump never moves",
+  async ({ page }) => {
+    await ready(page);
+    await select(page, "players");
+    await page.mouse.move(1, 1);
+    const s0 = await st(page);
+    await chev(page, "players").click();
+    await page.mouse.move(1, 1);
+    const s1 = await st(page);
+    await chev(page, "players").focus();
+    await page.keyboard.press("Enter");
+    const s2 = await st(page);
+    await page.keyboard.press(" ");
+    const s3 = await st(page);
+    await select(page, null);
+    await page.locator(
+      `#panel .view:not([hidden]) .b[data-owners="${A}.score"]`)
+      .first().click();
+    const s4 = await st(page);
+    expect([s0.shut, s0.aria, s0.hues > 0]).toEqual([false, "true", true]);
+    expect([s1.shut, s1.aria, s1.kids, s1.hues, s1.lit, s1.sel])
+      .toEqual([true, "false", 0, 0, s0.lit, "players"]);
+    expect(s1.dump).toBe(s0.dump);
+    expect([s2.shut, s2.aria, s2.hues > 0]).toEqual([false, "true", true]);
+    expect(s3.shut).toBe(true);
+    expect([s4.shut, s4.sel]).toEqual([false, `${A}.score`]);
+    expect(s4.dump).toBe(s0.dump);
+  });
+
+test("a chevron points at its row; a hidden row lights its ancestor",
+  async ({ page }) => {
+    await ready(page);
+    await select(page, null);
+    await chev(page, "roster").hover();
+    await expect(page.locator('#tree li[data-path="roster"] > .row'))
+      .toHaveClass(/\bhl\b/);
+    await expect(page.locator("#panel .view:not([hidden]) .b.hl"))
+      .toHaveCount(92);
+    await chev(page, "roster").click();
+    await page.locator(
+      '#panel .view:not([hidden]) .b[data-owners="roster[0]"]')
+      .first().hover();
+    await expect(page.locator('#tree li[data-path="roster"] > .row'))
+      .toHaveClass(/\bhl\b/);
+    await chev(page, "roster").click();
+    // (an inner group keeps its state when its parent closes and opens)
+    await chev(page, A).click();
+    await chev(page, "players").click();
+    await chev(page, "players").click();
+    expect(await page.evaluate((x) => x.map((p) => document.querySelector(
+      `#tree li[data-path="${p}"]`)!.classList.contains("collapsed")),
+    [A, B])).toEqual([true, false]);
+  });
+
+test("a lit row out of the tree's view: a circle button on the edge",
+  async ({ page }) => {
+    await ready(page);
+    await select(page, null);
+    await page.evaluate(() => {
+      (document.querySelector("#tree") as HTMLElement).style.height =
+        "260px";
+      document.querySelector("#tree")!.scrollTop = 0;
+    });
+    const pill = (x: string) => page.evaluate((way) => {
+      const p = document.querySelector(`#edge-${way}`)!;
+      const t = document.querySelector("#tree")!.getBoundingClientRect();
+      const r = p.getBoundingClientRect();
+      return !p.classList.contains("on") ? null : {
+        text: p.textContent!.trim(), title: p.hasAttribute("title"),
+        inside: r.top >= t.top - 1 && r.bottom <= t.bottom + 1,
+        round: getComputedStyle(p).borderTopLeftRadius === "50%" &&
+          Math.abs(r.width - r.height) < 1 && r.width < 40,
+        centred: Math.abs((r.left + r.right) / 2 - (t.left + t.right) / 2)
+          < 12 };
+    }, x);
+    const tops = () => page.evaluate(() => JSON.stringify([
+      ...document.querySelectorAll<HTMLElement>("#tree li > .row")]
+      .map((r) => r.offsetTop)));
+    const t0 = await tops();
+    await page.locator(
+      `#panel .view:not([hidden]) .b[data-owners="${C}.plays"]`)
+      .first().hover();
+    expect(await pill("down")).toEqual({ text: "", title: false,
+      inside: true, round: true, centred: true });
+    expect(await tops()).toBe(t0);
+    await page.locator("#edge-down").click();
+    await expect.poll(() => page.evaluate((c) => {
+      const r = document.querySelector(`#tree li[data-path="${c}"] > .row`)!
+        .getBoundingClientRect();
+      const t = document.querySelector("#tree")!.getBoundingClientRect();
+      return r.top >= t.top - 1 && r.bottom <= t.bottom + 1;
+    }, `${C}.plays`)).toBe(true);
+    await page.evaluate(() => {
+      const t = document.querySelector("#tree")!;
+      t.scrollTop = t.scrollHeight;
+    });
+    await page.locator(
+      '#panel .view:not([hidden]) .b[data-owners="roster[0]"]')
+      .first().hover();
+    expect(await pill("up")).toMatchObject({ round: true, centred: true });
+  });

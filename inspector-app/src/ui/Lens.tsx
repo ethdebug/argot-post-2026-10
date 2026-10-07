@@ -3,7 +3,7 @@
 // what each view shows: its data, and for Phase 1's pair of dumps,
 // which side is shown and what it is called.
 import {
-  useEffect, useMemo, useState, type ComponentType, type ReactNode,
+  useEffect, useId, useMemo, useState, type ComponentType, type ReactNode,
 } from "react";
 import { createPortal } from "react-dom";
 import type { Project } from "../engine/project";
@@ -101,8 +101,24 @@ export function Lens(props: { spec: LensSpec; project: Project;
   onReady?: (lens: LensContextValue) => void }) {
   const { spec, project, mount, onReady } = props;
   const [store] = useState(() => createStore(initialState(spec, project)));
-  const value = useMemo(() => ({ spec, project, store,
-    show: shower(store, spec, project) }), [spec, project, store]);
+  const key = useId();
+  const value = useMemo(() => ({ spec, project, store, key,
+    show: shower(store, spec, project) }), [spec, project, store, key]);
+  // pointing anywhere but at this lens's views (or a tree's edge button,
+  // which is for what is lit) ends its hovers (vanilla onOver)
+  useEffect(() => {
+    const over = (e: Event) => {
+      const t = e.target as Element;
+      const v = t.closest?.("[data-view]")?.getAttribute("data-view");
+      if (v?.startsWith(key + ":") || t.closest?.(".tedge, .tray")) return;
+      store.set((s) => Object.values(s.links).some((l) => l.hover)
+        ? { ...s, links: Object.fromEntries(Object.entries(s.links)
+          .map(([k, l]) => [k, l.hover ? { ...l, hover: null } : l])) }
+        : s);
+    };
+    document.addEventListener("pointerover", over);
+    return () => document.removeEventListener("pointerover", over);
+  }, [key, store]);
   // the first bookmark, with its defaults (unless the page shows one)
   useEffect(() => {
     if (onReady) onReady(value);

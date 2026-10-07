@@ -5,11 +5,14 @@ import { useLayoutEffect, useRef } from "react";
 import type {
   KeyboardEvent, MouseEvent, PointerEvent, ReactElement,
 } from "react";
-import type { Filter, Hex, Layout, Light, Location } from "../engine/types";
+import type {
+  Filter, Hex, Layout, Light, Location, Target,
+} from "../engine/types";
 import { byteKey, short } from "../engine/hex";
 import {
-  useLayout, useLight, useLink, usePoint,
+  useDecoded, useLayout, useLens, useLight, useLink, usePoint,
 } from "./hooks";
+import { blockOf, resolveTarget } from "../engine/target";
 import { readWritten } from "../engine/timeline";
 import type { DataRef, LinkId, ViewId } from "./types";
 
@@ -52,9 +55,21 @@ function Ruler() {
   </div></div>;
 }
 
-function Word({ l, row, word, other, side, name, light }: { l: Layout;
-  row: Hex; word?: Hex; other?: Hex; side?: string; name: string;
-  light: Light }) {
+// an owner id's label: a value's path, or "<path> (length)" for its
+// length part or an array's own word
+const ownerLabel = (id: string, composite: boolean) =>
+  id.endsWith("#length") || composite
+    ? `${shortKeys(id.replace(/#length$/, ""))} (length)` : shortKeys(id);
+// a lit byte's colour class, from its first owner with one
+const pick = (light: Light, ids: string[]) => {
+  const k = ids.map((id) => light.colours.get(id.replace(/#length$/, "")))
+    .find((x) => x !== undefined);
+  return { k, cls: k === "src" ? "pksrc" : k ? `pk${k}` : "" };
+};
+
+function Word({ l, row, word, other, side, name, light, groupsOf }: {
+  l: Layout; row: Hex; word?: Hex; other?: Hex; side?: string;
+  name: string; light: Light; groupsOf: (id: string) => boolean }) {
   const loc = l.location;
   const owners = Array.from({ length: 32 }, (_, i) =>
     l.cover.get(byteKey(loc, row, i)) ?? []);
@@ -68,7 +83,8 @@ function Word({ l, row, word, other, side, name, light }: { l: Layout;
   const at = light.at?.row === row ? light.at : undefined;
   const cells: ReactElement[] = [];
   for (const g of groups(owners)) {
-    const label = g.owners.map(shortKeys).join(", ");
+    const label = g.owners.map((id) => ownerLabel(id, groupsOf(id)))
+      .join(", ");
     const range = g.from === g.to ? `byte ${g.from}`
       : `bytes ${g.from} to ${g.to}`;
     for (let i = g.from; i <= g.to; i++) {
@@ -80,7 +96,15 @@ function Word({ l, row, word, other, side, name, light }: { l: Layout;
       if (i === g.to) cls.push("ge");
       if (mine[i] === "00") cls.push("z");
       if (mine[i] !== theirs[i]) cls.push("chg");
-      if (hl) cls.push("hl");
+      if (hl) {
+        const { k, cls: c } = pick(light, g.owners);
+        cls.push("hl");
+        if (c) cls.push(c);
+        // (the selection's own colour, 0, never mutes)
+        if (light.focus !== undefined && k && k !== light.focus) {
+          cls.push("muted");
+        }
+      }
       if (isAt) cls.push("at");
       // (one outline a run, in each group of eight)
       if (isAt && (i === at.from || i % 8 === 0)) cls.push("at-s");
@@ -112,43 +136,73 @@ export function Dump(p: { id: ViewId; location: Location; data: DataRef;
   const snap = here?.snapshot;
   const otherPoint = usePoint(p.compare);
   const light = useLight(p.id, p.filter);
-  const [, setLink] = useLink(p.link);
+  const [link, setLink] = useLink(p.link);
+  const d = useDecoded(p.data);
+  const lens = useLens();
+  const groupsOf = (id: string) => !!d?.byPath.get(id)?.children;
   const side = p.side;
   const title = p.title ?? "Storage";
   const label = p.location[0].toUpperCase() + p.location.slice(1);
 
-  // what the pointer is on: a run of bytes
-  const target = (el: EventTarget) => {
-    const c = (el as Element).closest?.(".b[data-g]") as HTMLElement | null;
+  // what the pointer is on (vanilla main.js target): a run of bytes, or
+  // a row's address; as a target that follows the blocks
+  const hit = (el: EventTarget): Target | null => {
+    const e = el as Element;
+    const c = e.closest?.(".b[data-g]") as HTMLElement | null;
     const w = c?.closest(".word") as HTMLElement | null;
-    if (!c || !w) return null;
-    const [from, to] = c.dataset.g!.split("-").map(Number);
-    return { cell: c, bytes: { row: w.dataset.slot as Hex, from, to,
-      location: p.location } };
+    if (c && w) {
+      const [from, to] = c.dataset.g!.split("-").map(Number);
+      return { bytes: { row: w.dataset.slot as Hex, from, to,
+        location: p.location } };
+    }
+    const a = e.closest?.(".wrow[data-slot] > .addr");
+    if (a) return { row: (a.parentElement as HTMLElement).dataset.slot as Hex };
+    return null;
+  };
+  const target = (el: EventTarget, sel: string | null) => {
+    const h = hit(el);
+    return h && d && l ? resolveTarget(h, sel, d.byPath, l) : null;
   };
   const point = (e: PointerEvent | { target: EventTarget }) => {
-    const t = target(e.target);
     setLink((s) => {
-      const same = JSON.stringify(s.hover?.bytes) ===
-        JSON.stringify(t?.bytes);
-      return same && (t || !s.hover) ? s
-        : { ...s, hover: t ? { bytes: t.bytes } : null };
+      const t = target(e.target, s.selection);
+      return JSON.stringify(s.hover) === JSON.stringify(t) ? s
+        : { ...s, hover: t };
     });
   };
-  // a byte selects its value, or, when it is the selected one's, clears
-  const act = (el: EventTarget) => {
-    const t = target(el);
-    if (!t) return false;
-    const owner = (t.cell.dataset.owners ?? "").split("|")[0] || null;
-    setLink((s) => ({ ...s, hover: null,
-      selection: owner && owner === s.selection ? null : owner }));
+  // a byte selects its value's block (by keys: its value), or, when it
+  // is the selected one, clears; a variable's own slot selects it; a
+  // row's address, inside a selected composite: the child whose block
+  // holds all of the slot's values
+  const act = (el: EventTarget, keys = false) => {
+    const h = hit(el);
+    if (!h || !d || !l) return false;
+    setLink((s) => {
+      const sel = s.selection;
+      if (h.row !== undefined) {
+        const t = resolveTarget(h, sel, d.byPath, l);
+        if (t.path) return { ...s, hover: null,
+          selection: t.path === sel ? null : t.path };
+        if (keys || !sel) return s;
+        const ids = new Set(Array.from({ length: 32 }, (_, i) =>
+          l.cover.get(byteKey(p.location, h.row as Hex, i))?.[0])
+          .filter((x): x is string => !!x)
+          .map((x) => blockOf(x.replace(/#length$/, ""), sel)));
+        const [only] = ids;
+        return ids.size === 1 && only !== sel
+          ? { ...s, hover: null, selection: only } : s;
+      }
+      const t = resolveTarget(h, keys ? null : sel, d.byPath, l);
+      const q = t.path ?? null;
+      return { ...s, hover: null, selection: q && q === sel ? null : q };
+    });
     return true;
   };
   const onKey = (e: KeyboardEvent) => {
     if ((e.key === "Enter" || e.key === " ") &&
-      (e.target as Element).closest(".b[tabindex]")) {
+      (e.target as Element).closest(".b[tabindex], .addr")) {
       e.preventDefault();
-      act(e.target);
+      act(e.target, true);
     }
   };
 
@@ -199,8 +253,9 @@ export function Dump(p: { id: ViewId; location: Location; data: DataRef;
       : ` (slot ${short(r.address)})`}${facts ? `; ${facts}` : ""}`;
     const on = [...Array(32).keys()].some((i) =>
       light.bytes.has(byteKey(p.location, r.address, i)));
+    const gut = !on && light.gutters.has(r.address);
     const cls = ["wrow", same ? "same" : "", k % 2 ? "zb" : "",
-      on ? "on" : ""]
+      on ? "on" : "", gut ? "gut" : ""]
       .filter(Boolean).join(" ");
     lines.push(<div key={r.address} className={cls} data-slot={r.address}
       data-name={name} data-facts={facts}
@@ -213,7 +268,7 @@ export function Dump(p: { id: ViewId; location: Location; data: DataRef;
       {l && <Word l={l} row={r.address} word={snap?.storage.get(r.address)}
         other={p.compare ? otherPoint?.snapshot.storage.get(r.address)
           ?? undefined : undefined}
-        side={side} name={name} light={light} />}
+        side={side} name={name} light={light} groupsOf={groupsOf} />}
     </div>);
   });
   lines.push(<div key="end" className="gap" aria-hidden="true">
@@ -221,8 +276,8 @@ export function Dump(p: { id: ViewId; location: Location; data: DataRef;
 
   return <div ref={me} className="view" data-side={side} role="group"
     aria-label={p.when ? `${label} ${p.when}` : label} hidden={p.hidden}
+    data-view={`${lens.key}:${p.id}`}
     onPointerOver={point} onFocus={point}
-    onPointerLeave={() => setLink((s) => s.hover ? { ...s, hover: null } : s)}
     onClick={(e: MouseEvent) => act(e.target)} onKeyDown={onKey}>
     <div className="view-head"><span className="view-name">{title}</span>
       <div className="wrow head"><span className="addr" /><Ruler /></div>
