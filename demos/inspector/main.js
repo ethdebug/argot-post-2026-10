@@ -503,6 +503,13 @@ function replaySteps(path, side) {
 function stepLight(st) {
   const h = forStep(current.panel, replay.side, st);
   if (st.colorsOf) h.colors = forRow(current.panel, st.colorsOf).colors;
+  // the slots the steps so far have derived keep their labels
+  h.known = new Set();
+  for (const x of replay.steps.slice(0, replay.i + 1)) {
+    for (const k of forStep(current.panel, replay.side, x).bytes) {
+      h.known.add(k.split("|")[1]);
+    }
+  }
   return h;
 }
 

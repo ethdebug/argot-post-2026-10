@@ -378,8 +378,9 @@ flag byte from the state:
 For `players` that is 7 steps (alice's record, fields and name, carol's
 long name); a single value cuts them to its own path (bob's plays: 1,
 2, 4, 5). An array: its slot (the length), then its items at
-keccak(slot) + i. A row's label (its popover) shows only while a step
-lights it. ◀ ▶ step, ⏭ jumps to the resolved view, ← → step while the
+keccak(slot) + i. A row a step has derived keeps its label (its run's gutter group, and
+its popover where there is room) at the later steps; rows not derived
+yet show only their address; ◀ takes labels back. ◀ ▶ step, ⏭ jumps to the resolved view, ← → step while the
 box has focus, Escape leaves the replay; past the last step is the
 resolved view, with "Replay ▸".
 
