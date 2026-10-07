@@ -1376,6 +1376,56 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
   if (three.join() !== wantThree.sort().join()) {
     problems.push(`three players: ${three}`);
   }
+  // Selecting a composite colours its immediate children apart, the
+  // same in the tree and the dump: players' three entries; alice's
+  // entry's seven members; a leaf keeps the one colour. No name labels
+  // after the keys.
+  const colours = () => page.evaluate(() => {
+    const k = (el) => [...el.classList].find((c) => /^pk\d$/.test(c)) ??
+      "pk0";
+    const tree = {};
+    for (const r of document.querySelectorAll("#tree li[data-path] > " +
+      ".row.hl")) tree[r.parentElement.dataset.path] = k(r);
+    const dump = {};
+    for (const c of document.querySelectorAll(
+      '#panel .view:not([hidden]) .b.hl[data-owners]')) {
+      for (const o of c.dataset.owners.split("|")) {
+        (dump[o.replace(/#length$/, "")] ??= new Set()).add(k(c));
+      }
+    }
+    return { tree, dump: Object.fromEntries(Object.entries(dump).map(
+      ([o, v]) => [o, [...v].join()])),
+    bg: [...new Set([...document.querySelectorAll("#panel .b.hl")].map(
+      (c) => getComputedStyle(c).backgroundColor))].length };
+  });
+  const sameColours = (c) => Object.entries(c.tree).every(([p, k]) =>
+    !(p in c.dump) || c.dump[p] === k);
+  await page.locator('#tree li[data-path="players"] > .row').click();
+  await page.mouse.move(1, 1);
+  let cl = await colours();
+  const byEntry = [A, B, C].map((p) => new Set(Object.entries(cl.tree)
+    .filter(([q]) => q.startsWith(p)).map(([, k]) => k)));
+  if (byEntry.some((x) => x.size !== 1) ||
+    new Set(byEntry.map((x) => [...x][0])).size !== 3 ||
+    !sameColours(cl) || cl.bg !== 3) {
+    problems.push(`players colours: ${JSON.stringify(cl)}`);
+  }
+  await page.locator(`#tree li[data-path="${A}"] > .row`).click();
+  await page.mouse.move(1, 1);
+  cl = await colours();
+  if (new Set(Object.values(cl.tree)).size !== 7 || !sameColours(cl)) {
+    problems.push(`alice's members: ${JSON.stringify(cl)}`);
+  }
+  await page.locator(`#tree li[data-path="${A}.combo"] > .row`).click();
+  await page.mouse.move(1, 1);
+  cl = await colours();
+  if (Object.values(cl.tree).join() !== "pk0") {
+    problems.push(`a leaf: ${JSON.stringify(cl)}`);
+  }
+  await page.keyboard.press("Escape");
+  if (/\((alice|bob|carol)\)/.test(await page.locator("#tree").innerText())) {
+    problems.push("a name label after a key");
+  }
   // a byte of bob's record selects its field; the roster at keccak(slot 1)
   await page.locator(`#panel .word[data-side="after"] ` +
     `.b[data-owners="${B}.score"][data-i="31"]`).click();

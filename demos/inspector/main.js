@@ -103,15 +103,11 @@ function row(node, top) {
       ? `<p class="muted empty">no keys hashed in this transaction</p>`
       : "";
   const cls = current.single ? "" : node.changed ? "chg" : "same";
-  // a player's name, for a mapping key that is one of the players
-  const who = node.key && Object.entries(current.f.players ?? {}).find(
-    ([a]) => node.key.toLowerCase().endsWith(a.slice(2).toLowerCase()))?.[1];
-  const keyNote = who ? ` (${who})` : "";
   return `<li class="${cls}${top ? " top" : ""}"`.replace('class=" ',
     'class="') +
     ` data-path="${esc(node.path)}">` +
     `<div class="row" tabindex="0" role="button" aria-pressed="false">` +
-    `<span class="name">${esc(node.label)}${keyNote}</span>` +
+    `<span class="name">${esc(node.label)}</span>` +
     `<span class="type">${esc(tname)}</span>${val}</div>${kids}</li>`;
 }
 

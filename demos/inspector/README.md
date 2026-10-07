@@ -283,6 +283,14 @@ offsets.
   on a focused row) to select it, changed or not; click it again,
   press Escape, or click empty space to clear it. Clicking a byte
   selects the variable that owns it (a byte no value owns clears).
+- Selecting a composite colours its immediate children apart, the same
+  in the tree and the dump: a mapping's entries, an array's elements, a
+  struct's members (a packed slot then shows its fields as bands).
+  Everything under a child takes its colour; the composite's own bytes
+  (an array's length) keep the first colour, the plain highlight
+  (`--mark`). Seven colours (`--pk1` … `--pk6` after `--mark`, light
+  and dark), cycling. A leaf keeps the one colour. Mapping keys show
+  the key only.
 - While a variable is selected, the view stays on it: hovering other
   bytes, rows or addresses changes nothing. Hovering its own bytes
   only puts byte detail in the details; a chip beside the Before |
