@@ -8,7 +8,8 @@ import { Fragment, type ReactNode } from "react";
 import type { Decoded } from "../engine/types";
 import { locked } from "../engine/target";
 import {
-  useDecoded, useLayout, useLensState, useLink, usePoint, useViewSpec,
+  useDecoded, useLayout, useLens, useLensState, useLink, usePoint,
+  useViewSpec,
 } from "./hooks";
 import { infoOf, whereOf, type Info, type Part, type Sides } from "./info";
 import type { DataRef, LinkId, ViewId } from "./types";
@@ -53,6 +54,7 @@ export function WalkthroughPanel(p: { id: ViewId; data: DataRef;
   const side = useLensState((s) => s.side ?? "after");
   const single = !p.compare;
   useViewSpec(p.id);
+  const lens = useLens();
   const sides: Sides | undefined = d && l ? { d, l, snap: here?.snapshot,
     ...(o ? { pair: side === "before"
       ? { before: { d, snap: here?.snapshot },
@@ -100,7 +102,8 @@ export function WalkthroughPanel(p: { id: ViewId; data: DataRef;
   }
   return <>
     <div id={p.domId} className="rbar" aria-live="polite" tabIndex={0}
-      aria-label="The selected value; how it was found">{bar}</div>
+      aria-label="The selected value; how it was found"
+      data-view={`${lens.key}:${p.id}`}>{bar}</div>
     <div id={p.domId ? "dwrap" : undefined} className="dwrap">
       <div id={p.domId ? "dpanel" : undefined} className="dpanel" hidden>
         <div className="dleft">

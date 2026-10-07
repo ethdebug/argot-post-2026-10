@@ -199,10 +199,11 @@ export function Tree(p: { id: ViewId; data: DataRef; filter?: Filter;
   // selected one, clears
   const act = (el: EventTarget, keys = false) => {
     const at = rowOf(el);
-    if (!at) return;
+    if (!at) return false;
     const path = keys ? at : blockOf(at, link.selection);
     setLink((s) => ({ ...s, hover: null,
       selection: path === s.selection ? null : path }));
+    return true;
   };
   const onClick = (e: MouseEvent) => {
     const chev = (e.target as Element).closest?.("li[data-path] > .chev");
@@ -210,7 +211,7 @@ export function Tree(p: { id: ViewId; data: DataRef; filter?: Filter;
       toggle((chev.parentElement as HTMLElement).dataset.path!);
       return;
     }
-    act(e.target);
+    if (act(e.target)) (e.nativeEvent as { acted?: boolean }).acted = true;
   };
   const onKey = (e: KeyboardEvent) => {
     if (e.key !== "Enter" && e.key !== " ") return;

@@ -14,7 +14,7 @@ export function Picker(p: { id: ViewId;
     const bms = (spec.bookmarks ?? []).map((id) =>
       project.bookmarks.find((b) => b.id === id)!).filter(Boolean);
     return <div id={p.domId} className="picker" role="radiogroup"
-      aria-label="Scene">
+      aria-label="Scene" data-view={`${lens.key}:${p.id}`}>
       {bms.map((b) => <button key={b.id} role="radio" data-id={b.id}
         data-fixture={b.timeline}
         data-single={b.points.length === 1 ? "" : undefined}
@@ -24,7 +24,8 @@ export function Picker(p: { id: ViewId;
   }
   if (p.of === "side") {
     return <div id={p.domId} className="picker mode" role="radiogroup"
-      aria-labelledby="mode-l" aria-label="Show">
+      aria-labelledby="mode-l" aria-label="Show"
+      data-view={`${lens.key}:${p.id}`}>
       {(["before", "after"] as const).map((m) => <button key={m}
         role="radio" data-mode={m}
         aria-checked={m === side ? "true" : "false"}
