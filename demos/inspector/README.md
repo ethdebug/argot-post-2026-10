@@ -391,8 +391,13 @@ controls (⏮ ◀ ▶ ⏭ and "n / m", or "Show how it was found" at rest),
 the step's short caption and ✕ Exit. During a replay the details
 (`#dpanel`) are joined under the bar, in its tint, as one panel with
 the bar as its header row. A click, focus or key anywhere in that
-panel stays in the replay; only ✕ Exit, Escape or a new selection in
-the tree or the dump leaves it. At entry the page scrolls the bar to
+panel stays in the walkthrough; only ✕ Exit or Escape leave it. A
+click in the tree or the dump re-targets it: each step has an identity
+(its pointer node and kind, whatever the instance), the old and new
+steps are aligned by their longest common subsequence, and the
+walkthrough stays on the matching step, or the nearest earlier one
+that matches, or the first; a short cue in the bar ("→ step 5") says
+when the place moved. At entry the page scrolls the bar to
 the top while the details unfold from under it (about 280 ms, the
 columns moving down with them); at exit they fold back. These are the
 only movements, instant with reduced motion; while they run, the

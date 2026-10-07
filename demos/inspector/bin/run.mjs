@@ -2194,6 +2194,38 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
     }
     await page.evaluate((x) => window.select("mid", { sel: x }), `${B}.plays`);
   }
+  // a click in the tree or the dump during a walkthrough re-targets it,
+  // in the mode, keeping the place by the steps' identities: carol's
+  // name → bob's name keeps the step; carol's record at its fields →
+  // carol's name lands on the Player template; a name → total, step 1
+  {
+    const at = async (from, k, to, how = "row") => {
+      await page.evaluate((x) => window.select("mid", { sel: x }), from);
+      await page.locator('#details button[data-r="start"]').click();
+      await page.locator(`#chips .chip[data-k="${k}"]`).click();
+      if (how === "row") await row(to).click();
+      else {
+        await page.locator(`#panel .view:not([hidden]) .b[data-owners="${to
+          }"]`).first().click();
+      }
+      await page.mouse.move(1, 1);
+      const x = await stepNow();
+      const sel = (await selected()).join();
+      const on = await page.locator("#details.replaying").count();
+      await page.keyboard.press("Escape");
+      return { cap: x.cap, count: x.count, sel, on };
+    };
+    const r1 = await at(`${C}.name`, 6, `${B}.name`);
+    const r2 = await at(C, 5, `${C}.name`);
+    const r3 = await at(`${C}.name`, 6, "total", "byte");
+    if (!r1.on || r1.sel !== `${B}.name` || r1.count !== "7 / 10" ||
+      !r1.cap.startsWith("The template string") ||
+      !r2.on || !r2.cap.startsWith("The template Player") ||
+      !r3.on || r3.sel !== "total" || r3.count !== "1 / 1") {
+      problems.push(`re-target: ${JSON.stringify([r1, r2, r3])}`);
+    }
+    await page.evaluate((x) => window.select("mid", { sel: x }), `${B}.plays`);
+  }
   // while it replays, pointing elsewhere changes nothing
   await page.locator('#details button[data-r="start"]').click();
   await page.mouse.move(1, 1);
@@ -3089,9 +3121,9 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
     .includes(vslot.slice(0, 6))) {
     problems.push(`vyper pops: ${vp}`);
   }
-  // carol, selected: her Vyper words, her long name over two words
+  // carol, selected (a click re-targets the walkthrough): her Vyper
+  // words, her long name over two words
   await page.locator(`#tree li[data-path="${C}.score"] > .row`).click();
-  await page.locator('#details button[data-r="start"]').click();
   text = (await how()).replace(/\s+/g, " ");
   if (!/plays = 1[\s\S]*name \(length\) = 34[\s\S]*"carol, the unstoppable combo que"[\s\S]*"en"/
     .test(text)) {
