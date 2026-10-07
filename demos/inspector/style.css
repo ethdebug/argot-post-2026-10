@@ -770,4 +770,24 @@ main[data-single] > .cols :is(.chglegend, .legend .bchg) { display: none; }
    scene's storage */
 .contract p, .calldata .lede { max-width: 78ch; }
 .contract .src { max-height: 22em; }
+/* the contract's source, collapsed under a summary line */
+.srcbox {
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--panel);
+  max-width: 78ch;
+}
+.srcbox[open] { max-width: none; }
+.srcbox > summary {
+  padding: 8px 12px;
+  color: var(--fg);
+  font-size: 0.9rem;
+  border-radius: 6px;
+}
+.srcbox > summary:hover { color: var(--accent); }
+.srcbox > summary:focus-visible { outline: 2px solid var(--accent);
+  outline-offset: 1px; }
+.srcfile { font-family: ui-monospace, Menlo, monospace; font-weight: 600; }
+.srcbox > .src { border: none; border-top: 1px solid var(--line);
+  border-radius: 0 0 6px 6px; }
 .calldata { margin-top: 24px; }

@@ -98,7 +98,12 @@ end of the body fetches the decoder and the data. -->
     sets a string. The five state variables, <code>players</code> to
     <code>rounds</code>, are what the scenes show. Alice, anvil's first account, sends every
     transaction.</p>
-    <!-- contracts/Scores.sol (bin/run.mjs checks that they match) -->
+    <!-- the contract's source (bin/make-fixtures.mjs writes it; bin/run.mjs
+    checks that it matches); collapsed by default, open or closed as the
+    viewer left it (localStorage) -->
+    <details id="contract-box" class="srcbox">
+      <summary><span class="srcfile">Scores.sol</span> — the contract
+      (<span class="srclines"></span> lines)</summary>
     <pre id="contract-src" class="src">// SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
@@ -143,6 +148,7 @@ contract Scores {
     }
 }
 </pre>
+    </details>
   </section>
 
   <section id="storage" aria-label="Scene">
@@ -527,6 +533,23 @@ contract Scores {
 
   // The decoder, the index, the scene the page opens with, and the
   // memory section's data, all at once
+  // The contract's source: its line count, and open or closed as this
+  // viewer left it
+  {
+    const box = document.getElementById("contract-box");
+    const src = document.getElementById("contract-src").textContent;
+    box.querySelector(".srclines").textContent =
+      src.replace(/\n$/, "").split("\n").length;
+    try {
+      box.open = localStorage.getItem("inspector-source-open") === "1";
+    } catch {}
+    box.addEventListener("toggle", () => {
+      try {
+        localStorage.setItem("inspector-source-open", box.open ? "1" : "0");
+      } catch {}
+    });
+  }
+
   async function boot() {
     // the scene to open with: the URL hash's, or the first
     const ex = new URLSearchParams(location.hash.slice(1)).get("ex");
