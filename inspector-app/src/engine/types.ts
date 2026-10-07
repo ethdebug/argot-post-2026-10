@@ -128,6 +128,8 @@ export type ByteKey = string;           // `${location}|${row}|${byte}`
 export interface Layout {
   location: Location; point: PointId;
   rows: Row[];                          // strict address order; gaps marked
+  // owners by id: a value's path, or `${path}#length` for the regions
+  // a string reads to find its length (vanilla's owner ids)
   cover: ReadonlyMap<ByteKey, Path[]>;  // byte -> owners
   owned: ReadonlyMap<Path, ReadonlySet<ByteKey>>;
 }
