@@ -18,3 +18,12 @@ The difference is in the bundled yaml code: vanilla's keeps 420
 `const` declarations that every esbuild version above turns into `let`
 when it minifies. So vanilla's bundle was built from another checkout's
 node_modules or with another tool; the library code is the same commit.
+
+Decision (gnidan, 2026-10-07): the pin need not be byte-equal to
+vanilla's bundle; "parity is dependent on behavior, not bundle bytes".
+The gate is src/engine/lib.parity.test.ts (in npm test): vanilla's
+vendor/pointers.js at sync-base against lib.ts, for every state
+variable and every players[key] of the four fixtures at both points
+(48 dereferences): identical regions (name, location, slot, offset,
+length) and identical bytes read; and some expressions evaluate the
+same.
