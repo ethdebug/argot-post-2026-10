@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "test": "vitest run && node --test bin/",
+    "test": "tsc --noEmit -p . && vitest run && node --test bin/",
     "check": "node bin/check.mjs",
     "e2e": "playwright test"
   },

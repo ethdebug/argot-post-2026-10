@@ -14,7 +14,8 @@ test("picker lists every lens; ] moves on; reload restores",
     await page.reload();
     expect(page.url()).toBe(url);
     await expect(page.locator('[data-shell-picker] [aria-current="page"]'))
-      .toHaveAttribute("data-lens", new URL(url).hash.match(/lens=([^&]+)/)![1]);
+      .toHaveAttribute("data-lens",
+        new URL(url).hash.match(/lens=([^&]+)/)![1]);
   });
 
 test("g opens the list; a lens in it shows that lens", async ({ page }) => {
