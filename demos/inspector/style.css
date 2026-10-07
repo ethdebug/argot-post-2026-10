@@ -1119,6 +1119,18 @@ html { overflow-anchor: none; }
   Menlo, monospace; font-weight: 600; }
 .rcap code.id, .rshort code.id { background: none; padding: 0; border: 0;
   font-size: 0.95em; }
+/* a group's chevron: at the right end of its row, one column for all
+   (every row keeps the room, so the values align) */
+#tree .row { padding-right: 1.7em; }
+#tree li > .chev { position: absolute; right: 0; top: 2px; width: 1.5em;
+  height: 1.5em; padding: 0; border: 0; border-radius: 4px; background: none;
+  color: var(--muted); font: inherit; font-size: 1.1rem; line-height: 1.5em;
+  cursor: pointer; z-index: 1; }
+#tree li.top > .chev { top: 6px; }
+#tree li > .chev:hover { color: var(--fg); }
+#tree li > .chev:focus-visible { outline: 2px solid var(--accent); }
+#tree li.collapsed > ul { display: none; }
+.val.sum { color: var(--muted); font-size: 0.85rem; }
 /* a block of tree rows in one colour: the item, key line and parts */
 .tree li.blk { background: var(--pk, var(--mark)); color: var(--pk-fg,
   var(--chg-fg)); border-radius: 4px; box-shadow: -4px 0 0 var(--pk,
