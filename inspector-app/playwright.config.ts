@@ -5,6 +5,8 @@ const PORT = process.env.E2E_PORT ?? "5181";
 export default defineConfig({
   testDir: "test/e2e",
   use: {
+    // (as bin/run.mjs: motion only where a test asks for it)
+    reducedMotion: "reduce",
     baseURL: process.env.PAGE ??
       `http://localhost:${PORT}/demos/inspector-next/`,
   },
