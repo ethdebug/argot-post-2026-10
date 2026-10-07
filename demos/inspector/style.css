@@ -197,7 +197,6 @@ li.same > .row .name, li.same > .row .type { opacity: 0.55; }
   white-space: pre;
 }
 .src mark { background: var(--mark); color: inherit; border-radius: 2px; }
-#srcnote { font-size: 0.85rem; margin: 0 0 6px; }
 
 .notes { margin-top: 32px; border-top: 1px solid var(--line); }
 .notes ul { padding-left: 20px; max-width: 80ch; }
@@ -892,7 +891,6 @@ main[data-single] > .cols :is(.chglegend, .legend .bchg, .intro .two) {
     grid-template-rows: auto 1fr; }
   .scols .words { grid-column: 1; grid-row: 1 / span 2; position: static; }
   .scols .storage { grid-column: 2; grid-row: 1; font-size: inherit; }
-  .scols .source { grid-column: 2; grid-row: 2; }
 }
 .colhead { margin-top: 0; }
 /* the dump's state is in the bar and the Show toggle */
@@ -1019,7 +1017,7 @@ sup.fn { font-size: 0.7em; color: var(--accent); margin-left: 1px; }
 .chip.cur .clabel { color: inherit; }
 .chip.later { opacity: 0.45; }
 .carrow { color: var(--muted); align-self: center; font-size: 0.8rem; }
-.fnotes { margin: 4px 0 0; font-size: 0.75rem; height: 1.4em;
+.fnotes { margin: 4px 0 0; font-size: 0.75rem; height: 1.7em;
   overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
 .fnote { margin-right: 10px; }
 .fnote sup { color: var(--accent); line-height: 0; }
@@ -1055,8 +1053,6 @@ sup.fn { font-size: 0.7em; color: var(--accent); margin-left: 1px; }
   border-radius: 3px; padding: 0 3px; }
 /* room under the dump for a card under its last rows (two points) */
 main:not([data-single]) .words .dump { margin-bottom: 2.6em; }
-/* the source's note keeps its room as its text changes */
-#srcnote { height: 2.8em; overflow: hidden; }
 /* a popover beside the gutter (no room at it): its arrow at its left */
 .pop.beside::after { left: 8px; }
 /* no scroll anchoring: the page never scrolls by itself when a step
@@ -1068,3 +1064,5 @@ html { overflow-anchor: none; }
 .bruler .blabel { position: absolute; right: 100%; top: 0; padding: 0 6px;
   font-size: 0.6rem; color: var(--accent); }
 .bruler .b { color: var(--accent); }
+/* the selected value's declaration, in the contract's source */
+#contract-src .line.decl { background: var(--mark); border-radius: 2px; }

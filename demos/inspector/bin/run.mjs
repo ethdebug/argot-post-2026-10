@@ -360,7 +360,7 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
     let [open, seen, text] = await st();
     if (open || seen || !/^Arcade\.sol — the contract \(\d+ lines\)$/
       .test(text)) problems.push(`source at rest: ${open} ${seen} ${text}`);
-    if (await page.locator("#contract-src span").count()) {
+    if (await page.locator("#contract-src span[style]").count()) {
       problems.push("source: coloured before it opened");
     }
     await box.locator("summary").click();
@@ -378,6 +378,13 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
       "Arcade.sol"), "utf8").trim() || col[1] < 3) {
       problems.push(`source colouring: ${col[1]} colours`);
     }
+    // (once its idle-time fetches are done: WebKit reports a fetch cut
+    // off by a reload as a page error)
+    await page.waitForFunction(() => !window.loading?.busy(), null,
+      { timeout: 30000 }).catch(() => {});
+    await page.waitForTimeout(1500);
+    await page.waitForFunction(() => !window.loading?.busy(), null,
+      { timeout: 30000 }).catch(() => {});
     await page.reload();
     await page.waitForFunction(() => window.results?.done, null,
       { timeout: 60000 });
@@ -387,6 +394,13 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
     await page.keyboard.press("Enter");
     [open] = await st();
     if (open) problems.push("source: Enter did not close it");
+    // (once its idle-time fetches are done: WebKit reports a fetch cut
+    // off by a reload as a page error)
+    await page.waitForFunction(() => !window.loading?.busy(), null,
+      { timeout: 30000 }).catch(() => {});
+    await page.waitForTimeout(1500);
+    await page.waitForFunction(() => !window.loading?.busy(), null,
+      { timeout: 30000 }).catch(() => {});
     await page.reload();
     await page.waitForFunction(() => window.results?.done, null,
       { timeout: 60000 });
@@ -1607,7 +1621,12 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
   // combo: its source mark
   await scene("alice");
   await row(`${A}.combo`).click();
-  const mark = await page.locator("#src mark").innerText();
+  // (marked in the contract's source at the top, the one source pane)
+  const mark = (await page.locator("#contract-src .line.decl")
+    .allTextContents()).join("\n");
+  if (await page.locator("pre.src:not(#memory *)").count() !== 1) {
+    problems.push("more than one source pane");
+  }
   if (!mark.includes("struct Player")) problems.push(`mark: ${mark}`);
   if (name === "chromium") {
     await page.emulateMedia({ colorScheme: "dark" });

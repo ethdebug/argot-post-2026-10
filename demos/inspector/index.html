@@ -280,12 +280,6 @@ contract Arcade {
         <i></i><i></i><i></i><i></i></div></div>
     </section>
 
-    <section aria-label="Source" class="source">
-      <h2 class="label">Source</h2>
-      <p id="srcnote" class="muted">Click a value to mark where it is
-      declared.</p>
-      <pre id="src" class="src"></pre>
-    </section>
     <!-- a row under both columns (on a phone, a sheet at the bottom of
     the screen), always there, at one size: the step in full, its
     footnote, the chips, and the pointer solc wrote -->
@@ -595,6 +589,8 @@ contract Arcade {
       t.innerHTML = html;
       pre.innerHTML = t.content.querySelector("code").innerHTML;
       pre.classList.add("coloured");
+      // (the selected value's declaration, marked again)
+      window.markDecl?.();
     })().catch((e) => {
       coloured = null;
       console.warn("the colouring did not load; the source stays plain", e);

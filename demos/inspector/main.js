@@ -142,8 +142,6 @@ function render() {
   showScene(scene);
   showCalldata(scene.calldata ? f.tx.input : null, scene.calldata);
   renderTree();
-  $("src").textContent = f.contract.source;
-  $("srcnote").textContent = "Click a value to mark where it is declared.";
   $("panel").innerHTML = renderPanel(current.panel);
   hover = null;
   chosen = null;
@@ -1008,26 +1006,40 @@ function declaration(node) {
   };
 }
 
+// The selected value's declaration, marked in the contract's source at
+// the top of the page (its lines, plain or coloured), and scrolled into
+// that block's view (it scrolls inside itself)
+let declLines = null;
 function markSource(node) {
-  const { f } = current;
   const d = node && declaration(node);
-  const src = $("src");
-  if (!d) {
-    src.textContent = f.contract.source;
-    $("srcnote").textContent = "Click a value to mark where it is declared.";
-    return;
+  declLines = null;
+  if (d) {
+    // ranges count bytes
+    const bytes = new TextEncoder().encode(current.f.contract.source);
+    const before = new TextDecoder().decode(bytes.slice(0, d.range.offset));
+    const inside = new TextDecoder().decode(bytes.slice(d.range.offset,
+      d.range.offset + d.range.length));
+    const first = before.split("\n").length - 1;
+    declLines = [first, first + inside.split("\n").length - 1];
   }
-  // ranges count bytes
-  const bytes = new TextEncoder().encode(f.contract.source);
-  const dec = (a, b) => new TextDecoder().decode(bytes.slice(a, b));
-  const { offset, length } = d.range;
-  src.innerHTML = esc(dec(0, offset)) +
-    `<mark>${esc(dec(offset, offset + length))}</mark>` +
-    esc(dec(offset + length));
-  $("srcnote").textContent = d.note;
-  const m = src.querySelector("mark");
-  src.scrollTop = Math.max(0, m.offsetTop - src.offsetTop - 40);
+  window.markDecl();
 }
+window.markDecl = () => {
+  const pre = $("contract-src");
+  if (!pre) return;
+  // one span a line (Shiki's colouring gives them; plain text gets them)
+  if (!pre.querySelector(".line")) {
+    pre.innerHTML = pre.textContent.split("\n").map((l) =>
+      `<span class="line">${esc(l)}</span>`).join("\n");
+  }
+  const lines = [...pre.querySelectorAll(".line")];
+  lines.forEach((l, k) => l.classList.toggle("decl", !!declLines &&
+    k >= declLines[0] && k <= declLines[1]));
+  const m = declLines && lines[declLines[0]];
+  if (m && pre.closest("details")?.open) {
+    pre.scrollTop = Math.max(0, m.offsetTop - pre.offsetTop - 40);
+  }
+};
 
 
 // ------------------------------------------------------------- linking
