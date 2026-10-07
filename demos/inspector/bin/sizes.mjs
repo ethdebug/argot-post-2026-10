@@ -9,7 +9,7 @@ import { fileURLToPath } from "node:url";
 
 const root = path.dirname(path.dirname(fileURLToPath(import.meta.url)));
 export function sizes() {
-  const files = ["vendor/pointers.js", ...fs.readdirSync(
+  const files = ["vendor/pointers.js", "vendor/shiki.js", ...fs.readdirSync(
     path.join(root, "fixtures")).filter((f) => f.endsWith(".json"))
     .sort().map((f) => `fixtures/${f}`)];
   return Object.fromEntries(files.map((f) =>

@@ -342,9 +342,24 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
     let [open, seen, text] = await st();
     if (open || seen || !/^Scores\.sol — the contract \(43 lines\)$/
       .test(text)) problems.push(`source at rest: ${open} ${seen} ${text}`);
+    if (await page.locator("#contract-src span").count()) {
+      problems.push("source: coloured before it opened");
+    }
     await box.locator("summary").click();
     [open, seen] = await st();
     if (!open || !seen) problems.push("source: a click did not open it");
+    // then it is coloured (Shiki, loaded now), with the same text
+    await page.waitForSelector("#contract-src.coloured span", { timeout:
+      30000 }).catch(() => problems.push("source: not coloured"));
+    const col = await page.evaluate(() => {
+      const p = document.querySelector("#contract-src");
+      return [p.textContent.trim(), new Set([...p.querySelectorAll(
+        "span[style]")].map((s) => getComputedStyle(s).color)).size];
+    });
+    if (col[0] !== fs.readFileSync(path.join(root, "contracts",
+      "Scores.sol"), "utf8").trim() || col[1] < 3) {
+      problems.push(`source colouring: ${col[1]} colours`);
+    }
     await page.reload();
     await page.waitForFunction(() => window.results?.done, null,
       { timeout: 60000 });

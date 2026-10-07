@@ -788,6 +788,11 @@ main[data-single] > .cols :is(.chglegend, .legend .bchg) { display: none; }
 .srcbox > summary:focus-visible { outline: 2px solid var(--accent);
   outline-offset: 1px; }
 .srcfile { font-family: ui-monospace, Menlo, monospace; font-weight: 600; }
+/* the colouring: Shiki's two themes as CSS variables */
+#contract-src.coloured span { color: var(--shiki-light); }
+@media (prefers-color-scheme: dark) {
+  #contract-src.coloured span { color: var(--shiki-dark); }
+}
 .srcbox > .src { border: none; border-top: 1px solid var(--line);
   border-radius: 0 0 6px 6px; }
 .calldata { margin-top: 24px; }

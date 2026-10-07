@@ -96,6 +96,12 @@ parameter in `fixtures/index.json` (`calldata`).
   minified. Rebuild with `bin/build-pointers.sh <checkout>` after
   `yarn install` and building `packages/format` and `packages/pointers`,
   then run `bin/sizes.mjs`.
+- `vendor/shiki.js`: the contract source's colouring, as in the
+  debugger demo (Shiki 3.13.0's core, its JavaScript regex engine, the
+  Solidity grammar, github-light and github-dark), bundled and minified
+  by `bin/build-shiki.sh` (60 KB gzip). The loader fetches it only when
+  the source's `<details>` first opens; until then the source is plain
+  text. The open state is kept in localStorage.
 - `bin/sizes.mjs`: writes the size of the bundle and of each fixture
   into the loader in `index.html` (for "n KB of m KB"). Run it after
   changing any of them; `bin/run.mjs` fails when the sizes are stale.
@@ -450,6 +456,7 @@ What the page fetches (GitHub Pages gzips text):
 | the first scene's data (`scores-record.json`) | 2.3 KB | 11.4 KB |
 | the other two fixtures, idle-time | 4.5 KB | 18.3 KB |
 | total | 136.0 KB | 489.9 KB |
+| `vendor/shiki.js`, only when the source is opened | 58.6 KB | 196.7 KB |
 
 The bundle was 86.8 KB gzip (411 KB) before it was minified.
 
