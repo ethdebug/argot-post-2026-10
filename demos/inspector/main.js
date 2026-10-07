@@ -633,13 +633,15 @@ const ORDER = ["name", "location", "slot", "offset", "length"];
 const entriesOf = (v) => isRegion(v) ? Object.entries(v).sort(([a], [b]) =>
   (ORDER.indexOf(a) + 1 || 99) - (ORDER.indexOf(b) + 1 || 99))
   : Object.entries(v);
-function flowOf(v, rename) {
-  if (typeof v === "string") return rename?.(v) ?? v;
+// (`rename` gives a template's short name: for the value of every
+// `template` key, at any depth)
+function flowOf(v, rename, isTemplate = false) {
+  if (typeof v === "string") return isTemplate ? rename?.(v) ?? v : v;
   if (typeof v !== "object") return String(v);
   if (Array.isArray(v)) return `[${v.map((x) => flowOf(x, rename))
     .join(", ")}]`;
-  return `{ ${entriesOf(v).map(([k, x]) => `${k}: ${flowOf(x,
-    k === "template" ? rename : null)}`).join(", ")} }`;
+  return `{ ${entriesOf(v).map(([k, x]) => `${k}: ${flowOf(x, rename,
+    k === "template")}`).join(", ")} }`;
 }
 function pointerYaml(variable) {
   const { pointers, types } = current.f.contract;
@@ -664,13 +666,17 @@ function pointerYaml(variable) {
     : entriesOf(o);
   // a value in flow style, if it is short enough for one line
   const WIDE = 80;
-  const flowFits = (k, x, d) => `${"  ".repeat(d)}${k}: ${flowOf(x)}`
-    .length <= WIDE;
+  const flowFits = (k, x, d) => `${"  ".repeat(d)}${k}: ${flowOf(x,
+    short, k === "template")}`.length <= WIDE;
   const block = (o, d, tags) => {
     for (const [k, x] of ordered(o)) {
       const own = k === "define" ? [`define:${Object.keys(x)[0]}`]
         : k === "if" ? ["if"] : k === "expect" ? ["expect"] : [];
       if (k === "template") todo.push(x);
+      // (and a template named inside a value written in flow style)
+      const inner = (v) => v && typeof v === "object" && Object.entries(v)
+        .forEach(([kk, vv]) => kk === "template" ? todo.push(vv) : inner(vv));
+      if (k !== "template") inner(x);
       // (an expression too long for one line: its operator, then its
       // operands, one a line)
       if (isExpr(x) && !flowFits(k, x, d)) {
@@ -678,14 +684,14 @@ function pointerYaml(variable) {
         put(d, `${k}:`, [...tags, ...own]);
         put(d + 1, `${op}:`, [...tags, ...own]);
         for (const y of [].concat(x[op])) {
-          put(d + 2, `- ${flowOf(y)}`, [...tags, ...own]);
+          put(d + 2, `- ${flowOf(y, short)}`, [...tags, ...own]);
         }
         continue;
       }
       if (typeof x !== "object" || isExpr(x) ||
         ((isRegion(x) || allScalar(x)) && flowFits(k, x, d)) ||
         (Array.isArray(x) && x.every((y) => typeof y !== "object"))) {
-        put(d, `${k}: ${flowOf(x, k === "template" ? short : null)}`,
+        put(d, `${k}: ${flowOf(x, short, k === "template")}`,
           [...tags, ...own, ...(isRegion(x) ? [`region:${x.name}`] : [])]);
       } else if (Array.isArray(x)) {
         put(d, `${k}:`, [...tags, ...own]);
@@ -699,8 +705,9 @@ function pointerYaml(variable) {
   };
   // a list item
   const item = (y, d, tags) => {
-    if (isRegion(y) && `${"  ".repeat(d)}- ${flowOf(y)}`.length <= WIDE) {
-      put(d, `- ${flowOf(y)}`, [...tags, `region:${y.name}`]);
+    if (isRegion(y) && `${"  ".repeat(d)}- ${flowOf(y, short)}`.length <=
+      WIDE) {
+      put(d, `- ${flowOf(y, short)}`, [...tags, `region:${y.name}`]);
       return;
     }
     const at = lines.length;
@@ -982,23 +989,82 @@ function renderBox() {
         ? "" : " on-end"}` : "";
       return `<span class="line${cls}">${html?.[k] ?? esc(l.text)}</span>`;
     }).join("")}</code></pre>` +
-    (ids.length ? `<p class="muted small pids">Template names shortened; ` +
-      `solc's ids: ${ids.map((x) => `<code>${esc(x)}</code>`).join(", ")}</p>`
-      : "");
-  // the lines a step uses, scrolled into the box's view (it scrolls
-  // inside itself; nothing else moves): the whole band, or, if it does
-  // not fit, its last lines
-  const on = [...$("ptr").querySelectorAll(".line.on")];
+    (ids.length ? `<p class="muted small pids">${PIDS}</p>` : "");
+  markAliases($("ptr"), names);
+  // the lines a step uses: the top of their block at the middle of the
+  // box (it scrolls inside itself; nothing else moves), as far as the
+  // content allows
+  const on = $("ptr").querySelector(".line.on");
   const box = $("ptr");
-  if (!on.length) box.scrollTop = 0;
-  else {
-    const top = on[0].offsetTop;
-    const bottom = on.at(-1).offsetTop + on.at(-1).offsetHeight;
-    box.scrollTop = bottom - top <= box.clientHeight - 16
-      ? Math.max(0, top - (box.clientHeight - (bottom - top)) / 2)
-      : bottom - box.clientHeight + 8;
+  const top = on ? Math.min(Math.max(0, on.offsetTop - box.clientHeight / 2),
+    box.scrollHeight - box.clientHeight) : 0;
+  box.scrollTo({ top, behavior: on && matchMedia(
+    "(prefers-reduced-motion: reduce)").matches ? "auto" : on ? "smooth"
+    : "auto" });
+}
+
+// The template names the page shortened (its own aliases for solc's
+// ids): marked as such, each one, in the YAML lines; a click (or Enter)
+// on one says, in the line under the YAML, which id it stands for
+const PIDS = "Template names shortened for reading; solc writes ids like " +
+  "<code>t_array$_t_address_$dyn_storage</code>.";
+function markAliases(root, names) {
+  const byName = Object.fromEntries(Object.entries(names).map(([id, n]) =>
+    [n, id]));
+  const list = Object.keys(byName).sort((a, b) => b.length - a.length);
+  for (const line of root.querySelectorAll(".line")) {
+    const plain = line.textContent;
+    if (!/^\s*(- )?[^:]*:\s*$|template: /.test(plain)) continue;
+    for (const n of list) {
+      // the name as a key (a template's definition) or as a value of
+      // `template`
+      const at = [`template: ${n}`, `${n}:`].map((x) => [x, plain.indexOf(x)])
+        .find(([x, i]) => i >= 0 && (x.startsWith("template") ||
+          plain.trim().replace(/^- /, "") === x));
+      if (!at || line.querySelector(".alias")) continue;
+      const from = at[0].startsWith("template") ? at[1] + 10 : at[1];
+      wrapRange(line, from, from + n.length, byName[n]);
+    }
   }
 }
+function wrapRange(el, a, b, id) {
+  const walker = document.createTreeWalker(el, NodeFilter.SHOW_TEXT);
+  const range = document.createRange();
+  let pos = 0;
+  let node;
+  while ((node = walker.nextNode())) {
+    const len = node.data.length;
+    if (pos <= a && a <= pos + len) range.setStart(node, a - pos);
+    if (pos <= b && b <= pos + len) {
+      range.setEnd(node, b - pos);
+      break;
+    }
+    pos += len;
+  }
+  const span = document.createElement("span");
+  span.className = "alias";
+  span.tabIndex = 0;
+  span.setAttribute("role", "button");
+  span.dataset.id = id;
+  span.append(range.extractContents());
+  range.insertNode(span);
+}
+document.addEventListener("click", (e) => {
+  const a = e.target.closest?.("#ptr .alias");
+  if (!a) return;
+  const line = $("ptr").querySelector(".pids");
+  if (line) {
+    line.innerHTML = `<code class="alias">${esc(a.textContent)}</code> = ` +
+      `solc's <code>${esc(a.dataset.id)}</code>`;
+  }
+});
+document.addEventListener("keydown", (e) => {
+  if ((e.key === "Enter" || e.key === " ") &&
+    e.target.closest?.("#ptr .alias")) {
+    e.preventDefault();
+    e.target.click();
+  }
+});
 
 // Start, step or leave the replay. Past the last step: the resolved view.
 // Start, step or leave the replay. Stepping stops at the ends; only

@@ -963,7 +963,7 @@ main[data-single] > .cols :is(.chglegend, .legend .bchg, .intro .two) {
   mask-image: linear-gradient(to bottom, transparent 0, #000 0.9em,
     #000 calc(100% - 0.9em), transparent 100%); }
 #ptr code { background: none; padding: 0; border: 0; font-size: inherit; }
-.ptrlines { margin: 0; padding: 0.6em 0; font-size: 0.72rem;
+.ptrlines { margin: 0; padding: 0.9em 0; font-size: 0.72rem;
   display: block;
   line-height: 1.5; white-space: pre; width: max-content; min-width: 100%; }
 .ptrlines .line { display: block; min-width: 100%; box-sizing: border-box;
@@ -1089,7 +1089,10 @@ html { overflow-anchor: none; }
 /* the selected value's declaration, in the contract's source */
 #contract-src .line.decl { background: var(--mark); border-radius: 2px; }
 /* the variables: a box as tall as the storage dump, scrolled inside */
-.scols #tree { overflow-y: auto; overflow-x: hidden; box-sizing: border-box; }
+.scols #tree { overflow-y: auto; overflow-x: hidden; box-sizing: border-box;
+  /* room inside the scrolling box for the bars and bands that reach out
+     of a row (the selection's bar, 7px), without moving the rows */
+  margin: 0 -8px 0 -10px; padding-left: 10px; padding-right: 8px; }
 /* names from the code, in monospace (types stay proportional) */
 .tree .name, .rcap code.id, .rshort code.id { font-family: ui-monospace,
   Menlo, monospace; font-weight: 600; }
@@ -1101,7 +1104,11 @@ html { overflow-anchor: none; }
   var(--mark)), 4px 0 0 var(--pk, var(--mark)); }
 .tree li.blk .row.hl { background: none; box-shadow: none; }
 #tree li.blk .row { border-radius: 0; }
-.tree li.blk > .row.hl.sel { box-shadow: -7px 0 0 var(--accent); }
 .tree li.blk.muted { filter: saturate(0.25); opacity: 0.55; }
 .tree li.blk .row.hl.muted { filter: none; opacity: 1; }
 .tree li.blk .row:not(.hl) { opacity: 0.45; }
+/* the page's own short names for solc's template ids */
+#ptr .alias, .pids .alias { font-style: italic; text-decoration: underline
+  dotted; text-underline-offset: 2px; color: var(--accent) !important;
+  cursor: pointer; }
+#ptr .alias span { color: inherit !important; }

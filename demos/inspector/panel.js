@@ -939,6 +939,11 @@ export function paint(root, tree, h, opts = {}) {
     const own = li.firstElementChild;
     if (!own.classList.contains("hl")) continue;
     if (li.parentElement.closest("li.blk")) continue;
+    // (a block is a composite's rows; the selected row keeps its own
+    // highlight and bar, as any row)
+    if (!li.querySelector("li[data-path]") || li.querySelector(".row.sel")) {
+      continue;
+    }
     const ks = new Set([...li.querySelectorAll(".row.hl")].map(colourOf));
     if (ks.size !== 1) continue;
     const k = [...ks][0];
