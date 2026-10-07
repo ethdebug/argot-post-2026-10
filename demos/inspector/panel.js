@@ -50,6 +50,20 @@ export function setHash(changes) {
   }
 }
 
+// Which section a key press belongs to: the one that has the focus, or,
+// with nothing focused, the one the pointer was last pressed in.
+// Returns "memory", "calldata" or "storage".
+let lastPressed = "storage";
+const sectionOf = (el) => el?.closest?.("#memory") ? "memory"
+  : el?.closest?.("#calldata") ? "calldata" : "storage";
+document.addEventListener("pointerdown", (e) => {
+  lastPressed = sectionOf(e.target);
+}, true);
+export function keySection() {
+  const f = document.activeElement;
+  return !f || f === document.body ? lastPressed : sectionOf(f);
+}
+
 // 0x0000…f39f…2266 -> 0xf39f…2266
 export function short(h, keep = 4) {
   const s = "0x" + (h.replace(/^0x0*/, "") || "0");

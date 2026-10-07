@@ -289,13 +289,19 @@ offsets.
   over the row in After); a lit parent gets one card with its changed
   members. There is never a card for what did not change, in the tree
   or the dump. Highlighting works the same with the cards off.
+- Each section (the storage scenes, the calldata, the memory section)
+  keeps its own view: its controls, clicks and Escape act on it only.
+  With nothing focused, Escape clears the selection of the section the
+  pointer was last pressed in. The Before | After toggle is shown only
+  in a scene with two points.
 - The URL hash keeps the view, e.g.
   `#ex=motd&mode=before&sel=motd&a=built&b=replaced&mmode=after`
   (`insets=0` when the cards are off)
   (`ex`: the scene id: `packed`, `players`, `vyper`, `combo`, `motd`;
   `mode`: only for a scene with two points; `sel`: the tree path, empty
   when the scene's default selection was cleared, absent for the
-  scene's default; `a`, `b`, `mmode`, `msel`: the memory section). The
+  scene's default; `a`, `b`, `mmode`, `msel`: the memory section, which has its own keys; storage
+  keys never change it). The
   format is the old one; only the `ex` values changed, and an old one
   (`token`, `strings`, `motd`, …) is stale. It is updated with
   `history.replaceState`, only when it changes; a stale hash falls back

@@ -1580,6 +1580,88 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
     await page.keyboard.press("Escape");
   }
 
+  // Each section keeps its own view: the storage scene's controls (the
+  // scene, Before | After, "show other state", Escape) leave the memory
+  // section as it is, and the memory section's (A, B, its Show, Escape)
+  // leave the storage scene as it is
+  {
+    const memView = () => page.evaluate(() => JSON.stringify([
+      ...["#mpick-before", "#mpick-after", "#mmode"].map((q) =>
+        document.querySelector(`${q} [aria-checked="true"]`)?.dataset.id ??
+        document.querySelector(`${q} [aria-checked="true"]`)?.dataset.mode),
+      [...document.querySelectorAll("#mpanel .view")].map((v) => v.hidden)
+        .join(),
+      document.querySelector("#mtree .row.sel")?.parentElement.dataset.path,
+      document.querySelector("#mtree").innerText,
+      document.querySelectorAll("#mpanel .b.hl").length]));
+    const storeView = () => page.evaluate(() => JSON.stringify([
+      document.querySelector('#picker [aria-checked="true"]')?.dataset.id,
+      document.querySelector('#mode [aria-checked="true"]')?.dataset.mode,
+      [...document.querySelectorAll("#panel .view")].map((v) => v.hidden)
+        .join(),
+      document.querySelector("#tree .row.sel")?.parentElement.dataset.path,
+      document.querySelector("#insets").checked,
+      document.querySelector("#tree").innerText]));
+    await scene("combo");
+    await page.locator(`#tree li[data-path="${A}.combo"] > .row`).click();
+    await mrow("names[1]").click();
+    await page.locator("h1").hover();
+    let m0 = await memView();
+    const steps = [
+      ["Before", () => setMode("before")],
+      ["insets", () => page.locator("#insets").uncheck()],
+      ["insets again", () => page.locator("#insets").check()],
+      ["After", () => setMode("after")],
+      ["a scene", () => page.locator('#picker button[data-id="motd"]')
+        .click()],
+      ["a one-point scene", () => page.locator(
+        '#picker button[data-id="packed"]').click()],
+      ["Escape", async () => {
+        await page.locator('#tree li[data-path="total"] > .row').click();
+        await page.evaluate(() => document.activeElement?.blur());
+        await page.keyboard.press("Escape");
+      }],
+    ];
+    for (const [what, act] of steps) {
+      await act();
+      await page.locator("h1").hover();
+      if (await memView() !== m0) {
+        problems.push(`storage ${what} changed memory: ${await memView()}`);
+        m0 = await memView();
+      }
+    }
+    await page.locator('#picker button[data-id="combo"]').click();
+    await page.locator(`#tree li[data-path="${A}.combo"] > .row`).click();
+    await page.locator("h1").hover();
+    let s0 = await storeView();
+    const msteps = [
+      ["A", () => page.locator('#mmode button[data-mode="before"]').click()],
+      ["B", () => page.locator('#mmode button[data-mode="after"]').click()],
+      ["point A", () => page.locator('#mpick-before button[data-id="written"]')
+        .click()],
+      ["point A again", () => page.locator(
+        '#mpick-before button[data-id="built"]').click()],
+      ["Escape", async () => {
+        await mrow("names[2]").click();
+        await page.evaluate(() => document.activeElement?.blur());
+        await page.keyboard.press("Escape");
+      }],
+    ];
+    for (const [what, act] of msteps) {
+      await act();
+      await page.locator("h1").hover();
+      if (await storeView() !== s0) {
+        problems.push(`memory ${what} changed storage: ${await storeView()}`);
+        s0 = await storeView();
+      }
+    }
+    // and each Escape cleared its own section's selection
+    if (await page.locator("#mtree .row.sel").count()) {
+      problems.push("memory Escape did not clear memory");
+    }
+    await page.keyboard.press("Escape");
+  }
+
   // The URL hash keeps the view: loading with one restores the scene,
   // the mode, the selection and the memory points; a stale one falls
   // back to the first scene, with its defaults
