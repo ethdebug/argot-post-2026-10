@@ -101,13 +101,16 @@ export const forRow = (d: Decoded, l: Layout, row: Hex): Light =>
 // Bytes from..to of one row: the owners of them (a value, or only its
 // length part), and their rows
 export function forBytes(d: Decoded, l: Layout,
-  at: NonNullable<Target["bytes"]>): Light {
+  at: NonNullable<Target["bytes"]>,
+  o: { collapsed?: ReadonlySet<Path> } = {}): Light {
   const owners = new Set<Path>();
   for (let i = at.from; i <= at.to; i++) {
     for (const p of l.cover.get(byteKey(at.location, at.row, i)) ?? []) {
       owners.add(p);
     }
   }
-  return { ...noLight, bytes: lit(l, [...owners]),
-    rows: new Set([...owners].map(ownerPath)), at, muted: true };
+  const rows = [...owners].map(ownerPath);
+  return { ...noLight, bytes: lit(l, [...owners]), rows: new Set(
+    o.collapsed?.size ? rows.flatMap((p) => [p, shownAs(p, o.collapsed!)])
+      : rows), at, muted: true };
 }

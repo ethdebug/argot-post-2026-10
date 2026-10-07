@@ -8,7 +8,9 @@ import type {
 } from "../engine/types";
 import { decode } from "../engine/decode";
 import { layout } from "../engine/layout";
-import { forBytes, forPath, noLight } from "../engine/light";
+import { forBytes, forPath, forRow, noLight } from "../engine/light";
+import { locked } from "../engine/target";
+import { byteKey } from "../engine/hex";
 import type { Store } from "./store";
 import type {
   DataAt, DataRef, LensSpec, LensState, LinkState, ViewState, ViewSpec,
@@ -16,6 +18,8 @@ import type {
 
 export interface LensContextValue {
   spec: LensSpec; project: Project; store: Store<LensState>;
+  // this mount's key: its views carry data-view="<key>:<view id>"
+  key: string;
   // show a bookmark (its points, side and selection); false when its
   // data did not load (Lens.tsx)
   show(id: string, view?: { mode?: "before" | "after";
@@ -149,23 +153,56 @@ export function useLayout(id: string, filter?: Filter):
   return { d, l };
 }
 
-// What a view lights: its link's selection, or else what is pointed at
+// The groups collapsed in a link group's trees (a collapse recolours
+// what every linked view lights: vanilla legend)
+export function useCollapsed(link: string | undefined): ReadonlySet<string> {
+  const { spec } = useLens();
+  const trees = spec.views.filter((v) => v.kind === "tree" &&
+    v.link === link).map((v) => v.id);
+  const key = useLensState((s) => trees.map((t) =>
+    [...(s.views[t]?.collapsed ?? [])].join("\n")).join("\t"));
+  return useMemo(() => new Set(key.split(/[\t\n]/).filter(Boolean)),
+    [key]);
+}
+
+// What a view lights (vanilla main.js show, panel.js locked): with a
+// selection (one this view's tree has), the selection, with the part
+// pointed at in focus (a hover elsewhere is ignored); else what is
+// pointed at: a value (a run of its own bytes: only that owner's
+// bytes), bytes no value owns, or a row's address
 export function useLight(id: string, filter?: Filter): Light {
   const v = useViewSpec(id);
   const { d, l } = useLayout(id, filter);
   const [link] = useLink(v.link);
-  const [view] = useView(id);
+  const collapsed = useCollapsed(v.link);
   return useMemo(() => {
     if (!d || !l) return noLight;
-    const o = { collapsed: view.collapsed };
-    const { selection: sel, hover } = link;
-    if (sel) return { ...forPath(d, l, sel, o), cap: new Set([sel]) };
-    if (hover?.path) return forPath(d, l, hover.path, o);
-    if (hover?.bytes) return forBytes(d, l, hover.bytes);
+    const o = { collapsed };
+    const { selection, hover } = link;
+    const sel = selection && d.byPath.has(selection) ? selection : null;
+    if (sel) {
+      const base = forPath(d, l, sel, { ...o, selection: true });
+      const lk = locked(hover, sel, d.byPath);
+      const k = lk?.path && lk.path !== sel
+        ? base.colours.get(lk.path) : undefined;
+      return { ...base, cap: new Set([sel]),
+        ...(k !== undefined && k !== 0 ? { focus: k } : {}) };
+    }
+    if (hover?.path && d.byPath.has(hover.path)) {
+      // (a run of the value's own bytes: those bytes' owners only)
+      const leaf = hover.bytes && l.cover.get(byteKey(hover.bytes.location,
+        hover.bytes.row, hover.bytes.from))?.some((x) =>
+        x.replace(/#length$/, "") === hover.path);
+      return leaf ? forBytes(d, l, hover.bytes!, o)
+        : { ...forPath(d, l, hover.path, o),
+          ...(hover.bytes ? { at: hover.bytes } : {}) };
+    }
+    if (hover?.bytes) return forBytes(d, l, hover.bytes, o);
+    if (hover?.row) return forRow(d, l, hover.row as Hex);
+    if (hover) return { ...noLight, muted: true };
     return noLight;
-  }, [d, l, link, view.collapsed]);
+  }, [d, l, link, collapsed]);
 }
-
 // The timeline point a view shows (a dump's words, its transaction)
 export function usePoint(ref: DataRef | undefined):
   TimelinePoint | undefined {
