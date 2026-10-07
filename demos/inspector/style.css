@@ -816,6 +816,8 @@ main[data-single] > .cols :is(.chglegend, .legend .bchg, .intro .two) {
   --pk4: #d9c8ff; --pk4-fg: #3b1f7a;
   --pk5: #a8e6e0; --pk5-fg: #0f4f4a;
   --pk6: #ffcf9e; --pk6-fg: #6a3300;
+  --pk7: #ffb3a7; --pk7-fg: #7a1a10;
+  --pk8: #b8e07a; --pk8-fg: #2f4a00;
 }
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
@@ -825,6 +827,8 @@ main[data-single] > .cols :is(.chglegend, .legend .bchg, .intro .two) {
     --pk4: #4b3586; --pk4-fg: #e2d6ff;
     --pk5: #145a55; --pk5-fg: #c4f3ee;
     --pk6: #7a4310; --pk6-fg: #ffd9b3;
+    --pk7: #8a2a20; --pk7-fg: #ffd0c8;
+    --pk8: #3f5c0e; --pk8-fg: #e2f5bf;
   }
 }
 :root[data-theme="dark"] {
@@ -834,6 +838,8 @@ main[data-single] > .cols :is(.chglegend, .legend .bchg, .intro .two) {
   --pk4: #4b3586; --pk4-fg: #e2d6ff;
   --pk5: #145a55; --pk5-fg: #c4f3ee;
   --pk6: #7a4310; --pk6-fg: #ffd9b3;
+  --pk7: #8a2a20; --pk7-fg: #ffd0c8;
+  --pk8: #3f5c0e; --pk8-fg: #e2f5bf;
 }
 .pk1 { --pk: var(--pk1); --pk-fg: var(--pk1-fg); }
 .pk2 { --pk: var(--pk2); --pk-fg: var(--pk2-fg); }
@@ -841,15 +847,17 @@ main[data-single] > .cols :is(.chglegend, .legend .bchg, .intro .two) {
 .pk4 { --pk: var(--pk4); --pk-fg: var(--pk4-fg); }
 .pk5 { --pk: var(--pk5); --pk-fg: var(--pk5-fg); }
 .pk6 { --pk: var(--pk6); --pk-fg: var(--pk6-fg); }
-.b.hl:is(.pk1, .pk2, .pk3, .pk4, .pk5, .pk6) {
+.pk7 { --pk: var(--pk7); --pk-fg: var(--pk7-fg); }
+.pk8 { --pk: var(--pk8); --pk-fg: var(--pk8-fg); }
+.b.hl:is(.pk1, .pk2, .pk3, .pk4, .pk5, .pk6, .pk7, .pk8) {
   background: var(--pk); color: var(--pk-fg); }
-.row.hl:is(.pk1, .pk2, .pk3, .pk4, .pk5, .pk6) {
+.row.hl:is(.pk1, .pk2, .pk3, .pk4, .pk5, .pk6, .pk7, .pk8) {
   background: var(--pk); color: var(--pk-fg);
   box-shadow: -4px 0 0 var(--pk), 4px 0 0 var(--pk); }
-.row.hl.sel:is(.pk1, .pk2, .pk3, .pk4, .pk5, .pk6) {
+.row.hl.sel:is(.pk1, .pk2, .pk3, .pk4, .pk5, .pk6, .pk7, .pk8) {
   box-shadow: -4px 0 0 var(--pk), 4px 0 0 var(--pk),
     -7px 0 0 var(--accent); }
-.row.hl:is(.pk1, .pk2, .pk3, .pk4, .pk5, .pk6) :is(.type, .val) {
+.row.hl:is(.pk1, .pk2, .pk3, .pk4, .pk5, .pk6, .pk7, .pk8) :is(.type, .val) {
   color: inherit; }
 
 /* With a composite selected, pointing at one child (or focusing it)
