@@ -17,7 +17,7 @@ const TINTS = 5;
 // ------------------------------------------------------- the URL hash
 
 // What the page shows lives in the URL hash, so a reload (or a link)
-// comes back to it: e.g. #ex=strings&mode=compare&sel=grows, and for
+// comes back to it: e.g. #ex=motto&mode=before&sel=motto, and for
 // the memory section a=…&b=…&mmode=…&msel=…. A hash without "=" (such
 // as #memory) is a plain link to a section. Read once, before either
 // section writes it.
@@ -67,8 +67,11 @@ export const shortKeys = (path) =>
 
 // ------------------------------------------------------------- model
 
-// Build the panel model for one fixture and its merged tree.
-export function buildPanel(f, tree) {
+// Build the panel model for one fixture and its merged tree. `single`:
+// a scene with one point (no other state; before and after are the
+// same); `when`: what each side is called ("after the transaction").
+// `names`: slot -> a name for a slot no template computed.
+export function buildPanel(f, tree, { single = false, when, names } = {}) {
   const owners = new Map(); // id -> { id, row, label, text, regions }
   const order = []; // slot words, in the order the tree meets them
   const seen = new Set();
@@ -133,7 +136,10 @@ export function buildPanel(f, tree) {
     const slot = word(num(s.stack[s.stack.length - 1]));
     (s.op === "SLOAD" ? read : written).add(slot);
   }
-  [...read, ...written].forEach(addSlot);
+  // (at one point, only the values' slots: the transaction is not shown;
+  // and any slot given a name)
+  if (!single) [...read, ...written].forEach(addSlot);
+  Object.keys(names ?? {}).forEach(addSlot);
 
   // slot number -> variables, from the program-level context
   const bases = new Map();
@@ -147,7 +153,10 @@ export function buildPanel(f, tree) {
   // run of hashed slots (a long string's data) reads as one block
   order.sort((a, b) => (num(a) < num(b) ? -1 : num(a) > num(b) ? 1 : 0));
 
-  return { f, owners, order, hashes, cover, read, written, bases };
+  return { f, owners, order, hashes, cover, read, written, bases, single,
+    when: when ?? { before: "before the transaction",
+      after: "after the transaction" },
+    names: new Map(Object.entries(names ?? {})) };
 }
 
 const PLAIN = 1n << 32n; // below this, a slot is a plain number
@@ -163,6 +172,7 @@ function derive(hashes, n) {
 // A plain name for a slot: "slot 1", or how the template computed it,
 // e.g. "keccak(0xf39f…2266, slot 0) + 1".
 export function slotName(m, s) {
+  if (m.names?.has(s)) return m.names.get(s);
   const n = num(s);
   if (n < PLAIN) return `slot ${n}`;
   const k = derive(m.hashes, n);
@@ -275,27 +285,30 @@ export function renderPanel(m) {
     }
     const { before, after } = m.f.slots[s];
     const zero = (w) => !w || /^0x0*$/.test(w);
-    const same = before === after;
+    const same = !m.single && before === after;
     const rd = m.read.has(s);
     const wr = m.written.has(s);
-    // What the transaction did to the slot, for the popover
-    const facts = !wr ? (rd ? "read only" : "not read or written")
+    // What the transaction did to the slot, for the popover (nothing, at
+    // one point)
+    const facts = m.single ? "" : !wr ? (rd ? "read only"
+      : "not read or written")
       : zero(after) && !zero(before) ? "cleared (written to zero)"
         : same ? "written, same value" : rd ? "read, written" : "written";
     // the one mark at rest: written without a change, which nothing
     // else would show
-    const ring = wr && same;
+    const ring = !m.single && wr && same;
     return { s, n, name, tint, same, facts, ring };
   });
   const gap = `<div class="gap" aria-hidden="true"><span>⋯</span></div>`;
   const view = (side) => {
-    const title = side === "before" ? "Before" : "After";
+    const title = m.single ? "Storage" : side === "before" ? "Before"
+      : "After";
     const lines = [];
     rows.forEach((x, k) => {
       const prev = rows[k - 1];
       if (k === 0 || x.n !== prev.n + 1n) lines.push(gap);
       const what = `${x.name}${x.name.startsWith("slot") ? "" : ` (slot ${
-        short(x.s)})`}; ${x.facts}`;
+        short(x.s)})`}${x.facts ? `; ${x.facts}` : ""}`;
       lines.push(`<div class="wrow${x.same ? " same" : ""}${k % 2
         ? " zb" : ""}"` +
         ` data-slot="${x.s}" data-name="${esc(x.name)}"` +
@@ -309,7 +322,7 @@ export function renderPanel(m) {
     });
     lines.push(gap);
     return `<div class="view" data-side="${side}" role="group"` +
-      ` aria-label="Storage ${side} the transaction">` +
+      ` aria-label="Storage ${esc(m.when[side])}">` +
       `<div class="view-head"><span class="view-name">${title}</span>` +
       `<div class="wrow head"><span class="addr"></span>${ruler()}</div>` +
       `</div><div class="rows">${lines.join("")}</div></div>`;
@@ -411,6 +424,10 @@ function stateHtml(m, o, side) {
 function ownerInfo(m, o) {
   const b = o.regions.before.map((r) => regionHtml(m, r)).join("; ");
   const a = o.regions.after.map((r) => regionHtml(m, r)).join("; ");
+  if (m.single) {
+    return [["Value", `${code(o.label)}${o.type ? ` (${esc(o.type)})`
+      : ""}`], ["Where", a], ["Holds", stateHtml(m, o, "after")]];
+  }
   return [
     ["Value", `${code(o.label)}${o.type ? ` (${esc(o.type)})` : ""}`],
     ...(!b || !a || a === b ? [["Where", a || b]]
@@ -429,7 +446,8 @@ export function details(h, hint) {
 }
 
 function ownerLabel(m, o) {
-  const v = change(sideText(m, o, "before"), sideText(m, o, "after"));
+  const v = m.single ? sideText(m, o, "after") ?? ""
+    : change(sideText(m, o, "before"), sideText(m, o, "after"));
   return `${o.label} · ${whereText(o)}${v ? ` · ${v}` : ""}`;
 }
 
@@ -479,12 +497,13 @@ export function forBytes(m, cell) {
     }
     return h;
   };
-  const vals = change(val("before"), val("after"));
+  const vals = m.single ? val("after") : change(val("before"), val("after"));
   const info = [
     ["Bytes", `${range} of ${num(s) < PLAIN ? `slot ${num(s)}`
       : `slot ${code(tail(s))} (${esc(nm)})`}`],
-    ["Before", code(hexAt(m, s, "before", from, to))],
-    ["After", code(hexAt(m, s, "after", from, to))],
+    ...(m.single ? [["Hex", code(hexAt(m, s, "after", from, to))]] : [
+      ["Before", code(hexAt(m, s, "before", from, to))],
+      ["After", code(hexAt(m, s, "after", from, to))]]),
   ];
   if (!ids.length) {
     return { bytes: new Set(), rows: new Set(), at,
@@ -504,12 +523,13 @@ export function forBytes(m, cell) {
 export function forSlot(m, s) {
   const nm = slotName(m, s);
   const { before, after } = m.f.slots[s];
+  const what = before === after ? "unchanged" : "changed";
   return { bytes: new Set(), rows: new Set(), at: { s, from: 0, to: 31 },
-    label: `${slotRef(s)}${nm === slotRef(s) ? "" : ` = ${nm}`} · ${s} · ${
-      before === after ? "unchanged" : "changed"}`,
+    label: `${slotRef(s)}${nm === slotRef(s) ? "" : ` = ${nm}`} · ${s}${
+      m.single ? "" : ` · ${what}`}`,
     info: [["Slot", `${code(tail(s))}${nm === slotRef(s) ? ""
       : ` (${esc(nm)})`}`], ["Address", code(s)],
-    ["Transaction", before === after ? "unchanged" : "changed"]] };
+    ...(m.single ? [] : [["Transaction", what]])] };
 }
 
 // A region step of "How this was found"
@@ -519,7 +539,7 @@ export function forRegion(m, r, side, name) {
   return { bytes, rows: new Set(), step: true,
     label: `${name ? `region ${name} · ` : ""}${regionText(r)} (${side})`,
     info: [["Region", name ? code(name) : "unnamed"],
-      ["Where", regionHtml(m, r)], ["State", `${side} the transaction`]] };
+      ["Where", regionHtml(m, r)], ["State", esc(m.when[side])]] };
 }
 
 // Put a popover at an address: its left edge on the gutter's, its arrow
@@ -586,13 +606,15 @@ function runName(rows) {
 // The slot popover for a run: how its slots were found, and what the
 // transaction did to them
 function popFor(rows, more) {
-  const facts = [...new Set(rows.map((r) => r.dataset.facts))];
+  const facts = [...new Set(rows.map((r) => r.dataset.facts))]
+    .filter(Boolean);
   const full = rows[0].dataset.full;
   const pop = document.createElement("span");
   pop.className = "pop";
   pop.setAttribute("role", "status");
-  pop.innerHTML = `<span class="pop-how">${esc(runName(rows))} · ${esc(
-    facts.join(" / "))}${more ? ` · +${more} more` : ""}</span>${full
+  pop.innerHTML = `<span class="pop-how">${esc(runName(rows))}${
+    facts.length ? ` · ${esc(facts.join(" / "))}` : ""}${more
+    ? ` · +${more} more` : ""}</span>${full
     ? `<span class="full">${esc(full)}${rows.length > 1 ? " …" : ""}</span>`
     : ""}`;
   return pop;

@@ -1,10 +1,13 @@
 # Storage, by name
 
-A browser demo for the ethdebug/format blog post. Pick a transaction and
-see the contract's storage by Solidity name, before and after, with
-changed values marked. Click any value, changed or not, to see how it
-was found: the template solc wrote, each expression evaluated, and the
-final regions.
+A browser demo for the ethdebug/format blog post. One contract, Scores
+(`contracts/Scores.sol`, shown at the top of the page), in a list of
+scenes. Its main point is linking both ways: click a byte inside a
+word of storage (a packed slot too), and the variable that owns it
+lights up; click a variable, and its bytes light up. "How this was
+found" shows each step from the variable to its bytes: the template
+solc wrote, each expression evaluated, and the final regions. Diffs
+come in only where a scene needs "this changed".
 
 Values are decoded by `@ethdebug/pointers` (ethdebug's reference
 TypeScript library) from the ethdebug output of Walnut's solc fork
@@ -15,12 +18,78 @@ the pointer templates. This page does not use soldb.
 Serve the repo root over HTTP and open `demos/inspector/`. The page needs no
 node: everything comes from `fixtures/`.
 
+## Scenes
+
+`fixtures/index.json` lists the scenes. Each has a title, a fixture,
+its points (one: `["before"]` or `["after"]`, the state on that side of
+the fixture's transaction; or two: `["before", "after"]`), what each
+point is called (`when`), a summary line, the variable selected first
+(`select`), and for two points the mode shown first. Each scene's intro
+is in `index.html` (`#intros`, one `<p data-scene>` per scene), and so
+are the picker's buttons, with `data-fixture` and `data-single` (one
+point), so that the page does not move when the data comes;
+`bin/run.mjs` checks that they match.
+
+1. A packed slot: `total` and `rounds` share slot 3. One point, after
+   Alice's `record(7)`. Nothing selected.
+2. Alice's entry: `players[alice]`, her `Player` packed in one slot at
+   keccak(alice . 0), and the derivation. One point, after
+   `record(7)`. `players[alice].streak` selected.
+3. Same slot, new values: before and after Alice's `record(30)` (her
+   streak bonus makes her score 67, streak 2). `players[alice]`
+   selected.
+4. A string outgrows its slot: before and after
+   `setMotto("play fair, keep score, and write the scores down")` (48
+   bytes), after `setMotto("play fair")`. `motto` selected. This scene
+   also shows the calldata (below).
+5. Vyper reads it differently: see "Vyper" below. One point.
+
+A scene with one point has no other state: no Before | After, no "show
+other state", no change marks or cards, no popover facts ("read,
+written"), and its dump shows only the slots of the values on the page.
+The details say "Holds" for the value. The page makes such a scene from
+the fixture by using the one side's words as both sides (`atPoint()` in
+`main.js`).
+
+## Vyper
+
+Vyper emits no ethdebug, so the page has no rule from Vyper. The Vyper
+scene is the smallest honest version: `contracts/Scores.vy` (Vyper
+0.4.3), deployed, then `record(7)` and `record(30)` from Alice. The page
+applies solc's rule for `players` (from Scores.sol's ethdebug output,
+`players` only) to the Vyper contract's real storage, with Alice's key.
+keccak256(key . slot 0) =
+`0x7230…a722` holds nothing, so the tree shows `score` 0, with no error:
+what a tool built on Solidity's rules reads. Vyper's own rule,
+keccak256(slot 0 . key) = `0x5c63…fee4`, puts each member in its own
+slot: 67, 2 and 1. Those three words (from the trace of Vyper's
+`record(30)`) are in the dump, named "Vyper's keccak(slot 0, …)", and no
+value owns them. "How this was found" ends with "Vyper's rule, for
+contrast: not from ethdebug", one step per word, each lighting its word.
+The script checks those values against the node and the getter.
+
+## Calldata (the setMotto scene)
+
+`setMotto(string calldata m)`: `m` stays in the transaction's input.
+solc's ethdebug output here gives no pointer for a parameter (its
+instructions carry `code` contexts only) and no calldata types or
+templates, so the page cannot ask ethdebug where `m` is, and says so.
+`calldata.js` shows the input like the other dumps (the selector line,
+then words by offset) and labels the parts by the ABI encoding rules:
+the selector, `m`'s head word (the offset, 32), its length (48) and its
+bytes. The linking works both ways: click a byte to select its part, a
+part (or `m`) to light its bytes; "How this was found" lists the ABI
+steps, each lighting its bytes. The scene names its function and
+parameter in `fixtures/index.json` (`calldata`).
+
 ## Files
 
 - `index.html`, `main.js`, `style.css`: the page. `index.html` also
-  holds the loader (below, "Loading on a slow link").
+  holds the loader (below, "Loading on a slow link"), the scenes'
+  intros and the contract's source.
 - `decode.js`: the decoding, shared by the page and the fixture script.
 - `panel.js`: the words panel (below).
+- `calldata.js`: the calldata view of the setMotto scene.
 - `vendor/pointers.js`: `@ethdebug/pointers` bundled with esbuild from
   ethdebug/format `origin/main` at commit
   `ec7a81386` (includes #317, the scoping fix, not yet released),
@@ -30,55 +99,53 @@ node: everything comes from `fixtures/`.
 - `bin/sizes.mjs`: writes the size of the bundle and of each fixture
   into the loader in `index.html` (for "n KB of m KB"). Run it after
   changing any of them; `bin/run.mjs` fails when the sizes are stale.
-- `bin/make-fixtures.mjs`: compiles, deploys, runs the transactions and
-  writes `fixtures/`.
+- `bin/make-fixtures.mjs`: compiles, deploys, runs the transactions,
+  writes `fixtures/` (not `index.json`) and puts the contract's source
+  into `index.html`.
 - `bin/run.mjs`: Playwright check in Chromium, Firefox and WebKit;
-  writes `screenshots/` (only `desktop-packed.png` is committed;
-  `desktop-packed.png`: Packed, `b` selected;
-  `desktop-dark.png`: Token, the sender's nonce selected, with "How
-  this was found"; `insets.png`: Token, After, the sender's `Account` (a
-  run of two slots) lit, with its "before" card;
-  `memory.png`: the memory section, `names[1]` selected, A = array
-  built, B = name replaced; `memory-phone.png`: the memory section on a
-  phone, `names[1]` selected; `phone.png`: Strings, `grows` (short →
-  long) selected, the panel saying the before and after derivations
-  differ). It also checks the loading (below): the sizes and the
-  picker in `index.html`, no local paths in the files, a failed load
-  and Retry in each browser, and, in Chromium, the page on "Slow 3G"
-  (it prints each request with its size). Run it with `PAGE=<the
-  page's URL>`; the slow-link check serves the repo itself.
+  writes `screenshots/` (only `desktop-packed.png` is committed:
+  the first scene, `total` selected by a click on its byte;
+  `desktop-dark.png`: Same slot, `streak` selected, with "How this was
+  found"; `insets.png`: Same slot, After, Alice's entry lit, with its
+  "before" card; `memory.png`: the memory section, `names[1]` selected,
+  A = array built, B = name replaced; `memory-phone.png`: the memory
+  section on a phone; `phone.png`: the motto scene on a phone, `motto`
+  selected). It also checks the loading (below): the sizes, the picker
+  and the intros in `index.html`, the contract in `index.html`, no local
+  paths in the files, a failed load and Retry in each browser, and, in
+  Chromium, the page on "Slow 3G" (it prints each request with its
+  size). Run it with `PAGE=<the page's URL>`; the slow-link check
+  serves the repo itself.
 - `mem.js`, `bug/rename.bug`, `bin/make-memory-fixture.mjs`,
   `fixtures/memory.json`: the memory section (below).
-- `contracts/`: Token, Shop and Packed (also used by the debugger demo)
-  and Strings (written for this page).
+- `contracts/`: `Scores.sol` and `Scores.vy` (the program of the blog
+  post's painful examples).
 
 ## How the fixtures were made
 
-1. `anvil --steps-tracing --port 8548 --silent`
-2. `SOLC=<solc> RPC_URL=http://127.0.0.1:8548 node
-   bin/make-fixtures.mjs`. `<solc>` is a native solc built from Walnut's
-   fork, walnuthq/solidity PR #10 (head `c434b2ea`, reports
-   `0.8.38-develop.2026.10.5+commit.c434b2ea`); without `SOLC`, the
-   script runs `solc` from your PATH. It
-   compiles each contract with `--standard-json`, viaIR, optimizer off,
-   `experimental: true`, `debug.debugInfo: ["ethdebug", "ast-id"]`, and
-   outputs `ethdebug.resources` and `ethdebug.compilation` (together
-   they give the global `ethdebug.resources`),
-   `evm.deployedBytecode.ethdebug` (the program, with the program-level
-   context), bytecode and the AST. No storageLayout.
-3. Transactions (from anvil account 0):
-   - Token: deploy with supply 1000; `transfer(0x7099…79C8, 25)`.
-   - Shop: deploy; `place("widget", 5, 3)` (fixture made, not shown;
-     see below).
-   - Packed: deploy; `set(7, 300, 123456789)`.
-   - Strings: deploy; `setAll("short", "this one starts long, then
-     becomes a short one", "exactly thirty-one bytes, short",
-     "thirty-two bytes, the least long")` (setup, not shown);
-     `update("a string longer than thirty-one bytes, stored long",
-     "now short")`. In one transaction `grows` goes short → long and
-     `shrinks` long → short (solc zeroes its two old data slots, which
-     the page shows); `most` (31 bytes, the longest short string) and
-     `least` (32 bytes, the shortest long string) do not change.
+1. `anvil --steps-tracing --port 8555 --silent`
+2. `SOLC=<solc> VYPER=<vyper> RPC_URL=http://127.0.0.1:8555 node
+   bin/make-fixtures.mjs`, then `node bin/sizes.mjs`. `<solc>` is a
+   native solc built from Walnut's fork, walnuthq/solidity PR #10 (head
+   `c434b2ea`, reports `0.8.38-develop.2026.10.5+commit.c434b2ea`);
+   stock solc 0.8.37 gives ethdebug types and templates but no program
+   context with the state variables, which the page needs. `<vyper>` is
+   Vyper 0.4.3. Without them, the script runs `solc` and `vyper` from
+   your PATH. It compiles Scores.sol with `--standard-json`, viaIR,
+   optimizer off, `experimental: true`, `debug.debugInfo: ["ethdebug",
+   "ast-id"]`, and outputs `ethdebug.resources` and
+   `ethdebug.compilation` (together they give the global
+   `ethdebug.resources`), `evm.deployedBytecode.ethdebug` (the program,
+   with the program-level context), bytecode and the AST. No
+   storageLayout.
+3. Transactions, all from Alice (anvil account 0), on a fresh anvil:
+   - Scores: deploy; `record(7)`; `record(30)` (fixture
+     `scores-record`: the scenes with one point use its before side);
+     `setMotto("play fair")`; `setMotto("play fair, keep score, and
+     write the scores down")` (fixture `scores-motto`; its mapping key
+     comes from the trace of `record(7)`, as setMotto hashes none).
+   - Scores.vy: deploy; `record(7)`; `record(30)` (fixture
+     `scores-vyper`; see "Vyper").
 4. For each transaction the script saves:
    - the trace steps the page needs from `debug_traceTransaction`
      (with memory): KECCAK256 steps with memory (mapping keys), SLOAD
@@ -91,12 +158,17 @@ node: everything comes from `fixtures/`.
    - the source, the program-level context's `variables` (one per
      state variable: name, pointer, type id), ethdebug `resources`
      (types, pointers), and state variable source ranges from the AST.
+   - `keys` and `keysFrom` when the mapping keys come from elsewhere
+     than the transaction's own KECCAK256 inputs.
 
-Cross-check before anvil stopped: `cast storage` on the Token at
-`keccak256(sender . 0)` gave `0x…03cf` (975) and the next slot `0x…01`
-(nonce 1), as the page shows. `cast call` gave the same `name()`,
-`xs(0)` = 307 and `b()` = 300 for Packed. `bin/run.mjs` checks the
-decoded values against the values the calls wrote.
+To change the contract: edit `contracts/`, the transactions in
+`bin/make-fixtures.mjs`, the scenes in `fixtures/index.json` and their
+intros and buttons in `index.html`, and the expected values in
+`bin/run.mjs`; then rerun the script, `bin/sizes.mjs` and `bin/run.mjs`.
+
+`bin/run.mjs` checks the decoded values against the values the calls
+wrote (score 7 then 67, streak 1 then 2, history `[7, 60]`, total 67,
+rounds 2; and the Vyper storage values 67, 2 and 1).
 
 ## Which data is ethdebug, which is not
 
@@ -180,7 +252,7 @@ offsets.
   hex); for a byte, the bytes pointed at. It grows with its content and
   never scrolls; at rest it shows a hint.
 
-## Selecting, and the mode
+## Selecting, and the mode (scenes with two points)
 
 - Selection lives on the variable. Click a tree row (or Enter or Space
   on a focused row) to select it, changed or not; click it again,
@@ -192,7 +264,7 @@ offsets.
   After toggle says "viewing … · Esc to clear". Clicking another
   variable's byte
   switches the selection. With nothing selected, hover previews.
-- Show: Before | After (After by default), under the transaction
+- Show: Before | After (the scene's mode first), under the scene
   picker. It picks the dump shown, the values in the tree (a row still
   says whether it changed), and the state every derivation is for.
 - "show other state" (on by default), beside the toggle, turns all the
@@ -203,12 +275,16 @@ offsets.
   members. There is never a card for what did not change, in the tree
   or the dump. Highlighting works the same with the cards off.
 - The URL hash keeps the view, e.g.
-  `#ex=strings&mode=after&sel=grows&a=before&b=loop&mmode=after`
+  `#ex=motto&mode=before&sel=motto&a=built&b=replaced&mmode=after`
   (`insets=0` when the cards are off)
-  (`ex`: the fixture id's first word; `sel`: the tree path; `a`, `b`,
-  `mmode`, `msel`: the memory section). It is updated with
-  `history.replaceState`, only when it changes; a stale hash falls
-  back to the defaults (an old `mode=compare` shows After).
+  (`ex`: the scene id: `packed`, `alice`, `streak`, `motto`, `vyper`;
+  `mode`: only for a scene with two points; `sel`: the tree path, empty
+  when the scene's default selection was cleared, absent for the
+  scene's default; `a`, `b`, `mmode`, `msel`: the memory section). The
+  format is the old one; only the `ex` values changed, and an old one
+  (`token`, `strings`, …) is stale. It is updated with
+  `history.replaceState`, only when it changes; a stale hash falls back
+  to the first scene with its defaults.
   `#storage` and `#memory` link to the sections.
 
 ## How this was found
@@ -224,7 +300,7 @@ The panel follows the toggle and says whose derivation it is. With
 "show other state" on, it also shows the other state's derivation:
 steps the two share appear once; a step that evaluates differently
 shows both evaluations on two lines ("before …", "after …"); and where
-the two take different branches (for `grows` and `shrinks`, the If on
+the two take different branches (for `motto`, the If on
 the length flag), the rest splits into two lists, one per branch,
 labeled with state and branch (e.g. "after · then (short-string
 layout)"), this state's first and the other muted. Step numbers go on
@@ -254,8 +330,8 @@ annotations stay inside the words' sideways scroll):
   where a lit byte differs in the other state are in a card; a run
   with none gets no card. The "after" card goes under the run in Before; the
   "before" card over it in After.
-- A word the value uses only in the other state (`grows`' new data in
-  Before, `shrinks`' old data in After) is in the dump too, and gets a
+- A word the value uses only in the other state (`motto`'s long data
+  in Before) is in the dump too, and gets a
   card, with no other mark.
 - Fallback: an annotation may cover rows that are not lit (they are
   dimmed), but not lit bytes or another annotation, and it may not
@@ -268,10 +344,8 @@ annotations stay inside the words' sideways scroll):
 
 Highlights that still use the tray (desktop and phone): two lit runs
 with only a "⋯" line between them, where one run's popover and the
-next run's card need the same space. Token `accounts` (both entries);
-Shop `orders`, `orders[1]` (its struct and its string data) and
-`orders[1].quantities`; Packed `xs` (length slot and data slot).
-Strings `grows` and `shrinks` render in place.
+next run's card need the same space: `motto` (slot 2, then its long
+data after a "⋯" line), in both states.
 
 ## How the derivation is found
 
@@ -287,11 +361,8 @@ is imported from the package's dist (it is not a public export).
 
 - Only mapping keys hashed in the transaction are shown.
 - Nested mappings need chaining templates (one per level); not done.
-  These contracts have none.
-- Shop was held back until a scoping bug in `@ethdebug/pointers` was fixed
-  (ethdebug/format #317, merged 2026-10-03): a `define` inside a group
-  member leaked into later members. The page now bundles a build with
-  the fix, and Shop decodes correctly.
+  Scores has none.
+- No calldata pointer from solc: the calldata view uses the ABI rules.
 
 ## Memory, with BUG (preview: bugc from ethdebug/format main)
 
@@ -320,7 +391,7 @@ address of its length (0x140), and the element words follow (0x160,
 the bytes. bugc writes `"grace hopper"` at free memory (0x280) and
 then puts that address in the element's word (0x180). `"grace"` stays
 at 0x200, and no value owns it any more (its bytes are dim at B).
-Like the storage section's `grows`, the value moved: the element's word
+Like the storage section's `motto`, the value moved: the element's word
 changed, and the old data was left behind. The points:
 
 - "Array built" (A by default): the first step of the literal
@@ -371,14 +442,14 @@ What the page fetches (GitHub Pages gzips text):
 
 | File | gzip | size |
 | --- | ---: | ---: |
-| `index.html` (with the loader) | 6.0 KB | 17.6 KB |
-| `main.js`, `panel.js`, `decode.js`, `mem.js` | 37.1 KB | 111.0 KB |
-| `style.css`, `../../shared/appendix.css` | 8.7 KB | 29.4 KB |
+| `index.html` (with the loader) | 8.0 KB | 24.2 KB |
+| `main.js`, `panel.js`, `decode.js`, `mem.js`, `calldata.js` | 41.8 KB | 124.2 KB |
+| `style.css`, `../../shared/appendix.css` | 8.9 KB | 30.0 KB |
 | `vendor/pointers.js` (minified) | 69.0 KB | 272.1 KB |
-| `fixtures/index.json`, `memory.json` | 1.4 KB | 8.8 KB |
-| the first example (`token-transfer.json`) | 1.6 KB | 6.4 KB |
-| the other three examples, idle-time | 6.6 KB | 33.5 KB |
-| total | 130.4 KB | 478.7 KB |
+| `fixtures/index.json`, `memory.json` | 1.5 KB | 9.7 KB |
+| the first scene's data (`scores-record.json`) | 2.3 KB | 11.4 KB |
+| the other two fixtures, idle-time | 4.5 KB | 18.3 KB |
+| total | 136.0 KB | 489.9 KB |
 
 The bundle was 86.8 KB gzip (411 KB) before it was minified.
 
@@ -387,7 +458,7 @@ The bundle was 86.8 KB gzip (411 KB) before it was minified.
   from `bin/sizes.mjs`). The stylesheets do not block it: they load
   with `media="print"` and the page stays hidden until both are in,
   then shows in its final layout. The loader is inline at the end of
-  `index.html`, so it starts the bundle, the index, the first example
+  `index.html`, so it starts the bundle, the index, the first scene's data
   and the memory data at once; `modulepreload` fetches the page's
   modules beside them. The bundle is imported from the text it fetched
   (a `blob:` URL), and `decode.js` takes it from
@@ -396,8 +467,8 @@ The bundle was 86.8 KB gzip (411 KB) before it was minified.
   picker, the Show buttons, the meta line, the summary and the words
   have their room (the picker's buttons are in `index.html`;
   `bin/run.mjs` checks that they match `fixtures/index.json`).
-- An example's data is fetched when it is shown. Once the page is
-  usable, the other examples are fetched one at a time while the
+- A scene's data is fetched when it is shown. Once the page is
+  usable, the other fixtures are fetched one at a time while the
   browser is idle and nothing else is loading. Picking one that is
   still loading shows its progress in the bar.
 - A load that fails says which file and why ("HTTP 503", "the network
@@ -408,7 +479,7 @@ On Chromium's "Slow 3G" (400 ms latency, 400 kbit/s, over CDP; text
 gzipped as on GitHub Pages; `bin/run.mjs` measures it): before, the
 page painted nothing until 1.3 s, showed "Loading…" with no progress,
 and was usable at 5.3 s (all four examples decoded at 6.6 s). Now
-progress shows at about 0.55 s (first paint 0.46 s), the first example
-is usable at about 3.7 s, a prefetched example shows in under 0.1 s,
+progress shows at about 0.6 s (first paint 0.46 s), the first scene
+is usable at about 3.8 s, a prefetched scene shows in under 0.1 s,
 and nothing moves (layout shift 0.000).
 

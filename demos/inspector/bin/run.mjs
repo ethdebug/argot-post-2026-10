@@ -13,40 +13,49 @@ const PAGE = process.env.PAGE ?? "http://localhost:8000/demos/inspector/";
 const root = path.dirname(path.dirname(fileURLToPath(import.meta.url)));
 const shot = (name) => path.join(root, "screenshots", name);
 
-const SENDER = "accounts[0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266]";
-const TO = "accounts[0x70997970c51812dc3a010c7d01b50e0d17dc79c8]";
-const LONG = "a string longer than thirty-one bytes, stored long";
-const SHRINKS = "this one starts long, then becomes a short one";
-// [path, before, after], from the calls in bin/make-fixtures.mjs
+// Alice: anvil's first account, who sends every transaction
+const A = "players[0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266]";
+const MOTTO = ["play fair", "play fair, keep score, and write the scores down"];
+// [path, before, after] for each scene, from the calls in
+// bin/make-fixtures.mjs. A scene with one point shows the same state on
+// both sides.
+const recorded = [
+  [`${A}.score`, "7", "67"],
+  [`${A}.streak`, "1", "2"],
+  [`${A}.active`, "true", "true"],
+  ["history", "length 1", "length 2"],
+  ["history[0]", "7", "7"],
+  ["history[1]", undefined, "60"],
+  ["motto", '""', '""'],
+  ["total", "7", "67"],
+  ["rounds", "1", "2"],
+];
+const first = recorded.filter(([p]) => p !== "history[1]")
+  .map(([p, b]) => [p, b, b]);
 const expected = {
-  "token-transfer": [
-    [`${SENDER}.balance`, "1000", "975"],
-    [`${SENDER}.nonce`, "0", "1"],
-    [`${SENDER}.frozen`, "false", "false"],
-    [`${TO}.balance`, "0", "25"],
-    [`${TO}.nonce`, "0", "0"],
-    ["totalSupply", "1000", "1000"],
+  packed: first,
+  alice: first,
+  streak: recorded,
+  motto: [
+    ["motto", `"${MOTTO[0]}"`, `"${MOTTO[1]}"`],
+    [`${A}.score`, "67", "67"],
+    ["total", "67", "67"],
+    ["rounds", "2", "2"],
   ],
-  "packed-set": [
-    ["a", "0", "7"],
-    ["b", "0", "300"],
-    ["flag", "false", "true"],
-    ["owner", "0x0000000000000000000000000000000000000000",
-      "0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266"],
-    ["lo", "0", "123456789"],
-    ["hi", "0", "246913578"],
-    ["xs", "length 0", "length 1"],
-    ["xs[0]", undefined, "307"],
-    ["name", '""', '""'],
+  // Solidity's rule, applied to the Vyper contract's storage
+  vyper: [
+    [`${A}.score`, "0", "0"],
+    [`${A}.streak`, "0", "0"],
+    [`${A}.active`, "false", "false"],
   ],
-  "strings-update": [
-    ["grows", '"short"', `"${LONG}"`],
-    ["shrinks", `"${SHRINKS}"`, '"now short"'],
-    ["most", '"exactly thirty-one bytes, short"',
-      '"exactly thirty-one bytes, short"'],
-    ["least", '"thirty-two bytes, the least long"',
-      '"thirty-two bytes, the least long"'],
-  ],
+};
+// Each scene's defaults: the mode shown and the variable selected
+const defaults = {
+  packed: ["after", undefined],
+  alice: ["after", `${A}.streak`],
+  streak: ["after", A],
+  motto: ["after", "motto"],
+  vyper: ["after", `${A}.score`],
 };
 
 // The same keys and values, in any order
@@ -68,7 +77,8 @@ for (const file of fs.readdirSync(path.join(root, "fixtures"))) {
   }
 }
 // The loader's file sizes are current (bin/sizes.mjs), and the picker
-// in index.html has the examples of fixtures/index.json
+// in index.html has the scenes of fixtures/index.json, each with its
+// fixture, whether it has one point, and an intro
 if (!sizesCurrent()) {
   console.log("index.html: file sizes are stale; run node bin/sizes.mjs");
   failed++;
@@ -76,14 +86,38 @@ if (!sizesCurrent()) {
 {
   const html = fs.readFileSync(path.join(root, "index.html"), "utf8");
   const picker = html.match(/<div id="picker"[^>]*>([\s\S]*?)<\/div>/)[1];
-  const got = [...picker.matchAll(/data-id="([^"]+)">([^<]+)</g)]
-    .map(([, id, t]) => `${id} ${t.replace(/\s+/g, " ")}`).join("\n");
-  const want = JSON.parse(fs.readFileSync(path.join(root, "fixtures",
-    "index.json"), "utf8")).filter((x) => !x.hidden)
-    .map((x) => `${x.id} ${x.title}`).join("\n");
+  const got = [...picker.matchAll(/<button([^>]*)>([^<]+)</g)]
+    .map(([, a, t]) => `${a.match(/data-id="([^"]+)"/)?.[1]} ${
+      a.match(/data-fixture="([^"]+)"/)?.[1]} ${/data-single/.test(a)
+      ? 1 : 2} ${t.replace(/\s+/g, " ")}`).join("\n");
+  const scenes = JSON.parse(fs.readFileSync(path.join(root, "fixtures",
+    "index.json"), "utf8"));
+  const want = scenes.map((x) => `${x.id} ${x.fixture} ${x.points.length
+  } ${x.title}`).join("\n");
+  const intros = [...html.matchAll(/<p data-scene="([^"]+)" hidden>/g)]
+    .map((m) => m[1]).join();
+  if (intros !== scenes.map((x) => x.id).join()) {
+    console.log(`index.html intros differ: ${intros}`);
+    failed++;
+  }
+  if (Object.keys(expected).join() !== scenes.map((x) => x.id).join()) {
+    console.log("bin/run.mjs: expected values differ from the scenes");
+    failed++;
+  }
   if (got !== want) {
     console.log(`index.html picker differs from fixtures/index.json:\n${
       got}`);
+    failed++;
+  }
+}
+// The contract at the top of the page is contracts/Scores.sol
+{
+  const html = fs.readFileSync(path.join(root, "index.html"), "utf8");
+  const pre = html.match(/<pre id="contract-src" class="src">([\s\S]*?)<\/pre>/)
+    ?.[1].replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&amp;/g, "&");
+  if (pre !== fs.readFileSync(path.join(root, "contracts", "Scores.sol"),
+    "utf8")) {
+    console.log("index.html: the contract differs from contracts/Scores.sol");
     failed++;
   }
 }
@@ -126,7 +160,7 @@ const SLOW = `http://127.0.0.1:${server.address().port}/demos/inspector/`;
 
 // A load that fails shows its error and a Retry button; Retry loads it
 // again. `url`: the file that fails (HTTP 503, or a network error) until
-// Retry. `pick`: the example to pick first (its data then fails). `via`:
+// Retry. `pick`: the scene to pick first (its data then fails). `via`:
 // the Retry button to click (the bar's, or the one by the error).
 async function retryCheck(browser, url,
   { pick, abort, throttle, via = "#loadbar button" } = {}) {
@@ -173,7 +207,7 @@ async function retryCheck(browser, url,
 
 // On a slow link (Chromium's "Slow 3G" over CDP: 400 ms latency, 400
 // kbit/s), from the gzipping server: progress shows within 1 s, the
-// first example is usable, only its data has loaded by then (the others
+// first scene is usable, only its data has loaded by then (the others
 // come idle-time after), nothing moves, and nothing logs an error. Also
 // prints each request with its size on the wire and its size.
 async function slowLink(browser) {
@@ -229,21 +263,23 @@ async function slowLink(browser) {
   });
   if (!(progress <= 1000)) out.push(`progress shown at ${progress} ms`);
   if (!(t.paint <= 1000)) out.push(`first paint at ${t.paint} ms`);
-  if (t.fixtures !== "index.json,memory.json,token-transfer.json") {
+  if (t.fixtures !== "index.json,memory.json,scores-record.json") {
     out.push(`fetched before usable: ${t.fixtures}`);
   }
   // the others, idle-time
-  await p.waitForFunction(() => ["shop-place", "packed-set",
-    "strings-update"].every((id) => performance.getEntriesByType(
-    "resource").some((e) => e.name.endsWith(`fixtures/${id}.json`))),
+  await p.waitForFunction(() => ["scores-motto", "scores-vyper"]
+    .every((id) => performance.getEntriesByType("resource").some((e) =>
+      e.name.endsWith(`fixtures/${id}.json`))),
   null, { timeout: 30000 }).catch(() => out.push("no prefetch"));
   await p.waitForFunction(() => window.memResults?.done);
   const shifts = await p.evaluate(() => window.shifts);
   if (shifts > 0.01) out.push(`layout shift ${shifts.toFixed(3)}`);
-  // a prefetched example shows at once
+  // a prefetched scene shows at once
   const t1 = Date.now();
-  await p.locator('#picker button[data-id="shop-place"]').click();
-  await p.locator('#tree li[data-path="orders"]').waitFor();
+  await p.locator('#picker button[data-id="vyper"]').click();
+  await p.waitForFunction(() => "vyper" in window.results.decoded &&
+    document.querySelector('#picker [aria-checked="true"]')?.dataset.id ===
+    "vyper" && !document.querySelector('#tree li[data-path="history"]'));
   const pick = Date.now() - t1;
   const rows = await p.evaluate(() => [performance.getEntriesByType(
     "navigation")[0], ...performance.getEntriesByType("resource")]
@@ -262,8 +298,8 @@ async function slowLink(browser) {
   console.log(`  ${kb(sum(1))} KB gzip ${kb(sum(2))} KB  total`);
   await ctx.close();
   // a failure on the slow link: Retry loads it
-  out.push(...await retryCheck(browser, "fixtures/packed-set.json",
-    { pick: "packed-set", throttle }));
+  out.push(...await retryCheck(browser, "fixtures/scores-motto.json",
+    { pick: "motto", throttle }));
   return out.map((x) => `slow link: ${x}`);
 }
 
@@ -291,16 +327,45 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
     }
   });
   page.on("pageerror", (e) => logs.push(`pageerror: ${e}`));
+  const problems = [];
   await page.goto(PAGE);
   await page.waitForFunction(() => window.results?.done, null,
     { timeout: 60000 });
-  // each example's data loads when it is picked
-  for (const id of Object.keys(expected)) {
-    await page.evaluate((x) => window.select(x), id);
+  // the first scene opens with its defaults: nothing selected, one
+  // point (no Before | After, no "show other state", no change marks)
+  const atRest = await page.evaluate(() => ({
+    scene: document.querySelector('#picker [aria-checked="true"]')
+      ?.dataset.id,
+    sel: document.querySelectorAll("#tree .row.sel").length,
+    intro: [...document.querySelectorAll("#intros [data-scene]")]
+      .filter((p) => !p.hidden).map((p) => p.dataset.scene).join(),
+    controls: ["#mode", "#insets", "#mode-l"].map((q) =>
+      document.querySelector(q).offsetParent !== null).join(),
+    marks: document.querySelectorAll("#tree li.chg, #tree li.same, " +
+      "#tree .val.chg, #tree .val.same, #panel .b.chg, #panel .wrow.same")
+      .length,
+  }));
+  if (!same(atRest, { scene: "packed", sel: 0, intro: "packed",
+    controls: "false,false,false", marks: 0 })) {
+    problems.push(`first scene: ${JSON.stringify(atRest)}`);
+  }
+  // each scene's data loads when it is picked, and the scene comes with
+  // its defaults
+  for (const [id, [m, sel]] of Object.entries(defaults)) {
+    await page.locator(`#picker button[data-id="${id}"]`).click();
+    await page.waitForFunction((x) => x in window.results.decoded &&
+      document.querySelector("#tree li[data-path]"), id);
+    const got = await page.evaluate(() => [
+      document.querySelector('#mode [aria-checked="true"]')?.dataset.mode,
+      document.querySelector("#tree .row.sel")?.parentElement.dataset.path,
+      [...document.querySelectorAll("#intros [data-scene]")]
+        .filter((p) => !p.hidden).map((p) => p.dataset.scene).join()]);
+    if (got[0] !== m || got[1] !== sel || got[2] !== id) {
+      problems.push(`${id} defaults: ${got}`);
+    }
   }
   const r = await page.evaluate(() => window.results);
-  const problems = [...r.errors, ...logs,
-    ...foreign.map((u) => `foreign ${u}`)];
+  problems.push(...r.errors);
   for (const [id, rows] of Object.entries(expected)) {
     for (const [p, b, a] of rows) {
       const got = r.decoded[id]?.[p];
@@ -310,10 +375,13 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
       }
     }
   }
+  // show a scene with nothing selected
+  const scene = (id) => page.evaluate((x) => window.select(x, { sel: null }),
+    id);
 
   // The words panel: hovering a value lights its bytes, counted from
   // the most significant byte, as the template's offset and length say
-  await page.evaluate(() => window.select("token-transfer"));
+  await scene("streak");
   const lit = () => page.evaluate(() => {
     const out = {};
     for (const c of document.querySelectorAll("#panel .b.hl:not(.cmp *)")) {
@@ -349,9 +417,11 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
       problems.push(`${what}: lit ${JSON.stringify(got)}`);
     }
   };
-  // offset 0x18 length 0x08; offset 0x17 length 0x01; before and after
-  await want("nonce", `${SENDER}.nonce`, range(24, 31), 2);
-  await want("frozen", `${SENDER}.frozen`, [23], 2);
+  // Player packs score (8 bytes), streak (4) and active (1) into one
+  // word, from the low end; before and after
+  await want("score", `${A}.score`, range(24, 31), 2);
+  await want("streak", `${A}.streak`, range(20, 23), 2);
+  await want("active", `${A}.active`, [19], 2);
   // Clicking a byte selects the variable that owns it (selection lives
   // on the tree row)
   const pickByte = async (owner, i) => {
@@ -362,33 +432,33 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
   const selected = () => page.evaluate(() =>
     [...document.querySelectorAll("#tree .row.sel")].map((r) =>
       r.parentElement.dataset.path));
-  await pickByte(`${SENDER}.frozen`, 23);
+  await pickByte(`${A}.active`, 19);
   let sel = await selected();
-  if (sel.join() !== `${SENDER}.frozen`) problems.push(`pick 23: ${sel}`);
+  if (sel.join() !== `${A}.active`) problems.push(`pick 19: ${sel}`);
   // the details of the selected value, under the dump
   const fd = await dl();
-  if (fd.Value !== `accounts[0xf39f…2266].frozen (bool)` ||
-    !/^slot …a723 \(keccak\(0xf39f…2266, slot 0\) \+ 1\), byte 23$/
-      .test(fd.Where) || fd.Before !== "false (0x00)" ||
-    fd.After !== "false (0x00)" || fd.scrolls) {
-    problems.push(`details frozen: ${JSON.stringify(fd)}`);
+  if (fd.Value !== `players[0xf39f…2266].active (bool)` ||
+    !/^slot …a722 \(keccak\(0xf39f…2266, slot 0\)\), byte 19$/
+      .test(fd.Where) || fd.Before !== "true (0x01)" ||
+    fd.After !== "true (0x01)" || fd.scrolls) {
+    problems.push(`details active: ${JSON.stringify(fd)}`);
   }
-  await pickByte(`${SENDER}.nonce`, 27);
+  await pickByte(`${A}.streak`, 22);
   sel = await selected();
-  if (sel.join() !== `${SENDER}.nonce`) problems.push(`pick 27: ${sel}`);
+  if (sel.join() !== `${A}.streak`) problems.push(`pick 22: ${sel}`);
   // and from the keyboard
   await page.locator(`#panel .view[data-side="after"] ` +
-    `.b[data-owners="${SENDER}.frozen"][tabindex]`).first().focus();
+    `.b[data-owners="${A}.active"][tabindex]`).first().focus();
   await page.keyboard.press("Enter");
   sel = await selected();
-  if (sel.join() !== `${SENDER}.frozen`) problems.push(`key pick: ${sel}`);
+  if (sel.join() !== `${A}.active`) problems.push(`key pick: ${sel}`);
   await page.keyboard.press("Escape"); // Escape clears the selection
   if ((await selected()).length) problems.push("Escape did not clear");
   // a row is focusable, and Enter selects it
-  await page.locator(`#tree li[data-path="${SENDER}.balance"] > .row`).focus();
+  await page.locator(`#tree li[data-path="${A}.score"] > .row`).focus();
   await page.keyboard.press("Enter");
   sel = await selected();
-  if (sel.join() !== `${SENDER}.balance`) problems.push(`row key: ${sel}`);
+  if (sel.join() !== `${A}.score`) problems.push(`row key: ${sel}`);
   // clicking empty space clears it
   await page.locator("main").click({ position: { x: 4, y: 4 } });
   if ((await selected()).length) problems.push("empty click did not clear");
@@ -396,75 +466,74 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
 
   // Clicking the selected row again clears it
   const tr = (p) => page.locator(`#tree li[data-path="${p}"] > .row`);
-  await tr(`${SENDER}.frozen`).click();
-  await tr(`${SENDER}.frozen`).click();
+  await tr(`${A}.active`).click();
+  await tr(`${A}.active`).click();
   if ((await selected()).length) problems.push("row click did not toggle");
   // While a variable is selected, the view stays on it: an unrelated
   // byte changes nothing; its own bytes only change the info line; a
   // click on an unrelated byte switches the selection
-  await tr(`${SENDER}.nonce`).click();
+  await tr(`${A}.streak`).click();
   const look = () => page.evaluate(() => JSON.stringify([
     [...document.querySelectorAll("#panel .b.hl:not(.cmp *)")].length,
     [...document.querySelectorAll("#panel .pop")].map((p) => p.innerText),
     document.querySelectorAll("#panel .cmp").length]));
   const locked0 = await look();
   const probe0 = await page.locator("#details").textContent();
-  const balByte = page.locator(`#panel .word[data-side="after"] ` +
-    `.b[data-owners="${SENDER}.balance"][data-i="30"]`);
-  await balByte.hover();
+  const scoreByte = page.locator(`#panel .word[data-side="after"] ` +
+    `.b[data-owners="${A}.score"][data-i="30"]`);
+  await scoreByte.hover();
   if (await look() !== locked0 ||
     await page.locator("#details").textContent() !== probe0) {
     problems.push("locked: an unrelated hover changed the view");
   }
   if (!(await page.locator("#viewing").textContent())
-    .includes("viewing accounts[0xf39f…2266].nonce · Esc to clear")) {
+    .includes("viewing players[0xf39f…2266].streak · Esc to clear")) {
     problems.push("locked: no viewing hint");
   }
   await page.locator(`#panel .word[data-side="after"] ` +
-    `.b[data-owners="${SENDER}.nonce"][data-i="31"]`).hover();
+    `.b[data-owners="${A}.streak"][data-i="23"]`).hover();
   if (await look() !== locked0 ||
     await page.locator("#details").textContent() === probe0) {
     problems.push("locked: own byte hover");
   }
-  await balByte.click();
+  await scoreByte.click();
   sel = await selected();
-  if (sel.join() !== `${SENDER}.balance`) {
+  if (sel.join() !== `${A}.score`) {
     problems.push(`locked: click did not switch: ${sel}`);
   }
   await page.keyboard.press("Escape");
   await page.locator("h1").hover();
 
-  // Shop and Packed render, with the slots named as the templates
-  // computed them, and packed values as bands in one word
-  await page.evaluate(() => window.select("shop-place"));
-  const shopSlots = await page.locator("#panel .wrow[data-name]")
-    .evaluateAll((rs) => rs.map((r) => r.dataset.name));
-  if (!shopSlots.includes("keccak(keccak(1, slot 0) + 3) + 2") ||
-    !shopSlots.includes("slot 3")) {
-    problems.push(`shop slots: ${shopSlots}`);
+  // The slots are named as the templates computed them: history's
+  // elements and the long motto's data
+  const slotNames = () => page.locator("#panel .wrow[data-name]")
+    .evaluateAll((rs) => [...new Set(rs.map((r) => r.dataset.name))]);
+  let named = await slotNames();
+  if (!named.includes("keccak(slot 1) + 1") || !named.includes("slot 3") ||
+    !named.includes("keccak(0xf39f…2266, slot 0)")) {
+    problems.push(`streak slots: ${named}`);
   }
-  await page.evaluate(() => window.select("packed-set"));
-  // slot 0 holds owner, flag, b and a, in byte order
+  // slot 3 holds rounds, then total, in byte order
+  const slot3 = "0x" + "0".repeat(63) + "3";
   const owners = await page.locator('#panel .word[data-side="after"]' +
-    `[data-slot="0x${"0".repeat(64)}"] .b[data-owners]`).evaluateAll((cs) =>
+    `[data-slot="${slot3}"] .b[data-owners]`).evaluateAll((cs) =>
     [...new Set(cs.map((c) => c.dataset.owners))]);
-  if (owners.join() !== "owner,flag,b,a") problems.push(`owners: ${owners}`);
-  await want("a", "a", [31], 2);
-  await want("b", "b", [29, 30], 2);
-  await want("owner", "owner", range(8, 27), 2);
+  if (owners.join() !== "rounds,total") problems.push(`owners: ${owners}`);
+  await want("rounds", "rounds", range(8, 15), 2);
+  await want("total", "total", range(16, 31), 2);
 
   // Hovering a value lights it in both views and in the tree
-  await page.locator('#tree li[data-path="b"] > .row').hover();
+  await page.locator('#tree li[data-path="rounds"] > .row').hover();
   const both = Object.keys(await lit());
-  const slot0 = "0x" + "0".repeat(64);
-  if (both.sort().join() !== `after ${slot0},before ${slot0}`) {
-    problems.push(`b in both views: ${both}`);
+  if (both.sort().join() !== `after ${slot3},before ${slot3}`) {
+    problems.push(`rounds in both views: ${both}`);
   }
-  if (!await page.locator('#tree li[data-path="b"] > .row.hl').count()) {
-    problems.push("b: tree row not lit");
+  if (!await page.locator('#tree li[data-path="rounds"] > .row.hl')
+    .count()) {
+    problems.push("rounds: tree row not lit");
   }
-  // while b is lit, every other byte and tree row steps back; lit ones
-  // stay at full strength
+  // while rounds is lit, every other byte and tree row steps back; lit
+  // ones stay at full strength
   await page.waitForTimeout(250);
   const dim = await page.evaluate(() => {
     const op = (e) => +getComputedStyle(e).opacity;
@@ -485,21 +554,22 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
     problems.push(`dimming: ${JSON.stringify(dim)}`);
   }
   const info = await dl();
-  if (info.Value !== "b (uint16)" || info.Where !== "slot 0, bytes 29–30" ||
-    info.Before !== "0 (0x0000)" || info.After !== "300 (0x012c)" ||
-    info.scrolls) problems.push(`details b: ${JSON.stringify(info)}`);
-  // and a popover at slot 0's address, in the dump shown
+  if (info.Value !== "rounds (uint64)" || info.Where !== "slot 3, bytes 8–15" ||
+    info.Before !== "1 (0x0000000000000001)" ||
+    info.After !== "2 (0x0000000000000002)" ||
+    info.scrolls) problems.push(`details rounds: ${JSON.stringify(info)}`);
+  // and a popover at slot 3's address, in the dump shown
   const pops = () => page.locator("#panel .pop").allInnerTexts();
   let pp0 = await pops();
-  if (pp0.join("|") !== "slot 0 · read, written") {
-    problems.push(`pops b: ${pp0}`);
+  if (pp0.join("|") !== "slot 3 · read, written") {
+    problems.push(`pops rounds: ${pp0}`);
   }
   pp0 = [];
   // and from a byte in one view, the same position in the other
   for (const [from, to] of [["before", "after"], ["after", "before"]]) {
     await setMode(from);
     await page.locator(`#panel .word[data-side="${from}"]` +
-      `[data-slot="${slot0}"] .b[data-i="30"]`).hover();
+      `[data-slot="${slot3}"] .b[data-i="14"]`).hover();
     const at = await page.evaluate(() => {
       const out = {};
       for (const c of document.querySelectorAll("#panel .b.at:not(.cmp *)")) {
@@ -509,41 +579,52 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
       return out;
     });
     const hl = Object.keys(await lit()).map((k) => k.split(" ")[0]);
-    if (at[from]?.join() !== "29,30" || at[to]?.join() !== "29,30" ||
-      !hl.includes(to)) {
+    if (at[from]?.join() !== range(8, 15).join() ||
+      at[to]?.join() !== range(8, 15).join() || !hl.includes(to)) {
       problems.push(`byte ${from} -> ${to}: ${JSON.stringify(at)} ${hl}`);
     }
   }
   await setMode("after");
 
-  // A string's layout switches between short and long. Short: the data
-  // and the length byte share the string's slot. Long: the slot holds
-  // the length word, and the data lives at keccak(slot) on. Slots are
-  // named here as the page names them (from the template's defines).
-  await page.evaluate(() => window.select("strings-update"));
+  // A scene with one point: a byte names its owner and its hex, with no
+  // before and after; the popover says how the slot was found only
+  await scene("packed");
+  await page.locator(`#panel .word[data-side="after"][data-slot="${slot3}"]` +
+    ' .b[data-i="31"]').hover();
+  const one = await dl();
+  if (one.Value !== "total (uint128)" || one.Where !== "slot 3, bytes 16–31" ||
+    one.Holds !== "7 (0x…000007)" || "Before" in one || "After" in one) {
+    problems.push(`one point details: ${JSON.stringify(one)}`);
+  }
+  if ((await pops()).join("|") !== "slot 3") {
+    problems.push(`one point pops: ${await pops()}`);
+  }
+  if (await page.locator("#panel .cmp, #tree .tcard").count()) {
+    problems.push("one point: a card");
+  }
+  await page.locator(`#tree li[data-path="${A}.streak"] > .row`).click();
+  if (!(await page.locator("#how").textContent())
+    .includes("For the state after Alice's first record(7).") ||
+    await page.locator("#how .branch, #how .evals").count()) {
+    problems.push("one point: derivation");
+  }
+  await page.keyboard.press("Escape");
+
+  // A string outgrows its slot. Short: the data and the length byte
+  // share the string's slot. Long: the slot holds the length word, and
+  // the data lives at keccak(slot) on. Slots are named here as the page
+  // names them (from the template's defines).
+  await scene("motto");
   const names = await page.locator('#panel .view[data-side="after"] ' +
     ".wrow[data-name]").evaluateAll((rs) => Object.fromEntries(
     rs.map((r) => [r.dataset.slot, r.dataset.name])));
-  const strings = {
-    grows: {
-      before: { "slot 0": [...range(0, 4), 31] },
-      after: { "slot 0": range(0, 31), "keccak(slot 0)": range(0, 31),
-        "keccak(slot 0) + 1": range(0, 17) },
-    },
-    shrinks: {
-      before: { "slot 1": range(0, 31), "keccak(slot 1)": range(0, 31),
-        "keccak(slot 1) + 1": range(0, 13) },
-      after: { "slot 1": [...range(0, 8), 31] },
-    },
-    most: { before: { "slot 2": range(0, 31) },
-      after: { "slot 2": range(0, 31) } },
-    least: {
-      before: { "slot 3": range(0, 31), "keccak(slot 3)": range(0, 31) },
-      after: { "slot 3": range(0, 31), "keccak(slot 3)": range(0, 31) },
-    },
-  };
-  for (const [p, sides] of Object.entries(strings)) {
-    await page.locator(`#tree li[data-path="${p}"] > .row`).hover();
+  {
+    const sides = {
+      before: { "slot 2": [...range(0, 8), 31] },
+      after: { "slot 2": range(0, 31), "keccak(slot 2)": range(0, 31),
+        "keccak(slot 2) + 1": range(0, 15) },
+    };
+    await page.locator('#tree li[data-path="motto"] > .row').hover();
     const named = {};
     for (const [k, v] of Object.entries(await lit())) {
       const [side, s] = k.split(" ");
@@ -553,52 +634,37 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
       [side, Object.fromEntries(Object.entries(m).map(([k, v]) =>
         [k, v.join()]))]));
     if (!same(named, want)) {
-      problems.push(`${p} bytes: ${JSON.stringify(named)}`);
+      problems.push(`motto bytes: ${JSON.stringify(named)}`);
     }
   }
-  // A slot used only in the other state gets its picture too: grows'
-  // new data run in the Before dump, shrinks' old one in the After dump
-  const onlyInsets = () => page.evaluate(() => [...document.querySelectorAll(
-    "#panel .cmp:not(.pinned)")].map((el) => ({
-    side: el.closest(".view").dataset.side,
-    label: el.querySelector(".cmp-tag").textContent,
-    rows: [...el.querySelectorAll(".cmp-photo > .wrow")].map((r) =>
-      r.dataset.of),
-    marked: [...el.closest(".view").querySelectorAll(".wrow.only")].map(
-      (r) => r.dataset.slot),
-  })).filter((x) => x.rows.length && x.rows.every((r) =>
-    x.marked.includes(r))));
-  for (const [p, side, label, run] of [
-    ["grows", "before", "after", ["keccak(slot 0)",
-      "keccak(slot 0) + 1"]],
-    ["shrinks", "after", "before", ["keccak(slot 1)",
-      "keccak(slot 1) + 1"]]]) {
-    await setMode(side);
-    await page.locator(`#tree li[data-path="${p}"] > .row`).hover();
-    const got = await onlyInsets();
-    const ok = got.length === 1 && got[0].side === side &&
-      got[0].label === label &&
-      got[0].rows.map((x) => names[x]).join() === run.join() &&
-      got[0].marked.map((x) => names[x]).join() === run.join();
-    if (!ok) problems.push(`${p} only-inset: ${JSON.stringify(got)}`);
+  // A slot used only in the other state is marked: the long data run in
+  // the Before dump
+  await setMode("before");
+  await page.locator('#tree li[data-path="motto"] > .row').hover();
+  const only = await page.evaluate(() => [...document.querySelectorAll(
+    '#panel .view[data-side="before"] .wrow.only')].map((r) =>
+    r.dataset.slot));
+  if (only.map((x) => names[x]).join() !==
+    "keccak(slot 2),keccak(slot 2) + 1") {
+    problems.push(`motto only: ${only.map((x) => names[x])}`);
   }
-  await setMode("after");
-  // shrinks in After: both runs (slot 1, lit; its old data, shown by a
-  // "before" card) get their derivation label; no popover or card
-  // covers a lit row's address label
-  await setMode("after");
-  await page.locator('#tree li[data-path="shrinks"] > .row').click();
+  // In Before, both runs (slot 2, lit; its new data, used only After)
+  // get their derivation label; no popover or card covers a lit row's
+  // address label
+  await page.locator('#tree li[data-path="motto"] > .row').click();
   await page.mouse.move(1, 1);
   const labelled = await page.evaluate(() => {
-    const v = document.querySelector('#panel .view[data-side="after"]');
-    const pops = [...v.querySelectorAll(".pop:not(.pinned)")];
+    const v = document.querySelector('#panel .view[data-side="before"]');
+    // (a popover with no room goes to the tray, under the dumps)
+    const pops = [...document.querySelectorAll("#panel .pop")];
     const hit = (a, b) => a.left < b.right - 0.5 && b.left < a.right - 0.5 &&
       a.top < b.bottom - 0.5 && b.top < a.bottom - 0.5;
     const cells = [...v.querySelectorAll(".rows > .wrow > .addr .a")];
     const lit = cells.filter((c) => c.closest(".wrow.on, .wrow.only"));
     const box = (e) => e.getBoundingClientRect();
     const covered = [
-      ...pops.flatMap((p) => lit.filter((c) => hit(box(p), box(c)))),
+      ...pops.filter((p) => !p.classList.contains("pinned")).flatMap((p) =>
+        lit.filter((c) => hit(box(p), box(c)))),
       ...[...v.querySelectorAll(".cmp:not(.pinned) .cmp-frame")].flatMap(
         (f) => lit.filter((c) => !f.closest(".wrow").contains(c) &&
           hit(box(f), box(c)))),
@@ -607,104 +673,87 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
       covered };
   });
   if (labelled.pops.length !== 2 ||
-    !labelled.pops.some((t) => t.startsWith("slot 1")) ||
-    !labelled.pops.some((t) => t.startsWith("keccak(slot 1) + 0 … + 1")) ||
+    !labelled.pops.some((t) => t.startsWith("slot 2")) ||
+    !labelled.pops.some((t) => t.startsWith("keccak(slot 2) + 0 … + 1")) ||
     labelled.covered.length) {
-    problems.push(`shrinks labels: ${JSON.stringify(labelled)}`);
+    problems.push(`motto labels: ${JSON.stringify(labelled)}`);
   }
   await page.keyboard.press("Escape");
   // Each run's addresses sit in one group box in the gutter, and its
-  // popover's arrow lands within that box (grows, shrinks; both states)
-  for (const p of ["grows", "shrinks"]) {
-    for (const m of ["before", "after"]) {
-      await setMode(m);
-      await page.locator(`#tree li[data-path="${p}"] > .row`).click();
-      await page.mouse.move(1, 1);
-      const bad = await page.evaluate((side) => {
-        const v = document.querySelector(`#panel .view[data-side="${side}"]`);
-        const out = [];
-        // runs: lit rows next to each other in the dump
-        const runs = [];
-        let run = null;
-        for (const el of v.querySelector(".rows").children) {
-          if (el.matches(".wrow.on, .wrow.only")) {
-            if (!run) runs.push(run = []);
-            run.push(el);
-          } else run = null;
+  // popover's arrow lands within that box (both states)
+  for (const m of ["before", "after"]) {
+    await setMode(m);
+    await page.locator('#tree li[data-path="motto"] > .row').click();
+    await page.mouse.move(1, 1);
+    const bad = await page.evaluate((side) => {
+      const v = document.querySelector(`#panel .view[data-side="${side}"]`);
+      const out = [];
+      // runs: lit rows next to each other in the dump
+      const runs = [];
+      let run = null;
+      for (const el of v.querySelector(".rows").children) {
+        if (el.matches(".wrow.on, .wrow.only")) {
+          if (!run) runs.push(run = []);
+          run.push(el);
+        } else run = null;
+      }
+      if (!runs.length) out.push("no runs");
+      for (const rows of runs) {
+        const cls = rows.map((r) =>
+          r.querySelector(":scope > .addr").className);
+        // one group: every address tinted, rounded at its two ends
+        if (!cls.every((c) => c.includes("grp")) ||
+          !cls[0].includes("grp-top") || !cls.at(-1).includes("grp-end") ||
+          cls.slice(1).some((c) => c.includes("grp-top")) ||
+          cls.slice(0, -1).some((c) => c.includes("grp-end"))) {
+          out.push(`not one group: ${rows[0].dataset.name}`);
         }
-        if (!runs.length) out.push("no runs");
-        for (const rows of runs) {
-          const cls = rows.map((r) =>
-            r.querySelector(":scope > .addr").className);
-          // one group: every address tinted, rounded at its two ends
-          if (!cls.every((c) => c.includes("grp")) ||
-            !cls[0].includes("grp-top") || !cls.at(-1).includes("grp-end") ||
-            cls.slice(1).some((c) => c.includes("grp-top")) ||
-            cls.slice(0, -1).some((c) => c.includes("grp-end"))) {
-            out.push(`not one group: ${rows[0].dataset.name}`);
-          }
-          const g = rows[0].querySelector(":scope > .addr")
-            .getBoundingClientRect();
-          const pop = rows.map((x) => x.querySelector(".pop")).find(Boolean);
-          if (!pop) continue; // in the tray
-          const tip = pop.getBoundingClientRect().left +
-            parseFloat(pop.style.getPropertyValue("--ax"));
-          if (tip < g.left || tip > g.right) {
-            out.push(`arrow off its group: ${rows[0].dataset.name}`);
-          }
+        const g = rows[0].querySelector(":scope > .addr")
+          .getBoundingClientRect();
+        const pop = rows.map((x) => x.querySelector(".pop")).find(Boolean);
+        if (!pop) continue; // in the tray
+        const tip = pop.getBoundingClientRect().left +
+          parseFloat(pop.style.getPropertyValue("--ax"));
+        if (tip < g.left || tip > g.right) {
+          out.push(`arrow off its group: ${rows[0].dataset.name}`);
         }
-        // and none inside the cards
-        if (v.querySelector(".cmp .addr.grp")) {
-          const c = getComputedStyle(v.querySelector(".cmp .addr.grp"),
-            "::before").display;
-          if (c !== "none") out.push("group tint in a card");
-        }
-        return out;
-      }, m);
-      if (bad.length) problems.push(`${p} ${m} groups: ${bad}`);
-      await page.keyboard.press("Escape");
-    }
+      }
+      // and none inside the cards
+      if (v.querySelector(".cmp .addr.grp")) {
+        const c = getComputedStyle(v.querySelector(".cmp .addr.grp"),
+          "::before").display;
+        if (c !== "none") out.push("group tint in a card");
+      }
+      return out;
+    }, m);
+    if (bad.length) problems.push(`motto ${m} groups: ${bad}`);
+    await page.keyboard.press("Escape");
   }
-  await setMode("after");
-  // Each lit run has its card in both states, in place: the same count
-  // in Before and After, and none in the tray
-  for (const p of ["grows", "shrinks"]) {
+  // The tray is the same in Before and After: each run's card is in
+  // place in both states, or in the tray in both
+  {
     const n = [];
     for (const m of ["before", "after"]) {
       await setMode(m);
-      await page.locator(`#tree li[data-path="${p}"] > .row`).hover();
-      n.push(await page.locator("#panel .cmp:not(.pinned)").count());
-      if (await page.locator("#panel .tray").count()) {
-        problems.push(`${p} ${m}: tray used`);
-      }
+      await page.locator('#tree li[data-path="motto"] > .row').hover();
+      n.push(await page.evaluate(() => [
+        document.querySelectorAll("#panel .cmp:not(.pinned)").length,
+        document.querySelectorAll("#panel .cmp.pinned").length].join("/")));
     }
-    if (n[0] !== n[1] || !n[0]) problems.push(`${p} cards: ${n}`);
+    if (n[0] !== n[1]) problems.push(`motto cards: ${n}`);
   }
   await setMode("after");
-  const words = await page.locator("#panel .word:not(.cmp *)")
-    .evaluateAll((ws) =>
-    ws.map((w) => ({ side: w.dataset.side, slot: w.dataset.slot,
-      zero: [...w.querySelectorAll(".b")].every((c) =>
-        c.textContent === "00") })));
-  const word = (side, n) => words.find((w) => w.side === side &&
-    names[w.slot] === n);
-  // shrinks: its old data slots are cleared after
-  for (const n of ["keccak(slot 1)", "keccak(slot 1) + 1"]) {
-    if (word("before", n)?.zero !== false || word("after", n)?.zero !== true) {
-      problems.push(`shrinks: ${n} not cleared`);
-    }
-  }
-  // grows: its data is a run of two consecutive slots, with no gap
+  // the long data is a run of two consecutive slots, with no gap
   const run = await page.locator('#panel .view[data-side="after"] .rows')
     .evaluate((r) => [...r.children].map((c) => c.dataset.name ?? "gap"));
-  const k0 = run.indexOf("keccak(slot 0)");
-  if (k0 < 0 || run[k0 + 1] !== "keccak(slot 0) + 1") {
-    problems.push(`grows run: ${run}`);
+  const k0 = run.indexOf("keccak(slot 2)");
+  if (k0 < 0 || run[k0 + 1] !== "keccak(slot 2) + 1") {
+    problems.push(`motto run: ${run}`);
   }
 
   // At rest: no popover, and nothing in the dumps but addresses and
   // bytes (names live in the tree)
-  await page.evaluate(() => window.select("token-transfer"));
+  await scene("streak");
   await page.locator("h1").hover();
   if ((await pops()).length) problems.push("popover at rest");
   await page.waitForTimeout(250);
@@ -714,13 +763,12 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
   const dumpText = await page.locator("#panel .rows").allInnerTexts();
   const stray = dumpText.join(" ").replace(/[0-9a-f…⋯\s]/g, "");
   if (stray) problems.push(`text in the dump: ${stray.slice(0, 40)}`);
-  // A hashed slot's popover says how it was found; a long value's
-  // says how many more slots are lit
-  await page.locator(`#tree li[data-path="${SENDER}.nonce"] > .row`).hover();
+  // A hashed slot's popover says how it was found
+  await page.locator(`#tree li[data-path="${A}.streak"] > .row`).hover();
   pp0 = await pops();
   if (pp0.length !== 1 || !pp0[0].startsWith(
-    "keccak(0xf39f…2266, slot 0) + 1 · read, written\n= 0x7230")) {
-    problems.push(`pops nonce: ${pp0}`);
+    "keccak(0xf39f…2266, slot 0) · read, written\n= 0x7230")) {
+    problems.push(`pops streak: ${pp0}`);
   }
   // each popover's left edge is at the gutter's, its arrow at its
   // address, and it stays on screen:
@@ -741,16 +789,16 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
   }));
   let aimed = await aim();
   await setMode("before");
-  await page.locator(`#tree li[data-path="${SENDER}.nonce"] > .row`).hover();
+  await page.locator(`#tree li[data-path="${A}.streak"] > .row`).hover();
   aimed = [...aimed, ...await aim()];
   await setMode("after");
   if (aimed.length !== 2 || !aimed.every(Boolean)) {
     problems.push(`aim: ${aimed}`);
   }
 
-  // The other state's picture beside the lit run. nonce: an "after"
+  // The other state's picture beside the lit run. streak: an "after"
   // card under its row in Before, a "before" card over it in After, at
-  // bytes 24-31, in the same columns as the row
+  // bytes 20-23, in the same columns as the row
   const cmp = () => page.evaluate(() => [...document.querySelectorAll(
     "#panel .cmp:not(.pinned)")].map((el) => {
     const row = el.closest(".wrow");
@@ -798,9 +846,11 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
       return [e.clientWidth, e.clientHeight,
         ...(scrolls ? [e.scrollWidth, e.scrollHeight] : [])];
     })));
+  // (relative to the panel: hovering a tree row may scroll the page)
   const tops = () => page.locator("#panel .wrow:not(.cmp *)")
-    .evaluateAll((rs) =>
-      rs.map((r) => Math.round(r.getBoundingClientRect().top)).join());
+    .evaluateAll((rs) => rs.map((r) => Math.round(r.getBoundingClientRect()
+      .top - document.querySelector("#panel").getBoundingClientRect().top))
+      .join());
   const clashes = () => page.evaluate(() => {
     const hit = (a, b) => a.left < b.right - 0.5 && b.left < a.right - 0.5 &&
       a.top < b.bottom - 0.5 && b.top < a.bottom - 0.5;
@@ -834,34 +884,35 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
       : r.top >= rows.at(-1).getBoundingClientRect().bottom - 0.5
         ? "under" : "on";
   }).join());
+  await page.evaluate(() =>
+    window.scrollTo(0, document.querySelector(".cols").offsetTop - 8));
   for (const m of ["before", "after"]) {
     await setMode(m);
-    await page.locator("h1").hover();
+    await page.mouse.move(1, 1);
     if ((await cmp()).length) problems.push(`${m}: card at rest`);
     const rest = await tops();
     const restBoxes = await boxes();
     const other = m === "before" ? "after" : "before";
-    await page.locator(`#tree li[data-path="${SENDER}.nonce"] > .row`)
+    await page.locator(`#tree li[data-path="${A}.streak"] > .row`)
       .hover();
     let blocks = await cmp();
     const b0 = blocks[0];
     if (blocks.length !== 1 || b0.side !== m || b0.label !== other ||
       !(m === "before" ? b0.under : b0.over) ||
-      b0.lines[0].bytes.join() !== range(24, 31).join() ||
-      b0.lines[0].text !== (m === "before" ? "0000000000000001"
-        : "0000000000000000") || !b0.lines[0].aligned || !b0.full) {
-      problems.push(`${m}: nonce card: ${JSON.stringify(blocks)}`);
+      b0.lines[0].bytes.join() !== range(20, 23).join() ||
+      b0.lines[0].text !== (m === "before" ? "00000002" : "00000001") ||
+      !b0.lines[0].aligned || !b0.full) {
+      problems.push(`${m}: streak card: ${JSON.stringify(blocks)}`);
     }
     if (await popAt() !== (m === "before" ? "over" : "under")) {
       problems.push(`${m}: popover place: ${await popAt()}`);
     }
-    // A struct lights a run of two slots: one card for the run, one
-    // line per slot, aligned; no clashes; nothing moves, no scrollbar
-    await page.locator(`#tree li[data-path="${SENDER}"] > .row`).hover();
+    // Alice's whole entry lights one slot (her struct, packed): one
+    // card, one line, aligned; no clashes; nothing moves, no scrollbar
+    await page.locator(`#tree li[data-path="${A}"] > .row`).hover();
     blocks = await cmp();
-    if (blocks.length !== 1 || blocks[0].lines.length !== 2 ||
-      blocks[0].lines[0].bytes.length !== 32 ||
-      blocks[0].lines[1].bytes.join() !== range(23, 31).join() ||
+    if (blocks.length !== 1 || blocks[0].lines.length !== 1 ||
+      blocks[0].lines[0].bytes.join() !== range(19, 31).join() ||
       !blocks[0].lines.every((l) => l.aligned) || !blocks[0].full) {
       problems.push(`${m}: struct card: ${JSON.stringify(blocks)}`);
     }
@@ -880,15 +931,19 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
   if (name === "chromium") {
     await page.evaluate(() =>
       window.scrollTo(0, document.querySelector(".cols").offsetTop - 8));
-    await page.locator(`#tree li[data-path="${SENDER}"] > .row`).hover();
+    await page.locator(`#tree li[data-path="${A}"] > .row`).hover();
     await page.waitForTimeout(300);
     await page.locator(".words").first().screenshot({
       path: shot("insets.png") });
   }
   // and by keyboard, from an address in the gutter
-  await page.locator("h1").hover();
-  await page.locator('#panel .view[data-side="after"] .wrow ' +
-    `[tabindex]`).first().focus();
+  await page.mouse.move(1, 1);
+  const addr0 = page.locator('#panel .view[data-side="after"] .wrow ' +
+    `[tabindex]`).first();
+  // (in view first: a scroll after the focus would move the pointer)
+  await addr0.scrollIntoViewIfNeeded();
+  await page.mouse.move(1, 1);
+  await addr0.focus();
   pp0 = await pops();
   if (pp0.length !== 1) problems.push(`pops on focus: ${pp0}`);
   await page.locator("h1").hover();
@@ -896,9 +951,8 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
 
   // Both dumps list the same slots, in ascending address order, with a
   // gap line before the first and wherever the addresses jump
-  for (const id of ["token-transfer", "shop-place", "packed-set",
-    "strings-update"]) {
-    await page.evaluate((x) => window.select(x), id);
+  for (const id of Object.keys(expected)) {
+    await scene(id);
     const order = (side) => page.locator(`#panel .view[data-side=` +
       `"${side}"] .word`).evaluateAll((ws) => ws.map((w) => w.dataset.slot));
     const b = await order("before");
@@ -937,7 +991,7 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
     const v = document.querySelector("#panel .views");
     return { out, scrolls: v.scrollWidth > v.clientWidth + 1 };
   });
-  await page.evaluate(() => window.select("shop-place"));
+  await scene("motto");
   const wide = await layout(page);
   problems.push(...wide.out);
   if (wide.scrolls) problems.push("wide: words scroll sideways");
@@ -948,37 +1002,41 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
     problems.push(...l.out.map((x) => `${width}: ${x}`));
     if (l.scrolls) problems.push(`${width}: words scroll sideways`);
   }
-  await page.evaluate(() => window.select("packed-set"));
+  // The first scene, as its intro asks: a click on a byte of slot 3
+  await page.locator('#picker button[data-id="packed"]').click();
   await page.locator('#panel .word[data-side="after"] ' +
-    '.b[data-owners="b"][data-i="30"]').click();
+    '.b[data-owners="total"][data-i="31"]').click();
   await page.locator("h1").hover();
+  if ((await selected()).join() !== "total") {
+    problems.push(`packed: byte click selected ${await selected()}`);
+  }
   if (name === "chromium") {
     await page.locator(".cols").first().scrollIntoViewIfNeeded();
     await page.evaluate(() => window.scrollTo(0,
-      document.querySelector(".cols").offsetTop - 8));
+      document.querySelector("#storage").offsetTop - 8));
     await page.waitForTimeout(300);
     await page.screenshot({ path: shot("desktop-packed.png") });
   }
 
   // "How this was found": clicking any row selects it and shows its
-  // derivation, changed or not. frozen did not change.
-  await page.evaluate(() => window.select("token-transfer"));
+  // derivation, changed or not. active did not change.
+  await scene("streak");
   const row = (p) => page.locator(`#tree li[data-path="${p}"] > .row`);
   const how = () => page.locator("#how").textContent();
-  await row(`${SENDER}.frozen`).click();
+  await row(`${A}.active`).click();
   let text = await how();
   for (const want of ["Template", "$keccak256", "Region", "offset",
     "from the program context", "from the trace", "same bytes in both"]) {
-    if (!text.includes(want)) problems.push(`frozen how lacks "${want}"`);
+    if (!text.includes(want)) problems.push(`active how lacks "${want}"`);
   }
-  // nonce did change; its source mark and region step
-  await row(`${SENDER}.nonce`).click();
+  // streak did change; its source mark and region step
+  await row(`${A}.streak`).click();
   const mark = await page.locator("#src mark").innerText();
-  if (!mark.includes("struct Account")) problems.push(`mark: ${mark}`);
+  if (!mark.includes("struct Player")) problems.push(`mark: ${mark}`);
   await page.locator("#how li[data-region]").last().hover();
   const step = await lit();
   if (!Object.keys(step).every((k) => k.startsWith("after ")) ||
-    Object.values(step).flat().join() !== range(24, 31).join()) {
+    Object.values(step).flat().join() !== range(20, 23).join()) {
     problems.push(`region step: ${JSON.stringify(step)}`);
   }
   // and a step lights its bytes on focus too
@@ -995,13 +1053,12 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
     await page.screenshot({ path: shot("desktop-dark.png") });
     await page.emulateMedia({ colorScheme: "light" });
   }
-  // a value with no template, unchanged: the program context gives its
-  // region
-  await row("totalSupply").click();
+  // a value with no template: the program context gives its region
+  await row("total").click();
   text = await how();
   if (!text.includes("from the program context") ||
     !text.includes("no template")) {
-    problems.push("totalSupply how");
+    problems.push("total how");
   }
 
   // The mode: Before or After shows that dump only, and the derivation
@@ -1011,17 +1068,19 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
       v.dataset.side).join());
   const sides = () => page.locator("#how li[data-region]").evaluateAll(
     (ls) => [...new Set(ls.map((l) => l.dataset.side))].join());
-  await row(`${SENDER}.balance`).click();
-  for (const [m, val] of [["before", "1000"], ["after", "975"]]) {
+  await row(`${A}.score`).click();
+  for (const [m, val, whose] of [
+    ["before", "7", "after Alice's first record(7)"],
+    ["after", "67", "after her second record(30)"]]) {
     await setMode(m);
     const v = await views();
     const d = await sides();
     const t = await how();
-    const shownVal = await row(`${SENDER}.balance`)
+    const shownVal = await row(`${A}.score`)
       .locator(".val > span:first-child").innerText();
     if (v !== m) problems.push(`mode ${m}: views ${v}`);
     if (d !== m) problems.push(`mode ${m}: derivation for ${d}`);
-    if (!t.includes(`${m} the transaction`)) {
+    if (!t.includes(`For the state ${whose}.`)) {
       problems.push(`mode ${m}: panel does not say whose`);
     }
     if (shownVal.trim() !== val) {
@@ -1030,8 +1089,8 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
   }
 
   // The tree's cards: none at rest; a lit changed value gets one with
-  // the other state's value (balance: "after 975" under it in Before,
-  // "before 1000" over it in After); an unchanged one gets none
+  // the other state's value (score: "after 67" under it in Before,
+  // "before 7" over it in After); an unchanged one gets none
   const tins = () => page.evaluate(() => [...document.querySelectorAll(
     "#tree .tcard")].map((c) => {
     const r = c.closest("li").querySelector(":scope > .row")
@@ -1042,23 +1101,23 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
         : b.bottom <= r.top + 0.5 ? "over" : "on" };
   }));
   await page.keyboard.press("Escape");
-  for (const [m, want, place] of [["before", "after975", "under"],
-    ["after", "before1000", "over"]]) {
+  for (const [m, want, place] of [["before", "after67", "under"],
+    ["after", "before7", "over"]]) {
     await setMode(m);
     await page.locator("h1").hover();
     if ((await tins()).length) problems.push(`${m}: tree card at rest`);
-    await row(`${SENDER}.balance`).hover();
+    await row(`${A}.score`).hover();
     const t = await tins();
-    if (t.length !== 1 || t[0].path !== `${SENDER}.balance` ||
+    if (t.length !== 1 || t[0].path !== `${A}.score` ||
       t[0].text !== want || t[0].place !== place) {
       problems.push(`tree card ${m}: ${JSON.stringify(t)}`);
     }
-    await row(`${SENDER}.frozen`).hover();
+    await row(`${A}.active`).hover();
     if ((await tins()).length) problems.push(`${m}: card for unchanged`);
   }
   // No card for what did not change: selecting an unchanged value gives
   // none, in the tree or the dump, in either state
-  for (const p of [`${TO}.nonce`, `${SENDER}.frozen`, "totalSupply"]) {
+  for (const p of ["history[0]", `${A}.active`, "motto"]) {
     for (const m of ["before", "after"]) {
       await setMode(m);
       await row(p).click();
@@ -1071,7 +1130,7 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
   // "show other state" off: no tree cards, no dump cards; highlight
   // still works
   await page.locator("#insets").uncheck();
-  await row(`${SENDER}.nonce`).hover();
+  await row(`${A}.streak`).hover();
   if ((await tins()).length ||
     await page.locator("#panel .cmp").count() ||
     !Object.keys(await lit()).length) {
@@ -1081,17 +1140,17 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
     problems.push("insets off: not in the hash");
   }
   await page.locator("#insets").check();
-  await row(`${SENDER}.balance`).hover();
+  await row(`${A}.score`).hover();
   if (!(await tins()).length ||
     (await page.evaluate(() => location.hash)).includes("insets=")) {
     problems.push("insets on again");
   }
   await page.locator("h1").hover();
 
-  // Strings: shrinks goes long -> short. The panel forks where the two
-  // derivations part: steps 1-3 once, the IF with both evaluations,
-  // then one list per branch, this state's first
-  await page.evaluate(() => window.select("strings-update"));
+  // motto goes short -> long. The panel forks where the two derivations
+  // part: the shared steps once, the IF with both evaluations, then one
+  // list per branch, this state's first
+  await scene("motto");
   const forkOf = () => page.evaluate(() => {
     const how = document.querySelector("#how");
     const shared = how.querySelector(":scope > ol.steps");
@@ -1107,60 +1166,130 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
       })),
     };
   });
-  await row("shrinks").click();
+  await row("motto").click();
   let fk = await forkOf();
   if (fk.shared !== 4 || fk.evals.length !== 2 ||
-    !/^before .* → else$/.test(fk.evals[0]) ||
-    !/^after .* → then$/.test(fk.evals[1]) ||
+    !/^before .* → then$/.test(fk.evals[0]) ||
+    !/^after .* → else$/.test(fk.evals[1]) ||
     fk.branches.length !== 2 || !fk.branches[0].cls.includes("mine") ||
-    fk.branches[0].head !== "after · then (short-string layout)" ||
-    fk.branches[1].head !== "before · else (long-string layout)" ||
+    fk.branches[0].head !== "after · else (long-string layout)" ||
+    fk.branches[1].head !== "before · then (short-string layout)" ||
     fk.branches.some((b) => b.start !== "5") ||
     fk.branches[0].result !== "after" || fk.branches[1].result !== "before") {
-    problems.push(`shrinks fork (after): ${JSON.stringify(fk)}`);
+    problems.push(`motto fork (after): ${JSON.stringify(fk)}`);
   }
   // in Before, the before branch comes first
   await setMode("before");
   fk = await forkOf();
-  if (fk.branches[0]?.head !== "before · else (long-string layout)" ||
+  if (fk.branches[0]?.head !== "before · then (short-string layout)" ||
     fk.branches[0]?.result !== "before") {
-    problems.push(`shrinks fork (before): ${JSON.stringify(fk)}`);
+    problems.push(`motto fork (before): ${JSON.stringify(fk)}`);
   }
   // with "show other state" off: one list, this state's only
   await page.locator("#insets").uncheck();
   fk = await forkOf();
   if (fk.branches.length || fk.evals.length) {
-    problems.push(`shrinks, other state off: ${JSON.stringify(fk)}`);
+    problems.push(`motto, other state off: ${JSON.stringify(fk)}`);
   }
   await page.locator("#insets").check();
   await setMode("after");
-  // grows: the result of this state's branch is the long data
-  await row("grows").click();
+  // the result of this state's branch: the long data, after; slot 2,
+  // before
   const result = () => page.locator("#how li.final").first().evaluate((l) =>
     [l.dataset.side, JSON.parse(l.dataset.region).slot]);
   let [rs, slot] = await result();
-  if (rs !== "after" || !slot.startsWith("0x290d") ||
+  if (rs !== "after" || !slot.startsWith("0x4057") ||
     !(await how()).includes("so take else")) {
-    problems.push(`grows after: ${rs} ${slot}`);
+    problems.push(`motto after: ${rs} ${slot}`);
   }
   await setMode("before");
   [rs, slot] = await result();
-  if (rs !== "before" || BigInt(slot) !== 0n ||
+  if (rs !== "before" || BigInt(slot) !== 2n ||
     !(await how()).includes("so take then")) {
-    problems.push(`grows before: ${rs} ${slot}`);
+    problems.push(`motto before: ${rs} ${slot}`);
   }
   // hovering the result lights the before bytes now
   await page.locator("#how li.final").first().hover();
   const gl = Object.keys(await lit()).map((k) => k.split(" ")[0]);
-  if (gl.join() !== "before") problems.push(`grows result lit: ${gl}`);
-  // most (31 bytes both times) takes the same path
-  await row("most").click();
-  if (await page.locator("#how .branch, #how .evals").count() ||
-    !(await how()).includes("same bytes in both")) {
-    problems.push("most: reported a difference");
-  }
+  if (gl.join() !== "before") problems.push(`motto result lit: ${gl}`);
   await setMode("after");
   await page.keyboard.press("Escape");
+
+  // The calldata of setMotto (motto scene only), by the ABI encoding: a
+  // byte selects its part of m; a part lights its bytes
+  {
+    const { keccak256 } = (await import("js-sha3")).default;
+    const cdl = () => page.evaluate(() => window.calldataResults);
+    const shownCd = await page.evaluate(() =>
+      !document.querySelector("#calldata").hidden);
+    const selector = await page.locator(
+      '#ctree li[data-part="selector"] .val').innerText();
+    if (!shownCd || selector !== "0x" + keccak256("setMotto(string)")
+      .slice(0, 8)) problems.push(`calldata: ${shownCd} ${selector}`);
+    // offset 32, then the length (48) at 0x24, then the bytes at 0x44
+    await page.locator('#cpanel .b[data-i="40"]').click();
+    const c = await cdl();
+    if (c.chosen !== "m-length") problems.push(`calldata byte: ${c.chosen}`);
+    const cdetails = await dl("#cdetails");
+    if (cdetails.Holds !== "48" ||
+      cdetails.Where !== "bytes 0x0024–0x0043") {
+      problems.push(`calldata details: ${JSON.stringify(cdetails)}`);
+    }
+    await page.locator('#cpanel .b[data-i="40"]').click();
+    await page.locator('#ctree li[data-part="m"] > .row').hover();
+    const cl = await page.evaluate(() => [...document.querySelectorAll(
+      "#cpanel .b.hl")].map((b) => +b.dataset.i));
+    if (cl.join() !== range(4, 115).join()) {
+      problems.push(`calldata m lit: ${cl.length}`);
+    }
+    if (!(await page.locator("#chow").textContent()).includes(
+      "not by ethdebug")) problems.push("calldata: no why-not");
+    await page.locator("h1").hover();
+    await scene("streak");
+    if (!(await page.evaluate(() =>
+      document.querySelector("#calldata").hidden))) {
+      problems.push("calldata shown in another scene");
+    }
+  }
+
+  // Vyper: Solidity's rule reads 0 at keccak(key . slot 0); Vyper's own
+  // words, keccak(slot 0 . key) + 0, 1, 2, hold 67, 2 and 1, and no value
+  // shown owns them. "How this was found" lists them, and each lights
+  // its word.
+  await page.locator('#picker button[data-id="vyper"]').click();
+  const vy = await page.evaluate(() => {
+    const v = document.querySelector('#panel .view[data-side="after"]');
+    return [...v.querySelectorAll(".wrow[data-slot]")].map((r) => [
+      r.dataset.name, r.querySelector(".b[data-i='31']").textContent,
+      r.querySelectorAll(".b.free").length]);
+  });
+  const key = "0xf39f…2266";
+  if (!same(vy, [
+    [`Vyper's keccak(slot 0, ${key})`, "43", 32],
+    [`Vyper's keccak(slot 0, ${key}) + 1`, "02", 32],
+    [`Vyper's keccak(slot 0, ${key}) + 2`, "01", 32],
+    [`keccak(${key}, slot 0)`, "00", 19]])) {
+    problems.push(`vyper words: ${JSON.stringify(vy)}`);
+  }
+  text = (await how()).replace(/\s+/g, " ");
+  if (!text.includes("Vyper's rule") ||
+    !/score = 67[\s\S]*streak = 2[\s\S]*active = true/.test(text) ||
+    !text.includes("→ 0")) {
+    problems.push(`vyper how: ${text.slice(-300)}`);
+  }
+  await page.locator("#how ol.vyper li").first().hover();
+  const vlit = await lit();
+  if (Object.keys(vlit).join() !== `after ${await page.evaluate(() =>
+    document.querySelector('#panel .wrow[data-slot]').dataset.slot)}` ||
+    Object.values(vlit)[0].length !== 32) {
+    problems.push(`vyper step lit: ${JSON.stringify(vlit)}`);
+  }
+  if ((await pops()).join() !== `Vyper's keccak(slot 0, ${key})\n= ` +
+    "0x5c63ee49f5c25cff0b1cb0da74779ad3703cfde276b4532ef9eec62c7e94fee4") {
+    problems.push(`vyper pops: ${await pops()}`);
+  }
+  await page.keyboard.press("Escape");
+  await page.locator("h1").hover();
 
   // The memory section (BUG, bugc from main): locals decoded from
   // bugc's pointers by the library, at each curated point
@@ -1314,15 +1443,15 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
     await page.keyboard.press("Escape");
   }
 
-  // The URL hash keeps the view: loading with one restores the example,
+  // The URL hash keeps the view: loading with one restores the scene,
   // the mode, the selection and the memory points; a stale one falls
-  // back to the defaults
+  // back to the first scene, with its defaults
   const hp = await ctx.newPage();
   hp.on("pageerror", (e) => problems.push(`hash pageerror: ${e}`));
   hp.on("console", (m) => {
     if (m.type() === "error") problems.push(`hash console: ${m.text()}`);
   });
-  await hp.goto(PAGE + "#ex=strings&mode=before&sel=grows&a=written&" +
+  await hp.goto(PAGE + "#ex=motto&mode=before&sel=history&a=written&" +
     "b=replaced&mmode=before&msel=names[1]&insets=0");
   await hp.waitForFunction(() => window.results?.done &&
     window.memResults?.done, null, { timeout: 60000 });
@@ -1342,20 +1471,38 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
     hash: location.hash,
     insets: document.querySelector("#insets").checked,
   }));
-  if (!same(hs, { ex: "strings-update", mode: "before", sel: "grows",
+  if (!same(hs, { ex: "motto", mode: "before", sel: "history",
     how: "before", a: "written", b: "replaced", mmode: "before",
     msel: "names[1]",
-    insets: false, hash: hs.hash }) || !hs.hash.includes("ex=strings") ||
-    !hs.hash.includes("sel=grows")) {
+    insets: false, hash: hs.hash }) || !hs.hash.includes("ex=motto") ||
+    !hs.hash.includes("sel=history")) {
     problems.push(`hash restore: ${JSON.stringify(hs)}`);
   }
   // changes go back into the hash
   await hp.locator('#mode button[data-mode="after"]').click();
-  await hp.locator('#tree li[data-path="most"] > .row').click();
+  await hp.locator('#tree li[data-path="total"] > .row').click();
   const h2 = await hp.evaluate(() => location.hash);
-  if (!h2.includes("mode=after") || !h2.includes("sel=most")) {
+  if (!h2.includes("mode=after") || !h2.includes("sel=total")) {
     problems.push(`hash write: ${h2}`);
   }
+  // a cleared default selection stays cleared ("sel=")
+  await hp.locator('#tree li[data-path="total"] > .row').click();
+  await hp.reload();
+  await hp.waitForFunction(() => window.results?.done, null,
+    { timeout: 60000 });
+  const h3 = await hp.evaluate(() => [location.hash,
+    document.querySelectorAll("#tree .row.sel").length]);
+  if (!/(^#|&)sel=(&|$)/.test(h3[0]) || h3[1]) {
+    problems.push(`hash cleared: ${h3}`);
+  }
+  // a link to a scene alone gives its defaults
+  await hp.goto("about:blank");
+  await hp.goto(PAGE + "#ex=alice");
+  await hp.waitForFunction(() => window.results?.done, null,
+    { timeout: 60000 });
+  const h4 = await hp.evaluate(() =>
+    document.querySelector("#tree .row.sel")?.parentElement.dataset.path);
+  if (h4 !== `${A}.streak`) problems.push(`hash scene defaults: ${h4}`);
   await hp.goto("about:blank");
   // (an old mode=compare shows After)
   await hp.goto(PAGE + "#ex=nope&mode=compare&sel=zzz&a=x&b=x");
@@ -1367,7 +1514,7 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
     document.querySelectorAll("#tree .row.sel").length,
     document.querySelector('#mpick-before [aria-checked="true"]')
       ?.dataset.id]);
-  if (stale.join() !== "token-transfer,after,0,built") {
+  if (stale.join() !== "packed,after,0,built") {
     problems.push(`stale hash: ${stale}`);
   }
   await hp.close();
@@ -1384,7 +1531,7 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
   await pp.goto(PAGE);
   await pp.waitForFunction(() => window.results?.done, null,
     { timeout: 60000 });
-  await pp.evaluate(() => window.select("strings-update"));
+  await pp.evaluate(() => window.select("motto"));
   // Both views, stacked, each word on one line; the words may scroll
   // sideways inside the panel, the page may not
   const narrow = await layout(pp);
@@ -1395,17 +1542,18 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
       .join();
   });
   const vrest = await vbox();
-  await pp.locator('#tree li[data-path="grows"] > .row').click();
+  await pp.locator("h1").click();
+  await pp.locator('#tree li[data-path="motto"] > .row').click();
   if (await vbox() !== vrest) {
     problems.push(`phone: the words' box changed: ${vrest} -> ${
       await vbox()}`);
   }
   const phoneLit = await pp.locator("#panel .b.hl:not(.cmp *)").count();
-  // before: 5 bytes of "short" and its length byte; after: the
-  // long-length word (holds the flag byte) and 50 bytes of data across
+  // before: 9 bytes of "play fair" and its length byte; after: the
+  // long-length word (holds the flag byte) and 48 bytes of data across
   // two slots
-  if (phoneLit !== 6 + 32 + 50) {
-    problems.push(`phone: ${phoneLit} bytes lit for grows`);
+  if (phoneLit !== 10 + 32 + 48) {
+    problems.push(`phone: ${phoneLit} bytes lit for motto`);
   }
   const scrollX = await pp.evaluate(() =>
     document.documentElement.scrollWidth >
@@ -1414,7 +1562,7 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
   await pp.waitForFunction(() => window.memResults?.done);
   // the derivation panel forks into the two branches
   if (await pp.locator("#how .branch").count() !== 2) {
-    problems.push("phone: no difference shown for grows");
+    problems.push("phone: no difference shown for motto");
   }
   // names[1]: four words and the bytes, at A ("grace") and at B
   // ("grace hopper")
@@ -1434,12 +1582,13 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
     await pp.locator("#memory").screenshot({ path: shot("memory-phone.png") });
   }
   // Loading failures: the decoder bundle (network error) and the first
-  // example's data (HTTP 503)
+  // scene's data (HTTP 503)
   problems.push(...await retryCheck(browser, "vendor/pointers.js",
     { abort: true }));
   problems.push(...await retryCheck(browser,
-    "fixtures/token-transfer.json", { via: "#tree .error button" }));
+    "fixtures/scores-record.json", { via: "#tree .error button" }));
   if (name === "chromium") problems.push(...await slowLink(browser));
+  problems.push(...logs, ...foreign.map((u) => `foreign ${u}`));
 
   console.log(`${name} ${browser.version()}: ${problems.length
     ? "FAIL\n  " + problems.join("\n  ") : "ok"}`);

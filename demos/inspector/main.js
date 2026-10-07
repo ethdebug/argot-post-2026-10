@@ -1,5 +1,7 @@
-// Storage inspection demo. Loads the fixtures, decodes each contract's
-// storage before and after the transaction (decode.js), and draws it.
+// Storage inspection demo: one contract, Scores, in scenes. Each scene
+// shows one point (the state after a transaction) or two to compare
+// (before and after one). Loads the scene's fixture, decodes the
+// contract's storage (decode.js), and draws it.
 import {
   storageState, mappingKeys, decodeStorage, typeName, commit,
 } from "./decode.js";
@@ -8,6 +10,7 @@ import {
   shortKeys, steady, initialHash, setHash, locked,
   details,
 } from "./panel.js";
+import { showCalldata } from "./calldata.js";
 
 const $ = (id) => document.getElementById(id);
 const esc = (s) =>
@@ -66,17 +69,15 @@ function merge(before = [], after = []) {
 
 // -------------------------------------------------------------- render
 
-let current; // the selected fixture: { f, tree, panel }
+let current; // the scene shown: { id, scene, f, tree, panel, single }
 
 // Which state to show: "before" or "after" (one dump at a time)
 let mode = "after";
 // Whether to show the other state beside this one: the cards in the
-// dump and the insets in the tree
+// dump and the insets in the tree (a scene with one point has none)
 let insets = true;
-const WHEN = {
-  before: "before the transaction",
-  after: "after the transaction",
-};
+const showOther = () => insets && !current?.single;
+const WHEN = () => current.panel.when;
 
 function row(node, top) {
   const { types } = current.f.contract;
@@ -88,9 +89,11 @@ function row(node, top) {
   if (v) {
     const b = node.before ? esc(node.before.text) : "<i>none</i>";
     const a = node.after ? esc(node.after.text) : "<i>none</i>";
-    // the shown state's value; the row says whether it changed
+    // the shown state's value; the row says whether it changed (not at
+    // one point)
     val = `<span>${mode === "before" ? b : a}</span>`;
-    val = `<span class="val ${valueChanged ? "chg" : "same"}">${val}</span>`;
+    val = `<span class="val${current.single ? "" : valueChanged ? " chg"
+      : " same"}">${val}</span>`;
   } else if (node.note) {
     val = `<span class="muted">${esc(node.note)}</span>`;
   }
@@ -99,10 +102,11 @@ function row(node, top) {
     : node.children && !node.before && !node.after
       ? `<p class="muted empty">no keys hashed in this transaction</p>`
       : "";
-  const cls = node.changed ? "chg" : "same";
+  const cls = current.single ? "" : node.changed ? "chg" : "same";
   const keyNote = node.key && node.key.toLowerCase().endsWith(
-    current.f.tx.from.slice(2).toLowerCase()) ? " (sender)" : "";
-  return `<li class="${cls}${top ? " top" : ""}"` +
+    current.f.tx.from.slice(2).toLowerCase()) ? " (Alice)" : "";
+  return `<li class="${cls}${top ? " top" : ""}"`.replace('class=" ',
+    'class="') +
     ` data-path="${esc(node.path)}">` +
     `<div class="row" tabindex="0" role="button" aria-pressed="false">` +
     `<span class="name">${esc(node.label)}${keyNote}</span>` +
@@ -115,8 +119,10 @@ function renderTree() {
 }
 
 function render() {
-  const { f } = current;
-  $("summary").textContent = f.summary;
+  const { f, scene } = current;
+  $("summary").textContent = scene.summary;
+  showScene(scene);
+  showCalldata(scene.calldata ? f.tx.input : null, scene.calldata);
   renderTree();
   $("src").textContent = f.contract.source;
   $("srcnote").textContent = "Click a value to mark where it is declared.";
@@ -227,15 +233,16 @@ function renderHow() {
   const other = side === "before" ? "after" : "before";
   const v = node[side];
   if (!v) {
-    box.innerHTML = head + `<p class="small">${WHEN[side][0].toUpperCase()
-      }${WHEN[side].slice(1)}: ${esc(missing(node, side))}.</p>`;
+    const w = WHEN()[side];
+    box.innerHTML = head + `<p class="small">${w[0].toUpperCase()
+      }${w.slice(1)}: ${esc(missing(node, side))}.</p>`;
     return;
   }
   // The other state's derivation, beside this one (unless "show other
   // state" is off): shared steps once, a step that evaluates
   // differently with both evaluations, and where the two take
   // different branches, the rest as two lists, this state's first
-  const o = insets ? node[other] : null;
+  const o = showOther() ? node[other] : null;
   const A = items(node, v, side);
   const B = o ? items(node, o, other) : null;
   let k = 0;
@@ -269,7 +276,8 @@ function renderHow() {
       "</div></li>");
   };
   const same = B && !forked && A.every((x, i) => x.eval === B[i].eval);
-  const whose = `<p class="howside">For the state <b>${WHEN[side]}</b>.` +
+  const whose = `<p class="howside">For the state <b>${esc(WHEN()[side])
+  }</b>.` +
     `${same ? " The same steps find the same bytes in both states." : ""}` +
     "</p>";
   const note = v.how.context
@@ -278,7 +286,32 @@ function renderHow() {
       "them. The steps above replay the same template with the " +
       "library's evaluator; they agree.";
   box.innerHTML = head + whose + `<ol class="steps">${shared.map(dual)
-    .join("")}</ol>` + fork + `<p class="muted small">${note}</p>`;
+    .join("")}</ol>` + fork + `<p class="muted small">${note}</p>` +
+    vyperRule(node, side);
+}
+
+// The Vyper scene: the same entry by Vyper's own rule, which no ethdebug
+// gives (Vyper emits none). Its words are the ones Vyper's record() wrote,
+// from its trace; each step lights its word.
+function vyperRule(node, side) {
+  const vy = current.f.vyper;
+  if (!vy || !node.path.startsWith("players[")) return "";
+  const word = (s) => current.f.slots[s][side];
+  const item = (k, html) => `<li data-region="${esc(JSON.stringify({
+    name: `vyper-${vy.names[k]}`, location: "storage", slot: vy.members[k],
+    offset: "0x0", length: "0x20" }))}" data-side="${side}" tabindex="0">` +
+    `<span class="k">Slot ${k ? `+ ${k}` : ""}</span><div class="c">${html}` +
+    `</div></li>`;
+  const val = (k) => num(word(vy.members[k]));
+  return `<p class="howside">Vyper's rule, for contrast: not from
+    ethdebug (Vyper emits none). Vyper hashes the slot first,
+    <code>keccak256(slot 0 . key)</code>, and puts each member in its own
+    slot.</p><ol class="steps vyper">${[
+    item(0, `${hex(vy.slot, 14)}: <code>score</code> =
+      <b>${val(0)}</b>`),
+    item(1, `<code>streak</code> = <b>${val(1)}</b>`),
+    item(2, `<code>active</code> = <b>${val(2) ? "true" : "false"}</b>
+      (${val(2)})`)].join("")}</ol>`;
 }
 
 // The steps of one state's derivation, each with a key for its
@@ -304,8 +337,10 @@ function items(node, v, side) {
     out.push({ key: "start", eval: "", html: `<li><span class="k">Start</span>
       <code>${esc(origin.variable)}</code> starts at slot
       ${hex(origin.slot)} <span class="tag">from the program context</span>
-      ${origin.key ? `<br>Key ${hex(origin.key)}: this transaction hashed
-      it with that slot <span class="tag">from the trace</span>` : ""}
+      ${origin.key ? `<br>Key ${hex(origin.key)}: ${current.f.keysFrom
+        ? `from ${esc(current.f.keysFrom)}`
+        : "this transaction hashed it with that slot"}
+      <span class="tag">from the trace</span>` : ""}
       </li>` });
     const all = stepsOf(v);
     let i = 0;
@@ -337,7 +372,8 @@ function items(node, v, side) {
   out.push({ key: "result", eval: `${raw(v.hex)} → <b>${esc(v.text)}</b>`,
     html: `<li class="final"${linked(r)}><span class="k">Result</span>
     ${esc(r.location)} slot ${hex(r.slot, 14)}, ${bytes(len)}.
-    <div>Read ${WHEN[side]}: ${raw(v.hex)} → <b>${esc(v.text)}</b></div>
+    <div>Read ${esc(WHEN()[side])}: ${raw(v.hex)} → <b>${esc(v.text)
+    }</b></div>
     </li>` });
   return out.map(done);
 }
@@ -464,7 +500,7 @@ const PROBE = "Point at a value or a byte for its details.";
 function show() {
   const sel = chosen ? forRow(current.panel, chosen) : null;
   const h = hover ?? sel;
-  paint($("panel"), $("tree"), h, { cards: insets });
+  paint($("panel"), $("tree"), h, { cards: showOther() });
   treeCard(h);
   for (const r of $("tree").querySelectorAll("li[data-path] > .row")) {
     const on = r.parentElement.dataset.path === chosen;
@@ -485,7 +521,7 @@ function show() {
 function treeCard(h) {
   $("tree").querySelectorAll(".tcard").forEach((c) => c.remove());
   const path = h?.path ?? (h?.rows?.size ? [...h.rows][0] : null);
-  const node = insets && path && find(current.tree, path);
+  const node = showOther() && path && find(current.tree, path);
   if (!node) return;
   const other = mode === "before" ? "after" : "before";
   const txt = (n) => n[other] ? esc(n[other].text) : "<i>none</i>";
@@ -563,7 +599,7 @@ const same = (a, b) => a?.label === b?.label &&
   JSON.stringify(a?.at) === JSON.stringify(b?.at);
 
 function onOver(e) {
-  if (e.target.closest?.("#memory")) {
+  if (e.target.closest?.("#memory, #calldata")) {
     if (hover) {
       hover = null;
       show();
@@ -607,7 +643,7 @@ document.addEventListener("click", (e) => {
   const t = e.target;
   const h = t.closest(".hex.short");
   if (h) return flip(h);
-  if (!current || t.closest("#memory")) return;
+  if (!current || t.closest("#memory, #calldata")) return;
   const ins = t.closest("#insets");
   if (ins) {
     insets = ins.checked;
@@ -636,7 +672,7 @@ const flip = (h) => {
 document.addEventListener("keydown", (e) => {
   if (e.key === "Escape") {
     const f = document.activeElement;
-    if (chosen && !f?.closest?.("#memory")) choose(null);
+    if (chosen && !f?.closest?.("#memory, #calldata")) choose(null);
     return;
   }
   if (e.key !== "Enter" && e.key !== " ") return;
@@ -654,7 +690,9 @@ document.addEventListener("keydown", (e) => {
 // ---------------------------------------------------------------- load
 
 async function decode(f) {
-  const keys = mappingKeys(f.trace.kept);
+  // mapping keys: from the fixture (gathered from another trace), or
+  // from this transaction's KECCAK256 inputs
+  const keys = f.keys ? new Map(f.keys) : mappingKeys(f.trace.kept);
   const side = (when) => storageState(async (slot) => {
     const e = f.slots[slot];
     if (!e) throw new Error(`slot ${slot} is not in the fixture`);
@@ -667,19 +705,40 @@ async function decode(f) {
   return merge(before, after);
 }
 
-// The view in the URL hash: example, mode, selected variable
+// A scene with one point shows one state: the fixture's state on that
+// side, as both sides (nothing changed, nothing to compare)
+function atPoint(f, side) {
+  const slots = {};
+  for (const [s, w] of Object.entries(f.slots)) {
+    slots[s] = { before: w[side], after: w[side] };
+  }
+  return { ...f, slots };
+}
+
+// The Vyper scene names the words Vyper's own rule found
+function vyperNames(f) {
+  const vy = f.vyper;
+  if (!vy) return undefined;
+  const key = `0x${f.tx.from.slice(2, 6)}…${f.tx.from.slice(-4)}`;
+  return Object.fromEntries(vy.members.map((s, k) =>
+    [s, `Vyper's keccak(slot 0, ${key})${k ? ` + ${k}` : ""}`]));
+}
+
+// The view in the URL hash: scene, mode, selected variable
 let restored = false; // until the hash is read back, do not write it
-const exId = (id) => id.split("-")[0]; // "strings-update" -> "strings"
 function keep() {
   if (!restored || !current) return;
-  setHash({ ex: exId(current.id), mode, sel: chosen,
-    insets: insets ? null : "0" });
+  const { scene, single } = current;
+  // a cleared default selection is kept as "sel="
+  setHash({ ex: current.id, mode: single ? null : mode,
+    sel: chosen ?? (scene.select ? "" : null),
+    insets: insets || single ? null : "0" });
 }
 
 const loaded = {};
-let index = []; // the examples shown, from fixtures/index.json
-let wanted; // the example asked for last
-// gray lines in the tree while an example's data loads
+let index = []; // the scenes, from fixtures/index.json
+let wanted; // the scene asked for last
+// gray lines in the tree while a scene's data loads
 const SKELETON = `<div class="skel" aria-hidden="true">${
   "<i></i>".repeat(8)}</div>`;
 let firstShown;
@@ -698,93 +757,115 @@ function record(id, tree) {
   window.results.decoded[id] = flat;
 }
 
-// Show an example. Its data is fetched the first time (with progress in
-// the bar at the top); until then the picker shows the choice and the
-// tree waits. Returns false when the data did not load.
-window.select = async (id) => {
+// The scene's intro, and the controls a scene with one point does not
+// have (Before | After, "show other state", the change legends)
+function showScene(scene) {
+  for (const p of $("intros").querySelectorAll("[data-scene]")) {
+    p.hidden = p.dataset.scene !== scene.id;
+  }
+  document.querySelector("main").toggleAttribute("data-single",
+    scene.points.length === 1);
+}
+
+// Show a scene, with its defaults (its mode and its selection), or, with
+// `view`, the mode and selection given. Its data is fetched the first
+// time (with progress in the bar at the top); until then the picker
+// shows the choice and the tree waits. Returns false when the data did
+// not load.
+window.select = async (id, view) => {
   wanted = id;
   for (const b of $("picker").querySelectorAll("button")) {
     b.setAttribute("aria-checked", String(b.dataset.id === id));
   }
+  const scene = index.find((x) => x.id === id);
+  showScene(scene);
   if (!loaded[id]) {
-    const x = index.find((e) => e.id === id);
     $("tree").innerHTML = SKELETON;
-    $("summary").textContent = x?.summary ?? "";
+    $("summary").textContent = scene.summary;
     let f;
     try {
-      f = await window.loading.load(`fixtures/${id}.json`,
-        { label: x ? `“${x.title}”` : id });
+      f = await window.loading.load(`fixtures/${scene.fixture}.json`,
+        { label: `“${scene.title}”` });
     } catch (e) {
       if (wanted === id) {
-        window.loading.fail(e, () => window.select(id));
+        window.loading.fail(e, () => window.select(id, view));
         $("tree").innerHTML = `<p class="error">${esc(e.message)}` +
           ` <button type="button" class="btn">Retry</button></p>`;
         $("tree").querySelector("button").onclick = window.loading.retry;
       }
       return false;
     }
+    const single = scene.points.length === 1;
+    if (single) f = atPoint(f, scene.points[0]);
     const tree = await decode(f);
-    loaded[id] = { id, f, tree, panel: buildPanel(f, tree) };
+    const when = single
+      ? { before: scene.when, after: scene.when }
+      : { before: "before the transaction", after: "after the transaction",
+        ...scene.when };
+    loaded[id] = { id, scene, f, tree, single,
+      panel: buildPanel(f, tree, { single, when, names: vyperNames(f) }) };
     record(id, tree);
   }
-  if (wanted !== id) return true; // another example was asked for since
+  if (wanted !== id) return true; // another scene was asked for since
   current = loaded[id];
+  mode = current.single ? "after" : view?.mode ?? scene.mode ?? "after";
   render();
-  keep();
+  const sel = view ? view.sel : scene.select;
+  choose(sel && find(current.tree, sel) ? sel : null, null, true);
   firstShown();
   return true;
 };
 
-// After the page is usable, fetch the other examples one at a time while
-// the browser is idle and nothing else is loading
-function prefetch(ids) {
+// After the page is usable, fetch the other scenes' data one at a time
+// while the browser is idle and nothing else is loading
+function prefetch(files) {
   const idle = window.requestIdleCallback ??
     ((f) => setTimeout(f, 200));
   const next = () => idle(() => {
-    if (!ids.length) return;
+    if (!files.length) return;
     if (window.loading.busy()) return setTimeout(next, 500);
-    window.loading.load(`fixtures/${ids.shift()}.json`, { quiet: true })
+    window.loading.load(`fixtures/${files.shift()}.json`, { quiet: true })
       .catch(() => {}).then(next);
   });
   next();
 }
 
 async function main() {
-  index = (await window.loading.load("fixtures/index.json"))
-    .filter((x) => !x.hidden);
+  index = await window.loading.load("fixtures/index.json");
   $("picker").innerHTML = index.map((x) =>
-    `<button role="radio" data-id="${esc(x.id)}">${esc(x.title)}</button>`)
-    .join("");
+    `<button role="radio" data-id="${esc(x.id)}"` +
+    ` data-fixture="${esc(x.fixture)}"${x.points.length === 1
+      ? " data-single" : ""}>${esc(x.title)}</button>`).join("");
   $("picker").addEventListener("click", (e) => {
     const b = e.target.closest("button");
     if (b) window.select(b.dataset.id).catch(fail);
   });
-  // Back to what the URL hash says, if it still makes sense
+  // Back to what the URL hash says, if it still makes sense: the scene,
+  // and its mode and selection (a stale hash gives the first scene, with
+  // its defaults)
   const h = initialHash;
-  const ex = index.find((x) => x.id === h.get("ex") ||
-    exId(x.id) === h.get("ex")) ?? index[0];
-  // (an old "compare" shows After)
-  if (["before", "after"].includes(h.get("mode"))) mode = h.get("mode");
+  const ex = index.find((x) => x.id === h.get("ex"));
+  const view = ex && {
+    mode: ["before", "after"].includes(h.get("mode")) ? h.get("mode")
+      : undefined,
+    sel: h.has("sel") ? h.get("sel") || null : ex.select,
+  };
   insets = h.get("insets") !== "0";
   $("insets").checked = insets;
-  // the first example (after a failure, once Retry or a pick shows one)
-  window.select(ex.id);
+  // the first scene (after a failure, once Retry or a pick shows one)
+  window.select((ex ?? index[0]).id, view);
   await ready;
   $("meta").innerHTML =
     `@ethdebug/pointers from main (commit <code>${commit.slice(0, 9)}` +
     "</code>), pending release." + ` Compiled with solc ${esc(
     current.f.contract.compiler.split("+")[0])} (Walnut's fork, ` +
-    "walnuthq/solidity PR #10).";
-  applyMode();
-  const sel = h.get("sel");
-  if (sel && current.id === ex.id && find(current.tree, sel)) {
-    choose(sel, null, true);
-  }
+    "walnuthq/solidity PR #10), optimizer off.";
   restored = true;
   keep();
   window.results.usable = performance.now();
   window.results.done = true;
-  prefetch(index.map((x) => x.id).filter((id) => !loaded[id]));
+  prefetch([...new Set(index.map((x) => x.fixture))]
+    .filter((x) => !index.some((s) => s.fixture === x && loaded[s.id])));
 }
 
 function fail(e) {
