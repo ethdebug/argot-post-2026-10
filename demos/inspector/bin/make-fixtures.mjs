@@ -191,8 +191,11 @@ async function fixture({ id, summary, contract, address, tx, keys, keep,
       throw new Error(`${id}: SSTORE ${slot} disagrees with the node`);
     }
   }
-  // and the slots to keep, read or not
-  for (const slot of keep ?? []) {
+  // and the slots to keep, read or not, and each variable's own slot (a
+  // mapping's holds nothing, but the page shows it)
+  const bases = contract.variables.filter((v) => v.pointer.location !==
+    "code").map((v) => hex32(baseSlot(v)));
+  for (const slot of [...(keep ?? []), ...bases]) {
     for (const [m, b] of [[before, block - 1n], [after, block]]) {
       if (!m.has(slot)) {
         const v = await rpc("eth_getStorageAt", [address, slot, hex(b)]);
@@ -304,8 +307,10 @@ const SOL_SLOT = BigInt(baseSlot(arcade.variables.find((v) =>
   const plays = [];
   for (const [who, hit] of STORY) plays.push(await play(address, who, hit, combo));
   const keys = await keysOf([...joins, ...plays]);
+  // the page takes players' keys from roster (decoded from storage);
+  // the trace's keys are kept to check that they agree
   const extra = { keysFrom: "the traces of the joins and plays",
-    players: PLAYERS };
+    keysIn: { players: "roster" }, players: PLAYERS };
   // the middle of the game: after carol's miss
   await fixture({
     id: "arcade-mid", contract: arcade, address, tx: plays.at(-1), keys,

@@ -343,33 +343,45 @@ offsets.
 
 ## The box under the dump, and the replay
 
-With a value selected, the box under the dump shows it resolved: its
-path and type, where it is (slot and bytes; the full slot address is
-in the address's details when nothing is selected), its value (in a
-scene with two points, Before and After), and a button, "How was this
-found? ▸". (In the Vyper scene, the box also lists Vyper's own words
-for the selected player, each lighting its word.)
+With a value selected, the box under the dump has a title line (the
+path, the type, the value; in a scene with two points, the state shown)
+and one body line: a fixed-width area for the controls (they never
+move), then the current step, which truncates. At rest the area holds
+"How was this found? ▸" and the body the resolved place. Under the
+box, one chip per step, joined by arrows (done, current, later; a
+click jumps to it; all solid at rest; the row wraps).
 
-The button replays the pointer's evaluation from the top, one step at
-a time: the steps `decode.js` `replay()` records while it walks the
-template with the library's evaluator (and checks against the regions
-`dereference()` returned): the start (the variable's slot from the
-program context, and a mapping key from the trace), each template,
-each define (e.g. `slot = keccak(0x3c44…93bc, 3) = 0x961e…7527`), each
-list item, each branch (e.g. "so long-string layout"), and each
-region. Each step is one line, numbered, with progress dots. In the
-dump, the step's computed slot lights its whole row, a region lights
-its bytes, and everything else mutes, as for a hover; while it
-replays, the pointer changes nothing. ◀ ▶ step, ⏭ jumps to the
-resolved view; ← → step while the box has the focus; Escape leaves
-the replay (and, at rest, clears the selection). The last step is the
-resolved view, and the button then reads "Replay ▸". A composite
-(a mapping, a record) replays its first value's steps until its own
-slot is found, then lights all of it; an array, its length's steps,
-then all of it. A replay runs in the state shown. Leaving the right
-column's old "How this was found" panel: the fork view (both states'
-derivations side by side) and its per-step hover are gone; "The rule
-as solc wrote it" shows during a template step.
+The replay shows the rules the selection's pointers follow, each once,
+by example, then for the rest. The page walks the raw steps that
+`decode.js` `replay()` recorded (the library's own evaluation) for
+every value under the selection, in the state shown, and sorts them
+into one idea each; nothing is computed by the page except reading a
+flag byte from the state:
+
+1. declared: `define slot` (a literal), or the program context's
+   region for a value type; lights the variable's own slot (players'
+   slot 3, which holds 0, has its own row).
+2. the first key: the mapping's template and `define slot :=
+   keccak(key, slot)`; badges ‹hash› and where the key came from:
+   ‹roster› (the page takes players' keys from `roster`, decoded through
+   its own pointer from storage, and checks they equal the trace's) or
+   ‹trace›.
+3. the same rule for the other keys (in their child colours).
+4. the record: the struct template; the slots its members take.
+5. the fields: the members' regions in the packed slot (in their child
+   colours).
+6. a short string: `define slot + 1`, the string template, the flag
+   region, and the data region in the slot.
+7. a long string: the `if` (else), `define length`, `define start :=
+   keccak(slot)` and the data region there.
+
+For `players` that is 7 steps (alice's record, fields and name, carol's
+long name); a single value cuts them to its own path (bob's plays: 1,
+2, 4, 5). An array: its slot (the length), then its items at
+keccak(slot) + i. A row's label (its popover) shows only while a step
+lights it. ◀ ▶ step, ⏭ jumps to the resolved view, ← → step while the
+box has focus, Escape leaves the replay; past the last step is the
+resolved view, with "Replay ▸".
 
 ## Annotations in the dumps
 

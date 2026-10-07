@@ -873,22 +873,40 @@ main[data-single] > .cols :is(.chglegend, .legend .bchg, .intro .two) {
   .b, .tree .row, .b.hl, .row.hl { transition: none; }
 }
 
-/* The replay, in the box under the dump: the step's number and its one
-   line, progress dots, and the controls */
-.rstep { margin: 0 0 6px; }
-.rnum { color: var(--accent); font-weight: 700; margin-right: 4px; }
-.rbar { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 12px;
-  margin: 8px 0 0; }
-.rctl { display: inline-flex; gap: 4px; }
+/* The replay, in the box under the dump: a title line (the value), and
+   one body line: the controls in a fixed-width area (they never move),
+   then the current step, which truncates. Under the box, one chip per
+   step. */
+.rtitle { margin: 0 0 6px; overflow: hidden; text-overflow: ellipsis;
+  white-space: nowrap; }
+.rbody { display: flex; align-items: center; gap: 12px; min-width: 0; }
+.rctl { flex: none; width: 15.5em; display: flex; align-items: center;
+  gap: 4px; }
 .rctl .btn[disabled] { opacity: 0.4; cursor: default; }
-.rdots { display: inline-flex; gap: 4px; }
-.rdots i { width: 7px; height: 7px; border-radius: 50%;
-  background: var(--line); }
-.rdots i.past { background: color-mix(in srgb, var(--accent) 45%,
-  var(--line)); }
-.rdots i.on { background: var(--accent); }
-.rrule summary { cursor: pointer; color: var(--muted); font-size: 0.85rem; }
-.rrule pre { max-height: 200px; overflow: auto; background: var(--code-bg);
-  padding: 8px; border-radius: 4px; font-size: 0.75rem; }
+.rcount { margin-left: 6px; color: var(--muted); font-size: 0.85rem;
+  font-variant-numeric: tabular-nums; }
+.rcur { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis;
+  white-space: nowrap; }
+.rlabel { font-weight: 600; }
+.rform { font-family: ui-monospace, Menlo, monospace; font-size: 0.85em; }
+.rwhere { font-family: inherit; font-size: inherit; }
+.badge { font-size: 0.72rem; padding: 0 6px; border-radius: 9px;
+  border: 1px solid var(--line); color: var(--muted); }
+.chips { display: flex; flex-wrap: wrap; align-items: flex-start;
+  gap: 6px 4px; margin: 8px 0 0; min-height: 2.6em; }
+.chip { display: inline-flex; flex-direction: column; align-items: center;
+  gap: 1px; max-width: 14em; padding: 2px 8px; border-radius: 10px;
+  border: 1px solid var(--line); background: var(--panel); color: var(--fg);
+  font: inherit; font-size: 0.78rem; cursor: pointer; }
+.chip .ctext { font-family: ui-monospace, Menlo, monospace; max-width: 100%;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.chip:is(:hover, :focus-visible) .ctext { white-space: normal;
+  overflow-wrap: anywhere; }
+.chip .clabel { font-size: 0.68rem; color: var(--muted); }
+.chip.cur { background: var(--mark); color: var(--chg-fg);
+  border-color: var(--accent); }
+.chip.cur .clabel { color: inherit; }
+.chip.later { opacity: 0.45; }
+.carrow { color: var(--muted); align-self: center; font-size: 0.8rem; }
 #details:focus-visible { outline: 2px solid var(--accent);
   outline-offset: 2px; }
