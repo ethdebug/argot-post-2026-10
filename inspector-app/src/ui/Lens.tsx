@@ -80,6 +80,7 @@ function shower(store: Store<LensState>, spec: LensSpec, project: Project) {
 function Present({ v, View }: { v: ViewSpec; View: ComponentType<any> }) {
   const shown = useLensState((s) => s.side ?? "after");
   const single = useLensState((s) => s.points.a === s.points.b);
+  const insets = useLensState((s) => s.insets);
   const pair: DataRef | undefined = !single && "data" in v &&
     typeof v.data.point !== "string"
     ? { ...v.data, point: { slot: v.data.point.slot === "a" ? "b"
@@ -93,7 +94,8 @@ function Present({ v, View }: { v: ViewSpec; View: ComponentType<any> }) {
   return <View {...v} hidden={!!side && shown !== side} title={title}
     when={side ? WHEN[side] : undefined}
     compare={side || v.compare ? other : undefined}
-    filter={side && !single ? { ...v.filter, rows: "touched" } : v.filter} />;
+    filter={side && !single ? { ...v.filter, rows: "touched" } : v.filter}
+    cards={!!side && !single && insets} />;
 }
 
 export function Lens(props: { spec: LensSpec; project: Project;
