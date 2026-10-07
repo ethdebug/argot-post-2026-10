@@ -1413,7 +1413,7 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
     const order = ["if:", "then:", "else:"].map((k) => y.text.split("\n")
       .findIndex((l) => l.trim().replace(/^- /, "").startsWith(k)));
     if (!same(got, want) || y.wraps || y.clipped ||
-      !y.ids.includes("t_mapping$") || order.some((x, k) => x < 0 ||
+      !y.ids.includes("t_array$") || order.some((x, k) => x < 0 ||
         (k && x < order[k - 1]))) {
       problems.push(`pointer yaml: ${y.wraps ? "wraps " : ""}${y.clipped
         ? "clipped " : ""}${order} ${!same(got, want) ? "differs " : ""}${
@@ -2053,7 +2053,75 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
     if (bl.some((x) => !x) || new Set(bl).size !== 3) {
       problems.push(`entry blocks: ${bl}`);
     }
-    // players' own slot, 3, which holds nothing: its gutter tinted, its
+    // the selection's bar, beside the row, is inside the tree's box (which
+  // scrolls inside itself), at every level; and the blocks' edges too
+  // (one bar, on the selected row only, the same style for a leaf and
+  // a composite)
+  const barStyles = new Set();
+  for (const p of ["players", A, `${A}.combo`]) {
+    await page.evaluate((x) => window.select("mid", { sel: x }), p);
+    const f = await page.evaluate(() => {
+      const t = document.querySelector("#tree").getBoundingClientRect();
+      const sel = [...document.querySelectorAll("#tree .row.sel")];
+      const r = sel[0].getBoundingClientRect();
+      const bar = getComputedStyle(sel[0], "::before");
+      const blks = [...document.querySelectorAll("#tree li.blk")].map((b) =>
+        b.getBoundingClientRect().left - 4);
+      // (the bar as it was at 95feab9: the row's box-shadow, the row's
+      // band reaching 4px each side and the accent 7px to the left)
+      const sh = getComputedStyle(sel[0]).boxShadow;
+      const offs = [...sh.matchAll(/(-?\d+)px 0px 0px/g)].map((m) => +m[1]);
+      return { n: sel.length, cut: r.left - 7 < t.left ||
+        blks.some((x) => x < t.left),
+        style: offs.join() === "-4,4,-7" ? "original" : sh };
+    });
+    if (f.n !== 1 || f.cut) problems.push(`selection bar ${p}: ${f.n} ${f.cut}`);
+    barStyles.add(f.style);
+  }
+  if (barStyles.size !== 1 || !barStyles.has("original")) {
+    problems.push(`selection bars: ${[...barStyles]}`);
+  }
+  await page.evaluate(() => window.select("mid", { sel: "players" }));
+  // the pointer: no solc id in the YAML (the short names marked as the
+  // page's); a step's block top at the box's middle, as far as it can
+  {
+    await page.evaluate(() => window.select("mid", { sel: "roster" }));
+    await page.locator('#details button[data-r="start"]').click();
+    const al = await page.evaluate(() => ({
+      ids: /\bt_\w+\$/.test([...document.querySelectorAll("#ptr .line")]
+        .map((l) => l.textContent).join("\n")),
+      aliases: [...document.querySelectorAll("#ptr .alias")].map((a) =>
+        getComputedStyle(a).fontStyle).every((x) => x === "italic") &&
+        document.querySelectorAll("#ptr .alias").length >= 2 }));
+    await page.keyboard.press("Escape");
+    await page.evaluate(() => window.select("mid", { sel: "players" }));
+    await page.locator('#details button[data-r="start"]').click();
+    // (at step 1, the block at the first line shows whole, under the
+    // header)
+    const first = await page.evaluate(() => {
+      const box = document.querySelector("#ptr").getBoundingClientRect();
+      const on = document.querySelector("#ptr .line.on")
+        .getBoundingClientRect();
+      return on.top >= box.top + 2;
+    });
+    if (!first) problems.push("step 1: the block's top is cut");
+    await page.locator('#chips .chip[data-k="3"]').click();
+    const mid = await page.evaluate(() => {
+      const box = document.querySelector("#ptr");
+      const on = box.querySelector(".line.on");
+      const lh = on.getBoundingClientRect().height;
+      const b = box.getBoundingClientRect();
+      const top = on.getBoundingClientRect().top;
+      const end = box.scrollTop <= 0 || box.scrollTop >= box.scrollHeight -
+        box.clientHeight - 1;
+      return end || Math.abs(top - (b.top + box.clientHeight / 2)) <= lh;
+    });
+    await page.keyboard.press("Escape");
+    if (al.ids || !al.aliases || !mid) {
+      problems.push(`pointer names/scroll: ${JSON.stringify(al)} ${mid}`);
+    }
+  }
+  // players' own slot, 3, which holds nothing: its gutter tinted, its
     // label shown, its bytes plain
     const s3 = await page.evaluate(() => {
       const r = document.querySelector('#panel .view:not([hidden]) ' +
