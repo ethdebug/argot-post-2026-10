@@ -1747,6 +1747,27 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
     await page.evaluate((x) => window.select("mid", { sel: x }), `${B}.plays`);
     await page.mouse.move(1, 1);
   }
+  // with a composite selected, its children's blocks are the targets: a
+  // click on alice's score (or her bytes) selects alice's entry; with
+  // alice selected, score selects score; with nothing selected, score
+  {
+    const sc = `#panel .view:not([hidden]) .b[data-owners="${A}.score"]`;
+    const at = async (sel, click) => {
+      await page.evaluate((x) => window.select("mid", { sel: x }), sel);
+      await click();
+      return (await selected()).join();
+    };
+    const got = [
+      await at("players", () => row(`${A}.score`).click()),
+      await at("players", () => page.locator(sc).first().click()),
+      await at(A, () => row(`${A}.score`).click()),
+      await at(null, () => row(`${A}.score`).click())];
+    if (got.join() !== [A, A, `${A}.score`, `${A}.score`].join()) {
+      problems.push(`child blocks: ${got}`);
+    }
+    await page.evaluate((x) => window.select("mid", { sel: x }), `${B}.plays`);
+    await page.mouse.move(1, 1);
+  }
   // while it replays, pointing elsewhere changes nothing
   await page.locator('#details button[data-r="start"]').click();
   await page.mouse.move(1, 1);
