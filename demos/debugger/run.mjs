@@ -128,6 +128,37 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
       for (const p of ["sol", "fe"]) {
         await window.select(p);
         const w = window.walked[p];
+        if (p === "sol") {
+          // The state panel: soldb's state(i), first and last steps, and
+          // each value that changes, in order.
+          const panel = box.querySelector(".state");
+          const table = () => Object.fromEntries([...panel.querySelectorAll(
+            "tr")].map((tr) => [tr.cells[0].textContent,
+            tr.cells[1]?.textContent]));
+          const settle = async () => {
+            await window.stateReady();
+            return panel.dataset.step === String(at());
+          };
+          go(0);
+          let synced = await settle();
+          const first = table(), changes = [];
+          let prev = first;
+          for (const i of w.changes) {
+            go(i);
+            synced &&= await settle();
+            const t = table();
+            for (const [k, v] of Object.entries(t)) {
+              if (prev[k] !== v) changes.push(`${k}=${v}`);
+            }
+            prev = t;
+          }
+          go(w.n - 1);
+          synced &&= await settle();
+          out.state = { shown: !panel.querySelector("table").hidden,
+            synced, first, last: table(), changes,
+            marked: panel.querySelectorAll(".chg").length };
+          go(0);
+        }
         // Step into, 20 times: each lands on a new span, further on.
         const fwd = btn("into", 1);
         const t = performance.now();
@@ -597,6 +628,10 @@ const EXPECT = {
   last: { players: "<mapping at slot 0>", history: "length 0: []",
     total: "67", rounds: "2" },
   storage: ["players", "history", "total", "rounds"],
+  // soldb's state at the Solidity tab's last step.
+  // history: two records, two elements.
+  sol: { total: "67", rounds: "2",
+    history: "<2 element(s); index it with [i]>" },
   // The real call at -O0, as the call stack lists it.
   call: "bonus(points: 30, streak: 1)",
 };
@@ -869,7 +904,7 @@ for (const [name, b] of Object.entries(all)) {
     // Panels: call stack, inlining, variables on every tab; those without
     // data give their reason (expected: the data set's whyNot).
     const NAMES = ["Call stack", "Variables", "Inlining"];
-    const missing = { sol: NAMES, fe: NAMES, "bug-O0": ["Inlining"],
+    const missing = { sol: ["Call stack", "Inlining"], fe: NAMES, "bug-O0": ["Inlining"],
       "bug-O2": [], "old-record": ["Variables", "Inlining"],
       "old-history": ["Variables", "Inlining"] };
     for (const [ds, want] of Object.entries(missing)) {
@@ -882,8 +917,13 @@ for (const [name, b] of Object.entries(all)) {
           miss ? !x.data && x.why.length > 20 : x.data);
       }
     }
-    check(name, "sol: no-variables reason", /no pointers/
+    check(name, "sol: no-locals reason", /local variables/
       .test(u.panels.sol[1].why));
+    // soldb's state(i), read through solc's pointers: the values the
+    // transaction gives (EXPECT.sol), as of the last step.
+    check(name, "sol state panel: last step" + ` (${JSON.stringify(
+      u.state?.last)})`, u.state?.shown && u.state.synced
+      && Object.entries(EXPECT.sol).every(([k, v]) => u.state.last[k] === v));
     for (const ds of DATASETS) {
       const o = u.skip[ds];
       const on = Object.values(o.on), off = Object.values(o.off);

@@ -40,11 +40,14 @@ Every tab steps `Scores` and the same transaction. `make-scores.sh`
 makes all of it, on a fresh `anvil --steps-tracing --port 8556` (anvil
 1.2.3):
 
-- `sol/ethdebug/`: solc 0.8.37 (official build,
-  `0.8.37+commit.f401782d`), `--via-ir --experimental --debug-info
-  ethdebug` with ethdebug output, optimizer off (solc writes ethdebug
-  only without the optimizer). From `sol/Scores.sol`.
-- `old/combined.json`: the same solc, `--via-ir --optimize
+- `sol/ethdebug/`: solc from pull request walnuthq/solidity#10 (head
+  `c434b2ea`, `0.8.38-develop.2026.10.5`), `--via-ir --experimental
+  --debug-info ethdebug,ast-id` with ethdebug output, optimizer off
+  (solc writes ethdebug only without the optimizer). Its pointers give
+  soldb the state variables (`state(i)`); stock 0.8.37 writes none.
+  From `sol/Scores.sol`.
+- `old/combined.json`: stock solc 0.8.37 (official build,
+  `0.8.37+commit.f401782d`), `--via-ir --optimize
   --combined-json bin,bin-runtime,srcmap-runtime,ast`: no ethdebug.
 - `fe/`: Fe 26.4.1 at `-O 0` (`fe build`, `fe dev trace emit`, `fe dev
   debug emit --format ethdebug`) from `fe/scores.fe`. Fe writes the
