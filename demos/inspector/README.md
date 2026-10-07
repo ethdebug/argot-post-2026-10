@@ -352,50 +352,59 @@ selected value's declaration is marked (its lines) in the contract's
 source at the top of the page, the one source block. The tree's top padding is set so its first row and
 the dump's first line share a height (`alignColumns()`).
 
-Nothing moves when a value is selected, pointed at or replayed:
+Nothing moves when a value is selected, pointed at or stepped through:
 emphasis is lighting and muting only. The bar (`#details`) is one line
-over both columns, stuck to the top of the window: the selection in a
-fixed-width spot, the controls (◀ ▶ ⏭ and "n / m", or "How was this
-found? ▸" at rest; the only controls), and the step's short caption.
-The panel (`#dpanel`) is a row under both columns, in the page, at one
-size, each part in its own room: the step in full (caption, formula,
-the pointer constructs it uses with one footnote marker, where its
-input came from), the footnote (a link to the spec page of the step's
-construct; at rest, one line on what the steps are), the chips (one
-row, scrolling sideways), and the pointer solc wrote, as YAML (keys in
-the spec's order: a conditional's if, then, else; a region's name,
-location, slot, offset, length; a line too long for the box in block
-style; template names shortened, solc's ids listed under it),
-Shiki-coloured, the step's lines in a band with a rule and the rest
-muted, the box scrolled inside to show the whole band (or its end),
-its edges faded. On a phone the panel is a small sheet fixed to the
-bottom of the screen (the caption, the formula, a few lines of the
-pointer), small enough that every step's lit rows fit between it and
-the bar. During a replay, the bytes of a lit slot that no value owns
-stay muted.
+over both columns, in the page's flow (nothing on the page is sticky
+or fixed for the replay): the selection in a fixed-width spot, the
+controls (⏮ ◀ ▶ ⏭ and "n / m", or "Show how it was found" at rest),
+the step's short caption and ✕ Exit. During a replay the details
+(`#dpanel`) are joined under the bar, in its tint, as one panel with
+the bar as its header row. A click, focus or key anywhere in that
+panel stays in the replay; only ✕ Exit, Escape or a new selection in
+the tree or the dump leaves it. At entry the page scrolls the bar to
+the top while the details unfold from under it (about 280 ms, the
+columns moving down with them); at exit they fold back. These are the
+only movements, instant with reduced motion; while they run, the
+replay takes no step. The details, at one size, each part in its own
+room: the step in full (caption, formula, the pointer constructs it
+uses with one footnote marker, where its input came from), the
+footnote (a link to the spec page of the step's construct), the focus
+picker (a mapping's replay only), the chips (one a rule, with its
+storage noun), and the pointer solc wrote, as YAML (keys in the spec's
+order: a conditional's if, then, else; a region's name, location,
+slot, offset, length; a line too long for the box in block style;
+template names shortened, solc's ids listed under it), Shiki-coloured,
+the step's lines in a band with a rule and the rest muted, the box
+scrolled inside so the band's top is a third of the way down (clamped
+at the ends), inset under its header, with no fade. On a phone the
+same panel is compact (the caption, the formula, the picker, a few
+lines of the pointer). During a replay, the bytes of a lit slot that
+no value owns stay muted.
 
-The replay shows the rules the selection's pointers follow, each once,
-by example, then for the rest. The page walks the raw steps that
-`decode.js` `replay()` recorded for every value under the selection,
-in the state shown, and sorts them into one idea each (nothing is
-computed by the page but a flag byte read from the state):
+The replay shows the rules the selection's pointers follow: the steps
+are rules, and each rule's instances appear together. The page walks
+the raw steps that `decode.js` `replay()` recorded for every value
+under the variable, in the state shown (nothing is computed by the
+page but a flag byte read from the state). For players:
 
-1. declared: the variable's pointer (players' slot 3, which holds 0,
-   has its own row);
-2. the first key: `define slot := $keccak256(key, slot)`; the key is
-   the address (its player's name as a gloss), from `roster` (decoded
-   from storage, and checked to equal the trace's keys), whose item
-   lights in the key's tint;
-3. the same template for the other keys, in the entries' colours;
-4. the record: a group, the name at `$sum(slot, 1)`, in the entry's
-   colour;
-5. the fields: their regions, in colours of their own (never an
+1. declared at slot 3, which holds nothing (its gutter is lit);
+2. each record at `keccak(key, 3)`: all three at once, with the
+   `roster` items their keys come from (decoded from storage, and
+   checked to equal the trace's keys), in the entries' colours, and a
+   table of key → slot;
+3. a record is two slots (a group; the name at `$sum(slot, 1)`);
+4. the stats packed in one slot, in colours of their own (never an
    entry's), with the byte positions under the slot;
-6. a short string (the `if`'s then); 7. a long string (its else).
+5. the last byte decides the name's form: the `if`'s both branches at
+   once (alice and bob short, carol long).
 
-A single value cuts these to its own path (bob's plays: 1, 2, 4, 5).
-A row a step has derived keeps its label (a muted popover) at later
-steps; the current step's popovers are dark.
+In 3 and 4 the focus entry is at full strength and the others echo
+it, muted; the picker (alice, bob, carol) changes the focus and the
+formula's numbers, and moves nothing. A single value takes the rules
+on its path with its entry in focus (bob's plays: 1–4, only his plays
+at full strength in 4; carol's name: 1, 2, 3, 5). A row a step has
+derived keeps its label (a muted popover) at later steps; the current
+step's popovers are dark.
 
 ## Annotations in the dumps
 

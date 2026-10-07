@@ -311,17 +311,27 @@ function bytesText(r) {
 //             keccak(slot)` and the data region there (long)
 // Nothing here computes a slot: every number comes from the library's
 // evaluation (decode.js), or from the state (a flag byte).
-function replaySteps(path, side) {
+function replaySteps(path, side, focus) {
   const node = find(current.tree, path);
   const { types } = current.f.contract;
   const leaves = [];
-  // every value under the selection (an array's length too)
+  // every value under the selection (an array's length too); in a
+  // mapping, every value under the mapping: its rules are shown for all
+  // of its entries at once (`picked`: the selection's own values)
   const visit = (n) => {
     if (n[side]) leaves.push(n);
     (n.children ?? []).forEach(visit);
   };
-  visit(node);
-  if (!leaves.length) return [];
+  const varNode = find(current.tree, path.split(/[.[]/)[0]);
+  const isMap = types[varNode?.typeId]?.kind === "mapping";
+  visit(isMap ? varNode : node);
+  const picked = new Set();
+  const visitPicked = (n) => {
+    picked.add(n.path);
+    (n.children ?? []).forEach(visitPicked);
+  };
+  visitPicked(node);
+  if (!leaves.some((l) => picked.has(l.path))) return [];
   const word = (h) => "0x" + num(h).toString(16).padStart(64, "0");
   const wordAt = (h) => current.f.slots[word(h)]?.[side];
   const tail = (h) => `…${word(h).slice(-4)}`;
@@ -339,13 +349,14 @@ function replaySteps(path, side) {
       regions: [], items: [] });
     f(ph.get(k));
   };
-  // the rules for what is inside an entry are shown by example: the
-  // first entry's (and for a long string, the first long one)
-  let example;
-  const mine = (leaf) => {
+  // what each entry of a mapping holds: its key and slot, its fields,
+  // its string (by entry path, in the tree's order)
+  const recs = new Map();
+  const recOf = (leaf) => {
     const e = entryPath(leaf);
-    example ??= e;
-    return !e || e === example;
+    if (!e) return null;
+    if (!recs.has(e)) recs.set(e, { path: e, fields: [], name: null });
+    return recs.get(e);
   };
   for (const leaf of leaves) {
     const v = leaf[side];
@@ -371,6 +382,8 @@ function replaySteps(path, side) {
           ? Object.keys(r.s.expr)[0] : null;
         const a = (r.s.args ?? []).map((x) => x.value.hex);
         if (op === "$keccak256" && a.length === 2) {
+          Object.assign(recOf(leaf) ?? {}, { key: a[0], base: a[1],
+            slot: r.s.value.hex });
           add("entry", (p) => {
             const key = a[0];
             if (!p.items.some((x) => x.key === key)) {
@@ -385,13 +398,16 @@ function replaySteps(path, side) {
             p.data = r.s.value.hex;
             p.var = top(leaf);
           });
+        } else if (op === "$keccak256" && recOf(leaf)) {
+          recOf(leaf).to = r.s.value.hex;
         } else if (op === "$keccak256") {
           add("long", (p) => p.items.push({ leaf, from: a[0],
             to: r.s.value.hex }));
         }
       } else if (r.kind === "template") {
         const t = types[r.s.name];
-        if (t?.kind === "struct" && mine(leaf)) {
+        if (t?.kind === "struct" && recOf(leaf)) recOf(leaf).struct = t;
+        else if (t?.kind === "struct") {
           add("record", (p) => {
             p.struct = t;
             p.entry ??= entryPath(leaf);
@@ -410,15 +426,19 @@ function replaySteps(path, side) {
           leaf._flag = g;
         } else if (n === "long-length") {
           leaf._long = g;
+        } else if (n === "data" && recOf(leaf)) {
+          recOf(leaf).name = { leaf, flag: leaf._flag, data: g,
+            mode: mode ?? "short" };
         } else if (n === "data") {
-          if (mode !== "long" && !mine(leaf)) continue;
           add(mode ?? "short", (p) => p.items.push({ leaf, flag: leaf._flag,
             long: leaf._long, data: g }));
         } else if (n === "item") {
           add("item", (p) => p.regions.push(g));
         } else if (n === "length" && !entryPath(leaf)) {
           add("declared", (p) => p.regions.push(g));
-        } else if (mine(leaf)) {
+        } else if (recOf(leaf)) {
+          recOf(leaf).fields.push({ leaf, name: n, region: g });
+        } else {
           add("fields", (p) => p.items.push({ leaf, name: n, region: g }));
         }
       }
@@ -446,6 +466,127 @@ function replaySteps(path, side) {
     return `${esc(short(h))}${who !== short(h) ? ` <span class="gloss">${
       esc(who)}</span>` : ""}`;
   };
+  // A mapping's rules, one step each, for all of its entries at once:
+  // where each entry is, its slots, its packed fields, its string. The
+  // focus entry (the selection's, or the one picked) is at full
+  // strength where the steps show one entry's layout; the others echo
+  // it, muted.
+  const mapSteps = (variable) => {
+    const rs = [...recs.values()].filter((r) => r.slot);
+    if (!rs.length) return [];
+    const f = recs.get(focus) ?? recs.get(entryPath({ path })) ?? rs[0];
+    const who = (r) => keyName(r.key);
+    const ec = forRow(current.panel, variable).colors ?? new Map();
+    const kOf = (r) => ec.get(r.path) ?? 1;
+    const base = rs[0].base;
+    const steps = [];
+    const all = (x) => ({ recs: rs.map((r) => ({ path: r.path, who: who(r) })),
+      focus: f.path, var: variable, constructs: [], slots: [], regions: [],
+      rows: [], ...x });
+    // (2) each entry's slot, from its key; the keys' list items, in their
+    // entries' colours
+    const items = rs.map((r) => ({ r, item: keyItem(r.key) }));
+    steps.push(all({ phase: "entries",
+      cap: `Each record is at keccak(key, ${small(base)}); ${keyList
+        ? `the keys are the addresses in \`${keyList}\`` : "the keys come " +
+        "from the trace"}`,
+      form: `<span class="itab">${rs.map((r) => `<span>${addr(r.key)}</span>` +
+        `<span class="prose">→</span><span class="pk${kOf(r)} isw">${esc(
+          tail(r.slot))}</span>`).join("")}</span>`,
+      constructs: ["$keccak256", "define", "template"], source: keySource,
+      chip: `keccak(key, ${small(base)})`, chipLabel: "records",
+      parts: [{ slots: rs.map((r) => word(r.slot)),
+        regions: items.filter((x) => x.item).map((x) => x.item[side].region),
+        rows: [...rs.map((r) => r.path), ...items.filter((x) => x.item)
+          .map((x) => x.item.path)],
+        colors: new Map([...ec, ...items.filter((x) => x.item).map((x) =>
+          [x.item.path, kOf(x.r)])]) }],
+      rows: rs.map((r) => r.path) }));
+    // (3) a record's slots: those its fields and its string's flag are in
+    const slotsOf = (r) => [...new Set([...r.fields.map((x) => x.region.slot),
+      ...(r.name ? [r.name.flag.slot] : [])].map(word))]
+      .sort((a, b) => (num(a) < num(b) ? -1 : 1));
+    const fs = slotsOf(f);
+    const nWord = (n) => ["no", "one", "two", "three", "four"][n] ?? n;
+    const strName = f.name ? name(f.name.leaf) : null;
+    steps.push(all({ phase: "record",
+      cap: `A record is ${nWord(fs.length)} ${fs.length === 1 ? "slot"
+        : "slots"}${fs.length === 2 && strName ? `: stats, then \`${
+        strName}\`` : ""}`,
+      form: `${esc(who(f))}: ${esc(fs.map((sl, k) => k ? `${tail(fs[0])} + ${
+        k} = ${tail(sl)}` : tail(sl)).join(", "))}`,
+      constructs: ["group", "$sum"], source: "from solc's pointer",
+      chip: `${fs.length} slots`, chipLabel: "record",
+      parts: rs.map((r) => ({ slots: slotsOf(r), rows: [r.path],
+        colors: ec, dim: r !== f })),
+      rows: [f.path] }));
+    // (4) the stats, packed in one slot; in colours of their own (never
+    // an entry's), the same field in the same colour in every entry
+    const want = new Set(rs.flatMap((r) => r.fields).filter((x) =>
+      picked.has(x.leaf.path)).map((x) => x.name));
+    if (want.size) {
+      const used = new Set(ec.values());
+      const free = [...Array(PICKS).keys()].slice(1).filter((k) =>
+        !used.has(k));
+      const fc = forRow(current.panel, f.path).colors ?? new Map();
+      const kField = (n) => {
+        const k = fc.get(`${f.path}.${n}`);
+        return k ? free[(k - 1) % free.length] : 0;
+      };
+      const colors = new Map(rs.flatMap((r) => r.fields.map((x) =>
+        [x.leaf.path, kField(x.name)])));
+      const items = [...f.fields].sort((a, b) =>
+        Number(num(a.region.offset ?? "0x0") - num(b.region.offset ?? "0x0")));
+      steps.push(all({ phase: "fields",
+        cap: items.length > 1
+          ? "The stats share one slot, packed from the right"
+          : `\`${items[0]?.name}\` is in its record's first slot`,
+        form: items.map((x) => `<span class="fname" data-path="${esc(
+          x.leaf.path)}">${esc(x.name)}</span> ${esc(bytesText(x.region)
+          .replace(/^bytes? /, ""))}`).join(" · "),
+        constructs: ["region"], source: "from solc's pointer",
+        chip: `${items.length} fields`, chipLabel: "fields",
+        names: [...want],
+        parts: rs.flatMap((r) => r.fields.map((x) => ({ regions: [x.region],
+          rows: [x.leaf.path], colors,
+          dim: r !== f || !want.has(x.name) }))),
+        rows: f.fields.map((x) => x.leaf.path),
+        ruler: items[0]?.region.slot }));
+    }
+    // (5) the string: its slot's last byte says short (even) or long
+    // (odd), both at once
+    if (rs.some((r) => r.name && picked.has(r.name.leaf.path))) {
+      const withName = rs.filter((r) => r.name);
+      const fl = (r) => wordAt(r.name.flag.slot).slice(-2);
+      const shorts = withName.filter((r) => r.name.mode !== "long");
+      const longs = withName.filter((r) => r.name.mode === "long");
+      const ex = (list) => list.includes(f) ? f : list[0];
+      const lines = [];
+      if (shorts.length) {
+        const r = ex(shorts);
+        lines.push(`even: 0x${fl(r)} → ${num("0x" + fl(r)) / 2n} bytes ` +
+          `inline <span class="prose">(${esc(who(r))})</span>`);
+      }
+      if (longs.length) {
+        const r = ex(longs);
+        const len = (num(wordAt(r.name.flag.slot)) - 1n) / 2n;
+        lines.push(`odd: 0x${fl(r)} → ${len} bytes at keccak(${esc(tail(
+          r.name.flag.slot))}) <span class="prose">(${esc(who(r))})</span>`);
+      }
+      const nm = name(withName[0].name.leaf);
+      steps.push(all({ phase: "name",
+        cap: `The last byte decides \`${nm}\`'s form`,
+        form: lines.join("<br>"),
+        constructs: ["if", "$read", "$keccak256"],
+        source: "read from storage",
+        chip: `${nm}: short | long`, chipLabel: "string",
+        parts: [{ regions: withName.flatMap((r) => [r.name.flag,
+          r.name.data]), rows: withName.map((r) => r.name.leaf.path),
+        colors: ec }],
+        rows: withName.map((r) => r.name.leaf.path) }));
+    }
+    return steps;
+  };
   for (const p of [...ph.values()].sort((a, b) => a.order - b.order)) {
     if (p.k === "declared") {
       const w = wordAt(p.slot);
@@ -454,8 +595,8 @@ function replaySteps(path, side) {
         cap: p.context ? `\`${p.var}\` is at slot ${small(p.slot)}, ${
           p.context.length} bytes from offset ${p.context.offset}`
           : kind === "mapping" && w !== undefined && !num(w)
-            ? `\`${p.var}\` gets slot ${small(p.slot)} but stores nothing ` +
-              `there; ${small(p.slot)} only feeds each hash`
+            ? `\`${p.var}\` is declared at slot ${small(p.slot)}; that slot ` +
+              "holds nothing"
             : kind === "array" ? `\`${p.var}\` gets slot ${small(p.slot)}; ` +
               "that slot holds its length"
               : `\`${p.var}\` gets slot ${small(p.slot)}`,
@@ -468,34 +609,7 @@ function replaySteps(path, side) {
             ? "array" : "value",
         slots: [...p.slots], regions: p.regions, rows: [p.var] });
     } else if (p.k === "entry") {
-      const [first, ...rest] = p.items;
-      const item = keyItem(first.key);
-      step({ phase: "entry", var: p.var,
-        cap: `The template needs a key: ${keyName(first.key)}'s address, ${
-          keyList ? `from ${keyList}` : "from the trace"}`,
-        form: `keccak256(${addr(first.key)}, ${small(first.base)}) = ${
-          esc(tail(first.slot))} <span class="prose">· keccak256 is a ` +
-          "hash; each input is padded to 32 bytes</span>",
-        constructs: ["define", "$keccak256"], source: keySource,
-        sourceTint: !!item,
-        chip: `keccak(${short(first.key)}, ${small(first.base)})`,
-        chipLabel: "record", slots: [word(first.slot)],
-        regions: item ? [item[side].region] : [],
-        rows: [first.path, ...(item ? [item.path] : [])],
-        colorsOf: p.var, keyItem: item?.path });
-      if (rest.length) {
-        step({ phase: "others", var: p.var,
-          cap: "The same template for every key: the pointer takes the " +
-            "key as input",
-          form: rest.map((x) => `${addr(x.key)} → ${esc(tail(x.slot))}`)
-            .join(" · ") + ` <span class="prose">· expect: the template's ` +
-            "inputs; for: what it expands to</span>",
-          constructs: ["template"], source: keyList
-            ? `keys from ${keyList}` : "keys from the trace",
-          chip: rest.map((x) => keyName(x.key)).join(", "),
-          chipLabel: "records", slots: rest.map((x) => word(x.slot)),
-          rows: rest.map((x) => x.path), colorsOf: p.var });
-      }
+      out.push(...mapSteps(p.var));
     } else if (p.k === "item") {
       step({ phase: "item", var: p.var,
         cap: `The items start at the hash of slot ${small(p.base)}`,
@@ -739,16 +853,15 @@ function activeLines(lines, st) {
   const pick = (f) => lines.map((l, i) => f(l) ? i : -1).filter((i) => i >= 0);
   switch (st.phase) {
     case "declared": return pick((l) => has(l, "var"));
-    case "entry": return pick((l) => has(l, "t:mapping") &&
+    case "entries": return pick((l) => has(l, "t:mapping") &&
       l.tags.some((t) => t.startsWith("define:")) && !has(l, "item"));
-    case "others": return pick((l) => has(l, "t:mapping") && (has(l, "head") ||
-      has(l, "expect")));
     case "item": return pick((l) => has(l, "t:array") && !l.tags.some((t) =>
       t === "region:length"));
     // (the record: the whole struct template, its group of members)
     case "record": return pick((l) => has(l, "t:struct"));
     case "fields": {
-      const names = new Set(st.rows.map((p) => `region:${p.split(".").pop()}`));
+      const names = new Set((st.names ?? st.rows.map((p) => p.split(".")
+        .pop())).map((n) => `region:${n}`));
       return pick((l) => has(l, "t:struct") && l.tags.some((t) =>
         names.has(t)));
     }
@@ -756,6 +869,8 @@ function activeLines(lines, st) {
       "region:length-flag") || has(l, "if") || has(l, "then")));
     case "long": return pick((l) => has(l, "t:string") && (has(l, "if") ||
       has(l, "else")));
+    case "name": return pick((l) => has(l, "t:string") && (has(l, "if") ||
+      has(l, "then") || has(l, "else")));
     default: return [];
   }
 }
@@ -782,8 +897,9 @@ function colourYaml(variable, text) {
 // The highlight of a step: its slots' rows and its regions' bytes, its
 // tree rows, in the colours of what it is about
 function stepLight(st) {
-  const h = forStep(current.panel, replay.side, st);
-  h.rows = new Set(st.rows);
+  const h = st.parts ? partsLight(st) : forStep(current.panel, replay.side,
+    st);
+  if (!st.parts) h.rows = new Set(st.rows);
   if (st.colorsOf) h.colors = forRow(current.panel, st.colorsOf).colors;
   // a record's slots in its entry's one colour (fields come later)
   if (st.oneColor) {
@@ -802,6 +918,11 @@ function stepLight(st) {
       ? free[(k - 1) % free.length] : 0]));
     h.ruler = st.ruler;
   }
+  if (st.parts) {
+    h.colors = st.parts.reduce((m, p) => new Map([...m, ...(p.colors ?? [])]),
+      new Map());
+    h.ruler = st.ruler;
+  }
   // the list item a key comes from, in the key's tint
   if (st.keyItem) {
     h.colors = new Map([...(h.colors ?? []), [st.keyItem, "src"]]);
@@ -809,8 +930,27 @@ function stepLight(st) {
   // the slots the steps so far have derived keep their labels
   h.known = new Set();
   for (const x of replay.steps.slice(0, replay.i + 1)) {
-    for (const k of forStep(current.panel, replay.side, x).bytes) {
+    for (const k of (x.parts ? partsLight(x)
+      : forStep(current.panel, replay.side, x)).bytes) {
       h.known.add(k.split("|")[1]);
+    }
+  }
+  return h;
+}
+
+// A step in parts: each part's slots and regions lit, some of them
+// muted (an echo of the focus entry's layout in the others)
+function partsLight(st) {
+  const h = { bytes: new Set(), rows: new Set(), dim: new Set(),
+    dimRows: new Set(), step: true, label: "" };
+  for (const p of st.parts) {
+    for (const k of forStep(current.panel, replay.side, p).bytes) {
+      h.bytes.add(k);
+      if (p.dim) h.dim.add(k);
+    }
+    for (const r of p.rows ?? []) {
+      h.rows.add(r);
+      if (p.dim) h.dimRows.add(r);
     }
   }
   return h;
@@ -825,11 +965,11 @@ function shortCap(st) {
   switch (st.phase) {
     case "declared": return `\`${st.var}\`${st.var.endsWith("s") ? "'"
       : "'s"} own slot`;
-    case "entry": return "the hash of the first key";
-    case "others": return "the same for every key";
+    case "entries": return "every record, from its key";
     case "item": return "the items, from a hash";
     case "record": return "a record's slots";
     case "fields": return st.rows.length > 1 ? "packed fields" : "its field";
+    case "name": return "short or long";
     case "short": return "a short string";
     case "long": return "a long string";
     default: return st.cap;
@@ -953,6 +1093,19 @@ function renderBox() {
     ? [footOf(steps[replay.i])].filter(Boolean).map(fnote).join(" ")
     : `<span class="muted">Each step is one part of the pointer solc ` +
       `wrote for ${esc(chosen.split(/[.[]/)[0])}.</span>`}</p>`;
+  // the focus entry, in a mapping's replay: which one the layout steps
+  // show at full strength (the others echo it, muted)
+  const rec = replay && steps.find((x) => x.recs);
+  const hadPick = document.activeElement?.closest?.("#dpick")
+    ? document.activeElement.dataset.focus : null;
+  $("dpick").innerHTML = rec ? `<span class="plab">Focus</span>${
+    rec.recs.map((r) => `<button type="button" class="btn" data-focus="${
+      esc(r.path)}" aria-pressed="${r.path === replay.focus}">${esc(r.who)
+    }</button>`).join("")}` : "";
+  if (hadPick) {
+    $("dpick").querySelector(`[data-focus="${CSS.escape(hadPick)}"]`)
+      ?.focus({ preventScroll: true });
+  }
   // the chips: one per step, done, current or later; all done at rest
   const at = replay ? replay.i : steps.length;
   $("chips").innerHTML = steps.map((st, k) => `<button type="button"` +
@@ -991,12 +1144,12 @@ function renderBox() {
     }).join("")}</code></pre>` +
     (ids.length ? `<p class="muted small pids">${PIDS}</p>` : "");
   markAliases($("ptr"), names);
-  // the lines a step uses: the top of their block at the middle of the
-  // box (it scrolls inside itself; nothing else moves), as far as the
+  // the lines a step uses: the top of their block a third of the way
+  // down the box (it scrolls inside itself; nothing else moves), as far as the
   // content allows
   const on = $("ptr").querySelector(".line.on");
   const box = $("ptr");
-  const top = on ? Math.min(Math.max(0, on.offsetTop - box.clientHeight / 2),
+  const top = on ? Math.min(Math.max(0, on.offsetTop - box.clientHeight / 3),
     box.scrollHeight - box.clientHeight) : 0;
   box.scrollTo({ top, behavior: on && matchMedia(
     "(prefers-reduced-motion: reduce)").matches ? "auto" : on ? "smooth"
@@ -1070,8 +1223,41 @@ document.addEventListener("keydown", (e) => {
 // Start, step or leave the replay. Stepping stops at the ends; only
 // Exit (or Escape, or a new selection or scene) leaves it.
 let started = 0; // when the replay started (a second click is ignored)
+// the details unfold under the bar at entry and fold into it at exit
+// (the one movement); meanwhile, the replay takes no input
+let unfolding = false;
+const still = () => matchMedia("(prefers-reduced-motion: reduce)").matches;
+function fold(open) {
+  const wrap = $("dwrap");
+  const dp = $("dpanel");
+  const h = dp.offsetHeight;
+  if (still() || !h) return Promise.resolve();
+  unfolding = true;
+  wrap.classList.add("folding");
+  const o = { duration: 280, easing: open ? "ease-out" : "ease-in" };
+  const hs = [{ height: "0px" }, { height: `${h}px` }];
+  const ts = [{ transform: `translateY(${-h}px)` }, { transform: "none" }];
+  if (!open) {
+    hs.reverse();
+    ts.reverse();
+  }
+  wrap.animate(hs, { ...o, fill: "forwards" });
+  return dp.animate(ts, { ...o, fill: "forwards" }).finished.then(() => {
+    wrap.getAnimations().forEach((a) => a.cancel());
+    dp.getAnimations().forEach((a) => a.cancel());
+    wrap.classList.remove("folding");
+    unfolding = false;
+  });
+}
+function setFocus(path) {
+  if (!replay || unfolding || path === replay.focus) return;
+  replay.focus = path;
+  replay.steps = replaySteps(replay.path, replay.side, path);
+  renderBox();
+  show();
+}
 function stepTo(i) {
-  if (!replay) return;
+  if (!replay || unfolding) return;
   const k = Math.max(0, Math.min(replay.steps.length - 1, i));
   if (k === replay.i) return;
   replay.i = k;
@@ -1083,23 +1269,26 @@ function startReplay(at = 0) {
   if (!chosen) return;
   const steps = replaySteps(chosen, mode);
   if (!steps.length) return;
-  replay = { path: chosen, side: mode, steps, i: at };
+  replay = { path: chosen, side: mode, steps, i: at,
+    focus: steps.find((x) => x.recs)?.focus };
   started = performance.now();
   renderBox();
   show();
+  fold(true);
   // the bar to the top of the window (its place in the page: under the
   // line before it), once, at entry
   const before = $("details").previousElementSibling;
   const y = before.getBoundingClientRect().bottom + scrollY +
     parseFloat(getComputedStyle(before).marginBottom || 0);
-  scrollTo({ top: Math.max(0, y), behavior: matchMedia(
-    "(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth" });
+  scrollTo({ top: Math.max(0, y), behavior: still() ? "auto" : "smooth" });
   // (the focus on ▶, or the next control there is)
   ($("details").querySelector('button[data-r="next"]:not([disabled])') ??
     $("details").querySelector("button:not([disabled])"))
     ?.focus({ preventScroll: true });
 }
-function endReplay() {
+async function endReplay() {
+  if (!replay || unfolding) return;
+  await fold(false);
   if (!replay) return;
   replay = false;
   renderBox();
@@ -1368,6 +1557,8 @@ document.addEventListener("click", (e) => {
     applyMode();
     return keep();
   }
+  const fb = t.closest("#dpick button[data-focus]");
+  if (fb) return setFocus(fb.dataset.focus);
   const chip = t.closest("#chips .chip");
   if (chip) {
     const k = +chip.dataset.k;
@@ -1381,6 +1572,7 @@ document.addEventListener("click", (e) => {
     if (k !== "start" && e.detail > 1 && performance.now() - started < 600) {
       return;
     }
+    if (unfolding) return;
     if (k === "start") startReplay();
     else if (k === "exit") endReplay();
     else if (k === "first") stepTo(0);
@@ -1391,7 +1583,8 @@ document.addEventListener("click", (e) => {
   if (act(t)) return;
   // Empty space clears the selection; controls, text and the panels
   // that explain do not
-  if (t.closest("#picker, #details, #chips, #src, .addr, .tray, a, " +
+  // (the bar and the details are one unit: nothing in them clears)
+  if (t.closest("#picker, #details, #dwrap, #src, .addr, .tray, a, " +
     "button, " +
     "summary, details, input, label")) return;
   if (String(window.getSelection?.() ?? "")) return;

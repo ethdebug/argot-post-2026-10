@@ -242,9 +242,10 @@ contract Arcade {
   starts and goes when it ends: the one movement, at those two moments),
   at one size: the step in full, its footnote, the chips, and the
   pointer solc wrote -->
-  <div id="dpanel" class="dpanel" hidden>
+  <div id="dwrap" class="dwrap"><div id="dpanel" class="dpanel" hidden>
     <div class="dleft">
       <div id="dtext" class="dtext"></div>
+      <div id="dpick" class="dpick"></div>
       <div id="chips" class="chips"></div>
     </div>
     <div class="ptr" aria-label="The pointer solc wrote">
@@ -252,7 +253,7 @@ contract Arcade {
       template names shortened)</span></p>
       <div id="ptr" class="ptrscroll"></div>
     </div>
-  </div>
+  </div></div>
 
   <div class="cols scols">
     <section aria-labelledby="words-h" class="words">
