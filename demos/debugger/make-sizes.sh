@@ -10,7 +10,7 @@ cd "$(dirname "$0")"
 {
   echo "// Made by make-sizes.sh: each data file's size in bytes."
   echo "export default {"
-  find art bug fe pkg-lean pkg-replay replay vendor shop-*.json -type f \
+  find art bug fe old sol pkg-lean pkg-replay replay vendor -type f \
     \( -name "*.json" -o -name "*.wasm" -o -name "*.bin" -o -name "*.js" \
     -o -name "*.sol" -o -name "*.fe" -o -name "*.bug" \) \
     ! -name package.json | LC_ALL=C sort | while read -r f; do

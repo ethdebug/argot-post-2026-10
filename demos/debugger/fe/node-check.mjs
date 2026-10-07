@@ -4,16 +4,19 @@ import { initSync, Trace } from "../pkg-lean/soldb_wasm.js";
 initSync({ module: fs.readFileSync(new URL("../pkg-lean/soldb_wasm_bg.wasm",
   import.meta.url)) });
 const rd = (p) => fs.readFileSync(new URL(p, import.meta.url), "utf8");
-const fe = JSON.parse(rd("tally.ethdebug.json"));
-const files = { 0: "tally.fe", 1: "src/core/abi.fe", 2: "src/core/ptr.fe",
-  3: "src/std/abi/sol.fe", 4: "src/core/contracts.fe", 5: "src/core/num.fe",
-  6: "src/std/evm/effects.fe", 7: "src/std/evm/calldata.fe" };
+const fe = JSON.parse(rd("scores.ethdebug.json"));
+// Each source's text: the user file, or a std-library copy (src/).
+const STD = { "builtin-core:/src/": "src/core/", "builtin-std:/src/": "src/std/" };
+const files = Object.fromEntries(fe.compilation.sources.map((s) => {
+  const pre = Object.keys(STD).find((p) => s.uri.startsWith(p));
+  return [s.id, pre ? STD[pre] + s.uri.slice(pre.length) : "scores.fe"];
+}));
 const trace = Trace.fromTransaction(rd("tx.debug-trace.json"),
   rd("tx.transaction.json"), rd("tx.receipt.json"));
 const program = fe.programs.find((p) => p.environment === "call");
 const sources = Object.fromEntries(Object.entries(files)
   .map(([id, f]) => [id, rd(f)]));
-trace.attachEthdebug(JSON.stringify({ name: "Tally", metadata: fe, program,
+trace.attachEthdebug(JSON.stringify({ name: "Scores", metadata: fe, program,
   sources }));
 console.log(JSON.stringify(JSON.parse(trace.summary()).debugInfo));
 const n = trace.stepCount();

@@ -1,0 +1,14 @@
+[
+  {
+    "type": "function",
+    "name": "record",
+    "inputs": [
+      {
+        "name": "points",
+        "type": "uint256"
+      }
+    ],
+    "outputs": [],
+    "stateMutability": "nonpayable"
+  }
+]

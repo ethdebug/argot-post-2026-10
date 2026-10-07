@@ -13,6 +13,9 @@ const BROWSERS = (process.env.BROWSERS ?? "chromium,firefox,webkit")
 // Shiki and its grammar/themes come from a CDN; nothing else may.
 const CDN = ["esm.sh", "cdn.jsdelivr.net"];
 const runs = +(process.argv[2] ?? 3);
+// Every data set: a tab, or a tab and its variant.
+const DATASETS = ["sol", "fe", "bug-O0", "bug-O2", "old-record",
+  "old-history"];
 const all = {};
 // The page loads only its default tab at first; the rest loads when
 // opened. The checks load everything (window.loadAll), then wait until
@@ -125,37 +128,6 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
       for (const p of ["sol", "fe"]) {
         await window.select(p);
         const w = window.walked[p];
-        if (p === "sol") {
-          // First and last steps, then step into until a value changes.
-          go(0);
-          let synced = await settle();
-          const first = table();
-          go(w.n - 1);
-          synced &&= await settle();
-          const last = table();
-          go(0);
-          synced &&= await settle();
-          let from = 0, changed = [], row = null;
-          while (!changed.length && at() < w.n - 1) {
-            from = at();
-            btn("into", 1).click();
-            synced &&= await settle();
-            changed = marked();
-            row = table();
-          }
-          const to = at();
-          btn("into", 1).click();
-          synced &&= await settle();
-          // Step fast: only the last step's state is drawn.
-          for (let k = 0; k < 10; k++) btn("into", 1).click();
-          const fast = await settle();
-          out.state = { shown: !panel.querySelector("table").hidden,
-            first, last, synced, fast,
-            change: { from, to, changed, row }, afterNext: marked(),
-            lines: [...panel.querySelectorAll("p")]
-              .map((e) => e.textContent.replace(/\s+/g, " ")) };
-          go(0);
-        }
         // Step into, 20 times: each lands on a new span, further on.
         const fwd = btn("into", 1);
         const t = performance.now();
@@ -212,6 +184,8 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
             multi = i;
           }
         }
+        // No multi-line span: the first span in the main file.
+        if (multi < 0) multi = w.spans.findIndex((s) => s && s[0] === 0);
         go(multi);
         Object.assign(out[p], { lineMs, multi,
           hl: box.querySelectorAll(".hl").length,
@@ -309,18 +283,19 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
             site: box.querySelectorAll(".src .site").length,
             frames: stack() };
         }
-        // Each inlined body of sq(k): at its first step with x located,
-        // x (sq's parameter, read through its pointer) and the call
-        // stack. score(k) passes k to sq, so x must be k.
+        // Each inlined body: its first step with a local of the inlined
+        // function that has a value, and the call stack there.
         o.inlineLocals = [];
         for (let i = 1; i < w.n; i++) {
           if (!w.inline?.[i] || w.inline[i - 1]) continue;
           for (let j = i; j < w.n && w.inline[j]; j++) {
             go(j);
             await fsettle();
-            const x = rows().find((r) => r.name === "x");
-            if (x && !x.value.startsWith("<")) {
-              o.inlineLocals.push({ step: j, x, frames: stack() });
+            const x = rows().filter((r) => r.inline
+              && !r.value.startsWith("<"));
+            if (x.length) {
+              o.inlineLocals.push({ step: j, fn: w.inline[j].fn, locals: x,
+                frames: stack() });
               break;
             }
           }
@@ -335,12 +310,10 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
           if (r) o.typeOnly = { step: i, ...r };
         }
         // Every step: each local or storage variable with a location,
-        // as read through its pointer. Collects the values of recent
-        // (in order, without repeats), of bonus, and of every name.
-        // And the Inlining panel, the source note and the innermost
-        // call stack frame.
-        o.scan = { values: {}, recent: [], bonus: [], names: [],
-          inlining: [], stacks: [] };
+        // as read through its pointer: the values of every name, in
+        // order, without repeats. And the Inlining panel, the source note
+        // and the innermost call stack frame.
+        o.scan = { values: {}, names: [], inlining: [], stacks: [] };
         const inlCur = box.querySelector(".inlining .cur");
         for (let i = 0; i < w.n; i++) {
           go(i);
@@ -355,17 +328,28 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
           for (const r of rows()) {
             const vs = o.scan.values[r.name] ??= [];
             if (!vs.includes(r.value)) vs.push(r.value);
-            if (r.name === "recent" && !r.value.startsWith("<")
-              && o.scan.recent.at(-1) !== r.value) {
-              o.scan.recent.push(r.value);
-            }
-            if (r.name === "bonus" && !o.scan.bonus.some((b) =>
-              b.value === r.value)) {
-              o.scan.bonus.push({ step: i, value: r.value, note: r.note });
-            }
           }
         }
         o.lineMs = lineMsOf(w);
+      }
+      // The old way, both data sets: at every step, the step line, the
+      // source note and the call stack (from the source map's i and o).
+      out.old = {};
+      for (const v of ["record", "history"]) {
+        await window.selectLevel(v);
+        const w = window.walked[`old-${v}`];
+        const o = out.old[v] = { steps: [], aboutShown: !document
+          .querySelector(".about[data-about=old]").hidden,
+          framesShown: !frames.querySelector("ol").hidden,
+          varsShown: !panel.querySelector("table").hidden };
+        for (let i = 0; i < w.n; i++) {
+          go(i);
+          await fsettle();
+          o.steps.push({ where: document.getElementById("where")
+            .textContent, note: note.textContent, stack: stack(),
+            hl: [...box.querySelectorAll(".hl")].map((e) => e.textContent)
+              .join("") });
+        }
       }
       // Skip compiler and library code. On (the default): into, over and
       // out never stop on a compiler-generated step (no span) or in a
@@ -375,8 +359,9 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
       const skip = document.getElementById("skip");
       const setSkip = (on) => { if (skip.checked !== on) skip.click(); };
       out.skip = { default: skip.checked };
-      for (const ds of ["sol", "fe", "bug-O0", "bug-O2"]) {
-        if (ds.startsWith("bug")) await window.selectLevel(ds.slice(4));
+      for (const ds of ["sol", "fe", "bug-O0", "bug-O2", "old-record",
+        "old-history"]) {
+        if (ds.includes("-")) await window.selectLevel(ds.split("-")[1]);
         else await window.select(ds);
         const w = window.walked[ds];
         const walk = (go, d) => {
@@ -430,39 +415,14 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
     });
     r.ui = ui; r.shikiInfo = r.shiki;
     if (name === "chromium" && i === 0) {
-      // Show the state panel where it says the most: a step in user code
-      // that changes a value, with as few unknowns as possible.
-      const showcase = () => page.evaluate(async () => {
-        const box = document.getElementById("stepper");
-        const range = box.querySelector("input[type=range]");
-        const go = (i) => {
-          range.value = String(i);
-          range.dispatchEvent(new Event("input"));
-        };
-        // Score: values known, plus one if a value differs from the step
-        // before; only steps with a highlighted source line count.
-        const vals = () => [...box.querySelectorAll(".state .val")]
-          .map((v) => v.textContent).join("|");
-        let best = 0, bestScore = -1, prev = "";
-        for (let s = 0; s <= +range.max; s++) {
-          go(s);
-          await window.stateReady();
-          const now = vals();
-          const changed = s > 0 && now !== prev;
-          prev = now;
-          if (!box.querySelector(".hl")) continue;
-          const known = box.querySelectorAll(".state .val:not(.unk)").length;
-          const score = known * 2 + (changed ? 1 : 0);
-          if (score >= bestScore) { bestScore = score; best = s; }
-        }
-        go(best - 1);
-        await window.stateReady();
-        go(best);
-        await window.stateReady();
-        console.log("showcase step", best);
-        return best;
-      });
-      await page.evaluate(() => window.select("sol"));
+      // The Solidity tab at its first multi-line span in Scores.sol.
+      const showcase = () => page.evaluate(async (i) => {
+        await window.select("sol");
+        const range = document.querySelector("#stepper input[type=range]");
+        range.value = String(i);
+        range.dispatchEvent(new Event("input"));
+        return i;
+      }, ui.sol.multi);
       r.showcaseStep = await showcase();
       await page.screenshot({ path: "screenshot-highlight.png",
         fullPage: true });
@@ -476,7 +436,6 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
       await page.emulateMedia({ colorScheme: "dark" });
       await page.screenshot({ path: "screenshot-fe-dark.png",
         fullPage: true });
-      await page.evaluate(() => window.select("sol"));
       await showcase();
       await page.screenshot({ path: "screenshot-highlight-dark.png",
         fullPage: true });
@@ -505,6 +464,15 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
       await bugAt("O0", ui.bug.O0.stack.step);
       await page.screenshot({ path: "screenshot-bug-O0.png",
         fullPage: true });
+      // The old way: the first step with a frame in its call stack.
+      await page.evaluate(async (i) => {
+        await window.selectLevel("record");
+        const range = document.querySelector("#stepper input[type=range]");
+        range.value = String(i);
+        range.dispatchEvent(new Event("input"));
+        await window.stateReady();
+      }, ui.old.record.steps.findIndex((x) => x.stack.length > 0));
+      await page.screenshot({ path: "screenshot-old.png", fullPage: true });
     }
     all[name].runs.push(r);
     await ctx.close();
@@ -575,8 +543,9 @@ const layoutFails = [];
         return [b.x, b.y + scrollY, b.width, b.height].map(Math.round)
           .join(",");
       }).join(" ");
-      for (const ds of ["sol", "fe", "bug-O0", "bug-O2"]) {
-        if (ds.startsWith("bug")) await window.selectLevel(ds.slice(4));
+      for (const ds of ["sol", "fe", "bug-O0", "bug-O2", "old-record",
+        "old-history"]) {
+        if (ds.includes("-")) await window.selectLevel(ds.split("-")[1]);
         else await window.select(ds);
         const at = [];
         for (const f of [0.1, 0.5, 0.9]) {
@@ -611,42 +580,123 @@ const layoutFails = [];
   }
   await browser.close();
 }
-// The state panel's expected values (Shop.place on a fresh contract).
-const MAP = "<mapping; index it with [key]>", UNK = "<unknown>";
-const want = {
-  first: { orders: MAP, nextId: UNK, revenue: UNK, owner: UNK },
-  last: { orders: MAP, nextId: "1", revenue: "30", owner: UNK },
+// What the transaction gives each variable, checked by hand against the
+// sources (sol/Scores.sol, bug/scores.bug) and the plan
+// (scores-txs.json): record(7), then record(30) from the same account.
+// Before record(30): score 7, streak 1, total 7, rounds 1. In record(30):
+// streak = 1, bonus(30, 1): b = 30 * 1 = 30 (not over 100), gained = 30
+// + 30 = 60; then total = 7 + 60 = 67, rounds = 2. bonus's parameters
+// are 30 and 1. BUG keeps no length for its storage array, so history
+// reads as length 0. players' pointer names only its base slot.
+// <no location>: a local listed by type only.
+const NONE = "<no location>";
+const EXPECT = {
+  values: { points: ["30"], streak: ["1"], b: ["30"], gained: ["60"],
+    total: ["7", "67"], rounds: ["1", "2"],
+    history: ["length 0: []"], players: ["<mapping at slot 0>"] },
+  last: { players: "<mapping at slot 0>", history: "length 0: []",
+    total: "67", rounds: "2" },
+  storage: ["players", "history", "total", "rounds"],
+  // The real call at -O0, as the call stack lists it.
+  call: "bonus(points: 30, streak: 1)",
 };
 const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
-const stateOk = (st) => st?.shown && st.synced && st.fast
-  && same(st.first, want.first)
-  && same(st.last, want.last) && same(st.change.changed, ["nextId"])
-  && st.change.row.nextId === "1" && st.afterNext.length === 0;
-// From bugc's -O2 program and its trace, not from the page: the steps
-// whose instruction is inlined code (transform "inline"), and, for each
-// inlined call of sq, the steps from the one after its invoke to the
-// one of its return.
-const sqInline = (() => {
-  const dir = new URL("bug/scores-O2/", import.meta.url);
-  const read = (f) => JSON.parse(fs.readFileSync(new URL(f, dir), "utf8"));
-  const program = read("scores.program.json");
-  const logs = read("tx.debug-trace.json").structLogs;
-  const ctx = new Map(program.instructions.map((i) => [i.offset, i.context]));
-  const any = (c, f) => !!c && (f(c) || [...c.gather ?? [], ...c.pick ?? []]
-    .some((x) => any(x, f)));
-  const inline = [], spans = [];
-  let open = null;
-  logs.forEach((l, i) => {
-    const c = ctx.get(l.pc);
-    if (any(c, (x) => x.transform?.includes("inline"))) inline.push(i);
-    if (any(c, (x) => x.invoke?.identifier === "sq")) open = i;
-    if (any(c, (x) => x.return?.identifier === "sq") && open !== null) {
-      spans.push(Array.from({ length: i - open }, (_, k) => open + 1 + k));
-      open = null;
+const rd = (f) => JSON.parse(fs.readFileSync(new URL(f, import.meta.url),
+  "utf8"));
+// The function the traced transaction calls (record).
+const TXFN = rd("scores-txs.json").tx.call.split("(")[0];
+// From bugc's program and its trace at each level, not from the page:
+// for each function, the pcs where a real call enters it (its entry
+// JUMPDEST, with an invoke) and leaves it (a return); and, for each
+// inlined function, the steps of its inlined bodies.
+const contexts = (c, out = []) => {
+  if (!c) return out;
+  out.push(c);
+  for (const x of [...c.gather ?? [], ...c.pick ?? []]) contexts(x, out);
+  return out;
+};
+const bugFacts = (lvl) => {
+  const program = rd(`bug/scores-${lvl}/scores.program.json`);
+  const pcs = rd(`bug/scores-${lvl}/tx.debug-trace.json`).structLogs
+    .map((l) => l.pc);
+  const at = new Map(program.instructions.map((i) =>
+    [i.offset, { op: i.operation?.mnemonic, cs: contexts(i.context) }]));
+  const inline = new Set(), real = {};
+  for (const { op, cs } of at.values()) {
+    const inl = cs.some((c) => c.transform?.includes("inline"));
+    for (const c of cs) {
+      if (c.invoke && inl) inline.add(c.invoke.identifier);
     }
+  }
+  for (const [pc, { op, cs }] of at) {
+    for (const c of cs) {
+      const f = (c.invoke ?? c.return)?.identifier;
+      if (!f || inline.has(f)) continue;
+      const r = real[f] ??= { entry: new Set(), exit: new Set() };
+      if (c.invoke?.jump && op === "JUMPDEST") r.entry.add(pc);
+      if (c.return) r.exit.add(pc);
+    }
+  }
+  // An inlined body: a run of steps whose instruction carries transform
+  // "inline", named by the invoke in it. Contexts are postconditions, so
+  // the page lists it from the step after its first instruction to the
+  // step after its last.
+  const spans = {};
+  let run = null;
+  pcs.forEach((pc, i) => {
+    const cs = at.get(pc)?.cs ?? [];
+    if (!cs.some((c) => c.transform?.includes("inline"))) {
+      run = null;
+      return;
+    }
+    const f = cs.find((c) => c.invoke)?.invoke.identifier;
+    if (!run) (spans[f] ??= []).push(run = []);
+    run.push(i + 1);
   });
-  return { inline, spans };
+  return { pcs, inline, real, spans };
+};
+const BUG = { O0: bugFacts("O0"), O2: bugFacts("O2") };
+// The old way: solc's optimized runtime code, instruction by
+// instruction (PUSH1 to PUSH32 carry data).
+const OLD = (() => {
+  const hex = rd("old/combined.json").contracts["Scores.sol:Scores"]
+    ["bin-runtime"];
+  const code = Buffer.from(hex, "hex");
+  const ins = new Map();
+  for (let pc = 0; pc < code.length;) {
+    const op = code[pc], n = op >= 0x60 && op <= 0x7f ? op - 0x5f : 0;
+    ins.set(pc, { op, arg: code.subarray(pc + 1, pc + 1 + n)
+      .toString("hex") });
+    pc += 1 + n;
+  }
+  return { ins, record: rd("old/record.trace.json").structLogs };
 })();
+// Does the code from pc on (to its first JUMP) check an addition for
+// overflow: ADD, then GT, then a JUMPI to a block that reverts with
+// Panic(0x11) (selector 4e487b71)?
+const checkedAdd = (pc) => {
+  const seen = [];
+  let push = null;
+  for (let at = pc; OLD.ins.has(at);) {
+    const { op, arg } = OLD.ins.get(at);
+    if (op === 0x56) break;
+    if (op === 0x57 && push !== null) {
+      const panic = [];
+      for (let q = push, k = 0; OLD.ins.has(q) && k < 12; k++) {
+        const x = OLD.ins.get(q);
+        panic.push(x.arg);
+        q += 1 + x.arg.length / 2;
+      }
+      seen.push(panic.includes("4e487b71") && panic.includes("11")
+        ? "panic11" : "jumpi");
+    }
+    if (op === 0x01) seen.push("add");
+    if (op === 0x11) seen.push("gt");
+    if (op === 0x61) push = parseInt(arg, 16);
+    at += 1 + arg.length / 2;
+  }
+  return seen.join(" ") === "add gt panic11";
+};
 const fails = [];
 const check = (name, what, ok) => { if (!ok) fails.push(`${name}: ${what}`); };
 const med = (xs) => xs.slice().sort((a, b) => a - b)[Math.floor(xs.length / 2)];
@@ -669,12 +719,11 @@ for (const [name, b] of Object.entries(all)) {
     console.log("  ", JSON.stringify(rest));
   }
   console.log("ref", JSON.stringify(r0.ref));
+  console.log("old", JSON.stringify(r0.old));
   console.log("ui", JSON.stringify(r0.ui), "shiki", JSON.stringify(r0.shiki));
   console.log("redirect", JSON.stringify(r0.redirect));
   console.log("panels", JSON.stringify(r0.ui.panels));
   console.log("skip", JSON.stringify(r0.ui.skip));
-  console.log("state panel", b.runs.map((r) =>
-    stateOk(r.ui.state) ? "ok" : "FAIL").join(","));
   const errors = b.runs.flatMap((r) => r.logs)
     .filter((l) => /^(error|pageerror)/.test(l));
   console.log("console errors", errors.length);
@@ -694,153 +743,135 @@ for (const [name, b] of Object.entries(all)) {
         && u[p].hlWhenGen === 0 && !u[p].pageScrollX);
     }
     check(name, "part ref", r.ref?.ok);
+    check(name, "part old", r.old?.ok);
     for (const lvl of ["O0", "O2"]) {
-      const o = u.bug[lvl];
+      const o = u.bug[lvl], F = BUG[lvl];
       check(name, `BUG ${lvl} stepping`, o.stepperShown && o.aboutShown
         && o.framesShown && o.varsShown && o.intoOk && o.overOutEnabled
         && o.over.ok);
-      check(name, `BUG ${lvl} call stack depth >= 2`, o.stack.synced
-        && o.stack.depth >= 2 && o.stack.frames.length >= 2);
-    }
-    // Scores, by hand: score(k) = k * k + sumTo(k) + 3, so score(1) =
-    // 1 + 1 + 3 = 5, score(2) = 4 + 3 + 3 = 10, score(3) = 9 + 6 + 3 =
-    // 18. Round i writes its score to recent[i - 1], one element per
-    // round: [5, 0, 0], [5, 10, 0], [5, 10, 18]. stats.total = 5 + 10 +
-    // 18 = 33; stats.plays = 1 at the end. last's pointer names only
-    // its base slot (no entries).
-    const RECENT = ["[0, 0, 0]", "[5, 0, 0]", "[5, 10, 0]", "[5, 10, 18]"]
-      .map((a) => `length 3: ${a}`);
-    // The values the program gives each variable (k: score's and
-    // sumTo's; x: the inlined sq's). <no location>: listed by type only.
-    const NONE = "<no location>";
-    const VALUES = { i: ["1", "2", "3", "4"], s: ["5", "10", "18"],
-      k: ["0", "1", "2", "3"], x: ["1", "2", "3"], bonus: ["3"],
-      recent: RECENT, last: ["<mapping at slot 1>"],
-      stats: ["0", "5", "15", "33"].map((t) =>
-        `{ plays: 0, total: ${t} }`).concat("{ plays: 1, total: 33 }") };
-    for (const lvl of ["O0", "O2"]) {
-      const o = u.bug[lvl];
+      check(name, `BUG ${lvl} call stack depth >= 1`, o.stack.synced
+        && o.stack.depth >= 1 && o.stack.frames.length >= 1);
       check(name, `BUG ${lvl} final values`, !!o.local
-        && same(o.last, { stats: "{ plays: 1, total: 33 }",
-          last: "<mapping at slot 1>", recent: RECENT[3] }));
-      // The deepest stack: sumTo(3) recurses down to sumTo(0), in
-      // score(3).
-      check(name, `BUG ${lvl} call stack frames`, same(
-        o.stack.frames.map((f) => f.replace(/ (called|inlined) at.*/, "")),
-        ["sumTo(k: 0)", "sumTo(k: 1)", "sumTo(k: 2)", "sumTo(k: 3)",
-          "score(k: 3)"]));
-      // sumTo's real calls: a frame is listed from the first step inside
-      // the callee (its entry JUMPDEST) through its exit JUMP, and gone
-      // at the first step back in the caller. The entry and exit pcs
-      // come from the program's invoke and return contexts.
-      const prog = JSON.parse(fs.readFileSync(new URL(
-        `bug/scores-${lvl}/scores.program.json`, import.meta.url)));
-      const ctxs = (i) => [i.context, ...(i.context?.gather ?? [])];
-      const sumTo = (k, jumpdest) => new Set(prog.instructions.filter(
-        (i) => (jumpdest ? i.operation.mnemonic === "JUMPDEST" : true)
-          && ctxs(i).some((c) => c?.[k]?.identifier === "sumTo"
-            && (k === "return" || c[k].jump))).map((i) => i.offset));
-      const entry = sumTo("invoke", true);
-      const exit = new Set([...sumTo("return", false)]);
-      const pcs = JSON.parse(fs.readFileSync(new URL(
-        `bug/scores-${lvl}/tx.debug-trace.json`, import.meta.url)))
-        .structLogs.map((l) => l.pc);
-      let live = 0;
-      const wrong = [];
-      pcs.forEach((pc, i) => {
-        // The frame is listed at the entry step, and still at the exit
-        // step: it is gone at the step after.
-        if (i > 0 && exit.has(pcs[i - 1])) live--;
-        if (entry.has(pc)) live++;
-        const shown = o.scan.stacks[i]
-          .filter((f) => /^sumTo\b/.test(f) && !/inlined/.test(f))
-          .length;
-        if (shown !== live) wrong.push(i);
-      });
-      check(name, `BUG ${lvl} sumTo frames open and close exactly`
-        + (wrong.length ? ` (not at ${wrong.slice(0, 5)})` : ""),
-        pcs.length === o.scan.stacks.length && entry.size > 0
+        && Object.entries(EXPECT.last).every(([k, v]) => o.last[k] === v));
+      // Real calls: a frame is listed from the first step inside the
+      // callee (its entry JUMPDEST) through its exit JUMP, and gone at
+      // the first step back in the caller (exact since ethdebug/format
+      // #349).
+      for (const [fn, { entry, exit }] of Object.entries(F.real)) {
+        let live = 0;
+        const wrong = [];
+        F.pcs.forEach((pc, i) => {
+          if (i > 0 && exit.has(F.pcs[i - 1])) live--;
+          if (entry.has(pc)) live++;
+          const shown = o.scan.stacks[i].filter((f) =>
+            new RegExp(`^${fn}[( ]`).test(f) && !/inlined/.test(f)).length;
+          if (shown !== live) wrong.push(i);
+        });
+        check(name, `BUG ${lvl} ${fn} frames open and close exactly` +
+          (wrong.length ? ` (not at ${wrong.slice(0, 5)})` : ""),
+        F.pcs.length === o.scan.stacks.length && entry.size > 0
           && exit.size > 0 && wrong.length === 0);
+      }
       check(name, `BUG ${lvl} type-only local with its reason`,
         /no location here.*#291/.test(o.typeOnly?.note ?? ""));
-      // recent, read through its pointer (the word, the length region,
-      // the list of elements), takes each value in order.
-      check(name, `BUG ${lvl} array recent: length and elements`,
-        same(o.scan.recent, RECENT));
-      // Every value read through a pointer is one the program gives.
+      // Every value read through a pointer is one the transaction gives,
+      // and each name is read at some step.
       const bad = Object.entries(o.scan.values).flatMap(([n, vs]) =>
-        vs.filter((v) => v !== NONE && !VALUES[n]?.includes(v))
+        vs.filter((v) => v !== NONE && !EXPECT.values[n]?.includes(v))
           .map((v) => `${n}=${v}`));
-      check(name, `BUG ${lvl} every pointer reads the program's value`
-        + (bad.length ? ` (${bad.join(", ")})` : ""), bad.length === 0
-        // Each name is read at some step (x: O2 only; bonus: O0 only).
-        && Object.keys(VALUES).every((n) => (lvl === "O0" ? n === "x"
-          : n === "bonus") || o.scan.values[n]?.some((v) => v !== NONE)));
-    }
-    // bonus: in memory at -O0 (3); folded at -O2, so listed by type
-    // only, with its reason, at every step.
-    const b0 = u.bug.O0.scan.bonus, b2 = u.bug.O2.scan.bonus;
-    check(name, "BUG O0 bonus located (3)",
-      b0.some((b) => b.value === "3"));
-    check(name, "BUG O2 bonus folded: type-only at every step",
-      b2.length === 1 && b2[0].value === NONE
-      && /no location here.*#291/.test(b2[0].note));
-    // sq inlined, three times (k = 1..3): x is marked inline, and its
-    // pointer reads k, the argument score(k) gives it.
-    const xs = u.bug.O2.inlineLocals;
-    check(name, "BUG O2 inlined local x reads k through its pointer",
-      xs.length === 3 && xs.every((e, k) => e.x.value === String(k + 1)
-        && e.x.inline && /inline in sq/.test(e.x.note)
-        && e.frames.some((f) => f.startsWith(`score(k: ${k + 1})`))));
-    check(name, "BUG O0 no inline locals", u.bug.O0.inlineLocals
-      .length === 0);
-    // In sq's inlined bodies: the caller's storage variables stay
-    // listed at every step, and x is listed from the step after the
-    // inlined invoke up to the step of the instruction that carries
-    // sq's return (contexts are postconditions), and nowhere else.
-    const names = u.bug.O2.scan.names, inl = sqInline.inline;
-    const lost = inl.filter((i) => !names[i].includes("stats")
-      || !names[i].includes("last"));
-    check(name, "BUG O2 storage listed at every inlined step" +
-      (lost.length ? ` (not at ${lost.slice(0, 5)})` : ""),
-      inl.length > 0 && lost.length === 0);
-    const xAt = names.flatMap((ns, i) => ns.includes("x") ? [i] : []);
-    check(name, "BUG O2 x: from the inlined invoke to the inlined return",
-      sqInline.spans.length === 3 && same(xAt, sqInline.spans.flat()));
-    // The Inlining panel and the call stack agree at every step: the
-    // panel names an inlined body exactly when the innermost frame is
-    // an inlined one, of the same function. For sq, those are the steps
-    // from the one after its inlined invoke through the step of its
-    // inlined return (the frame is gone at the step after). Neither
-    // panel nor note reads "?" or "-1".
-    for (const lvl of ["O0", "O2"]) {
-      const sc = u.bug[lvl].scan.inlining, bad = [], inSq = [];
+      const unread = Object.keys(EXPECT.values).filter((n) =>
+        !o.scan.values[n]?.some((v) => v !== NONE));
+      check(name, `BUG ${lvl} every pointer reads the transaction's value` +
+        (bad.length ? ` (${bad.join(", ")})` : "") +
+        (unread.length ? ` (never read: ${unread.join(", ")})` : ""),
+      !bad.length && !unread.length);
+      // In an inlined body, the caller's storage variables stay listed.
+      const inl = Object.values(F.spans).flat(2);
+      const lost = inl.filter((i) => !EXPECT.storage.every((n) =>
+        o.scan.names[i].includes(n)));
+      check(name, `BUG ${lvl} storage listed at every inlined step` +
+        (lost.length ? ` (not at ${lost.slice(0, 5)})` : ""),
+      !lost.length);
+      // The Inlining panel and the call stack agree at every step: the
+      // panel names an inlined body exactly when the innermost frame is
+      // an inlined one, of the same function, at the steps after the
+      // instructions marked inline (the frame opens one step late;
+      // known). Neither panel nor note reads "?" or "-1".
+      const sc = o.scan.inlining, wrong = [], inBody = {};
       sc.forEach((x, i) => {
         const m = /in the body of (\S+), inlined at line (\S+)\./
           .exec(x.panel);
         const fn = x.top?.split(/[ (]/)[0];
         if (!!m !== x.topInline || (m && m[1] !== fn)
           || /\?|-1/.test(x.panel) || /body of \?|line -1|call \?/
-            .test(x.note)) bad.push(i);
-        if (m?.[1] === "sq") inSq.push(i);
+            .test(x.note)) wrong.push(i);
+        if (m) (inBody[m[1]] ??= []).push(i);
       });
       check(name, `BUG ${lvl} Inlining panel agrees with the call stack`
-        + (bad.length ? ` (not at ${bad.slice(0, 5)})` : ""),
-        sc.length > 0 && bad.length === 0);
+        + (wrong.length ? ` (not at ${wrong.slice(0, 5)})` : ""),
+      sc.length > 0 && wrong.length === 0);
       check(name, `BUG ${lvl} inlined steps: invoke to return`,
-        same(inSq, lvl === "O2"
-          ? sqInline.spans.flat() : []));
+        same(Object.keys(inBody).sort(), Object.keys(F.spans).sort())
+        && Object.entries(F.spans).every(([fn, sp]) =>
+          same(inBody[fn], sp.flat())));
     }
-    check(name, "BUG O2 inline marker", u.bug.O2.inline?.fn === "sq"
+    // -O0: bonus is a real call, with its arguments; -O2: it is inlined,
+    // and its locals read their values inside the inlined body.
+    check(name, "BUG O0 the real call, with its arguments",
+      u.bug.O0.scan.stacks.some((st) => st.some((f) =>
+        f.startsWith(EXPECT.call))));
+    check(name, "BUG O0 nothing inlined", !BUG.O0.inline.size
+      && u.bug.O0.inlineLocals.length === 0);
+    const xs = u.bug.O2.inlineLocals;
+    check(name, "BUG O2 inlined locals read through their pointers",
+      BUG.O2.inline.size > 0 && xs.length > 0 && xs.every((e) =>
+        BUG.O2.inline.has(e.fn) && e.frames.some((f) => /inline/.test(f))
+        && e.locals.every((l) => EXPECT.values[l.name]?.includes(l.value)
+          && new RegExp(`inline in ${e.fn}`).test(l.note))));
+    check(name, "BUG O2 inline marker", BUG.O2.inline.has(u.bug.O2.inline?.fn)
       && u.bug.O2.inline.noteVisible === "visible"
       && u.bug.O2.inline.site > 0);
-    check(name, "state panel", stateOk(u.state));
+    // The old way. (1) Most steps of record(30) map to the whole
+    // contract. (2) The view call runs no code of record, yet a step
+    // maps into record. (3) The function that bugc inlines at -O2
+    // (bonus; solc inlines it too): at every step that maps into its
+    // body, the call stack from i and o has no frame for it; the first
+    // frame opened at its call site is a helper whose code is checked
+    // addition, with no function in the AST.
+    const old = u.old, rec = old.record.steps;
+    const whole = rec.filter((x) => /the whole contract/.test(x.note));
+    check(name, "old: most steps map to the whole contract",
+      whole.length > rec.length / 2
+      && whole.length === r.old.record.whole
+      && rec.every((x) => / source map -?\d+:-?\d+:-?\d+:[io-]$/
+        .test(x.where)));
+    check(name, `old: the view call steps into ${TXFN}`,
+      old.history.steps.some((x) =>
+        new RegExp(`, function ${TXFN},`).test(x.where) && x.hl));
+    for (const fn of BUG.O2.inline) {
+      const inBody = rec.filter((x) =>
+        new RegExp(`, function ${fn},`).test(x.where));
+      check(name, `old: ${fn} runs with no frame for it`,
+        inBody.length > 0 && rec.every((x) =>
+          !x.stack.some((f) => f.startsWith(fn))));
+      const first = r.old.record.jumps.find((j) =>
+        j.site?.includes(`${fn}(`));
+      const k = rec.findIndex((x) => x.stack.length > 0);
+      check(name, `old: the frame at ${fn}'s call site is checked ` +
+        "addition", !!first && first.name === null
+        && checkedAdd(OLD.record[first.opens].pc)
+        && /^unknown function called at line \d+: .*\(/.test(rec[k]
+          .stack[0]) && rec[k].stack[0].includes(`${fn}(`));
+    }
+    check(name, "old: the panels", old.record.aboutShown
+      && old.record.framesShown && !old.record.varsShown);
     check(name, "skip compiler code on by default", u.skip.default);
     // Panels: call stack, inlining, variables on every tab; those without
     // data give their reason (expected: the data set's whyNot).
     const NAMES = ["Call stack", "Variables", "Inlining"];
-    const missing = { sol: ["Call stack", "Inlining"],
-      fe: NAMES, "bug-O0": ["Inlining"], "bug-O2": [] };
+    const missing = { sol: NAMES, fe: NAMES, "bug-O0": ["Inlining"],
+      "bug-O2": [], "old-record": ["Variables", "Inlining"],
+      "old-history": ["Variables", "Inlining"] };
     for (const [ds, want] of Object.entries(missing)) {
       const ps = u.panels[ds];
       check(name, `${ds} panels`, same(ps.map((x) => x.name), NAMES)
@@ -851,9 +882,9 @@ for (const [name, b] of Object.entries(all)) {
           miss ? !x.data && x.why.length > 20 : x.data);
       }
     }
-    check(name, "sol: no-locals reason", /local variables/
+    check(name, "sol: no-variables reason", /no pointers/
       .test(u.panels.sol[1].why));
-    for (const ds of ["sol", "fe", "bug-O0", "bug-O2"]) {
+    for (const ds of DATASETS) {
       const o = u.skip[ds];
       const on = Object.values(o.on), off = Object.values(o.off);
       check(name, `${ds} skip on: no stop on compiler code`,
@@ -875,7 +906,7 @@ for (const [name, b] of Object.entries(all)) {
     check(name, "loading state", r.frames.loadingShown);
     check(name, `main thread free (gap < ${LONG} ms)`, r.frames.max < LONG);
     check(name, "worker requests listed", r.requests.some((u) =>
-      u.endsWith("/shop-debug-rpc.trace.json")));
+      u.endsWith("/sol/record.trace.json")));
   }
   check(name, "no console errors", errors.length === 0);
   check(name, "no foreign requests",
@@ -907,7 +938,7 @@ for (const f of layoutFails) fails.push(f);
   const fetched = Object.values(all).flatMap((b) => b.runs ?? [])
     .flatMap((r) => r.requests).map((u) => new URL(u).pathname)
     .filter((p) => p.startsWith(base)).map((p) => p.slice(base.length))
-    .filter((p) => /^((art|bug|fe|replay|vendor)\/|pkg-|shop-)/.test(p)
+    .filter((p) => /^((art|bug|fe|old|sol|replay|vendor)\/|pkg-)/.test(p)
       && !p.endsWith(".mjs"));
   const missing = [...new Set(fetched)].filter((p) => !(p in sizes));
   check("sizes.js", "lists every data file the page fetches" +
@@ -929,7 +960,7 @@ const slow = {};
   const srv = await pagesServer(fileURLToPath(new URL("../..",
     import.meta.url)));
   const browser = await chromium.launch();
-  for (const tab of ["sol", "fe", "bug"]) {
+  for (const tab of ["sol", "fe", "bug", "old"]) {
     const ctx = await browser.newContext();
     const page = await ctx.newPage();
     const cdp = await ctx.newCDPSession(page);
@@ -1011,7 +1042,7 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
   const ctx = await browser.newContext();
   const page = await ctx.newPage();
   let block = true;
-  await ctx.route("**/shop-debug-rpc.trace.json", (route) =>
+  await ctx.route("**/sol/record.trace.json", (route) =>
     block ? route.abort() : route.continue());
   try {
     await page.goto(PAGE);

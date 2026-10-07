@@ -2,7 +2,9 @@
 // highlighting, stepping) talks only to an Engine; the engine does all
 // the debugging. soldbEngine() runs soldb-wasm in a Web Worker
 // (soldb-worker.js); refEngine() runs ethdebug's reference
-// implementation in another (ref-worker.js), for the BUG tab.
+// implementation in another (ref-worker.js), for the BUG tab;
+// sourceMapEngine() runs a source-map stepper, with no ethdebug, in a
+// third (srcmap-worker.js), for the tab "The old way".
 //
 // An engine loads a dataset and returns every step at once, so the page
 // steps and highlights with no round trip. Anything per step that is
@@ -28,6 +30,8 @@
  * @property {(Inline|null)[]} [inline]  with the inline capability: a
  *   marker on each step in an inlined body, as the call stack has it
  *   (its innermost frame is an inlined one)
+ * @property {string[]} [entries]  source map engine: each step's source
+ *   map entry, `s:l:f:j`
  */
 
 /**
@@ -49,7 +53,9 @@
  * Features beyond stepping. All optional; absent means not supported.
  * @typedef {Object} Capabilities
  * @property {boolean} [state]      engine.state(dataset, i) works
- * @property {boolean} [callStack]  engine.callStack(dataset, i) works
+ * @property {string} [callStack]  engine.callStack(dataset, i) works;
+ *   the stack is built from "contexts" (ethdebug's invoke and return)
+ *   or "jumps" (a source map's i and o jump markers)
  * @property {boolean} [variables]  engine.variables(dataset, i) works
  * @property {boolean} [inline]     Steps carry `inline` markers
  * @property {string} [generated]  how the engine recognizes
@@ -85,6 +91,8 @@
  * @property {number} main     source id to show first
  * @property {string} lang     language name for the highlighter
  * @property {Capabilities} capabilities
+ * @property {string} [stackBase]  with a call stack: what its outermost
+ *   entry is, in plain words
  */
 
 /**
@@ -107,6 +115,7 @@
  * @property {boolean} inline   an inlined (virtual) frame: no real call
  * @property {{line: number, text: string}|null} site  the call site
  * @property {number} at        the step where the frame opened
+ * @property {string|null} [note]  more about the frame, in plain words
  */
 
 /**
@@ -189,7 +198,8 @@ export function soldbEngine() {
           "contexts yet.",
         inline: "No inlining: solc emits ethdebug only with the " +
           "optimizer off.",
-        locals: "No local variables: solc does not emit them yet.",
+        variables: "No variables: solc 0.8.37 emits no pointers for " +
+          "its state variables and no local variables yet.",
         // solc's ethdebug gives every instruction the contract's own
         // source id, even code from imported files.
         library: { text: "Imported code: not detectable yet",
@@ -226,6 +236,29 @@ export function refEngine() {
     },
     load: (dataset, onProgress) => call("load", [dataset], onProgress),
     variables: (dataset, i) => call("variables", [dataset, i]),
+    callStack: (dataset, i) => call("callStack", [dataset, i]),
+    requests: async () => call.started() ? call("requests", []) : [],
+  };
+}
+
+/**
+ * @returns {Engine} a source-map stepper, with no ethdebug: solc's
+ * bytecode, source map and AST, in a module Web Worker. Data sets
+ * "old-record" and "old-history".
+ */
+export function sourceMapEngine() {
+  const call = client("the source map stepper", "./srcmap-worker.js");
+  const no = {
+    variables: "No variables: a source map has none. solc writes no " +
+      "output that says where a local variable is at a step.",
+    inline: "No inlining: a source map has no inline marker. Here " +
+      "solc inlined bonus; its steps carry only their own ranges.",
+    library: { text: "Library code: none in this contract" },
+  };
+  return {
+    name: "the source map stepper",
+    whyNot: { "old-record": no, "old-history": no },
+    load: (dataset, onProgress) => call("load", [dataset], onProgress),
     callStack: (dataset, i) => call("callStack", [dataset, i]),
     requests: async () => call.started() ? call("requests", []) : [],
   };

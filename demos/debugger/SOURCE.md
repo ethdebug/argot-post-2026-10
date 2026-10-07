@@ -34,19 +34,43 @@ export RUSTFLAGS="$R=$HOME/.cargo/registry/src=/cargo/registry/src \
 $R=$HOME/.rustup=/rustup $R=$HOME/.cargo=/cargo $R=<soldb>=/soldb"
 ```
 
-The Solidity data (`art/walnut10-*`, `shop-debug-rpc.trace.json`,
-`shop-code.json`, `replay/transfer.json`) comes from `make-sol.sh`:
-solc from pull request walnuthq/solidity#10 (head `c434b2ea`) and this
-PR's soldb CLI, on a local anvil node.
+## The data: one contract, one transaction
+
+Every tab steps `Scores` and the same transaction. `make-scores.sh`
+makes all of it, on a fresh `anvil --steps-tracing --port 8556` (anvil
+1.2.3):
+
+- `sol/ethdebug/`: solc 0.8.37 (official build,
+  `0.8.37+commit.f401782d`), `--via-ir --experimental --debug-info
+  ethdebug` with ethdebug output, optimizer off (solc writes ethdebug
+  only without the optimizer). From `sol/Scores.sol`.
+- `old/combined.json`: the same solc, `--via-ir --optimize
+  --combined-json bin,bin-runtime,srcmap-runtime,ast`: no ethdebug.
+- `fe/`: Fe 26.4.1 at `-O 0` (`fe build`, `fe dev trace emit`, `fe dev
+  debug emit --format ethdebug`) from `fe/scores.fe`. Fe writes the
+  source's absolute path into its file; the script replaces the local
+  directory with `/work/`. `fe/src/` holds the standard-library files
+  that Fe's file names, from the Fe repository at tag v26.4.1
+  (`dbb291dbc`); their blake3 hashes match the ones in Fe's file.
+- `bug/scores-O0/`, `bug/scores-O2/`: bugc at `-O 0` and `-O 2`, from
+  `bug/scores.bug` (`bug/compile.mjs`).
+- The transactions (`make-scores-txs.mjs`, from `scores-txs.json`): each
+  build is deployed, then gets the plan's setup calls and its
+  transaction, from the same anvil accounts. The script saves the
+  node's responses (`fe/`, `bug/scores-O*/`: with each step's memory,
+  and the storage before, for the pointers), the old way's traces
+  (`old/`: each step's pc, op and depth only), and, for the old way, a
+  traced `eth_call` of the plan's view call after the transaction.
+- `sol/record.trace.json`: `soldb trace --save-trace` (soldb CLI built
+  from the commit above), changed as below.
 
 ### The saved trace: one change
 
-`shop-debug-rpc.trace.json` is the file that `soldb trace
---save-trace` writes, with one change: each step's flat `stack`,
-`memory` and `storage` fields are removed, and the JSON is on one line
+`sol/record.trace.json` is the file that `soldb trace --save-trace`
+writes, with one change: each step's flat `stack`, `memory` and
+`storage` fields are removed, and the JSON is on one line
 (`jq -c '.steps[] |= del(.stack, .memory, .storage)'`, in
-`make-sol.sh`). It is 4.4 MB, not 10.1 MB (78 KB, not 158 KB,
-gzipped).
+`make-scores.sh`).
 
 soldb writes each step's state twice: in `snapshot`, and again in the
 flat fields, for older readers. When soldb reads a step whose
@@ -54,10 +78,11 @@ flat fields, for older readers. When soldb reads a step whose
 fields (soldb-core, `TraceStep::normalized`, at the commit above). In
 this trace, every step's `snapshot` is not empty, and its `stack`,
 `memory` and `storage` are equal to the flat fields. Everything else,
-including every `snapshot`, is unchanged. Before the change, a check
-with this page's soldb build confirmed that soldb reads both files the
-same: for the original and the changed file, `toJson()`, `summary()`,
-and `step(i)` and `state(i)` at every step give the same output.
+including every `snapshot`, is unchanged.
+
+`replay/transfer.json` and `art/walnut10-Token/` (the replay check in
+the details) come from `make-sol.sh`: solc from pull request
+walnuthq/solidity#10 (head `c434b2ea`) and this PR's soldb CLI.
 
 `sizes.js` (from `make-sizes.sh`) lists each data file's size, for the
 loading bars: GitHub Pages sends the files gzipped, with the compressed
@@ -76,13 +101,7 @@ no longer pops a frame after its `return`). It
 is made by `make-ref-vendor.sh <checkout>` after `yarn install` in that
 checkout. `ref-worker.js` uses it.
 
-The BUG data (`bug/scores.bug`, `bug/scores-O0/`, `bug/scores-O2/`)
-comes from bugc built from ethdebug/format at the same commit,
-`871423307` (main: local variables at every level, #328; storage
-variables and the caller's variables right at inlined code, #341;
-writes to memory array elements, #343; a function's `return` on its
-exit jump, #349: debug info only, the bytecode is unchanged), with
-`bug/compile.mjs <bugc> scores.bug <0|2> scores-O<0|2>` and, on
-`anvil --steps-tracing --port 8549`, `PORT=8549 bug/make-tx.mjs Scores
-scores-O<0|2> memory` (anvil 1.2.3). The trace has each step's memory;
-`tx.storage-before.json` has the storage before the transaction.
+The BUG data comes from bugc built from ethdebug/format main at
+`db7d0e4ee` (`make-scores.sh`, above). The details' soldb check uses
+`bug/tally.bug` and its saved transaction (`bug/compile.mjs`,
+`bug/make-tx.mjs`).

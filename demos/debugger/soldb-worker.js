@@ -9,7 +9,8 @@
 // Messages: { id, op, args } in; { id, value } or { id, error } out,
 // and { id, progress } while a file arrives or a phase starts (see
 // fetch-progress.js).
-//   load(dataset)    "sol" or "fe": a Loaded (see engine.js)
+//   load(dataset)    "sol" or "fe": a Loaded (see engine.js), for
+//                    Scores record(30)
 //   state(dataset, i) soldb's state(i): the contract's state at step i
 //   run(job)         "bug-check" or "replay": a soldb-only check
 //   requests()       this worker's resource timing entries
@@ -135,52 +136,49 @@ const loadLean = (io) => lean ??= (async () => {
 // Traces kept for state(i).
 const traces = {};
 
-// Solidity: Shop `place`, saved native trace, solc's ethdebug (Walnut's
-// solidity PR #10). The deployed code gives soldb the immutables.
+// Solidity: Scores `record(30)`, soldb's saved trace, the ethdebug output
+// of solc 0.8.37 (official build; via-IR, optimizer off).
 async function loadSolidity(io) {
-  const dir = "./art/walnut10-Shop";
+  const dir = "./sol/ethdebug";
   const t = now();
-  const [lean, traceText, metadata, program, sol, code] =
-    await Promise.all([
-      loadLean(io),
-      io.text("./shop-debug-rpc.trace.json", "the transaction trace"),
-      io.json(`${dir}/ethdebug_resources.json`, "solc's ethdebug data"),
-      io.json(`${dir}/Shop_ethdebug-runtime.json`, "solc's ethdebug data"),
-      io.text(`${dir}/Shop.sol`, "the source"),
-      io.json("./shop-code.json", "the deployed code"),
-    ]);
+  const [lean, traceText, metadata, program, sol] = await Promise.all([
+    loadLean(io),
+    io.text("./sol/record.trace.json", "the transaction trace"),
+    io.json(`${dir}/ethdebug_resources.json`, "solc's ethdebug data"),
+    io.json(`${dir}/Scores_ethdebug-runtime.json`, "solc's ethdebug data"),
+    io.text("./sol/Scores.sol", "the source"),
+  ]);
   const { mod, out } = lean;
   const times = [...lean.times,
-    ["fetch all (wasm, trace, ethdebug, code), compile wasm", now() - t]];
+    ["fetch all (wasm, trace, ethdebug), compile wasm", now() - t]];
   io.phase("soldb parses the trace and maps each step");
   const trace = await timed(times, "Trace.fromJson (parse)", () =>
     mod.Trace.fromJson(traceText));
   await timed(times, "attachEthdebug", () => trace.attachEthdebug(
-    JSON.stringify({ name: "Shop", metadata, program, sources: { 0: sol },
-      address: code.address })));
-  trace.provideCode(code.address, code.code);
+    JSON.stringify({ name: "Scores", metadata, program,
+      sources: { 0: sol } })));
   traces.sol = trace;
   const sources = { 0: source(0, sol) };
   const { steps, counts } = await timed(times,
     "step() every step + JSON.parse", () => walk(trace, sources));
   const summary = JSON.parse(trace.summary());
-  const values = (i) => Object.fromEntries(state("sol", i)
-    .map((v) => [v.name, v.value]));
+  // soldb's state(i): empty here, as solc 0.8.37 emits no pointers.
   const r = {
     ok: true, times: Object.fromEntries(times),
-    stateFirst: values(0), stateLast: values(steps.n - 1),
+    stateFirst: state("sol", 0), stateLast: state("sol", steps.n - 1),
     replayAvailable: mod.replayAvailable(), version: mod.version(),
     traceBytes: traceText.length, steps: steps.n, ...counts,
-    debugInfo: summary.debugInfo,
+    debugInfo: summary.debugInfo, success: summary.success,
     wasmMemory: out.memory.buffer.byteLength,
   };
   return [{ summary: r, steps, sources: { 0: { text: sol } }, main: 0,
-    lang: "solidity", capabilities: { state: true,
+    lang: "solidity", capabilities: {
       generated: "for solc, a source range covering the whole contract" } },
   transfer(steps)];
 }
 
-// Fe: Tally `Add{n: 4}` on anvil, Fe 26.4.1's ethdebug. The page adapts
+// Fe: Scores `Record{points: 30}` on anvil, Fe 26.4.1's ethdebug (-O 0).
+// The page adapts
 // only the file layout (listed on the page): it picks the `call`
 // program and supplies the source text that Fe's file leaves out.
 const FE = "fe";
@@ -197,7 +195,7 @@ async function loadFe(io) {
       io.text(`${FE}/tx.debug-trace.json`, node),
       io.text(`${FE}/tx.transaction.json`, node),
       io.text(`${FE}/tx.receipt.json`, node),
-      io.json(`${FE}/tally.ethdebug.json`, "Fe's ethdebug data"),
+      io.json(`${FE}/scores.ethdebug.json`, "Fe's ethdebug data"),
     ]));
   // Adaptation 2 (below): Fe lists sources without contents; fetch the
   // text while soldb parses. The user file sits next to the artifact;
