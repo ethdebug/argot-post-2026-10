@@ -705,14 +705,14 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
         const hit = (a, b) => a.left < b.right - 0.5 &&
           b.left < a.right - 0.5 && a.top < b.bottom - 0.5 &&
           b.top < a.bottom - 0.5;
-        // (a popover may cover unlit rows, not lit bytes, a lit row's
+        // (a popover may cover unlit bytes, not lit bytes, another row's
         // address or another popover)
         const v = document.querySelector('#panel .view:not([hidden])');
         const pops = [...v.querySelectorAll(".pop")];
         for (const pop of pops) {
           const own = pop.closest(".wrow");
           const r = pop.getBoundingClientRect();
-          for (const a of v.querySelectorAll(".rows > .wrow.on > .addr .a, " +
+          for (const a of v.querySelectorAll(".rows > .wrow > .addr, " +
             ".rows > .wrow > .word .b.hl")) {
             if (a.closest(".wrow") !== own && hit(r, a.getBoundingClientRect())) {
               out.push(`pop on ${a.textContent}`);
@@ -837,7 +837,8 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
         const g = rows[0].querySelector(":scope > .addr")
           .getBoundingClientRect();
         const pop = rows.map((x) => x.querySelector(".pop")).find(Boolean);
-        if (!pop) continue; // in the tray
+        // (in the tray, or beside the gutter: its arrow on the bytes)
+        if (!pop || pop.classList.contains("beside")) continue;
         const tip = pop.getBoundingClientRect().left +
           parseFloat(pop.style.getPropertyValue("--ax"));
         if (tip < g.left || tip > g.right) {
@@ -908,9 +909,11 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
     // left edge a little left of the gutter's (as the cards), the
     // arrow within the address cell
     const tip = r.left + parseFloat(p.style.getPropertyValue("--ax"));
-    return Math.abs(r.left - (g.left - 6)) < 5 && tip >= a.left &&
-      tip <= a.right &&
-      r.right <= document.documentElement.clientWidth &&
+    // (beside the gutter, when there is no room at it: just right of it)
+    const at = p.classList.contains("beside")
+      ? Math.abs(r.left - (g.right + 4)) < 5
+      : Math.abs(r.left - (g.left - 6)) < 5 && tip >= a.left && tip <= a.right;
+    return at && r.right <= document.documentElement.clientWidth &&
       (side === "before" ? r.bottom <= a.top : r.top >= a.bottom);
   }));
   let aimed = await aim();
@@ -1106,23 +1109,31 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
   }
   // Each word is one line of 32 bytes; one dump is shown; on a wide
   // panel nothing scrolls sideways
-  const layout = (p) => p.evaluate(() => {
+  // (lines: 1 on a wide page; 2 of 16 bytes on a phone)
+  const layout = (p, lines = 1) => p.evaluate((n) => {
     const out = [];
     for (const w of document.querySelectorAll("#panel .word:not(.cmp *)")) {
       if (!w.offsetHeight) continue; // the dump not shown
-      const tops = new Set([...w.querySelectorAll(".b")].map((c) =>
-        Math.round(c.getBoundingClientRect().top)));
-      if (w.querySelectorAll(".b").length !== 32 || tops.size !== 1) {
+      const tops = [...w.querySelectorAll(".b")].map((c) =>
+        Math.round(c.getBoundingClientRect().top));
+      const per = tops.filter((t) => t === tops[0]).length;
+      if (w.querySelectorAll(".b").length !== 32 || new Set(tops).size !== n ||
+        per !== 32 / n) {
         out.push(`word ${w.dataset.side} ${w.dataset.slot.slice(0, 8)}` +
-          ` on ${tops.size} lines`);
+          ` on ${new Set(tops).size} lines, ${per} a line`);
       }
     }
     const seen = [...document.querySelectorAll("#panel .view")].filter(
       (v) => v.offsetHeight);
     if (seen.length !== 1) out.push(`${seen.length} dumps shown`);
     const v = document.querySelector("#panel .views");
-    return { out, scrolls: v.scrollWidth > v.clientWidth + 1 };
-  });
+    // every byte in view, with no sideways scrolling
+    const right = Math.max(...[...document.querySelectorAll(
+      "#panel .view:not([hidden]) .word .b")].map((c) =>
+      c.getBoundingClientRect().right));
+    return { out, scrolls: v.scrollWidth > v.clientWidth + 1 ||
+      right > v.getBoundingClientRect().right + 0.5 };
+  }, lines);
   await scene("motd");
   const wide = await layout(page);
   problems.push(...wide.out);
@@ -1221,6 +1232,12 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
   const rec = "keccak(0x3c44…93bc, slot 3)";
   const cl0 = "keccak(0x90f7…b906, slot 3)";
   // players: seven steps; the lines of the pointer each uses
+  {
+    await page.evaluate(() => window.select("mid", { sel: "players" }));
+    const t = await page.locator("#details .rsel").innerText();
+    if (!t.includes("3 entries")) problems.push(`title: ${t}`);
+    await page.evaluate(() => window.select("mid", { sel: null }));
+  }
   let w = await walk("players");
   const wantPlayers = [
     ["players gets slot 3 but stores nothing there", { "slot 3": "all" },
@@ -1498,10 +1515,10 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
     await pg.dispatchEvent(`#tree li[data-path="${A}.combo"] > .row`,
       "pointerover");
     if (await boxes() !== b0) bad.push("hover moved");
-    await pg.locator('#details button[data-r="start"]').click();
+    await tap('#details button[data-r="start"]');
     for (let k = 0; k < 7; k++) {
       await check(`step ${k + 1}`);
-      await pg.locator('#details button[data-r="next"]').click();
+      await tap('#details button[data-r="next"]');
     }
     await check("end");
     await tap('#tree li[data-path="players"] > .row');
@@ -2358,10 +2375,11 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
   await pp.waitForFunction(() => window.results?.done, null,
     { timeout: 60000 });
   await pp.evaluate(() => window.select("motd"));
-  // Both views, stacked, each word on one line; the words may scroll
-  // sideways inside the panel, the page may not
-  const narrow = await layout(pp);
+  // each word on two lines of 16 bytes, every byte in view, nothing
+  // scrolls sideways
+  const narrow = await layout(pp, 2);
   problems.push(...narrow.out.map((x) => `phone: ${x}`));
+  if (narrow.scrolls) problems.push("phone: the words scroll sideways");
   const vbox = () => pp.evaluate(() => {
     const v = document.querySelector("#panel .views");
     return [v.clientWidth, v.clientHeight, v.scrollWidth, v.scrollHeight]
