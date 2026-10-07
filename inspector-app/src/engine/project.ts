@@ -30,7 +30,7 @@ export async function load(io: Io, manifest = "fixtures/index.json"):
   for (const b of bookmarks) {
     decodings[b.decoding] = { id: b.decoding, compilation: solOf(b.timeline),
       timeline: b.timeline, variables: "state",
-      keys: keySourceOf(b.timeline) };
+      keys: { from: "trace" } };   // (until its fixture says: below)
   }
   // Vyper's own layout, over the same storage (hand-written)
   if (decodings.vyAsSol) {
@@ -43,6 +43,11 @@ export async function load(io: Io, manifest = "fixtures/index.json"):
     if (!fetched.has(id)) {
       const p = io.json(`fixtures/${id}.json`).then((json) => {
         const out = fromFixture(json, id);
+        // (solc's rule over this fixture: its keys as the fixture says;
+        // set before any decode, which waits for the timeline first)
+        for (const d of Object.values(decodings)) {
+          if (d.compilation === solOf(id)) d.keys = keySourceOf(json);
+        }
         out.timeline.bookmarks = bookmarks.filter((b) => b.timeline === id);
         return { ...out, json };
       });
