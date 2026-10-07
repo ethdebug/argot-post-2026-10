@@ -5,7 +5,7 @@ import type {
   Compilation, CompilationId, Decoding, DecodingId, Timeline, TimelineId,
 } from "./types";
 import {
-  bookmarkOf, fromFixture, SOL, type LegacyScene, type ProjectBookmark,
+  bookmarkOf, fixtureOf, fromFixture, solOf, type LegacyScene, type ProjectBookmark,
 } from "./fixtures/legacy";
 
 export interface Project {
@@ -23,7 +23,7 @@ export async function load(io: Io, manifest = "fixtures/index.json"):
   const bookmarks = scenes.map(bookmarkOf);
   const decodings: Record<DecodingId, Decoding> = {};
   for (const b of bookmarks) {
-    decodings[b.decoding] = { id: b.decoding, compilation: SOL,
+    decodings[b.decoding] = { id: b.decoding, compilation: solOf(b.timeline),
       timeline: b.timeline, variables: "state",
       keys: { from: "list", path: "roster" } };
   }
@@ -45,12 +45,11 @@ export async function load(io: Io, manifest = "fixtures/index.json"):
   return {
     bookmarks, decodings, memo: new Map(),
     timeline: async (id) => (await fixture(id)).timeline,
-    // each fixture holds the contract: the first fixture asked for, or
-    // the first bookmark's
+    // a fixture's contract: from that fixture
     async compilation(id) {
-      if (id !== SOL) throw new Error(`no compilation ${id}`);
-      const any = [...fetched.values()][0] ?? fixture(bookmarks[0].timeline);
-      return (await any).compilation;
+      const f = fixtureOf(id);
+      if (!f) throw new Error(`no compilation ${id}`);
+      return (await fixture(f)).compilation;
     },
   };
 }
