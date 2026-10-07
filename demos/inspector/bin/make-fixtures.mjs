@@ -305,13 +305,15 @@ console.log("solc", scores.compiler);
   console.log("vyper", vyVersion, "solidity rule", sol, "vyper rule", vy);
 }
 
-// The contract at the top of the page: contracts/Scores.sol, as is
+// The contract at the top of the page: contracts/Scores.sol, as is, and
+// its file name in the summary line
 {
   const html = path.join(root, "index.html");
   const esc = (t) => t.replace(/&/g, "&amp;").replace(/</g, "&lt;")
     .replace(/>/g, "&gt;");
   fs.writeFileSync(html, fs.readFileSync(html, "utf8").replace(
     /(<pre id="contract-src" class="src">)[\s\S]*?(<\/pre>)/,
-    (_, a, b) => a + esc(scores.source) + b));
+    (_, a, b) => a + esc(scores.source) + b).replace(
+    /(<span class="srcfile">)[^<]*(<\/span>)/, `$1${scores.file}$2`));
 }
 // then: node bin/sizes.mjs

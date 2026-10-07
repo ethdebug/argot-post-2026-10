@@ -331,6 +331,33 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
   await page.goto(PAGE);
   await page.waitForFunction(() => window.results?.done, null,
     { timeout: 60000 });
+  // The contract's source is collapsed by default, and opens on a click
+  // (or Enter on its summary); the page remembers it
+  {
+    const box = page.locator("#contract-box");
+    const st = () => box.evaluate((b) => [b.open,
+      // the source shows: the box is taller than its summary line
+      b.offsetHeight > b.querySelector("summary").offsetHeight + 40,
+      b.querySelector("summary").textContent.replace(/\s+/g, " ").trim()]);
+    let [open, seen, text] = await st();
+    if (open || seen || !/^Scores\.sol — the contract \(43 lines\)$/
+      .test(text)) problems.push(`source at rest: ${open} ${seen} ${text}`);
+    await box.locator("summary").click();
+    [open, seen] = await st();
+    if (!open || !seen) problems.push("source: a click did not open it");
+    await page.reload();
+    await page.waitForFunction(() => window.results?.done, null,
+      { timeout: 60000 });
+    [open] = await st();
+    if (!open) problems.push("source: open not remembered");
+    await box.locator("summary").focus();
+    await page.keyboard.press("Enter");
+    [open] = await st();
+    if (open) problems.push("source: Enter did not close it");
+    await page.reload();
+    await page.waitForFunction(() => window.results?.done, null,
+      { timeout: 60000 });
+  }
   // the first scene opens with its defaults: nothing selected, one
   // point (no Before | After, no "show other state", no change marks)
   const atRest = await page.evaluate(() => ({
