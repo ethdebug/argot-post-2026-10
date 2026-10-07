@@ -9,7 +9,8 @@ import type { Colour, Decoded, Filter, Light, ValueNode } from
 import { changed } from "../engine/timeline";
 import { blockOf } from "../engine/target";
 import {
-  useDecoded, useLens, useLensState, useLight, useLink, useView,
+  useCompilation, useDecoded, useLens, useLensState, useLight, useLink,
+  useView,
 } from "./hooks";
 import type { DataRef, LinkId, ViewId } from "./types";
 
@@ -103,11 +104,24 @@ export function Tree(p: { id: ViewId; data: DataRef; filter?: Filter;
   const side = useLensState((s) => s.side ?? "after");
   const box = useRef<HTMLDivElement>(null);
   const lens = useLens();
+  const comp = useCompilation(p.data);
+  const lang = comp?.language ?? "";
   // (a pair: before, after)
   const pair: [Decoded, Decoded] | undefined = p.compare && d && o
     ? (side === "before" ? [d, o] : [o, d]) : undefined;
   const c: Ctx = { light, selection: link.selection, pair,
     collapsed: view.collapsed };
+  // only the filter's roots, and the groups that hold them
+  const roots = p.filter?.roots;
+  const keep = (n: ValueNode): ValueNode | null => {
+    if (!roots || roots.some((r) => n.path === r ||
+      n.path.startsWith(r + ".") || n.path.startsWith(r + "["))) return n;
+    const kids = (n.children ?? []).map(keep).filter(Boolean) as
+      ValueNode[];
+    return kids.length ? { ...n, children: kids } : null;
+  };
+  const shown = d?.tree.map(keep).filter(Boolean) as ValueNode[]
+    | undefined;
 
   const rowOf = (el: EventTarget) => {
     // (a group's chevron is part of its row, for pointing)
@@ -237,7 +251,10 @@ export function Tree(p: { id: ViewId; data: DataRef; filter?: Filter;
       data-view={`${lens.key}:${p.id}`}
       onPointerOver={point} onFocus={point}
       onClick={onClick} onKeyDown={onKey}>
-      {d ? <ul>{d.tree.map((n) => <Row key={n.path} n={n} top c={c} />)}
+      {comp?.provenance === "hand-written" && <p className="handmade">
+        written by hand, not from {lang[0]?.toUpperCase() + lang.slice(1)}
+      </p>}
+      {shown ? <ul>{shown.map((n) => <Row key={n.path} n={n} top c={c} />)}
       </ul> : <div className="skel" aria-hidden="true">
         {Array.from({ length: 8 }, (_, i) => <i key={i} />)}</div>}
     </div>

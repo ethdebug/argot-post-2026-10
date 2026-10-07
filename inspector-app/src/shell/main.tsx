@@ -1,6 +1,7 @@
 // The dev/review shell's entry
 import "../../../shared/appendix.css";
 import "../style.css";
+import "../ui/port.css";
 import "./shell.css";
 import { createRoot } from "react-dom/client";
 import { fetchIo } from "../engine/io";

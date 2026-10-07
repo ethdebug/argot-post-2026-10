@@ -80,10 +80,11 @@ function shower(store: Store<LensState>, spec: LensSpec, project: Project) {
 function Present({ v, View }: { v: ViewSpec; View: ComponentType<any> }) {
   const shown = useLensState((s) => s.side ?? "after");
   const single = useLensState((s) => s.points.a === s.points.b);
-  const other: DataRef | undefined = !single && "data" in v &&
+  const pair: DataRef | undefined = !single && "data" in v &&
     typeof v.data.point !== "string"
     ? { ...v.data, point: { slot: v.data.point.slot === "a" ? "b"
       : v.data.point.slot === "b" ? "a" : "$other" } } : undefined;
+  const other = ("compare" in v ? v.compare : undefined) ?? pair;
   if (v.kind === "tree") return <View {...v} compare={other} />;
   if (v.kind !== "dump") return <View {...v} />;
   const side = v.side;
@@ -91,7 +92,7 @@ function Present({ v, View }: { v: ViewSpec; View: ComponentType<any> }) {
     : side === "before" ? "Before" : "After";
   return <View {...v} hidden={!!side && shown !== side} title={title}
     when={side ? WHEN[side] : undefined}
-    compare={side ? other : undefined}
+    compare={side || v.compare ? other : undefined}
     filter={side && !single ? { ...v.filter, rows: "touched" } : v.filter} />;
 }
 
