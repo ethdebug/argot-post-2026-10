@@ -28,6 +28,9 @@ declare global {
 
 const $ = (id: string) => document.getElementById(id)!;
 document.documentElement.classList.add("styled");
+// the contract's line count (the source box's summary)
+$("contract-box").querySelector(".srclines")!.textContent = String(
+  $("contract-src").textContent!.replace(/\n$/, "").split("\n").length);
 window.results = { done: false, errors: [], decoded: {} };
 
 // a static element's place, for a view (no box of its own)
