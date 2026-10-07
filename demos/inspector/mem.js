@@ -512,8 +512,8 @@ function renderHow() {
     .map(dual).join("")}</ol>` + (forked ? list(A, side, "mine") +
     list(B, other, "theirs") : "") +
     `<p class="muted small">The library's dereference() returned these
-    regions for bugc's pointer and read them. The steps above replay the
-    pointer with the library's evaluator; they agree.</p>`;
+    regions for bugc's pointer and read them. The steps above walk through
+    the pointer with the library's evaluator; they agree.</p>`;
 }
 
 // ------------------------------------------------------- highlight

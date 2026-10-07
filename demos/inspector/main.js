@@ -1295,7 +1295,7 @@ function renderBox() {
     ? document.activeElement.dataset?.r : null;
   bar.classList.toggle("replaying", !!replay);
   $("dpanel").hidden = !replay;
-  bar.innerHTML = `<span class="rmode">${replay ? "Replay" : ""}</span>` +
+  bar.innerHTML = `<span class="rmode">${replay ? "Walkthrough" : ""}</span>` +
     sel + `<span class="rctl">${ctl}</span>` +
     `<span class="rcount">${count}</span>` +
     `<span class="rshort">${short}</span>` +

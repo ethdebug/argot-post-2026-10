@@ -918,7 +918,7 @@ main[data-single] > .cols :is(.chglegend, .legend .bchg, .intro .two) {
 .rbar { display: grid; align-items: center; gap: 10px; height: 2.6em;
   line-height: 1.2;
   box-sizing: border-box; padding: 0 10px; margin: 0;
-  grid-template-columns: 4.6em minmax(0, 34ch) 15em 3.6em minmax(0, 1fr)
+  grid-template-columns: 7.4em minmax(0, 32ch) 15em 3.6em minmax(0, 1fr)
     6em;
   background: var(--panel); border: 1px solid var(--line);
   border-left: 3px solid var(--accent); border-radius: 6px;
