@@ -61,7 +61,7 @@ export default {
   "bug/scores-O0/tx.transaction.json": 665,
   "bug/scores-O2/out/Scores.bin": 1462,
   "bug/scores-O2/out/Scores.runtime.bin": 1438,
-  "bug/scores-O2/scores.program.json": 1171613,
+  "bug/scores-O2/scores.program.json": 1171493,
   "bug/scores-O2/tx.debug-trace.json": 3971893,
   "bug/scores-O2/tx.receipt.json": 1010,
   "bug/scores-O2/tx.storage-before.json": 151,
@@ -93,5 +93,5 @@ export default {
   "replay/transfer.json": 6529,
   "shop-code.json": 8316,
   "shop-debug-rpc.trace.json": 4352259,
-  "vendor/ethdebug-ref.js": 417861,
+  "vendor/ethdebug-ref.js": 417845,
 };

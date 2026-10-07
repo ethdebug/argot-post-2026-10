@@ -13417,24 +13417,6 @@
       }
      }
     ],
-    "return": {
-     "identifier": "score",
-     "declaration": {
-      "source": {
-       "id": "scores.bug"
-      },
-      "range": {
-       "offset": 236,
-       "length": 99
-      }
-     },
-     "data": {
-      "pointer": {
-       "location": "stack",
-       "slot": 0
-      }
-     }
-    },
     "code": {
      "source": {
       "id": "scores.bug"
@@ -50290,7 +50272,25 @@
        }
       }
      }
-    ]
+    ],
+    "return": {
+     "identifier": "sumTo",
+     "declaration": {
+      "source": {
+       "id": "scores.bug"
+      },
+      "range": {
+       "offset": 130,
+       "length": 102
+      }
+     },
+     "data": {
+      "pointer": {
+       "location": "stack",
+       "slot": 0
+      }
+     }
+    }
    }
   },
   {
@@ -54417,24 +54417,6 @@
       }
      }
     ],
-    "return": {
-     "identifier": "sumTo",
-     "declaration": {
-      "source": {
-       "id": "scores.bug"
-      },
-      "range": {
-       "offset": 130,
-       "length": 102
-      }
-     },
-     "data": {
-      "pointer": {
-       "location": "stack",
-       "slot": 0
-      }
-     }
-    },
     "code": {
      "source": {
       "id": "scores.bug"
@@ -58469,7 +58451,25 @@
        }
       }
      }
-    ]
+    ],
+    "return": {
+     "identifier": "sumTo",
+     "declaration": {
+      "source": {
+       "id": "scores.bug"
+      },
+      "range": {
+       "offset": 130,
+       "length": 102
+      }
+     },
+     "data": {
+      "pointer": {
+       "location": "stack",
+       "slot": 0
+      }
+     }
+    }
    }
   },
   {
@@ -62343,9 +62343,6 @@
       "length": 6
      }
     },
-    "transform": [
-     "inline"
-    ],
     "variables": [
      {
       "identifier": "stats",
@@ -62504,9 +62501,6 @@
       "length": 6
      }
     },
-    "transform": [
-     "inline"
-    ],
     "variables": [
      {
       "identifier": "stats",
@@ -62662,9 +62656,6 @@
       "length": 6
      }
     },
-    "transform": [
-     "inline"
-    ],
     "variables": [
      {
       "identifier": "stats",
@@ -64404,24 +64395,6 @@
       }
      }
     ],
-    "return": {
-     "identifier": "sumTo",
-     "declaration": {
-      "source": {
-       "id": "scores.bug"
-      },
-      "range": {
-       "offset": 130,
-       "length": 102
-      }
-     },
-     "data": {
-      "pointer": {
-       "location": "stack",
-       "slot": 0
-      }
-     }
-    },
     "code": {
      "source": {
       "id": "scores.bug"
@@ -69490,7 +69463,25 @@
        }
       }
      }
-    ]
+    ],
+    "return": {
+     "identifier": "score",
+     "declaration": {
+      "source": {
+       "id": "scores.bug"
+      },
+      "range": {
+       "offset": 236,
+       "length": 99
+      }
+     },
+     "data": {
+      "pointer": {
+       "location": "stack",
+       "slot": 0
+      }
+     }
+    }
    }
   }
  ],

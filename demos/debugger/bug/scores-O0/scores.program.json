@@ -14738,24 +14738,6 @@
       }
      }
     ],
-    "return": {
-     "identifier": "score",
-     "declaration": {
-      "source": {
-       "id": "scores.bug"
-      },
-      "range": {
-       "offset": 236,
-       "length": 99
-      }
-     },
-     "data": {
-      "pointer": {
-       "location": "stack",
-       "slot": 0
-      }
-     }
-    },
     "code": {
      "source": {
       "id": "scores.bug"
@@ -51934,7 +51916,25 @@
        }
       }
      }
-    ]
+    ],
+    "return": {
+     "identifier": "sq",
+     "declaration": {
+      "source": {
+       "id": "scores.bug"
+      },
+      "range": {
+       "offset": 74,
+       "length": 52
+      }
+     },
+     "data": {
+      "pointer": {
+       "location": "stack",
+       "slot": 0
+      }
+     }
+    }
    }
   },
   {
@@ -57544,7 +57544,25 @@
        }
       }
      }
-    ]
+    ],
+    "return": {
+     "identifier": "sumTo",
+     "declaration": {
+      "source": {
+       "id": "scores.bug"
+      },
+      "range": {
+       "offset": 130,
+       "length": 102
+      }
+     },
+     "data": {
+      "pointer": {
+       "location": "stack",
+       "slot": 0
+      }
+     }
+    }
    }
   },
   {
@@ -61724,24 +61742,6 @@
       }
      }
     ],
-    "return": {
-     "identifier": "sumTo",
-     "declaration": {
-      "source": {
-       "id": "scores.bug"
-      },
-      "range": {
-       "offset": 130,
-       "length": 102
-      }
-     },
-     "data": {
-      "pointer": {
-       "location": "stack",
-       "slot": 0
-      }
-     }
-    },
     "code": {
      "source": {
       "id": "scores.bug"
@@ -65776,7 +65776,25 @@
        }
       }
      }
-    ]
+    ],
+    "return": {
+     "identifier": "sumTo",
+     "declaration": {
+      "source": {
+       "id": "scores.bug"
+      },
+      "range": {
+       "offset": 130,
+       "length": 102
+      }
+     },
+     "data": {
+      "pointer": {
+       "location": "stack",
+       "slot": 0
+      }
+     }
+    }
    }
   },
   {
@@ -69650,24 +69668,6 @@
       }
      }
     ],
-    "return": {
-     "identifier": "sq",
-     "declaration": {
-      "source": {
-       "id": "scores.bug"
-      },
-      "range": {
-       "offset": 74,
-       "length": 52
-      }
-     },
-     "data": {
-      "pointer": {
-       "location": "stack",
-       "slot": 0
-      }
-     }
-    },
     "code": {
      "source": {
       "id": "scores.bug"
@@ -72361,24 +72361,6 @@
       }
      }
     ],
-    "return": {
-     "identifier": "sumTo",
-     "declaration": {
-      "source": {
-       "id": "scores.bug"
-      },
-      "range": {
-       "offset": 130,
-       "length": 102
-      }
-     },
-     "data": {
-      "pointer": {
-       "location": "stack",
-       "slot": 0
-      }
-     }
-    },
     "code": {
      "source": {
       "id": "scores.bug"
@@ -77933,7 +77915,25 @@
        }
       }
      }
-    ]
+    ],
+    "return": {
+     "identifier": "score",
+     "declaration": {
+      "source": {
+       "id": "scores.bug"
+      },
+      "range": {
+       "offset": 236,
+       "length": 99
+      }
+     },
+     "data": {
+      "pointer": {
+       "location": "stack",
+       "slot": 0
+      }
+     }
+    }
    }
   }
  ],

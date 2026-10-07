@@ -340,12 +340,13 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
         // And the Inlining panel, the source note and the innermost
         // call stack frame.
         o.scan = { values: {}, recent: [], bonus: [], names: [],
-          inlining: [] };
+          inlining: [], stacks: [] };
         const inlCur = box.querySelector(".inlining .cur");
         for (let i = 0; i < w.n; i++) {
           go(i);
           await fsettle();
           o.scan.names.push(rows().map((r) => r.name));
+          o.scan.stacks.push(stack());
           const top = frames.querySelector("li:not(.muted)");
           o.scan.inlining.push({ panel: inlCur.textContent,
             note: note.textContent,
@@ -728,6 +729,38 @@ for (const [name, b] of Object.entries(all)) {
         o.stack.frames.map((f) => f.replace(/ (called|inlined) at.*/, "")),
         ["sumTo(k: 0)", "sumTo(k: 1)", "sumTo(k: 2)", "sumTo(k: 3)",
           "score(k: 3)"]));
+      // sumTo's real calls: a frame is listed from the first step inside
+      // the callee (its entry JUMPDEST) through its exit JUMP, and gone
+      // at the first step back in the caller. The entry and exit pcs
+      // come from the program's invoke and return contexts.
+      const prog = JSON.parse(fs.readFileSync(new URL(
+        `bug/scores-${lvl}/scores.program.json`, import.meta.url)));
+      const ctxs = (i) => [i.context, ...(i.context?.gather ?? [])];
+      const sumTo = (k, jumpdest) => new Set(prog.instructions.filter(
+        (i) => (jumpdest ? i.operation.mnemonic === "JUMPDEST" : true)
+          && ctxs(i).some((c) => c?.[k]?.identifier === "sumTo"
+            && (k === "return" || c[k].jump))).map((i) => i.offset));
+      const entry = sumTo("invoke", true);
+      const exit = new Set([...sumTo("return", false)]);
+      const pcs = JSON.parse(fs.readFileSync(new URL(
+        `bug/scores-${lvl}/tx.debug-trace.json`, import.meta.url)))
+        .structLogs.map((l) => l.pc);
+      let live = 0;
+      const wrong = [];
+      pcs.forEach((pc, i) => {
+        // The frame is listed at the entry step, and still at the exit
+        // step: it is gone at the step after.
+        if (i > 0 && exit.has(pcs[i - 1])) live--;
+        if (entry.has(pc)) live++;
+        const shown = o.scan.stacks[i]
+          .filter((f) => /^sumTo\b/.test(f) && !/inlined/.test(f))
+          .length;
+        if (shown !== live) wrong.push(i);
+      });
+      check(name, `BUG ${lvl} sumTo frames open and close exactly`
+        + (wrong.length ? ` (not at ${wrong.slice(0, 5)})` : ""),
+        pcs.length === o.scan.stacks.length && entry.size > 0
+          && exit.size > 0 && wrong.length === 0);
       check(name, `BUG ${lvl} type-only local with its reason`,
         /no location here.*#291/.test(o.typeOnly?.note ?? ""));
       // recent, read through its pointer (the word, the length region,
@@ -777,10 +810,9 @@ for (const [name, b] of Object.entries(all)) {
     // The Inlining panel and the call stack agree at every step: the
     // panel names an inlined body exactly when the innermost frame is
     // an inlined one, of the same function. For sq, those are the steps
-    // from the one after its inlined invoke through the one after its
-    // inlined return (the reference call stack closes a frame after
-    // the step that observes its return). Neither panel nor note reads
-    // "?" or "-1".
+    // from the one after its inlined invoke through the step of its
+    // inlined return (the frame is gone at the step after). Neither
+    // panel nor note reads "?" or "-1".
     for (const lvl of ["O0", "O2"]) {
       const sc = u.bug[lvl].scan.inlining, bad = [], inSq = [];
       sc.forEach((x, i) => {
@@ -797,7 +829,7 @@ for (const [name, b] of Object.entries(all)) {
         sc.length > 0 && bad.length === 0);
       check(name, `BUG ${lvl} inlined steps: invoke to return`,
         same(inSq, lvl === "O2"
-          ? sqInline.spans.flatMap((sp) => [...sp, sp.at(-1) + 1]) : []));
+          ? sqInline.spans.flat() : []));
     }
     check(name, "BUG O2 inline marker", u.bug.O2.inline?.fn === "sq"
       && u.bug.O2.inline.noteVisible === "visible"
