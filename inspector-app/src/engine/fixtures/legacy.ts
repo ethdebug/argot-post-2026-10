@@ -29,7 +29,11 @@ interface Fixture {
   slots: Record<Hex, { before: Hex; after: Hex }>;
 }
 
-export const SOL: string = "arcade-sol";
+// a fixture's contract (solc's output, as the fixture holds it); the
+// Vyper fixture's is another contract (only `players`, another address)
+export const solOf = (fixtureId: string) => `sol@${fixtureId}`;
+export const fixtureOf = (compilation: string) =>
+  compilation.startsWith("sol@") ? compilation.slice(4) : undefined;
 export const SIDES = ["before", "after"] as const;
 
 const word = (h: string) => slotHex(toBig(h.startsWith("0x") ? h : "0x" + h));
@@ -61,7 +65,7 @@ export function fromFixture(json: unknown, fixtureId: string):
   const f = json as Fixture;
   const c = f.contract;
   const compilation: Compilation = {
-    id: SOL, language: "solidity", compiler: c.compiler,
+    id: solOf(fixtureId), language: "solidity", compiler: c.compiler,
     provenance: "compiler",
     sources: [{ id: "0", path: c.file, text: c.source }],
     types: c.types, templates: c.pointers, stateVariables: c.variables,
@@ -76,7 +80,8 @@ export function fromFixture(json: unknown, fixtureId: string):
     transaction,
   }));
   return { compilation, timeline: { id: fixtureId,
-    contract: { address: c.address, compilation: SOL }, points,
+    contract: { address: c.address,
+      compilation: solOf(fixtureId) }, points,
     bookmarks: [] } };
 }
 
