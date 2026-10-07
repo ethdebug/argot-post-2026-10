@@ -42,8 +42,12 @@ it("two dumps at two literal points: both shown, neither a side",
       ],
     };
     const { container } = render(<Lens spec={spec} project={project} />);
-    await waitFor(() => expect(container.querySelectorAll(
-      ".view .rows .wrow")).toHaveLength(2), { timeout: 5000 });
+    const slot2 = "0x" + "2".padStart(64, "0");
+    const word = (v: Element) => [...v.querySelectorAll(
+      `.wrow[data-slot="${slot2}"] .b`)].map((b) => b.textContent).join("")
+      .slice(-2);
+    await waitFor(() => expect([...container.querySelectorAll(".view")]
+      .map(word)).toEqual(["28", "46"]), { timeout: 5000 });
     const views = [...container.querySelectorAll(".view")];
     expect(views.map((v) => v.hasAttribute("hidden")))
       .toEqual([false, false]);
@@ -51,7 +55,4 @@ it("two dumps at two literal points: both shown, neither a side",
       null]);
     expect(views.map((v) => v.querySelector(".view-name")!.textContent))
       .toEqual(["Storage", "Storage"]);
-    const word = (v: Element) => [...v.querySelectorAll(".rows .b")]
-      .map((b) => b.textContent).join("").slice(-2);
-    expect(views.map(word)).toEqual(["28", "46"]);
   });
