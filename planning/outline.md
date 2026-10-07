@@ -266,8 +266,7 @@ no dates given · (~N) = prose word budget
    - **Exhibit:** the BUG trace playground: a call stack from
      `invoke`/`return`, and an inlined `ADD` still naming `dbl(src)`.
      **Hook:** the BUG playground, editable in the browser.
-     **Known:** a frame stays a step or two after its return (issue
-     #348); fix bugc before the post, or don't mention it (open).
+     **Known:** exact for real calls since #349.
    - Next for solc **[P]**:
      - every state variable as data: the compiler gives each
        variable's location (open on Walnut's fork, walnuthq/solidity
