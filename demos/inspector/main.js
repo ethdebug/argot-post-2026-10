@@ -258,8 +258,14 @@ function fitDumps() {
 window.fitDumps = fitDumps;
 addEventListener("resize", () => {
   fitDumps();
-  if (current) alignColumns();
+  if (current) {
+    alignColumns();
+    show();
+  }
 });
+// (the popovers' labels are fitted in the page's fonts: again once they
+// are in)
+document.fonts?.ready.then(() => current && show());
 document.addEventListener("scroll", (e) => {
   if (e.target.id === "tree") edges();
 }, true);

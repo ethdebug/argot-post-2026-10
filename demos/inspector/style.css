@@ -450,16 +450,18 @@ li.same > .row .name, li.same > .row .type { opacity: 0.55; }
   width: max-content;
 }
 /* (one line; its names cut to fit by panel.js fitWhat, never by CSS) */
-.pop .pop-how { display: block; white-space: nowrap; }
-.pop.wrap .pop-how { white-space: normal; }
+.pop, .pop .pop-how, .pop .pname { white-space: nowrap; }
+.pop { box-sizing: border-box; }
+.pop .pname { display: inline-block; }
+.pop .pop-how { display: block; }
 .pop .pname { font: inherit; background: none; border: 0; padding: 0 1px;
   color: color-mix(in srgb, var(--bg) 70%, transparent); }
-.pop .pname.chip { padding: 0 4px; border-radius: 3px; font-weight: 700;
+.pop .pname.pbadge { padding: 0 4px; border-radius: 3px; font-weight: 700;
   color: var(--pk-fg); background: color-mix(in srgb, var(--pk) 35%, #fff); }
-.pop .pname.chip.pk0 { --pk: var(--mark); --pk-fg: var(--chg-fg); }
+.pop .pname.pbadge.pk0 { --pk: var(--mark); --pk-fg: var(--chg-fg); }
 @media (prefers-color-scheme: dark) {
   /* (the badge light, its text the colour's strong tone) */
-  .pop .pname.chip { color: var(--pk);
+  .pop .pname.pbadge { color: var(--pk);
     background: color-mix(in srgb, var(--pk-fg) 40%, #fff); }
 }
 .pop .pname.muted { filter: saturate(0.25); opacity: 0.7; }

@@ -2278,11 +2278,11 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
         getComputedStyle(c).backgroundColor) : [];
       return { bg: getComputedStyle(pop).backgroundColor,
         parts: kids.map((k) => k.classList.contains("pcut") ? "…"
-          : k.classList.contains("chip") ? `[${k.textContent}]`
+          : k.classList.contains("pbadge") ? `[${k.textContent}]`
             : k.textContent),
-        chipBgs: kids.filter((k) => k.classList.contains("chip")).map((k) =>
+        chipBgs: kids.filter((k) => k.classList.contains("pbadge")).map((k) =>
           getComputedStyle(k).backgroundColor),
-        chipFgs: kids.filter((k) => k.classList.contains("chip")).map((k) =>
+        chipFgs: kids.filter((k) => k.classList.contains("pbadge")).map((k) =>
           getComputedStyle(k).color), lit: [...new Set(lit)] };
     }, [slotEnd, how]);
     await page.evaluate((x) => window.select("mid", { sel: x }), `${A}.score`);
@@ -2325,7 +2325,8 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
       const t = await page.evaluate(() => [...document.querySelectorAll(
         "#panel .view:not([hidden]) .pop")].map((p) => ({ text:
         p.textContent, css: getComputedStyle(p.querySelector(".pop-how"))
-        .textOverflow, over: p.scrollWidth > p.clientWidth + 1,
+        .textOverflow, over: p.querySelector(".pop-how").scrollWidth >
+          p.getBoundingClientRect().width + 4,
       out: p.getBoundingClientRect().right > p.closest(".dump")
         .getBoundingClientRect().right - 8 })));
       const gut = await page.locator(`#panel .view:not([hidden]) ` +
@@ -2349,6 +2350,50 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
         problems.push(`popover full at ${wd}: ${JSON.stringify(full.at(-1))}`);
       }
     }
+    // (one line, always: carol's name, players, alice, a walkthrough)
+    const tall = [];
+    const lines = async (tag) => tall.push(...(await page.evaluate(() =>
+      [...document.querySelectorAll("#panel .view:not([hidden]) .pop")]
+        .filter((p) => {
+          const r = p.getBoundingClientRect();
+          // (and every text's box inside its badge and its popover)
+          const spill = [...p.querySelectorAll(".pname, .phow, .pcut")]
+            .some((e) => {
+              const q = document.createRange();
+              q.selectNodeContents(e);
+              const t = q.getBoundingClientRect();
+              const b = e.closest(".pname")?.getBoundingClientRect() ?? r;
+              return t.left < Math.max(b.left, r.left) - 1 ||
+                t.right > Math.min(b.right, r.right) + 1;
+            });
+          return spill || r.height > parseFloat(getComputedStyle(p)
+            .lineHeight) * 1.4 + 4;
+        }).map((p) => p.textContent))).map((t) => `${tag}: ${t}`));
+    for (const x of [`${C}.name`, "players", A, `${A}.score`]) {
+      await page.evaluate((y) => window.select("mid", { sel: y }), x);
+      await page.mouse.move(1, 1);
+      await lines(x);
+    }
+    await page.evaluate(() => window.select("mid", { sel: "players" }));
+    await page.locator('#details button[data-r="start"]').click();
+    for (let k = 0; k < N; k++) {
+      await page.locator(`#chips .chip[data-k="${k}"]`).click();
+      await lines(`step ${k + 1}`);
+    }
+    await page.keyboard.press("Escape");
+    if (tall.length) problems.push(`popovers over one line: ${tall}`);
+    // (a name is a badge only while its own bytes are lit: bob's name's
+    // bytes pointed at, its length byte not)
+    await page.evaluate(() => window.select("mid", { sel: null }));
+    await page.locator(`#panel .view:not([hidden]) .b[data-owners="${B
+      }.name"]`).first().hover();
+    const bn = await page.evaluate(() => [...document.querySelectorAll(
+      "#panel .view:not([hidden]) .pop .pname")].map((n) => `${
+      n.textContent}${n.classList.contains("pbadge") ? "*" : ""}`).join());
+    if (!/(^|,)name\*/.test(bn) || !/name\.length(,|$)/.test(bn)) {
+      problems.push(`badges mirror the bytes: ${bn}`);
+    }
+    await page.mouse.move(1, 1);
     await page.setViewportSize({ width: 760, height: 900 });
     await page.waitForTimeout(100);
     await page.evaluate((x) => window.select("mid", { sel: x }), A);
