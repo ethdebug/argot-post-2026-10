@@ -522,7 +522,7 @@ export function forRow(m, path) {
 // string's length word), never a child's. A leaf has no children: none
 // (one colour, as before).
 // Returns Map(tree path -> colour) or null.
-const PICKS = 9;
+export const PICKS = 10;
 function childColors(m, path, ids) {
   const child = (row) => row.slice(path.length)
     .match(/^(\.[^.[]+|\[[^\]]*\])/)?.[0];
@@ -819,12 +819,15 @@ export function locked(h, sel) {
 // the first colour is the plain highlight, with no class
 const pick = (el, k) => {
   for (let j = 1; j < PICKS; j++) el.classList.toggle(`pk${j}`, k === j);
+  // a source of the step's input (a mapping key's list item)
+  el.classList.toggle("pksrc", k === "src");
 };
 
 // Draw a highlight (or none) on the dumps and the tree. `names` names
 // the two sides, as the compare blocks label them.
 export function paint(root, tree, h, opts = {}) {
-  root.querySelectorAll(".pop, .cmp, .tray").forEach((p) => p.remove());
+  root.querySelectorAll(".pop, .cmp, .tray, .bruler").forEach((p) =>
+    p.remove());
   root.querySelectorAll(".addr.popped, .addr.grp").forEach((a) =>
     a.classList.remove("popped", "grp", "grp-top", "grp-end"));
   for (const w of root.querySelectorAll(".word[data-slot]")) {
@@ -907,9 +910,23 @@ export function paint(root, tree, h, opts = {}) {
   // what no annotation may cover: lit bytes, and the annotations
   // already placed
   const taken = lit();
-  // nor the details under the dump
-  const det = root.closest(".words")?.querySelector(".details");
-  if (det) taken.push(det.getBoundingClientRect());
+  // a replay step about bytes in a slot: their positions, 0 to 31, under
+  // that slot (an overlay, like a popover)
+  if (h?.ruler) {
+    for (const v of views) {
+      const row = v.querySelector(`.wrow[data-slot="${h.ruler}"]`);
+      const w = row?.querySelector(":scope > .word");
+      if (!w) continue;
+      const el = document.createElement("div");
+      el.className = "bruler";
+      el.setAttribute("aria-hidden", "true");
+      el.style.left = `${w.offsetLeft}px`;
+      el.innerHTML = `<div class="bytes">${octets(Array.from({ length: 32 },
+        (_, i) => `<span class="b">${i}</span>`))}</div>`;
+      row.append(el);
+      taken.push(el.getBoundingClientRect());
+    }
+  }
   const room = bounds(root);
   root.querySelector(".views")?.append(tray);
   for (const v of views) {
@@ -963,6 +980,10 @@ function annotate(root, v, compare, names, tray, taken, room, force) {
     // unlit rows (a gap line, or a neighbour's dim bytes and address).
     {
       const pop = popFor(run, 0);
+      // a run a replay found at an earlier step: a muted label
+      if (run.every((r) => r.classList.contains("known"))) {
+        pop.classList.add("kept");
+      }
       const ways = side === "before" ? ["over", "under"] : ["under", "over"];
       let placed = false;
       for (const way of ways) {

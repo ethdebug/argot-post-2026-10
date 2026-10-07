@@ -341,48 +341,52 @@ offsets.
   to the first scene with its defaults.
   `#storage` and `#memory` link to the sections.
 
-## The box under the dump, and the replay
+## The layout, the bar, the panel, and the replay
 
-With a value selected, the box under the dump has a title line (the
-path, the type, the value; in a scene with two points, the state shown)
-and one body line: a fixed-width area for the controls (they never
-move), then the current step, which truncates. At rest the area holds
-"How was this found? ▸" and the body the resolved place. Under the
-box, one chip per step, joined by arrows (done, current, later; a
-click jumps to it; all solid at rest; the row wraps).
+Top to bottom: the contract (collapsed), the scene picker, the scene's
+intro, one line on how to read the dump, the bar, then two equal
+columns that start at one height: the storage dump (left; the
+calldata under it in the motd scene) and the variables (right; the
+source under them). The tree's top padding is set so its first row and
+the dump's first line share a height (`alignColumns()`).
+
+Nothing moves when a value is selected, pointed at or replayed:
+emphasis is lighting and muting only. The bar (`#details`) is one line
+over both columns: the selection, the controls (◀ ▶ ⏭ and "n / m", or
+"How was this found? ▸" at rest) in a fixed spot, and the step's short
+caption. The panel (`#dpanel`) is stuck to the bottom of the dump's
+column at one size: the step in full (caption, formula, the pointer
+constructs it uses, where its input came from), the footnote (a link
+to the spec page of the step's construct), the chips (one per step,
+done, current, later; a click jumps), and the pointer solc wrote, as
+YAML (template names shortened to their types' names; solc's ids
+listed under it), Shiki-coloured, the step's lines in a band and the
+rest muted, scrolled inside to keep them in view. With nothing
+selected, the panel shows what the pointer is on. The dump can be
+scrolled down past it.
 
 The replay shows the rules the selection's pointers follow, each once,
 by example, then for the rest. The page walks the raw steps that
-`decode.js` `replay()` recorded (the library's own evaluation) for
-every value under the selection, in the state shown, and sorts them
-into one idea each; nothing is computed by the page except reading a
-flag byte from the state:
+`decode.js` `replay()` recorded for every value under the selection,
+in the state shown, and sorts them into one idea each (nothing is
+computed by the page but a flag byte read from the state):
 
-1. declared: `define slot` (a literal), or the program context's
-   region for a value type; lights the variable's own slot (players'
-   slot 3, which holds 0, has its own row).
-2. the first key: the mapping's template and `define slot :=
-   keccak(key, slot)`; badges ‹hash› and where the key came from:
-   ‹roster› (the page takes players' keys from `roster`, decoded through
-   its own pointer from storage, and checks they equal the trace's) or
-   ‹trace›.
-3. the same rule for the other keys (in their child colours).
-4. the record: the struct template; the slots its members take.
-5. the fields: the members' regions in the packed slot (in their child
-   colours).
-6. a short string: `define slot + 1`, the string template, the flag
-   region, and the data region in the slot.
-7. a long string: the `if` (else), `define length`, `define start :=
-   keccak(slot)` and the data region there.
+1. declared: the variable's pointer (players' slot 3, which holds 0,
+   has its own row);
+2. the first key: `define slot := $keccak256(key, slot)`; the key is
+   the address (its player's name as a gloss), from `roster` (decoded
+   from storage, and checked to equal the trace's keys), whose item
+   lights in the key's tint;
+3. the same template for the other keys, in the entries' colours;
+4. the record: a group, the name at `$sum(slot, 1)`, in the entry's
+   colour;
+5. the fields: their regions, in colours of their own (never an
+   entry's), with the byte positions under the slot;
+6. a short string (the `if`'s then); 7. a long string (its else).
 
-For `players` that is 7 steps (alice's record, fields and name, carol's
-long name); a single value cuts them to its own path (bob's plays: 1,
-2, 4, 5). An array: its slot (the length), then its items at
-keccak(slot) + i. A row a step has derived keeps its label (its run's gutter group, and
-its popover where there is room) at the later steps; rows not derived
-yet show only their address; ◀ takes labels back. ◀ ▶ step, ⏭ jumps to the resolved view, ← → step while the
-box has focus, Escape leaves the replay; past the last step is the
-resolved view, with "Replay ▸".
+A single value cuts these to its own path (bob's plays: 1, 2, 4, 5).
+A row a step has derived keeps its label (a muted popover) at later
+steps; the current step's popovers are dark.
 
 ## Annotations in the dumps
 

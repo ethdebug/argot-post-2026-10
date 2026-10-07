@@ -269,7 +269,11 @@ li.same > .row .name, li.same > .row .type { opacity: 0.55; }
   font: 600 0.7rem/1.6 system-ui, -apple-system, "Segoe UI", sans-serif;
   color: var(--panel);
   background: var(--accent);
-  overflow-wrap: anywhere;
+  /* one line, always (it keeps its room when hidden) */
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
 }
 .moderow { flex-wrap: wrap; }
 /* "show other state": a checkbox chip, like the toggle's buttons */
@@ -873,34 +877,107 @@ main[data-single] > .cols :is(.chglegend, .legend .bchg, .intro .two) {
   .b, .tree .row, .b.hl, .row.hl { transition: none; }
 }
 
-/* The replay, in the box under the dump: a title line (the value), and
-   one body line: the controls in a fixed-width area (they never move),
-   then the current step, which truncates. Under the box, one chip per
-   step. */
-.rtitle { margin: 0 0 6px; overflow: hidden; text-overflow: ellipsis;
+/* The storage section: two equal columns that start at one height,
+   the dump on the left and the variables on the right (the source under
+   the variables); over both, one line: the bar (main.js renderBox). */
+.howread { margin: 10px 0 6px; }
+@media (min-width: 1100px) {
+  .scols { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    grid-template-rows: auto 1fr; }
+  .scols .words { grid-column: 1; grid-row: 1 / span 2; }
+  .scols .storage { grid-column: 2; grid-row: 1; font-size: inherit; }
+  .scols .source { grid-column: 2; grid-row: 2; }
+}
+.colhead { margin-top: 0; }
+/* the dump's state is in the bar and the Show toggle */
+.scols .view-name { display: none; }
+/* the bar: one line, at one height, always; the selection, then the
+   controls in a fixed-width spot, then the short caption, which is cut
+   at its end if it must be */
+.rbar { display: grid; align-items: center; gap: 12px; height: 2.6em;
+  box-sizing: border-box; padding: 0 10px; margin: 0 0 10px;
+  grid-template-columns: minmax(0, 2fr) 15em minmax(0, 2fr);
+  background: var(--panel); border: 1px solid var(--line);
+  border-left: 3px solid var(--accent); border-radius: 6px;
   white-space: nowrap; }
-.rbody { display: flex; align-items: center; gap: 12px; min-width: 0; }
-.rctl { flex: none; width: 15.5em; display: flex; align-items: center;
-  gap: 4px; }
-.rctl .btn[disabled] { opacity: 0.4; cursor: default; }
+.rbar > * { overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+.rbar .rctl { display: flex; align-items: center; gap: 4px;
+  overflow: visible; }
+.rbar .rctl .btn { padding: 1px 10px; }
+.rshort { font-weight: 600; }
+@media (max-width: 759px) {
+  .rbar { grid-template-columns: minmax(0, 1fr) 11.5em; height: 2.6em; }
+  .rbar .rsel { display: none; }
+  .rbar .rshort { grid-column: 1; grid-row: 1; }
+  .rbar .rctl { grid-column: 2; grid-row: 1; }
+}
+/* stuck to the bottom of the dump's column: the step in full, the
+   chips and footnotes, and the pointer. One size, always. */
+.dpanel { position: sticky; bottom: 0; z-index: 8; display: grid;
+  gap: 10px; grid-template-columns: minmax(0, 3fr) minmax(0, 2fr);
+  height: 15em; box-sizing: border-box; margin: 10px 0 0; padding: 8px 10px;
+  background: var(--panel); border: 1px solid var(--line);
+  border-left: 3px solid var(--accent); border-radius: 6px;
+  box-shadow: 0 -4px 12px rgb(0 0 0 / 0.08); }
+.dleft { display: grid; grid-template-rows: minmax(0, 1fr) auto;
+  min-height: 0; gap: 4px; }
+.dtext { min-height: 0; overflow: hidden; }
+.dtext dl { margin: 0; display: grid; grid-template-columns: auto 1fr;
+  gap: 0 10px; font-size: 0.85rem; line-height: 1.35; }
+.dtext dd { margin: 0; overflow-wrap: anywhere; }
+.ptr { min-height: 0; overflow: auto; position: relative; }
+.ptr .plabel { margin: 0 0 4px; font-size: 0.75rem; font-weight: 700;
+  text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted);
+  position: sticky; left: 0; top: 0; z-index: 1; background: var(--panel);
+  padding: 2px 0; }
+#ptr code { background: none; padding: 0; border: 0; font-size: inherit; }
+.ptrlines { margin: 0; font-size: 0.72rem; line-height: 1.5;
+  white-space: pre; width: max-content; min-width: 100%; }
+.ptrlines .line { display: inline-block; min-width: 100%;
+  border-radius: 2px; background: none; }
+.ptr.lit .ptrlines .line:not(.on) { opacity: 0.4; }
+/* the one band: the step's lines */
+.ptrlines .line.on { background: color-mix(in srgb, var(--mark) 60%,
+  transparent); }
+#ptr .ptrlines span { color: var(--shiki-light, inherit); }
+@media (prefers-color-scheme: dark) {
+  #ptr .ptrlines span { color: var(--shiki-dark, inherit); }
+}
+@media (max-width: 759px) {
+  .dpanel { grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: minmax(0, 1fr) 6.5em; height: 25em; }
+}
+.rcap { margin: 0; font-size: 1rem; line-height: 1.35; height: 2.7em;
+  overflow: hidden; }
+.rform { margin: 0; font-family: ui-monospace, Menlo, monospace;
+  font-size: 0.85rem; line-height: 1.4; height: 4.2em; overflow: hidden;
+  overflow-wrap: anywhere; }
+.rwhere { font-family: inherit; height: auto; }
+.rsrc { margin: 2px 0 0; height: 1.6em; overflow: hidden; }
+@media (max-width: 759px) {
+  .rform { height: 5.6em; }
+  .rsrc { height: 3.2em; }
+}
 .rcount { margin-left: 6px; color: var(--muted); font-size: 0.85rem;
   font-variant-numeric: tabular-nums; }
-.rcur { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis;
-  white-space: nowrap; }
-.rlabel { font-weight: 600; }
-.rform { font-family: ui-monospace, Menlo, monospace; font-size: 0.85em; }
-.rwhere { font-family: inherit; font-size: inherit; }
-.badge { font-size: 0.72rem; padding: 0 6px; border-radius: 9px;
-  border: 1px solid var(--line); color: var(--muted); }
+.rctl .btn[disabled] { opacity: 0.4; cursor: default; }
+.gloss { font-family: system-ui, sans-serif; font-size: 0.75em;
+  color: var(--muted); }
+.badge { font-size: 0.75rem; padding: 0 6px; border-radius: 9px;
+  border: 1px solid color-mix(in srgb, var(--fg) 35%, transparent);
+  color: var(--fg); background: transparent; }
+.source { font-size: 0.8rem; color: var(--fg); opacity: 0.8; }
+.source.pksrc { background: var(--pksrc); color: var(--pksrc-fg);
+  opacity: 1; padding: 0 6px; border-radius: 9px; }
+sup.fn { font-size: 0.7em; color: var(--accent); margin-left: 1px; }
 .chips { display: flex; flex-wrap: wrap; align-items: flex-start;
-  gap: 6px 4px; margin: 8px 0 0; min-height: 2.6em; }
+  align-content: flex-start; gap: 4px 3px; margin: 0; height: 5em;
+  overflow: auto; }
 .chip { display: inline-flex; flex-direction: column; align-items: center;
-  gap: 1px; max-width: 14em; padding: 2px 8px; border-radius: 10px;
+  gap: 1px; max-width: 16em; padding: 2px 8px; border-radius: 10px;
   border: 1px solid var(--line); background: var(--panel); color: var(--fg);
   font: inherit; font-size: 0.78rem; cursor: pointer; }
 .chip .ctext { font-family: ui-monospace, Menlo, monospace; max-width: 100%;
-  overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.chip:is(:hover, :focus-visible) .ctext { white-space: normal;
   overflow-wrap: anywhere; }
 .chip .clabel { font-size: 0.68rem; color: var(--muted); }
 .chip.cur { background: var(--mark); color: var(--chg-fg);
@@ -908,5 +985,41 @@ main[data-single] > .cols :is(.chglegend, .legend .bchg, .intro .two) {
 .chip.cur .clabel { color: inherit; }
 .chip.later { opacity: 0.45; }
 .carrow { color: var(--muted); align-self: center; font-size: 0.8rem; }
+.fnotes { margin: 2px 0 0; font-size: 0.75rem; height: 1.3em;
+  overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.fnote { margin-right: 10px; }
+.fnote sup { color: var(--accent); }
+.fname { font-weight: 700; }
+/* a slot's byte positions, under it, during a replay step about its
+   bytes */
+.bruler { position: absolute; top: 100%; z-index: 3; pointer-events: none;
+  background: var(--panel); border-radius: 3px; }
+.bruler .b { font-size: 0.6rem; color: var(--muted); text-align: center; }
+/* a label for a run found at an earlier step of a replay: muted */
+.pop.kept { background: var(--panel); color: var(--muted);
+  box-shadow: none; outline: 1px solid var(--line); }
+.pop.kept::after { border-top-color: var(--line); }
+.pop.kept.under::after { border-bottom-color: var(--line);
+  border-top-color: transparent; }
 #details:focus-visible { outline: 2px solid var(--accent);
   outline-offset: 2px; }
+/* the ninth child colour, and the tint of a step's input's source */
+:root { --pk9: #e3d3b4; --pk9-fg: #4f3b14; --pksrc: #d4dbe6;
+  --pksrc-fg: #1f2a3a; }
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) { --pk9: #5a4a2a; --pk9-fg: #f3e3c4;
+    --pksrc: #34404f; --pksrc-fg: #d9e2ee; }
+}
+:root[data-theme="dark"] { --pk9: #5a4a2a; --pk9-fg: #f3e3c4;
+  --pksrc: #34404f; --pksrc-fg: #d9e2ee; }
+.pk9 { --pk: var(--pk9); --pk-fg: var(--pk9-fg); }
+.pksrc { --pk: var(--pksrc); --pk-fg: var(--pksrc-fg); }
+.b.hl:is(.pk9, .pksrc) { background: var(--pk); color: var(--pk-fg); }
+.row.hl:is(.pk9, .pksrc) { background: var(--pk); color: var(--pk-fg);
+  box-shadow: -4px 0 0 var(--pk), 4px 0 0 var(--pk); }
+.fname[class*="pk"] { background: var(--pk); color: var(--pk-fg);
+  border-radius: 3px; padding: 0 3px; }
+/* room under the dump for a card under its last rows (two points) */
+main:not([data-single]) .words .dump { margin-bottom: 2.6em; }
+/* the source's note keeps its room as its text changes */
+#srcnote { height: 2.8em; overflow: hidden; }

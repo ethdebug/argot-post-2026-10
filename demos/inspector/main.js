@@ -8,6 +8,7 @@ import {
 import {
   buildPanel, renderPanel, forRow, forBytes, forRegion, forSlot, paint,
   shortKeys, steady, initialHash, setHash, locked, keySection, forStep,
+  PICKS,
   short,
   details,
 } from "./panel.js";
@@ -115,9 +116,27 @@ function row(node, top) {
 function renderTree() {
   $("tree").innerHTML =
     `<ul>${current.tree.map((n) => row(n, true)).join("")}</ul>`;
+  alignColumns();
 }
 
+// The two columns start at one height: the tree's first row at the
+// height of the dump's first line (the dump has its byte ruler above)
+function alignColumns() {
+  const d = $("panel").querySelector(".view:not([hidden]) .rows > *");
+  const t = $("tree").querySelector("li .row");
+  if (!d || !t) return;
+  const now = parseFloat(getComputedStyle($("tree")).paddingTop) || 0;
+  // (each within its own column: the dump's column may be stuck to the
+  // top of the window)
+  const top = (e, c) => e.getBoundingClientRect().top -
+    e.closest(c).getBoundingClientRect().top;
+  const delta = top(d, ".words") - top(t, ".storage");
+  $("tree").style.paddingTop = `${Math.max(0, now + delta)}px`;
+}
+addEventListener("resize", () => current && alignColumns());
+
 function render() {
+  $("tree").style.paddingTop = "";
   const { f, scene } = current;
   $("summary").textContent = scene.summary;
   showScene(scene);
@@ -387,50 +406,87 @@ function replaySteps(path, side) {
       }
     }
   }
-  const keyBadge = current.f.keysIn ? "roster" : "trace";
-  const keysFrom = current.f.keysIn
-    ? `keys: the addresses in ${Object.values(current.f.keysIn)[0]}`
-    : "keys: from the trace";
+  // where the keys come from: the contract's own list of them (roster,
+  // decoded from storage), or the trace
+  const keyList = current.f.keysIn ? Object.values(current.f.keysIn)[0] : null;
+  const keySource = keyList ? `key from ${keyList}` : "key from the trace";
+  // the tree path of the list item a key comes from (roster[i])
+  const keyItem = (key) => {
+    const list = keyList && find(current.tree, keyList);
+    const k = word(key).slice(-40);
+    return list?.children?.find((c) => c[side]?.text?.toLowerCase()
+      .endsWith(k)) ?? null;
+  };
   const out = [];
-  const step = (x) => out.push({ badges: [], slots: [], regions: [], ...x });
+  const step = (x) => out.push({ constructs: [], slots: [], regions: [],
+    rows: [], ...x });
   const name = (n) => n.path.slice((entryPath(n) ?? top(n)).length)
     .replace(/^\./, "") || n.label;
+  // an address with its player's name as a small gloss
+  const addr = (h) => {
+    const who = keyName(h);
+    return `${esc(short(h))}${who !== short(h) ? ` <span class="gloss">${
+      esc(who)}</span>` : ""}`;
+  };
   for (const p of [...ph.values()].sort((a, b) => a.order - b.order)) {
     if (p.k === "declared") {
       const w = wordAt(p.slot);
-      const held = w === undefined ? "" : ` = ${small(w)}`;
-      step({ cap: p.context ? `${p.var} is declared at slot ${small(
-        p.slot)}, ${p.context.length} bytes` : `${p.var} is declared at ${
-        p.typeKind === "mapping" ? "slot" : "slot"} ${small(p.slot)}${
-        w !== undefined && !num(w) ? "; that slot holds nothing"
-          : p.typeKind === "array" ? "; it holds the length" : ""}`,
-      form: p.context ? `slot ${small(p.slot)}, bytes ${p.context.offset}–${
-        p.context.offset + p.context.length - 1}` : `slot ${small(
-        p.slot)}${held}`, badges: ["compiler"], chip: `slot ${small(p.slot)}`,
-      chipLabel: p.typeKind ?? "value", slots: [...p.slots],
-      regions: p.regions });
+      const kind = p.typeKind ?? "value";
+      step({ phase: "declared", var: p.var,
+        cap: p.context ? `${p.var} is at slot ${small(p.slot)}, ${
+          p.context.length} bytes from offset ${p.context.offset}`
+          : kind === "mapping" && w !== undefined && !num(w)
+            ? `${p.var} gets slot ${small(p.slot)} but stores nothing ` +
+              `there; ${small(p.slot)} only feeds each hash`
+            : kind === "array" ? `${p.var} gets slot ${small(p.slot)}; ` +
+              "that slot holds its length"
+              : `${p.var} gets slot ${small(p.slot)}`,
+        form: esc(p.context ? `slot ${small(p.slot)}, bytes ${
+          p.context.offset}–${p.context.offset + p.context.length - 1}`
+          : `slot ${small(p.slot)}${w === undefined ? "" : ` = ${small(w)}`}`),
+        constructs: ["pointer"], source: "from solc's pointer",
+        chip: `slot ${small(p.slot)}`, chipLabel: kind === "struct" ? "record"
+          : ["mapping", "string"].includes(kind) ? kind : kind === "array"
+            ? "array" : "value",
+        slots: [...p.slots], regions: p.regions, rows: [p.var] });
     } else if (p.k === "entry") {
       const [first, ...rest] = p.items;
-      const what = (x) => `${keyName(x.key)}`;
-      step({ cap: `Each record is at the hash of its key and ${small(
-        first.base)}`, form: `keccak(${what(first)}, ${small(first.base)}) = ${
-        tail(first.slot)}; ${keysFrom}`, badges: ["hash", keyBadge],
-      chip: `keccak(${what(first)}, ${small(first.base)})`,
-      chipLabel: "record", slots: [word(first.slot)],
-      colorsOf: rest.length ? p.var : first.path });
+      const item = keyItem(first.key);
+      step({ phase: "entry", var: p.var,
+        cap: `The template needs a key: ${keyName(first.key)}'s address, ${
+          keyList ? `from ${keyList}` : "from the trace"}`,
+        form: `keccak256(${addr(first.key)}, ${small(first.base)}) = ${
+          esc(tail(first.slot))} <span class="muted">· keccak256 is a ` +
+          "hash; each input is padded to 32 bytes</span>",
+        constructs: ["define", "$keccak256"], source: keySource,
+        sourceTint: !!item,
+        chip: `keccak(${short(first.key)}, ${small(first.base)})`,
+        chipLabel: "record", slots: [word(first.slot)],
+        regions: item ? [item[side].region] : [],
+        rows: [first.path, ...(item ? [item.path] : [])],
+        colorsOf: p.var, keyItem: item?.path });
       if (rest.length) {
-        step({ cap: "The same rule for every key", form: rest.map((x) =>
-          `${what(x)} → ${tail(x.slot)}`).join(" · "), badges: ["hash",
-          keyBadge], chip: "the others", chipLabel: "records",
-        slots: rest.map((x) => word(x.slot)), colorsOf: p.var });
+        step({ phase: "others", var: p.var,
+          cap: "The same template for every key: the pointer takes the " +
+            "key as input",
+          form: rest.map((x) => `${addr(x.key)} → ${esc(tail(x.slot))}`)
+            .join(" · "),
+          constructs: ["template"], source: keyList
+            ? `keys from ${keyList}` : "keys from the trace",
+          chip: rest.map((x) => keyName(x.key)).join(", "),
+          chipLabel: "records", slots: rest.map((x) => word(x.slot)),
+          rows: rest.map((x) => x.path), colorsOf: p.var });
       }
     } else if (p.k === "item") {
-      step({ cap: `The items start at the hash of slot ${small(p.base)}`,
-        form: `keccak(${small(p.base)}) = ${tail(p.data)}${p.index
-          !== undefined ? `; item ${p.index} at + ${p.index}` : ""}`,
-        badges: ["hash"], chip: `keccak(${small(p.base)})`, chipLabel: "items",
-        slots: p.regions.length ? [] : [word(p.data)],
-        regions: p.regions, colorsOf: p.var });
+      step({ phase: "item", var: p.var,
+        cap: `The items start at the hash of slot ${small(p.base)}`,
+        form: esc(`keccak256(${small(p.base)}) = ${tail(p.data)}${p.index
+          !== undefined ? `; item ${p.index} at + ${p.index}` : ""}`),
+        constructs: ["$keccak256", "list"], source: "from solc's pointer",
+        chip: `keccak(${small(p.base)})`, chipLabel: "items",
+        slots: p.regions.length ? [] : [word(p.data)], regions: p.regions,
+        rows: leaves.filter((l) => l.path.startsWith(`${p.var}[`))
+          .map((l) => l.path), colorsOf: p.var });
     } else if (p.k === "record") {
       // the record's own slots: those its members' regions are in
       const entry = find(current.tree, p.entry);
@@ -447,62 +503,260 @@ function replaySteps(path, side) {
       };
       if (entry) visit2(entry);
       const slots = [...own].sort((a, b) => (num(a) < num(b) ? -1 : 1));
-      const per = slots.map((sl) => {
-        const ms = p.struct.contains.filter((m) => {
-          const c = entry.children.find((x) => x.label === m.name);
-          const r = c?.[side]?.parts?.[0]?.region ?? c?.[side]?.region;
-          return r && word(r.slot) === sl;
-        }).map((m) => m.name);
-        return ms;
-      });
-      step({ cap: `A ${p.struct.definition?.name ?? "record"} is ${
-        slots.length} slot${slots.length === 1 ? "" : "s"}${per.length === 2
-        ? `: ${per[0].length} fields, then ${per[1].join(", ")}` : ""}`,
-      form: slots.map(tail).join(", "), badges: ["compiler"],
-      chip: `${slots.length} slots`, chipLabel: "record", slots,
-      colorsOf: p.entry });
+      const per = slots.map((sl) => p.struct.contains.filter((m) => {
+        const c = entry.children.find((x) => x.label === m.name);
+        const r = c?.[side]?.parts?.[0]?.region ?? c?.[side]?.region;
+        return r && word(r.slot) === sl;
+      }).map((m) => m.name));
+      step({ phase: "record", var: top(entry), struct: p.struct,
+        cap: `A ${p.struct.definition?.name ?? "record"} is ${slots.length} ${
+          slots.length === 1 ? "slot" : "slots"}${per.length === 2
+          ? `: ${per[0].length} fields, then the ${per[1].join(", ")}` : ""}`,
+        form: esc(slots.map((sl, k) => k ? `${tail(slots[0])} + ${k} = ${
+          tail(sl)}` : tail(sl)).join(", ")),
+        constructs: ["group", "$sum"], source: "from solc's pointer",
+        chip: `${slots.length} slots`, chipLabel: "record", slots,
+        rows: [p.entry], oneColor: p.entry });
     } else if (p.k === "fields") {
-      const sameSlot = new Set(p.items.map((x) => x.region.slot)).size === 1;
-      step({ cap: p.items.length > 1 && sameSlot
-        ? "The fields share one slot, packed from the right"
-        : `${name(p.items[0].leaf)} is in its record's slot`,
-      form: p.items.map((x) => `${name(x.leaf)} ${bytesText(x.region)
-        .replace(/^bytes? /, "")}`).join(" · "), badges: ["compiler"],
-      chip: p.items.length > 1 ? `${p.items.length} fields`
-        : bytesText(p.items[0].region), chipLabel: p.items.length > 1
-        ? "fields" : name(p.items[0].leaf), regions: p.items.map((x) =>
-        x.region), colorsOf: p.items.length > 1
-        ? entryPath(p.items[0].leaf) : null });
+      // the fields in the dump's order, left to right; their colours
+      // are their own (never an entry's)
+      const items = [...p.items].sort((a, b) =>
+        Number(num(a.region.offset ?? "0x0") - num(b.region.offset ?? "0x0")));
+      const many = items.length > 1;
+      const right = [...items].sort((a, b) =>
+        Number(num(b.region.offset ?? "0x0") - num(a.region.offset ?? "0x0")))
+        [0];
+      const n32 = (r) => Number(num(r.length ?? "0x20"));
+      step({ phase: "fields", var: top(items[0].leaf),
+        cap: many ? `The fields share one slot, packed from the right: ${
+          name(right.leaf)} takes the last ${n32(right.region)} bytes`
+          : `${name(items[0].leaf)} is in its record's slot`,
+        form:
+          items.map((x) => `<span class="fname" data-path="${esc(
+            x.leaf.path)}">${esc(name(x.leaf))}</span> ${esc(
+            bytesText(x.region).replace(/^bytes? /, ""))}`).join(" · "),
+        constructs: ["region"], source: "from solc's pointer",
+        chip: many ? `${items.length} fields` : bytesText(items[0].region),
+        chipLabel: many ? "fields" : "field",
+        regions: items.map((x) => x.region),
+        rows: items.map((x) => x.leaf.path),
+        fieldsOf: entryPath(items[0].leaf), ruler: items[0].region.slot });
     } else if (p.k === "short") {
       const x = p.items[0];
       const fl = wordAt(x.flag.slot).slice(-2);
-      step({ cap: "Short string: in its slot; last byte = 2 × length",
-        form: `0x${fl} → ${num("0x" + fl) / 2n} bytes: ${x.leaf[side].text}`,
-        badges: ["compiler", "storage"],
-        chip: `0x${fl}`, chipLabel: "short",
-        regions: [x.flag, x.data] });
+      const len = num("0x" + fl) / 2n;
+      step({ phase: "short", var: top(x.leaf),
+        cap: "A short string sits at the left of its slot; the last " +
+          "byte holds 2 × length",
+        form: esc(`0x${fl} = 2 × ${len}, so ${len} bytes: ${x.leaf[side].text}`),
+        constructs: ["if", "$read"], source: "read from storage",
+        chip: `0x${fl}`, chipLabel: entryPath(x.leaf) ? "name" : "value",
+        regions: [x.flag, x.data], rows: [x.leaf.path] });
     } else if (p.k === "long") {
-      // (the first long string, by example)
       const ds = p.items.filter((y) => y.data).slice(0, 1);
       const x = ds[0] ?? p.items[0];
       const fl = wordAt(x.flag.slot).slice(-2);
       const len = (num(wordAt(x.flag.slot)) - 1n) / 2n;
       const to = p.items.find((y) => y.to && y.leaf === x.leaf)?.to;
-      step({ cap: "Odd last byte: long; the data moves to its hash",
-        form: `0x${fl} → ${len} bytes, at keccak(${tail(x.flag.slot)}) = ${
-          to ? tail(to) : "?"}`, badges: ["compiler", "hash"],
-        chip: `keccak(${tail(x.flag.slot)})`, chipLabel: "long",
-        regions: ds.flatMap((y) => [y.flag, y.data]) });
+      const slotsOf = Math.ceil(Number(len) / 32);
+      const who = entryPath(x.leaf) && keyName(find(current.tree,
+        entryPath(x.leaf))?.key ?? "0x0");
+      const what = entryPath(x.leaf) ? `${who}'s ${name(x.leaf)}`
+        : x.leaf.label;
+      const whatSlot = entryPath(x.leaf) ? `${who}'s ${name(x.leaf)} slot`
+        : `${x.leaf.label}'s slot`;
+      step({ phase: "long", var: top(x.leaf),
+        cap: `${what}, ${len} bytes, is too long for its slot`,
+        form: esc(`${whatSlot} ${tail(x.flag.slot)} holds 2 × ${len} + 1 = ` +
+          `0x${fl} (odd: long); the bytes are at keccak256(${tail(
+            x.flag.slot)}) = ${to ? tail(to) : "?"}${slotsOf > 1
+            ? `, ${slotsOf} slots` : ""}`),
+        constructs: ["if", "$read", "$keccak256"], source: "read from storage",
+        chip: `keccak(${tail(x.flag.slot)})`,
+        chipLabel: entryPath(x.leaf) ? "name" : "value",
+        regions: ds.flatMap((y) => [y.flag, y.data]), rows: [x.leaf.path] });
     }
   }
   return out;
 }
 
-// The highlight of a step: its slots' rows and its regions' bytes, in
-// the colours of the composite it is about
+// The spec pages, one per pointer construct (ethdebug/format)
+const SPEC = "https://ethdebug.github.io/format/spec/pointer/";
+const FOOT = {
+  pointer: ["A pointer is a region or a collection of pointers",
+    `${SPEC}concepts/#a-pointer-is-a-region-or-a-collection-of-other-pointers`],
+  $keccak256: ["Expressions: keccak256",
+    `${SPEC}expression/#keccak256-hashes`],
+  template: ["Pointer templates", `${SPEC}template/`],
+  group: ["Group (a collection of pointers)", `${SPEC}collection/group/`],
+  region: ["Storage regions: slot, offset, length",
+    `${SPEC}region/location/storage/`],
+  if: ["Conditional (if, then, else)", `${SPEC}collection/conditional/`],
+  list: ["List (a collection of pointers)", `${SPEC}collection/list/`],
+};
+// the one construct of a step that gets a footnote
+const footOf = (st) => st.constructs.find((c) => FOOT[c]);
+
+// The pointer panel: the selection's variable's pointer, and the
+// templates it uses, as YAML, as solc wrote them (the template names
+// shortened to their types' names). One line each, nothing wraps: leaf
+// regions and expressions in flow style. Each line keeps tags for what
+// it is part of, so a step can light the lines it uses.
+const isExpr = (v) => v && typeof v === "object" && !Array.isArray(v) &&
+  Object.keys(v).length === 1 && Object.keys(v)[0].startsWith("$");
+const isRegion = (v) => v && typeof v === "object" && "location" in v;
+const allScalar = (v) => v && typeof v === "object" && !Array.isArray(v) &&
+  Object.values(v).every((x) => typeof x !== "object");
+// (a region's keys in the spec's order: name, location, slot, offset,
+// length)
+const ORDER = ["name", "location", "slot", "offset", "length"];
+const entriesOf = (v) => isRegion(v) ? Object.entries(v).sort(([a], [b]) =>
+  (ORDER.indexOf(a) + 1 || 99) - (ORDER.indexOf(b) + 1 || 99))
+  : Object.entries(v);
+function flowOf(v, rename) {
+  if (typeof v === "string") return rename?.(v) ?? v;
+  if (typeof v !== "object") return String(v);
+  if (Array.isArray(v)) return `[${v.map((x) => flowOf(x, rename))
+    .join(", ")}]`;
+  return `{ ${entriesOf(v).map(([k, x]) => `${k}: ${flowOf(x,
+    k === "template" ? rename : null)}`).join(", ")} }`;
+}
+function pointerYaml(variable) {
+  const { pointers, types } = current.f.contract;
+  const v = current.f.contract.variables.find((x) => x.identifier ===
+    variable);
+  if (!v) return { lines: [], names: {} };
+  const names = {};
+  const short = (n) => {
+    if (!pointers[n]) return n;
+    return names[n] ??= types[n] ? typeName(types[n], types) : n;
+  };
+  const lines = [];
+  const put = (d, text, tags) => lines.push({ text: "  ".repeat(d) + text,
+    tags });
+  const todo = [];
+  // a mapping: `key: value`, in block style unless it is a leaf
+  const block = (o, d, tags) => {
+    for (const [k, x] of Object.entries(o)) {
+      const own = k === "define" ? [`define:${Object.keys(x)[0]}`]
+        : k === "if" ? ["if"] : k === "expect" ? ["expect"] : [];
+      if (k === "template") todo.push(x);
+      if (typeof x !== "object" || isExpr(x) || isRegion(x) ||
+        allScalar(x) || (Array.isArray(x) && x.every((y) =>
+          typeof y !== "object"))) {
+        put(d, `${k}: ${flowOf(x, k === "template" ? short : null)}`,
+          [...tags, ...own, ...(isRegion(x) ? [`region:${x.name}`] : [])]);
+      } else if (Array.isArray(x)) {
+        put(d, `${k}:`, [...tags, ...own]);
+        for (const y of x) item(y, d + 1, [...tags, ...own]);
+      } else {
+        const branch = k === "then" || k === "else" ? [k] : [];
+        put(d, `${k}:`, [...tags, ...own, ...branch]);
+        block(x, d + 1, [...tags, ...own, ...branch]);
+      }
+    }
+  };
+  // a list item
+  const item = (y, d, tags) => {
+    if (isRegion(y)) {
+      put(d, `- ${flowOf(y)}`, [...tags, `region:${y.name}`]);
+      return;
+    }
+    const at = lines.length;
+    block(y, d + 1, [...tags, "item"]);
+    lines[at].text = `${"  ".repeat(d)}- ${lines[at].text.trimStart()}`;
+  };
+  put(0, `${variable}:`, ["var"]);
+  block(v.pointer, 1, ["var"]);
+  // a mapping, array or string variable: its type's template, which
+  // decode.js applies to its pointer
+  if (!v.pointer.in && pointers[v.type.id]) todo.unshift(v.type.id);
+  const done = new Set();
+  while (todo.length) {
+    const n = todo.shift();
+    if (done.has(n) || !pointers[n]) continue;
+    done.add(n);
+    const kind = types[n]?.kind ?? "template";
+    put(0, "", []);
+    put(0, `${short(n)}:`, [`t:${kind}`, "head"]);
+    block(pointers[n], 1, [`t:${kind}`]);
+  }
+  return { lines, names };
+}
+
+// The lines a step uses: the part of the pointer it evaluates
+function activeLines(lines, st) {
+  const has = (l, ...ts) => ts.every((t) => l.tags.includes(t));
+  const pick = (f) => lines.map((l, i) => f(l) ? i : -1).filter((i) => i >= 0);
+  switch (st.phase) {
+    case "declared": return pick((l) => has(l, "var"));
+    case "entry": return pick((l) => has(l, "t:mapping") &&
+      l.tags.some((t) => t.startsWith("define:")) && !has(l, "item"));
+    case "others": return pick((l) => has(l, "t:mapping") && (has(l, "head") ||
+      has(l, "expect")));
+    case "item": return pick((l) => has(l, "t:array") && !l.tags.some((t) =>
+      t === "region:length"));
+    case "record": return pick((l) => has(l, "t:struct") && (has(l, "head") ||
+      has(l, "expect") || has(l, "item")));
+    case "fields": {
+      const names = new Set(st.rows.map((p) => `region:${p.split(".").pop()}`));
+      return pick((l) => has(l, "t:struct") && l.tags.some((t) =>
+        names.has(t)));
+    }
+    case "short": return pick((l) => has(l, "t:string") && (has(l,
+      "region:length-flag") || has(l, "if") || has(l, "then")));
+    case "long": return pick((l) => has(l, "t:string") && (has(l, "if") ||
+      has(l, "else")));
+    default: return [];
+  }
+}
+
+// The highlighted YAML of a variable's pointer, once the colouring has
+// loaded (index.html window.loading.shiki), by variable
+const yamlHtml = {};
+function colourYaml(variable, text) {
+  if (yamlHtml[variable] !== undefined) return yamlHtml[variable];
+  yamlHtml[variable] = null;
+  window.loading.shiki?.().then((hl) => {
+    if (!hl) return;
+    const t = document.createElement("template");
+    t.innerHTML = hl.codeToHtml(text, { lang: "yaml",
+      themes: { light: "github-light", dark: "github-dark" },
+      defaultColor: false });
+    yamlHtml[variable] = [...t.content.querySelectorAll(".line")]
+      .map((l) => l.innerHTML);
+    if (chosen && chosen.split(/[.[]/)[0] === variable) renderBox();
+  });
+  return null;
+}
+
+// The highlight of a step: its slots' rows and its regions' bytes, its
+// tree rows, in the colours of what it is about
 function stepLight(st) {
   const h = forStep(current.panel, replay.side, st);
+  h.rows = new Set(st.rows);
   if (st.colorsOf) h.colors = forRow(current.panel, st.colorsOf).colors;
+  // a record's slots in its entry's one colour (fields come later)
+  if (st.oneColor) {
+    const c = forRow(current.panel, st.oneColor);
+    const at = replay.steps.find((x) => x.colorsOf)?.colorsOf;
+    const k = at ? forRow(current.panel, at).colors?.get(st.oneColor) : 1;
+    h.colors = new Map([...c.rows].map((r) => [r, k ?? 1]));
+  }
+  // fields in colours of their own: after every entry colour
+  if (st.fieldsOf) {
+    const entries = forRow(current.panel, st.var).colors;
+    const used = new Set(entries ? [...entries.values()] : []);
+    const f = forRow(current.panel, st.fieldsOf).colors;
+    const free = [...Array(PICKS).keys()].slice(1).filter((k) => !used.has(k));
+    h.colors = new Map([...(f ?? [])].map(([p, k]) => [p, k
+      ? free[(k - 1) % free.length] : 0]));
+    h.ruler = st.ruler;
+  }
+  // the list item a key comes from, in the key's tint
+  if (st.keyItem) {
+    h.colors = new Map([...(h.colors ?? []), [st.keyItem, "src"]]);
+  }
   // the slots the steps so far have derived keep their labels
   h.known = new Set();
   for (const x of replay.steps.slice(0, replay.i + 1)) {
@@ -513,26 +767,62 @@ function stepLight(st) {
   return h;
 }
 
+// The short caption of a step, for the bar over the dump
+function shortCap(st) {
+  switch (st.phase) {
+    case "declared": return `${st.var}'s own slot`;
+    case "entry": return "the hash of the first key";
+    case "others": return "the same for every key";
+    case "item": return "the items, from a hash";
+    case "record": return "a record's slots";
+    case "fields": return st.rows.length > 1 ? "packed fields" : "its field";
+    case "short": return "a short string";
+    case "long": return "a long string";
+    default: return st.cap;
+  }
+}
+
+// The bar over the dump (one line: the selection, the controls, the
+// step's short caption) and the panel stuck to the bottom of the dump's
+// column (the step in full, the colours, the chips, the pointer, the
+// footnotes). Both keep their size at all times: nothing moves when a
+// value is selected, pointed at or replayed.
 function renderBox() {
-  const box = $("details");
+  const bar = $("details");
+  const text = $("dtext");
   const node = chosen && find(current.tree, chosen);
   if (!node) {
+    // (the same room, idle)
+    bar.innerHTML = `<span class="rsel muted">Select a value to see how ` +
+      "it was found.</span>";
     $("chips").innerHTML = "";
+    $("ptr").innerHTML = `<p class="plabel">The pointer solc wrote</p>` +
+      `<p class="muted small">Select a value to see the part of solc's ` +
+      "ethdebug pointer that finds it.</p>";
     return;
   }
   const { types } = current.f.contract;
   const t = types[node.typeId];
   const v = node[mode];
   const side = current.single ? "" : ` <span class="muted">(${mode})</span>`;
-  const title = `<p class="rtitle"><code>${esc(shortKeys(chosen))}</code>` +
+  const parts = node.children?.length ?? 0;
+  const sel = `<span class="rsel"><code>${esc(shortKeys(chosen))}</code>` +
     `${t ? ` <span class="type">${esc(typeName(t, types))}</span>` : ""}${
       v ? ` = <b>${esc(v.text)}</b>` : node.children
-        ? ` <span class="muted">${node.children.length} parts</span>` : ""
-    }${side}</p>`;
+        ? ` <span class="muted">${parts} ${parts === 1 ? "part" : "parts"
+        }</span>` : ""}${side}</span>`;
   const steps = replay ? replay.steps : replaySteps(chosen, mode);
-  const badge = (b) => `<span class="badge">${esc(b)}</span>`;
+  // footnote numbers: by first use in this replay
+  const notes = [];
+  for (const st of steps) {
+    const c = footOf(st);
+    if (c && !notes.includes(c)) notes.push(c);
+  }
+  const sup = (c) => `<sup class="fn">${notes.indexOf(c) + 1}</sup>`;
+  const h = forRow(current.panel, chosen);
   let ctl;
-  let cur;
+  let short = "";
+  let full;
   if (replay) {
     const { i } = replay;
     const st = steps[i];
@@ -543,34 +833,74 @@ function renderBox() {
       `<button type="button" class="btn" data-r="end" aria-label=` +
       `"Jump to the resolved value">⏭</button>` +
       `<span class="rcount">${i + 1} / ${steps.length}</span>`;
-    cur = `<span class="rlabel">${esc(st.cap)}</span> <code class=` +
-      `"rform">${esc(st.form)}</code> ${st.badges.map(badge).join(" ")}`;
+    short = esc(shortCap(st));
+    const fc = footOf(st);
+    full = `<p class="rcap">${esc(st.cap)}</p>` +
+      `<p class="rform">${st.form}</p>` +
+      `<p class="rsrc">${st.constructs.map((c) => `<code class="badge">${
+        esc(c)}${c === fc ? sup(c) : ""}</code>`).join(" ")} <span class=` +
+      `"source${st.sourceTint ? " pksrc" : ""}">${esc(st.source)}</span></p>`;
   } else {
-    const h = forRow(current.panel, chosen);
     const where = h.info.find(([k]) => k === "Where" || k ===
       "Where after")?.[1] ?? "";
     const other = !current.single && v && node[mode === "before" ? "after"
       : "before"];
     ctl = `<button type="button" class="btn" data-r="start">${
       replay === false ? "Replay ▸" : "How was this found? ▸"}</button>`;
-    cur = v ? `<span class="rform rwhere">${where}</span>${other &&
+    full = v ? `<p class="rcap rwhere">${where}${other &&
       other.text !== v.text ? ` <span class="muted">(${mode === "after"
-        ? "before" : "after"}: ${esc(other.text)})</span>` : ""}`
-      : `<span class="rform rwhere">${node[mode] === undefined &&
+        ? "before" : "after"}: ${esc(other.text)})</span>` : ""}</p>`
+      : `<p class="rcap rwhere">${node[mode] === undefined &&
         !node.children ? esc(missing(node, mode))
-        : `${node.children?.length ?? 0} parts, lit in their colours`}</span>`;
+        : `${parts} ${parts === 1 ? "part" : "parts"}`}</p>`;
   }
-  box.innerHTML = title + `<div class="rbody"><div class="rctl">${ctl}` +
-    `</div><div class="rcur">${cur}</div></div>` +
-    (replay ? "" : vyperRule(node, mode));
+  bar.innerHTML = sel + `<span class="rctl">${ctl}</span>` +
+    `<span class="rshort">${short}</span>`;
+  // the footnote of this step; at rest, all of them, and what the steps
+  // are
+  const fnote = (c) => `<span class="fnote"><sup>${notes.indexOf(c) + 1
+    }</sup> <a href="${esc(FOOT[c][1])}" target="_blank" rel="noopener">${
+    esc(FOOT[c][0])}</a></span>`;
+  text.innerHTML = full + `<p class="fnotes">${(replay
+    ? [footOf(steps[replay.i])].filter(Boolean) : notes).map(fnote)
+    .join(" ")}${replay ? "" : ` <span class="muted">Each step is one ` +
+      `part of the pointer solc wrote for ${esc(chosen.split(/[.[]/)[0])
+      }.</span>`}</p>`;
   // the chips: one per step, done, current or later; all done at rest
   const at = replay ? replay.i : steps.length;
   $("chips").innerHTML = steps.map((st, k) => `<button type="button"` +
     ` class="chip ${k < at ? "done" : k === at ? "cur" : "later"}"` +
-    ` data-k="${k}" aria-label="${esc(`Step ${k + 1}: ${st.cap}, ${
-      st.form}`)}"><span class="ctext">${esc(st.chip)}</span>` +
+    ` data-k="${k}" aria-label="${esc(`Step ${k + 1}: ${st.cap}`)}">` +
+    `<span class="ctext">${esc(st.chip)}</span>` +
     `<span class="clabel">${esc(st.chipLabel)}</span></button>`)
     .join('<span class="carrow" aria-hidden="true">→</span>');
+  // the current chip, scrolled into the chips' view (they scroll inside)
+  const cur = $("chips").querySelector(".chip.cur");
+  $("chips").scrollTop = cur ? Math.max(0, cur.offsetTop -
+    $("chips").offsetTop - 4) : 0;
+  // the pointer: the variable's pointer and its templates, as YAML;
+  // during a replay, the lines the step uses are lit and the rest muted
+  const variable = chosen.split(/[.[]/)[0];
+  const { lines, names } = pointerYaml(variable);
+  const yamlText = lines.map((l) => l.text).join("\n");
+  const html = colourYaml(variable, yamlText);
+  const lit = replay ? new Set(activeLines(lines, steps[replay.i])) : null;
+  const fc = replay && footOf(steps[replay.i]);
+  const ids = Object.entries(names).map(([id, n]) => `${n} = ${id}`);
+  $("ptr").classList.toggle("lit", !!lit?.size);
+  $("ptr").innerHTML = `<p class="plabel">The pointer solc wrote${fc
+    ? ` ${sup(fc)}` : ""}</p>` +
+    (replay ? "" : vyperRule(node, mode)) +
+    `<pre class="ptrlines"><code>${lines.map((l, k) => `<span class="line${
+      lit?.has(k) ? " on" : ""}">${html?.[k] ?? esc(l.text)}</span>`)
+      .join("\n")}</code></pre>` +
+    (ids.length ? `<p class="muted small pids">Template names shortened; ` +
+      `solc's ids: ${ids.map((x) => `<code>${esc(x)}</code>`).join(", ")}</p>`
+      : "");
+  // the lines a step uses, scrolled into the panel's view (it scrolls
+  // inside itself; nothing else moves)
+  const first = $("ptr").querySelector(".line.on");
+  $("ptr").scrollTop = first ? Math.max(0, first.offsetTop - 30) : 0;
 }
 
 // Start, step or leave the replay. Past the last step: the resolved view.
@@ -687,11 +1017,17 @@ function show() {
     r.setAttribute("aria-pressed", String(on));
   }
   // with a value selected, the box is its own (renderBox)
-  if (!chosen) $("details").innerHTML = details(h, PROBE);
+  if (!chosen) $("dtext").innerHTML = details(h, PROBE);
+  // a step's field names, in their fields' colours
+  for (const f of $("dtext").querySelectorAll(".fname")) {
+    const k = h?.colors?.get(f.dataset.path);
+    f.className = `fname${k ? ` pk${k}` : ""}`;
+  }
   // the locked state: what the view is on, and the way out
-  $("viewing").hidden = !chosen;
+  // (it keeps its room: nothing moves when a value is selected)
+  $("viewing").style.visibility = chosen ? "visible" : "hidden";
   $("viewing").textContent = chosen
-    ? `viewing ${shortKeys(chosen)} · Esc to clear` : "";
+    ? `viewing ${shortKeys(chosen)} · Esc to clear` : "\u00a0";
 }
 
 // While a value is lit, a card by its tree row gives its value in the
@@ -744,10 +1080,8 @@ function choose(path, anchor, quiet) {
     renderBox();
     show();
   });
+  // (no scrolling: nothing moves when a value is selected)
   keep();
-  if (!path || quiet) return;
-  $("tree").querySelector(`li[data-path="${CSS.escape(path)}"] > .row`)
-    ?.scrollIntoView({ block: "nearest" });
 }
 
 // The tree row that owns a byte, if any
@@ -766,7 +1100,7 @@ function target(el) {
   if (cell) return forBytes(m, cell);
   const addr = el.closest("#panel .wrow[data-slot] .addr");
   if (addr) return forSlot(m, addr.parentElement.dataset.slot);
-  const step = el.closest("#details li[data-region]");
+  const step = el.closest("#ptr li[data-region]");
   if (step) {
     const r = JSON.parse(step.dataset.region);
     return forRegion(m, r, step.dataset.side, r.name);
