@@ -1349,10 +1349,22 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
     if (!(await page.locator("#chow").textContent()).includes(
       "not by ethdebug")) problems.push("calldata: no why-not");
     await page.locator("h1").hover();
-    await scene("alice");
-    if (!(await page.evaluate(() =>
-      document.querySelector("#calldata").hidden))) {
-      problems.push("calldata shown in another scene");
+    // next to the storage dump: in its column, right under it
+    const place = await page.evaluate(() => {
+      const r = (q) => document.querySelector(q).getBoundingClientRect();
+      const [c, p, d] = [r("#calldata"), r("#panel"), r("#details")];
+      return { left: Math.abs(c.left - p.left) < 2,
+        under: c.top >= d.bottom - 1 && c.top - d.bottom < 60,
+        shown: c.height > 100 };
+    });
+    if (!place.left || !place.under || !place.shown) {
+      problems.push(`calldata place: ${JSON.stringify(place)}`);
+    }
+    for (const id of Object.keys(expected).filter((x) => x !== "motd")) {
+      await scene(id);
+      if (await page.locator("#calldata").isVisible()) {
+        problems.push(`calldata shown in ${id}`);
+      }
     }
   }
 

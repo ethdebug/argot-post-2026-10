@@ -13,6 +13,13 @@ const esc = (s) =>
     ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
 const at = (n) => `0x${n.toString(16).padStart(4, "0")}`;
 
+// The layout of the calldata: its parts, each with a byte range
+// (`from`, `to`) and a value. Today it comes from the ABI encoding
+// (calldataParts, below); when the compiler gives a pointer for the
+// parameter, a layout made from the regions the pointer library returns
+// takes its place (showCalldata's `layout`), and the rest of this file
+// stays as it is.
+//
 // The parts of f(string m)'s calldata, by the ABI encoding: the
 // selector; m's head word, which holds the offset of m's data from byte
 // 4; at that offset, m's length; then m's bytes, padded with zeros to a
@@ -99,7 +106,7 @@ function render() {
   const step = (p, k, html) => `<li data-part="${p.id}" tabindex="0">` +
     `<span class="k">${k}</span><div class="c">${html}</div></li>`;
   $("chow").innerHTML = `<p class="howside">By the ABI encoding of
-    <code>${esc(cd.signature)}</code>, not by ethdebug (see above).</p>
+    <code>${esc(cd.signature)}</code>, not by ethdebug.</p>
     <ol class="steps">${[
     step(sel, "Selector", `bytes 0–3: <b>${esc(sel.value)}</b>, the first
       4 bytes of keccak256("${esc(cd.signature)}")`),
@@ -163,10 +170,11 @@ function partOf(el) {
 // Show the calldata of a transaction, or hide the section (null).
 // `signature`: the function's, e.g. "setMotto(string)"; `param`: the
 // string parameter's name.
-export function showCalldata(input, { signature, param } = {}) {
+export function showCalldata(input,
+  { signature, param, layout = calldataParts } = {}) {
   $("calldata").hidden = !input;
   if (!input) return;
-  cd = { ...calldataParts(input, param), signature };
+  cd = { ...layout(input, param), signature };
   hover = null;
   chosen = null;
   render();

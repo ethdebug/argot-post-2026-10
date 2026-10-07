@@ -258,6 +258,28 @@ contract Arcade {
         <div id="panel" class="panel"></div>
       </div>
       <div id="details" class="details" aria-live="polite"></div>
+      <!-- the calldata of the scene's call (the message of the day only),
+      next to the storage dump -->
+      <section id="calldata" class="calldata" aria-labelledby="cd-h" hidden>
+        <h2 class="label" id="cd-h">The calldata of setMotd</h2>
+        <p class="muted small lede"><code>text</code> is a <code>string
+        calldata</code> parameter: its bytes stay in the transaction's
+        input. solc's ethdebug output here gives no pointer for
+        <code>text</code> (its instructions carry source ranges only, and
+        its resources have no calldata types or templates), so the labels
+        below come from the ABI encoding rules, which the page applies
+        itself; nothing here comes from @ethdebug/pointers. Click a byte
+        to find its part of <code>text</code>, or a part to find its
+        bytes.</p>
+        <div class="dump"><div id="cpanel" class="panel"></div></div>
+        <div id="cdetails" class="details" aria-live="polite"></div>
+        <div class="cparts">
+          <div><h3 class="label">Parameters</h3>
+            <div id="ctree" class="tree"></div></div>
+          <div><h3 class="label" id="chow-h">How this was found</h3>
+            <div id="chow" class="how"></div></div>
+        </div>
+      </section>
     </section>
 
     <section aria-label="Source" class="source">
@@ -267,36 +289,6 @@ contract Arcade {
       <pre id="src" class="src"></pre>
     </section>
   </div>
-
-  <section id="calldata" class="calldata" aria-labelledby="cd-h" hidden>
-    <h2 class="label" id="cd-h">The calldata of setMotd</h2>
-    <p class="lede"><code>text</code> is a <code>string calldata</code>
-    parameter: its bytes stay in the transaction's input. solc's ethdebug
-    output here gives no pointer for <code>text</code>: its instructions
-    carry source ranges only, and its resources have no calldata types or
-    templates. So the page cannot ask ethdebug where <code>text</code> is.
-    The labels below come from the ABI encoding rules, which the page
-    applies itself; nothing in this part comes from @ethdebug/pointers.
-    Click a byte to find its part of <code>text</code>, or a part to find
-    its bytes.</p>
-    <div class="cols">
-      <section aria-label="Parameters" class="storage">
-        <h2 class="label">Parameters</h2>
-        <div id="ctree" class="tree"></div>
-      </section>
-      <section aria-labelledby="chow-h" class="howbox">
-        <h2 class="label" id="chow-h">How this was found</h2>
-        <div id="chow" class="how"></div>
-      </section>
-      <section aria-labelledby="cwords-h" class="words">
-        <h2 class="label" id="cwords-h">The bytes of the calldata</h2>
-        <p class="muted small intro">The transaction's input: the
-        4-byte selector, then 32-byte words, by offset.</p>
-        <div class="dump"><div id="cpanel" class="panel"></div></div>
-        <div id="cdetails" class="details" aria-live="polite"></div>
-      </section>
-    </div>
-  </section>
 
   <section class="notes" aria-label="Notes">
     <h2>What is not done yet</h2>

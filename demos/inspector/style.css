@@ -796,7 +796,13 @@ main[data-single] > .cols :is(.chglegend, .legend .bchg, .intro .two) {
 }
 .srcbox > .src { border: none; border-top: 1px solid var(--line);
   border-radius: 0 0 6px 6px; }
-.calldata { margin-top: 24px; }
+.calldata { margin-top: 20px; }
+.calldata .lede { margin: 0 0 8px; }
+.cparts { display: grid; gap: 0 20px; margin-top: 10px;
+  grid-template-columns: minmax(0, 1fr); }
+@media (min-width: 760px) {
+  .cparts { grid-template-columns: minmax(0, 2fr) minmax(0, 3fr); }
+}
 
 /* A composite's children, each in its own colour when it is lit (pk1 …;
    the first colour is --mark). The same child has the same colour in
