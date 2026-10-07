@@ -236,7 +236,26 @@ function treeTo(path) {
     tree.scrollTop += r.top - b.top - (b.height - r.height) / 2;
   }
 }
-addEventListener("resize", () => current && alignColumns());
+// Each dump's font: the largest at which its row fits the box (CSS,
+// .views); a row's width in em, in this font, measured once for each
+// layout (32 bytes a line, or 16 on a narrow box)
+function fitDumps() {
+  for (const d of document.querySelectorAll(".dump")) {
+    const row = d.querySelector(".view:not([hidden]) .rows > .wrow");
+    if (!row || !d.clientWidth) continue;
+    const key = d.clientWidth < 560 ? "--k16" : "--k32";
+    if (d.style.getPropertyValue(key)) continue;
+    const fs = parseFloat(getComputedStyle(row).fontSize);
+    const w = row.querySelector(".word").getBoundingClientRect().right -
+      row.getBoundingClientRect().left;
+    d.style.setProperty(key, (w / fs).toFixed(4));
+  }
+}
+window.fitDumps = fitDumps;
+addEventListener("resize", () => {
+  fitDumps();
+  if (current) alignColumns();
+});
 document.addEventListener("scroll", (e) => {
   if (e.target.id === "tree") edges();
 }, true);
@@ -248,8 +267,10 @@ function render() {
   $("summary").textContent = scene.summary;
   showScene(scene);
   showCalldata(scene.calldata ? f.tx.input : null, scene.calldata);
+  fitDumps();
   renderTree();
   $("panel").innerHTML = renderPanel(current.panel);
+  fitDumps();
   hover = null;
   chosen = null;
   applyMode();

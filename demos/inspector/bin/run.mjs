@@ -1966,6 +1966,36 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
     });
     await page.evaluate((x) => window.select("mid", { sel: x }), `${B}.plays`);
   }
+  // each dump's row fills its box (within 2%), not wrapping: 32 bytes a
+  // line at 1280, 1440 and 1920 wide (16 on a phone: below)
+  const fill = (pg) => pg.evaluate(() => [...document.querySelectorAll(
+    ".dump")].filter((d) => d.clientWidth && d.querySelector(
+    ".view:not([hidden]) .rows > .wrow")).map((d) => {
+    const row = d.querySelector(".view:not([hidden]) .rows > .wrow");
+    const rows = row.closest(".rows");
+    const cs = getComputedStyle(rows);
+    const used = row.querySelector(".word").getBoundingClientRect().right +
+      parseFloat(cs.paddingRight) + parseFloat(cs.borderRightWidth) -
+      rows.getBoundingClientRect().left;
+    const word = row.querySelector(".word").getBoundingClientRect();
+    return { id: d.firstElementChild.id, r: used / d.clientWidth,
+      lines: Math.round(word.height / parseFloat(getComputedStyle(
+        row.querySelector(".bytes")).lineHeight)) };
+  }));
+  {
+    const bad = [];
+    for (const w of [1280, 1440, 1920]) {
+      await page.setViewportSize({ width: w, height: 900 });
+      await page.waitForTimeout(100);
+      for (const x of await fill(page)) {
+        if (x.r < 0.98 || x.r > 1.001 || x.lines !== 1) {
+          bad.push(`${w} ${x.id} ${x.r.toFixed(3)} ${x.lines}`);
+        }
+      }
+    }
+    await page.setViewportSize({ width: 1280, height: 900 });
+    if (bad.length) problems.push(`dump fit: ${bad}`);
+  }
   // while it replays, pointing elsewhere changes nothing
   await page.locator('#details button[data-r="start"]').click();
   await page.mouse.move(1, 1);
@@ -3303,6 +3333,12 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
     problems.push("phone: no replay button");
   }
   await still(pp, "390");
+  // (16 bytes a line, filling the box)
+  {
+    const bad = (await fill(pp)).filter((x) => x.r < 0.98 || x.r > 1.001 ||
+      x.lines !== 2);
+    if (bad.length) problems.push(`phone dump fit: ${JSON.stringify(bad)}`);
+  }
   // (as on the desktop: the lit rows fit, the panel's parts keep to
   // their room)
   await fitsInView(pp, "390 view");

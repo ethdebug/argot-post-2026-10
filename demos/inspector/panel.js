@@ -800,8 +800,8 @@ function fit(el, rows) {
   const row = rows[0].getBoundingClientRect();
   const photo = el.querySelector(".cmp-photo");
   photo.style.width = `${row.width}px`;
-  // 6px of room left of the addresses (CSS), a little less on the right
-  el.querySelector(".cmp-frame").style.width = `${row.width + 3}px`;
+  // 6px of room left of the addresses (CSS), 3px right of the bytes
+  el.querySelector(".cmp-frame").style.width = `${row.width + 9}px`;
   el.style.left = "0px";
 }
 
