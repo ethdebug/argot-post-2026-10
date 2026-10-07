@@ -797,3 +797,50 @@ main[data-single] > .cols :is(.chglegend, .legend .bchg, .intro .two) {
 .srcbox > .src { border: none; border-top: 1px solid var(--line);
   border-radius: 0 0 6px 6px; }
 .calldata { margin-top: 24px; }
+
+/* A composite's children, each in its own colour when it is lit (pk1 …;
+   the first colour is --mark). The same child has the same colour in
+   the tree and the dump; the lit cues (the line over lit bytes, the
+   lit row) stay as they are. */
+:root {
+  --pk1: #b9d8ff; --pk1-fg: #0b3a75;
+  --pk2: #bfe8c4; --pk2-fg: #14532d;
+  --pk3: #ffc7dd; --pk3-fg: #6b1238;
+  --pk4: #d9c8ff; --pk4-fg: #3b1f7a;
+  --pk5: #a8e6e0; --pk5-fg: #0f4f4a;
+  --pk6: #ffcf9e; --pk6-fg: #6a3300;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --pk1: #1f4a80; --pk1-fg: #cfe3ff;
+    --pk2: #1e5a2c; --pk2-fg: #c8f0cf;
+    --pk3: #74224a; --pk3-fg: #ffd3e6;
+    --pk4: #4b3586; --pk4-fg: #e2d6ff;
+    --pk5: #145a55; --pk5-fg: #c4f3ee;
+    --pk6: #7a4310; --pk6-fg: #ffd9b3;
+  }
+}
+:root[data-theme="dark"] {
+  --pk1: #1f4a80; --pk1-fg: #cfe3ff;
+  --pk2: #1e5a2c; --pk2-fg: #c8f0cf;
+  --pk3: #74224a; --pk3-fg: #ffd3e6;
+  --pk4: #4b3586; --pk4-fg: #e2d6ff;
+  --pk5: #145a55; --pk5-fg: #c4f3ee;
+  --pk6: #7a4310; --pk6-fg: #ffd9b3;
+}
+.pk1 { --pk: var(--pk1); --pk-fg: var(--pk1-fg); }
+.pk2 { --pk: var(--pk2); --pk-fg: var(--pk2-fg); }
+.pk3 { --pk: var(--pk3); --pk-fg: var(--pk3-fg); }
+.pk4 { --pk: var(--pk4); --pk-fg: var(--pk4-fg); }
+.pk5 { --pk: var(--pk5); --pk-fg: var(--pk5-fg); }
+.pk6 { --pk: var(--pk6); --pk-fg: var(--pk6-fg); }
+.b.hl:is(.pk1, .pk2, .pk3, .pk4, .pk5, .pk6) {
+  background: var(--pk); color: var(--pk-fg); }
+.row.hl:is(.pk1, .pk2, .pk3, .pk4, .pk5, .pk6) {
+  background: var(--pk); color: var(--pk-fg);
+  box-shadow: -4px 0 0 var(--pk), 4px 0 0 var(--pk); }
+.row.hl.sel:is(.pk1, .pk2, .pk3, .pk4, .pk5, .pk6) {
+  box-shadow: -4px 0 0 var(--pk), 4px 0 0 var(--pk),
+    -7px 0 0 var(--accent); }
+.row.hl:is(.pk1, .pk2, .pk3, .pk4, .pk5, .pk6) :is(.type, .val) {
+  color: inherit; }

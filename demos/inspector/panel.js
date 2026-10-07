@@ -495,7 +495,31 @@ export function forRow(m, path) {
   const info = own ? ownerInfo(m, own)
     : [["Value", `${code(shortKeys(path))}, ${below}`]];
   return { bytes: ownerBytes(m, ids, new Set()), rows: new Set(ids.map(
-    (id) => m.owners.get(id).row)), label, info, path };
+    (id) => m.owners.get(id).row)), label, info, path,
+    colors: childColors(m, path, ids) };
+}
+
+// The colours of a composite's immediate children: each child (a
+// mapping's entry, an array's element, a struct's member) gets one of
+// PICKS colours, in tree order, cycling; everything under a child takes
+// its colour. The composite's own bytes (an array's length, a string's
+// length byte) keep the first colour, and then the children start at the
+// second. A leaf has no children: none (one colour, as before).
+// Returns Map(tree path -> colour) or null.
+const PICKS = 7;
+function childColors(m, path, ids) {
+  const child = (row) => row.slice(path.length)
+    .match(/^(\.[^.[]+|\[[^\]]*\])/)?.[0];
+  const rows = ids.map((id) => m.owners.get(id).row);
+  const kids = [...new Set(rows.map(child).filter(Boolean))];
+  if (!kids.length) return null;
+  const start = rows.some((r) => r === path) ? 1 : 0;
+  const colors = new Map();
+  for (const r of rows) {
+    const c = child(r);
+    colors.set(r, c ? (start + kids.indexOf(c)) % PICKS : 0);
+  }
+  return colors;
 }
 
 // A run of bytes in one word, and the same positions in the other view
@@ -761,6 +785,12 @@ export function locked(h, sel) {
   return mine ? { ...sel, label: h.label, info: h.info } : null;
 }
 
+// A lit byte's or row's colour, from a composite's children (pk1 …):
+// the first colour is the plain highlight, with no class
+const pick = (el, k) => {
+  for (let j = 1; j < PICKS; j++) el.classList.toggle(`pk${j}`, k === j);
+};
+
 // Draw a highlight (or none) on the dumps and the tree. `names` names
 // the two sides, as the compare blocks label them.
 export function paint(root, tree, h, opts = {}) {
@@ -777,6 +807,9 @@ export function paint(root, tree, h, opts = {}) {
       const hl = !!h && h.bytes.has(key(side, s, i));
       const isAt = !!at && i >= at.from && i <= at.to;
       c.classList.toggle("hl", hl);
+      pick(c, hl && h.colors && (c.dataset.owners ?? "").split("|")
+        .map((id) => h.colors.get(id.replace(/#length$/, "")))
+        .find((k) => k !== undefined));
       c.classList.toggle("at", isAt);
       on ||= hl || isAt;
     }
@@ -798,8 +831,9 @@ export function paint(root, tree, h, opts = {}) {
   root.classList.toggle("active", !!h);
   tree.classList.toggle("active", !!h);
   for (const r of tree.querySelectorAll("li[data-path]")) {
-    r.firstElementChild.classList.toggle("hl",
-      !!h && h.rows.has(r.dataset.path));
+    const on = !!h && h.rows.has(r.dataset.path);
+    r.firstElementChild.classList.toggle("hl", on);
+    pick(r.firstElementChild, on && h.colors?.get(r.dataset.path));
   }
   const views = [...root.querySelectorAll(".view")].filter((v) => !v.hidden);
   // the other state's picture beside each lit run, in every mode
