@@ -898,34 +898,54 @@ main[data-single] > .cols :is(.chglegend, .legend .bchg, .intro .two) {
 /* the bar: one line, at one height, always, stuck to the top of the
    window: the selection in a fixed-width spot, then the controls, then
    the short caption, which is cut at its end if it must be */
-.rbar { display: grid; align-items: center; gap: 12px; height: 2.6em;
+.rbar { display: grid; align-items: center; gap: 10px; height: 2.6em;
+  line-height: 1.2;
   box-sizing: border-box; padding: 0 10px; margin: 0 0 10px;
-  grid-template-columns: minmax(0, 40ch) 15em minmax(0, 1fr);
+  grid-template-columns: 4.6em minmax(0, 34ch) 15em 3.6em minmax(0, 1fr)
+    6em;
   background: var(--panel); border: 1px solid var(--line);
   border-left: 3px solid var(--accent); border-radius: 6px;
   white-space: nowrap; position: sticky; top: 0; z-index: 9; }
-.rbar > * { overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+/* (each slot as tall as the bar, whatever it holds) */
+.rbar > * { overflow: hidden; text-overflow: ellipsis; min-width: 0;
+  align-self: stretch; }
+.rbar > :is(.rmode, .rsel, .rcount, .rshort) { line-height: 2.45; }
+.rbar > :is(.rctl, .rexit) { display: flex; align-items: center; }
 .rbar .rctl { display: flex; align-items: center; gap: 4px;
   overflow: visible; }
 .rbar .rctl .btn { padding: 1px 10px; }
 .rshort { font-weight: 600; }
+/* a replay: the whole bar tinted, "Replay" at its start */
+.rbar.replaying { background: color-mix(in srgb, var(--accent) 10%,
+  var(--panel)); }
+.rmode { font-size: 0.72rem; font-weight: 700; text-transform: uppercase;
+  letter-spacing: 0.06em; color: var(--accent); }
+.rbar .rcount { margin: 0; text-align: right; }
+.rbar .rexit { display: flex; justify-content: flex-end; overflow: visible; }
+.rbar .rstart { width: 100%; padding: 1px 6px; overflow: hidden;
+  text-overflow: ellipsis; }
 @media (max-width: 759px) {
-  /* (the selection and the controls; the caption is in the sheet) */
-  .rbar { grid-template-columns: minmax(0, 1fr) 11.5em; height: 2.6em; }
+  /* (the selection, the controls, the count, Exit; the caption is in
+     the sheet) */
+  .rbar { grid-template-columns: 0 minmax(0, 1fr) 9.6em 2.6em 4.4em;
+    gap: 4px; padding: 0 6px; height: 2.6em; }
+  .rbar .rmode { visibility: hidden; }
   .rbar .rshort { display: none; }
   .rbar .rsel .type, .rbar .rsel .muted { display: none; }
+  .rbar .rctl .btn { padding: 1px 6px; }
+  .rbar .rexit .btn { padding: 1px 4px; font-size: 0.8rem; }
+  .rbar .rstart { font-size: 0.8rem; }
 }
-/* a row under both columns, in the page, at one size: the step (its
-   caption, formula, constructs, footnote; then the chips, one row) and
-   the pointer. Each part has its own fixed room. */
+/* under the bar, stuck under it, during a replay only, at one size:
+   the step (its caption, formula, constructs, footnote; then the chips,
+   one row) and the pointer. Each part has its own fixed room. */
 .dpanel { display: grid; gap: 14px; grid-template-columns: minmax(0, 1fr)
   minmax(0, 1fr); height: 15.5em; box-sizing: border-box;
-  margin: 14px 0 0; padding: 8px 12px; background: var(--panel);
+  margin: -6px 0 10px; padding: 8px 12px; background: var(--panel);
   border: 1px solid var(--line); border-left: 3px solid var(--accent);
-  border-radius: 6px; }
-@media (min-width: 1100px) {
-  .scols .dpanel { grid-column: 1 / -1; grid-row: 3; }
-}
+  border-radius: 6px; position: sticky; top: 2.6em; z-index: 8;
+  box-shadow: 0 4px 12px rgb(0 0 0 / 0.08); }
+.dpanel[hidden] { display: none; }
 .dleft { display: grid; grid-template-rows: auto 3.4em; min-height: 0;
   gap: 6px; }
 .dtext { min-height: 0; overflow: hidden; }
@@ -944,9 +964,15 @@ main[data-single] > .cols :is(.chglegend, .legend .bchg, .intro .two) {
     #000 calc(100% - 0.9em), transparent 100%); }
 #ptr code { background: none; padding: 0; border: 0; font-size: inherit; }
 .ptrlines { margin: 0; padding: 0.6em 0; font-size: 0.72rem;
+  display: block;
   line-height: 1.5; white-space: pre; width: max-content; min-width: 100%; }
-.ptrlines .line { display: inline-block; min-width: 100%;
-  border-radius: 2px; background: none; }
+.ptrlines .line { display: block; min-width: 100%; box-sizing: border-box;
+  padding: 0 0.6em 0 0.9em; background: none; }
+.ptrlines .line:empty::before { content: " "; }
+.ptrlines .line.on-top { border-top-left-radius: 4px;
+  border-top-right-radius: 4px; }
+.ptrlines .line.on-end { border-bottom-left-radius: 4px;
+  border-bottom-right-radius: 4px; }
 .ptrscroll.lit .ptrlines .line:not(.on) { opacity: 0.4; }
 /* the one band: the step's lines, with a rule at their left */
 .ptrlines .line.on { background: color-mix(in srgb, var(--mark) 55%,
@@ -959,16 +985,12 @@ main[data-single] > .cols :is(.chglegend, .legend .bchg, .intro .two) {
 @media (prefers-color-scheme: dark) {
   #ptr .ptrlines span { color: var(--shiki-dark, inherit); }
 }
-/* on a phone: a small sheet fixed to the bottom of the screen (the
-   step's caption and formula, a few lines of the pointer; the rest
-   scrolls inside it); the page has room under its end for it */
+/* on a phone: the same, compact (the step's caption and formula, a
+   few lines of the pointer; the rest scrolls inside it) */
 @media (max-width: 759px) {
   .dpanel { grid-template-columns: minmax(0, 1fr);
     grid-template-rows: auto 5.4em; height: 14.5em; gap: 4px;
-    position: fixed; left: 8px; right: 8px; bottom: 0; margin: 0;
-    padding: 6px 10px; z-index: 9; border-radius: 6px 6px 0 0;
-    box-shadow: 0 -4px 12px rgb(0 0 0 / 0.12); }
-  body { padding-bottom: 15em; }
+    padding: 6px 10px; }
   .dleft { grid-template-rows: auto; }
   .dpanel .chips, .dpanel .rsrc, .dpanel .fnotes, .ptr .plabel {
     display: none; }
@@ -1066,3 +1088,10 @@ html { overflow-anchor: none; }
 .bruler .b { color: var(--accent); }
 /* the selected value's declaration, in the contract's source */
 #contract-src .line.decl { background: var(--mark); border-radius: 2px; }
+/* the variables: a box as tall as the storage dump, scrolled inside */
+.scols #tree { overflow-y: auto; overflow-x: hidden; box-sizing: border-box; }
+/* names from the code, in monospace (types stay proportional) */
+.tree .name, .rcap code.id, .rshort code.id { font-family: ui-monospace,
+  Menlo, monospace; font-weight: 600; }
+.rcap code.id, .rshort code.id { background: none; padding: 0; border: 0;
+  font-size: 0.95em; }

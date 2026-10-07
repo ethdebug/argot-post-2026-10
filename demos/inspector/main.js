@@ -132,11 +132,31 @@ function alignColumns() {
     e.closest(c).getBoundingClientRect().top;
   const delta = top(d, ".words") - top(t, ".storage");
   $("tree").style.paddingTop = `${Math.max(0, now + delta)}px`;
+  // as tall as the storage dump, scrolling inside itself
+  const dump = $("dump").getBoundingClientRect();
+  const tree = $("tree").getBoundingClientRect();
+  if (innerWidth >= 1100) {
+    $("tree").style.height = `${Math.max(100, dump.bottom - tree.top)}px`;
+  } else $("tree").style.height = "";
+}
+
+// Scroll the tree, inside its box only, to show a row
+function treeTo(path) {
+  const tree = $("tree");
+  const li = path && tree.querySelector(`li[data-path="${CSS.escape(path)}"]` +
+    " > .row");
+  if (!li || tree.scrollHeight <= tree.clientHeight) return;
+  const r = li.getBoundingClientRect();
+  const b = tree.getBoundingClientRect();
+  if (r.top < b.top || r.bottom > b.bottom) {
+    tree.scrollTop += r.top - b.top - (b.height - r.height) / 2;
+  }
 }
 addEventListener("resize", () => current && alignColumns());
 
 function render() {
   $("tree").style.paddingTop = "";
+  $("tree").scrollTop = 0;
   const { f, scene } = current;
   $("summary").textContent = scene.summary;
   showScene(scene);
@@ -431,14 +451,14 @@ function replaySteps(path, side) {
       const w = wordAt(p.slot);
       const kind = p.typeKind ?? "value";
       step({ phase: "declared", var: p.var,
-        cap: p.context ? `${p.var} is at slot ${small(p.slot)}, ${
+        cap: p.context ? `\`${p.var}\` is at slot ${small(p.slot)}, ${
           p.context.length} bytes from offset ${p.context.offset}`
           : kind === "mapping" && w !== undefined && !num(w)
-            ? `${p.var} gets slot ${small(p.slot)} but stores nothing ` +
+            ? `\`${p.var}\` gets slot ${small(p.slot)} but stores nothing ` +
               `there; ${small(p.slot)} only feeds each hash`
-            : kind === "array" ? `${p.var} gets slot ${small(p.slot)}; ` +
+            : kind === "array" ? `\`${p.var}\` gets slot ${small(p.slot)}; ` +
               "that slot holds its length"
-              : `${p.var} gets slot ${small(p.slot)}`,
+              : `\`${p.var}\` gets slot ${small(p.slot)}`,
         form: esc(p.context ? `slot ${small(p.slot)}, bytes ${
           p.context.offset}–${p.context.offset + p.context.length - 1}`
           : `slot ${small(p.slot)}${w === undefined ? "" : ` = ${small(w)}`}`),
@@ -510,7 +530,8 @@ function replaySteps(path, side) {
       step({ phase: "record", var: top(entry), struct: p.struct,
         cap: `A ${p.struct.definition?.name ?? "record"} is ${slots.length} ${
           slots.length === 1 ? "slot" : "slots"}${per.length === 2
-          ? `: ${per[0].length} fields, then the ${per[1].join(", ")}` : ""}`,
+          ? `: ${per[0].length} fields, then the ${per[1].map((x) =>
+            `\`${x}\``).join(", ")}` : ""}`,
         form: esc(slots.map((sl, k) => k ? `${tail(slots[0])} + ${k} = ${
           tail(sl)}` : tail(sl)).join(", ")),
         constructs: ["group", "$sum"], source: "from solc's pointer",
@@ -527,9 +548,9 @@ function replaySteps(path, side) {
         [0];
       const n32 = (r) => Number(num(r.length ?? "0x20"));
       step({ phase: "fields", var: top(items[0].leaf),
-        cap: many ? `The fields share one slot, packed from the right: ${
-          name(right.leaf)} takes the last ${n32(right.region)} bytes`
-          : `${name(items[0].leaf)} is in its record's slot`,
+        cap: many ? `The fields share one slot, packed from the right: \`${
+          name(right.leaf)}\` takes the last ${n32(right.region)} bytes`
+          : `\`${name(items[0].leaf)}\` is in its record's slot`,
         form:
           items.map((x) => `<span class="fname" data-path="${esc(
             x.leaf.path)}">${esc(name(x.leaf))}</span> ${esc(
@@ -560,8 +581,8 @@ function replaySteps(path, side) {
       const slotsOf = Math.ceil(Number(len) / 32);
       const who = entryPath(x.leaf) && keyName(find(current.tree,
         entryPath(x.leaf))?.key ?? "0x0");
-      const what = entryPath(x.leaf) ? `${who}'s ${name(x.leaf)}`
-        : x.leaf.label;
+      const what = entryPath(x.leaf) ? `${who}'s \`${name(x.leaf)}\``
+        : `\`${x.leaf.label}\``;
       const whatSlot = entryPath(x.leaf) ? `${who}'s ${name(x.leaf)} slot`
         : `${x.leaf.label}'s slot`;
       step({ phase: "long", var: top(x.leaf),
@@ -788,11 +809,15 @@ function stepLight(st) {
   return h;
 }
 
+// A caption's names from the code (in `backticks`), in monospace
+const capHtml = (t) => esc(t).replace(/`([^`]+)`/g, '<code class="id">$1</code>');
+const capText = (t) => t.replace(/`/g, "");
+
 // The short caption of a step, for the bar over the dump
 function shortCap(st) {
   switch (st.phase) {
-    case "declared": return `${st.var}${st.var.endsWith("s") ? "'" : "'s"
-      } own slot`;
+    case "declared": return `\`${st.var}\`${st.var.endsWith("s") ? "'"
+      : "'s"} own slot`;
     case "entry": return "the hash of the first key";
     case "others": return "the same for every key";
     case "item": return "the items, from a hash";
@@ -809,14 +834,25 @@ function shortCap(st) {
 // column (the step in full, the colours, the chips, the pointer, the
 // footnotes). Both keep their size at all times: nothing moves when a
 // value is selected, pointed at or replayed.
+// what a composite's parts are called: a mapping's entries, a struct's
+// fields, an array's items
+const partsWord = (t, n) => ({ mapping: ["entry", "entries"],
+  struct: ["field", "fields"], array: ["item", "items"] }[t?.kind] ??
+  ["part", "parts"])[n === 1 ? 0 : 1];
+
 function renderBox() {
   const bar = $("details");
   const text = $("dtext");
   const node = chosen && find(current.tree, chosen);
   if (!node) {
     // (the same room, idle)
-    bar.innerHTML = `<span class="rsel muted">Select a value to see how ` +
-      "it was found.</span>";
+    // (the same slots, empty: nothing moves when a value is selected)
+    bar.classList.remove("replaying");
+    $("dpanel").hidden = true;
+    bar.innerHTML = `<span class="rmode"></span><span class="rsel muted">` +
+      "Select a value to see how it was found.</span>" +
+      `<span class="rctl"></span><span class="rcount"></span>` +
+      `<span class="rshort"></span><span class="rexit"></span>`;
     $("chips").innerHTML = "";
     text.innerHTML = `<p class="rcap muted">Select a value, then "How was ` +
       "this found? ▸\" to step through the pointer that finds it.</p>";
@@ -832,9 +868,8 @@ function renderBox() {
   const sel = `<span class="rsel"><code>${esc(shortKeys(chosen))}</code>` +
     `${t ? ` <span class="type">${esc(typeName(t, types))}</span>` : ""}${
       v ? ` = <b>${esc(v.text)}</b>` : node.children
-        ? ` <span class="muted">${parts} ${t?.kind === "mapping"
-          ? parts === 1 ? "entry" : "entries" : parts === 1 ? "part"
-            : "parts"}</span>` : ""}${side}</span>`;
+        ? ` <span class="muted">${parts} ${partsWord(t, parts)}</span>`
+        : ""}${side}</span>`;
   const steps = replay ? replay.steps : replaySteps(chosen, mode);
   // footnote numbers: by first use in this replay
   const notes = [];
@@ -847,19 +882,22 @@ function renderBox() {
   let ctl;
   let short = "";
   let full;
+  let count = "";
   if (replay) {
     const { i } = replay;
     const st = steps[i];
-    ctl = `<button type="button" class="btn" data-r="prev" aria-label=` +
-      `"Previous step"${i ? "" : " disabled"}>◀</button>` +
-      `<button type="button" class="btn" data-r="next" aria-label=` +
-      `"Next step">▶</button>` +
-      `<button type="button" class="btn" data-r="end" aria-label=` +
-      `"Jump to the resolved value">⏭</button>` +
-      `<span class="rcount">${i + 1} / ${steps.length}</span>`;
-    short = esc(shortCap(st));
+    const last = i === steps.length - 1;
+    // ⏮ ◀ ▶ ⏭, each disabled at its end (no wrap; none of them exits)
+    const b = (r, label, glyph, off) => `<button type="button" class="btn"` +
+      ` data-r="${r}" aria-label="${label}"${off ? " disabled" : ""}>${
+        glyph}</button>`;
+    ctl = b("first", "First step", "⏮", !i) + b("prev", "Previous step", "◀",
+      !i) + b("next", "Next step", "▶", last) + b("last", "Last step", "⏭",
+      last);
+    count = `${i + 1} / ${steps.length}`;
+    short = capHtml(shortCap(st));
     const fc = footOf(st);
-    full = `<p class="rcap">${esc(st.cap)}</p>` +
+    full = `<p class="rcap">${capHtml(st.cap)}</p>` +
       `<p class="rform">${st.form}</p>` +
       `<p class="rsrc">${st.constructs.map((c) => `<code class="badge">${
         esc(c)}${c === fc ? sup(c) : ""}</code>`).join(" ")} <span class=` +
@@ -869,18 +907,35 @@ function renderBox() {
       "Where after")?.[1] ?? "";
     const other = !current.single && v && node[mode === "before" ? "after"
       : "before"];
-    ctl = `<button type="button" class="btn" data-r="start">${
-      replay === false ? "Replay ▸" : "How was this found? ▸"}</button>`;
+    // (one entry, one name, in every state)
+    ctl = `<button type="button" class="btn rstart" data-r="start">` +
+      "▸ Show how it was found</button>";
     full = v ? `<p class="rcap rwhere">${where}${other &&
       other.text !== v.text ? ` <span class="muted">(${mode === "after"
         ? "before" : "after"}: ${esc(other.text)})</span>` : ""}</p>`
       : `<p class="rcap rwhere">${node[mode] === undefined &&
         !node.children ? esc(missing(node, mode))
-        : `${parts} ${t?.kind === "mapping" ? parts === 1 ? "entry"
-          : "entries" : parts === 1 ? "part" : "parts"}`}</p>`;
+        : `${parts} ${partsWord(t, parts)}`}</p>`;
   }
-  bar.innerHTML = sel + `<span class="rctl">${ctl}</span>` +
-    `<span class="rshort">${short}</span>`;
+  // every part in its own fixed slot, used or empty: the mode's label,
+  // the selection, the controls, the count, the short caption, Exit.
+  // A replay tints the bar; nothing moves. The button that had the
+  // focus keeps it.
+  const had = bar.contains(document.activeElement)
+    ? document.activeElement.dataset?.r : null;
+  bar.classList.toggle("replaying", !!replay);
+  $("dpanel").hidden = !replay;
+  bar.innerHTML = `<span class="rmode">${replay ? "Replay" : ""}</span>` +
+    sel + `<span class="rctl">${ctl}</span>` +
+    `<span class="rcount">${count}</span>` +
+    `<span class="rshort">${short}</span>` +
+    `<span class="rexit">${replay ? `<button type="button" class="btn" ` +
+      'data-r="exit">✕ Exit</button>' : ""}</span>`;
+  if (had) {
+    const f = bar.querySelector(`button[data-r="${had}"]:not([disabled])`) ??
+      bar.querySelector("button:not([disabled])");
+    f?.focus({ preventScroll: true });
+  }
   // the footnote of this step; at rest, all of them, and what the steps
   // are
   const fnote = (c) => `<span class="fnote"><sup>${notes.indexOf(c) + 1
@@ -895,7 +950,8 @@ function renderBox() {
   const at = replay ? replay.i : steps.length;
   $("chips").innerHTML = steps.map((st, k) => `<button type="button"` +
     ` class="chip ${k < at ? "done" : k === at ? "cur" : "later"}"` +
-    ` data-k="${k}" aria-label="${esc(`Step ${k + 1}: ${st.cap}`)}">` +
+    ` data-k="${k}" aria-label="${esc(`Step ${k + 1}: ${capText(st.cap)}`)
+    }">` +
     `<span class="ctext">${esc(st.chip)}</span>` +
     `<span class="clabel">${esc(st.chipLabel)}</span></button>`)
     .join('<span class="carrow" aria-hidden="true">→</span>');
@@ -916,10 +972,16 @@ function renderBox() {
   const ids = Object.entries(names).map(([id, n]) => `${n} = ${id}`);
   void fc;
   $("ptr").classList.toggle("lit", !!lit?.size);
-  $("ptr").innerHTML = (replay ? "" : vyperRule(node, mode)) +
-    `<pre class="ptrlines"><code>${lines.map((l, k) => `<span class="line${
-      lit?.has(k) ? " on" : ""}">${html?.[k] ?? esc(l.text)}</span>`)
-      .join("\n")}</code></pre>` +
+  // (in the Vyper scene: Vyper's own words for the player, first)
+  $("ptr").innerHTML = vyperRule(node, mode) +
+    // (one line each, as blocks; a run of lit lines is one block: rounded
+    // at its first and last line only)
+    `<pre class="ptrlines"><code>${lines.map((l, k) => {
+      const on = lit?.has(k);
+      const cls = on ? ` on${lit.has(k - 1) ? "" : " on-top"}${lit.has(k + 1)
+        ? "" : " on-end"}` : "";
+      return `<span class="line${cls}">${html?.[k] ?? esc(l.text)}</span>`;
+    }).join("")}</code></pre>` +
     (ids.length ? `<p class="muted small pids">Template names shortened; ` +
       `solc's ids: ${ids.map((x) => `<code>${esc(x)}</code>`).join(", ")}</p>`
       : "");
@@ -939,26 +1001,45 @@ function renderBox() {
 }
 
 // Start, step or leave the replay. Past the last step: the resolved view.
+// Start, step or leave the replay. Stepping stops at the ends; only
+// Exit (or Escape, or a new selection or scene) leaves it.
+let started = 0; // when the replay started (a second click is ignored)
 function stepTo(i) {
   if (!replay) return;
-  if (i >= replay.steps.length) return endReplay();
-  replay.i = Math.max(0, i);
+  const k = Math.max(0, Math.min(replay.steps.length - 1, i));
+  if (k === replay.i) return;
+  replay.i = k;
   renderBox();
   show();
+  treeTo(replay.steps[k].rows?.[0]);
 }
 function startReplay(at = 0) {
   if (!chosen) return;
   const steps = replaySteps(chosen, mode);
   if (!steps.length) return;
   replay = { path: chosen, side: mode, steps, i: at };
+  started = performance.now();
   renderBox();
   show();
-  $("details").focus({ preventScroll: true });
+  // the bar to the top of the window (its place in the page: under the
+  // line before it), once, at entry
+  const before = $("details").previousElementSibling;
+  const y = before.getBoundingClientRect().bottom + scrollY +
+    parseFloat(getComputedStyle(before).marginBottom || 0);
+  scrollTo({ top: Math.max(0, y), behavior: matchMedia(
+    "(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth" });
+  // (the focus on ▶, or the next control there is)
+  ($("details").querySelector('button[data-r="next"]:not([disabled])') ??
+    $("details").querySelector("button:not([disabled])"))
+    ?.focus({ preventScroll: true });
 }
 function endReplay() {
+  if (!replay) return;
   replay = false;
   renderBox();
   show();
+  $("details").querySelector('button[data-r="start"]')
+    ?.focus({ preventScroll: true });
 }
 // The Vyper scene: the same entry by Vyper's own rule, which no ethdebug
 // gives (Vyper emits none). Its words are the ones Vyper uses for the
@@ -1129,7 +1210,8 @@ function choose(path, anchor, quiet) {
     renderBox();
     show();
   });
-  // (no scrolling: nothing moves when a value is selected)
+  // (no scrolling of the page; the tree scrolls inside its box)
+  treeTo(path);
   keep();
 }
 
@@ -1228,8 +1310,15 @@ document.addEventListener("click", (e) => {
   const r = t.closest("#details button[data-r]");
   if (r) {
     const k = r.dataset.r;
+    // (a double click on the entry: its second click lands on a step
+    // button; it is ignored)
+    if (k !== "start" && e.detail > 1 && performance.now() - started < 600) {
+      return;
+    }
     if (k === "start") startReplay();
-    else if (k === "end") endReplay();
+    else if (k === "exit") endReplay();
+    else if (k === "first") stepTo(0);
+    else if (k === "last") stepTo(Infinity);
     else stepTo(replay.i + (k === "next" ? 1 : -1));
     return;
   }
@@ -1248,15 +1337,17 @@ const flip = (h) => {
 };
 document.addEventListener("keydown", (e) => {
   if (e.key === "Escape") {
-    if (replay && keySection() === "storage") return endReplay();
+    // (Escape exits a replay; a second one clears the selection)
+    if (replay) return endReplay();
     if (chosen && keySection() === "storage") choose(null);
     return;
   }
-  // ← → step a replay while its box has the focus
-  if (replay && e.target.closest?.("#details") &&
-    ["ArrowLeft", "ArrowRight"].includes(e.key)) {
+  // while replaying: ← → Home End step, from anywhere but a text field
+  if (replay && !e.target.closest?.("input, textarea, select") &&
+    ["ArrowLeft", "ArrowRight", "Home", "End"].includes(e.key)) {
     e.preventDefault();
-    return stepTo(replay.i + (e.key === "ArrowRight" ? 1 : -1));
+    return stepTo({ ArrowLeft: replay.i - 1, ArrowRight: replay.i + 1,
+      Home: 0, End: Infinity }[e.key]);
   }
   if (e.key !== "Enter" && e.key !== " ") return;
   const h = e.target.closest?.(".hex.short");
