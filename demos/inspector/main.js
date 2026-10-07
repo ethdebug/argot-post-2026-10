@@ -509,7 +509,8 @@ const PROBE = "Point at a value or a byte for its details.";
 function show() {
   const sel = chosen ? forRow(current.panel, chosen) : null;
   const h = hover ?? sel;
-  paint($("panel"), $("tree"), h, { cards: showOther() });
+  paint($("panel"), $("tree"), h, { cards: showOther(),
+    single: !!current?.single });
   treeCard(h);
   for (const r of $("tree").querySelectorAll("li[data-path] > .row")) {
     const on = r.parentElement.dataset.path === chosen;

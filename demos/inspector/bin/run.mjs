@@ -658,6 +658,52 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
   }
   await page.keyboard.press("Escape");
 
+  // Every scene with one point: whatever is selected (each top-level
+  // variable, and one value inside each), no cards, no tray, no tree
+  // cards, no "Before" or "After" in the words, and no popover covers
+  // another row's address
+  for (const [id, [, dsel]] of Object.entries(defaults)) {
+    if (!["packed", "players", "vyper"].includes(id)) continue;
+    await page.locator(`#picker button[data-id="${id}"]`).click();
+    await page.waitForFunction((x) => document.querySelector(
+      '#picker [aria-checked="true"]')?.dataset.id === x, id);
+    const paths = await page.evaluate(() => {
+      const tops = [...document.querySelectorAll("#tree li.top")];
+      return tops.flatMap((li) => [li.dataset.path,
+        li.querySelector("li[data-path]")?.dataset.path].filter(Boolean));
+    });
+    for (const p of [null, ...paths]) {
+      if (p) {
+        await page.locator(`#tree li[data-path="${p}"] > .row`).click();
+      } else if (dsel) {
+        // the scene's default selection, as it opens
+      }
+      await page.mouse.move(1, 1);
+      const bad = await page.evaluate(() => {
+        const out = [];
+        const n = document.querySelectorAll("#panel .cmp, #panel .pin, " +
+          "#panel .tray, #tree .tcard").length;
+        if (n) out.push(`${n} cards`);
+        const t = document.querySelector(".cols .words").innerText;
+        if (/\b(Before|After)\b/.test(t)) out.push("before/after text");
+        const hit = (a, b) => a.left < b.right - 0.5 &&
+          b.left < a.right - 0.5 && a.top < b.bottom - 0.5 &&
+          b.top < a.bottom - 0.5;
+        const v = document.querySelector('#panel .view:not([hidden])');
+        for (const pop of v.querySelectorAll(".pop")) {
+          const own = pop.closest(".wrow");
+          for (const a of v.querySelectorAll(".rows > .wrow > .addr .a")) {
+            if (a.closest(".wrow") !== own && hit(pop.getBoundingClientRect(),
+              a.getBoundingClientRect())) out.push(`pop on ${a.textContent}`);
+          }
+        }
+        return out;
+      });
+      if (bad.length) problems.push(`${id} ${p ?? "(default)"}: ${bad}`);
+      if (p) await page.locator(`#tree li[data-path="${p}"] > .row`).click();
+    }
+  }
+
   // A string outgrows its slot. Short: the data and the length byte
   // share the string's slot. Long: the slot holds the length word, and
   // the data lives at keccak(slot) on. Slots are named here as the page
@@ -1184,13 +1230,17 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
     !Object.keys(await lit()).length) {
     problems.push("insets off: still shown, or nothing lit");
   }
-  if (!(await page.evaluate(() => location.hash)).includes("insets=0")) {
+  // (WebKit lets a page set its hash 100 times in 10 s; the page sets
+  // a refused hash again later)
+  if (!await page.waitForFunction(() => location.hash.includes("insets=0"),
+    null, { timeout: 15000 }).then(() => true, () => false)) {
     problems.push("insets off: not in the hash");
   }
   await page.locator("#insets").check();
   await row(`${A}.score`).hover();
   if (!(await tins()).length ||
-    (await page.evaluate(() => location.hash)).includes("insets=")) {
+    !await page.waitForFunction(() => !location.hash.includes("insets="),
+      null, { timeout: 15000 }).then(() => true, () => false)) {
     problems.push("insets on again");
   }
   await page.locator("h1").hover();
@@ -1361,9 +1411,13 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
     Object.values(vlit)[0].length !== 32) {
     problems.push(`vyper step lit: ${JSON.stringify(vlit)}`);
   }
-  if ((await pops()).join() !==
-    `Vyper's keccak(slot 0, 0x7099…79c8)\n= ${vslot}`) {
-    problems.push(`vyper pops: ${await pops()}`);
+  // (its popover may have no room: the Vyper words are next to each
+  // other; the details name the slot)
+  const vp = (await pops()).join();
+  if ((vp && vp !== `Vyper's keccak(slot 0, 0x7099…79c8)\n= ${vslot}`) ||
+    !(await page.locator("#details").innerText()).includes(
+      "Vyper's keccak(slot 0, 0x7099…79c8)")) {
+    problems.push(`vyper pops: ${vp}`);
   }
   // bob, selected: his Vyper words
   await page.locator(`#tree li[data-path="${B}.score"] > .row`).click();
