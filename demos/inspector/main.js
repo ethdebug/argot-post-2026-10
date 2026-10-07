@@ -1022,7 +1022,10 @@ function pointerYaml(variable) {
         for (const y of x) item(y, d + 1, [...tags, ...own]);
       } else {
         const branch = k === "then" || k === "else" ? [k] : [];
-        put(d, `${k}:`, [...tags, ...own, ...branch]);
+        // (a template's `for:` line: part of its frame, with its name and
+        // `expect`)
+        put(d, `${k}:`, [...tags, ...own, ...branch,
+          ...(k === "for" ? ["for"] : [])]);
         block(x, d + 1, [...tags, ...own, ...branch]);
       }
     }
@@ -1066,14 +1069,14 @@ function activeLines(lines, st) {
     case "entries": return pick((l) => has(l, "t:mapping") &&
       l.tags.some((t) => t.startsWith("define:")) && !has(l, "item"));
     case "template": return pick((l) => has(l, `t:${st.tkind}`) &&
-      (has(l, "head") || has(l, "expect")));
+      (has(l, "head") || has(l, "expect") || has(l, "for")));
     case "length": return pick((l) => has(l, "t:array") &&
       has(l, "region:length"));
     case "item": return pick((l) => has(l, "t:array") && has(l, "item") &&
       !has(l, "region:length"));
     // (the record: the whole struct template, its group of members)
     case "record": return pick((l) => has(l, "t:struct") &&
-      !has(l, "head") && !has(l, "expect"));
+      !has(l, "head") && !has(l, "expect") && !has(l, "for"));
     case "fields": {
       const names = new Set((st.names ?? st.rows.map((p) => p.split(".")
         .pop())).map((n) => `region:${n}`));
