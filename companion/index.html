@@ -738,7 +738,8 @@ offset 29 still says where it came from (trimmed):</p>
 target, and the last (offset 34) its <code>return</code>. A tail-recursive
 function shows the same idea: the jump back carries a
 <code>return</code>, an <code>invoke</code> and
-<code>transform: ["tailcall"]</code>, so the call stack stays right.</p>
+<code>transform: ["tailcall"]</code>, so a debugger keeps one frame
+for the loop instead of adding one per iteration.</p>
 <p>bugc's tests check this: 63 tests in four files pass. They check
 that calls and returns survive every optimizer level, that each
 transform name appears at the right levels, and that the code still
