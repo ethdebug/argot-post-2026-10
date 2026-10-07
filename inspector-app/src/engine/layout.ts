@@ -171,11 +171,15 @@ export function layout(d: Decoded, location: Location, filter: Filter = {},
     const one = groups.length === 1;
     const what = own.has(address)
       ? [{ path: own.get(address)!, name: own.get(address)! }]
-      : groups.map((g) => ({ path: g.path, name:
-        // (a composite's own word: an array's length)
-        !g.length && g.node.children ? "length"
-          : one || parentOf(g.path) === "" ? shortKeys(g.path)
-            : g.path.slice(parentOf(g.path).length).replace(/^\./, "") }));
+      : groups.map((g) => {
+        const named = one || parentOf(g.path) === "" ? shortKeys(g.path)
+          : g.path.slice(parentOf(g.path).length).replace(/^\./, "");
+        // (a value's other region by its role, under its name; an
+        // array's own word alone in its slot: its length)
+        const own = !g.length && !!g.node.children;
+        return { path: g.path, name: one && own ? "length"
+          : g.length || own ? `${named}.length` : named };
+      });
     return { address, how: how(address), what,
       ...(own.has(address) ? { role: "own-slot" as const } : {}) };
   });
@@ -186,11 +190,9 @@ export function layout(d: Decoded, location: Location, filter: Filter = {},
   return { location, point: d.point, rows, cover, owned };
 }
 
-// A row's label, "how : what" (the names in byte order: the first
-// three, then "+N"); a row no value owns: how only
+// A row's label, "how : what" (all the names, in byte order; the
+// popover fits them to its box); a row no value owns: how only
 export function rowLabel(row: Row): string {
   if (row.role === "own-slot" || !row.what.length) return row.how;
-  const names = row.what.map((w) => w.name);
-  return `${row.how} : ${names.slice(0, 3).join(" · ")}${names.length > 3
-    ? ` +${names.length - 3}` : ""}`;
+  return `${row.how} : ${row.what.map((w) => w.name).join(" · ")}`;
 }
