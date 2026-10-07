@@ -347,8 +347,9 @@ offsets.
 Top to bottom: the contract (collapsed), the scene picker, the scene's
 intro, one line on how to read the dump, the bar, then two equal
 columns that start at one height: the storage dump (left; the
-calldata under it in the motd scene) and the variables (right; the
-source under them). The tree's top padding is set so its first row and
+calldata under it in the motd scene) and the variables (right). The
+selected value's declaration is marked (its lines) in the contract's
+source at the top of the page, the one source block. The tree's top padding is set so its first row and
 the dump's first line share a height (`alignColumns()`).
 
 Nothing moves when a value is selected, pointed at or replayed:
