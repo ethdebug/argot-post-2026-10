@@ -294,10 +294,9 @@ function whatHtml(items: Item[], keep: number[]) {
   const cut = '<span class="pcut">…</span>';
   const parts: string[] = [];
   for (const g of segs) {
-    // (an "(unmapped)" cut leaves no "…": no name is hidden)
+    // (a cut "(unmapped)" leaves its "…", as any cut item)
     const idx = items.map((x, i) => [x, i] as const)
-      .filter(([x, i]) => (x.seg ?? 0) === g && (!x.free || kept.has(i)))
-      .map(([, i]) => i);
+      .filter(([x]) => (x.seg ?? 0) === g).map(([, i]) => i);
     const on = idx.filter((i) => kept.has(i));
     if (!on.length) {
       if (parts.at(-1) !== cut) parts.push(cut);
@@ -354,7 +353,8 @@ function fitWhat(pop: Pop) {
   };
   const many = segs.length > 1;
   while (over()) {
-    // (an "(unmapped)" first, then the plain names)
+    // (an "(unmapped)" first, then the plain names: the order of the
+    // cuts; each leaves its "…")
     const free = keep.filter((i) => items[i].free && !items[i].k);
     const plain = free.length ? free
       : keep.filter((i) => !items[i].k && (!many || !ends(i)));
