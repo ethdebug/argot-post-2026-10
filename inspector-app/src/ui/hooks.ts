@@ -227,9 +227,9 @@ export function useLight(id: string, filter?: Filter, at?: DataRef,
     const o = { collapsed };
     const { selection, hover } = link;
     // (the last step, found: exactly the selection's resting view)
-    const at = link.walk && w ? w.steps[Math.min(link.walk.step,
+    const step = link.walk && w ? w.steps[Math.min(link.walk.step,
       w.steps.length - 1)] : null;
-    if (at?.phase === "found" && selection && d.byPath.has(selection)) {
+    if (step?.phase === "found" && selection && d.byPath.has(selection)) {
       return { ...forPath(d, l, selection, { ...o, selection: true }),
         cap: new Set([selection]), rest: true };
     }
@@ -239,8 +239,11 @@ export function useLight(id: string, filter?: Filter, at?: DataRef,
     // (a derivation's region step, pointed at: its bytes alone, over the
     // selection: vanilla mem.js forRegion)
     if (hover?.region) {
-      const other = v.kind === "dump" && hover.side && v.side &&
-        v.side !== hover.side;
+      // (the side lit: the view's, or, for the pair's other point (`at`),
+      // the other side: its "only" rows)
+      const lit = v.kind === "dump" && v.side
+        ? at ? (v.side === "before" ? "after" : "before") : v.side : null;
+      const other = !!hover.side && !!lit && lit !== hover.side;
       const bytes = new Set(regionBytes(hover.region).filter(() => !other &&
         hover.region!.location === l.location).map(([row, b]) =>
         byteKey(l.location, row, b)));
@@ -267,7 +270,7 @@ export function useLight(id: string, filter?: Filter, at?: DataRef,
     if (hover?.row) return forRow(d, l, hover.row as Hex);
     if (hover) return { ...noLight, muted: true };
     return noLight;
-  }, [d, l, link, collapsed, w]);
+  }, [d, l, link, collapsed, w, v, at]);
 }
 // The compilation a view's decoding reads with (its provenance: a
 // hand-written one is badged)
