@@ -3293,6 +3293,16 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
     if (cl.join() !== range(4, 72).join()) {
       problems.push(`calldata m lit: ${cl.length}`);
     }
+    // (pointing at a part lights its row only; text, its own row too)
+    const crows = () => page.evaluate(() => [...document.querySelectorAll(
+      "#ctree .row.hl")].map((r) => r.parentElement.dataset.part).join());
+    const tm = await crows();
+    await page.locator('#ctree li[data-part="m-length"] > .row').hover();
+    const tl = await crows();
+    await page.locator('#ctree li[data-part="m"] > .row').hover();
+    if (tl !== "m-length" || !tm.split(",").includes("m")) {
+      problems.push(`calldata rows: ${tm} | ${tl}`);
+    }
     // (its parts in child colours, one each, as any composite's)
     const ck = await page.evaluate(() => [...new Set([...document
       .querySelectorAll("#cpanel .b.hl")].map((b) =>

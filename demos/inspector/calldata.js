@@ -146,8 +146,10 @@ function paint() {
   const h = lit.size ? { bytes: new Set([...lit].flatMap((id) =>
     regionBytes(cd.model.owners.get(PATH[id]).regions.after[0])
       .map(([w, i]) => `after|${w}|${i}`))),
-  rows: new Set([...lit].map((id) => PATH[id]).concat(k === "m" ||
-    (k && k.startsWith("m-")) ? [PATH.m] : [])), label: "" } : null;
+  // (a part lights its own row only; `text` lights its own and its
+  // parts')
+  rows: new Set([...lit].map((id) => PATH[id]).concat(k === "m"
+    ? [PATH.m] : [])), label: "" } : null;
   // (a composite's parts in child colours, as in every panel)
   if (h && k === "m") {
     h.colors = new Map([[PATH.m, 0], ...ids("m").map((id, n) =>
