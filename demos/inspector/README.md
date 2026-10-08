@@ -18,6 +18,137 @@ the pointer templates. This page does not use soldb.
 Serve the repo root over HTTP and open `demos/inspector/`. The page needs no
 node: everything comes from `fixtures/`.
 
+
+## About this demo
+
+This is the text the page used to carry; the page keeps one line a
+scene so the inspector is on the first screen, and links here.
+
+### What the page shows
+
+One contract, Arcade, in a few scenes. Click a byte in a word of
+storage, and the variable that owns it lights up; click a variable,
+and its bytes light up. "Show how it was found" walks from the
+variable to its bytes. Some scenes compare two points (Before | After)
+and mark what changed.
+
+Decoded by ethdebug's reference library from solc's ethdebug output (a
+preview build of Walnut's solc fork, walnuthq/solidity PR #10), with
+the optimizer off. Each variable's base slot, offset and type come
+from the program context; the rules for mappings, structs, arrays and
+strings come from the pointer templates in the resources.
+`@ethdebug/pointers` is from ethdebug/format main (see
+`vendor/pointers.js` below), pending release.
+
+### The contract
+
+Every scene shows one contract, Arcade: the scoreboard of a big
+multiplayer game. A player calls `join(name)` once, then `play()`,
+which rolls a hit or a miss. A hit adds 1 to the player's combo and
+scores 10 × combo (at most 5×); a miss sets the combo back to 0, and
+the score stays. Each player's `Player` in `players` is one full
+packed slot (score, combo, bestCombo, plays, hitCount, lastBlock) and
+a name in the next slot; `roster` lists who joined, since a mapping
+cannot list its keys; `total` and `rounds` count all points and hits;
+`setMotd` sets the message of the day. The story: deploy with a
+50-byte motd; alice, bob and carol join; alice hits twice, bob hits,
+carol misses (the middle of the game); alice hits a third time; then
+the motd becomes "gl hf". Each player is an anvil account.
+
+### The scenes
+
+- The middle of the game: alice, bob and carol have joined and played.
+  Each player's record is found by hashing the player's address with
+  the mapping's slot, keccak256(address . slot 3), so the three
+  records land far apart. Each is one word with six counters packed in
+  it. The name is in the next slot: alice's and bob's fit in it;
+  carol's is 34 bytes, so its bytes move to keccak256(that slot).
+  `roster` keeps its length in slot 0 and its items from
+  keccak256(slot 0); `motd` is slot 1; `total` and `rounds` share slot
+  2. alice's record is selected.
+- Alice plays: alice hits a third time: combo 3, so she scores
+  10 × 3 = 30. In her one slot, score goes from 30 to 60, combo,
+  bestCombo, plays and hitCount from 2 to 3, and lastBlock to this
+  block; `total` goes from 40 to 70 and `rounds` from 3 to 4. Before
+  is the middle of the game, After is after her hit. Beside the lit
+  word, a card shows it in the other state.
+- A string moves into its slot: Arcade was deployed with a 50-byte
+  message of the day. A string that long keeps only 2 × its length + 1
+  in its slot, slot 1, and its bytes at keccak256(slot 1) and the slot
+  after it. `setMotd("gl hf")` makes it 5 bytes: short enough that
+  Solidity stores it in slot 1 itself, its bytes from the high end and
+  2 × its length in the last byte. solc writes zeros to the two old
+  data slots; they are in the dump After. The walkthrough shows where
+  the two rules part. The call's calldata is under the storage.
+- Vyper reads it differently: the same three players, in the same game
+  compiled by Vyper 0.4.3 (`contracts/Arcade.vy`), at the same middle
+  of the game. The rule from the first scene, keccak256(address .
+  slot 3), is Solidity's; it finds nothing here: the tree shows each
+  player with zeros and no name, with no error. Vyper does not pack
+  and keeps its arrays inline, so its `players` is slot 108, not 3; it
+  hashes the slot first, keccak256(108 . address), and puts each
+  counter in its own slot, then the name's length and bytes. So the
+  real records sit elsewhere: those words are in the dump, and no
+  value shown owns them. Vyper emits no ethdebug, so the page has no
+  rule from Vyper; the walkthrough lists the selected player's Vyper
+  words for contrast.
+
+How to read the dump: one 32-byte word per row, byte 0 at the left;
+"⋯" skips addresses.
+
+### What is not done yet
+
+- Mapping keys. A mapping does not list its keys. The page shows only
+  keys read from the KECCAK256 inputs in a trace (the players'
+  addresses, from their `join` and `play` calls; `roster` lists them
+  too). Other entries may exist but are not shown.
+- Nested mappings. A mapping inside a struct or another mapping needs
+  one template applied after another, with a key for each level. The
+  page does not do that yet; Arcade has none.
+- Vyper. Vyper emits no ethdebug. Its scene applies solc's rule to
+  Vyper's storage, to show what a tool built on Solidity's rules reads;
+  Vyper's own slots come from its trace.
+- Names in the templates. Template and type names such as
+  `t_mapping$_t_address_$…` are solc's internal names. ethdebug does
+  not require them.
+
+### Inside one play (the memory section)
+
+BUG is ethdebug's teaching language, and bugc is ethdebug's reference
+compiler. Arcade has a BUG port, and the section shows alice's third
+hit again, paused at three points inside `play()`. At each point,
+bugc's debug data lists the local variables in scope, and gives most
+of them a pointer: bugc keeps them in memory. Compile it without
+optimization (O0) or with it (O2): at O0, `multiplied` is a real call,
+and its locals are in a frame whose address is in the word at 0x80; at
+O2 it is inlined, so its locals are at fixed offsets, with no frame. A
+local that bugc lists with its type only has no location at that
+point. The byte ranges come from ethdebug's reference library
+(@ethdebug/pointers), which follows bugc's pointers against the memory
+at each point. Only the decoding into numbers is the page's own. The
+program is compiled by bugc from ethdebug/format main (the commit is in
+`fixtures/memory.json`).
+
+The memory dump shows memory at the paused step, one 32-byte word to a
+line, by offset: the words a local lives in; "⋯" marks words left out.
+At the last point, alice's record slot in storage comes last. Point at
+a value, a byte or an address to light it up.
+
+- "no location at this point": bugc lists the local with its type and
+  no pointer. This happens with optimization (a value the optimizer
+  folded away) and without it (at O0, `hit` after its `if`).
+- Inside `multiplied`, `m = combo` moves `m`: after it, bugc points
+  `m` at a word that holds `combo`'s bytes too.
+- Alice's record slot is the page's own: bugc's pointer for `players`
+  gives only its base slot, so the slot (keccak256 of the key and 4)
+  and the packed members follow BUG's rules, which are Solidity's.
+
+### Credits and links
+
+Part of the ethdebug post appendix, with "ethdebug in depth"
+(`../../companion/`) and "Step through a transaction"
+(`../debugger/`).
+
 ## Scenes
 
 `fixtures/index.json` lists the scenes. Each has a title, a fixture,

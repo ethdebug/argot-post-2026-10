@@ -1,5 +1,9 @@
 /* Storage inspector. Tokens and shared components (header, code,
    picker, tags, notes) are in ../appendix.css. */
+/* (the page keeps one line a scene: its intro; this one is for the
+   checks and the loader) */
+#summary { display: none; }
+.about { margin: 32px 0 0; }
 .summary {
   font-family: ui-monospace, Menlo, monospace;
   font-size: 0.85rem;
