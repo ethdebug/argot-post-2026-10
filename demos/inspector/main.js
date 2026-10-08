@@ -1857,11 +1857,9 @@ function goGlyph() {
   const g = label.querySelector(".pglyph");
   const next = $("details").querySelector('button[data-r="next"]');
   if (label.hidden || !g || !next) return;
-  const rg = document.createRange();
-  rg.selectNodeContents(label);
-  const end = [...rg.getClientRects()].at(-1)?.right ?? 0;
+  const gr = g.getBoundingClientRect();
   const n = next.getBoundingClientRect();
-  g.textContent = n.left + n.width / 2 >= end - 20 ? "⤴" : "↖";
+  g.textContent = n.left + n.width / 2 >= gr.left - 4 ? "⤴" : "↖";
 }
 addEventListener("resize", () => requestAnimationFrame(goGlyph));
 

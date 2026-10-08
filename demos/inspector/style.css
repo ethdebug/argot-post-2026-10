@@ -1078,11 +1078,17 @@ main[data-single] > .cols :is(.chglegend, .legend .bchg, .intro .two) {
 .ptrscroll.goal .ptrlines { filter: blur(2.5px); opacity: 0.5; }
 /* (and still: a preview, not yet read; no band, no scrolling) */
 .ptrscroll.goal { overflow: hidden; }
+/* (the sentence a block, the glyph beside it, at its top, about two
+   lines tall) */
 .pgo { position: absolute; left: 50%; top: 55%; z-index: 3; margin: 0;
   transform: translate(-50%, -50%); width: max-content;
-  max-width: calc(100% - 48px); text-align: center; color: var(--fg);
-  font-size: 0.95rem; font-weight: 600; line-height: 1.4; text-wrap: balance;
-  pointer-events: none; }
+  max-width: calc(100% - 48px); display: flex; align-items: flex-start;
+  gap: 8px; color: var(--fg); font-size: 0.95rem; font-weight: 600;
+  line-height: 1.4; pointer-events: none; }
+.pgo .ptext { display: inline-block; text-align: left; max-width: 22em;
+  text-wrap: balance; }
+.pgo .pglyph { font-size: 3.2em; line-height: 0.8; font-weight: 400;
+  margin-top: -0.12em; }
 .pgo[hidden] { display: none; }
 /* (▶'s halo at step 0, in the walkthrough's own colour: yellow is the
    selection's) */
