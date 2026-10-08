@@ -28,7 +28,7 @@ export const PATCHES = [
     to: "const u = decodeURIComponent(new URL(req.url, \"http://x\")\n" +
       "    .pathname);\n" +
       `  let f = u.startsWith("${NEXT}") ? path.join(root, "dist",\n` +
-      `    u.slice(${NEXT.length})) : path.join(site, u);`,
+      `    u.slice(${NEXT.length - 1})) : path.join(site, u);`,
     count: 1 },
   { name: "print", from: "/^.*\\/demos\\/inspector\\//",
     to: "/^.*\\/demos\\/inspector-next\\//", count: 1 },

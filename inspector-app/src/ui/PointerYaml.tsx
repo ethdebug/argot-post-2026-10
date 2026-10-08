@@ -40,8 +40,10 @@ export function PointerYaml({ domId, data, variable, band, before, goal,
     ? pointerText(c, variable) : { lines: [], names: {} }, [c, variable]);
   const text = lines.map((l) => l.text).join("\n");
   const [html, setHtml] = useState<{ text: string; lines: string[] }>();
+  // (coloured once it is shown: the colouring loads then, not with the
+  // page)
   useEffect(() => {
-    if (!text) return;
+    if (!text || !shown || html?.text === text) return;
     let live = true;
     shiki().then((hl) => {
       if (!hl || !live) return;
@@ -55,7 +57,7 @@ export function PointerYaml({ domId, data, variable, band, before, goal,
     return () => {
       live = false;
     };
-  }, [text]);
+  }, [text, shown, html?.text]);
   const lit = new Set(band?.length ? bandOf(lines, band) : []);
   const box = useRef<HTMLDivElement>(null);
   const [alias, setAlias] = useState<string | null>(null);

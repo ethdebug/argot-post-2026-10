@@ -12,8 +12,11 @@ const list = (d) => fs.existsSync(path.join(dist, d))
   ? fs.readdirSync(path.join(dist, d)).sort().map((f) => `${d}/${f}`) : [];
 
 export function sizes() {
-  const files = [...list("assets").filter((f) => f.endsWith(".js")),
-    ...list("fixtures").filter((f) => f.endsWith(".json"))];
+  // (what the loader fetches: the decoder bundle, the code, the data)
+  const files = ["vendor/pointers.js",
+    ...list("assets").filter((f) => f.endsWith(".js")),
+    ...list("fixtures").filter((f) => f.endsWith(".json"))]
+    .filter((f) => fs.existsSync(path.join(dist, f)));
   return Object.fromEntries(files.map((f) =>
     [f, fs.statSync(path.join(dist, f)).size]));
 }

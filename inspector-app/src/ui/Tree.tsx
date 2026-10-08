@@ -164,6 +164,7 @@ export function Tree(p: { id: ViewId; data: DataRef; filter?: Filter;
   // (groups closing: drawn open while their members shrink)
   const [closing, setClosing] = useState<ReadonlySet<string>>(new Set());
   const lens = useLens();
+  const error = useLensState((s) => s.error);
   const comp = useCompilation(p.data);
   const lang = comp?.language ?? "";
   // (a pair: before, after)
@@ -433,7 +434,11 @@ export function Tree(p: { id: ViewId; data: DataRef; filter?: Filter;
       {comp?.provenance === "hand-written" && <p className="handmade">
         written by hand, not from {lang[0]?.toUpperCase() + lang.slice(1)}
       </p>}
-      {shown ? <ul>{shown.map((n) => <Row key={n.path} n={n} top c={c} />)}
+      {error && !shown ? <p className="error">{error}{" "}
+        <button type="button" className="btn" onClick={() =>
+          (window as { loading?: { retry(): void } }).loading?.retry()}>
+          Retry</button></p>
+        : shown ? <ul>{shown.map((n) => <Row key={n.path} n={n} top c={c} />)}
       </ul> : <div className="skel" aria-hidden="true">
         {Array.from({ length: 8 }, (_, i) => <i key={i} />)}</div>}
     </div>
