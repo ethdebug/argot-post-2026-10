@@ -2,7 +2,7 @@
 // decided rule its run.mjs does not have yet: instances named by their
 // on-chain `name` values, quoted
 import { test, expect, type Page } from "@playwright/test";
-import { A, B, C, NAME_C } from "../expect";
+import { A, B, C, NAME_C } from "../../expect";
 
 type W = { select(id: string, view?: { sel?: string | null;
   mode?: string }): Promise<boolean>; results: { done: boolean } };

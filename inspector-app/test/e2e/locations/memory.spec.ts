@@ -1,6 +1,6 @@
 // Mirrors bin/run.mjs's memory block (vanilla 78bce69 mem.js): "Inside
 // one play", the locals bugc lists at three pauses, at O0 and O2
-import { pick } from "../pick";
+import { pick } from "../../pick";
 import { test, expect, type Page } from "@playwright/test";
 
 type W = { memResults: { done: boolean; errors: string[];

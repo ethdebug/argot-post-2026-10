@@ -1,4 +1,4 @@
-import { pick } from "../pick";
+import { pick } from "../../pick";
 import { test, expect, type Page } from "@playwright/test";
 
 const lit = (page: Page) => page.locator(

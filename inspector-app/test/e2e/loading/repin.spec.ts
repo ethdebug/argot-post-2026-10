@@ -24,9 +24,9 @@ async function loads(page: Page) {
   expect(Object.keys(r.decoded).length).toBeGreaterThan(0);
 }
 
+// (one server, one browser)
 test("a re-pin restarts the dev server; the page loads clean after",
-  async ({ page, browserName }) => {
-    test.skip(browserName !== "chromium", "one server, one browser");
+  { tag: ["@chromium", "@slow"] }, async ({ page }) => {
     test.setTimeout(90_000);
     // (not in test-results/, which Vite does not watch)
     const dir = fs.mkdtempSync(path.join(os.tmpdir(), "repin-"));

@@ -1,5 +1,5 @@
 import { test, expect, type Page } from "@playwright/test";
-import { expected, defaults } from "../expect";
+import { expected, defaults } from "../../expect";
 import fs from "node:fs";
 
 const scenes = JSON.parse(fs.readFileSync("../demos/inspector/fixtures/index.json",

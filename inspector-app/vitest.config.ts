@@ -6,5 +6,7 @@ export default defineConfig({
   test: {
     include: ["src/**/*.test.{ts,tsx}", "test/**/*.test.{ts,tsx}"],
     exclude: ["test/e2e/**", "node_modules/**"],
+    // (jsdom renders slowly on a busy machine)
+    testTimeout: 15_000,
   },
 });

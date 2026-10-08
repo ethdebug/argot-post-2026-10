@@ -1,7 +1,7 @@
 // Mirrors bin/run.mjs's dump checks (vanilla d235617): popovers, the
 // pointed-at run in both views, gutters, root-slot tint, one line
 import { test, expect, type Page } from "@playwright/test";
-import { A, B, C } from "../expect";
+import { A, B, C } from "../../expect";
 
 type W = { select(id: string, view?: { sel?: string | null;
   mode?: string }): Promise<boolean>; results: { done: boolean };

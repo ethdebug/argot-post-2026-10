@@ -2,7 +2,7 @@
 // state's picture beside lit runs, the tree's cards, the tray, and
 // "show other state"
 import { test, expect, type Page } from "@playwright/test";
-import { A, B } from "../expect";
+import { A, B } from "../../expect";
 
 type W = { select(id: string, view?: { sel?: string | null;
   mode?: string }): Promise<boolean>; results: { done: boolean } };
