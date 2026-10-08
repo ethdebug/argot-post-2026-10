@@ -85,7 +85,7 @@ export function LocalsDetails(p: { id: ViewId; data: DataRef;
     // (a storage slot's address is a whole word)
     const store = t.row.length > 10;
     const w = Number(BigInt(t.row));
-    info = [[store ? "Slot" : "Word", <C>{store ? t.row
+    info = [[store ? "Slot" : "Row", <C>{store ? t.row
       : `memory ${t.row} (${hex4(w)}–${hex4(w + 31)})`}</C>]];
   } else if (t?.region) {
     info = [["Region", <C>{t.region.name}</C>],
