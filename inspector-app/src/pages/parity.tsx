@@ -65,7 +65,7 @@ try {
   const project = await load(fetchIo(import.meta.env.BASE_URL));
   const mount = { pick: place($("picker")), mode: place($("mode")),
     dump: place($("panel")), tree: place($("tree")),
-    bar: place($("details")) };
+    bar: place($("details")), cd: place($("calldata")) };
   // (the walkthrough panel draws the details under its bar)
   $("dwrap").remove();
   // (the tree view draws its own edge buttons)
