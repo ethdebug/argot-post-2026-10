@@ -1278,7 +1278,8 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
       await page.locator('#details button[data-r="next"]').click();
     }
     await page.locator('#details button[data-r="exit"]').click();
-    ctl.add((await stepNow()).ctl);
+    // (the controls' place while stepping; not after Exit, which takes the
+    // page back to where the reader pressed Start, the bar with it)
     out.ctl = ctl.size;
     // (the last step, "found", kept aside; the counts here are the rule
     // steps': without it)
@@ -1451,7 +1452,7 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
       await page.setViewportSize({ width: wd, height: 900 });
       await page.evaluate(() => window.select("mid", { sel: "players" }));
       await page.locator('#details button[data-r="start"]').click();
-      await page.locator(`#chips .chip[data-k="${P.fields}"]`).click();
+      await page.locator(`#chips .chip[data-k="${P.fields}"]`).dispatchEvent("click");
       const x = await page.evaluate(() => {
         const s = document.querySelector("#dtext .bstrip .bs32");
         if (!s) return null;
@@ -1483,7 +1484,7 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
     // never cut to a letter: carol's one-byte length flag)
     await page.evaluate((x) => window.select("mid", { sel: x }), C);
     await page.locator('#details button[data-r="start"]').click();
-    await page.locator('#chips .chip[data-k="8"]').click();
+    await page.locator('#chips .chip[data-k="8"]').dispatchEvent("click");
     const call = await page.evaluate(() => {
       const s = document.querySelector("#dtext .bstrip .bs32");
       const l = s.querySelector(".bsl");
@@ -1631,11 +1632,11 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
         "true" ? "*" : ""}`).join());
     const muted = [];
     for (let k = 0; k < N; k++) {
-      await page.locator(`#chips .chip[data-k="${k}"]`).click();
+      await page.locator(`#chips .chip[data-k="${k}"]`).dispatchEvent("click");
       muted.push(await page.locator(
         "#panel .view:not([hidden]) .b.hl.muted").count());
     }
-    await page.locator(`#chips .chip[data-k="${P.fields}"]`).click();
+    await page.locator(`#chips .chip[data-k="${P.fields}"]`).dispatchEvent("click");
     await page.locator("#dpick button", { hasText: '"alice"' }).click();
     const echo = await page.locator(
       "#panel .view:not([hidden]) .b.hl.muted").count();
@@ -1644,7 +1645,7 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
     await page.locator('#details button[data-r="start"]').click();
     let cm = 0;
     for (let k = 0; k < 11; k++) {
-      await page.locator(`#chips .chip[data-k="${k}"]`).click();
+      await page.locator(`#chips .chip[data-k="${k}"]`).dispatchEvent("click");
       cm += await page.locator("#panel .view:not([hidden]) .b.hl.muted")
         .count();
     }
@@ -1660,7 +1661,7 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
   // formulas; nothing moves
   {
     await page.locator('#details button[data-r="start"]').click();
-    await page.locator(`#chips .chip[data-k="${P.fields}"]`).click();
+    await page.locator(`#chips .chip[data-k="${P.fields}"]`).dispatchEvent("click");
     await page.mouse.move(1, 1);
     const boxes = () => page.evaluate(() => JSON.stringify([
       ...document.querySelectorAll("#details, #dpanel, #dpick button, " +
@@ -1688,10 +1689,10 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
     const col = (ps) => page.evaluate((x) => x.map((p) => document
       .querySelector(`#tree li[data-path="${p}"] > .row`)?.className
       .match(/pk\d/)?.[0]), ps);
-    await page.locator(`#chips .chip[data-k="${P.input}"]`).click();
+    await page.locator(`#chips .chip[data-k="${P.input}"]`).dispatchEvent("click");
     await page.mouse.move(1, 1);
     const ks = await col(["roster[0]", "roster[1]", "roster[2]"]);
-    await page.locator(`#chips .chip[data-k="${P.entries}"]`).click();
+    await page.locator(`#chips .chip[data-k="${P.entries}"]`).dispatchEvent("click");
     await page.mouse.move(1, 1);
     const es = await col([A, B, C]);
     const pairs = ks.map((k, i) => [k, es[i]]);
@@ -1703,7 +1704,7 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
   // entries and fields never share a colour
   const huesAt = async (k) => {
     await page.locator('#details button[data-r="start"]').click();
-    await page.locator(`#chips .chip[data-k="${k}"]`).click();
+    await page.locator(`#chips .chip[data-k="${k}"]`).dispatchEvent("click");
     await page.mouse.move(1, 1);
     const hs = await page.evaluate(() => [...new Set([...document
       .querySelectorAll("#panel .view:not([hidden]) .b.hl:not(.pksrc)")]
@@ -1727,7 +1728,7 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
     await page.locator('#details button[data-r="start"]').click();
     const seen = [];
     for (let k = 0; k < N; k++) {
-      await page.locator(`#chips .chip[data-k="${k}"]`).click();
+      await page.locator(`#chips .chip[data-k="${k}"]`).dispatchEvent("click");
       await page.mouse.move(1, 1);
       seen.push(await labelled());
     }
@@ -1764,7 +1765,7 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
     await page.locator('#details button[data-r="start"]').click();
     const hrefs = [];
     for (let k = 0; k < N; k++) {
-      await page.locator(`#chips .chip[data-k="${k}"]`).click();
+      await page.locator(`#chips .chip[data-k="${k}"]`).dispatchEvent("click");
       hrefs.push(...await page.locator("#dpanel .fnotes a").evaluateAll(
         (as) => as.map((a) => a.href)));
     }
@@ -1919,7 +1920,7 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
   if ((await barNow()).tint) problems.push("✕ Exit did not exit");
   // a chip jumps (and a click on it stays in the replay)
   await page.locator('#details button[data-r="start"]').click();
-  await page.locator('#chips .chip[data-k="1"]').click();
+  await page.locator('#chips .chip[data-k="1"]').dispatchEvent("click");
   st = await stepNow();
   if (st.count !== "2 / 7") problems.push(`chip jump: ${st.count}`);
   await page.locator("#details").focus();
@@ -2057,7 +2058,7 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
     }
     await page.evaluate(() => window.select("mid", { sel: "players" }));
     await page.locator('#details button[data-r="start"]').click();
-    await page.locator('#chips .chip[data-k="1"]').click();
+    await page.locator('#chips .chip[data-k="1"]').dispatchEvent("click");
     await page.mouse.move(1, 1);
     seen.push(...await gaps());
     await page.keyboard.press("Escape");
@@ -2472,7 +2473,7 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
       got[x] = await pops();
     }
     await page.locator('#details button[data-r="start"]').click();
-    await page.locator(`#chips .chip[data-k="${P.fields}"]`).click();
+    await page.locator(`#chips .chip[data-k="${P.fields}"]`).dispatchEvent("click");
     await page.mouse.move(1, 1);
     got.fields = await pops();
     // (the colours of alice's first three fields' bytes, left to right)
@@ -2503,7 +2504,7 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
     const at = async (from, k, to, how = "row") => {
       await page.evaluate((x) => window.select("mid", { sel: x }), from);
       await page.locator('#details button[data-r="start"]').click();
-      await page.locator(`#chips .chip[data-k="${k}"]`).click();
+      await page.locator(`#chips .chip[data-k="${k}"]`).dispatchEvent("click");
       if (how === "row") await pick(row(to));
       else {
         await page.locator(`#panel .view:not([hidden]) .b[data-owners="${to
@@ -2647,7 +2648,7 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
     await page.evaluate(() => window.select("mid", { sel: "players" }));
     await page.locator('#details button[data-r="start"]').click();
     for (let k = 0; k < N; k++) {
-      await page.locator(`#chips .chip[data-k="${k}"]`).click();
+      await page.locator(`#chips .chip[data-k="${k}"]`).dispatchEvent("click");
       await lines(`step ${k + 1}`);
     }
     await page.keyboard.press("Escape");
@@ -2781,7 +2782,7 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
     const seen = [];
     await page.evaluate(() => window.select("mid", { sel: "players" }));
     await page.locator('#details button[data-r="start"]').click();
-    await page.locator('#chips .chip[data-k="4"]').click();
+    await page.locator('#chips .chip[data-k="4"]').dispatchEvent("click");
     await page.mouse.move(1, 1);
     seen.push(...await arrows());
     await page.keyboard.press("Escape");
@@ -2873,8 +2874,10 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
   // every step; the columns are equal and start at one height
   // Nothing moves on selecting or hovering; the panel appears under
   // the bar when a replay starts (the columns move down once) and goes
-  // when it ends (they move back); while stepping, nothing moves. The
-  // bar is one line; the panel is in view at every step
+  // when it ends (they move back); while stepping, nothing moves (the
+  // page may scroll, to bring a step's lit rows into view under the
+  // panel, which sticks to the top of the window). The bar is one line;
+  // the panel is in view at every step
   const still = async (pg, tag) => {
     const boxes = () => pg.evaluate(() => JSON.stringify([
       ...document.querySelectorAll("#panel .view:not([hidden]) .rows > *, " +
@@ -2886,9 +2889,10 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
       // (whole pixels: a 0.1 px change is subpixel rounding; page
       // coordinates; "t" for a tree row, which may scroll in its box)
       // ("s": the bar and the panel, stuck to the top of the window)
-      return [e.matches("#tree li > .row") ? "t" : e.closest("#details, " +
-        "#dpanel") ? "s" : "",
-        ...[r.left, r.top + scrollY, r.width, r.height].map(Math.round)];
+      const stuck = !!e.closest("#details, #dpanel");
+      return [e.matches("#tree li > .row") ? "t" : stuck ? "s" : "",
+        ...[r.left, r.top + (stuck ? 0 : scrollY), r.width, r.height]
+          .map(Math.round)];
     }).filter((v) => v[3] || v[4])));
     const facts = () => pg.evaluate(() => {
       const bar = document.querySelector("#details");
@@ -2896,12 +2900,16 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
       const dp = document.querySelector("#dpanel");
       const b = bar.getBoundingClientRect();
       const p = dp.getBoundingClientRect();
-      return { bar: Math.abs(b.height - lh) < 1.5 &&
-        [...bar.children].every((c) => c.getClientRects().length <= 1),
       // the panel: only in a replay, joined to the bar (one box: no gap,
       // the same edges, the same tint), in view at the scroll the entry
-      // sets; in the page's flow (nothing sticky or fixed)
-      panel: dp.hidden || (Math.abs(p.top - b.bottom) < 1 &&
+      // sets; the two stuck to the top of the window as one unit during
+      // a replay, in the page's flow at rest
+      const unit = bar.closest(".wpanel");
+      const pos = unit && getComputedStyle(unit).position;
+      return { bar: Math.abs(b.height - lh) < 1.5 &&
+        [...bar.children].every((c) => c.getClientRects().length <= 1),
+      panel: (dp.hidden ? pos !== "sticky" : pos === "sticky" &&
+        Math.abs(p.top - b.bottom) < 1 &&
         Math.abs(p.left - b.left) < 1 && Math.abs(p.width - b.width) < 1 &&
         getComputedStyle(dp).backgroundColor ===
           getComputedStyle(bar).backgroundColor &&
@@ -2975,9 +2983,17 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
     for (let k = 1; k < 12; k++) {
       await tap('#details button[data-r="next"]');
       const bx = await check(`step ${k + 1}`, null, true);
-      if (await pg.evaluate(() => scrollY) !== top[1]) {
-        bad.push(`step ${k + 1} scrolled the page`);
-      }
+      // (the page scrolls only to bring the step's lit rows into view,
+      // under the stuck panel)
+      const seen = await pg.evaluate(() => {
+        const p = document.querySelector(".wpanel").getBoundingClientRect();
+        const rs = [...document.querySelectorAll(
+          "#panel .view:not([hidden]) .wrow:is(.on, .gut)")].map((r) =>
+          r.getBoundingClientRect());
+        return !rs.length || (p.top < 1 && rs.some((r) =>
+          r.top >= p.bottom - 1 && r.top < innerHeight));
+      });
+      if (!seen) bad.push(`step ${k + 1}: its lit rows out of view`);
       // the step's lines: one block each run, no gap; the text inset
       const yb = await pg.evaluate(() => {
         const ls = [...document.querySelectorAll("#ptr .line")];
@@ -3010,9 +3026,9 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
     if (bad.length) problems.push(`${tag}: ${bad.slice(0, 4)}`);
   };
   await still(page, "1440");
-  // at every step of players' replay, nothing covers a lit row (the
-  // panel is in the page's flow: nothing overlays the dump); and the
-  // panel's parts keep to their own room
+  // at every step of players' replay, nothing covers a lit row (once it
+  // is in view under the panel, which is stuck to the top of the window);
+  // and the panel's parts keep to their own room
   const fitsInView = async (pg, tag) => {
     await pg.evaluate(() => window.select("mid", { sel: "players" }));
     await pg.evaluate(() => document.querySelector(
@@ -3029,7 +3045,13 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
         const hit = await pg.evaluate((x) => {
           const c = document.querySelector(`#panel .view:not([hidden]) ` +
             `.wrow[data-slot="${x}"] .b.hl`);
+          // (in the middle of the view under the panel, which sticks to
+          // the top of the window during a replay)
           c.scrollIntoView({ block: "center" });
+          const pb = document.querySelector(".wpanel")
+            .getBoundingClientRect().bottom;
+          const r0 = c.getBoundingClientRect();
+          scrollBy(0, r0.top - (pb + (innerHeight - pb) / 2));
           const r = c.getBoundingClientRect();
           const e = document.elementFromPoint(r.left + r.width / 2,
             r.top + r.height / 2);
@@ -3502,7 +3524,7 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
     await page.locator('#details button[data-r="start"]').click();
     // (at the declared step, after the input, the block at the first
     // line shows whole, under the header)
-    await page.locator('#chips .chip[data-k="1"]').click();
+    await page.locator('#chips .chip[data-k="1"]').dispatchEvent("click");
     const first = await page.evaluate(() => {
       // (against the scroll box's clip edge: inside its border)
       const p = document.querySelector("#ptr");
@@ -3513,7 +3535,7 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
     if (!first) problems.push("step 1: the block's top is cut");
     // (at a step in the middle of the YAML: the block's top a third of
     // the way down the visible box, within a line)
-    await page.locator('#chips .chip[data-k="5"]').click();
+    await page.locator('#chips .chip[data-k="5"]').dispatchEvent("click");
     const mid = await page.evaluate(() => {
       const box = document.querySelector("#ptr");
       const on = box.querySelector(".line.on");

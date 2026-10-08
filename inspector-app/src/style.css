@@ -1389,3 +1389,11 @@ html { overflow-anchor: none; }
 [data-exits] .b[data-owners]:not(.hl),
 :is(#tree, #mtree, .tree)[data-exits] .row:not(.hl) {
   cursor: default; }
+/* during a walkthrough, the bar and its details stick to the top of the
+   view (below a host's scroll-padding-top: WalkthroughPanel sets `top`)
+   while the storage section is in view; the dump scrolls under them */
+.wpanel.walking { position: sticky; z-index: 8; background: var(--bg);
+  padding-bottom: 10px; }
+.wpanel.walking .dwrap { margin-bottom: 0; }
+.lens > [data-area]:has(> .wpanel.walking) { position: sticky; top: 0;
+  z-index: 8; align-self: start; }

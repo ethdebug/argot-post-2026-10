@@ -17,6 +17,7 @@ import {
 } from "./hooks";
 import type { DataRef, LinkId, ViewId } from "./types";
 import { exiting } from "./types";
+import { viewUnder } from "./scroll";
 
 // a chevron, pointing down (open); CSS turns it right when closed
 const CHEV = <svg viewBox="0 0 16 16" aria-hidden="true"><path
@@ -366,9 +367,14 @@ export function Tree(p: { id: ViewId; data: DataRef; filter?: Filter;
         esc(to)}"] > .row`);
       if (!tree || !row || tree.scrollHeight <= tree.clientHeight) return;
       const r = row.getBoundingClientRect();
-      const b = tree.getBoundingClientRect();
+      // (its box, less what a stuck walkthrough panel covers, when that
+      // leaves room for it)
+      const b0 = tree.getBoundingClientRect();
+      const b = { top: Math.max(b0.top, viewUnder(tree).top),
+        bottom: b0.bottom };
+      if (b.bottom - b.top < 3 * r.height) Object.assign(b, b0);
       if (r.top < b.top || r.bottom > b.bottom) {
-        tree.scrollTop += r.top - b.top - (b.height - r.height) / 2;
+        tree.scrollTop += r.top - b.top - (b.bottom - b.top - r.height) / 2;
       }
     };
     bring();
