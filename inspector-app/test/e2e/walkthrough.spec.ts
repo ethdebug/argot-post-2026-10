@@ -425,3 +425,51 @@ test("Vyper: its own words listed, each lighting its word", async ({ page }) => 
   expect(t2).toMatch(/plays = 1[\s\S]*name \(length\) = 34[\s\S]*"carol, the unstoppable combo que"[\s\S]*"en"/);
   await page.keyboard.press("Escape");
 });
+
+test("the packed fields: a byte strip of the word, the fields in order",
+  async ({ page }) => {
+    await ready(page);
+    await select(page, A);
+    await page.locator('#details button[data-r="start"]').click();
+    await page.locator('#chips .chip', { hasText: "6 fields" }).click();
+    const s = await page.evaluate(() => {
+      const st = document.querySelector("#dtext .bstrip")!;
+      const cells = [...st.querySelectorAll(".bbytes .b")];
+      const names = [...st.querySelectorAll<HTMLElement>(".bnames .fname")];
+      const row = st.getBoundingClientRect();
+      return { cells: cells.length, lit: cells.filter((c) =>
+        c.classList.contains("hl")).length, names: names.map((n) =>
+        n.textContent), oneLine: names.every((n) =>
+        n.getBoundingClientRect().height < 20), inBox: row.right <=
+        document.querySelector("#dtext")!.getBoundingClientRect().right + 1 };
+    });
+    expect(s).toEqual({ cells: 32, lit: 32, names: ["lastBlock", "hitCount",
+      "plays", "bestCombo", "combo", "score"], oneLine: true, inBox: true });
+  });
+
+test("stepping moves nothing; the details unfold only at entry and exit",
+  async ({ page }) => {
+    await page.emulateMedia({ reducedMotion: "no-preference" });
+    await ready(page);
+    await select(page, "players");
+    await page.locator('#details button[data-r="start"]').click();
+    const h = () => page.evaluate(() =>
+      document.querySelector<HTMLElement>("#dwrap")!.offsetHeight);
+    const early = await h();
+    await page.waitForTimeout(400);
+    const full = await h();
+    expect(early).toBeLessThan(full);
+    const boxes = () => page.evaluate(() => JSON.stringify([
+      // (the chips' row scrolls sideways inside itself, to the current
+      // chip: that is the chips' own scrolling, not a move)
+      ...document.querySelectorAll("#details, #dpanel, #chips, " +
+        "#panel .view:not([hidden]) .wrow:not(.cmp *), #tree")].map((e) => {
+      const r = e.getBoundingClientRect();
+      return [r.left, r.top + scrollY, r.width, r.height].map(Math.round);
+    })));
+    const b0 = await boxes();
+    for (let k = 0; k < 6; k++) {
+      await page.locator('#details button[data-r="next"]').click();
+      expect(await boxes(), `step ${k + 1}`).toBe(b0);
+    }
+  });
