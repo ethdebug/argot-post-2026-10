@@ -244,8 +244,21 @@ export function Dump(p: { id: ViewId; location: Location; data: DataRef;
       if (w > 0) d.style.setProperty(key, (w / fs).toFixed(4));
     };
     fit();
+    // (once the page's fonts are in: measured again, in them; vanilla
+    // 00cd9a0)
+    let live = true;
+    document.fonts?.ready.then(() => {
+      const d = me.current?.closest<HTMLElement>(".dump");
+      if (!live || !d) return;
+      d.style.removeProperty("--k32");
+      d.style.removeProperty("--k16");
+      fit();
+    });
     addEventListener("resize", fit);
-    return () => removeEventListener("resize", fit);
+    return () => {
+      live = false;
+      removeEventListener("resize", fit);
+    };
   }, [rows.length, shownHere]);
 
   // the overlays (popovers, cards, the tray), over the dumps' box, once
