@@ -540,3 +540,40 @@ test("the pointer's box: no scrollbar; edge buttons where there is more; "
   expect(d.top).toBeGreaterThan(o.top);
   expect(d.up).toBe(true);
 });
+
+test("a step's own gutter rows keep a dark label (not muted, not dropped)",
+  async ({ page }) => {
+    await ready(page);
+    const bad: string[] = [];
+    for (const x of [C, "motd", "players"]) {
+      await select(page, x);
+      await page.locator('#details button[data-r="start"]').click();
+      for (let k = 0; k < 20; k++) {
+        await page.mouse.move(1, 1);
+        const goal = (await stepNow(page)).count?.startsWith("0 /");
+        const miss = await page.evaluate(() => {
+          // (runs of gutter rows; each has one label, on a row of it)
+          const runs: HTMLElement[][] = [];
+          let run: HTMLElement[] | null = null;
+          for (const el of [...document.querySelector(
+            "#panel .view:not([hidden]) .rows")!.children] as HTMLElement[]) {
+            if (el.classList.contains("gut")) {
+              if (!run) runs.push(run = []);
+              run.push(el);
+            } else if (!el.classList.contains("cmp")) run = null;
+          }
+          return runs.filter((r) => !r.some((e) => {
+            const p = e.querySelector(".pop");
+            return p && !p.classList.contains("kept");
+          })).map((r) => r[0].dataset.slot!.slice(-4));
+        });
+        if (!goal && miss.length) bad.push(`${x.slice(0, 12)} ${k}: ${miss}`);
+        const n = page.locator(
+          '#details button[data-r="next"]:not([disabled])');
+        if (!(await n.count())) break;
+        await n.click();
+      }
+      await page.keyboard.press("Escape");
+    }
+    expect(bad).toEqual([]);
+  });
