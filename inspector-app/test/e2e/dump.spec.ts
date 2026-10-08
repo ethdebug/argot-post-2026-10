@@ -89,7 +89,7 @@ test("popovers: black; a badge only for what is lit; one line, inside "
   await page.mouse.move(1, 1);
   const pl = await popOf("keccak(0x90f7…b906, slot 3)");
   expect(pl!.parts).toEqual(["[players[0x90f7…b906]]"]);
-  for (const wd of [1280, 1440, 1920, 760]) {
+  for (const wd of [1280, 1440, 1920, 659]) {
     await page.setViewportSize({ width: wd, height: 900 });
     await select(page, "mid", A);
     await page.mouse.move(1, 1);
