@@ -14,3 +14,10 @@ c62550a	Inspector: a walkthrough's step 0, the goal: when the selection takes se
 00f6f8c	Inspector: ethdebug data from the compiler (the YAML pane's title and the steps' provenance); the pane on the left scrolls with no scrollbar, its edges fading where it goes on, with a quiet label there; blurred and still at step 0	57de63c
 (note)	run.mjs's checks of instance names (players step 10, forms, carol's walkthrough, focus buttons) fail by design: the port names instances by on-chain name, quoted (decided 10-08); vanilla is changing too	open until vanilla's commit lands
 78bce69	Inspector: pointer expressions in ethdebug/format's ~ (vendor/pointers.js from format main d7cb421a3; solc's $ read as ~ at load, see ethdebug/format#324; the memory section remade with bugc d7cb421a3)	24f7712; its memory.json: M5 (T5.2/T5.3)
+23c7c00	Inspector: step 0's sentence over the blurred pointer ends with an arrow glyph toward ▶, which has a halo (no drawn arrow); slot popovers sized in ems of the dump's fitted font	b15dd41 (S5)
+282d480	Inspector: muted popovers placed by the same rule as the others, and never outside the rows' box (slot 0's goes under its row)	b15dd41 (S5)
+0225d35	Inspector: walkthrough instances named by their records' name on chain (the fixture's labels stay internal), cut within quotes in the focus picker and captions	b15dd41 (S5)
+2a1d80a	Inspector: step 0's sentence a block, left-aligned, with the arrow glyph beside it at its top	b15dd41 (S5)
+9f5b574	Inspector: step 0's arrow glyph about 1.4x the text, regular, centred on the sentence	b15dd41 (S5)
+47f2c14	Inspector: step 0's halo on ▶ in the selection yellow	b15dd41 (S5)
+5c1edfa	Inspector: byte ranges within a slot drawn as a strip shaped like a dump row (packed fields, a flag byte, total and rounds); step 0's sentence fits a phone's pointer box	b15dd41 (S5)
