@@ -41,6 +41,9 @@ test("copy link gives the current URL", async ({ page }) => {
       writeText: async (t: string) => void w.copied.push(t) } });
   });
   await page.goto("./shell.html#lens=inspector");
+  // (the lens writes its own keys once its view is shown: a copy before
+  // that is of a URL the page then changes)
+  await expect(page).toHaveURL(/&ex=/);
   await page.locator("[data-shell-copy]").click();
   expect(await page.evaluate(() =>
     (window as unknown as { copied: string[] }).copied))
