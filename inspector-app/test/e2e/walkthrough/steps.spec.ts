@@ -15,15 +15,17 @@ const stepNow = (page: Page) => page.evaluate(() => {
   };
   return {
     cap: document.querySelector("#details .rcount")?.textContent
-      ? document.querySelector("#dtext .rcap")?.textContent!.trim() : null,
+      ? document.querySelector("#details .rcap")?.textContent!.trim() : null,
     form: document.querySelector("#dtext .rform")?.textContent!.trim(),
-    short: document.querySelector("#details .rshort")?.textContent,
+    // (the step's construct: one axis for every step)
+    kind: document.querySelector("#details .rkind b")?.textContent,
     count: document.querySelector("#details .rcount")?.textContent ||
       undefined,
     resolved: !!document.querySelector('#details button[data-r="start"]'),
     ctl: box("#details .rctl"),
-    chips: [...document.querySelectorAll("#chips .chip")].map((c) =>
-      c.className.replace("chip ", "")).join(),
+    // (the dots of the steps after step 0: done, current or later)
+    chips: [...document.querySelectorAll("#dots .dot[data-n]")].map((c) =>
+      c.className.replace("dot ", "")).join(),
     ptr: [...document.querySelectorAll("#ptr .line.on")].map((l) =>
       l.textContent!.trim()),
     band0: [...document.querySelectorAll("#ptr .line")].findIndex((l) =>
@@ -68,7 +70,7 @@ async function walk(page: Page, path: string) {
   const ctl = new Set<string | undefined>();
   let goal: (St & { litN: Record<string, string> }) | undefined;
   const g = await stepNow(page);
-  if (g.count?.startsWith("0 /")) {
+  if (g.count === "start") {
     goal = { ...g, litN: litNamed(g.lit, nm) };
     ctl.add(g.ctl);
     await page.locator('#details button[data-r="next"]').click();
@@ -87,16 +89,10 @@ async function walk(page: Page, path: string) {
   await page.locator('#details button[data-r="exit"]').click();
   // (the controls' place while stepping; not after Exit, which takes the
   // page back to where the reader pressed Start, the bar with it)
-  // (the last step, "found", kept aside; the counts here are the rule
-  // steps': without it, as vanilla 6b1df3a's run.mjs)
+  // (the last step, "found", kept aside: "done"; the counts are the
+  // rule steps')
   let found: St | undefined;
-  if (out.at(-1)?.cap?.startsWith("That's ")) {
-    found = out.pop();
-    for (const x of out) {
-      x.count = x.count?.replace(/(\d+) \/ (\d+)/, (_, a, b) =>
-        `${a} / ${+b - 1}`);
-    }
-  }
+  if (out.at(-1)?.cap?.startsWith("That's ")) found = out.pop();
   return { steps: out, goal, ctl: ctl.size, found };
 }
 const down = (ws: St[]) => ws.map((x) => x.band0).filter((b) => b >= 0)
@@ -155,7 +151,7 @@ test("players: step 0 and ten steps, their light, bands and chips",
       expect(x.fullN, `${k + 1} full`).toEqual(lit);
       expect(x.dim).toBe(true);
       expect(x.count).toBe(`${k + 1} / ${N}`);
-      expect(x.short).toBeTruthy();
+      expect(x.kind).toBeTruthy();
       expect([...x.gutN].sort(), `${k + 1} gut`).toEqual([...gut].sort());
       expect([...x.wholeN].sort(), `${k + 1} whole`)
         .toEqual([...whole].sort());
@@ -168,7 +164,7 @@ test("players: step 0 and ten steps, their light, bands and chips",
         : j === k ? "cur" : "later").join());
     });
     // step 0: every slot touched, whole, yellow; no labels, no band
-    expect(goal?.count).toBe(`0 / ${N + 1}`);
+    expect(goal?.count).toBe("start");
     expect(Object.values(goal!.litN).every((v) => v === "all")).toBe(true);
     expect(Object.keys(goal!.litN).length).toBeGreaterThanOrEqual(9);
     // the record's step: its define, then the template it enters, whose
@@ -195,17 +191,18 @@ test("step 0: no labels, no band; ⏮ and ◀ reach it; a re-target keeps it",
         "#panel .view:not([hidden]) .b.hl")].filter((b) =>
         /\bpk\d/.test(b.className)).length,
       band: document.querySelectorAll("#ptr .line.on").length,
-      cur: document.querySelectorAll("#chips .chip.cur").length })))
+      cur: document.querySelectorAll("#dots .dot[data-n].cur").length })))
       .toEqual({ pops: 0, hues: 0, band: 0, cur: 0 });
     await page.locator('#details button[data-r="next"]').click();
     await page.locator('#details button[data-r="prev"]').click();
     // (the bar counts the found step too)
-    expect((await stepNow(page)).count).toBe("0 / 11");
-    await page.locator('#details button[data-r="last"]').click();
-    await page.locator('#details button[data-r="first"]').click();
-    expect((await stepNow(page)).count).toBe("0 / 11");
+    expect((await stepNow(page)).count).toBe("start");
+    await page.locator('#dots .dot:last-child').click();
+    expect((await stepNow(page)).count).toBe("done");
+    await page.locator('#dots .dot:first-child').click();
+    expect((await stepNow(page)).count).toBe("start");
     await row(page, C).click();
-    expect((await stepNow(page)).count).toBe("0 / 10");
+    expect((await stepNow(page)).count).toBe("start");
     await page.keyboard.press("Escape");
     await select(page, "mid", null);
     const t = await walk(page, "totalScore");
@@ -263,7 +260,9 @@ test("carol's record: eleven steps; bob's plays and carol's name",
       .toBe("key:,is,template,record,is,last,→,text");
   });
 
-test("the bar: entry, tint, the controls at the ends, keys, Exit, chips",
+// (the review's redesign: one title, ◀ ▶, the place, the steps as dots,
+// the step's one wording; ⏮ ⏭ are Home and End and the dots)
+test("the bar: entry, title, ◀ ▶ at the ends, the place, dots, keys, Exit",
   async ({ page }) => {
     await ready(page);
     await select(page, "mid", null);
@@ -273,43 +272,48 @@ test("the bar: entry, tint, the controls at the ends, keys, Exit, chips",
       const dis = (r: string) => b.querySelector<HTMLButtonElement>(
         `button[data-r="${r}"]`)?.disabled;
       return { tint: b.classList.contains("replaying"),
-        mode: b.querySelector(".rmode")!.textContent,
-        count: b.querySelector(".rcount")!.textContent,
-        off: ["first", "prev", "next", "last"].filter(dis).join(),
+        title: b.querySelector(".rtitle")?.textContent ?? "",
+        count: b.querySelector(".rcount")?.textContent ?? "",
+        off: ["prev", "next"].filter(dis).join(),
+        dots: b.querySelectorAll(".dot").length,
         exit: !!b.querySelector('button[data-r="exit"]'),
         start: b.querySelector('button[data-r="start"]')?.textContent };
     });
     let bs = await barNow();
-    expect(bs).toMatchObject({ tint: false, mode: "", exit: false,
-      start: "▸ Show how it was found" });
+    expect(bs).toMatchObject({ tint: false, title: "", exit: false,
+      start: "▶ How it was found" });
     await page.locator('#details button[data-r="start"]').dblclick();
     bs = await barNow();
-    expect(bs).toMatchObject({ tint: true, mode: "Walkthrough",
-      count: "1 / 6", off: "first,prev", exit: true });
-    await page.locator('#details button[data-r="last"]').click();
-    expect((await barNow()).count).toBe("6 / 6");
-    expect((await barNow()).off).toBe("next,last");
+    // (the title names the key by name, not by address)
+    expect(bs).toMatchObject({ tint: true,
+      title: "How the pointer finds players[bob].plays", count: "1 / 5",
+      off: "prev", dots: 6, exit: true });
+    await page.locator("#dots .dot:last-child").click();
+    expect(await barNow()).toMatchObject({ count: "done", off: "next" });
     await page.keyboard.press("ArrowRight");
-    expect((await barNow()).count).toBe("6 / 6");
-    await page.locator('#details button[data-r="first"]').click();
-    expect((await barNow()).count).toBe("1 / 6");
+    expect((await barNow()).count).toBe("done");
+    await page.locator("#dots .dot:first-child").click();
+    expect((await barNow()).count).toBe("1 / 5");
     await page.locator('#details button[data-r="next"]').click();
     await page.keyboard.press("ArrowRight");
-    expect((await barNow()).count).toBe("3 / 6");
+    expect((await barNow()).count).toBe("3 / 5");
     await page.evaluate(() => (document.activeElement as HTMLElement)
       ?.blur());
     await page.keyboard.press("Home");
-    expect((await barNow()).count).toBe("1 / 6");
+    expect((await barNow()).count).toBe("1 / 5");
     await page.keyboard.press("End");
-    expect((await barNow()).count).toBe("6 / 6");
+    expect((await barNow()).count).toBe("done");
+    // (a dot's caption, on hover and for the screen reader)
+    expect(await page.locator('#dots .dot[data-n="1"]').getAttribute(
+      "title")).toBe("players is declared at slot 3; that slot holds nothing");
     await page.locator('#details button[data-r="exit"]').click();
     expect((await barNow()).tint).toBe(false);
     await page.locator('#details button[data-r="start"]').click();
-    await page.locator('#chips .chip[data-k="1"]').dispatchEvent("click");
-    expect((await stepNow(page)).count).toBe("2 / 6");
+    await page.locator('#dots .dot[data-n="1"]').click();
+    expect((await stepNow(page)).count).toBe("2 / 5");
     await page.locator("#details").focus();
     await page.keyboard.press("ArrowLeft");
-    expect((await stepNow(page)).count).toBe("1 / 6");
+    expect((await stepNow(page)).count).toBe("1 / 5");
     await page.keyboard.press("Escape");
     const st = await stepNow(page);
     expect(st.resolved).toBe(true);
@@ -321,23 +325,27 @@ test("the focus: all by default for players; one entry echoes",
     await ready(page);
     await select(page, "mid", "players");
     await page.locator('#details button[data-r="start"]').click();
-    const btns = await page.locator("#dpick button").evaluateAll((bs) =>
+    const btns = () => page.locator("#dpick button").evaluateAll((bs) =>
       bs.map((b) => `${b.textContent}${b.getAttribute("aria-pressed") ===
         "true" ? "*" : ""}`).join("|"));
-    // (names cut within their quotes; in full in the label)
-    // (the players by the scene's names)
-    expect(btns).toBe("all*|alice|bob|carol");
+    // (the picker only at the step it changes, the packed fields, its row
+    // kept at the others; the players by the scene's names)
     const muted = [];
+    const shown = [];
     for (let k = 0; k < 10; k++) {
-      await page.locator(`#chips .chip[data-k="${k}"]`).dispatchEvent("click");
+      await page.locator(`#dots .dot[data-n="${k}"]`).dispatchEvent("click");
       muted.push(await page.locator(
         "#panel .view:not([hidden]) .b.hl.muted").count());
+      shown.push((await btns()) ? k : -1);
     }
+    expect(shown.filter((k) => k >= 0)).toEqual([4]);
+    await page.locator('#dots .dot[data-n="4"]').dispatchEvent("click");
+    expect(await btns()).toBe("all*|alice|bob|carol");
     expect(muted.some(Boolean)).toBe(false);
-    await page.locator('#chips .chip[data-k="4"]').dispatchEvent("click");
+    await page.locator('#dots .dot[data-n="4"]').dispatchEvent("click");
     const boxes = () => page.evaluate(() => JSON.stringify([
       ...document.querySelectorAll("#details, #dpanel, #dpick button, " +
-        "#chips .chip, #panel .view:not([hidden]) .wrow, #tree")].map((e) => {
+        "#dots .dot, #panel .view:not([hidden]) .wrow, #tree")].map((e) => {
       const r = e.getBoundingClientRect();
       return [r.left, r.top, r.width, r.height].map(Math.round);
     })));
@@ -359,7 +367,7 @@ test("entries and fields never share a colour; found rows keep labels",
     await select(page, "mid", "players");
     const huesAt = async (k: number) => {
       await page.locator('#details button[data-r="start"]').click();
-      await page.locator(`#chips .chip[data-k="${k}"]`).dispatchEvent("click");
+      await page.locator(`#dots .dot[data-n="${k}"]`).dispatchEvent("click");
       await page.mouse.move(1, 1);
       const hs = await page.evaluate(() => [...new Set([...document
         .querySelectorAll("#panel .view:not([hidden]) .rows .b.hl:not(" +
@@ -374,12 +382,12 @@ test("entries and fields never share a colour; found rows keep labels",
     expect(fieldHues.some((x) => entryHues.includes(x))).toBe(false);
     // (the input step: playerList's items in their entries' colours)
     await page.locator('#details button[data-r="start"]').click();
-    await page.locator('#chips .chip[data-k="0"]').dispatchEvent("click");
+    await page.locator('#dots .dot[data-n="0"]').dispatchEvent("click");
     const col = (ps: string[]) => page.evaluate((x) => x.map((p) =>
       document.querySelector(`#tree li[data-path="${p}"] > .row`)
         ?.className.match(/pk\d/)?.[0]), ps);
     const ks = await col(["playerList[0]", "playerList[1]", "playerList[2]"]);
-    await page.locator('#chips .chip[data-k="3"]').dispatchEvent("click");
+    await page.locator('#dots .dot[data-n="3"]').dispatchEvent("click");
     const es = await col([A, B, C]);
     // (the record's step: their tree rows in their entries' colours too,
     // as the slots it outlines)
@@ -390,10 +398,10 @@ test("entries and fields never share a colour; found rows keep labels",
         "#panel .view:not([hidden]) .wrow[data-name]")].map((r) =>
       [r.dataset.name, r.querySelector(":scope > .addr")!.classList
         .contains("grp")])));
-    await page.locator('#chips .chip[data-k="8"]').dispatchEvent("click");
+    await page.locator('#dots .dot[data-n="8"]').dispatchEvent("click");
     await page.mouse.move(1, 1);
     expect((await labelled())[cdata]).toBeFalsy();
-    await page.locator('#chips .chip[data-k="9"]').dispatchEvent("click");
+    await page.locator('#dots .dot[data-n="9"]').dispatchEvent("click");
     await page.mouse.move(1, 1);
     expect((await labelled())[cdata]).toBe(true);
     await expect(page.locator("#panel .pop.kept")).not.toHaveCount(0);
@@ -410,8 +418,8 @@ test("footnotes link to the spec; the pointer as YAML, coloured",
     await page.locator('#details button[data-r="start"]').click();
     const hrefs: string[] = [];
     for (let k = 0; k < 10; k++) {
-      await page.locator(`#chips .chip[data-k="${k}"]`).dispatchEvent("click");
-      hrefs.push(...await page.locator("#dpanel .fnotes a").evaluateAll(
+      await page.locator(`#dots .dot[data-n="${k}"]`).dispatchEvent("click");
+      hrefs.push(...await page.locator("#details .fnotes a").evaluateAll(
         (as) => as.map((a) => (a as HTMLAnchorElement).href)));
     }
     expect(hrefs.length).toBeGreaterThan(0);
@@ -434,19 +442,20 @@ test("Vyper: Solidity's rule, then the misread: Vyper's own layout, "
     await ready(page);
     await select(page, "vyper");
     await page.locator('#details button[data-r="start"]').click();
-    await expect(page.locator("#details .rcount")).toHaveText("1 / 7");
+    await expect(page.locator("#details .rcount")).toHaveText("1 / 6");
     // (no list of Vyper's words in the box of the compiler's data)
     await expect(page.locator(".ptr ol.vyper, #ptr .howside"))
       .toHaveCount(0);
-    await page.locator('#details button[data-r="last"]').click();
+    await page.locator('#dots .dot:last-child').click();
     await page.mouse.move(1, 1);
-    const cap = (await page.locator("#dtext .rcap").innerText())
+    const cap = (await page.locator("#details .rcap").innerText())
       .replace(/\s+/g, " ");
     expect(cap).toContain("The misread: Vyper keeps players[alice].score " +
       "in slot …0446, where it is 30");
-    expect(cap).toContain("hand-written for comparison");
-    expect(await page.locator("#dtext .rsrc").innerText()).toContain(
-      "hand-written (not ethdebug)");
+    expect(await page.locator("#details .rsrc").innerText()).toContain(
+      "from: Vyper's layout, hand-written for comparison (Vyper emits no " +
+      "ethdebug)");
+    expect(await page.locator("#details .rcount").innerText()).toBe("done");
     // (Vyper's word, lit in its own colour, beside Solidity's reading)
     const lit = await page.evaluate(() => [...document.querySelectorAll(
       "#panel .view:not([hidden]) .b.hl.pk9")].map((c) =>
@@ -455,7 +464,7 @@ test("Vyper: Solidity's rule, then the misread: Vyper's own layout, "
     // (carol, re-targeted: her Vyper words)
     // (re-targeted at the last step: it stays there)
     await row(page, `${C}.score`).click();
-    expect(await page.locator("#dtext .rcap").innerText()).toContain(
+    expect(await page.locator("#details .rcap").innerText()).toContain(
       "where it is 100");
     await page.keyboard.press("Escape");
   });
@@ -469,9 +478,7 @@ test("the packed fields: a strip shaped like a dump row, the fields in "
     await ready(page);
     await select(page, "mid", "players");
     await page.locator('#details button[data-r="start"]').click();
-    // (the chips' row scrolls: the chip may be past its edge, as vanilla)
-    await page.locator('#chips .chip', { hasText: "6 fields" })
-      .evaluate((e: HTMLElement) => e.click());
+    await page.locator('#dots .dot[data-n="4"]').click();
     await expect(page.locator("#dtext .bstrip")).toBeAttached();
     const x = await page.evaluate(() => {
       const s = document.querySelector("#dtext .bstrip .bs32")!;
@@ -503,7 +510,7 @@ test("the packed fields: a strip shaped like a dump row, the fields in "
   // never cut to a letter: carol's one-byte length flag; vanilla 5ec2f00)
   await select(page, "mid", C);
   await page.locator('#details button[data-r="start"]').click();
-  await page.locator('#chips .chip[data-k="6"]')
+  await page.locator('#dots .dot[data-n="6"]')
     .evaluate((e: HTMLElement) => e.click());
   await expect(page.locator("#dtext .bstrip .bs32 .bsl")).toBeAttached();
   const call = await page.evaluate(() => {
@@ -538,9 +545,7 @@ test("stepping moves nothing; the details unfold only at entry and exit",
     // (the panel sticks to the top of the view: its boxes on screen; the
     // rest on the page, which a step may scroll)
     const boxes = () => page.evaluate(() => JSON.stringify([
-      // (the chips' row scrolls sideways inside itself, to the current
-      // chip: that is the chips' own scrolling, not a move)
-      ...[...document.querySelectorAll("#details, #dpanel, #chips")]
+      ...[...document.querySelectorAll("#details, #dpanel, #dots")]
         .map((e) => {
           const r = e.getBoundingClientRect();
           return [r.left, r.top, r.width, r.height].map(Math.round);
@@ -566,7 +571,7 @@ test("every lit run has its popover at every step (not step 0, which has "
     await page.locator('#details button[data-r="start"]').click();
     for (let k = 0; k < 20; k++) {
       await page.mouse.move(1, 1);
-      const goal = (await stepNow(page)).count?.startsWith("0 /");
+      const goal = (await stepNow(page)).count === "start";
       // (a block of slots with a lit row: its label under or over it,
       // in one place for the whole walkthrough)
       const miss = await page.evaluate(() => {
@@ -637,7 +642,7 @@ test("a step's own gutter rows keep a dark label (not muted, not dropped)",
       await page.locator('#details button[data-r="start"]').click();
       for (let k = 0; k < 20; k++) {
         await page.mouse.move(1, 1);
-        const goal = (await stepNow(page)).count?.startsWith("0 /");
+        const goal = (await stepNow(page)).count === "start";
         const miss = await page.evaluate(() => {
           // (runs of gutter rows; each has one label, on a row of it)
           const runs: HTMLElement[][] = [];
@@ -711,7 +716,7 @@ test("the last step, found: the selection's resting view",
     await page.mouse.move(1, 1);
     const rest = await view();
     await page.locator('#details button[data-r="start"]').click();
-    await page.locator('#details button[data-r="last"]').click();
+    await page.locator('#dots .dot:last-child').click();
     await page.mouse.move(1, 1);
     expect(await view(), x).toBe(rest);
     expect((await stepNow(page)).cap, x).toMatch(/^That's /);
@@ -719,7 +724,7 @@ test("the last step, found: the selection's resting view",
       await row(page, `${C}.name`).click();
       const r = await stepNow(page);
       expect(r.cap).toMatch(/^That's /);
-      expect(r.count).toMatch(/^(\d+) \/ \1$/);
+      expect(r.count).toBe("done");
     }
     await page.keyboard.press("Escape");
   }
