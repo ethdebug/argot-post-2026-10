@@ -15,6 +15,7 @@ import {
   useRelatedRoots, useView, useWalkthrough,
 } from "./hooks";
 import type { DataRef, LinkId, ViewId } from "./types";
+import { exiting } from "./types";
 
 // a chevron, pointing down (open); CSS turns it right when closed
 const CHEV = <svg viewBox="0 0 16 16" aria-hidden="true"><path
@@ -302,9 +303,11 @@ export function Tree(p: { id: ViewId; data: DataRef; filter?: Filter;
     const at = rowOf(el);
     if (!at) return false;
     const path = keys || !d ? at : blockOf(at, link.selection, d.byPath);
-    // (a click that clears: what is under the pointer gets its hover at
-    // once, with no mouse move: vanilla rehover)
-    setLink((s) => path === s.selection
+    // (a click that clears, on the selection or on what it does not
+    // light: what is under the pointer gets its hover at once, with no
+    // mouse move: vanilla rehover)
+    setLink((s) => path === s.selection ||
+      (!keys && exiting(s) && !light.rows.has(at))
       ? { ...s, selection: null, hover: { path: at } }
       : { ...s, hover: null, selection: path });
     return true;
@@ -508,6 +511,7 @@ export function Tree(p: { id: ViewId; data: DataRef; filter?: Filter;
   return <>
     <div ref={box} id={p.domId}
       className={`tree${light.muted ? " active" : ""}`}
+      data-exits={exiting(link) || undefined}
       data-view={`${lens.key}:${p.id}`} data-align={alignKey}
       onPointerOver={point} onFocus={point}
       onClick={onClick} onKeyDown={onKey}>

@@ -10,6 +10,15 @@ import http from "node:http";
 import zlib from "node:zlib";
 import { current as sizesCurrent } from "./sizes.mjs";
 
+// Selects what a locator shows, as a reader does: a click; with a
+// selection that does not light it, that click only ends the selection
+// (src/ui/types.ts exiting), so a second one selects it
+async function pick(l) {
+  const exits = await l.evaluate((e) => !!e.closest("[data-exits]") &&
+    !e.classList.contains("hl"));
+  await l.click();
+  if (exits) await l.click();
+}
 const PAGE = process.env.PAGE ?? "http://localhost:5181/demos/inspector/";
 const root = path.dirname(path.dirname(fileURLToPath(import.meta.url)));
 // the demo's own files: its fixtures, contract and screenshots
@@ -509,8 +518,8 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
   // Clicking a byte selects the variable that owns it (selection lives
   // on the tree row)
   const pickByte = async (owner, i) => {
-    await page.locator(`#panel .word[data-side="after"] ` +
-      `.b[data-owners="${owner}"][data-i="${i}"]`).click();
+    await pick(page.locator(`#panel .word[data-side="after"] ` +
+      `.b[data-owners="${owner}"][data-i="${i}"]`));
     await page.locator("h1").hover();
   };
   const selected = () => page.evaluate(() =>
@@ -553,7 +562,8 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
   if ((await selected()).length) problems.push("row click did not toggle");
   // While a variable is selected, the view stays on it: an unrelated
   // byte changes nothing; its own bytes only change the info line; a
-  // click on an unrelated byte switches the selection
+  // click on an unrelated byte only ends the selection, a second one
+  // selects it
   await tr(`${A}.combo`).click();
   const look = () => page.evaluate(() => JSON.stringify([
     [...document.querySelectorAll("#panel .b.hl:not(.cmp *)")].length,
@@ -579,6 +589,9 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
     await page.locator("#details").textContent() !== probe0) {
     problems.push("locked: own byte hover");
   }
+  await scoreByte.click();
+  sel = await selected();
+  if (sel.length) problems.push(`locked: click did not end it: ${sel}`);
   await scoreByte.click();
   sel = await selected();
   if (sel.join() !== `${A}.score`) {
@@ -685,7 +698,7 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
   if (await page.locator("#panel .cmp, #tree .tcard").count()) {
     problems.push("one point: a card");
   }
-  await page.locator(`#tree li[data-path="${A}.combo"] > .row`).click();
+  await pick(page.locator(`#tree li[data-path="${A}.combo"] > .row`));
   const box1 = await page.locator("#details").innerText();
   if (!box1.includes("players[0x7099…79c8].combo uint32 = 2") ||
     /\((before|after)/.test(box1) || !box1.includes("▸ Show how it was found")) {
@@ -709,7 +722,7 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
     });
     for (const p of [null, ...paths]) {
       if (p) {
-        await page.locator(`#tree li[data-path="${p}"] > .row`).click();
+        await pick(page.locator(`#tree li[data-path="${p}"] > .row`));
       } else if (dsel) {
         // the scene's default selection, as it opens
       }
@@ -746,7 +759,7 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
         return out;
       });
       if (bad.length) problems.push(`${id} ${p ?? "(default)"}: ${bad}`);
-      if (p) await page.locator(`#tree li[data-path="${p}"] > .row`).click();
+      if (p) await pick(page.locator(`#tree li[data-path="${p}"] > .row`));
     }
   }
 
@@ -796,7 +809,7 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
   // In Before, both runs (slot 1 and its long data, both lit)
   // get their derivation label; no popover or card covers a lit row's
   // address label
-  await page.locator('#tree li[data-path="motd"] > .row').click();
+  await pick(page.locator('#tree li[data-path="motd"] > .row'));
   await page.mouse.move(1, 1);
   const labelled = await page.evaluate(() => {
     const v = document.querySelector('#panel .view[data-side="before"]');
@@ -828,7 +841,7 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
   // popover's arrow lands within that box (both states)
   for (const m of ["before", "after"]) {
     await setMode(m);
-    await page.locator('#tree li[data-path="motd"] > .row').click();
+    await pick(page.locator('#tree li[data-path="motd"] > .row'));
     await page.mouse.move(1, 1);
     const bad = await page.evaluate((side) => {
       const v = document.querySelector(`#panel .view[data-side="${side}"]`);
@@ -1164,8 +1177,8 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
   }
   // The first scene, as its intro asks: a click on a byte of slot 2
   await page.locator('#picker button[data-id="mid"]').click();
-  await page.locator('#panel .word[data-side="after"] ' +
-    '.b[data-owners="total"][data-i="31"]').click();
+  await pick(page.locator('#panel .word[data-side="after"] ' +
+    '.b[data-owners="total"][data-i="31"]'));
   await page.locator("h1").hover();
   if ((await selected()).join() !== "total") {
     problems.push(`packed: byte click selected ${await selected()}`);
@@ -1240,7 +1253,7 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
   };
   // walk a replay: each step, and what the controls do
   const walk = async (path, nm = mnames) => {
-    await row(path).click();
+    await pick(row(path));
     await page.mouse.move(1, 1);
     await page.locator('#details button[data-r="start"]').click();
     const out = [];
@@ -1361,7 +1374,7 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
       await page.locator('#details button[data-r="first"]').click();
       x.first = (await stepNow()).count;
       // (re-targeted at step 0: to carol's record, step 0 too)
-      await row(C).click();
+      await pick(row(C));
       x.re = (await stepNow()).count;
       await page.keyboard.press("Escape");
       return x;
@@ -1515,7 +1528,7 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
       const cap = (await stepNow()).cap;
       if (f !== rest || !cap.startsWith("That's ")) bad.push(x.slice(0, 12));
       if (x === C) {
-        await row(`${C}.name`).click();
+        await pick(row(`${C}.name`));
         const r = await stepNow();
         if (!r.cap.startsWith("That's ") || !/^(\d+) \/ \1$/.test(r.count)) {
           bad.push(`re-target at found: ${r.count}`);
@@ -1858,7 +1871,7 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
   // (each disabled at its end), the count, ✕ Exit. ▶ and ⏭ never exit;
   // only ✕ Exit and Escape do. Keys work from anywhere, also after a
   // mouse click; a double click on the entry does not skip a step
-  await row(`${B}.plays`).click();
+  await pick(row(`${B}.plays`));
   const barNow = () => page.evaluate(() => {
     const b = document.querySelector("#details");
     const dis = (r) => b.querySelector(`button[data-r="${r}"]`)?.disabled;
@@ -1932,8 +1945,8 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
         .classList.contains("hl"),
       bytes: document.querySelectorAll("#panel .view:not([hidden]) .b.hl")
         .length, sel: !!document.querySelector("#tree .row.sel") }));
-    await row("total").click();
-    await row("total").click();
+    await pick(row("total"));
+    await pick(row("total"));
     const r = await lit();
     const cell = page.locator(`#panel .view:not([hidden]) .wrow[data-slot="0x${
       "0".repeat(63)}2"] .b[data-i="31"]`);
@@ -1961,7 +1974,7 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
     });
     await row("roster[0]").hover();
     const h = await caps();
-    await row("roster[0]").click();
+    await pick(row("roster[0]"));
     await page.mouse.move(1, 1);
     const s = await caps();
     const clear = /rgba\(0, 0, 0, 0\)|transparent/;
@@ -2003,7 +2016,7 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
   // are one merged block at once
   {
     await page.evaluate((x) => window.select("mid", { sel: x }), A);
-    await row("players").click();
+    await pick(row("players"));
     const m = await page.evaluate((a) => {
       const li = document.querySelector(`#tree li[data-path="${a}"]`);
       return li.classList.contains("blk");
@@ -2070,7 +2083,7 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
     const viaAddr = await prow();
     await row("players").hover();
     const gut = await page.locator(`${r3}.gut`).count();
-    await page.locator(`${r3} .b[data-i="10"]`).click();
+    await pick(page.locator(`${r3} .b[data-i="10"]`));
     const sel = (await selected()).join();
     if (!viaByte || !viaAddr || !gut || sel !== "players") {
       problems.push(`slot 3 <-> players: ${JSON.stringify({ viaByte,
@@ -2092,11 +2105,11 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
     const gut = `#panel .view:not([hidden]) .wrow:has(.b[data-owners="${
       A}.score"]) > .addr`;
     const got = [
-      await at("players", () => row(`${A}.score`).click()),
+      await at("players", () => pick(row(`${A}.score`))),
       await at("players", () => page.locator(sc).first().click()),
       await at("players", () => page.locator(gut).first().click()),
-      await at(A, () => row(`${A}.score`).click()),
-      await at(null, () => row(`${A}.score`).click())];
+      await at(A, () => pick(row(`${A}.score`))),
+      await at(null, () => pick(row(`${A}.score`)))];
     if (got.join() !== [A, A, A, `${A}.score`, `${A}.score`].join()) {
       problems.push(`child blocks: ${got}`);
     }
@@ -2207,7 +2220,7 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
       await chev("players").hover();
       const chov = await g();
       await page.mouse.move(1, 1);
-      await row("players").click();
+      await pick(row("players"));
       await page.mouse.move(1, 1);
       const act = await g();
       // (focus after a key: the keyboard's focus)
@@ -2255,7 +2268,7 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
         const states = [await fill(k)];
         await row(k).hover();
         states.push(await fill(k));
-        await row(k).click();
+        await pick(row(k));
         await page.mouse.move(1, 1);
         states.push(await fill(k));
         await row(k).focus();
@@ -2491,7 +2504,7 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
       await page.evaluate((x) => window.select("mid", { sel: x }), from);
       await page.locator('#details button[data-r="start"]').click();
       await page.locator(`#chips .chip[data-k="${k}"]`).click();
-      if (how === "row") await row(to).click();
+      if (how === "row") await pick(row(to));
       else {
         await page.locator(`#panel .view:not([hidden]) .b[data-owners="${to
           }"]`).first().click();
@@ -3133,7 +3146,7 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
   }
   // combo: its source mark
   await scene("alice");
-  await row(`${A}.combo`).click();
+  await pick(row(`${A}.combo`));
   // (marked in the contract's source at the top, the one source pane)
   const mark = (await page.locator("#contract-src .line.decl")
     .allTextContents()).join("\n");
@@ -3158,7 +3171,7 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
     vs.filter((v) => !v.hidden && v.offsetHeight).map((v) =>
       v.dataset.side).join());
   // (the box gives both states; a replay runs in the state shown)
-  await row(`${A}.score`).click();
+  await pick(row(`${A}.score`));
   for (const [m, val] of [["before", "30"], ["after", "60"]]) {
     await setMode(m);
     const v = await views();
@@ -3216,7 +3229,7 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
   for (const p of ["roster[0]", `${A}.name`, `${B}.score`, "motd"]) {
     for (const m of ["before", "after"]) {
       await setMode(m);
-      await row(p).click();
+      await pick(row(p));
       await page.mouse.move(1, 1);
       const n = await page.locator("#tree .tcard, #panel .cmp").count();
       if (n) problems.push(`${p} ${m}: ${n} cards for an unchanged value`);
@@ -3279,8 +3292,8 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
     if (!shownCd || selector !== "0x" + keccak256("setMotd(string)")
       .slice(0, 8)) problems.push(`calldata: ${shownCd} ${selector}`);
     // offset 32, then the length (48) at 0x24, then the bytes at 0x44
-    await page.locator(
-      '#cpanel .wrow[data-slot="0x0024"] .b[data-i="4"]').click();
+    await pick(page.locator(
+      '#cpanel .wrow[data-slot="0x0024"] .b[data-i="4"]'));
     const c = await cdl();
     if (c.chosen !== "m-length") problems.push(`calldata byte: ${c.chosen}`);
     const cdetails = await dl("#cdetails");
@@ -3288,8 +3301,8 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
       cdetails.Where !== "bytes 0x0024–0x0043") {
       problems.push(`calldata details: ${JSON.stringify(cdetails)}`);
     }
-    await page.locator(
-      '#cpanel .wrow[data-slot="0x0024"] .b[data-i="4"]').click();
+    await pick(page.locator(
+      '#cpanel .wrow[data-slot="0x0024"] .b[data-i="4"]'));
     await page.locator('#ctree li[data-part="m"] > .row').hover();
     // (each byte's place in the calldata: its row's start, plus its
     // index in the row)
@@ -3390,7 +3403,7 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
   });
   const sameColours = (c) => Object.entries(c.tree).every(([p, k]) =>
     !(p in c.dump) || c.dump[p] === k);
-  await page.locator('#tree li[data-path="players"] > .row').click();
+  await pick(page.locator('#tree li[data-path="players"] > .row'));
   await page.mouse.move(1, 1);
   // (the selection colour, pk0, is the selected row's own, never a
   // child's)
@@ -3402,7 +3415,7 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
     cl.tree.players !== "pk0" || !sameColours(cl) || cl.bg !== 3) {
     problems.push(`players colours: ${JSON.stringify(cl)}`);
   }
-  await page.locator(`#tree li[data-path="${A}"] > .row`).click();
+  await pick(page.locator(`#tree li[data-path="${A}"] > .row`));
   await page.mouse.move(1, 1);
   cl = await colours();
   const members = Object.entries(cl.tree).filter(([q]) => q !== A)
@@ -3413,7 +3426,7 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
   }
   // an array: its length (its own bytes) in the selection colour, its
   // elements in child colours
-  await page.locator('#tree li[data-path="roster"] > .row').click();
+  await pick(page.locator('#tree li[data-path="roster"] > .row'));
   await page.mouse.move(1, 1);
   cl = await colours();
   if (cl.tree.roster !== "pk0" || cl.dump.roster !== "pk0" ||
@@ -3421,7 +3434,7 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
       !cl.tree[q] || cl.tree[q] === "pk0") || !sameColours(cl)) {
     problems.push(`roster colours: ${JSON.stringify(cl)}`);
   }
-  await page.locator(`#tree li[data-path="${A}"] > .row`).click();
+  await pick(page.locator(`#tree li[data-path="${A}"] > .row`));
   await page.mouse.move(1, 1);
   // with players selected, each entry is one block in its colour: its
   // key line and its fields, one background, rounded at its ends only,
@@ -3561,7 +3574,7 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
   await page.evaluate(() => document.activeElement?.blur());
   await page.mouse.move(1, 1);
   if ((await muted()).rows.length) problems.push("mute: not restored");
-  await page.locator(`#tree li[data-path="${A}.combo"] > .row`).click();
+  await pick(page.locator(`#tree li[data-path="${A}.combo"] > .row`));
   await page.mouse.move(1, 1);
   cl = await colours();
   if (Object.values(cl.tree).join() !== "pk0") {
@@ -3579,7 +3592,7 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
   // players selected, one popover for each player's record and one for
   // carol's long name's data, none in the tray, none on bytes or on
   // another row's address
-  await page.locator('#tree li[data-path="players"] > .row').click();
+  await pick(page.locator('#tree li[data-path="players"] > .row'));
   await page.mouse.move(1, 1);
   const room = await page.evaluate(() => {
     const v = document.querySelector('#panel .view:not([hidden])');
@@ -3616,8 +3629,8 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
   }
   await page.keyboard.press("Escape");
   // a byte of bob's record selects its field; the roster at keccak(slot 0)
-  await page.locator(`#panel .word[data-side="after"] ` +
-    `.b[data-owners="${B}.score"][data-i="31"]`).click();
+  await pick(page.locator(`#panel .word[data-side="after"] ` +
+    `.b[data-owners="${B}.score"][data-i="31"]`));
   await page.locator("h1").hover();
   if ((await selected()).join() !== `${B}.score`) {
     problems.push(`three players: byte selected ${await selected()}`);
@@ -3629,7 +3642,7 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
   if (rl.join() !== "keccak(slot 0) + 2") problems.push(`roster[2]: ${rl}`);
   // roster[1], selected: the middle of the roster's run, with no gap
   // line beside it; its popover sits on the unlit row under it
-  await page.locator('#tree li[data-path="roster[1]"] > .row').click();
+  await pick(page.locator('#tree li[data-path="roster[1]"] > .row'));
   await page.mouse.move(1, 1);
   const r1 = await page.evaluate(() => {
     const v = document.querySelector('#panel .view:not([hidden])');
@@ -3723,7 +3736,7 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
   }
   // carol, selected (a click re-targets the walkthrough): her Vyper
   // words, her long name over two words
-  await page.locator(`#tree li[data-path="${C}.score"] > .row`).click();
+  await pick(page.locator(`#tree li[data-path="${C}.score"] > .row`));
   text = (await how()).replace(/\s+/g, " ");
   if (!/plays = 1[\s\S]*name \(length\) = 34[\s\S]*"carol, the unstoppable combo que"[\s\S]*"en"/
     .test(text)) {
@@ -3859,7 +3872,9 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
   }
   // m moves: at -O0 from the frame + 88 to the frame + 184, which
   // holds combo's bytes too
-  await mrow("m").click();
+  await pick(mrow("m"));
+  // (the selection's details: the pointer off the rows)
+  await page.locator("h1").hover();
   {
     const d = await dl("#mdetails");
     const [a, b] = [d.Before, d.After].map((x) =>
@@ -3873,7 +3888,7 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
   }
   // at -O2: inlined, no frame; the locals at fixed offsets
   await mopt(2);
-  await mrow("multiplied").click();
+  await pick(mrow("multiplied"));
   {
     const v = (await mrow("multiplied").locator(".val").textContent())
       .trim();
@@ -3893,7 +3908,7 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
       problems.push(`memory writes tree: ${t}`);
     }
   }
-  await mrow("players[msg.sender]").click();
+  await pick(mrow("players[msg.sender]"));
   {
     const c = await mcol();
     const ms = ["score", "combo", "bestCombo", "plays", "hitCount",
@@ -3920,11 +3935,11 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
         .length,
       lit: document.querySelectorAll("#mspanel .view:not([hidden]) .b.hl")
         .length }));
-    await mrow("gained").click();
+    await pick(mrow("gained"));
     const both = await page.evaluate(() => [
       document.querySelectorAll("#mpanel .view:not([hidden]) .b.hl").length,
       document.querySelectorAll("#mpanel .view:not([hidden]) .pop").length]);
-    await mrow("players[msg.sender]").click();
+    await pick(mrow("players[msg.sender]"));
     if (pan.mem !== "Memory" || pan.store !== "Storage" || !pan.shown ||
       pan.inMem || !pan.inStore || !pan.pops || pan.lit !== 32 ||
       !both[0] || !both[1]) {
@@ -3956,7 +3971,7 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
   // (the point opens with hit selected: a click clears it, Enter on
   // the focused row selects it again)
   await mpt("roll");
-  await mrow("hit").click();
+  await pick(mrow("hit"));
   if (await msel()) problems.push("memory click again");
   await mrow("hit").focus();
   await page.keyboard.press("Enter");
@@ -4016,9 +4031,9 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
       document.querySelector("#insets").checked,
       document.querySelector("#tree").innerText]));
     await scene("alice");
-    await page.locator(`#tree li[data-path="${A}.combo"] > .row`).click();
+    await pick(page.locator(`#tree li[data-path="${A}.combo"] > .row`));
     await mpt("mult");
-    await mrow("m").click();
+    await pick(mrow("m"));
     await page.locator("h1").hover();
     let m0 = await memView();
     const steps = [
@@ -4031,7 +4046,7 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
       ["a one-point scene", () => page.locator(
         '#picker button[data-id="mid"]').click()],
       ["Escape", async () => {
-        await page.locator('#tree li[data-path="total"] > .row').click();
+        await pick(page.locator('#tree li[data-path="total"] > .row'));
         await page.evaluate(() => document.activeElement?.blur());
         await page.keyboard.press("Escape");
       }],
@@ -4045,7 +4060,7 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
       }
     }
     await page.locator('#picker button[data-id="alice"]').click();
-    await page.locator(`#tree li[data-path="${A}.combo"] > .row`).click();
+    await pick(page.locator(`#tree li[data-path="${A}.combo"] > .row`));
     await page.locator("h1").hover();
     let s0 = await storeView();
     const msteps = [
@@ -4057,7 +4072,7 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
       ["a point", () => mpt("writes")],
       ["O0", () => mopt(0)],
       ["Escape", async () => {
-        await mrow("gained").click();
+        await pick(mrow("gained"));
         await page.evaluate(() => document.activeElement?.blur());
         await page.keyboard.press("Escape");
       }],
@@ -4118,13 +4133,13 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
   }
   // changes go back into the hash
   await hp.locator('#mode button[data-mode="after"]').click();
-  await hp.locator('#tree li[data-path="total"] > .row').click();
+  await pick(hp.locator('#tree li[data-path="total"] > .row'));
   const h2 = await hp.evaluate(() => location.hash);
   if (!h2.includes("mode=after") || !h2.includes("sel=total")) {
     problems.push(`hash write: ${h2}`);
   }
   // a cleared default selection stays cleared ("sel=")
-  await hp.locator('#tree li[data-path="total"] > .row').click();
+  await pick(hp.locator('#tree li[data-path="total"] > .row'));
   await idle(hp);
   await hp.reload();
   await hp.waitForFunction(() => window.results?.done, null,
@@ -4186,7 +4201,7 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
   });
   const vrest = await vbox();
   await pp.locator("h1").click();
-  await pp.locator('#tree li[data-path="motd"] > .row').click();
+  await pick(pp.locator('#tree li[data-path="motd"] > .row'));
   if (await vbox() !== vrest) {
     problems.push(`phone: the words' box changed: ${vrest} -> ${
       await vbox()}`);

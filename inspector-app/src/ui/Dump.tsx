@@ -31,6 +31,7 @@ import { noLight } from "../engine/light";
 import { readWritten } from "../engine/timeline";
 import { addressText, goesOn, rowBytes } from "../engine/location";
 import type { DataRef, LinkId, ViewId } from "./types";
+import { exiting } from "./types";
 
 const TINTS = 5;
 const PLAIN = 1n << 32n;
@@ -234,8 +235,19 @@ export function Dump(p: { id: ViewId; location: Location; data: DataRef;
   const act = (el: EventTarget, keys = false) => {
     const h = hit(el);
     if (!h || !d || !l) return false;
+    // (on what the selection does not light: it ends, and what is under
+    // the pointer gets its hover at once)
+    const lit = h.row !== undefined
+      ? [...Array(32).keys()].some((i) => lit0.bytes.has(byteKey(p.location,
+        h.row as Hex, i)))
+      : !!h.bytes && lit0.bytes.has(byteKey(p.location, h.bytes.row,
+        h.bytes.from));
     setLink((s) => {
       const sel = s.selection;
+      if (exiting(s) && !lit && !keys) {
+        return { ...s, selection: null,
+          hover: resolveTarget(h, null, d.byPath, l) };
+      }
       if (h.row !== undefined) {
         const t = resolveTarget(h, sel, d.byPath, l);
         if (t.path) return { ...s, hover: null,
@@ -371,6 +383,7 @@ export function Dump(p: { id: ViewId; location: Location; data: DataRef;
     className={["view", light.muted ? "active" : "",
       link.selection || link.walk ? "chosen" : ""].filter(Boolean).join(" ")}
     data-view={`${lens.key}:${p.id}`} data-point={l?.point}
+    data-exits={exiting(link) || undefined}
     onPointerOver={point} onPointerMove={point} onFocus={point}
     onClick={(e: MouseEvent) => {
       // (the lens's click-to-clear leaves a click that acted alone)
