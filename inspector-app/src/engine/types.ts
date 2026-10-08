@@ -196,6 +196,11 @@ export interface Light {                // DERIVED per view, never stored
   cap: ReadonlySet<Path | ByteKey>;     // brown edge = the selection only
   at?: Target["bytes"]; gutters: ReadonlySet<Hex>;
   muted: boolean;                       // the rest mutes
+  // (a walkthrough step's: bytes and rows that echo the focus, muted;
+  // the rows the steps so far have found, which keep their labels; the
+  // word whose byte positions show; no labels at all: step 0)
+  dim?: ReadonlySet<ByteKey>; dimRows?: ReadonlySet<Path>;
+  known?: ReadonlySet<Hex>; ruler?: Hex; quiet?: boolean;
 }
 export interface Filter {               // truncation, per view
   roots?: Path[];                       // only these subtrees

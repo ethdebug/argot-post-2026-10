@@ -5,6 +5,8 @@ import type {
   ByteKey, Colour, Decoded, Hex, Layout, Light, Path, Target, ValueNode,
 } from "./types";
 import { byteKey, slotHex, toBig } from "./hex";
+import { regionBytes } from "./layout";
+import type { Part, Step } from "./walkthrough/fold";
 
 export const noLight: Light = { bytes: new Set(), rows: new Set(),
   colours: new Map(), cap: new Set(), gutters: new Set(), muted: false };
@@ -113,4 +115,55 @@ export function forBytes(d: Decoded, l: Layout,
   return { ...noLight, bytes: lit(l, [...owners]), rows: new Set(
     o.collapsed?.size ? rows.flatMap((p) => [p, shownAs(p, o.collapsed!)])
       : rows), at, muted: true };
+}
+
+// A walkthrough step (vanilla main.js stepLight, partsLight; panel.js
+// forStep): its parts' regions and whole slots lit, in their colours,
+// the echoes muted; its gutters; the rows the steps so far found
+export function forStep(d: Decoded, l: Layout, steps: Step[],
+  i: number): Light {
+  const st = steps[i];
+  if (!st) return noLight;
+  const loc = l.location;
+  const partBytes = (p: Part) => {
+    const out: ByteKey[] = [];
+    for (const r of p.regions) {
+      if (r.location !== loc) continue;
+      for (const [row, b] of regionBytes(r)) out.push(byteKey(loc, row, b));
+    }
+    // (a whole slot: all of its bytes)
+    for (const s of p.slots ?? []) {
+      for (let b = 0; b < 32; b++) out.push(byteKey(loc, s, b));
+    }
+    return out;
+  };
+  const bytes = new Set<ByteKey>();
+  const dim = new Set<ByteKey>();
+  const rows = new Set<Path>();
+  const dimRows = new Set<Path>();
+  const colours = new Map<Path, Colour>();
+  for (const p of st.parts) {
+    for (const k of partBytes(p)) {
+      bytes.add(k);
+      if (p.dim) dim.add(k);
+    }
+    for (const r of p.rows) {
+      rows.add(r);
+      if (p.dim) dimRows.add(r);
+    }
+    for (const [q, k] of p.colours ?? []) colours.set(q, k);
+  }
+  for (const r of st.rows) rows.add(r);
+  // the rows the steps so far have found keep their labels
+  const known = new Set<Hex>();
+  for (const x of steps.slice(0, i + 1)) {
+    for (const g of x.gutters) known.add(g);
+    for (const p of x.parts) {
+      for (const k of partBytes(p)) known.add(k.split("|")[1] as Hex);
+    }
+  }
+  return { ...noLight, bytes, rows, colours, dim, dimRows, known,
+    gutters: new Set(st.gutters), muted: true, cap: new Set(),
+    ...(st.ruler ? { ruler: st.ruler } : {}),
+    ...(st.goal ? { quiet: true } : {}) };
 }

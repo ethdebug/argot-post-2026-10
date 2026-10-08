@@ -9,7 +9,10 @@ import type {
 } from "../engine/types";
 import { decode } from "../engine/decode";
 import { layout } from "../engine/layout";
-import { forBytes, forPath, forRow, noLight } from "../engine/light";
+import {
+  forBytes, forPath, forRow, forStep, noLight,
+} from "../engine/light";
+import { walkthrough, type Walkthrough } from "../engine/walkthrough/fold";
 import { locked } from "../engine/target";
 import { byteKey } from "../engine/hex";
 import type { Store } from "./store";
@@ -164,6 +167,33 @@ export function useCollapsed(link: string | undefined): ReadonlySet<string> {
     [key]);
 }
 
+// The walkthrough of a view's link group's selection, in the view's
+// decoding at its point (memoised per decoding, point, path and focus)
+export function useWalkthrough(id: string, at?: DataRef):
+  Walkthrough | null {
+  const v = useViewSpec(id);
+  const lens = useLens();
+  const data = at ?? ("data" in v ? v.data : undefined);
+  const d = useDecoded(data);
+  const point = usePoint(data);
+  const c = useCompilation(data);
+  const [link] = useLink(v.link);
+  const sel = link.selection;
+  const focus = link.walk?.focus;
+  return useMemo(() => {
+    if (!d || !point || !c || !sel || !d.byPath.has(sel)) return null;
+    const dc = decodingOf(lens, d.decoding);
+    if (!dc) return null;
+    const k = `walk|${d.decoding}|${d.point}|${sel}|${focus ?? ""}`;
+    const memo = lens.project.memo as Map<string, unknown>;
+    if (!memo.has(k)) {
+      memo.set(k, walkthrough({ d, c, snap: point.snapshot,
+        keys: dc.keys }, sel, focus));
+    }
+    return memo.get(k) as Walkthrough | null;
+  }, [d, point, c, sel, focus, lens]);
+}
+
 // What a view lights (vanilla main.js show, panel.js locked): with a
 // selection (one this view's tree has), the selection, with the part
 // pointed at in focus (a hover elsewhere is ignored); else what is
@@ -174,8 +204,12 @@ export function useLight(id: string, filter?: Filter, at?: DataRef): Light {
   const { d, l } = useLayout(id, filter, at);
   const [link] = useLink(v.link);
   const collapsed = useCollapsed(v.link);
+  const w = useWalkthrough(id, at);
   return useMemo(() => {
     if (!d || !l) return noLight;
+    // a walkthrough shows its step, whatever the pointer is on
+    if (link.walk && w) return forStep(d, l, w.steps, Math.min(link.walk.step,
+      w.steps.length - 1));
     const o = { collapsed };
     const { selection, hover } = link;
     const sel = selection && d.byPath.has(selection) ? selection : null;
@@ -200,7 +234,7 @@ export function useLight(id: string, filter?: Filter, at?: DataRef): Light {
     if (hover?.row) return forRow(d, l, hover.row as Hex);
     if (hover) return { ...noLight, muted: true };
     return noLight;
-  }, [d, l, link, collapsed]);
+  }, [d, l, link, collapsed, w]);
 }
 // The compilation a view's decoding reads with (its provenance: a
 // hand-written one is badged)
