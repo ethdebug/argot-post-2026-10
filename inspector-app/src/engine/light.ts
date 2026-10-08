@@ -157,8 +157,9 @@ export function forStep(d: Decoded, l: Layout, steps: Step[],
   const rows = new Set<Path>();
   const dimRows = new Set<Path>();
   const colours = new Map<Path, Colour>();
-  // (bytes in a part's own colour, whatever owns them; whole slots
-  // outlined: computed, not read)
+  // (bytes in a part's own colour, whatever owns them; a slot a step
+  // computes, lit whole in that colour: its address found, its bytes not
+  // read yet, so its labels name nothing in it)
   const byteColours = new Map<ByteKey, Colour>();
   const wholes = new Map<Hex, Colour>();
   for (const p of st.parts) {
@@ -167,7 +168,15 @@ export function forStep(d: Decoded, l: Layout, steps: Step[],
       if (p.dim) dim.add(k);
       if (p.k !== undefined) byteColours.set(k, p.k);
     }
-    for (const h of p.wholes ?? []) wholes.set(h, p.k ?? "nt");
+    for (const h of p.wholes ?? []) {
+      wholes.set(h, p.k ?? "nt");
+      for (let b = 0; b < 32; b++) {
+        const k = byteKey(loc, h, b);
+        bytes.add(k);
+        if (p.dim) dim.add(k);
+        byteColours.set(k, p.k ?? "nt");
+      }
+    }
     for (const r of p.rows) {
       rows.add(r);
       if (p.dim) dimRows.add(r);
