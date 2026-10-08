@@ -106,8 +106,10 @@ const shortKeys = (path: string) =>
 // the slots its transaction read or wrote, as far as the point knows
 // them; with no point or transaction, as "values")
 export function layout(d: Decoded, location: Location, filter: Filter = {},
-  o: { others?: { d: Decoded; who?: string }[]; point?: TimelinePoint }
-    = {}): Layout {
+  o: { others?: { d: Decoded; who?: string }[]; point?: TimelinePoint;
+    // the point it is compared with: its slots' names too (a slot the
+    // value left, at this point, is named as there)
+    compare?: Decoded } = {}): Layout {
   const others = o.others ?? [];
   const cover = new Map<ByteKey, Path[]>();
   const owned = new Map<Path, Set<ByteKey>>();
@@ -143,6 +145,11 @@ export function layout(d: Decoded, location: Location, filter: Filter = {},
 
   // how slots are found: this decoding's graphs, then the others'
   const names = rowNames(d);
+  if (o.compare) {
+    for (const [v, n] of rowNames(o.compare)) {
+      if (!names.has(v)) names.set(v, n);
+    }
+  }
   const extra = new Map<Hex, string>();
   for (const o of others) {
     for (const [v, n] of rowNames(o.d)) {

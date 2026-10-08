@@ -174,3 +174,23 @@ test("hovering and clicking move nothing", async ({ page }) => {
   await page.locator('#tree li[data-path="total"] > .row').click();
   await expect.poll(boxes).toEqual(rest);
 });
+
+test("motd After: its cleared data named as Before; one popover; no tray",
+  async ({ page }) => {
+    await ready(page);
+    for (const m of ["after", "before"]) {
+      await select(page, "motd", "motd", m);
+      await page.mouse.move(1, 1);
+      await expect(page.locator("#panel .tray")).toHaveCount(0);
+    }
+    await select(page, "motd", "motd", "after");
+    await page.mouse.move(1, 1);
+    const names = await page.locator(
+      '#panel .view[data-side="after"] .wrow[data-name]').evaluateAll((rs) =>
+      rs.map((r) => (r as HTMLElement).dataset.name));
+    expect(names).toContain("keccak(slot 1)");
+    expect(names).toContain("keccak(slot 1) + 1");
+    expect(names.filter((n) => n!.startsWith("slot 0x"))).toEqual([]);
+    await expect.poll(() => pops(page)).toContain(
+      "keccak(slot 1), 2 slots · cleared (written to zero)");
+  });

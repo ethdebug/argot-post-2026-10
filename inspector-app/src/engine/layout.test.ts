@@ -153,3 +153,18 @@ it("rows 'touched': the values', and the slots the point's "
     .toEqual(values.rows);
   expect(before.id).toBe("arcade-alice:before");
 });
+
+it("a pair: rows named from both points (motd's cleared data, After)",
+  async () => {
+    const p = await testProject();
+    const dc = p.decodings["sol:arcade-motd"];
+    const [bp, ap] = (await p.timeline("arcade-motd")).points;
+    const before = await decode(p, dc, bp.id);
+    const after = await decode(p, dc, ap.id);
+    const l = layout(after, "storage", { rows: "touched" },
+      { point: ap, compare: before });
+    const hows = l.rows.map((r) => r.how);
+    expect(hows).toContain("keccak(slot 1)");
+    expect(hows).toContain("keccak(slot 1) + 1");
+    expect(hows.filter((h) => h.startsWith("slot 0x"))).toEqual([]);
+  });
