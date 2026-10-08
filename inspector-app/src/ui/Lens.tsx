@@ -70,6 +70,7 @@ function shower(store: Store<LensState>, spec: LensSpec, project: Project,
     const want = view && "sel" in view ? view.sel : bm.select;
     const selection = want && tree.byPath.has(want) ? want : null;
     store.set((s) => ({ ...s, bookmark: id, error: undefined,
+      shows: (s.shows ?? 0) + 1,
       points: { a: bm.points[0], b: bm.points[1] ?? bm.points[0] }, side,
       links: Object.fromEntries(spec.links.map((l) => [l,
         { selection, hover: null, walk: null }])) }));
@@ -99,8 +100,9 @@ function Present({ v, View }: { v: ViewSpec; View: ComponentType<any> }) {
   }
   if (v.kind !== "dump") return <View {...v} />;
   const side = v.side;
-  // (one point: one dump; the pair's other side is not drawn)
-  if (single && side === "before") return null;
+  // (paused steps, one of them: one dump; a transaction's pair keeps
+  // both, the same, as vanilla's storage section)
+  if (single && side === "before" && v.steps) return null;
   const title = !side || single ? v.title ?? "Storage"
     : side === "before" ? "Before" : "After";
   // (a lens of paused steps: "Memory before the step")

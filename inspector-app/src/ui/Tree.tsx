@@ -162,6 +162,12 @@ export function Tree(p: { id: ViewId; data: DataRef; filter?: Filter;
   const [view, setView] = useView(p.id);
   const side = useLensState((s) => s.side ?? "after");
   const box = useRef<HTMLDivElement>(null);
+  // (a bookmark shown, again or anew: the tree from its top, as
+  // vanilla's render)
+  const shows = useLensState((s) => s.shows ?? 0);
+  useLayoutEffect(() => {
+    if (box.current) box.current.scrollTop = 0;
+  }, [shows]);
   // (groups closing: drawn open while their members shrink)
   const [closing, setClosing] = useState<ReadonlySet<string>>(new Set());
   const lens = useLens();

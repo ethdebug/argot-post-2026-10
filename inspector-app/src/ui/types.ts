@@ -29,6 +29,8 @@ export interface LensState {
   views: Record<ViewId, ViewState>;
   // (a bookmark whose data did not load: the error, until it does)
   error?: string;
+  // (each show of a bookmark, counted: the views start from the top)
+  shows?: number;
 }
 
 // a view's data: a decoding (or "$bm", the current bookmark's) at a
