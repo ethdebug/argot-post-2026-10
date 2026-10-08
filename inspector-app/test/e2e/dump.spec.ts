@@ -270,3 +270,18 @@ test("slot 0's popover: under row 0, inside the dump, never empty",
     });
     expect(out).toBe(0);
   });
+
+test("the dump fits the same opened at Before or After (one measure for "
+  + "the box)", async ({ page }) => {
+  const fs: string[] = [];
+  for (const h of ["#ex=alice&mode=before", "#ex=alice&mode=after",
+    "#ex=motd&mode=before"]) {
+    await page.goto("./" + h);
+    await page.waitForFunction(() => (window as unknown as W).results?.done);
+    await page.evaluate(() => document.fonts.ready);
+    await page.waitForTimeout(100);
+    fs.push(await page.evaluate(() => getComputedStyle(document
+      .querySelector("#panel .view:not([hidden])")!).fontSize));
+  }
+  expect(new Set(fs).size, fs.join()).toBe(1);
+});

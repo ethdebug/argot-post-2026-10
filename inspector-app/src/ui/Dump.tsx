@@ -164,7 +164,7 @@ export function Dump(p: { id: ViewId; location: Location; data: DataRef;
   // what the compared point lights (a slot lit there only: "only"; none
   // in a walkthrough, which walks one side: vanilla panel.js)
   const there0 = useLight(p.id, p.filter, p.compare, p.data);
-  const there = walkLink.walk ? noLight : there0;
+  const there = walkLink.walk && !lit0.rest ? noLight : there0;
   const [link, setLink] = useLink(p.link);
   const d = useDecoded(p.data);
   const lens = useLens();

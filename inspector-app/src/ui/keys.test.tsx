@@ -74,7 +74,8 @@ it("Review Focus 4: walkthrough keys move only the lens they are in",
     expect([link(0).walk!.step, link(1).walk!.step]).toEqual([3, 2]);
     act(() => void fireEvent.keyDown(bar, { key: "End" }));
     act(() => void fireEvent.keyDown(bar, { key: "ArrowRight" }));
-    expect([link(0).walk!.step, link(1).walk!.step]).toEqual([3, 11]);
+    // (End: the last step, found)
+    expect([link(0).walk!.step, link(1).walk!.step]).toEqual([3, 12]);
     act(() => void fireEvent.keyDown(bar, { key: "Home" }));
     expect(link(1).walk!.step).toBe(0);
   });

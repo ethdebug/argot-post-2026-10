@@ -229,6 +229,8 @@ export interface Light {                // DERIVED per view, never stored
   // word whose byte positions show; no labels at all: step 0)
   dim?: ReadonlySet<ByteKey>; dimRows?: ReadonlySet<Path>;
   known?: ReadonlySet<Hex>; ruler?: Hex; quiet?: boolean;
+  // (a walkthrough's last step, found: the resting view, both sides)
+  rest?: boolean;
 }
 export interface Filter {               // truncation, per view
   roots?: Path[];                       // only these subtrees

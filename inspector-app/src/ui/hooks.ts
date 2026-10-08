@@ -224,10 +224,17 @@ export function useLight(id: string, filter?: Filter, at?: DataRef,
   return useMemo(() => {
     if (!d || !l) return noLight;
     // a walkthrough shows its step, whatever the pointer is on
-    if (link.walk && w) return forStep(d, l, w.steps, Math.min(link.walk.step,
-      w.steps.length - 1));
     const o = { collapsed };
     const { selection, hover } = link;
+    // (the last step, found: exactly the selection's resting view)
+    const at = link.walk && w ? w.steps[Math.min(link.walk.step,
+      w.steps.length - 1)] : null;
+    if (at?.phase === "found" && selection && d.byPath.has(selection)) {
+      return { ...forPath(d, l, selection, { ...o, selection: true }),
+        cap: new Set([selection]), rest: true };
+    }
+    if (link.walk && w) return forStep(d, l, w.steps, Math.min(link.walk.step,
+      w.steps.length - 1));
     const sel = selection && d.byPath.has(selection) ? selection : null;
     if (sel) {
       const base = forPath(d, l, sel, { ...o, selection: true });

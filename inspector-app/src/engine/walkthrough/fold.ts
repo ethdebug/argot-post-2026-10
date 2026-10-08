@@ -52,6 +52,9 @@ export interface WalkInput {
 
 type Any = any;
 const PICKS = 10;
+// (the walkthrough's last step, "found": one switch, to try it; vanilla
+// 6b1df3a FOUND)
+export const FOUND = true;
 const nWord = (n: number) => ["no", "one", "two", "three", "four", "five",
   "six", "seven", "eight"][n] ?? String(n);
 
@@ -730,6 +733,25 @@ export function walkthrough(x: WalkInput, path: Path, focus?: string):
       constructs: [], source: "", chip: "", chipLabel: "",
       parts: [{ regions: [], rows: [path], slots: allS }],
       rows: [path], gutters: [], band: [] });
+  }
+  // the last step, "found": the selection as it rests, its colours and
+  // labels (light.ts: the resting view); the bookend to step 0
+  if (FOUND && out.length) {
+    const t = types[node.type];
+    const n = node.children?.length ?? 0;
+    const vt = t?.kind === "mapping"
+      ? types[t.contains?.value?.type?.id] : null;
+    const what = t?.kind === "mapping" ? `${n} ${vt?.kind === "struct"
+      ? n === 1 ? "record" : "records" : n === 1 ? "entry" : "entries"}`
+      : t?.kind === "struct" ? `${n} ${n === 1 ? "field" : "fields"}`
+        : t?.kind === "array" ? `${n} ${n === 1 ? "item" : "items"}`
+          : node.value?.text ?? "";
+    const sk = path.replace(/\[(0x[0-9a-fA-F]{16,})\]/g,
+      (_, h) => `[${short(h)}]`);
+    out.push({ id: "found", phase: "found",
+      cap: `That's \`${sk}\`${what ? `: ${what}` : ""}, found.`,
+      form: text(), constructs: [], source: "", chip: "found",
+      chipLabel: sk, parts: [], rows: [path], gutters: [], band: [] });
   }
   return { target: path, steps: out, recs, focus: every ? "*" : f,
     variable };
