@@ -48,3 +48,13 @@ for (const lens of ["alice-plays", "vyper"]) {
     expect(g).toEqual({ right: true, middle: true });
   });
 }
+
+test("players-walk: opens at step 0 of players, and walks", async ({ page }) => {
+  await page.goto("./shell.html#lens=players-walk");
+  const count = page.locator(".rbar .rcount");
+  await expect(count).toHaveText("0 / 12");
+  await expect(page.locator(".view .b.hl")).not.toHaveCount(0);
+  await page.locator('.rbar button[data-r="next"]').click();
+  await expect(count).toHaveText("1 / 12");
+  await expect(page.locator(".dtext .rcap")).toContainText("The keys");
+});
