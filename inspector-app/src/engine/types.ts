@@ -107,9 +107,16 @@ export interface Decoding {             // "this rule over that storage"
   // ("abi": a call's calldata by the ABI encoding, for this function and
   // its one string parameter)
   abi?: { signature: string; param: string };
+  // (one compiler's rule over another compiler's storage: the Vyper
+  // scene's, solc's pointers over Vyper's storage; `rule`: the decoding
+  // of that storage by its own compiler's layout, for the contrast)
+  foreign?: { language: string; rule: DecodingId };
 }
-export type KeySource = { from: "list"; path: Path }   // roster (provenance)
-  | { from: "trace" };
+export type KeySource = ({ from: "list"; path: Path }   // roster (provenance)
+  | { from: "trace" }) & {
+  // (who each key is, by the fixture: its 40 hex digits, lower case →
+  // the name the scene's story gives it)
+  names?: Record<string, string> };
 export type Provenance = "compiler" | "storage" | "trace" | "abi"
   | "hand-written" | { list: Path };
 
@@ -209,7 +216,9 @@ export interface InputNode {            // a fact the pointer expects
 
 // ------------------------------------------------- 1.6-1.7 (engine part)
 
-export type Colour = 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | "src";
+// ("nt": neutral, a walkthrough's row or slot that is not the selection
+// and has no colour of its own; never the selection's yellow)
+export type Colour = 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | "src" | "nt";
 
 export interface Target {               // what the pointer (or finger) is on
   path?: Path;
@@ -235,6 +244,13 @@ export interface Light {                // DERIVED per view, never stored
   known?: ReadonlySet<Hex>; ruler?: Hex; quiet?: boolean;
   // (a walkthrough's last step, found: the resting view, both sides)
   rest?: boolean;
+  // (a walkthrough's: bytes in a colour of their own, whatever owns them
+  // (another rule's words); whole slots outlined in a colour (a computed
+  // slot, not yet read); the slots the walkthrough touches, which make
+  // one run for its labels; its names for the keys in labels)
+  walk?: boolean; byteColours?: ReadonlyMap<ByteKey, Colour>;
+  wholes?: ReadonlyMap<Hex, Colour>; span?: ReadonlySet<Hex>;
+  names?: ReadonlyMap<string, string>;
   // (pointed at: bytes no value owns, `at`)
   unmapped?: boolean;
   // (a selection's consulted rows, engine/related.ts withRelated: the

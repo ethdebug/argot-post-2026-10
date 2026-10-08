@@ -47,6 +47,7 @@ export async function load(io: Io, manifest = "fixtures/index.json"):
   }
   // Vyper's own layout, over the same storage (hand-written)
   if (decodings.vyAsSol) {
+    decodings.vyAsSol.foreign = { language: "vyper", rule: "vyRule" };
     decodings.vyRule = { id: "vyRule", compilation: VY_RULE,
       timeline: "arcade-vyper", variables: "state", keys: { from: "trace" } };
   }
@@ -62,6 +63,14 @@ export async function load(io: Io, manifest = "fixtures/index.json"):
           if (d.compilation === solOf(id)) d.keys = keySourceOf(json);
         }
         out.timeline.bookmarks = bookmarks.filter((b) => b.timeline === id);
+        // (each side as the scene names it: "after setMotd")
+        const when = scenes.find((x) => x.fixture === id)?.when;
+        for (const pt of out.timeline.points) {
+          const side = pt.id.split(":").pop() as "before" | "after";
+          if (when && typeof when === "object" && when[side]) {
+            pt.label = when[side];
+          }
+        }
         return { ...out, json };
       });
       // (a failed fetch is not kept: the next ask tries again)
