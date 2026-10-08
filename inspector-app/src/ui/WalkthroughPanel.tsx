@@ -404,7 +404,7 @@ export function WalkthroughPanel(p: { id: ViewId; data: DataRef;
     const otherText = o?.byPath.get(node.path)?.value?.text;
     // (the selection, as the tree names it; its value or its parts)
     barBody = <><span className="rline1"><span className="rsel"><code>{
-      shortKeys(sel!)}</code>{node.typeText && <> <span className="type">{
+      w?.name ?? shortKeys(sel!)}</code>{node.typeText && <> <span className="type">{
       node.typeText}</span></>}{v !== undefined ? <> = <b>{v}</b></>
       : node.children ? <span className="rparts"> · <span className="muted">
         {n} {partsWord(node.typeText, n)}</span></span> : null}{!single && <> <span
