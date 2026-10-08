@@ -169,6 +169,9 @@ export interface Instance {
   branch?: "then" | "else";             // a conditional's choice
   uses: InstanceId[];                   // EDGES: data it read
   inputs: InputId[];                    // EDGES from outside the pointer
+  // (the port's: the instances the walk was inside when it made this
+  // one, outermost first: templates, defines, lists, conditionals)
+  within?: InstanceId[];
 }
 export type InputId = string;
 export interface InputNode {            // a fact the pointer expects
