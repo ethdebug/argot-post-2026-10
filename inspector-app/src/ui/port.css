@@ -63,3 +63,11 @@
 .bstrip .bnames .fname { overflow: hidden; white-space: nowrap;
   text-align: center; font-family: system-ui, -apple-system, "Segoe UI",
   sans-serif; font-size: 0.68rem; padding: 0 2px; border-radius: 3px; }
+/* (a dump's popovers scale with the dump: the dump's font is fitted to
+   its box; a popover's size, padding, arrow and offsets are in em of it,
+   as vanilla's px and rem at its 1280px size, 11.28px: 0.68rem = 0.965em,
+   8px = 0.71em) */
+.views .pop { font-size: 0.965em; padding: 0 0.55em; border-radius: 0.37em;
+  --aw: 0.735em; }
+.views .pop.kept { --aw: 0.92em; }
+.views .pop .pname.pbadge { padding: 0 0.37em; border-radius: 0.28em; }
