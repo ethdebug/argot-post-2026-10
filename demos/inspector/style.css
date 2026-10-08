@@ -1087,6 +1087,12 @@ main[data-single] > .cols :is(.chglegend, .legend .bchg, .intro .two) {
 .pgo .ptext { display: inline-block; text-align: left; max-width: 22em;
   text-wrap: balance; }
 .pgo .pglyph { font-size: 1.4em; line-height: 1; font-weight: 400; }
+/* (on a phone, the pointer's box is a few lines: the sentence smaller,
+   inside it) */
+@media (max-width: 759px) {
+  .pgo { font-size: 0.72rem; line-height: 1.25; top: 50%; }
+  .pgo .ptext { max-width: none; }
+}
 .pgo[hidden] { display: none; }
 /* (▶'s halo at step 0, in the selection's yellow) */
 .pgo .pglyph { font-family: system-ui, -apple-system, "Segoe UI",
@@ -1138,6 +1144,21 @@ main[data-single] > .cols :is(.chglegend, .legend .bchg, .intro .two) {
 /* (step 0's question: its own paragraph, in the formula's room) */
 .rform .prose.rq { display: block; margin-top: 0.35em; font-size: 1rem;
   color: var(--fg); }
+/* a step's bytes in one slot, drawn as a dump row: 32 cells (3fr each)
+   in four groups of eight, a group's gap a third of a cell, as the
+   dump's (2.4ch cells, 0.8ch gaps); its byte positions under it */
+.bstrip { display: grid; gap: 2px; font-family: var(--mono); }
+.bsrow { display: grid; grid-template-columns: repeat(8, 3fr) 1fr
+  repeat(8, 3fr) 1fr repeat(8, 3fr) 1fr repeat(8, 3fr); }
+.bsv { height: 1.5em; line-height: 1.5em; border-radius: 3px; min-width: 0;
+  overflow: hidden; text-align: center; background: var(--pk);
+  color: var(--pk-fg); box-shadow: inset 0 0 0 1px color-mix(in srgb,
+  var(--fg) 12%, transparent); }
+.bsv.pk0 { --pk: var(--mark); --pk-fg: var(--chg-fg); }
+.bsn { display: block; padding: 0 2px; font-size: 0.82em; font-weight: 600;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.bsidx span { font-size: 0.6rem; line-height: 1; color: var(--muted);
+  text-align: center; }
 .rform .prose { font-family: system-ui, -apple-system, "Segoe UI",
   sans-serif; color: var(--muted); }
 .rwhere { font-family: inherit; height: auto; }

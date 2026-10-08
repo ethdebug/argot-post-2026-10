@@ -430,6 +430,33 @@ function rawSteps(v) {
   return out;
 }
 
+// A step's bytes within one slot, drawn as a dump row is: 32 cells in
+// four groups of eight, each value a span over its cells, in its colour,
+// named; the byte positions under it. `items`: [{ name, region, k }]
+// (k: a colour, pk1 …, or 0 for the selection's yellow). One line.
+const posOf = (r) => {
+  const o = Number(num(r.offset ?? "0x0"));
+  const n = r.length !== undefined ? Number(num(r.length)) : 32 - o;
+  return [o, Math.min(31, o + n - 1)];
+};
+function byteStrip(items) {
+  const col = (i) => i + Math.floor(i / 8) + 1;
+  const spans = items.map(({ name, region, k }) => {
+    const [a, b] = posOf(region);
+    return `<span class="bsv pk${k || 0}" style="grid-column: ${col(a)} / ${
+      col(b) + 1}"><span class="bsn">${esc(name)}</span></span>`;
+  }).join("");
+  const idx = Array.from({ length: 32 }, (_, i) => `<span style=` +
+    `"grid-column: ${col(i)}">${i}</span>`).join("");
+  const label = items.map(({ name, region }) => {
+    const [a, b] = posOf(region);
+    return `${name}: ${a === b ? `byte ${a}` : `bytes ${a} to ${b}`}`;
+  }).join("; ");
+  return `<span class="bstrip" role="img" aria-label="${esc(label)}">` +
+    `<span class="bsrow">${spans}</span><span class="bsrow bsidx" ` +
+    `aria-hidden="true">${idx}</span></span>`;
+}
+
 // bytes a–b of a region, or the slots it spans
 function bytesText(r) {
   const o = Number(num(r.offset ?? "0x0"));
@@ -609,8 +636,8 @@ function replaySteps(path, side, focus) {
       step({ phase: "declared", id: `declared|${variable}`,
         cap: `\`${variable}\` is at slot ${small(c.slot)}, ${c.length} bytes ` +
           `from offset ${c.offset}`,
-        form: esc(`slot ${small(c.slot)}, bytes ${c.offset}–${c.offset +
-          c.length - 1}`),
+        form: byteStrip([{ name: variable, region: declared.region,
+          k: 0 }]),
         constructs: ["pointer"], source: "ethdebug data from the compiler",
         chip: `slot ${small(c.slot)}`, chipLabel: "value",
         parts: [{ regions: [declared.region], rows: [variable] }],
@@ -791,7 +818,8 @@ function replaySteps(path, side, focus) {
           "slot is its length flag" : lbl}` : `${lbl}${name === "length-flag"
           ? ", " : ": "}${byte(vals[0][1])}`,
         form: many ? table(vals.map(([x, g]) => [esc(who(x.inst)), esc(byte(g)),
-          kOf(x.inst)])) : esc(`${name} = ${byte(vals[0][1])}`),
+          kOf(x.inst)])) : byteStrip([{ name: `${name} = ${byte(
+            vals[0][1])}`, region: vals[0][1], k: kOf(vals[0][0].inst) }]),
         constructs: ["region"], source: "read from storage",
         chip: name === "length-flag" ? "flag" : name, chipLabel: name ===
           "length" ? "array" : "string",
@@ -888,9 +916,8 @@ function replaySteps(path, side, focus) {
         "the right"
         : `\`${nm(items[0])}\` is ${bytesText(items[0].region)} of the ` +
           "record's first slot",
-      form: items.map((y) => `<span class="fname" data-path="${esc(
-        y.leaf.path)}">${esc(nm(y))}</span> ${esc(bytesText(y.region)
-        .replace(/^bytes? /, ""))}`).join(" · "),
+      form: byteStrip(items.map((y) => ({ name: nm(y), region: y.region,
+        k: kc(y.leaf.path) }))),
       chip: n > 1 ? `${n} fields` : nm(items[0]), chipLabel: n > 1 ? "fields"
         : "field",
       names: st.nodes.map((nd) => nd.s.name),

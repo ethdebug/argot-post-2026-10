@@ -381,6 +381,13 @@ gives the first row's path and how many more); a click scrolls the
 tree, inside itself, to the first of them. Hover alone never scrolls
 the tree. The buttons are overlays that fade in and out: no row moves.
 
+Where a step's formula is byte ranges within one slot (the packed
+fields, a string's flag byte, `total` or `rounds`), the details draw
+them as a dump row: a one-line strip of 32 cells in four groups of
+eight (a group's gap a third of a cell, as in the dump), each value a
+span over its cells in its colour, named, the byte positions under it;
+its aria-label gives the ranges in words.
+
 A slot's label (a black popover) reads "how it is found : what it
 holds": the names of the values in its slots as the pointer names
 them, in byte order, " · " within a slot and " / " between slots

@@ -1413,6 +1413,51 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
       problems.push(`pointer box: ${JSON.stringify({ z, o, d })}`);
     }
   }
+  // the byte strip: at the packed fields (and a flag, total), one line,
+  // 32 cells in four groups whose gaps match the dump's, each field's
+  // span over its own cells, no wrapping at 1280 and 1440
+  {
+    const bad = [];
+    for (const wd of [1280, 1440]) {
+      await page.setViewportSize({ width: wd, height: 900 });
+      await page.evaluate(() => window.select("mid", { sel: "players" }));
+      await page.locator('#details button[data-r="start"]').click();
+      await page.locator(`#chips .chip[data-k="${P.fields}"]`).click();
+      const x = await page.evaluate(() => {
+        const s = document.querySelector("#dtext .bstrip");
+        if (!s) return null;
+        const idx = [...s.querySelectorAll(".bsidx span")].map((e) =>
+          e.getBoundingClientRect());
+        const cell = idx[1].left - idx[0].left;
+        const gap = idx[8].left - idx[7].left - cell;
+        const w = document.querySelector("#panel .view:not([hidden]) " +
+          ".wrow:not(.head) .word");
+        const bs = [...w.querySelectorAll(".b")].map((e) =>
+          e.getBoundingClientRect());
+        const dcell = bs[1].left - bs[0].left;
+        const dgap = bs[8].left - bs[7].left - dcell;
+        const spans = [...s.querySelectorAll(".bsv")].map((v) => {
+          const r = v.getBoundingClientRect();
+          const a = idx.findIndex((q) => Math.abs(q.left - r.left) < 2);
+          const b = idx.findIndex((q) => Math.abs(q.right - r.right) < 2);
+          return `${v.textContent} ${a}-${b}`;
+        });
+        const rows = [...s.querySelectorAll(".bsv .bsn")].every((n) =>
+          n.getClientRects().length === 1 && n.scrollHeight <=
+          n.clientHeight + 1);
+        return { ratio: gap / cell, dratio: dgap / dcell, spans, rows,
+          oneLine: s.querySelector(".bsrow").getBoundingClientRect().height <
+            parseFloat(getComputedStyle(s).fontSize) * 2 };
+      });
+      await page.keyboard.press("Escape");
+      if (!x || Math.abs(x.ratio - x.dratio) > 0.08 || !x.rows ||
+        !x.oneLine || x.spans.join() !== ["lastBlock 0-7", "hitCount 8-11",
+        "plays 12-15", "bestCombo 16-19", "combo 20-23", "score 24-31"]
+          .join()) bad.push(`${wd} ${JSON.stringify(x)}`);
+    }
+    await page.setViewportSize({ width: 1280, height: 900 });
+    if (bad.length) problems.push(`byte strip: ${bad}`);
+  }
   // (after the inputs, the band only moves down)
   const down = (ws) => ws.map((x) => x.band0).filter((b) => b >= 0)
     .every((b, i, a) => !i || b >= a[i - 1]);
@@ -2692,7 +2737,7 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
   if (w.length !== 4 || rwant.some(([cap, lit, gut, band], k) =>
     w[k].cap !== cap || !same(w[k].lit, lit) || w[k].gut.join() !== gut ||
     !w[k].ptr.includes(band) || (k === 2 && w[k].ptr.length !== 1)) ||
-    w[2].form !== "length = 3" ||
+    !w[2].form.startsWith("length = 3") ||
     w[3].form !== "keccak256(0) = …e563; items 0…2 at + i") {
     problems.push(`replay roster: ${JSON.stringify(w.map((x) =>
       [x.cap, x.form, x.lit, x.gut, x.ptr]))}`);
