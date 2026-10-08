@@ -12,7 +12,7 @@ const word = (n) => "0x" + n.toString(16).padStart(64, "0");
 import { baseSlot, typeName } from "./decode.js";
 
 const SIDES = ["before", "after"];
-const TINTS = 5;
+export const TINTS = 5;
 
 // ------------------------------------------------------- the URL hash
 
@@ -607,7 +607,9 @@ export function baseOf(m, s) {
 // string's length word), never a child's. A leaf has no children: none
 // (one colour, as before).
 // Returns Map(tree path -> colour) or null.
+// the child colours, pk1 … pk9: one palette for every location
 export const PICKS = 10;
+export const childColor = (k) => 1 + k % (PICKS - 1);
 function childColors(m, path, ids) {
   const child = (row) => row.slice(path.length)
     .match(/^(\.[^.[]+|\[[^\]]*\])/)?.[0];
@@ -617,7 +619,7 @@ function childColors(m, path, ids) {
   const colors = new Map([[path, 0]]);
   for (const r of rows) {
     const c = child(r);
-    colors.set(r, c ? 1 + kids.indexOf(c) % (PICKS - 1) : 0);
+    colors.set(r, c ? childColor(kids.indexOf(c)) : 0);
   }
   return colors;
 }

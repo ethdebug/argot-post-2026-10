@@ -10,7 +10,7 @@
 import { decodeLocals, typeName } from "./decode.js";
 import {
   paint, initialHash, setHash, locked, details, keySection, short,
-  regionBytes, renderLocation,
+  regionBytes, renderLocation, childColor,
 } from "./panel.js";
 
 const $ = (id) => document.getElementById(id);
@@ -20,7 +20,6 @@ const esc = (s) =>
 const num = (h) => Number(BigInt(h === undefined || h === "0x" ? 0 : h));
 const hex = (n, w = 4) => "0x" + n.toString(16).padStart(w, "0");
 const code = (x) => `<code>${esc(x)}</code>`;
-const TINTS = 5;
 const GROUP = "multiplied";
 const RECORD = "players[msg.sender]";
 // the selection each point opens with
@@ -468,7 +467,7 @@ function forValue(m, path) {
   const n = find(m.tree, path);
   const under = new Map([[path, 0]]); // tree path -> colour
   (n.children ?? []).forEach((c, k) => walk([c], (x) =>
-    under.set(x.path, 1 + (k % 8))));
+    under.set(x.path, childColor(k))));
   const ids = [...m.owners.keys()].filter((id) =>
     under.has(m.owners.get(id).row));
   const colors = n.children?.length ? new Map([...under,
