@@ -441,16 +441,17 @@ li.same > .row .name, li.same > .row .type { opacity: 0.55; }
      and its 1px line) */
   bottom: calc(100% - 3px + var(--aw) * 0.7071);
   z-index: 3;
-  padding: 0 6px;
-  border-radius: 4px;
+  /* (in ems of the dump's fitted font: the label scales with it) */
+  padding: 0 0.55em;
+  border-radius: 0.37em;
   --pop-bg: var(--fg);
   /* (its line: the fill's colour, unseen; a muted one's shows) */
   --pop-line: var(--pop-bg);
-  --aw: 8px;
+  --aw: 0.735em;
   background: var(--pop-bg);
   border: 1px solid var(--pop-line);
   color: var(--bg);
-  font-size: 0.68rem;
+  font-size: 0.85em;
   line-height: 1.5;
   pointer-events: none;
   box-shadow: 0 1px 3px rgb(0 0 0 / 0.2);
@@ -463,7 +464,7 @@ li.same > .row .name, li.same > .row .type { opacity: 0.55; }
 .pop .pop-how { display: block; }
 .pop .pname { font: inherit; background: none; border: 0; padding: 0 1px;
   color: color-mix(in srgb, var(--bg) 70%, transparent); }
-.pop .pname.pbadge { padding: 0 4px; border-radius: 3px; font-weight: 700;
+.pop .pname.pbadge { padding: 0 0.37em; border-radius: 0.28em; font-weight: 700;
   color: var(--pk-fg); background: color-mix(in srgb, var(--pk) 35%, #fff); }
 .pop .pname.pbadge.pk0 { --pk: var(--mark); --pk-fg: var(--chg-fg); }
 @media (prefers-color-scheme: dark) {
@@ -1077,6 +1078,21 @@ main[data-single] > .cols :is(.chglegend, .legend .bchg, .intro .two) {
 .ptrscroll.goal .ptrlines { filter: blur(2.5px); opacity: 0.5; }
 /* (and still: a preview, not yet read; no band, no scrolling) */
 .ptrscroll.goal { overflow: hidden; }
+.pgo { position: absolute; left: 50%; top: 55%; z-index: 3; margin: 0;
+  transform: translate(-50%, -50%); width: max-content;
+  max-width: calc(100% - 48px); text-align: center; color: var(--fg);
+  font-size: 0.95rem; font-weight: 600; line-height: 1.4; text-wrap: balance;
+  pointer-events: none; }
+.pgo[hidden] { display: none; }
+/* (▶'s halo at step 0, in the walkthrough's own colour: yellow is the
+   selection's) */
+.pgo .pglyph { font-family: "Apple Symbols", "Segoe UI Symbol",
+  "Noto Sans Symbols 2", system-ui, sans-serif; font-weight: 400; }
+.rbar .btn.halo { box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent)
+  45%, transparent); animation: halo 1.4s ease-in-out 3; }
+@keyframes halo { 50% { box-shadow: 0 0 0 6px color-mix(in srgb,
+  var(--accent) 20%, transparent); } }
+@media (prefers-reduced-motion: reduce) { .rbar .btn.halo { animation: none; } }
 #ptr code { background: none; padding: 0; border: 0; font-size: inherit; }
 .ptrlines { margin: 0; padding: 0.9em 0; font-size: 0.72rem;
   display: block;
@@ -1173,7 +1189,7 @@ sup.fn { font-size: 0.7em; color: var(--accent); margin-left: 1px; }
    line a clear mid-grey, around its arrow too, which is a little wider) */
 .pop.kept { --pop-bg: var(--panel);
   --pop-line: color-mix(in srgb, var(--fg) 45%, var(--panel));
-  --aw: 10px;
+  --aw: 0.92em;
   color: color-mix(in srgb, var(--fg) 75%, var(--muted)); font-weight: 600;
   box-shadow: none; }
 .pop.kept .pname:not(.pbadge) { color: inherit; }

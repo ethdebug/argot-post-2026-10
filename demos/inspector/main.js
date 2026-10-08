@@ -1446,6 +1446,10 @@ function renderBox() {
   $("ptr").classList.toggle("lit", !!lit?.size);
   $("ptr").classList.toggle("goal", !!replay && replay.i < 0);
   if (replay && replay.i < 0) $("ptr").scrollTop = 0;
+  $("pgo").hidden = !(replay && replay.i < 0);
+  bar.querySelector('button[data-r="next"]')?.classList.toggle("halo",
+    !!replay && replay.i < 0);
+  requestAnimationFrame(goGlyph);
   // (in the Vyper scene: Vyper's own words for the player, first)
   $("ptr").innerHTML = vyperRule(node, mode) +
     // (one line each, as blocks; a run of lit lines is one block: rounded
@@ -1828,6 +1832,21 @@ function edges() {
       path}${list.length > 1 ? `, and ${list.length - 1} more lit rows` : ""}`);
   }
 }
+// At step 0: the sentence over the blurred pointer ends with an arrow
+// glyph pointing toward ▶ (up and right, or up and left)
+function goGlyph() {
+  const label = $("pgo");
+  const g = label.querySelector(".pglyph");
+  const next = $("details").querySelector('button[data-r="next"]');
+  if (label.hidden || !g || !next) return;
+  const rg = document.createRange();
+  rg.selectNodeContents(label);
+  const end = [...rg.getClientRects()].at(-1)?.right ?? 0;
+  const n = next.getBoundingClientRect();
+  g.textContent = n.left + n.width / 2 >= end - 20 ? "⤴" : "↖";
+}
+addEventListener("resize", () => requestAnimationFrame(goGlyph));
+
 // The pointer's box scrolls inside itself, with no scrollbar shown: a
 // circle button on its top or bottom edge where there is more; it
 // scrolls toward the step's band, when that is out of view that way,

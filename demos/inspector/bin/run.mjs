@@ -1376,11 +1376,25 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
           .textContent };
     });
     // (step 0: no band, and it does not scroll)
-    await page.locator("#ptr").hover();
+    await page.locator("#ptr").hover({ position: { x: 20, y: 20 } });
     await page.mouse.wheel(0, 300);
     await page.waitForTimeout(150);
     const z = await pb();
     z.bands = await page.locator(".pedge.on").count();
+    // (and a plain label over it, an arrow from it ending at ▶, and a
+    // halo on ▶; none from step 1 on)
+    const go = () => page.evaluate(() => {
+      const l = document.querySelector("#pgo");
+      const n = document.querySelector('#details button[data-r="next"]');
+      return { label: !l.hidden && l.tagName === "P" && /[⤴↖]$/.test(
+        l.textContent.trim()), arrow: !!document.querySelector("svg#goarrow"),
+      halo: n.classList.contains("halo") };
+    });
+    z.go = await go();
+    await page.locator('#details button[data-r="next"]').click();
+    z.after = (await stepNow()).count;
+    z.goAfter = await go();
+    await page.locator('#details button[data-r="first"]').click();
     await page.locator('#details button[data-r="next"]').click();
     await page.waitForTimeout(100);
     const o = await pb();
@@ -1388,7 +1402,9 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
     await page.waitForTimeout(100);
     const d = await pb();
     await page.keyboard.press("Escape");
-    if (z.bar || z.top || z.bands || z.up || z.down ||
+    if (z.bar || z.top || z.bands || z.up || z.down || !z.go.label ||
+      z.go.arrow || !z.go.halo || z.goAfter.label || z.goAfter.arrow ||
+      z.goAfter.halo || !z.after.startsWith("1 /") ||
       !/blur/.test(z.blur) || o.blur !== "none" || !o.down ||
       o.up || o.yellow ||
       d.top <= o.top || !d.up ||
@@ -2281,6 +2297,35 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
     }
     await page.setViewportSize({ width: 1280, height: 900 });
     if (bad.length) problems.push(`dump fit: ${bad}`);
+    // (and the slot popovers scale with the dump's font: one ratio at
+    // every width, the arrow's tip on its address)
+    const ratios = [];
+    for (const w of [1280, 1440, 1920]) {
+      await page.setViewportSize({ width: w, height: 900 });
+      await page.evaluate(() => window.select("mid", { sel: "players" }));
+      await page.mouse.move(1, 1);
+      ratios.push(await page.evaluate(() => {
+        const p = document.querySelector("#panel .view:not([hidden]) .pop");
+        const d = p.closest(".views");
+        const o = getComputedStyle(p, "::after");
+        const r = p.getBoundingClientRect();
+        const a = p.parentElement.getBoundingClientRect();
+        const bf = getComputedStyle(p.parentElement, "::before");
+        const c = r.top + parseFloat(getComputedStyle(p).borderTopWidth) +
+          parseFloat(o.top) + parseFloat(o.height) / 2;
+        const tip = p.classList.contains("under")
+          ? c - parseFloat(o.height) / Math.SQRT2
+          : c + parseFloat(o.height) / Math.SQRT2;
+        const edge = p.classList.contains("under") ? a.bottom -
+          (parseFloat(bf.bottom) || 0) : a.top + (parseFloat(bf.top) || 0);
+        return [parseFloat(getComputedStyle(p).fontSize) /
+          parseFloat(getComputedStyle(d).fontSize), Math.abs(tip - edge)];
+      }));
+    }
+    await page.setViewportSize({ width: 1280, height: 900 });
+    if (ratios.some(([q, g]) => Math.abs(q - ratios[0][0]) > 0.01 || g > 1)) {
+      problems.push(`popover scale: ${JSON.stringify(ratios)}`);
+    }
   }
   // a slot's label: how it is found, then what it holds, by name, in
   // byte order; each name in its bytes' colour when the colours tell
