@@ -8,7 +8,8 @@
     "build": "vite build",
     "test": "tsc --noEmit -p . && vitest run && node --test bin/",
     "check": "node bin/check.mjs",
-    "e2e": "playwright test"
+    "e2e": "playwright test",
+    "perf": "node bin/perf.mjs"
   },
   "dependencies": {
     "react": "^19.0.0",
