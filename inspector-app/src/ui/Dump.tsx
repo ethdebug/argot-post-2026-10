@@ -25,6 +25,7 @@ import type {
 import { byteKey, short } from "../engine/hex";
 import {
   useDecoded, useLayout, useLens, useLight, useLink, usePointAt,
+  hush,
 } from "./hooks";
 import { blockOf, resolveTarget } from "../engine/target";
 import { noLight } from "../engine/light";
@@ -221,6 +222,7 @@ export function Dump(p: { id: ViewId; location: Location; data: DataRef;
     return h && d && l ? resolveTarget(h, sel, d.byPath, l) : null;
   };
   const point = (e: PointerEvent | { target: EventTarget }) => {
+    if (lens.store.get().hush) return;
     setLink((s) => {
       const t = target(e.target, s.selection,
         "clientX" in e ? e : undefined);
@@ -235,18 +237,19 @@ export function Dump(p: { id: ViewId; location: Location; data: DataRef;
   const act = (el: EventTarget, keys = false) => {
     const h = hit(el);
     if (!h || !d || !l) return false;
-    // (on what the selection does not light: it ends, and what is under
-    // the pointer gets its hover at once)
+    // (on what the selection does not light: it ends, and the hover
+    // waits for the pointer to move: hush)
     const lit = h.row !== undefined
       ? [...Array(32).keys()].some((i) => lit0.bytes.has(byteKey(p.location,
         h.row as Hex, i)))
       : !!h.bytes && lit0.bytes.has(byteKey(p.location, h.bytes.row,
         h.bytes.from));
+    let cleared = false;
     setLink((s) => {
       const sel = s.selection;
       if (exiting(s) && !lit && !keys) {
-        return { ...s, selection: null,
-          hover: resolveTarget(h, null, d.byPath, l) };
+        cleared = true;
+        return { ...s, selection: null, hover: null };
       }
       if (h.row !== undefined) {
         const t = resolveTarget(h, sel, d.byPath, l);
@@ -263,13 +266,13 @@ export function Dump(p: { id: ViewId; location: Location; data: DataRef;
       }
       const t = resolveTarget(h, keys ? null : sel, d.byPath, l);
       const q = t.path ?? null;
-      // (a click that clears: the hover of what is under the pointer, at
-      // once: vanilla rehover)
-      // (bytes no value owns: the selection clears, and the pointer
-      // still points at them)
+      // (a click on the selection, which clears it: its hover at once,
+      // vanilla rehover; with nothing selected, on bytes no value owns:
+      // nothing changes, the hover stays)
       return q && q !== sel ? { ...s, hover: null, selection: q }
         : { ...s, selection: null, hover: resolveTarget(h, null, d.byPath, l) };
     });
+    if (cleared) hush(lens.store);
     return true;
   };
   const onKey = (e: KeyboardEvent) => {

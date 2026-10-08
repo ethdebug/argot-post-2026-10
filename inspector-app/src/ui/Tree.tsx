@@ -13,6 +13,7 @@ import { blockOf } from "../engine/target";
 import {
   useCompilation, useDecoded, useLens, useLensState, useLight, useLink,
   useRelatedRoots, useView, useWalkthrough,
+  hush,
 } from "./hooks";
 import type { DataRef, LinkId, ViewId } from "./types";
 import { exiting } from "./types";
@@ -231,6 +232,7 @@ export function Tree(p: { id: ViewId; data: DataRef; filter?: Filter;
       ?? null;
   };
   const point = (e: PointerEvent | { target: EventTarget }) => {
+    if (lens.store.get().hush) return;
     const at = rowOf(e.target);
     const path = at && d && blockOf(at, link.selection, d.byPath);
     setLink((s) => s.hover?.path === path && !s.hover?.bytes &&
@@ -303,13 +305,21 @@ export function Tree(p: { id: ViewId; data: DataRef; filter?: Filter;
     const at = rowOf(el);
     if (!at) return false;
     const path = keys || !d ? at : blockOf(at, link.selection, d.byPath);
-    // (a click that clears, on the selection or on what it does not
-    // light: what is under the pointer gets its hover at once, with no
-    // mouse move: vanilla rehover)
-    setLink((s) => path === s.selection ||
-      (!keys && exiting(s) && !light.rows.has(at))
-      ? { ...s, selection: null, hover: { path: at } }
-      : { ...s, hover: null, selection: path });
+    // (a click on the selection clears it: its hover at once, with no
+    // mouse move, vanilla rehover. On what it does not light: it ends,
+    // and the hover waits for the pointer to move: hush)
+    let cleared = false;
+    setLink((s) => {
+      if (path === s.selection) {
+        return { ...s, selection: null, hover: { path: at } };
+      }
+      if (!keys && exiting(s) && !light.rows.has(at)) {
+        cleared = true;
+        return { ...s, selection: null, hover: null };
+      }
+      return { ...s, hover: null, selection: path };
+    });
+    if (cleared) hush(lens.store);
     return true;
   };
   const onClick = (e: MouseEvent) => {
@@ -513,7 +523,7 @@ export function Tree(p: { id: ViewId; data: DataRef; filter?: Filter;
       className={`tree${light.muted ? " active" : ""}`}
       data-exits={exiting(link) || undefined}
       data-view={`${lens.key}:${p.id}`} data-align={alignKey}
-      onPointerOver={point} onFocus={point}
+      onPointerOver={point} onPointerMove={point} onFocus={point}
       onClick={onClick} onKeyDown={onKey}>
       {comp?.provenance === "hand-written" && <p className="handmade">
         written by hand, not from {lang[0]?.toUpperCase() + lang.slice(1)}
