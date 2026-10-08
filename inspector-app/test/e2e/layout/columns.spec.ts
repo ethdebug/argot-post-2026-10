@@ -2,13 +2,13 @@
 // 660px: a phone in landscape and the blog's 1024px frame get them; a
 // phone upright, one. The dump's bytes a line come from its own width
 // (16 in a narrow column), never the window's
-import { test, expect, type Page } from "@playwright/test";
+import type { Page } from "@playwright/test";
+import { test, expect, type Win } from "../../page";
 
-type W = { results: { done: boolean } };
 const look = async (page: Page, w: number, h: number) => {
   await page.setViewportSize({ width: w, height: h });
   await page.goto("./");
-  await page.waitForFunction(() => (window as unknown as W).results?.done);
+  await page.waitForFunction(() => (window as Win).results?.done);
   return page.evaluate(() => {
     const d = document.querySelector("#panel")!.getBoundingClientRect();
     const t = document.querySelector("#tree")!.getBoundingClientRect();

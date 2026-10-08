@@ -1,16 +1,11 @@
 // Mirrors bin/run.mjs's memory block (vanilla 78bce69 mem.js): "Inside
 // one play", the locals bugc lists at three pauses, at O0 and O2
 import { pick } from "../../pick";
-import { test, expect, type Page } from "@playwright/test";
+import type { Page } from "@playwright/test";
+import { test, expect, ready, type Win } from "../../page";
 
-type W = { memResults: { done: boolean; errors: string[];
-  decoded: Record<string, Record<string, { values: Record<string, string>;
-    none: string[] }[]>> }; results: { done: boolean } };
-const ready = async (page: Page, hash = "") => {
-  await page.setViewportSize({ width: 1280, height: 900 });
-  await page.goto("./" + hash);
-  await page.waitForFunction(() => (window as unknown as W).memResults?.done
-    && (window as unknown as W).results?.done);
+const at = async (page: Page, hash = "") => {
+  await ready(page, { hash, width: 1280, memory: true });
   await page.locator("#memory").scrollIntoViewIfNeeded();
 };
 const mrow = (page: Page, n: string) =>
@@ -59,8 +54,8 @@ const dl = (page: Page, q: string) => page.evaluate((q) => {
 }, q);
 
 test("every pause's locals, decoded, at O0 and O2", async ({ page }) => {
-  await ready(page);
-  const mr = await page.evaluate(() => (window as unknown as W).memResults);
+  await at(page);
+  const mr = await page.evaluate(() => (window as Win).memResults);
   expect(mr.errors).toEqual([]);
   const want = { roll: [{ hit: "true" }],
     mult: [{ points: "10", combo: "3", mult: "5" },
@@ -77,7 +72,7 @@ test("every pause's locals, decoded, at O0 and O2", async ({ page }) => {
 
 test("one point: one dump, Memory; the roll: hit, its last byte",
   async ({ page }) => {
-    await ready(page);
+    await at(page);
     const v = await page.evaluate(() => [
       (document.querySelector("#mmoderow") as HTMLElement).hidden,
       getComputedStyle(document.querySelector("#mmoderow")!).display,
@@ -94,7 +89,7 @@ test("one point: one dump, Memory; the roll: hit, its last byte",
 
 test("inside _applyCombo: O0 a call with a frame; colours; Before | After; "
   + "mult moves; O2 inlined", async ({ page }) => {
-  await ready(page);
+  await at(page);
   await mpt(page, "mult");
   await page.locator("h1").hover();
   const c = await mcol(page);
@@ -145,7 +140,7 @@ test("inside _applyCombo: O0 a call with a frame; colours; Before | After; "
 
 test("before the writes: gained, hit with no location, alice's record",
   async ({ page }) => {
-    await ready(page);
+    await at(page);
     await mopt(page, "2");
     await mpt(page, "writes");
     const t = await page.locator("#mtree").innerText();
@@ -180,7 +175,7 @@ test("before the writes: gained, hit with no location, alice's record",
 
 test("click again clears; Enter selects; a step lights its region; Escape",
   async ({ page }) => {
-    await ready(page);
+    await at(page);
     const storageLit = await page.locator("#panel .b.hl:not(.cmp *)")
       .count();
     await mopt(page, "2");
@@ -204,7 +199,7 @@ test("click again clears; Enter selects; a step lights its region; Escape",
   });
 
 test("each section keeps its own view", async ({ page }) => {
-  await ready(page);
+  await at(page);
   const memView = () => page.evaluate(() => JSON.stringify([
     ...["#mlevel", "#mpoint", "#mmode"].map((q) =>
       document.querySelector(`${q} [aria-checked="true"]`)?.textContent),
@@ -248,7 +243,7 @@ test("each section keeps its own view", async ({ page }) => {
 
 test("the hash keeps the memory view; a stale one gives its defaults",
   async ({ page }) => {
-    await ready(page, "#ex=motd&mode=before&sel=playerList&mopt=2&mpt=mult"
+    await at(page, "#ex=motd&mode=before&sel=playerList&mopt=2&mpt=mult"
       + "&mmode=before&msel=mult&insets=0");
     const got = await page.evaluate(() => ({
       mopt: document.querySelector('#mlevel [aria-checked="true"]')
@@ -263,7 +258,7 @@ test("the hash keeps the memory view; a stale one gives its defaults",
       msel: "mult" });
     await expect(page).toHaveURL(/mopt=2/);
     await page.goto("about:blank");
-    await ready(page, "#ex=nope&mode=compare&sel=zzz&mopt=7&mpt=x");
+    await at(page, "#ex=nope&mode=compare&sel=zzz&mopt=7&mpt=x");
     await expect(page.locator('#mpoint [aria-checked="true"]'))
       .toHaveAttribute("data-id", "roll");
     expect(await msel(page)).toBe("hit");
@@ -280,7 +275,7 @@ test("the lens alone in the shell", async ({ page }) => {
 
 test("the program line is hidden, as the storage section's",
   async ({ page }) => {
-  await ready(page);
+  await at(page);
   await expect(page.locator("#mmeta")).toBeHidden();
   await expect(page.locator("#mmeta")).toContainText("bug/arcade.bug");
 });
@@ -289,7 +284,7 @@ test("the program line is hidden, as the storage section's",
 // region's bytes alone, over the selection; the frame word is named by
 // its part, "_applyCombo#frame")
 test("a derivation step lights its region alone", async ({ page }) => {
-  await ready(page, "#mopt=0&mpt=mult&msel=combo");
+  await at(page, "#mopt=0&mpt=mult&msel=combo");
   await page.locator("#mhow li[data-region]").first().focus();
   await expect.poll(() => mlit(page)).toEqual({ "after 0x0080": "all" });
   await expect(page.locator("#mpanel .view:not([hidden]) .pop"))
@@ -300,7 +295,7 @@ test("a derivation step lights its region alone", async ({ page }) => {
 // side shown, as vanilla's)
 test("the other side's region step: its word marked in the side shown",
   async ({ page }) => {
-    await ready(page, "#mopt=2&mpt=mult&mmode=before&msel=mult");
+    await at(page, "#mopt=2&mpt=mult&mmode=before&msel=mult");
     await page.locator('#mhow li[data-region][data-side="after"]').first()
       .focus();
     await expect(page.locator(

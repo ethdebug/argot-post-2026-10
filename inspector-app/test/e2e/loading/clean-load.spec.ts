@@ -1,5 +1,5 @@
 import { pick } from "../../pick";
-import { test, expect } from "@playwright/test";
+import { test, expect } from "../../page";
 
 test("the parity page and the shell load", async ({ page }) => {
   await page.goto("./");

@@ -1,5 +1,6 @@
 import { pick } from "../../pick";
-import { test, expect, type Page } from "@playwright/test";
+import type { Page } from "@playwright/test";
+import { test, expect } from "../../page";
 
 const lit = (page: Page) => page.locator(
   "#panel .view:not([hidden]) .b.hl:not(.cmp *)").evaluateAll((bs) =>

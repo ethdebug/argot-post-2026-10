@@ -1,15 +1,11 @@
 // One tint per owner: every byte of a value has its colour, wherever
 // its bytes fall (a region that crosses rows, or a word's two lines)
-import { test, expect, type Page } from "@playwright/test";
+import type { Page } from "@playwright/test";
+import { test, expect, ready, select } from "../../page";
 
-type W = { select(id: string, view?: { sel?: string | null }):
-  Promise<boolean>; results: { done: boolean } };
-const ready = async (page: Page, w: number, scene: string) => {
-  await page.setViewportSize({ width: w, height: 900 });
-  await page.goto("./");
-  await page.waitForFunction(() => (window as unknown as W).results?.done);
-  await page.evaluate((s) => (window as unknown as W).select(s,
-    { sel: null }), scene);
+const at = async (page: Page, width: number, scene: string) => {
+  await ready(page, { width });
+  await select(page, scene, null);
 };
 // each owner's tint classes (at rest, and lit by its selection)
 const tints = (page: Page, panel: string) => page.evaluate((q) => {
@@ -27,7 +23,7 @@ const one = (by: Record<string, string[]>) =>
 
 test("calldata: each part one tint across its rows, at rest and lit",
   async ({ page }) => {
-    await ready(page, 1600, "motd");
+    await at(page, 1600, "motd");
     const rest = await tints(page, "#cpanel");
     expect(Object.keys(rest).length).toBeGreaterThanOrEqual(4);
     expect(one(rest)).toEqual([]);
@@ -38,9 +34,8 @@ test("calldata: each part one tint across its rows, at rest and lit",
   });
 
 test("storage, 16 bytes a line: each value one tint", async ({ page }) => {
-  await ready(page, 390, "mid");
+  await at(page, 390, "mid");
   expect(one(await tints(page, "#panel"))).toEqual([]);
-  await page.evaluate(() => (window as unknown as W).select("mid",
-    { sel: "players[0x70997970c51812dc3a010c7d01b50e0d17dc79c8]" }));
+  await select(page, "mid", "players[0x70997970c51812dc3a010c7d01b50e0d17dc79c8]");
   expect(one(await tints(page, "#panel"))).toEqual([]);
 });

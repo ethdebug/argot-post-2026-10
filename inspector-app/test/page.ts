@@ -1,0 +1,85 @@
+// The parity page, as the e2e specs drive it: its ready signals
+// (window.results, window.memResults: src/pages/parity.tsx) and its
+// hooks (window.select), in one place
+import { test as base, expect, type Page } from "@playwright/test";
+
+// Every spec's page: no request leaves the page's host (the page is
+// self-contained, as GitHub Pages serves it), and nothing logs an error
+// or throws; a test that expects one says so with `quiet: false`
+export const test = base.extend<{ quiet: boolean }>({
+  quiet: [true, { option: true }],
+  page: async ({ page, baseURL, quiet }, use) => {
+    const problems: string[] = [];
+    const host = new URL(baseURL!).host;
+    page.on("request", (r) => {
+      const u = new URL(r.url());
+      // (the loader imports the decoder bundle it fetched from a blob:)
+      if (/^https?:$/.test(u.protocol) && u.host !== host) {
+        problems.push(`request to ${u.href}`);
+      }
+    });
+    page.on("console", (m) => m.type() === "error" &&
+      problems.push(`console: ${m.text()}`));
+    page.on("pageerror", (e) => problems.push(`pageerror: ${e}`));
+    await use(page);
+    if (quiet) expect(problems).toEqual([]);
+  },
+});
+export { expect };
+
+export type Win = Window & typeof globalThis & {
+  calldataResults: { lit: string[]; chosen: string | null };
+  fitDumps(): void;
+};
+
+// The storage dump's view shown
+export const V = "#panel .view:not([hidden])";
+
+// Opens the page (with `hash`, at `width` x `height`) and waits until
+// its first scene is usable; with `memory`, the memory section too
+export async function ready(page: Page, { hash = "", width, height = 900,
+  memory = false }: { hash?: string; width?: number; height?: number;
+  memory?: boolean } = {}) {
+  if (width) await page.setViewportSize({ width, height });
+  await page.goto("./" + (hash && !hash.startsWith("#") ? "#" : "") + hash);
+  await usable(page, memory);
+}
+
+// Waits until the page's first scene is usable (and its memory section)
+export const usable = (page: Page, memory = false) => page.waitForFunction(
+  (m) => (window as Win).results?.done && (!m || (window as Win).memResults
+    ?.done), memory);
+
+// Shows scene `id` as a link would (with `sel` selected, in `mode`;
+// without, the scene's defaults), once drawn
+export const select = (page: Page, id: string, sel?: string | null,
+  mode?: string) => page.evaluate(([i, s, m]) =>
+  (window as Win).select(i, { ...s === undefined ? {} : { sel: s },
+    ...m ? { mode: m as "before" | "after" } : {} }),
+  [id, sel, mode] as const);
+
+// The storage tree's row for `path`
+export const row = (page: Page, path: string) =>
+  page.locator(`#tree li[data-path="${path}"] > .row`);
+
+// The selected path in the storage tree, or null
+export const selected = (page: Page) => page.evaluate(() =>
+  (document.querySelector("#tree .row.sel")?.parentElement as
+    HTMLElement | null)?.dataset.path ?? null);
+
+// Two frames: what a pointer move or a click changed is painted
+export const settle = (page: Page) => page.evaluate(() =>
+  new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r))));
+
+// The box of what `sel` finds (one element)
+export const box = async (page: Page, sel: string) =>
+  (await page.locator(sel).boundingBox())!;
+
+// Each element's box, in the page's coordinates (pointing may scroll the
+// window): for "nothing moves"
+export const boxes = (page: Page, sel: string) => page.locator(sel)
+  .evaluateAll((es) => es.map((e) => {
+    const r = e.getBoundingClientRect();
+    return [r.left + scrollX, r.top + scrollY, r.width, r.height]
+      .map(Math.round).join();
+  }));

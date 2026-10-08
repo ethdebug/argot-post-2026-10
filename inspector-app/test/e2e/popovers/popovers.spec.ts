@@ -1,19 +1,9 @@
 // Mirrors bin/run.mjs's dump checks (vanilla d235617): popovers, the
 // pointed-at run in both views, gutters, root-slot tint, one line
-import { test, expect, type Page } from "@playwright/test";
+import type { Page } from "@playwright/test";
+import { test, expect, ready, select, type Win } from "../../page";
 import { A, B, C } from "../../expect";
 
-type W = { select(id: string, view?: { sel?: string | null;
-  mode?: string }): Promise<boolean>; results: { done: boolean };
-  fitDumps(): void };
-const win = (page: Page) => page;
-const ready = async (page: Page) => {
-  await win(page).goto("./");
-  await page.waitForFunction(() => (window as unknown as W).results?.done);
-};
-const select = (page: Page, id: string, sel: string | null,
-  mode?: string) => page.evaluate(([i, s, m]) => (window as unknown as W)
-  .select(i!, { sel: s, ...(m ? { mode: m } : {}) }), [id, sel, mode]);
 const pops = (page: Page) => page.locator(
   "#panel .view:not([hidden]) .pop").allInnerTexts();
 const SLOT2 = "0x" + "2".padStart(64, "0");
@@ -139,7 +129,7 @@ test("a gutter address outlines its word; window.fitDumps fits the row",
       SLOT2}"] > .addr`).hover();
     await expect(page.locator(`#panel .view:not([hidden]) .wrow[data-slot="${
       SLOT2}"] .b.at`)).toHaveCount(32);
-    expect(await page.evaluate(() => typeof (window as unknown as W)
+    expect(await page.evaluate(() => typeof (window as Win)
       .fitDumps)).toBe("function");
     const fits = await page.evaluate(() => {
       const row = document.querySelector<HTMLElement>(
@@ -204,7 +194,7 @@ test("popovers scale with the dump; the arrow's tip on its address",
       await page.setViewportSize({ width: wd, height: 900 });
       await page.goto("./#ex=mid&sel=playerList");
       await page.waitForFunction(() =>
-        (window as unknown as W).results?.done);
+        (window as Win).results?.done);
       await page.mouse.move(1, 1);
       await expect(page.locator("#panel .view:not([hidden]) .pop").first())
         .toBeAttached();
@@ -244,7 +234,7 @@ test("slot 0's popover: under row 0, inside the dump, never empty",
       await page.setViewportSize({ width: wd, height: 900 });
       await page.goto("./#ex=mid&sel=playerList");
       await page.waitForFunction(() =>
-        (window as unknown as W).results?.done);
+        (window as Win).results?.done);
       await page.mouse.move(1, 1);
       const x = await page.evaluate(() => {
         const row = [...document.querySelectorAll<HTMLElement>(
@@ -279,7 +269,7 @@ test("the dump fits the same opened at Before or After (one measure for "
   for (const h of ["#ex=alice&mode=before", "#ex=alice&mode=after",
     "#ex=motd&mode=before"]) {
     await page.goto("./" + h);
-    await page.waitForFunction(() => (window as unknown as W).results?.done);
+    await page.waitForFunction(() => (window as Win).results?.done);
     await page.evaluate(() => document.fonts.ready);
     await page.waitForTimeout(100);
     fs.push(await page.evaluate(() => getComputedStyle(document

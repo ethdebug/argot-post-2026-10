@@ -1,18 +1,12 @@
 // "Show how it was found" brings the bar to the top of the inspector's
 // own scroll container, below what the host covers it with (its
 // scroll-padding-top), never the window by fixed page offsets
-import { test, expect, type Page } from "@playwright/test";
+import type { Page } from "@playwright/test";
+import { test, expect, ready, select } from "../../page";
 
-type W = { select(id: string, view?: { sel?: string | null }):
-  Promise<boolean>; results: { done: boolean } };
-const ready = async (page: Page) => {
-  await page.setViewportSize({ width: 1280, height: 800 });
-  await page.goto("./");
-  await page.waitForFunction(() => (window as unknown as W).results?.done);
-};
+const at = (page: Page) => ready(page, { width: 1280, height: 800 });
 const start = async (page: Page) => {
-  await page.evaluate(() => (window as unknown as W).select("mid",
-    { sel: "totalScore" }));
+  await select(page, "mid", "totalScore");
   await page.evaluate(() => scrollTo(0, 0));
   await page.locator('#details button[data-r="start"]').click();
   // (the smooth scroll, done: the bar still for two frames)
@@ -26,7 +20,7 @@ const start = async (page: Page) => {
 
 test("a sticky 80px header: the bar lands whole below it",
   async ({ page }) => {
-    await ready(page);
+    await at(page);
     await page.evaluate(() => {
       const h = document.createElement("header");
       h.id = "host";
@@ -45,7 +39,7 @@ test("a sticky 80px header: the bar lands whole below it",
 
 test("inside a scrollable box: that box scrolls, not the window",
   async ({ page }) => {
-    await ready(page);
+    await at(page);
     await page.evaluate(() => {
       const box = document.createElement("div");
       box.id = "host";
