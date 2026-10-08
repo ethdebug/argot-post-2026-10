@@ -260,12 +260,15 @@ export function walkthrough(x: WalkInput, path: Path, focus?: string):
   }
   const keyOf = (i: string) => inputs.get(`${i}|mapping`)?.key?.hex;
   // an instance by its on-chain name (quoted), else its key
-  const nameOf = (i: string) => d.byPath.get(`${i}.name`)?.value?.text;
+  // (an empty name, "", is none)
+  const named = (t?: string) => t && t !== '""' ? t : undefined;
+  const nameOf = (i: string) => named(d.byPath.get(`${i}.name`)?.value
+    ?.text);
   const who = (i: string) => nameOf(i) ?? (keyOf(i) ? short(keyOf(i)!)
     : i.replace(/\[(0x[0-9a-fA-F]{16,})\]/g, (_, h) => `[${short(h)}]`));
   const addr = (h: Hex): Tok[] => {
-    const nm = d.byPath.get(`${variable}[0x${w32(h).slice(-40)}].name`)
-      ?.value?.text;
+    const nm = named(d.byPath.get(`${variable}[0x${w32(h).slice(-40)}]` +
+      ".name")?.value?.text);
     return [short(h), ...(nm ? [" ", { gloss: nm }] : [])];
   };
   const isRec = insts.some((i) => keyOf(i));
