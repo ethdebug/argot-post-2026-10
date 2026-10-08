@@ -389,11 +389,11 @@ export function Tree(p: { id: ViewId; data: DataRef; filter?: Filter;
       const top = (e: Element, c: string) => e.getBoundingClientRect().top -
         col(e, c).getBoundingClientRect().top;
       const now = parseFloat(getComputedStyle(tree).paddingTop) || 0;
-      // (as vanilla alignColumns: the first row where it is now. A
-      // scrolled tree's first row is above its box, so the padding grows
-      // by the scroll: a bug in both, kept for parity; in the parity
-      // list, to fix in both after R3)
-      const delta = top(d, ".words") - top(t, ".storage");
+      // (the first row where it is when not scrolled: a scrolled tree's
+      // first row is above its box. Vanilla measured it where it is, so
+      // its padding grew by the scroll)
+      const delta = top(d, ".words") - (top(t, ".storage") +
+        tree.scrollTop);
       const pad = `${Math.max(0, now + delta)}px`;
       if (Math.abs(delta) > 0.5 && tree.style.paddingTop !== pad) {
         tree.style.paddingTop = pad;
