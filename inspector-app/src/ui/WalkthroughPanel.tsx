@@ -75,18 +75,40 @@ function FormView({ f }: { f: Form }) {
       <span className={r.k ? `${pk(r.k)} isw` : undefined}>{toks(r.b)}
       </span></Fragment>)}</span>;
   }
-  // (as a dump row: 32 cells, a gap after each eight; vanilla byteStrip)
-  const col = (i: number) => i + Math.floor(i / 8) + 1;
+  // (as a dump row: 32 cells, a gap after each eight; on a phone two
+  // rows of 16. A name too long for its span stands over it, in a row
+  // kept for it, with a tick down to its cells: vanilla byteStrip)
+  const fits = (n: string, a: number, b: number) => n.length <= (b - a + 1)
+    * 2.6;
+  const row = (lo: number, hi: number) => {
+    const col = (i: number) => (i - lo) + Math.floor((i - lo) / 8) + 1;
+    const vs: ReactNode[] = [];
+    const cs: ReactNode[] = [];
+    f.fields.forEach((x, k) => {
+      if (x.to < lo || x.from > hi) return;
+      const out = !fits(x.name, x.from, x.to);
+      const [a, b] = [Math.max(x.from, lo), Math.min(x.to, hi)];
+      const at = { gridColumn: `${col(a)} / ${col(b) + 1}` };
+      vs.push(<span key={k} className={`bsv pk${x.k || 0}`}
+        data-path={x.path} style={at}>{!out &&
+          <span className="bsn">{x.name}</span>}</span>);
+      if (out) {
+        const side = a - lo <= 2 ? " lft" : hi - b <= 2 ? " rgt" : "";
+        cs.push(<span key={k} className={`bsc${side}`} style={at}>
+          <span className={`bsl pk${x.k || 0}`}>{x.name}</span></span>);
+      }
+    });
+    return <><span className="bsrow bscall">{cs}</span>
+      <span className="bsrow bsbar">{vs}</span>
+      <span className="bsrow bsidx" aria-hidden="true">{Array.from(
+        { length: hi - lo + 1 }, (_, j) => <span key={j}
+          style={{ gridColumn: col(lo + j) }}>{lo + j}</span>)}</span></>;
+  };
   return <span className="bstrip" role="img" aria-label={f.fields.map((x) =>
     `${x.name}: ${x.from === x.to ? `byte ${x.from}`
       : `bytes ${x.from} to ${x.to}`}`).join("; ")}>
-    <span className="bsrow">{f.fields.map((x, k) => <span key={k}
-      className={`bsv pk${x.k || 0}`} data-path={x.path}
-      style={{ gridColumn: `${col(x.from)} / ${col(x.to) + 1}` }}>
-      <span className="bsn">{x.name}</span></span>)}</span>
-    <span className="bsrow bsidx" aria-hidden="true">{Array.from(
-      { length: 32 }, (_, i) => <span key={i} style={{ gridColumn: col(i) }}>
-        {i}</span>)}</span>
+    <span className="bs32">{row(0, 31)}</span>
+    <span className="bs16">{row(0, 15)}{row(16, 31)}</span>
   </span>;
 }
 

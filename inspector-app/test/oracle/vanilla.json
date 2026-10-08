@@ -1,5 +1,5 @@
 {
- "sha": "5c1edfaef1d97358466059a394f7632933750f19",
+ "sha": "5ec2f00398bfab2bf1ef7d1024b742c7cb68f3e5",
  "walks": {
   "mid after players": [
    {
@@ -182,7 +182,7 @@
    {
     "count": "6 / 12",
     "cap": "The first slot packs six fields, from the right",
-    "form": "lastBlockhitCountplaysbestCombocomboscore012345678910111213141516171819202122232425262728293031",
+    "form": "lastBlockhitCountplaysbestCombocomboscore012345678910111213141516171819202122232425262728293031lastBlockhitCountplays0123456789101112131415bestCombocomboscore16171819202122232425262728293031",
     "short": "packed fields",
     "src": "region4 ethdebug data from the compiler",
     "foot": "https://ethdebug.github.io/format/spec/pointer/region/location/storage/",
@@ -515,7 +515,7 @@
    {
     "count": "3 / 4",
     "cap": "slot 0 holds the length: 3",
-    "form": "length = 3012345678910111213141516171819202122232425262728293031",
+    "form": "length = 3012345678910111213141516171819202122232425262728293031length = 30123456789101112131415length = 316171819202122232425262728293031",
     "short": "the length",
     "src": "region3 read from storage",
     "foot": "https://ethdebug.github.io/format/spec/pointer/region/location/storage/",
@@ -650,7 +650,7 @@
    {
     "count": "3 / 5",
     "cap": "The last byte is the length flag, 0x65",
-    "form": "length-flag = 0x65012345678910111213141516171819202122232425262728293031",
+    "form": "length-flag = 0x650123456789101112131415161718192021222324252627282930310123456789101112131415length-flag = 0x6516171819202122232425262728293031",
     "short": "a flag",
     "src": "region3 read from storage",
     "foot": "https://ethdebug.github.io/format/spec/pointer/region/location/storage/",
@@ -741,7 +741,7 @@
    {
     "count": "1 / 1",
     "cap": "total is at slot 2, 16 bytes from offset 16",
-    "form": "total012345678910111213141516171819202122232425262728293031",
+    "form": "total0123456789101112131415161718192021222324252627282930310123456789101112131415total16171819202122232425262728293031",
     "short": "total's own slot",
     "src": "pointer1 ethdebug data from the compiler",
     "foot": "https://ethdebug.github.io/format/spec/pointer/concepts/#a-pointer-is-a-region-or-a-collection-of-other-pointers",
@@ -770,7 +770,7 @@
    {
     "count": "1 / 1",
     "cap": "rounds is at slot 2, 8 bytes from offset 8",
-    "form": "rounds012345678910111213141516171819202122232425262728293031",
+    "form": "rounds012345678910111213141516171819202122232425262728293031rounds012345678910111213141516171819202122232425262728293031",
     "short": "rounds' own slot",
     "src": "pointer1 ethdebug data from the compiler",
     "foot": "https://ethdebug.github.io/format/spec/pointer/concepts/#a-pointer-is-a-region-or-a-collection-of-other-pointers",
@@ -952,7 +952,7 @@
    {
     "count": "6 / 11",
     "cap": "The first slot packs six fields, from the right",
-    "form": "lastBlockhitCountplaysbestCombocomboscore012345678910111213141516171819202122232425262728293031",
+    "form": "lastBlockhitCountplaysbestCombocomboscore012345678910111213141516171819202122232425262728293031lastBlockhitCountplays0123456789101112131415bestCombocomboscore16171819202122232425262728293031",
     "short": "packed fields",
     "src": "region4 ethdebug data from the compiler",
     "foot": "https://ethdebug.github.io/format/spec/pointer/region/location/storage/",
@@ -1057,7 +1057,7 @@
    {
     "count": "9 / 11",
     "cap": "The last byte is the length flag, 0x0a",
-    "form": "length-flag = 0x0a012345678910111213141516171819202122232425262728293031",
+    "form": "length-flag = 0x0a0123456789101112131415161718192021222324252627282930310123456789101112131415length-flag = 0x0a16171819202122232425262728293031",
     "short": "a flag",
     "src": "region4 read from storage",
     "foot": "https://ethdebug.github.io/format/spec/pointer/region/location/storage/",
@@ -1294,7 +1294,7 @@
    {
     "count": "6 / 11",
     "cap": "The first slot packs six fields, from the right",
-    "form": "lastBlockhitCountplaysbestCombocomboscore012345678910111213141516171819202122232425262728293031",
+    "form": "lastBlockhitCountplaysbestCombocomboscore012345678910111213141516171819202122232425262728293031lastBlockhitCountplays0123456789101112131415bestCombocomboscore16171819202122232425262728293031",
     "short": "packed fields",
     "src": "region4 ethdebug data from the compiler",
     "foot": "https://ethdebug.github.io/format/spec/pointer/region/location/storage/",
@@ -1399,7 +1399,7 @@
    {
     "count": "9 / 11",
     "cap": "The last byte is the length flag, 0x06",
-    "form": "length-flag = 0x06012345678910111213141516171819202122232425262728293031",
+    "form": "length-flag = 0x060123456789101112131415161718192021222324252627282930310123456789101112131415length-flag = 0x0616171819202122232425262728293031",
     "short": "a flag",
     "src": "region4 read from storage",
     "foot": "https://ethdebug.github.io/format/spec/pointer/region/location/storage/",
@@ -1640,7 +1640,7 @@
    {
     "count": "6 / 11",
     "cap": "The first slot packs six fields, from the right",
-    "form": "lastBlockhitCountplaysbestCombocomboscore012345678910111213141516171819202122232425262728293031",
+    "form": "lastBlockhitCountplaysbestCombocomboscore012345678910111213141516171819202122232425262728293031lastBlockhitCountplays0123456789101112131415bestCombocomboscore16171819202122232425262728293031",
     "short": "packed fields",
     "src": "region4 ethdebug data from the compiler",
     "foot": "https://ethdebug.github.io/format/spec/pointer/region/location/storage/",
@@ -1745,7 +1745,7 @@
    {
     "count": "9 / 11",
     "cap": "The last byte is the length flag, 0x45",
-    "form": "length-flag = 0x45012345678910111213141516171819202122232425262728293031",
+    "form": "length-flag = 0x450123456789101112131415161718192021222324252627282930310123456789101112131415length-flag = 0x4516171819202122232425262728293031",
     "short": "a flag",
     "src": "region4 read from storage",
     "foot": "https://ethdebug.github.io/format/spec/pointer/region/location/storage/",
@@ -1972,7 +1972,7 @@
    {
     "count": "6 / 6",
     "cap": "plays is bytes 12–15 of the record's first slot",
-    "form": "plays012345678910111213141516171819202122232425262728293031",
+    "form": "plays012345678910111213141516171819202122232425262728293031plays012345678910111213141516171819202122232425262728293031",
     "short": "its field",
     "src": "region4 ethdebug data from the compiler",
     "foot": "https://ethdebug.github.io/format/spec/pointer/region/location/storage/",
@@ -2215,7 +2215,7 @@
    {
     "count": "8 / 10",
     "cap": "The last byte is the length flag, 0x45",
-    "form": "length-flag = 0x45012345678910111213141516171819202122232425262728293031",
+    "form": "length-flag = 0x450123456789101112131415161718192021222324252627282930310123456789101112131415length-flag = 0x4516171819202122232425262728293031",
     "short": "a flag",
     "src": "region4 read from storage",
     "foot": "https://ethdebug.github.io/format/spec/pointer/region/location/storage/",
@@ -2358,7 +2358,7 @@
    {
     "count": "3 / 4",
     "cap": "slot 0 holds the length: 3",
-    "form": "length = 3012345678910111213141516171819202122232425262728293031",
+    "form": "length = 3012345678910111213141516171819202122232425262728293031length = 30123456789101112131415length = 316171819202122232425262728293031",
     "short": "the length",
     "src": "region3 read from storage",
     "foot": "https://ethdebug.github.io/format/spec/pointer/region/location/storage/",
@@ -2597,7 +2597,7 @@
    {
     "count": "6 / 12",
     "cap": "The first slot packs six fields, from the right",
-    "form": "lastBlockhitCountplaysbestCombocomboscore012345678910111213141516171819202122232425262728293031",
+    "form": "lastBlockhitCountplaysbestCombocomboscore012345678910111213141516171819202122232425262728293031lastBlockhitCountplays0123456789101112131415bestCombocomboscore16171819202122232425262728293031",
     "short": "packed fields",
     "src": "region4 ethdebug data from the compiler",
     "foot": "https://ethdebug.github.io/format/spec/pointer/region/location/storage/",
@@ -2930,7 +2930,7 @@
    {
     "count": "3 / 4",
     "cap": "slot 0 holds the length: 3",
-    "form": "length = 3012345678910111213141516171819202122232425262728293031",
+    "form": "length = 3012345678910111213141516171819202122232425262728293031length = 30123456789101112131415length = 316171819202122232425262728293031",
     "short": "the length",
     "src": "region3 read from storage",
     "foot": "https://ethdebug.github.io/format/spec/pointer/region/location/storage/",
@@ -3065,7 +3065,7 @@
    {
     "count": "3 / 5",
     "cap": "The last byte is the length flag, 0x65",
-    "form": "length-flag = 0x65012345678910111213141516171819202122232425262728293031",
+    "form": "length-flag = 0x650123456789101112131415161718192021222324252627282930310123456789101112131415length-flag = 0x6516171819202122232425262728293031",
     "short": "a flag",
     "src": "region3 read from storage",
     "foot": "https://ethdebug.github.io/format/spec/pointer/region/location/storage/",
@@ -3156,7 +3156,7 @@
    {
     "count": "1 / 1",
     "cap": "total is at slot 2, 16 bytes from offset 16",
-    "form": "total012345678910111213141516171819202122232425262728293031",
+    "form": "total0123456789101112131415161718192021222324252627282930310123456789101112131415total16171819202122232425262728293031",
     "short": "total's own slot",
     "src": "pointer1 ethdebug data from the compiler",
     "foot": "https://ethdebug.github.io/format/spec/pointer/concepts/#a-pointer-is-a-region-or-a-collection-of-other-pointers",
@@ -3185,7 +3185,7 @@
    {
     "count": "1 / 1",
     "cap": "rounds is at slot 2, 8 bytes from offset 8",
-    "form": "rounds012345678910111213141516171819202122232425262728293031",
+    "form": "rounds012345678910111213141516171819202122232425262728293031rounds012345678910111213141516171819202122232425262728293031",
     "short": "rounds' own slot",
     "src": "pointer1 ethdebug data from the compiler",
     "foot": "https://ethdebug.github.io/format/spec/pointer/concepts/#a-pointer-is-a-region-or-a-collection-of-other-pointers",
@@ -3367,7 +3367,7 @@
    {
     "count": "6 / 11",
     "cap": "The first slot packs six fields, from the right",
-    "form": "lastBlockhitCountplaysbestCombocomboscore012345678910111213141516171819202122232425262728293031",
+    "form": "lastBlockhitCountplaysbestCombocomboscore012345678910111213141516171819202122232425262728293031lastBlockhitCountplays0123456789101112131415bestCombocomboscore16171819202122232425262728293031",
     "short": "packed fields",
     "src": "region4 ethdebug data from the compiler",
     "foot": "https://ethdebug.github.io/format/spec/pointer/region/location/storage/",
@@ -3472,7 +3472,7 @@
    {
     "count": "9 / 11",
     "cap": "The last byte is the length flag, 0x0a",
-    "form": "length-flag = 0x0a012345678910111213141516171819202122232425262728293031",
+    "form": "length-flag = 0x0a0123456789101112131415161718192021222324252627282930310123456789101112131415length-flag = 0x0a16171819202122232425262728293031",
     "short": "a flag",
     "src": "region4 read from storage",
     "foot": "https://ethdebug.github.io/format/spec/pointer/region/location/storage/",
@@ -3686,7 +3686,7 @@
    {
     "count": "6 / 6",
     "cap": "combo is bytes 20–23 of the record's first slot",
-    "form": "combo012345678910111213141516171819202122232425262728293031",
+    "form": "combo0123456789101112131415161718192021222324252627282930310123456789101112131415combo16171819202122232425262728293031",
     "short": "its field",
     "src": "region4 ethdebug data from the compiler",
     "foot": "https://ethdebug.github.io/format/spec/pointer/region/location/storage/",
@@ -3894,7 +3894,7 @@
    {
     "count": "6 / 12",
     "cap": "The first slot packs six fields, from the right",
-    "form": "lastBlockhitCountplaysbestCombocomboscore012345678910111213141516171819202122232425262728293031",
+    "form": "lastBlockhitCountplaysbestCombocomboscore012345678910111213141516171819202122232425262728293031lastBlockhitCountplays0123456789101112131415bestCombocomboscore16171819202122232425262728293031",
     "short": "packed fields",
     "src": "region4 ethdebug data from the compiler",
     "foot": "https://ethdebug.github.io/format/spec/pointer/region/location/storage/",
@@ -4227,7 +4227,7 @@
    {
     "count": "3 / 4",
     "cap": "slot 0 holds the length: 3",
-    "form": "length = 3012345678910111213141516171819202122232425262728293031",
+    "form": "length = 3012345678910111213141516171819202122232425262728293031length = 30123456789101112131415length = 316171819202122232425262728293031",
     "short": "the length",
     "src": "region3 read from storage",
     "foot": "https://ethdebug.github.io/format/spec/pointer/region/location/storage/",
@@ -4362,7 +4362,7 @@
    {
     "count": "3 / 5",
     "cap": "The last byte is the length flag, 0x65",
-    "form": "length-flag = 0x65012345678910111213141516171819202122232425262728293031",
+    "form": "length-flag = 0x650123456789101112131415161718192021222324252627282930310123456789101112131415length-flag = 0x6516171819202122232425262728293031",
     "short": "a flag",
     "src": "region3 read from storage",
     "foot": "https://ethdebug.github.io/format/spec/pointer/region/location/storage/",
@@ -4453,7 +4453,7 @@
    {
     "count": "1 / 1",
     "cap": "total is at slot 2, 16 bytes from offset 16",
-    "form": "total012345678910111213141516171819202122232425262728293031",
+    "form": "total0123456789101112131415161718192021222324252627282930310123456789101112131415total16171819202122232425262728293031",
     "short": "total's own slot",
     "src": "pointer1 ethdebug data from the compiler",
     "foot": "https://ethdebug.github.io/format/spec/pointer/concepts/#a-pointer-is-a-region-or-a-collection-of-other-pointers",
@@ -4482,7 +4482,7 @@
    {
     "count": "1 / 1",
     "cap": "rounds is at slot 2, 8 bytes from offset 8",
-    "form": "rounds012345678910111213141516171819202122232425262728293031",
+    "form": "rounds012345678910111213141516171819202122232425262728293031rounds012345678910111213141516171819202122232425262728293031",
     "short": "rounds' own slot",
     "src": "pointer1 ethdebug data from the compiler",
     "foot": "https://ethdebug.github.io/format/spec/pointer/concepts/#a-pointer-is-a-region-or-a-collection-of-other-pointers",
@@ -4664,7 +4664,7 @@
    {
     "count": "6 / 11",
     "cap": "The first slot packs six fields, from the right",
-    "form": "lastBlockhitCountplaysbestCombocomboscore012345678910111213141516171819202122232425262728293031",
+    "form": "lastBlockhitCountplaysbestCombocomboscore012345678910111213141516171819202122232425262728293031lastBlockhitCountplays0123456789101112131415bestCombocomboscore16171819202122232425262728293031",
     "short": "packed fields",
     "src": "region4 ethdebug data from the compiler",
     "foot": "https://ethdebug.github.io/format/spec/pointer/region/location/storage/",
@@ -4769,7 +4769,7 @@
    {
     "count": "9 / 11",
     "cap": "The last byte is the length flag, 0x0a",
-    "form": "length-flag = 0x0a012345678910111213141516171819202122232425262728293031",
+    "form": "length-flag = 0x0a0123456789101112131415161718192021222324252627282930310123456789101112131415length-flag = 0x0a16171819202122232425262728293031",
     "short": "a flag",
     "src": "region4 read from storage",
     "foot": "https://ethdebug.github.io/format/spec/pointer/region/location/storage/",
@@ -4983,7 +4983,7 @@
    {
     "count": "6 / 6",
     "cap": "combo is bytes 20–23 of the record's first slot",
-    "form": "combo012345678910111213141516171819202122232425262728293031",
+    "form": "combo0123456789101112131415161718192021222324252627282930310123456789101112131415combo16171819202122232425262728293031",
     "short": "its field",
     "src": "region4 ethdebug data from the compiler",
     "foot": "https://ethdebug.github.io/format/spec/pointer/region/location/storage/",
@@ -5083,7 +5083,7 @@
    {
     "count": "3 / 5",
     "cap": "The last byte is the length flag, 0x65",
-    "form": "length-flag = 0x65012345678910111213141516171819202122232425262728293031",
+    "form": "length-flag = 0x650123456789101112131415161718192021222324252627282930310123456789101112131415length-flag = 0x6516171819202122232425262728293031",
     "short": "a flag",
     "src": "region3 read from storage",
     "foot": "https://ethdebug.github.io/format/spec/pointer/region/location/storage/",
@@ -5351,7 +5351,7 @@
    {
     "count": "6 / 12",
     "cap": "The first slot packs six fields, from the right",
-    "form": "lastBlockhitCountplaysbestCombocomboscore012345678910111213141516171819202122232425262728293031",
+    "form": "lastBlockhitCountplaysbestCombocomboscore012345678910111213141516171819202122232425262728293031lastBlockhitCountplays0123456789101112131415bestCombocomboscore16171819202122232425262728293031",
     "short": "packed fields",
     "src": "region4 ethdebug data from the compiler",
     "foot": "https://ethdebug.github.io/format/spec/pointer/region/location/storage/",
@@ -5678,7 +5678,7 @@
    {
     "count": "3 / 5",
     "cap": "The last byte is the length flag, 0x0a",
-    "form": "length-flag = 0x0a012345678910111213141516171819202122232425262728293031",
+    "form": "length-flag = 0x0a0123456789101112131415161718192021222324252627282930310123456789101112131415length-flag = 0x0a16171819202122232425262728293031",
     "short": "a flag",
     "src": "region3 read from storage",
     "foot": "https://ethdebug.github.io/format/spec/pointer/region/location/storage/",
@@ -5933,7 +5933,7 @@
    {
     "count": "6 / 12",
     "cap": "The first slot packs six fields, from the right",
-    "form": "lastBlockhitCountplaysbestCombocomboscore012345678910111213141516171819202122232425262728293031",
+    "form": "lastBlockhitCountplaysbestCombocomboscore012345678910111213141516171819202122232425262728293031lastBlockhitCountplays0123456789101112131415bestCombocomboscore16171819202122232425262728293031",
     "short": "packed fields",
     "src": "region4 ethdebug data from the compiler",
     "foot": "https://ethdebug.github.io/format/spec/pointer/region/location/storage/",
@@ -6354,7 +6354,7 @@
    {
     "count": "6 / 11",
     "cap": "The first slot packs six fields, from the right",
-    "form": "lastBlockhitCountplaysbestCombocomboscore012345678910111213141516171819202122232425262728293031",
+    "form": "lastBlockhitCountplaysbestCombocomboscore012345678910111213141516171819202122232425262728293031lastBlockhitCountplays0123456789101112131415bestCombocomboscore16171819202122232425262728293031",
     "short": "packed fields",
     "src": "region4 ethdebug data from the compiler",
     "foot": "https://ethdebug.github.io/format/spec/pointer/region/location/storage/",
@@ -6704,7 +6704,7 @@
    {
     "count": "6 / 11",
     "cap": "The first slot packs six fields, from the right",
-    "form": "lastBlockhitCountplaysbestCombocomboscore012345678910111213141516171819202122232425262728293031",
+    "form": "lastBlockhitCountplaysbestCombocomboscore012345678910111213141516171819202122232425262728293031lastBlockhitCountplays0123456789101112131415bestCombocomboscore16171819202122232425262728293031",
     "short": "packed fields",
     "src": "region4 ethdebug data from the compiler",
     "foot": "https://ethdebug.github.io/format/spec/pointer/region/location/storage/",
@@ -6806,7 +6806,7 @@
    {
     "count": "9 / 11",
     "cap": "The last byte is the length flag, 0x00",
-    "form": "length-flag = 0x00012345678910111213141516171819202122232425262728293031",
+    "form": "length-flag = 0x000123456789101112131415161718192021222324252627282930310123456789101112131415length-flag = 0x0016171819202122232425262728293031",
     "short": "a flag",
     "src": "region4 read from storage",
     "foot": "https://ethdebug.github.io/format/spec/pointer/region/location/storage/",
@@ -7079,7 +7079,7 @@
    {
     "count": "8 / 10",
     "cap": "The last byte is the length flag, 0x00",
-    "form": "length-flag = 0x00012345678910111213141516171819202122232425262728293031",
+    "form": "length-flag = 0x000123456789101112131415161718192021222324252627282930310123456789101112131415length-flag = 0x0016171819202122232425262728293031",
     "short": "a flag",
     "src": "region4 read from storage",
     "foot": "https://ethdebug.github.io/format/spec/pointer/region/location/storage/",

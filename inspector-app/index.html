@@ -53,38 +53,15 @@ end of the body fetches the decoder and the data. -->
 <main>
   <header>
     <h1>Storage, by name</h1>
-    <p>One contract, Arcade, in a few scenes. Click a byte in a word of
-    storage, and the variable that owns it lights up; click a variable,
-    and its bytes light up. "How this was found" shows each step from
-    the variable to its bytes. Some scenes compare two points (Before |
-    After) and mark what changed.</p>
-    <p>Decoded by ethdebug's reference library from solc's ethdebug
-    output (a preview build of Walnut's solc fork, walnuthq/solidity
-    PR #10). Each variable's base slot, offset and type come from the
-    program context; the rules for mappings, structs, arrays and strings
-    come from the pointer templates in the resources.</p>
-    <p class="meta" id="meta"></p>
-    <p class="appendix-nav">Part of the ethdebug post appendix, with
-    <a href="../../companion/">ethdebug in depth</a> and
-    <a href="../debugger/">Step through a transaction</a>.</p>
+    <p class="meta" id="meta" hidden></p>
   </header>
 
   <section id="contract" class="contract" aria-labelledby="contract-h">
     <h2 class="label" id="contract-h">The contract</h2>
-    <p>Every scene below shows one contract, Arcade: the scoreboard of a
-    big multiplayer game. A player calls <code>join(name)</code> once,
-    then <code>play()</code>, which rolls a hit or a miss. A hit adds 1 to
-    the player's combo and scores 10 × combo (at most 5×); a miss sets
-    the combo back to 0, and the score stays. Each player's
-    <code>Player</code> in <code>players</code> is one full packed slot
-    (score, combo, bestCombo, plays, hitCount, lastBlock) and a name in
-    the next slot; <code>roster</code> lists who joined, since a mapping
-    cannot list its keys; <code>total</code> and <code>rounds</code>
-    count all points and hits; <code>setMotd</code> sets the message of
-    the day. The story: deploy with a 50-byte motd; alice, bob and carol
-    join; alice hits twice, bob hits, carol misses (the middle of the
-    game); alice hits a third time; then the motd becomes "gl hf". Each
-    player is an anvil account.</p>
+    <p>Arcade, the scoreboard of a multiplayer game: each player's record
+    is one packed slot and a name, kept in a mapping; <code>roster</code>
+    lists who joined. Click a byte to find its variable, or a variable to
+    find its bytes.</p>
     <!-- the contract's source (bin/make-fixtures.mjs writes it; bin/run.mjs
     checks that it matches); collapsed by default, open or closed as the
     viewer left it (localStorage) -->
@@ -157,47 +134,10 @@ contract Arcade {
     <!-- one intro per scene (fixtures/index.json); the loader shows the
     first one -->
     <div id="intros" class="intros">
-      <p data-scene="mid" hidden>The game, halfway: alice, bob and carol
-      have joined and played. Each player's record is found by hashing
-      the player's address with the mapping's slot,
-      keccak256(address . slot 3), so the three records land far apart.
-      Each is one word with six counters packed in it: click any byte to
-      find its field, or a field to find its bytes. The name is in the
-      next slot: alice's and bob's fit in it; carol's is 34 bytes, so its
-      bytes move to keccak256(that slot). <code>roster</code> keeps its
-      length in slot 0 and its items from keccak256(slot 0);
-      <code>motd</code> is slot 1; <code>total</code> and
-      <code>rounds</code> share slot 2. alice's
-      record is selected.</p>
-      <p data-scene="alice" hidden>alice hits a third time: combo 3, so
-      she scores 10 × 3 = 30. In her one slot, score goes from 30 to 60,
-      combo, bestCombo, plays and hitCount from 2 to 3, and lastBlock to
-      this block; <code>total</code> goes from 40 to 70 and
-      <code>rounds</code> from 3 to 4. Before is the middle of the game,
-      After is after her hit. Beside the lit word, a card shows it in the
-      other state.</p>
-      <p data-scene="motd" hidden>Arcade was deployed with a 50-byte
-      message of the day. A string that long keeps only 2 × its length + 1
-      in its slot, slot 1, and its bytes at keccak256(slot 1) and the slot
-      after it. <code>setMotd("gl hf")</code> makes it 5 bytes: short
-      enough that Solidity stores it in slot 1 itself, its bytes from the
-      high end and 2 × its length in the last byte. solc writes zeros to
-      the two old data slots; they are in the dump After. "How this was
-      found" shows where the two rules part. The call's calldata is under
-      the storage.</p>
-      <p data-scene="vyper" hidden>The same three players, in the same
-      game compiled by Vyper 0.4.3 (<code>contracts/Arcade.vy</code>), at
-      the same middle of the game. The rule from the first scene,
-      keccak256(address . slot 3), is Solidity's; it finds nothing here:
-      the tree shows each player with zeros and no name, with no error.
-      Vyper does not pack and keeps its arrays inline, so its
-      <code>players</code> is slot 108, not 3; it hashes the slot first,
-      keccak256(108 . address), and puts each counter in its own slot,
-      then the name's length and bytes. So
-      the real records sit elsewhere: those words are in the dump, and no
-      value shown owns them. Vyper emits no ethdebug, so the page has no
-      rule from Vyper; "How this was found" lists the selected player's
-      Vyper words for contrast.</p>
+      <p data-scene="mid" hidden>Halfway: alice, bob and carol have joined and played.</p>
+      <p data-scene="alice" hidden>alice's third hit: her record before and after.</p>
+      <p data-scene="motd" hidden>setMotd("gl hf"): a 50-byte string becomes a short one.</p>
+      <p data-scene="vyper" hidden>The same game compiled by Vyper: Solidity's rule finds zeros.</p>
     </div>
     <div class="moderow"><span class="modelabel" id="mode-l">Show</span>
       <div id="mode" class="picker mode" role="radiogroup"
@@ -208,14 +148,14 @@ contract Arcade {
           aria-checked="true">After</button></div>
       <label class="chipcheck"><input type="checkbox" id="insets" checked>
         show other state</label>
-      <span id="viewing" class="viewing" style="visibility: hidden">
-        </span></div>
+      <span id="viewing" class="viewing" style="visibility: hidden"
+        >&nbsp;</span></div>
     <p id="summary" class="summary"></p>
   </section>
 
   <!-- how to read the dump, in one line -->
-  <p class="howread muted small">One 32-byte word per row, byte 0 at the
-  left; "⋯" skips addresses.</p>
+  <p class="howread muted small">One 32-byte word per row; "⋯" skips
+  addresses.</p>
   <!-- the bar over both columns, one line, always there: the selection,
   the replay's controls and the step's short caption (main.js renderBox) -->
   <div id="details" class="rbar" aria-live="polite" tabindex="0"
@@ -301,45 +241,15 @@ contract Arcade {
     </section>
   </div>
 
-  <section class="notes" aria-label="Notes">
-    <h2>What is not done yet</h2>
-    <ul>
-      <li><b>Mapping keys.</b> A mapping does not list its keys. The page
-      shows only keys read from the KECCAK256 inputs in a trace (the
-      players' addresses, from their <code>join</code> and <code>play</code> calls; <code>roster</code> lists them too). Other entries may
-      exist but are not shown.</li>
-      <li><b>Nested mappings.</b> A mapping inside a struct or another
-      mapping needs one template applied after another, with a key for
-      each level. The page does not do that yet; Arcade has none.</li>
-      <li><b>Vyper.</b> Vyper emits no ethdebug. Its scene applies
-      solc's rule to Vyper's storage, to show what a tool built on
-      Solidity's rules reads; Vyper's own slots come from its
-      trace.</li>
-      <li><b>Names in the templates.</b> Template and type names such as
-      <code>t_mapping$_t_address_$…</code> are solc's internal names.
-      ethdebug does not require them.</li>
-    </ul>
-  </section>
 
   <section id="memory" class="ahead" aria-labelledby="mem-h">
     <h2 id="mem-h">Inside one play: locals in memory, with BUG
       <span class="tag preview">preview: bugc from ethdebug/format main,
       not yet released</span></h2>
-    <p class="lede">BUG is ethdebug's teaching language, and bugc is
-    ethdebug's reference compiler. Arcade has a BUG port, and here is
-    alice's third hit again, paused at three points inside
-    <code>play()</code>. At each point, bugc's debug data lists the
-    local variables in scope, and gives most of them a pointer: bugc
-    keeps them in memory. Compile it without optimization (O0) or with
-    it (O2): at O0, <code>multiplied</code> is a real call, and its
-    locals are in a frame whose address is in the word at 0x80; at O2
-    it is inlined, so its locals are at fixed offsets, with no frame.
-    A local that bugc lists with its type only has no location at that
-    point. As above, the byte ranges come from ethdebug's reference
-    library (@ethdebug/pointers), which follows bugc's pointers against
-    the memory at each point. Only the decoding into numbers is this
-    page's own.</p>
-    <p class="meta" id="mmeta"></p>
+    <p class="lede">Arcade ported to BUG, ethdebug's teaching language:
+    alice's third hit, paused inside <code>play()</code>, its locals found
+    in memory by bugc's pointers.</p>
+    <p class="meta" id="mmeta" hidden></p>
 
     <div class="mpicks" id="msection">
       <div class="mpickrow"><span class="label">Compiled</span>
@@ -387,11 +297,6 @@ contract Arcade {
         <h2 class="label" id="mwords-h">The words in memory
           <span class="legend"><span class="bfree">no value
           shown</span></span></h2>
-        <p class="muted small intro">Memory at the paused step, one
-        32-byte word to a line, by offset. Shown: the words a local
-        lives in; "⋯" marks words left out. At the last point, alice's
-        record slot in storage comes last. Point at a value, a byte or
-        an address to light it up.</p>
         <div class="dump"><div id="mpanel" class="panel"></div></div>
         <div id="mdetails" class="details" aria-live="polite"></div>
       </section>
@@ -404,20 +309,11 @@ contract Arcade {
       </section>
     </div>
 
-    <ul class="mknown small muted">
-      <li>"no location at this point": bugc lists the local with its
-      type and no pointer. This happens with optimization (a value the
-      optimizer folded away) and without it (at O0, <code>hit</code>
-      after its <code>if</code>).</li>
-      <li>Inside <code>multiplied</code>, <code>m = combo</code> moves
-      <code>m</code>: after it, bugc points <code>m</code> at a word
-      that holds <code>combo</code>'s bytes too.</li>
-      <li>Alice's record slot is the page's own: bugc's pointer for
-      <code>players</code> gives only its base slot, so the slot
-      (keccak256 of the key and 4) and the packed members follow BUG's
-      rules, which are Solidity's.</li>
-    </ul>
   </section>
+  <p class="about muted small"><a href="https://github.com/ethdebug/argot-post-2026-10/blob/main/public/demos/inspector/README.md">About
+  this demo</a> · part of the ethdebug post appendix, with
+  <a href="../../companion/">ethdebug in depth</a> and
+  <a href="../debugger/">Step through a transaction</a></p>
 </main>
 <!-- loader -->
 <script type="module" src="/src/pages/parity.tsx"></script>
