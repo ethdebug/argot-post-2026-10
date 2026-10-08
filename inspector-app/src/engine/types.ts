@@ -188,6 +188,9 @@ export interface Target {               // what the pointer (or finger) is on
   path?: Path;
   bytes?: { row: Hex; from: number; to: number; location: Location };
   row?: Hex;                            // a gutter address
+  // (the port's: a region named elsewhere, e.g. Vyper's word in the
+  // walkthrough's contrast list: its bytes, owned or not)
+  region?: ResolvedRegion;
 }
 export interface Light {                // DERIVED per view, never stored
   bytes: ReadonlySet<ByteKey>; rows: ReadonlySet<Path>;
