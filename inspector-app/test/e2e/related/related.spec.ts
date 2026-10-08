@@ -6,6 +6,8 @@ import { test, expect, type Win } from "../../page";
 import { A } from "../../expect";
 
 const open = async (page: Page, hash: string) => {
+  // (a new load each time: a change of the hash alone loads nothing)
+  await page.goto("about:blank");
   await page.goto(`./#${hash}`);
   await page.waitForFunction(() => (window as Win).results?.done);
 };
@@ -110,7 +112,7 @@ test("what a selection consulted: tinted in its record's colour, a light "
       '#tree li[data-path="playerList[1]"] > .row')).toHaveClass(/rel pk2/);
     const pop = page.locator(".pop.kept.related");
     await expect(pop.filter({ hasText: "keccak(slot 0)" })).toHaveCount(1);
-    await expect(pop.filter({ hasText: "slot 3 : players (anchor)" }))
+    await expect(pop.filter({ hasText: "slot 3 : (anchor slot for players)" }))
       .toHaveCount(1);
     // (the selection's own: as before, lit, a black popover)
     await expect(page.locator(".pop:not(.kept)").filter({
@@ -119,4 +121,80 @@ test("what a selection consulted: tinted in its record's colour, a light "
   // (a walkthrough: its steps light, no related treatment)
   await page.locator('#details button[data-r="start"]').click();
   await expect(page.locator("#panel .b.rel")).toHaveCount(0);
+});
+
+test("a consulted slot's role: anchor (a note), read (its names), both",
+  async ({ page }) => {
+    const pop = (slot: string) => page.locator(
+      `#panel .view:not([hidden]) .wrow[data-name="${slot}"] .pop`);
+    // (players' record: slot 3's number only, the base of its hash)
+    await open(page, `ex=mid&sel=${A}`);
+    await expect(pop("slot 3")).toHaveText(
+      "slot 3 : (anchor slot for players)");
+    await expect(pop("slot 3")).toHaveClass(/kept related/);
+    await expect(page.locator('#panel .wrow[data-name="slot 3"] .b.rel'))
+      .toHaveCount(0);
+    // (the identifier in the note: upright, as names are)
+    expect(await pop("slot 3").locator(".pnm").evaluate((e) =>
+      getComputedStyle(e).fontStyle)).toBe("normal");
+    // (playerList[0]: slot 0's length bounds the list (read), its number is
+    // the data's base (anchor): both)
+    await open(page, "ex=mid&sel=playerList[0]");
+    await expect(pop("slot 0")).toHaveText(
+      "slot 0 : length · (anchor slot for playerList)");
+    // (playerList itself: slot 0 is its own length, lit, as before)
+    await open(page, "ex=mid&sel=playerList");
+    await expect(pop("slot 0")).not.toHaveClass(/related/);
+    await expect(page.locator("#panel .view:not([hidden]) " +
+      '.wrow[data-name="slot 0"] .b.hl').first())
+      .toBeVisible();
+  });
+
+test.describe("view transitions", () => {
+  test.use({ reducedMotion: "no-preference" });
+  test("a deliberate change of the rows animates; hover and steps do not",
+    async ({ page }) => {
+      await open(page, `ex=mid&sel=${A}.score`);
+      const has = await page.evaluate(() => "startViewTransition" in document);
+      test.skip(!has, "no View Transitions here");
+      await page.evaluate(() => {
+        const w = window as unknown as { vts: number };
+        w.vts = 0;
+        const d = document as Document & { startViewTransition(f: () =>
+          void): unknown };
+        const s = d.startViewTransition.bind(d);
+        d.startViewTransition = (f) => (w.vts++, s(f));
+      });
+      const n = () => page.evaluate(() =>
+        (window as unknown as { vts: number }).vts);
+      const settle = () => page.waitForTimeout(400);
+      await page.locator('#related button[data-rows="related"]').click();
+      await settle();
+      expect(await n()).toBe(1);
+      await expect.poll(() => rows(page)).toHaveLength(3);
+      await page.locator('#tree li[data-path="playerList[0]"] > .row').hover();
+      await settle();
+      expect(await n()).toBe(1);
+      await page.keyboard.press("Escape");
+      await settle();
+      expect(await n()).toBe(2);
+      await page.locator('#tree li[data-path="players"] > .row').click();
+      await settle();
+      expect(await n()).toBe(3);
+      await page.locator('#details button[data-r="start"]').click();
+      await settle();
+      await page.locator('#details button[data-r="next"]').click();
+      await settle();
+      expect(await n()).toBe(3);
+      // (and at rest: no names left, the popovers back)
+      expect(await page.evaluate(() => [...document.querySelectorAll<
+        HTMLElement>("[data-vt]")].filter((e) =>
+        e.style.viewTransitionName).length)).toBe(0);
+      await page.keyboard.press("Escape");
+      await settle();
+      await page.locator('#related button[data-rows="all"]').click();
+      await settle();
+      expect(await n()).toBe(4);
+      await expect(page.locator(".vt-run")).toHaveCount(0);
+    });
 });
