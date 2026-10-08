@@ -74,6 +74,15 @@ export function pointerText(c: Compilation, variable: string):
       const own = k === "define" ? [`define:${Object.keys(x)[0]}`]
         : k === "if" ? ["if"] : k === "expect" ? ["expect"] : [];
       if (k === "template") todo.push(x);
+      // (a template's yields, the names its regions take here: one line,
+      // which says how many; the walkthrough never reads them)
+      if (k === "yields" && x && typeof x === "object" &&
+        !Array.isArray(x)) {
+        const n = Object.keys(x).length;
+        put(d, `yields: …  # ${n} ${n === 1 ? "name" : "names"}`,
+          [...tags, ...own], at);
+        continue;
+      }
       // (and a template named inside a value written in flow style)
       const inner = (y: Any) => y && typeof y === "object" &&
         Object.entries(y).forEach(([kk, vv]) => kk === "template"

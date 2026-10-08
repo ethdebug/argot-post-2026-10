@@ -220,7 +220,9 @@ export function Tree(p: { id: ViewId; data: DataRef; filter?: Filter;
     collapsed: new Set([...shut].filter((q) => !closing.has(q))),
     plain: p.plain, partAttr: p.partAttr,
     vt: (q) => vtName(lens.key, p.id, q),
-    card: pair && insets && light.muted && !p.plain
+    // (no card of the other state in a walkthrough: it is about where
+    // the bytes are, not what changed; the review's V4)
+    card: pair && insets && light.muted && !p.plain && !link.walk
       ? treeCard(lit, pair, side)
       : undefined };
   // only the filter's roots (the related view's), and the groups that
@@ -316,7 +318,10 @@ export function Tree(p: { id: ViewId; data: DataRef; filter?: Filter;
   const act = (el: EventTarget, keys = false) => {
     const at = rowOf(el);
     if (!at) return false;
-    const path = keys || !d ? at : blockOf(at, link.selection, d.byPath);
+    // (in a walkthrough, exactly the row clicked: a re-target drills no
+    // block; the review's C6)
+    const path = keys || !d || link.walk ? at
+      : blockOf(at, link.selection, d.byPath);
     // (a click on the selection clears it: its hover at once, with no
     // mouse move, vanilla rehover. On what it does not light: it ends,
     // and the hover waits for the pointer to move: hush)

@@ -1844,6 +1844,11 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
     for (const n of Object.keys(f.contract.pointers)) {
       if (!n.startsWith("t_array")) want[nameOf(n)] = norm(f.contract.pointers[n]);
     }
+    // (a template's yields, folded to one line: "yields: …  # 10 names")
+    const folded = (v) => Array.isArray(v) ? v.map(folded) : v &&
+      typeof v === "object" ? Object.fromEntries(Object.entries(v).map(
+        ([k, x]) => [k, k === "yields" ? "…" : folded(x)])) : v;
+    for (const k of Object.keys(want)) want[k] = folded(want[k]);
     const got = norm(parse(y.text), false);
     // a conditional's keys in the spec's order: if, then, else
     const order = ["if:", "then:", "else:"].map((k) => y.text.split("\n")

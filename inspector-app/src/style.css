@@ -1476,3 +1476,16 @@ html { overflow-anchor: none; }
   .ptr { grid-template-rows: minmax(0, 1fr); }
   .rform { font-size: 0.8rem; }
 }
+/* (the tree's edge buttons: smaller, hugging the box's edge, so they
+   cover as little of a row as they can: the review's V5) */
+.tedge { width: 24px; height: 24px; margin-left: -12px; }
+.tedge svg { width: 14px; height: 14px; }
+.tedge.up { top: 2px; }
+.tedge.down { bottom: 2px; }
+/* the pointer's edge labels ("more above", "more below") in strips of
+   their own over and under the excerpt, never over its text (the
+   review's T3); no fade under them */
+.ptrbox { padding: 16px 0; }
+.ptrscroll { -webkit-mask-image: none; mask-image: none; }
+/* a band line's values: the step's variables, as the focus has them */
+.ptrlines .lnote { color: var(--muted); font-style: italic; }

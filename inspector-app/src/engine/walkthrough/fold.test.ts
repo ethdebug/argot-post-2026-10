@@ -283,3 +283,12 @@ it("Vyper: Solidity's rule, then the misread, with Vyper's own layout "
   expect(w.steps.find((s) => s.phase === "declared")!.cap).toContain(
     "in Vyper's storage, that slot holds something else");
 });
+
+it("a step's variables, as the focus has them, for its band's lines "
+  + "(the review's T4)", async () => {
+  const w = walkthrough(await at(), C)!;
+  const map = w.steps.find((s) => s.phase === "template")!;
+  const rec = w.steps.find((s) => s.chipLabel === "record")!;
+  expect(map.notes?.values).toEqual({ slot: "3", key: "carol" });
+  expect(rec.notes?.values).toEqual({ key: "carol", slot: "3" });
+});

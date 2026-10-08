@@ -53,3 +53,13 @@ it("each line knows its place: block | path", async () => {
   expect(expectL.pos)
     .toBe("t_mapping$_t_address_$_t_struct$_Player_$16_storage_$|expect");
 });
+
+it("a template's yields: one line, how many names (the walkthrough "
+  + "review's T2)", async () => {
+  const { lines } = await players();
+  const y = lines.filter((l) => l.text.trim().startsWith("yields:"));
+  expect(y.length).toBeGreaterThan(0);
+  expect(y.every((l) => /^\s*yields: …  # \d+ names?$/.test(l.text)))
+    .toBe(true);
+  expect(lines.some((l) => l.text.includes("value-bestCombo"))).toBe(false);
+});

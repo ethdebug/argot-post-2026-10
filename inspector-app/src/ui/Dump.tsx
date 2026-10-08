@@ -371,7 +371,8 @@ export function Dump(p: { id: ViewId; location: Location; data: DataRef;
         return ids.size === 1 && only !== sel
           ? { ...s, hover: null, selection: only } : s;
       }
-      const t = resolveTarget(h, keys ? null : sel, d.byPath, l);
+      // (in a walkthrough, exactly the value clicked: no drilling)
+      const t = resolveTarget(h, keys || s.walk ? null : sel, d.byPath, l);
       const q = t.path ?? null;
       // (a click on the selection, which clears it: its hover at once,
       // vanilla rehover; with nothing selected, on bytes no value owns:
