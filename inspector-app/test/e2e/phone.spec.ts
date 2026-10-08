@@ -49,3 +49,31 @@ for (const [w, h] of SIZES) {
       }
     });
 }
+
+// (a tap target: 32px at least each way)
+const small = (page: Page, sel: string) => page.locator(sel).evaluateAll(
+  (es) => es.filter((e) => (e as HTMLElement).offsetParent).map((e) => {
+    const r = e.getBoundingClientRect();
+    return r.width < 32 || r.height < 32 ? `${(e as HTMLElement).innerText
+      } ${Math.round(r.width)}x${Math.round(r.height)}` : "";
+  }).filter(Boolean));
+
+for (const [w, h] of SIZES) {
+  test(`${w}px: the bar's buttons and Before | After are tap-sized`,
+    async ({ page }) => {
+      await ready(page, w, h);
+      await page.locator('#picker button[data-fixture="arcade-alice"]')
+        .click();
+      await page.waitForFunction(() => (window as unknown as W).results
+        ?.done);
+      expect(await small(page, "#mode button")).toEqual([]);
+      await page.evaluate(() => (window as unknown as W).select("alice",
+        { sel: "total" }));
+      const bar = page.locator("#details");
+      const h0 = (await bar.boundingBox())!.height;
+      expect(await small(page, "#details button")).toEqual([]);
+      await page.locator('#details button[data-r="start"]').click();
+      expect(await small(page, "#details .rbar button")).toEqual([]);
+      expect((await bar.boundingBox())!.height).toBeCloseTo(h0, 2);
+    });
+}

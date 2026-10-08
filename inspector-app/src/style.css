@@ -1014,6 +1014,10 @@ main[data-single] > .cols :is(.chglegend, .legend .bchg, .intro .two) {
   .rbar:not(.replaying) {
     grid-template-columns: 0 minmax(0, 1fr) 5.8em 0 0; }
   .rbar .rstart .rlong { display: none; }
+  /* (tap-sized, inside the bar's height) */
+  .rbar .btn { min-height: 32px; }
+  .rbar .rctl .btn { min-width: 32px; }
+  .mode button { min-height: 32px; }
 }
 /* under the bar, joined to it, during a replay only, at one size:
    the step (its caption, formula, constructs, footnote; then the chips,
