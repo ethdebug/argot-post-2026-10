@@ -55,3 +55,22 @@
   .lens .dump .view { font-size: clamp(10px,
     calc((100cqi - 12px) / var(--k16, 30)), 20px); }
 }
+
+/* A dump's display parameters (Display, ui/types.ts), for any location:
+   a strip (a word's groups of eight one under another), abbreviated
+   words, a dense flow of bytes, bare bytes */
+.view.strip .word .bytes { display: flex; flex-direction: column; }
+.view.abbr .word .ab { display: block; padding: 0 1ch 0 0.5ch;
+  line-height: 1.85; white-space: nowrap; }
+.view.abbr .rows, .view.strip .rows { width: auto; }
+.view.abbr .wrow { grid-template-columns: max-content max-content; }
+.view.abbr .addr { width: 2.5ch; box-sizing: content-box; }
+.view.flow .rows { letter-spacing: -0.02em; padding-top: 3px;
+  padding-bottom: 3px; }
+.view.flow .wrow { --gutter: 7.5ch; column-gap: 0.6ch; }
+.view.flow .word { padding: 0; }
+.view.flow .word .bytes { display: grid; line-height: 1.45;
+  grid-template-columns: repeat(var(--per, 16), 2.05ch); }
+.view.flow .addr .a { line-height: 1.45; }
+.view.bare .b.z { color: var(--muted); }
+.view.bare .addr { cursor: default; }
