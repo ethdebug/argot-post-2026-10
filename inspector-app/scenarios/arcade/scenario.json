@@ -1,0 +1,207 @@
+{
+  "id": "arcade",
+  "chain": {
+    "hardfork": "prague",
+    "chainId": "31337"
+  },
+  "accounts": [
+    {
+      "name": "deployer",
+      "address": "0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266",
+      "balance": "10000000000000000000000"
+    },
+    {
+      "name": "alice",
+      "address": "0x70997970c51812dc3a010c7d01b50e0d17dc79c8",
+      "balance": "10000000000000000000000"
+    },
+    {
+      "name": "bob",
+      "address": "0x3c44cdddb6a900fa2b585dd299e03d12fa4293bc",
+      "balance": "10000000000000000000000"
+    },
+    {
+      "name": "carol",
+      "address": "0x90f79bf6eb2c4f870365e785982e1f101e93b906",
+      "balance": "10000000000000000000000"
+    }
+  ],
+  "genesis": {
+    "number": "0",
+    "timestamp": "1790812800"
+  },
+  "transactions": [
+    {
+      "label": "deploy",
+      "from": "deployer",
+      "kind": "create",
+      "block": {
+        "prevrandao": "0xfc33fefa2827e3f07db06e1fd38e3aa33cbcae693cd96ac72a2ebb8326f0815a"
+      }
+    },
+    {
+      "label": "join(\"alice\")",
+      "from": "alice",
+      "kind": "call",
+      "call": {
+        "signature": "join(string)",
+        "args": [
+          "alice"
+        ]
+      },
+      "block": {
+        "prevrandao": "0x76fa485b9ad3d578189772ccf47a496ccde142f6f5512ee79738003b896fa3cb"
+      }
+    },
+    {
+      "label": "join(\"bob\")",
+      "from": "bob",
+      "kind": "call",
+      "call": {
+        "signature": "join(string)",
+        "args": [
+          "bob"
+        ]
+      },
+      "block": {
+        "prevrandao": "0x678fddcfb21608a0d51fac8b498f335ec14104563c529455484fd5fca17b234e"
+      }
+    },
+    {
+      "label": "join(\"carol, the unstoppable combo queen\")",
+      "from": "carol",
+      "kind": "call",
+      "call": {
+        "signature": "join(string)",
+        "args": [
+          "carol, the unstoppable combo queen"
+        ]
+      },
+      "block": {
+        "prevrandao": "0x7f724a310b34757ccec31b528506111ff79a4cd78b3e461b1dbd107660bea328"
+      }
+    },
+    {
+      "label": "play()",
+      "from": "alice",
+      "kind": "call",
+      "call": {
+        "signature": "play()",
+        "args": []
+      },
+      "block": {
+        "prevrandao": "0x9617a855cc099bc1142a37f6acfe754ba949ecc6e5304e2bc4511c6b4d3504dc"
+      }
+    },
+    {
+      "label": "play()",
+      "from": "alice",
+      "kind": "call",
+      "call": {
+        "signature": "play()",
+        "args": []
+      },
+      "block": {
+        "prevrandao": "0xd336d9b2ad7c1d669f92b495d795cc3704eb233c22602a8059f9a9c4f1582c75"
+      }
+    },
+    {
+      "label": "play()",
+      "from": "bob",
+      "kind": "call",
+      "call": {
+        "signature": "play()",
+        "args": []
+      },
+      "block": {
+        "prevrandao": "0xdcfdc742ed602057f199988fa2b58549858ce22c6d941f324a2a5ab5fd3c5a98"
+      }
+    },
+    {
+      "label": "play()",
+      "from": "carol",
+      "kind": "call",
+      "call": {
+        "signature": "play()",
+        "args": []
+      },
+      "block": {
+        "prevrandao": "0x69e6c015aa0cbffebecb85a847711642bef79599f9faca34ec0f189385d9d753"
+      }
+    },
+    {
+      "label": "play()",
+      "from": "carol",
+      "kind": "call",
+      "call": {
+        "signature": "play()",
+        "args": []
+      },
+      "block": {
+        "prevrandao": "0xbdf4d88bd7e7cf82b458520b5cf8facd226ed1753f0a63a7d8418b57be6fd64d"
+      }
+    },
+    {
+      "label": "play()",
+      "from": "carol",
+      "kind": "call",
+      "call": {
+        "signature": "play()",
+        "args": []
+      },
+      "block": {
+        "prevrandao": "0x5ccdd67cca65c16c7d64d9dd27c31769894d561fade7b9e6f196db084e854c0e"
+      }
+    },
+    {
+      "label": "play()",
+      "from": "carol",
+      "kind": "call",
+      "call": {
+        "signature": "play()",
+        "args": []
+      },
+      "block": {
+        "prevrandao": "0x5cf48559833f97e3ee07c62156bb789ad56d7dc2d1c79a15cfd38daabc888cff"
+      }
+    },
+    {
+      "label": "play()",
+      "from": "carol",
+      "kind": "call",
+      "call": {
+        "signature": "play()",
+        "args": []
+      },
+      "block": {
+        "prevrandao": "0xe94e76d94b45abd487a945c70f5037a88ca21334c8baeed780fe8345bd493a62"
+      }
+    },
+    {
+      "label": "play()",
+      "from": "alice",
+      "kind": "call",
+      "call": {
+        "signature": "play()",
+        "args": []
+      },
+      "block": {
+        "prevrandao": "0x255b04d9a3158c90e97e9da1f462e9774ed721f2595d64c21baf3aca293ad9c6"
+      }
+    },
+    {
+      "label": "setMotd(\"gl hf\")",
+      "from": "deployer",
+      "kind": "call",
+      "call": {
+        "signature": "setMotd(string)",
+        "args": [
+          "gl hf"
+        ]
+      },
+      "block": {
+        "prevrandao": "0xf27494d7b2251e4f50cac2856e0dc2ab7c1c607ea2f2492a04864c240393a226"
+      }
+    }
+  ]
+}
