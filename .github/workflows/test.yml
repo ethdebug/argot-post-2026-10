@@ -6,7 +6,8 @@ on:
 permissions: { contents: read }
 concurrency:
   group: test-${{ github.ref }}
-  cancel-in-progress: true
+  # (every push to main gets its run; a PR's newer push replaces it)
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 defaults:
   run: { working-directory: inspector-app }
 # The inspector app's whole gate (npm run test:full), split so its parts
@@ -29,8 +30,16 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        browser: [chromium, firefox, webkit, check]
-    name: ${{ matrix.browser == 'check' && 'check' || format('e2e ({0})', matrix.browser) }}
+        # (WebKit, the slowest on these runners, in two halves)
+        include:
+          - { browser: chromium, shard: 1/1 }
+          - { browser: firefox, shard: 1/1 }
+          - { browser: webkit, shard: 1/2 }
+          - { browser: webkit, shard: 2/2 }
+          - { browser: check }
+    name: >-
+      ${{ matrix.browser == 'check' && 'check'
+      || format('e2e ({0} {1})', matrix.browser, matrix.shard) }}
     runs-on: ubuntu-latest
     timeout-minutes: 30
     env:
@@ -56,12 +65,14 @@ jobs:
       - if: steps.cache.outputs.cache-hit == 'true'
         run: npx playwright install-deps $BROWSERS
       - if: matrix.browser != 'check'
-        run: npx playwright test --project=${{ matrix.browser }}
+        run: >-
+          npx playwright test --project=${{ matrix.browser }}
+          --shard=${{ matrix.shard }}
       - if: matrix.browser == 'check'
         run: npm run check
       - if: failure()
         uses: actions/upload-artifact@v4
         with:
-          name: test-results-${{ matrix.browser }}
+          name: test-results-${{ matrix.browser }}-${{ strategy.job-index }}
           path: inspector-app/test-results/
           retention-days: 7

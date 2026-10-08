@@ -10,6 +10,9 @@ export default defineConfig({
   // (a quarter of the cores: the machines these run on are often busy,
   // and a starved browser misses its timing; E2E_WORKERS to change it)
   workers: process.env.E2E_WORKERS ?? (process.env.CI ? 2 : "25%"),
+  // (GitHub's runners are slow with WebKit: a walkthrough there takes
+  // 15–30 s)
+  timeout: process.env.CI ? 90_000 : 30_000,
   reporter: process.env.CI ? [["list"], ["github"]] : "list",
   use: {
     // (motion only where a test asks for it)
