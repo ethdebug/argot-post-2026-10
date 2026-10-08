@@ -782,3 +782,25 @@ progress shows at about 0.6 s (first paint 0.46 s), the first scene
 is usable at about 3.9 s, a prefetched scene shows in under 0.1 s,
 and nothing moves (layout shift 0.000).
 
+
+## Performance on a slow phone
+
+`npm run perf` in `inspector-app` (`bin/perf.mjs`) builds the app,
+serves it gzipped as GitHub Pages does (port 8774), and opens it in
+Chromium over CDP as two readers would: low-end (6x CPU slowdown,
+DevTools' "Slow 4G", 390x844) and mid (4x CPU, "Fast 4G"). For each it
+prints the load (bytes per kind of file, cold and warm; first paint,
+LCP, the time until the page is usable, blocking time, layout shift),
+each interaction's time to the next paint (p50, p95: hovers over the
+dump and the tree, selections, a walkthrough, the scenes, All |
+Related, the memory section), the JS heap and the DOM. It exits 1 when
+a number is over its budget (`BUDGETS` in the script). Options:
+`--profiles low,mid,desktop`, `--runs N` (cold loads, the median),
+`--soak S` (S seconds more of interactions, then the heap again),
+`--frames N` (the blog case: N frames of the page on one page, added
+one after another), `--url URL` (another page, e.g. the live one),
+`--trace DIR` (Chrome traces), `--json FILE`. The CPU slowdown is
+relative to the machine it runs on: 6x on an Apple-silicon laptop
+(Lighthouse benchmark index about 3400) is about a budget Android
+phone (index about 600). Run it on an idle machine: other work
+slows the throttled page as much again.
