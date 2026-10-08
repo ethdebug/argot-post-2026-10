@@ -104,3 +104,26 @@ test("its selection is its own: storage's stays; Escape clears its own",
     expect((await cd(page)).chosen).toBe(null);
     expect(await storage()).toBe("motd");
   });
+
+test("an offset-addressed run is named by its bytes' range, once",
+  async ({ page }) => {
+    await page.setViewportSize({ width: 1600, height: 900 });
+    await page.goto("./");
+    await page.waitForFunction(() => (window as unknown as
+      { results: { done: boolean } }).results?.done);
+    await page.evaluate(() => (window as unknown as { select(i: string,
+      v: { sel: null }): Promise<boolean> }).select("motd", { sel: null }));
+    const how = async (part: string) => {
+      await page.locator(`#ctree li[data-part="${part}"] > .row`).hover();
+      return page.locator("#cpanel .pop .phow").allInnerTexts();
+    };
+    // (across rows; inside one row; the whole value)
+    await expect.poll(() => how("m-length")).toEqual(
+      ["calldata 0x0024–0x0043"]);
+    expect(await how("selector")).toEqual(["calldata 0x0000–0x0003"]);
+    expect(await how("m")).toEqual(["calldata 0x0004–0x0048"]);
+    // (a whole row, by its address)
+    await page.locator('#cpanel .wrow[data-slot="0x0040"] > .addr').hover();
+    expect(await page.locator("#cpanel .pop .phow").allInnerTexts())
+      .toEqual(["calldata 0x0040"]);
+  });
