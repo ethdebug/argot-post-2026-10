@@ -9,10 +9,12 @@ const oracle = JSON.parse(fs.readFileSync("test/oracle/vanilla.json",
   "utf8"));
 type Step = Record<string, unknown>;
 
-// No normalisation: every field of every step equal, as captured (the
-// decided differences of earlier syncs are vanilla's too now).
-const port1 = (_w: string, _f: string, v: unknown) => JSON.stringify(v);
-const vanilla1 = port1;
+// Every field of every step equal, as captured (the decided differences
+// of earlier syncs are vanilla's too now), but for what the port added
+// since the oracle froze: the popovers' "(unmapped)" items.
+const vanilla1 = (_w: string, _f: string, v: unknown) => JSON.stringify(v);
+const port1 = (w: string, f: string, v: unknown) => vanilla1(w, f, v)
+  .replace(/ · \(unmapped\)|\(unmapped\) · /g, "");
 const same = (_f: string, a: string, b: string) => a === b;
 
 test("every walkthrough step equals the oracle's", async ({ page,

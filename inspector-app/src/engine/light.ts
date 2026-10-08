@@ -128,7 +128,7 @@ export function forBytes(d: Decoded, l: Layout,
   return { ...noLight, bytes: lit(l, [...owners]), rows: new Set(
     o.collapsed?.size
       ? rows.flatMap((p) => [p, shownAs(d.byPath, p, o.collapsed!)])
-      : rows), at, muted: true };
+      : rows), at, muted: true, ...owners.size ? {} : { unmapped: true } };
 }
 
 // A walkthrough step (vanilla main.js stepLight, partsLight; panel.js
