@@ -81,7 +81,7 @@ function FormView({ f }: { f: Form }) {
   const fits = (n: string, a: number, b: number) => n.length <= (b - a + 1)
     * 2.6;
   const row = (lo: number, hi: number) => {
-    const col = (i: number) => (i - lo) + Math.floor((i - lo) / 8) + 1;
+    const col = (i: number) => i - lo + 1;
     const vs: ReactNode[] = [];
     const cs: ReactNode[] = [];
     f.fields.forEach((x, k) => {

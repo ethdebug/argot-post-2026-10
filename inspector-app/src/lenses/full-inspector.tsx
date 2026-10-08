@@ -48,7 +48,7 @@ export const fullInspector: LensSpec = {
   ],
   hash: { prefix: "", legacy: true },
   wrap: { dump: panel("panel", "storage"),
-    cdump: panel("cpanel", "calldata") },
+    cdump: panel("cpanel", "calldata", "calldata") },
   // (the grid cells: vanilla's dump box and tree box)
   areas: { dump: "dump", tree: "treebox" },
 };
