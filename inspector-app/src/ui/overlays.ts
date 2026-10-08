@@ -417,12 +417,14 @@ function annotate(root: El, v: El, compare: boolean, names: OverlayNames,
     .map((e) => ({ row: e.closest<El>(".wrow")!,
       r: e.getBoundingClientRect() }));
   const pinned: { run: El[]; el: El }[] = [];
+  // (step 0 of a walkthrough: its slots, no labels)
+  const quiet = v.hasAttribute("data-quiet");
   for (const run of runList) {
     // the run's addresses, tinted as one rounded group in the gutter
     run.forEach((r, k) => r.querySelector(":scope > .addr")!.classList.add(
       "grp", ...(k === 0 ? ["grp-top"] : []),
       ...(k === run.length - 1 ? ["grp-end"] : [])));
-    {
+    if (!quiet) {
       const pop = popFor(root, run, 0);
       // (a run a walkthrough found at an earlier step: a muted label)
       if (run.every((r) => r.classList.contains("known") &&
@@ -480,7 +482,8 @@ function annotate(root: El, v: El, compare: boolean, names: OverlayNames,
 
 // Remove a dump's overlays
 export function clearOverlays(root: El) {
-  root.querySelectorAll(".pop, .cmp, .tray, .pin").forEach((p) => p.remove());
+  root.querySelectorAll(".pop, .cmp, .tray, .pin, .bruler").forEach((p) =>
+    p.remove());
   root.querySelectorAll(".addr.popped, .addr.grp").forEach((a) =>
     a.classList.remove("popped", "grp", "grp-top", "grp-end"));
 }
@@ -515,6 +518,28 @@ export function drawOverlays(root: El, o: { cards: boolean;
   const tray = document.createElement("div");
   tray.className = "tray";
   const taken = lit();
+  // a walkthrough step about bytes in a slot: their positions, 0 to 31,
+  // over that slot (an overlay, like a popover)
+  for (const v of views) {
+    const at = v.dataset.ruler;
+    const row = at && v.querySelector<El>(`.wrow[data-slot="${at}"]`);
+    const w = row && row.querySelector<El>(":scope > .word");
+    if (!row || !w) continue;
+    const el = document.createElement("div");
+    el.className = "bruler";
+    el.setAttribute("aria-hidden", "true");
+    el.style.left = `${w.offsetLeft}px`;
+    // (above the slot, over the "⋯" line before it, when there is one)
+    if (row.previousElementSibling?.classList.contains("gap")) {
+      el.classList.add("above");
+    }
+    el.innerHTML = `<span class="blabel">byte</span><div class="bytes">${
+      [0, 8, 16, 24].map((k) => `<span class="oct">${Array.from(
+        { length: 8 }, (_, i) => `<span class="b">${k + i}</span>`).join("")
+      }</span>`).join("")}</div>`;
+    row.append(el);
+    taken.push(el.getBoundingClientRect());
+  }
   const room = bounds(root);
   (root.querySelector(".views") ?? root).append(tray);
   for (const v of views) {

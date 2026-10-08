@@ -37,7 +37,8 @@ interface Ctx { light: Light; selection: string | null;
 const colourOf = (c: Ctx, n: ValueNode) => c.light.colours.get(n.path) ?? 0;
 const mutedRow = (c: Ctx, n: ValueNode) => {
   const k = colourOf(c, n);
-  return c.light.focus !== undefined && !!k && k !== c.light.focus;
+  return (c.light.focus !== undefined && !!k && k !== c.light.focus) ||
+    !!c.light.dimRows?.has(n.path);
 };
 // the colours of a group's lit rows (itself and all under it)
 function litColours(c: Ctx, n: ValueNode, out = new Set<Colour>()) {
