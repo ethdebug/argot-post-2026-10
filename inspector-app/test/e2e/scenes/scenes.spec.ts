@@ -84,3 +84,23 @@ test("the Vyper scene shows Vyper's words, owned by nobody",
     await expect(vy).toHaveCount(25);
     await expect(vy.locator(".b[data-owners]")).toHaveCount(0);
   });
+
+test("the dump and the tree are always shown: at rest, with a selection, "
+  + "in a walkthrough, in every scene", async ({ page }) => {
+  await page.goto("./");
+  await usable(page);
+  const shown = () => page.evaluate(() => ["#panel .view:not([hidden]) .rows",
+    "#tree"].every((q) => {
+    const r = document.querySelector(q)?.getBoundingClientRect();
+    return !!r && r.width > 50 && r.height > 50;
+  }));
+  for (const s of scenes) {
+    await select(page, s.id, null);
+    expect(await shown(), `${s.id} at rest`).toBe(true);
+    await select(page, s.id);
+    expect(await shown(), `${s.id} selected`).toBe(true);
+    await page.locator('#details button[data-r="start"]').click();
+    expect(await shown(), `${s.id} walking`).toBe(true);
+    await page.keyboard.press("Escape");
+  }
+});
