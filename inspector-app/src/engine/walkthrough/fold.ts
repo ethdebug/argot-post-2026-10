@@ -71,7 +71,8 @@ interface Raw { kind: string; block: string; at: (string | number)[];
 interface X { inst: string; s: Any; leaves: ValueNode[];
   regions: ResolvedRegion[] }
 interface Nd { k: string; kind: string; block: string; at: (string |
-  number)[]; s: Any; by: Map<string, X>; line: number; seen: number }
+  number)[]; s: Any; by: Map<string, X>; line: number; seen: number;
+  node: RuleNode }
 
 export function walkthrough(x: WalkInput, path: Path, focus?: string):
   Walkthrough | null {
@@ -114,10 +115,6 @@ export function walkthrough(x: WalkInput, path: Path, focus?: string):
   const tn = (id: string) => types[id] ? typeName(types[id], types) : id;
   const getAt = (block: string, at: (string | number)[]) =>
     at.reduce<Any>((o, k) => o?.[k], block ? pointers[block] : null);
-  const reads = (block: string, name: string) =>
-    JSON.stringify(pointers[block] ?? {}).includes(`"~read":"${name}"`);
-  const hasRead = (e: unknown) =>
-    JSON.stringify(e ?? null).includes('"~read"');
   const opOf = (e: Any) => e && typeof e === "object" ? Object.keys(e)[0]
     : null;
   // the keys: from the contract's own list of them (roster, decoded from
@@ -184,6 +181,26 @@ export function walkthrough(x: WalkInput, path: Path, focus?: string):
     return { name: ast.name };
   };
 
+  // What reads a region: the graph's edges (an instance's `uses`), never
+  // the pointer's text. A region is read when some instance used one of
+  // its instances; a define reads one when its instances used any.
+  const isRegion = (id: string) => {
+    const i = byId.get(id);
+    return !!i && g.nodes.get(i.node)!.kind === "region";
+  };
+  const readRegions = new Set<string>();
+  for (const i of all) {
+    for (const u of i.uses) {
+      if (!isRegion(u)) continue;
+      const n = g.nodes.get(byId.get(u)!.node)!;
+      readRegions.add(`${placeOf(n).block}|${(n.ast as Any).name}`);
+    }
+  }
+  const reads = (block: string, name: string) =>
+    readRegions.has(`${block}|${name}`);
+  const hasRead = (nd: Nd) =>
+    nd.node.instances.some((i) => i.uses.some(isRegion));
+
   // the nodes: one per place in the pointer; each with its instances
   let declared: Any = null;
   const nodes = new Map<string, Nd>();
@@ -216,7 +233,7 @@ export function walkthrough(x: WalkInput, path: Path, focus?: string):
       const k = `${kind}|${block}|${at.join(".")}`;
       if (!nodes.has(k)) {
         nodes.set(k, { k, kind, block, at, s: sOf(n, i, leaf), by: new Map(),
-          line: lineOf(block, at), seen: seen++ });
+          line: lineOf(block, at), seen: seen++, node: n });
       }
       const nd = nodes.get(k)!;
       if (!nd.by.has(inst)) {
@@ -442,7 +459,7 @@ export function walkthrough(x: WalkInput, path: Path, focus?: string):
             "in"])] });
         continue;
       }
-      if (openIf && hasRead(nd.s.expr) && inBranch(nd)) {
+      if (openIf && hasRead(nd) && inBranch(nd)) {
         openIf.absorbed.push(nd);
         openIf.st.band.push(...defineBand(nd));
         continue;
