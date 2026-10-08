@@ -30,9 +30,11 @@ function shiki(): Shiki {
     });
 }
 
-export function PointerYaml({ domId, data, variable, band, before }: {
-  domId?: string; data: DataRef; variable?: string; band?: string[];
-  before?: ReactNode }) {
+// `goal`: a walkthrough's step 0 (the pointer blurred and still);
+// `shown`: the details are open (the edges' buttons only then)
+export function PointerYaml({ domId, data, variable, band, before, goal,
+  shown }: { domId?: string; data: DataRef; variable?: string;
+  band?: string[]; before?: ReactNode; goal?: boolean; shown?: boolean }) {
   const c = useCompilation(data);
   const { lines, names } = useMemo(() => c && variable
     ? pointerText(c, variable) : { lines: [], names: {} }, [c, variable]);
@@ -91,12 +93,74 @@ export function PointerYaml({ domId, data, variable, band, before }: {
   useLayoutEffect(() => {
     const root = box.current;
     if (!root) return;
+    // (step 0: at its top, and still)
+    if (goal) {
+      root.scrollTop = 0;
+      return;
+    }
     const on = root.querySelector<HTMLElement>(".line.on");
     const top = on ? Math.min(Math.max(0, on.offsetTop - root.clientHeight /
       3), root.scrollHeight - root.clientHeight) : 0;
     const still = matchMedia?.("(prefers-reduced-motion: reduce)").matches;
     root.scrollTo?.({ top, behavior: on && !still ? "smooth" : "auto" });
-  }, [first, text]);
+  }, [first, text, goal]);
+
+  // The box scrolls inside itself, with no scrollbar shown: a button on
+  // its top or bottom edge where there is more; it scrolls toward the
+  // step's band, when that is out of view that way, else by about a
+  // box's height (vanilla 00f6f8c ptrEdges, ptrGo)
+  const [more, setMore] = useState({ up: false, down: false, bandUp: false,
+    bandDown: false });
+  useLayoutEffect(() => {
+    const root = box.current;
+    if (!root) return;
+    const measure = () => {
+      const on = root.querySelector(".line.on")?.getBoundingClientRect();
+      const b = root.getBoundingClientRect();
+      const can = !!shown && !goal;
+      const m = { up: can && root.scrollTop > 1,
+        down: can && root.scrollTop + root.clientHeight <
+          root.scrollHeight - 1,
+        bandUp: !!on && on.bottom <= b.top + 1,
+        bandDown: !!on && on.top >= b.bottom - 1 };
+      setMore((x) => JSON.stringify(x) === JSON.stringify(m) ? x : m);
+    };
+    measure();
+    const later = requestAnimationFrame(measure);
+    root.addEventListener("scroll", measure);
+    return () => {
+      cancelAnimationFrame(later);
+      root.removeEventListener("scroll", measure);
+    };
+  });
+  const go = (way: "up" | "down") => {
+    const root = box.current!;
+    const on = root.querySelector<HTMLElement>(".line.on");
+    const band = way === "up" ? more.bandUp : more.bandDown;
+    const top = band && on ? on.offsetTop - root.clientHeight / 3
+      : root.scrollTop + (way === "up" ? -1 : 1) * root.clientHeight * 0.85;
+    const still = matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+    root.scrollTo({ top: Math.max(0, top), behavior: still ? "auto"
+      : "smooth" });
+  };
+  const edge = (way: "up" | "down") => {
+    const on = more[way];
+    const band = way === "up" ? more.bandUp : more.bandDown;
+    const text = `${band ? "current step" : "more"} ${way === "up" ? "above"
+      : "below"}`;
+    const icon = <svg viewBox="0 0 16 16" aria-hidden="true"><path
+      d={way === "up" ? "M4 10l4-4 4 4" : "M4 6l4 4 4-4"} fill="none"
+      stroke="currentColor" strokeWidth="2" strokeLinecap="round"
+      strokeLinejoin="round" /></svg>;
+    return <div className={`pedge ${way}${on ? " on" : ""}`}
+      aria-hidden={on ? "false" : "true"}>
+      <button type="button" id={domId ? `pedge-${way}` : undefined}
+        tabIndex={on ? 0 : -1} data-band={band ? "1" : ""}
+        aria-label={band ? `Scroll the pointer ${way} to the step's lines`
+          : `Scroll the pointer ${way}`} onClick={() => go(way)}>
+        {way === "up" ? <>{icon}<span>{text}</span></>
+          : <><span>{text}</span>{icon}</>}</button></div>;
+  };
 
   const onAlias = (e: React.MouseEvent | React.KeyboardEvent) => {
     const a = (e.target as Element).closest<HTMLElement>(".alias");
@@ -106,10 +170,12 @@ export function PointerYaml({ domId, data, variable, band, before }: {
     setAlias(`${a.textContent}\n${a.dataset.id}`);
   };
   const coloured = html?.text === text ? html.lines : null;
-  return <div ref={box} id={domId} className={`ptrscroll${lit.size
-    ? " lit" : ""}`} onClick={onAlias} onKeyDown={onAlias}>
+  return <div className="ptrbox"><div ref={box} id={domId} tabIndex={0}
+    className={`ptrscroll${lit.size ? " lit" : ""}${goal ? " goal" : ""}${
+      more.up ? " more-up" : ""}${more.down ? " more-down" : ""}`}
+    onClick={onAlias} onKeyDown={onAlias}>
     {!variable ? <p className="muted small">Select a value to see the part
-      of solc's ethdebug pointer that finds it.</p> : <>
+      of the ethdebug data from the compiler that finds it.</p> : <>
       {before}
       <pre className="ptrlines"><code>{lines.map((l, k) => {
         const on = lit.has(k);
@@ -128,7 +194,7 @@ export function PointerYaml({ domId, data, variable, band, before }: {
       {Object.keys(names).length > 0 && <p className="muted small pids">
         {alias ? <><code className="alias">{alias.split("\n")[0]}</code> =
           solc's <code>{alias.split("\n")[1]}</code></> : PIDS}</p>}</>}
-  </div>;
+  </div>{edge("up")}{edge("down")}</div>;
 }
 
 // a range of a line's text, wrapped in a button for its template's id

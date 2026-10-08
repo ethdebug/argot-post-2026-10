@@ -507,3 +507,36 @@ test("every lit run has its popover at every step (not step 0, which has "
   }
   expect(bare).toEqual([]);
 });
+
+test("the pointer's box: no scrollbar; edge buttons where there is more; "
+  + "blurred and still at step 0 (vanilla 00f6f8c)", async ({ page }) => {
+  await ready(page);
+  await select(page, "players");
+  await page.locator('#details button[data-r="start"]').click();
+  const pb = () => page.evaluate(() => {
+    const p = document.querySelector<HTMLElement>("#ptr")!;
+    return { bar: p.offsetWidth - p.clientWidth - 2 * p.clientLeft,
+      top: p.scrollTop, up: document.querySelector(".pedge.up")!.classList
+        .contains("on"), down: document.querySelector(".pedge.down")!
+        .classList.contains("on"), blur: getComputedStyle(p.querySelector(
+        ".ptrlines")!).filter, head: document.querySelector(".ptr .plabel")!
+        .textContent! };
+  });
+  await page.locator("#ptr").hover();
+  await page.mouse.wheel(0, 300);
+  await page.waitForTimeout(150);
+  const z = await pb();
+  await page.locator('#details button[data-r="next"]').click();
+  await page.waitForTimeout(100);
+  const o = await pb();
+  if (o.down) await page.locator("#pedge-down").click();
+  await page.waitForTimeout(200);
+  const d = await pb();
+  await page.keyboard.press("Escape");
+  expect(z).toMatchObject({ bar: 0, top: 0, up: false, down: false });
+  expect(z.blur).toMatch(/blur/);
+  expect(z.head.startsWith("Ethdebug data from the compiler")).toBe(true);
+  expect([o.blur, o.down, o.up]).toEqual(["none", true, false]);
+  expect(d.top).toBeGreaterThan(o.top);
+  expect(d.up).toBe(true);
+});
