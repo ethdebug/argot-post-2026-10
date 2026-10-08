@@ -75,12 +75,15 @@ function storage() {
         hash, actions: [], walk: "all" });
     }
     // players, walkthrough steps 5 and 6, with bob, then carol, picked
-    for (const k of [5, 6]) for (const who of ["bob", "carol"]) {
+    // (by their place in the focus picker, after "all" and alice: a
+    // record is named by its name on chain, or its short address)
+    for (const k of [5, 6]) for (const [who, at] of [["bob", 2],
+      ["carol", 3]]) {
       out.push({ id: `${tag}-sel=players-walk${k}-${who}`,
         section: "storage", hash: hashOf([...base, ["sel", "players"]]),
         actions: [{ click: START },
           ...Array.from({ length: k - 1 }, () => ({ click: NEXT })),
-          { click: `#dpick button:has-text("${who}")` }] });
+          { click: `#dpick button >> nth=${at}` }] });
     }
   }
   // the calldata (motd only): `text`, then each ABI step pointed at

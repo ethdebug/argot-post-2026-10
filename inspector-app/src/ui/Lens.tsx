@@ -98,7 +98,7 @@ function Present({ v, View }: { v: ViewSpec; View: ComponentType<any> }) {
       : v.data.point.slot === "b" ? "a" : "$other" } } : undefined;
   const other = ("compare" in v ? v.compare : undefined) ?? pair;
   if (v.kind === "tree" || v.kind === "walkthrough") {
-    return <View {...v} compare={v.kind === "tree" && v.plain ? undefined
+    return <View {...v} compare={v.kind === "tree" && v.alone ? undefined
       : other} />;
   }
   if (v.kind !== "dump") return <View {...v} />;
@@ -106,8 +106,10 @@ function Present({ v, View }: { v: ViewSpec; View: ComponentType<any> }) {
   // (paused steps, one of them: one dump; a transaction's pair keeps
   // both, the same, as vanilla's storage section)
   if (single && side === "before" && v.steps) return null;
-  const title = !side || single ? v.title ?? "Storage"
-    : side === "before" ? "Before" : "After";
+  // (a lens of paused steps: the panel's own header names the location,
+  // a view's name only tells Before from After: vanilla mem.js)
+  const title = v.steps && single ? "" : !side || single
+    ? v.title ?? "Storage" : side === "before" ? "Before" : "After";
   // (a lens of paused steps: "Memory before the step")
   const when = !side ? undefined : !v.steps ? WHEN[side]
     : single ? "at this point" : `${side} the step`;

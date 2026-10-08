@@ -458,9 +458,10 @@ function annotate(root: El, v: El, compare: boolean, names: OverlayNames,
   const quiet = !!data(v)?.light.quiet;
   for (const run of runList) {
     // the run's addresses, tinted as one rounded group in the gutter
-    run.forEach((r, k) => r.querySelector(":scope > .addr")!.classList.add(
-      "grp", ...(k === 0 ? ["grp-top"] : []),
-      ...(k === run.length - 1 ? ["grp-end"] : [])));
+    // (not at step 0, which has no labels: vanilla)
+    if (!quiet) run.forEach((r, k) => r.querySelector(":scope > .addr")!
+      .classList.add("grp", ...(k === 0 ? ["grp-top"] : []),
+        ...(k === run.length - 1 ? ["grp-end"] : [])));
     if (!quiet) {
       const pop = popFor(root, run, 0);
       // (a run a walkthrough found at an earlier step: a muted label;
