@@ -1088,14 +1088,13 @@ main[data-single] > .cols :is(.chglegend, .legend .bchg, .intro .two) {
   text-wrap: balance; }
 .pgo .pglyph { font-size: 1.4em; line-height: 1; font-weight: 400; }
 .pgo[hidden] { display: none; }
-/* (▶'s halo at step 0, in the walkthrough's own colour: yellow is the
-   selection's) */
+/* (▶'s halo at step 0, in the selection's yellow) */
 .pgo .pglyph { font-family: system-ui, -apple-system, "Segoe UI",
   "Segoe UI Symbol", sans-serif; }
-.rbar .btn.halo { box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent)
-  45%, transparent); animation: halo 1.4s ease-in-out 3; }
+.rbar .btn.halo { box-shadow: 0 0 0 3px color-mix(in srgb, var(--mark)
+  90%, transparent); animation: halo 1.4s ease-in-out 3; }
 @keyframes halo { 50% { box-shadow: 0 0 0 6px color-mix(in srgb,
-  var(--accent) 20%, transparent); } }
+  var(--mark) 45%, transparent); } }
 @media (prefers-reduced-motion: reduce) { .rbar .btn.halo { animation: none; } }
 #ptr code { background: none; padding: 0; border: 0; font-size: inherit; }
 .ptrlines { margin: 0; padding: 0.9em 0; font-size: 0.72rem;
