@@ -16,6 +16,11 @@
 // wrote, as it was before her join, with her join's SSTOREs before the
 // step applied.
 //
+// The moment is one parameter, AT: the step of her join to freeze (an
+// index into its structLogs). Unset: the default above. To freeze
+// another step, set it (AT=442 node bin/make-raw-fixture.mjs), or change
+// the default here.
+//
 // Needs anvil with steps tracing on RPC (default http://127.0.0.1:8556),
 // `cast`, and the solc binary at SOLC (as make-fixtures.mjs).
 //   anvil --port 8556 --steps-tracing --silent
@@ -28,6 +33,8 @@ import { fileURLToPath } from "node:url";
 const root = path.dirname(path.dirname(fileURLToPath(import.meta.url)));
 const RPC = process.env.RPC_URL ?? "http://127.0.0.1:8556";
 const SOLC = process.env.SOLC ?? "solc";
+// the step to freeze (unset: just after her name's first text SSTORE)
+const AT = process.env.AT;
 
 const rpc = async (method, params = []) => {
   const res = await fetch(RPC, {
@@ -137,8 +144,9 @@ const secondText = logs.findIndex((l) => l.op === "SSTORE" &&
 if (firstText < 0 || secondText < firstText) {
   throw new Error(`her name's SSTOREs: ${firstText}, ${secondText}`);
 }
-// the moment: the step after the first text word's SSTORE
-const at = firstText + 1;
+// the moment: AT, or the step after the first text word's SSTORE
+const at = AT !== undefined ? Number(AT) : firstText + 1;
+if (!(at >= 0 && at < logs.length)) throw new Error(`no step ${AT}`);
 for (const l of logs.slice(0, at)) {
   if (l.op === "SSTORE") storage.set(hex32(l.stack.at(-1)),
     hex32(l.stack.at(-2)));
@@ -151,14 +159,16 @@ const sorted = [...storage].sort(([a], [b]) => BigInt(a) < BigInt(b) ? -1
   : 1).filter(([, v]) => BigInt(v) !== 0n);
 const data = {
   id: "raw",
-  summary: "inside carol's join, between the two SSTOREs of her name's text",
+  summary: AT !== undefined ? `inside carol's join, at step ${at}`
+    : "inside carol's join, between the two SSTOREs of her name's text",
   contract: { name: "Arcade", file, compiler: solcVersion, address },
   tx: { hash: join.hash, from: t.from, to: t.to, input: t.input, block },
   step: { index: at, of: logs.length, pc: s.pc, op: s.op, depth: s.depth,
     ...(range ? { range, line: lineOf(range.offset),
       text: bytes.subarray(range.offset, range.offset + range.length)
         .toString("utf8") } : {}) },
-  why: "the step after the first SSTORE of her name's text (step " +
+  why: AT !== undefined ? `step ${at}, set by AT` :
+    "the step after the first SSTORE of her name's text (step " +
     `${firstText}, slot keccak256(name slot) + 0), before the second ` +
     `(step ${secondText}, + 1): her name is half in storage`,
   // (top of the stack last, as the node gives it)
@@ -170,6 +180,7 @@ const data = {
 fs.writeFileSync(path.join(root, "fixtures", "raw.json"),
   JSON.stringify(data, null, 1) + "\n");
 console.log("raw", join.hash, `step ${at}/${logs.length}`, `pc ${s.pc}`,
-  s.op, range ? `line ${data.step.line}: ${data.step.text}` : "(no range)",
+  s.op, range ? `line ${data.step.line}: ${data.step.text.split("\n")[0]}`
+    : "(no range)",
   `${sorted.length} slots, ${s.stack.length} stack items, ${
     (data.memory.length - 2) / 2} memory bytes`);

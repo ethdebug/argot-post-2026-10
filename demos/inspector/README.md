@@ -717,6 +717,9 @@ To make it again: `anvil --steps-tracing --port 8556 --silent`, then
 bin/make-raw-fixture.mjs` (solc as for `bin/make-fixtures.mjs`).
 No play is sent, so nothing is rolled: the step, the pc and the
 bytes depend only on the build and the calls.
+The moment is one parameter: `AT`, the step of her join to freeze
+(unset: the step above). `AT=442 … node bin/make-raw-fixture.mjs`
+freezes another; so does changing its default in the script.
 
 ## Inside one play: locals in memory, with BUG (bugc from ethdebug/format main)
 
