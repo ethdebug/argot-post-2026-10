@@ -291,3 +291,15 @@ test("a derivation step lights its region alone", async ({ page }) => {
   await expect(page.locator("#mpanel .view:not([hidden]) .pop"))
     .toHaveText(["word 0x0080 : multiplied#frame · unchanged"]);
 });
+
+// (a step of the other side's derivation marks its word "only" in the
+// side shown, as vanilla's)
+test("the other side's region step: its word marked in the side shown",
+  async ({ page }) => {
+    await ready(page, "#mopt=2&mpt=mult&mmode=before&msel=m");
+    await page.locator('#mhow li[data-region][data-side="after"]').first()
+      .focus();
+    await expect(page.locator(
+      '#mpanel .view[data-side="before"] .wrow[data-slot="0x0380"]'))
+      .toHaveClass(/\bonly\b/);
+  });
