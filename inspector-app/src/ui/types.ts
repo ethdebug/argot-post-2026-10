@@ -51,8 +51,14 @@ export type ViewSpec = { id: ViewId; area: string; link?: LinkId;
     | { kind: "tree"; data: DataRef; filter?: Filter;
       variant?: "tree" | "table"; compare?: DataRef;
       // the dumps it lines up with (default: the lens's)
-      align?: ViewId[] }
-    | { kind: "picker"; of: "bookmarks" | "points" | "side" | "level" }
+      align?: ViewId[]; plain?: boolean }
+    | { kind: "picker"; of: "bookmarks" | "points" | "side" | "level";
+      // (a side picker in a row of its own, hidden at one point)
+      row?: string }
+    // the memory section's (Locals.tsx)
+    | { kind: "details" | "derivation"; data: DataRef }
+    | { kind: "source"; data: DataRef; part?: "legend" }
+    | { kind: "note"; data: DataRef; part: "note" | "viewing" | "meta" }
     // the bookmark's call's calldata, by the ABI (its own selection)
     | { kind: "calldata"; data: DataRef }
     | { kind: "walkthrough"; data: DataRef; compare?: DataRef;
@@ -69,7 +75,7 @@ export interface LensSpec {     // a composition for one post section
   views: ViewSpec[];
   links: LinkId[];
   initial?: Partial<LensState>; // incl. a started walkthrough
-  hash?: { prefix: string; legacy?: boolean };  // URL keys
+  hash?: { prefix: string; legacy?: boolean; levels?: boolean };
   // Phase 1 parity: an area's own wrapper (the dumps' #panel, in the
   // run.mjs contract), and its grid cell's class (vanilla's box)
   wrap?: Record<string, ComponentType<{ children: ReactNode }>>;
