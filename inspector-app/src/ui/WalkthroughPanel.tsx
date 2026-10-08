@@ -22,8 +22,8 @@ import {
 } from "./hooks";
 import { infoOf, whereOf, type Info, type Part, type Sides } from "./info";
 import { PointerYaml } from "./PointerYaml";
+import { intoView, scrollerOf, scrollBy, toTop } from "./scroll";
 import type { DataRef, LinkId, ViewId } from "./types";
-import { toTop } from "./scroll";
 
 const PROBE = "Point at a value or a byte for its details.";
 const short = (h: string, keep = 4) => {
@@ -205,21 +205,25 @@ export function WalkthroughPanel(p: { id: ViewId; data: DataRef;
   const st: Step | undefined = walk ? steps[i] : undefined;
 
   // the unfolding of the details: at entry and exit only; meanwhile the
-  // walkthrough takes no input
+  // walkthrough takes no input. At entry the page scrolls first, then
+  // the details unfold (`after`: the scroll), one motion after the other
   const wrap = useRef<HTMLDivElement>(null);
   const panel = useRef<HTMLDivElement>(null);
   const bar = useRef<HTMLDivElement>(null);
+  const unit = useRef<HTMLDivElement>(null);
   const [unfolding, setUnfolding] = useState(false);
   const started = useRef(0);
-  const fold = (open: boolean) => {
+  const fold = (open: boolean, after = Promise.resolve()) => {
     const dp = panel.current;
     const wr = wrap.current;
     const h = dp?.offsetHeight ?? 0;
-    if (!dp || !wr || still() || !h || !wr.animate) return Promise.resolve();
+    if (!dp || !wr || still() || !h || !wr.animate) return after;
     setUnfolding(true);
     // (no step while the details move: the lens's keys see it)
     setLink((s) => s.walk ? { ...s, walk: { ...s.walk, busy: true } } : s);
     wr.classList.add("folding");
+    // (shut while the page scrolls to the bar)
+    if (open) wr.style.height = "0px";
     const o2 = { duration: 280, easing: open ? "ease-out" : "ease-in" };
     const hs = [{ height: "0px" }, { height: `${h}px` }];
     const ts = [{ transform: `translateY(${-h}px)` }, { transform: "none" }];
@@ -227,8 +231,11 @@ export function WalkthroughPanel(p: { id: ViewId; data: DataRef;
       hs.reverse();
       ts.reverse();
     }
-    wr.animate(hs, { ...o2, fill: "forwards" });
-    return dp.animate(ts, { ...o2, fill: "forwards" }).finished.then(() => {
+    return after.then(() => {
+      wr.style.height = "";
+      wr.animate(hs, { ...o2, fill: "forwards" });
+      return dp.animate(ts, { ...o2, fill: "forwards" }).finished;
+    }).then(() => {
       wr.getAnimations().forEach((a) => a.cancel());
       dp.getAnimations().forEach((a) => a.cancel());
       wr.classList.remove("folding");
@@ -238,33 +245,83 @@ export function WalkthroughPanel(p: { id: ViewId; data: DataRef;
     });
   };
   const opening = useRef(false);
-  const start = (at = 0) => {
+  // (where the reader was when they started: back there at exit)
+  const back = useRef<{ box: Element; top: number } | null>(null);
+  const start = (at = 0, from?: { x: number; y: number }) => {
     if (!sel || !w?.steps.length) return;
     started.current = performance.now();
     opening.current = true;
+    // (a double click on the entry: its second click, at the same place,
+    // lands wherever the page has scrolled, on a step button or a tree
+    // row; it is ignored)
+    const swallow = (e: MouseEvent) => {
+      if (from && e.detail > 1 && Math.abs(e.clientX - from.x) < 8 &&
+        Math.abs(e.clientY - from.y) < 8 &&
+        performance.now() - started.current < 600) {
+        e.stopPropagation();
+        e.preventDefault();
+      }
+    };
+    document.addEventListener("click", swallow, true);
+    setTimeout(() => document.removeEventListener("click", swallow, true),
+      600);
+    const s = bar.current && scrollerOf(bar.current);
+    back.current = s ? { box: s.box, top: s.box.scrollTop } : null;
     setLink((s) => ({ ...s, hover: null, walk: { step: at,
       focus: undefined, n: w.steps.length } }));
   };
-  // (once the details are drawn: unfold them, bring the bar to the top
-  // of its scroll container, and the focus to ▶)
+  // (once the details are drawn: bring the bar to the top of its scroll
+  // container, then unfold them; the focus to ▶)
   useLayoutEffect(() => {
     if (!opening.current || !walk) return;
     opening.current = false;
-    void fold(true);
-    if (bar.current) toTop(bar.current, still());
+    void fold(true, bar.current ? toTop(bar.current) : undefined);
     (bar.current?.querySelector<HTMLElement>(
       'button[data-r="next"]:not([disabled])') ?? bar.current
       ?.querySelector<HTMLElement>("button:not([disabled])"))
       ?.focus({ preventScroll: true });
+  });
+  // the panel sticks at the top of its scroll container during a
+  // walkthrough, below the container's scroll-padding-top (a host's
+  // sticky header)
+  useLayoutEffect(() => {
+    const u = unit.current;
+    if (!u) return;
+    const top = walk ? `${scrollerOf(u).pad}px` : "";
+    if (u.style.top !== top) u.style.top = top;
   });
   const exit = async () => {
     if (!walk || unfolding) return;
     await fold(false);
     setLink((s) => ({ ...s, walk: null }));
     exiting.current = false;
+    // (the reader back where they pressed Start)
+    const b = back.current;
+    back.current = null;
+    if (b) {
+      void scrollBy({ box: b.box, root: false, pad: 0 },
+        b.top - b.box.scrollTop);
+    }
     setTimeout(() => bar.current?.querySelector<HTMLElement>(
       'button[data-r="start"]')?.focus({ preventScroll: true }));
   };
+  // each step brings what it lights in the dumps into view, below the
+  // sticky panel, when some of it is out of view (not at entry: the
+  // page is on its way to the bar; the tree brings its own rows)
+  const shownKey = useRef<string | null>(null);
+  useLayoutEffect(() => {
+    const key = walk ? `${sel}|${i}|${w?.focus ?? ""}` : null;
+    const was = shownKey.current;
+    shownKey.current = key;
+    if (!key || !was || was === key || !unit.current) return;
+    const dumps = lens.spec.views.filter((v) => v.kind === "dump" &&
+      v.link === p.link).map((v) => `[data-view="${lens.key}:${v.id}"]` +
+      ":not([hidden])");
+    if (!dumps.length) return;
+    const rows = [...document.querySelectorAll<HTMLElement>(dumps.map((q) =>
+      `${q} .wrow:is(.on, .gut)`).join(", "))];
+    void intoView(unit.current, rows.map((r) => r.getBoundingClientRect()));
+  });
   // (an exit asked elsewhere: Escape in the lens)
   const exiting = useRef(false);
   useEffect(() => {
@@ -321,12 +378,8 @@ export function WalkthroughPanel(p: { id: ViewId; data: DataRef;
     const b = (e.target as Element).closest<HTMLElement>("button[data-r]");
     if (!b) return;
     const k = b.dataset.r!;
-    // (a double click on the entry: its second click lands on a step
-    // button; it is ignored)
-    if (k !== "start" && e.detail > 1 &&
-      performance.now() - started.current < 600) return;
     if (unfolding) return;
-    if (k === "start") start();
+    if (k === "start") start(0, { x: e.clientX, y: e.clientY });
     else if (k === "exit") void exit();
     else if (k === "first") stepTo(0);
     else if (k === "last") stepTo(Infinity);
@@ -438,7 +491,8 @@ export function WalkthroughPanel(p: { id: ViewId; data: DataRef;
     : { ...s, hover: slot === null ? null : { region: { location: "storage",
       slot, offset: 0, length: 32, role: "value", instance: "" } } });
 
-  return <>
+  return <div ref={unit} className={`wpanel${walk ? " walking" : ""}`}
+    data-view={`${lens.key}:${p.id}`}>
     <div ref={bar} id={p.domId} className={`rbar${walk ? " replaying" : ""}`}
       aria-live="polite" tabIndex={0}
       aria-label="The selected value; how it was found"
@@ -473,5 +527,5 @@ export function WalkthroughPanel(p: { id: ViewId; data: DataRef;
         </div>
       </div>
     </div>
-  </>;
+  </div>;
 }
