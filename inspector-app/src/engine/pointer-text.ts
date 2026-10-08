@@ -13,7 +13,7 @@ export interface PointerLine { text: string; tags: string[]; pos: string }
 type Any = any;
 
 const isExpr = (v: Any) => v && typeof v === "object" && !Array.isArray(v) &&
-  Object.keys(v).length === 1 && Object.keys(v)[0].startsWith("$");
+  Object.keys(v).length === 1 && Object.keys(v)[0].startsWith("~");
 const isRegion = (v: Any) => v && typeof v === "object" && "location" in v;
 const allScalar = (v: Any) => v && typeof v === "object" &&
   !Array.isArray(v) && Object.values(v).every((x) => typeof x !== "object");

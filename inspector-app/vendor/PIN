@@ -1,29 +1,20 @@
 @ethdebug/format and @ethdebug/pointers, packed (npm pack) from
-ethdebug/format at commit ec7a81386baaa372134bf90662890a114436afd4
-(a detached worktree; yarn install --frozen-lockfile builds them).
+ethdebug/format at commit d7cb421a36a3b4cef1a9d954da8316cf6e43424e
+(main, after #323: pointer expressions take "~", and the library takes
+no "$"), from a detached worktree (yarn install --frozen-lockfile
+builds them). Earlier pin: ec7a81386.
 
 sha256:
-60528b3409b1d33dea17bf752269e1660c5a3fb0179a4fbece0cba9fc99cd2d6  ethdebug-format-0.1.0-draft.1.tgz
-81b2c1f0e9b9f5dfca835b3cc6ea182ace42d3cf349d7dc5fa4a5846ace595b3  ethdebug-pointers-0.1.0-preview.1.tgz
-
-cmp against vanilla vendor/pointers.js at sync-base 939a8f1: NOT
-byte-equal. Vanilla's bin/build-pointers.sh, run on this worktree with
-esbuild 0.17.19, 0.19.12, 0.21.5, 0.23.1, 0.24.2, 0.25.0, 0.25.12,
-0.26.0, 0.27.7 and 0.28.2, gives 277337-277591 bytes; vanilla's bundle
-is 278654 bytes. Both bundles embed commit
-ec7a81386baaa372134bf90662890a114436afd4, and both have the same set
-of string literals and identifiers from the library (isMemory, isCode,
-isBase, isSlice, isTwoOperands, "Region not found", keccak256, ...).
-The difference is in the bundled yaml code: vanilla's keeps 420
-`const` declarations that every esbuild version above turns into `let`
-when it minifies. So vanilla's bundle was built from another checkout's
-node_modules or with another tool; the library code is the same commit.
+594ddf488669cb119b8900dba4b00c113c4ca74a7e1e74dbc1bed220e4cab8f5  ethdebug-format-0.1.0-draft.1.tgz
+3716110fc961757bc9bdae1914609be14f67cceb7cccb3e6092e847202dfe55d  ethdebug-pointers-0.1.0-preview.1.tgz
 
 Decision (gnidan, 2026-10-07): the pin need not be byte-equal to
 vanilla's bundle; "parity is dependent on behavior, not bundle bytes".
 The gate is src/engine/lib.parity.test.ts (in npm test): vanilla's
 vendor/pointers.js at sync-base against lib.ts, for every state
 variable and every players[key] of the four fixtures at both points
-(48 dereferences): identical regions (name, location, slot, offset,
-length) and identical bytes read; and some expressions evaluate the
-same.
+(48 dereferences; solc's "$" read as "~" first, as the page does):
+identical regions (name, location, slot, offset, length) and identical
+bytes read; and some expressions evaluate the same. Vanilla's bundle
+at sync-base embeds the commit it was built from; the test checks it
+is this one.

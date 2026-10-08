@@ -8,6 +8,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { vanillaFile, syncBase } from "../../bin/vanilla.mjs";
 import * as pinned from "./lib";
+import { solcTilde } from "./fixtures/legacy";
 
 type Lib = typeof pinned;
 const libs = {} as { vanilla: Lib };
@@ -29,8 +30,15 @@ interface Fixture {
     variables: { identifier: string; type: { id: string };
       pointer: Record<string, unknown> & { define?: { slot: string } } }[] };
 }
-const fixture = (id: string) => JSON.parse(fs.readFileSync(
-  `static/fixtures/${id}.json`, "utf8")) as Fixture;
+// (solc's "$" read as "~" first, as the page does: legacy.ts solcTilde)
+const fixture = (id: string) => {
+  const f = JSON.parse(fs.readFileSync(`static/fixtures/${id}.json`,
+    "utf8")) as Fixture;
+  f.contract.pointers = solcTilde(f.contract.pointers);
+  f.contract.variables = f.contract.variables.map((v) =>
+    ({ ...v, pointer: solcTilde(v.pointer) }));
+  return f;
+};
 const word = (n: bigint) => "0x" + n.toString(16).padStart(64, "0");
 
 // vanilla decode.js storageState, with either library's Data
@@ -102,6 +110,11 @@ const cases = ["arcade-mid", "arcade-alice", "arcade-motd", "arcade-vyper"]
     pointers(fixture(id)).map(([name, p]) =>
       [`${id} ${side} ${name}`, id, side, p] as const)));
 
+it("vanilla's bundle at sync-base is the pinned commit", () => {
+  expect((libs.vanilla as unknown as { commit: string }).commit)
+    .toMatch(/^d7cb421a3/);
+});
+
 it("covers every variable and every players[key]", () => {
   // (four value or template variables and three players, each side;
   // Vyper's: the three players)
@@ -116,10 +129,10 @@ it.each(cases)("%s: same regions and bytes", async (_, id, side, p) => {
 });
 
 it.each([
-  { $sum: [1, 2] }, { $product: [3, { $difference: [10, 4] }] },
-  { $keccak256: [{ $wordsized: 1 }, { $wordsized: 3 }] },
-  { $wordsized: "0x01" },
-  { $sized2: "0x0102030405" },
+  { "~sum": [1, 2] }, { "~product": [3, { "~difference": [10, 4] }] },
+  { "~keccak256": [{ "~wordsized": 1 }, { "~wordsized": 3 }] },
+  { "~wordsized": "0x01" },
+  { "~sized2": "0x0102030405" },
 ])("evaluates %j the same", async (expr) => {
   const ev = (lib: Lib) => lib.evaluate(expr as never,
     { state: {} as never, regions: {}, variables: {} });

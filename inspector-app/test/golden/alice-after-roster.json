@@ -201,7 +201,7 @@
         ]
       },
       "constructs": [
-        "$keccak256",
+        "~keccak256",
         "list"
       ],
       "source": "ethdebug data from the compiler",

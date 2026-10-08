@@ -447,7 +447,8 @@ export function WalkthroughPanel(p: { id: ViewId; data: DataRef;
         </div>
         <div className="ptr" aria-label="Ethdebug data from the compiler">
           <p className="plabel">Ethdebug data from the compiler <span
-            className="pnote">(as YAML; template names shortened)</span></p>
+            className="pnote">(as YAML; template names shortened; solc
+            writes <code>$</code>, shown as <code>~</code>)</span></p>
           <PointerYaml domId={p.domId ? "ptr" : undefined} data={p.data}
             variable={sel?.split(/[.[]/)[0]} band={st?.band}
             goal={!!st?.goal} shown={!!walk}

@@ -269,7 +269,7 @@
       },
       "constructs": [
         "define",
-        "$keccak256"
+        "~keccak256"
       ],
       "source": "ethdebug data from the compiler",
       "chip": "keccak(key, 3)",
@@ -766,7 +766,7 @@
       },
       "constructs": [
         "define",
-        "$sum"
+        "~sum"
       ],
       "source": "ethdebug data from the compiler",
       "chip": "name",

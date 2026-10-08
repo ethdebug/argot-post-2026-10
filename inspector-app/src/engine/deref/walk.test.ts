@@ -41,7 +41,7 @@ it.each(all)("%s at %s: every variable's graph equals the library",
 it("players at mid: one rule per template node, 3 instances", async () => {
   const g = (await mid()).graphs.get("players")!;
   const keccak = byKind(g, "define").filter((n) =>
-    JSON.stringify(n.ast).includes("$keccak256") &&
+    JSON.stringify(n.ast).includes("~keccak256") &&
     n.template?.startsWith("t_mapping"));
   expect(keccak).toHaveLength(1);
   expect(keccak[0].instances).toHaveLength(3);
@@ -59,7 +59,7 @@ it("players at mid: one rule per template node, 3 instances", async () => {
     .toEqual([["key", { list: "roster" }]]);
 });
 
-it("roster: $read length edge and list count edge", async () => {
+it("roster: ~read length edge and list count edge", async () => {
   const g = (await mid()).graphs.get("roster")!;
   const [list] = byKind(g, "list");
   const [length] = byKind(g, "region").filter((n) =>
