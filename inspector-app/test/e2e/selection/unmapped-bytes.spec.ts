@@ -65,7 +65,10 @@ test("pointing at unmapped bytes badges the item neutrally",
         `${r} .b[data-i="10"]`)!);
       const p = getComputedStyle(document.querySelector(
         "#panel .pop .pname.pfree")!);
-      return [c.backgroundColor, c.opacity, p.fontStyle, p.backgroundColor];
+      // (a note's prose is italic: overlays.ts noteHtml)
+      const t = getComputedStyle(document.querySelector(
+        "#panel .pop .pname.pfree .pprose")!);
+      return [c.backgroundColor, c.opacity, t.fontStyle, p.backgroundColor];
     }, ROW);
     expect(look[0]).not.toBe("rgba(0, 0, 0, 0)");
     expect(look[1]).toBe("1");

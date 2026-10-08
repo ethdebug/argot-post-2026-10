@@ -56,7 +56,16 @@ function byteLight(c: El) {
 const consulted = (r: El) => rowState(r).rel;
 type Rect = { top: number; left: number; bottom: number; right: number };
 interface Item { text: string; k: string | null; muted: boolean;
-  sep: string; seg?: number; id?: string; free?: boolean }
+  sep: string; seg?: number; id?: string; free?: boolean;
+  // (a note about the bytes, not a value: "(unmapped)", "(anchor slot
+  // for playerList)": its prose italic, a name in it as names are; `fixed`:
+  // never cut, an anchor's)
+  note?: Note; fixed?: boolean }
+type Note = (string | { name: string })[];
+// a note, as an item (one builder for every note)
+const noteItem = (note: Note, sep: string, o: Partial<Item> = {}): Item =>
+  ({ text: note.map((p) => typeof p === "string" ? p : p.name).join(""),
+    note, sep, muted: false, free: true, k: null, ...o });
 type Pop = El & { _what?: Item[] };
 
 const esc = (s: unknown) => String(s).replace(/[&<>"]/g, (c) =>
@@ -213,7 +222,18 @@ function whatIn(root: El, rowsIn: El[]): Item[] {
     return os;
   });
   const owners = perRow.flat().filter((o) => !o.free);
-  if (!owners.length) return [];
+  // (a slot the selection consulted for its number, its anchor: a note;
+  // only that, if its bytes were not read)
+  const r0 = rowsIn.length === 1 && rowState(rowsIn[0]).rel ? rowsIn[0]
+    : null;
+  const anchor = r0 && data(r0)?.light.anchors?.get(slotOf(r0));
+  const anchorNote = anchor ? noteItem(["(anchor slot for ",
+    { name: shortKeys(anchor) }, ")"], " · ", { fixed: true, seg: 0 })
+    : null;
+  if (anchorNote && !data(r0!)?.light.relReads?.has(slotOf(r0!))) {
+    return [anchorNote];
+  }
+  if (!owners.length) return anchorNote ? [anchorNote] : [];
   // (a length part names its value; another part, as vanilla, by its id)
   const path = (id: string) => id.replace(/#length$/, "");
   const ids = all(root, ".b[data-owners]")
@@ -271,9 +291,9 @@ function whatIn(root: El, rowsIn: El[]): Item[] {
       const sep = n === 0 && r ? " / " : " · ";
       // (no "(unmapped)" in a walkthrough: it is about where bytes are)
       if (o.free && walk) return;
-      const x = o.free ? { text: "(unmapped)", sep, muted: false,
-        free: true, k: o.cells.some((c) => c.classList.contains("fl"))
-          ? "pnone" : null } : item(o.cells, label(o, owners.length === 1), sep);
+      const x = o.free ? noteItem(["(unmapped)"], sep, { k: o.cells.some(
+        (c) => c.classList.contains("fl")) ? "pnone" : null })
+        : item(o.cells, label(o, owners.length === 1), sep);
       x.seg = r;
       // (a value running on into the next slot: named once)
       const prev = out.at(-1);
@@ -282,8 +302,15 @@ function whatIn(root: El, rowsIn: El[]): Item[] {
       out.push(x);
     });
   });
+  // (read and an anchor: its names, then the note)
+  if (anchorNote) out.push({ ...anchorNote, seg: out.at(-1)?.seg ?? 0 });
   return out;
 }
+
+// a note's prose (italic) and names (as names are)
+const noteHtml = (note: Note) => note.map((p) => typeof p === "string"
+  ? `<span class="pprose">${esc(p)}</span>`
+  : `<span class="pnm">${esc(p.name)}</span>`).join("");
 
 // The names a popover shows, `keep` of them (indices), in byte order,
 // slot by slot (" / " between slots): a coloured one as a badge, the
@@ -313,7 +340,7 @@ function whatHtml(items: Item[], keep: number[]) {
       // (bytes no value owns: pfree; badged, pointed at, in no colour)
       seg += `${seg ? " · " : ""}<code class="pname${x.free ? " pfree" : ""}${
         x.k ? ` pbadge ${x.k}` : ""}${x.k && x.muted ? " muted" : ""}">${
-        esc(x.text)}</code>`;
+        x.note ? noteHtml(x.note) : esc(x.text)}</code>`;
       last = i;
     }
     if (last !== idx.at(-1)) seg += ` · ${cut}`;
@@ -354,10 +381,12 @@ function fitWhat(pop: Pop) {
   const many = segs.length > 1;
   while (over()) {
     // (an "(unmapped)" first, then the plain names: the order of the
-    // cuts; each leaves its "…")
-    const free = keep.filter((i) => items[i].free && !items[i].k);
+    // cuts; each leaves its "…"; never a fixed note, an anchor's)
+    const free = keep.filter((i) => items[i].free && !items[i].k &&
+      !items[i].fixed);
     const plain = free.length ? free
-      : keep.filter((i) => !items[i].k && (!many || !ends(i)));
+      : keep.filter((i) => !items[i].k && !items[i].fixed &&
+        (!many || !ends(i)));
     if (plain.length) {
       // (the farthest from a coloured name; the later one on a tie)
       const far = plain.reduce((a, b) => near(b) >= near(a) ? b : a);
@@ -433,14 +462,10 @@ function popFor(root: El, rows: El[], more: number): Pop {
     : onRows.length ? onRows : rows;
   const [, how, n] = named(runName(shown)).match(/^(.*?)(, \d+ slots)?$/)!;
   const count = one ? "" : n;
-  // (a variable's empty own slot the selection consulted: its anchor)
-  const anchor = rows.length === 1 && !what.length
-    ? data(rows[0])?.light.anchors?.get(slotOf(rows[0])) : undefined;
   pop.innerHTML = `<span class="pop-how"><span class="phow">${esc(
     what.length ? how : named(runName(shown)))}</span>${what.length
     ? ` : <span class="pwhat">${whatHtml(what, what.map((_, i) => i))
-    }</span>${count ?? ""}` : anchor ? ` : <span class="pwhat">${esc(
-      shortKeys(anchor))} (anchor)</span>` : ""}${facts.length
+    }</span>${count ?? ""}` : ""}${facts.length
     ? ` · ${esc(facts.join(" / "))}` : ""}${more ? ` · +${more} more`
     : ""}</span>`;
   return pop;
