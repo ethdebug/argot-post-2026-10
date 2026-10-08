@@ -393,7 +393,8 @@ export function WalkthroughPanel(p: { id: ViewId; data: DataRef;
       : <p className="rcap rwhere">{node.children ? `${n} ${partsWord(
         node.typeText, n)}` : missing(d!, sel!)}</p>}
       <p className="fnotes"><span className="muted">Each step is one part
-        of the pointer solc wrote for {sel!.split(/[.[]/)[0]}.</span></p></>;
+        of the ethdebug data from the compiler for {sel!.split(/[.[]/)[0]}.
+      </span></p></>;
   }
 
   // the chips: one per step (not step 0), done, current or later; all
@@ -444,11 +445,12 @@ export function WalkthroughPanel(p: { id: ViewId; data: DataRef;
           <div ref={chipsRef} id={p.domId ? "chips" : undefined}
             className="chips">{chips}</div>
         </div>
-        <div className="ptr" aria-label="The pointer solc wrote">
-          <p className="plabel">The pointer solc wrote <span
+        <div className="ptr" aria-label="Ethdebug data from the compiler">
+          <p className="plabel">Ethdebug data from the compiler <span
             className="pnote">(as YAML; template names shortened)</span></p>
           <PointerYaml domId={p.domId ? "ptr" : undefined} data={p.data}
             variable={sel?.split(/[.[]/)[0]} band={st?.band}
+            goal={!!st?.goal} shown={!!walk}
             before={vy && sel ? <Contrast d={vy} path={sel} side={side}
               onPoint={pointVy} /> : null} />
         </div>

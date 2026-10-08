@@ -48,7 +48,7 @@
       "constructs": [
         "pointer"
       ],
-      "source": "from solc's pointer",
+      "source": "ethdebug data from the compiler",
       "chip": "slot 1",
       "chipLabel": "string",
       "parts": [
@@ -82,7 +82,7 @@
       "constructs": [
         "template"
       ],
-      "source": "from solc's pointer",
+      "source": "ethdebug data from the compiler",
       "chip": "string",
       "chipLabel": "template",
       "parts": [
@@ -213,7 +213,7 @@
         "$keccak256",
         "region"
       ],
-      "source": "from solc's pointer",
+      "source": "ethdebug data from the compiler",
       "chip": "keccak(slot)",
       "chipLabel": "text",
       "parts": [
