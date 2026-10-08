@@ -92,7 +92,7 @@ async function walk(page: Page, path: string) {
   // (the last step, "found", kept aside: "done"; the counts are the
   // rule steps')
   let found: St | undefined;
-  if (out.at(-1)?.cap?.startsWith("That's ")) found = out.pop();
+  if (out.at(-1)?.count === "done") found = out.pop();
   return { steps: out, goal, ctl: ctl.size, found };
 }
 const down = (ws: St[]) => ws.map((x) => x.band0).filter((b) => b >= 0)
@@ -720,11 +720,12 @@ test("the last step, found: the selection's resting view",
     await page.locator('#dots .dot:last-child').click();
     await page.mouse.move(1, 1);
     expect(await view(), x).toBe(rest);
-    expect((await stepNow(page)).cap, x).toMatch(/^That's /);
+    expect((await stepNow(page)).count, x).toBe("done");
     if (x === C) {
       await row(page, `${C}.name`).click();
       const r = await stepNow(page);
-      expect(r.cap).toMatch(/^That's /);
+      expect(r.cap).toBe("players[carol].name = \"carol, the unstoppable " +
+        "combo queen\".");
       expect(r.count).toBe("done");
     }
     await page.keyboard.press("Escape");

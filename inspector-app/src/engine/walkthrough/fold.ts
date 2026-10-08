@@ -832,18 +832,21 @@ export function walkthrough(x: WalkInput, path: Path, focus?: string):
     const n = node.children?.length ?? 0;
     const vt = t?.kind === "mapping"
       ? types[t.contains?.value?.type?.id] : null;
+    // (a plain statement of the result: "`players` holds 3 records:
+    // alice, bob, carol."; "`totalScore` = 140.")
     const whoList = isRec && t?.kind === "mapping"
-      ? ` (${insts.map(who).join(", ")})` : "";
-    const what = t?.kind === "mapping" ? `${n} ${vt?.kind === "struct"
+      ? `: ${insts.map(who).join(", ")}` : "";
+    const parts = t?.kind === "mapping" ? `${n} ${vt?.kind === "struct"
       ? n === 1 ? "record" : "records" : n === 1 ? "entry" : "entries"}${
         whoList}`
       : t?.kind === "struct" ? `${n} ${n === 1 ? "field" : "fields"}`
-        : t?.kind === "array" ? `${n} ${n === 1 ? "item" : "items"}`
-          : node.value?.text ?? "";
+        : t?.kind === "array" ? `${n} ${n === 1 ? "item" : "items"}` : "";
+    const said = parts ? `\`${sk}\` holds ${parts}`
+      : `\`${sk}\` = ${node.value?.text ?? ""}`;
     out.push({ id: "found", phase: "found",
-      cap: foreign ? `That's what ${RULE(foreign.language)} reads for \`${
-        sk}\`${what ? `: ${what}` : ""}.`
-        : `That's \`${sk}\`${what ? `: ${what}` : ""}, found.`,
+      cap: foreign ? `${RULE(foreign.language)} reads ${parts
+        ? `\`${sk}\` as ${parts}` : `\`${sk}\` = ${node.value?.text ?? ""}`}.`
+        : `${said}.`,
       form: text(), constructs: [], source: "", chip: "found",
       chipLabel: sk, parts: [], rows: [path], gutters: [], band: [] });
   }
