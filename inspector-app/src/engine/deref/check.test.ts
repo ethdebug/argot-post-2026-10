@@ -9,7 +9,7 @@ it("throws when a region differs from the library's", async () => {
   const p = await testProject();
   const d = await decode(p, p.decodings["sol:arcade-mid"],
     "arcade-mid:after");
-  const g = d.graphs.get("total")!;
+  const g = d.graphs.get("totalScore")!;
   const t = await p.timeline("arcade-mid");
   const state = machineState(t.points[1].snapshot);
   const view = await (await dereference({ location: "storage",

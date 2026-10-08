@@ -280,11 +280,11 @@ export function Source(p: { id: ViewId; data: DataRef; domId?: string;
 // --------------------------------------------------------------- note
 
 const NOTES: Record<string, (inl: string) => string> = {
-  roll: () => "Just after `let hit = rolledHit()`: the first step where " +
+  roll: () => "Just after `let hit = _rolledHit()`: the first step where " +
     "bugc gives hit a location.",
-  mult: (inl) => `Inside multiplied(10, 3), ${inl}: the two steps around ` +
-    "`m = combo`, the first where all three locals have a location with " +
-    "m = 5, then with m = 3.",
+  mult: (inl) => `Inside _applyCombo(10, 3), ${inl}: the two steps around ` +
+    "`mult = combo`, the first where all three locals have a location with " +
+    "mult = 5, then with mult = 3.",
   writes: () => "gained = 30, just before the SSTORE that adds it to her " +
     "score; her record slot as the trace has it then (every counter but " +
     "score already written).",

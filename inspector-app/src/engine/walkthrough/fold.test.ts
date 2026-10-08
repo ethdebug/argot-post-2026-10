@@ -37,7 +37,7 @@ it("players: step 0, then ten steps, one a rule (a template entered "
   const caps = w.steps.slice(1).map((s) => plain(s.cap));
   const want = [
     "The keys: a mapping does not store its keys; the page takes them " +
-      "from roster",
+      "from playerList",
     "players is declared at slot 3; that slot holds nothing",
     "The template mapping(address => Player) takes slot and key",
     "Each record is at keccak(key, slot 3); the template Player takes it " +
@@ -56,7 +56,7 @@ it("players: step 0, then ten steps, one a rule (a template entered "
   caps.forEach((c, k) => expect(c, `step ${k + 1}`).toMatch(
     new RegExp(`^${want[k].replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}`)));
   expect(w.steps.slice(1).map((s) => `${s.chip}${s.chipLabel}`).join("|"))
-    .toBe("keysroster|slot 3mapping|mapping(address => Player)template|" +
+    .toBe("keysplayerList|slot 3mapping|mapping(address => Player)template|" +
       "keccak(key, slot 3)record|6 fieldsfields|namestring|" +
       "flagstring|short | longbranch|inlinetext|keccak(slot …)text");
   expect(w.recs!.map((r) => [r.who, r.full])).toEqual([
@@ -81,7 +81,7 @@ it("players: step 0, then ten steps, one a rule (a template entered "
   expect(f.kind).toBe("strip");
   if (f.kind === "strip") {
     expect(f.fields.map((x) => [x.name, x.from, x.to])).toEqual([
-      ["lastBlock", 0, 7], ["hitCount", 8, 11], ["plays", 12, 15],
+      ["lastBlock", 0, 7], ["hits", 8, 11], ["plays", 12, 15],
       ["bestCombo", 16, 19], ["combo", 20, 23], ["score", 24, 31]]);
   }
 });
@@ -91,7 +91,7 @@ it("carol's record: step 0 and the eleven steps", async () => {
   expect(w.steps[0].goal).toBe(true);
   const caps = w.steps.slice(1).map((s) => plain(s.cap));
   const want = ["The key: carol's address. A mapping does not store its " +
-      "keys; the page takes it from roster[2]",
+      "keys; the page takes it from playerList[2]",
     "players is declared at slot 3",
     "The template mapping(address => Player) takes slot and key",
     "The record is at keccak(key, slot 3); the template Player takes it",
@@ -112,13 +112,13 @@ it("one value: no step 0 when it is one region in one slot", async () => {
   expect(w.steps.map((s) => s.phase).join())
     .toBe("input,declared,template,handoff,fields");
   // (one rule step: no found after it, which would add nothing)
-  expect(walkthrough(x, "total")!.steps.map((s) => s.phase))
+  expect(walkthrough(x, "totalScore")!.steps.map((s) => s.phase))
     .toEqual(["declared"]);
   const nm = rules(walkthrough(x, `${C}.name`)!);
   expect(nm.steps[0].goal).toBe(true);
   expect(nm.steps.slice(1).map((s) => s.phase).join())
     .toBe("input,declared,template,handoff,handoff,read,if,data");
-  expect(rules(walkthrough(x, "roster")!).steps.map((s) => s.phase))
+  expect(rules(walkthrough(x, "playerList")!).steps.map((s) => s.phase))
     .toEqual(["goal", "declared", "template", "read", "item"]);
   expect(rules(walkthrough(x, "motd")!).steps.map((s) => s.phase))
     .toEqual(["goal", "declared", "template", "read", "if", "data"]);
@@ -155,17 +155,17 @@ it("re-targeting keeps the step: same identity, or the nearest earlier",
     expect(carolName[r2.at].chipLabel).toBe("record");
     expect(r2.moved).toBe(true);
     // (no match: the first step)
-    const total = rules(walkthrough(x, "total")!).steps;
-    expect(retarget(carolName, 3, total)).toEqual({ at: 0, moved: true });
-    // (no match: the first step after the goal, as vanilla: total ->
+    const totalScore = rules(walkthrough(x, "totalScore")!).steps;
+    expect(retarget(carolName, 3, totalScore)).toEqual({ at: 0, moved: true });
+    // (no match: the first step after the goal, as vanilla: totalScore ->
     // players lands on step 1, the same number: no cue)
     const players = rules(walkthrough(x, "players")!).steps;
-    expect(retarget(total, 0, players)).toEqual({ at: 1, moved: false });
-    // (the cue: when the step's number changes; roster's step 2 ->
-    // total's step 1. Vanilla's cue compares off by one here; see the
+    expect(retarget(totalScore, 0, players)).toEqual({ at: 1, moved: false });
+    // (the cue: when the step's number changes; playerList's step 2 ->
+    // totalScore's step 1. Vanilla's cue compares off by one here; see the
     // M5 report)
-    const roster = rules(walkthrough(x, "roster")!).steps;
-    expect(retarget(roster, 2, total)).toEqual({ at: 0, moved: true });
+    const playerList = rules(walkthrough(x, "playerList")!).steps;
+    expect(retarget(playerList, 2, totalScore)).toEqual({ at: 0, moved: true });
     const bob = rules(walkthrough(x, B)!).steps;
     expect(retarget(players, 5, bob)).toEqual({ at: 5, moved: false });
   });
@@ -191,7 +191,7 @@ it("reads come from the graph's edges, not from the pointer's text: "
     const spelled = JSON.parse(JSON.stringify(x.c.templates)
       .replace(/"~(read|keccak256|sum|wordsized)"/g, '"~$1-x"'));
     const y = { ...x, c: { ...x.c, templates: spelled } };
-    for (const p of ["roster", "motd", `${C}.name`]) {
+    for (const p of ["playerList", "motd", `${C}.name`]) {
       expect(rules(walkthrough(y, p)!).steps.map((s) => s.phase), p)
         .toEqual(rules(walkthrough(x, p)!).steps.map((s) => s.phase));
     }
@@ -218,7 +218,7 @@ it("the last step, found: the selection, what it is; a re-target there "
   expect(cap("players")).toMatchObject({ phase: "found", id: "found",
     chip: "found", chipLabel: "players",
     cap: "That's `players`: 3 records (alice, bob, carol), found." });
-  expect(cap("roster").cap).toBe("That's `roster`: 3 items, found.");
+  expect(cap("playerList").cap).toBe("That's `playerList`: 3 items, found.");
   expect(cap(C).cap).toBe("That's `players[carol]`: 7 fields, found.");
   const a = walkthrough(x, C)!.steps;
   const b = walkthrough(x, `${C}.name`)!.steps;
@@ -243,7 +243,7 @@ it("colours keep one meaning, step 0 to found: yellow is the selection's "
         .filter(([r, k]) => k === 0 && s.rows.includes(r) && r !== p &&
           !r.startsWith(p + ".") && !r.startsWith(p + "["))
         .map(([r]) => `${s.phase} ${r}`)));
-    for (const p of ["players", C, `${C}.name`, "roster[1]", "motd"]) {
+    for (const p of ["players", C, `${C}.name`, "playerList[1]", "motd"]) {
       expect(yellowOutside(p), p).toEqual([]);
     }
     // (carol's record: its fields at the packed step as found shows them:
@@ -251,7 +251,7 @@ it("colours keep one meaning, step 0 to found: yellow is the selection's "
     const w = walkthrough(x, C)!;
     const f = w.steps.find((s) => s.phase === "fields")!.form;
     expect(f.kind === "strip" && f.fields.map((z) => [z.name, z.k]))
-      .toEqual([["lastBlock", 6], ["hitCount", 5], ["plays", 4],
+      .toEqual([["lastBlock", 6], ["hits", 5], ["plays", 4],
         ["bestCombo", 3], ["combo", 2], ["score", 1]]);
     // (the selection's own bytes are yellow at each step that reads them)
     const nm = walkthrough(x, `${C}.name`)!;

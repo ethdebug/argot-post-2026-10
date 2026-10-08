@@ -63,8 +63,8 @@ test("every pause's locals, decoded, at O0 and O2", async ({ page }) => {
   const mr = await page.evaluate(() => (window as unknown as W).memResults);
   expect(mr.errors).toEqual([]);
   const want = { roll: [{ hit: "true" }],
-    mult: [{ points: "10", combo: "3", m: "5" },
-      { points: "10", combo: "3", m: "3" }],
+    mult: [{ points: "10", combo: "3", mult: "5" },
+      { points: "10", combo: "3", mult: "3" }],
     writes: [{ gained: "30" }] };
   for (const o of ["0", "2"]) {
     for (const [pt, w] of Object.entries(want)) {
@@ -92,24 +92,24 @@ test("one point: one dump, Memory; the roll: hit, its last byte",
     await expect(page.locator("#mstore")).toBeHidden();
   });
 
-test("inside multiplied: O0 a call with a frame; colours; Before | After; "
-  + "m moves; O2 inlined", async ({ page }) => {
+test("inside _applyCombo: O0 a call with a frame; colours; Before | After; "
+  + "mult moves; O2 inlined", async ({ page }) => {
   await ready(page);
   await mpt(page, "mult");
   await page.locator("h1").hover();
   const c = await mcol(page);
-  const kids = ["points", "combo", "m"].map((p) => c.rows[p]);
-  expect(await msel(page)).toBe("multiplied");
-  expect(c.rows.multiplied).toBe("hl");
+  const kids = ["points", "combo", "mult"].map((p) => c.rows[p]);
+  expect(await msel(page)).toBe("_applyCombo");
+  expect(c.rows._applyCombo).toBe("hl");
   expect(new Set(kids).size).toBe(3);
   for (const x of kids) expect(x).toMatch(/^pk\d$/);
   expect(c.bytes["0x0080"]).toBe("hl");
-  await expect(mrow(page, "multiplied").locator(".val"))
+  await expect(mrow(page, "_applyCombo").locator(".val"))
     .toHaveText(/^frame at 0x[0-9a-f]+$/);
   // (pointing at one child mutes the others, not the selection's own)
   await mrow(page, "points").hover();
   const d = await mcol(page);
-  expect([d.rows.points, d.rows.combo, d.rows.m, d.rows.multiplied,
+  expect([d.rows.points, d.rows.combo, d.rows.mult, d.rows._applyCombo,
     d.bytes["0x0080"]]).toEqual([kids[0], `${kids[1]} muted`,
     `${kids[2]} muted`, "hl", "hl"]);
   for (const [m, want] of [["before", "Before"], ["after", "After"]]) {
@@ -123,20 +123,20 @@ test("inside multiplied: O0 a call with a frame; colours; Before | After; "
   await page.locator('#mpanel .view:not([hidden]) .b[data-owners="points"]')
     .first().click();
   expect(await msel(page)).toBe("points");
-  await pick(mrow(page, "m"));
+  await pick(mrow(page, "mult"));
   // (the details of the selection: the pointer off the rows, which the
   // exit may have moved under it)
   await page.locator("h1").hover();
   const dd = await dl(page, "#mdetails");
   const [a, b] = [dd.Before, dd.After].map((x) =>
     x?.match(/^memory 0x([0-9a-f]+)–0x([0-9a-f]+) = (\d)$/));
-  const frame = parseInt((await mrow(page, "multiplied").locator(".val")
+  const frame = parseInt((await mrow(page, "_applyCombo").locator(".val")
     .textContent())!.trim().slice(9), 16);
   expect([parseInt(a![1], 16) - frame, a![3], parseInt(b![1], 16) - frame,
     b![3]]).toEqual([88, "5", 184, "3"]);
   await mopt(page, "2");
-  await pick(mrow(page, "multiplied"));
-  await expect(mrow(page, "multiplied").locator(".val"))
+  await pick(mrow(page, "_applyCombo"));
+  await expect(mrow(page, "_applyCombo").locator(".val"))
     .toHaveText("inlined: no frame");
   expect("0x0080" in (await mcol(page)).bytes).toBe(false);
   await expect(page.locator("#mpanel .wrow[data-slot='0x0080']"))
@@ -153,7 +153,7 @@ test("before the writes: gained, hit with no location, alice's record",
     expect(t).toMatch(/hit[\s\S]*no location at this point/);
     await pick(mrow(page, "players[msg.sender]"));
     const c = await mcol(page);
-    const ms = ["score", "combo", "bestCombo", "plays", "hitCount",
+    const ms = ["score", "combo", "bestCombo", "plays", "hits",
       "lastBlock"].map((x) => c.rows[`players[msg.sender].${x}`]);
     expect(new Set(ms).size).toBe(6);
     for (const x of ms) expect(x).toMatch(/^pk\d$/);
@@ -224,12 +224,12 @@ test("each section keeps its own view", async ({ page }) => {
     (document.querySelector("#tree") as HTMLElement).innerText]));
   await page.locator('#picker button[data-id="alice"]').click();
   await mpt(page, "mult");
-  await mrow(page, "m").click();
+  await mrow(page, "mult").click();
   await page.locator("h1").hover();
   const m0 = await memView();
   await page.locator('#mode button[data-mode="before"]').click();
   await page.locator('#picker button[data-id="motd"]').click();
-  await page.locator('#tree li[data-path="total"] > .row').click();
+  await page.locator('#tree li[data-path="totalScore"] > .row').click();
   await page.evaluate(() => (document.activeElement as HTMLElement)?.blur());
   await page.keyboard.press("Escape");
   await page.locator("h1").hover();
@@ -248,8 +248,8 @@ test("each section keeps its own view", async ({ page }) => {
 
 test("the hash keeps the memory view; a stale one gives its defaults",
   async ({ page }) => {
-    await ready(page, "#ex=motd&mode=before&sel=roster&mopt=2&mpt=mult"
-      + "&mmode=before&msel=m&insets=0");
+    await ready(page, "#ex=motd&mode=before&sel=playerList&mopt=2&mpt=mult"
+      + "&mmode=before&msel=mult&insets=0");
     const got = await page.evaluate(() => ({
       mopt: document.querySelector('#mlevel [aria-checked="true"]')
         ?.textContent,
@@ -260,7 +260,7 @@ test("the hash keeps the memory view; a stale one gives its defaults",
       msel: (document.querySelector("#mtree .row.sel")?.parentElement as
         HTMLElement | null)?.dataset.path }));
     expect(got).toEqual({ mopt: "O2", mpt: "mult", mmode: "before",
-      msel: "m" });
+      msel: "mult" });
     await expect(page).toHaveURL(/mopt=2/);
     await page.goto("about:blank");
     await ready(page, "#ex=nope&mode=compare&sel=zzz&mopt=7&mpt=x");
@@ -273,7 +273,7 @@ test("the lens alone in the shell", async ({ page }) => {
   await page.goto("./shell.html#lens=inside-one-play");
   await expect(page.locator("#mtree li[data-path='hit']")).toBeAttached();
   await page.locator('#mpoint button[data-id="mult"]').click();
-  await expect(page.locator("#mtree li[data-path='multiplied']"))
+  await expect(page.locator("#mtree li[data-path='_applyCombo']"))
     .toBeAttached();
   await expect(page.locator(".view .b.hl").first()).toBeAttached();
 });
@@ -287,20 +287,20 @@ test("the program line is hidden, as the storage section's",
 
 // (vanilla mem.js forRegion: a derivation's region step lights its
 // region's bytes alone, over the selection; the frame word is named by
-// its part, "multiplied#frame")
+// its part, "_applyCombo#frame")
 test("a derivation step lights its region alone", async ({ page }) => {
   await ready(page, "#mopt=0&mpt=mult&msel=combo");
   await page.locator("#mhow li[data-region]").first().focus();
   await expect.poll(() => mlit(page)).toEqual({ "after 0x0080": "all" });
   await expect(page.locator("#mpanel .view:not([hidden]) .pop"))
-    .toHaveText(["memory 0x0080 : multiplied#frame · unchanged"]);
+    .toHaveText(["memory 0x0080 : _applyCombo#frame · unchanged"]);
 });
 
 // (a step of the other side's derivation marks its word "only" in the
 // side shown, as vanilla's)
 test("the other side's region step: its word marked in the side shown",
   async ({ page }) => {
-    await ready(page, "#mopt=2&mpt=mult&mmode=before&msel=m");
+    await ready(page, "#mopt=2&mpt=mult&mmode=before&msel=mult");
     await page.locator('#mhow li[data-region][data-side="after"]').first()
       .focus();
     await expect(page.locator(

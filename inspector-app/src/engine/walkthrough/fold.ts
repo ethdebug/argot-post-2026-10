@@ -140,7 +140,7 @@ export function walkthrough(x: WalkInput, path: Path, focus?: string):
     at.reduce<Any>((o, k) => o?.[k], block ? pointers[block] : null);
   const opOf = (e: Any) => e && typeof e === "object" ? Object.keys(e)[0]
     : null;
-  // the keys: from the contract's own list of them (roster, decoded from
+  // the keys: from the contract's own list of them (playerList, decoded from
   // storage), or the trace
   const keyList = x.keys.from === "list" ? x.keys.path : null;
   const keyItem = (key: Hex) => {

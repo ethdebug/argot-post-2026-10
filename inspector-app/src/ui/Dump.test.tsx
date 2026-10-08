@@ -19,10 +19,10 @@ it("hovering a byte changes classes only, not the markup", async () => {
   const { container } = render(<Lens spec={fullInspector}
     project={project} />);
   await waitFor(() => expect(container.querySelector(
-    '.b[data-owners="total"]')).toBeTruthy(), slow);
+    '.b[data-owners="totalScore"]')).toBeTruthy(), slow);
   const before = shape(container);
   fireEvent.pointerOver(container.querySelector(
-    '.view:not([hidden]) .b[data-owners="total"]')!);
+    '.view:not([hidden]) .b[data-owners="totalScore"]')!);
   await waitFor(() => expect(container.querySelector(".b.hl"))
     .toBeTruthy(), slow);
   expect(shape(container)).toEqual(before);
@@ -32,11 +32,11 @@ it("one word per row, its owners' bytes marked", async () => {
   const project = await testProject();
   const { container } = render(<Lens spec={fullInspector}
     project={project} />);
-  // (the layout, then the words: the last byte reads 28)
+  // (the layout, then the words: the last byte reads 8c)
   await waitFor(() => expect(container.querySelector(
     `.view[data-side="after"] .wrow[data-slot="${slot2}"] .b[data-i="31"]`)
     ?.textContent)
-    .toBe("28"), slow);
+    .toBe("8c"), slow);
   const view = container.querySelector('.view[data-side="after"]')!;
   expect(view.hasAttribute("hidden")).toBe(false);
   expect(container.querySelector('.view[data-side="before"]')!
@@ -46,11 +46,11 @@ it("one word per row, its owners' bytes marked", async () => {
   expect(row.getAttribute("data-name")).toBe("slot 2");
   const cells = [...row.querySelectorAll(".b")];
   expect(cells).toHaveLength(32);
-  expect(cells.map((c) => c.textContent).join("").slice(-4)).toBe("0028");
-  expect(cells[31].getAttribute("data-owners")).toBe("total");
+  expect(cells.map((c) => c.textContent).join("").slice(-4)).toBe("008c");
+  expect(cells[31].getAttribute("data-owners")).toBe("totalScore");
   expect(cells[31].getAttribute("data-g")).toBe("16-31");
-  expect(cells[8].getAttribute("data-owners")).toBe("rounds");
+  expect(cells[8].getAttribute("data-owners")).toBe("totalHits");
   expect(cells[0].classList.contains("free")).toBe(true);
   expect(cells[16].getAttribute("aria-label"))
-    .toBe("total, bytes 16 to 31 of slot 2, after");
+    .toBe("totalScore, bytes 16 to 31 of slot 2, after");
 });

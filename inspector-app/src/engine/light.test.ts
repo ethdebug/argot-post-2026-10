@@ -15,19 +15,19 @@ beforeAll(async () => {
   at.l = layout(at.d, "storage", { rows: "values" });
 });
 
-it("total lights bytes 16-31 of slot 2 and its row", () => {
-  const g = forPath(at.d, at.l, "total");
-  expect([...g.bytes]).toEqual([...at.l.owned.get("total")!]);
-  expect([...g.rows]).toEqual(["total"]);
+it("totalScore lights bytes 16-31 of slot 2 and its row", () => {
+  const g = forPath(at.d, at.l, "totalScore");
+  expect([...g.bytes]).toEqual([...at.l.owned.get("totalScore")!]);
+  expect([...g.rows]).toEqual(["totalScore"]);
   expect(g.muted).toBe(true);
   expect(g.colours.size).toBe(0);
 });
 
-it("byte 31 of slot 2 lights total", () => {
+it("byte 31 of slot 2 lights totalScore", () => {
   const g = forBytes(at.d, at.l, { row: slotHex(2n), from: 31, to: 31,
     location: "storage" });
-  expect([...g.rows]).toEqual(["total"]);
-  expect([...g.bytes]).toEqual([...at.l.owned.get("total")!]);
+  expect([...g.rows]).toEqual(["totalScore"]);
+  expect([...g.bytes]).toEqual([...at.l.owned.get("totalScore")!]);
   expect(g.at).toEqual({ row: slotHex(2n), from: 31, to: 31,
     location: "storage" });
 });
@@ -82,7 +82,7 @@ it("a 10th child repeats the first colour (9 picks)", () => {
 });
 
 it("a leaf has no child colours", () => {
-  expect(childColours(at.d, "total", 9).size).toBe(0);
+  expect(childColours(at.d, "totalScore", 9).size).toBe(0);
 });
 
 it("forPath of a composite carries its child colours", () => {
@@ -101,7 +101,7 @@ it("a selection inside a variable tints the variable's own slot", () => {
   const [a] = at.d.byPath.get("players")!.children!;
   expect([...forPath(at.d, at.l, a.path, { selection: true }).gutters])
     .toEqual([slotHex(3n)]);
-  expect([...forPath(at.d, at.l, "roster[1]", { selection: true })
+  expect([...forPath(at.d, at.l, "playerList[1]", { selection: true })
     .gutters]).toEqual([slotHex(0n)]);
   // (a hover does not; a mapping itself: its own slot, empty)
   expect(forPath(at.d, at.l, a.path).gutters.size).toBe(0);

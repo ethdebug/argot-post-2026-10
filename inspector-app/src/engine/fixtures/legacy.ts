@@ -139,8 +139,8 @@ export function bookmarkOf(scene: LegacyScene): ProjectBookmark {
 }
 
 // Where a fixture's decoding finds mapping keys, as the fixture says:
-// `keysIn: { players: "roster" }` (the list's items); none (the Vyper
-// fixture: its roster is Vyper's own layout), the traces' keys
+// `keysIn: { players: "playerList" }` (the list's items); none (the Vyper
+// fixture: its playerList is Vyper's own layout), the traces' keys
 // (and who each key is: the fixture's `players`, address → name)
 export const keySourceOf = (json: unknown): Decoding["keys"] => {
   const j = json as { keysIn?: Record<string, string>;

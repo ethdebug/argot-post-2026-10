@@ -66,18 +66,18 @@ test("a chevron points at its row; a hidden row lights its ancestor",
   async ({ page }) => {
     await ready(page);
     await select(page, null);
-    await chev(page, "roster").hover();
-    await expect(page.locator('#tree li[data-path="roster"] > .row'))
+    await chev(page, "playerList").hover();
+    await expect(page.locator('#tree li[data-path="playerList"] > .row'))
       .toHaveClass(/\bhl\b/);
     await expect(page.locator("#panel .view:not([hidden]) .b.hl"))
       .toHaveCount(92);
-    await chev(page, "roster").click();
+    await chev(page, "playerList").click();
     await page.locator(
-      '#panel .view:not([hidden]) .b[data-owners="roster[0]"]')
+      '#panel .view:not([hidden]) .b[data-owners="playerList[0]"]')
       .first().hover();
-    await expect(page.locator('#tree li[data-path="roster"] > .row'))
+    await expect(page.locator('#tree li[data-path="playerList"] > .row'))
       .toHaveClass(/\bhl\b/);
-    await chev(page, "roster").click();
+    await chev(page, "playerList").click();
     // (an inner group keeps its state when its parent closes and opens)
     await chev(page, A).click();
     await chev(page, "players").click();
@@ -135,7 +135,7 @@ test("a lit row out of the tree's view: a circle button on the edge",
       t.scrollTop = t.scrollHeight;
     });
     await page.locator(
-      '#panel .view:not([hidden]) .b[data-owners="roster[0]"]')
+      '#panel .view:not([hidden]) .b[data-owners="playerList[0]"]')
       .first().hover();
     expect(await pill("up")).toMatchObject({ round: true, centred: true });
   });
@@ -149,22 +149,22 @@ test("a group opens and closes with a short height animation; none with "
     const out: number[] = [];
     for (let k = 0; k < 6; k++) {
       out.push(await page.evaluate(() => (document.querySelector(
-        '#tree li[data-path="roster"] > ul') as HTMLElement).offsetHeight));
+        '#tree li[data-path="playerList"] > ul') as HTMLElement).offsetHeight));
       await page.waitForTimeout(30);
     }
     return out;
   };
-  await chev(page, "roster").click();
+  await chev(page, "playerList").click();
   const closing = await heights();
   expect(closing.some((h) => h > 0 && h < closing[0] + 1)).toBe(true);
-  await expect(page.locator('#tree li[data-path="roster"]'))
+  await expect(page.locator('#tree li[data-path="playerList"]'))
     .toHaveClass(/\bcollapsed\b/);
-  await chev(page, "roster").click();
+  await chev(page, "playerList").click();
   const opening = await heights();
   expect(opening.at(-1)).toBeGreaterThan(opening[0]);
   await page.emulateMedia({ reducedMotion: "reduce" });
-  await chev(page, "roster").click();
-  await expect(page.locator('#tree li[data-path="roster"]'))
+  await chev(page, "playerList").click();
+  await expect(page.locator('#tree li[data-path="playerList"]'))
     .toHaveClass(/\bcollapsed\b/, { timeout: 50 });
 });
 
@@ -211,16 +211,16 @@ test("quick chevron clicks during the animation end in the right state",
     await page.emulateMedia({ reducedMotion: "no-preference" });
     await ready(page);
     await select(page, null);
-    const li = page.locator('#tree li[data-path="roster"]');
-    await chev(page, "roster").click();
-    await chev(page, "roster").click();
+    const li = page.locator('#tree li[data-path="playerList"]');
+    await chev(page, "playerList").click();
+    await chev(page, "playerList").click();
     await page.waitForTimeout(400);
     await expect(li).not.toHaveClass(/\bcollapsed\b/);
-    await expect(chev(page, "roster")).toHaveAttribute("aria-expanded",
+    await expect(chev(page, "playerList")).toHaveAttribute("aria-expanded",
       "true");
-    await chev(page, "roster").click();
-    await chev(page, "roster").click();
-    await chev(page, "roster").click();
+    await chev(page, "playerList").click();
+    await chev(page, "playerList").click();
+    await chev(page, "playerList").click();
     await page.waitForTimeout(400);
     await expect(li).toHaveClass(/\bcollapsed\b/);
     // (a selection made meanwhile is not hidden by a late close)

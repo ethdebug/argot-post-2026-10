@@ -120,7 +120,7 @@ function Details({ info }: { info: Info | null }) {
     <dt>{t}</dt><dd>{parts(d)}</dd></Fragment>)}</dl>;
 }
 
-// "no such value (roster has 2 items)"
+// "no such value (playerList has 2 items)"
 function missing(d: Decoded, path: string) {
   const parent = d.byPath.get(path.replace(/(\.[^.[\]]+|\[[^\]]*\])$/, ""));
   const len = parent?.summary?.match(/^length (\d+)$/)?.[1];

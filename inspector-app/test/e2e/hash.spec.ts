@@ -24,19 +24,19 @@ const view = (page: Page) => page.evaluate(() => ({
 
 test("the hash restores the view, and keeps the memory keys",
   async ({ page }) => {
-    await go(page, "ex=motd&mode=before&sel=roster&mopt=2&mpt=mult&" +
-      "mmode=before&msel=m&insets=0");
+    await go(page, "ex=motd&mode=before&sel=playerList&mopt=2&mpt=mult&" +
+      "mmode=before&msel=mult&insets=0");
     const hs = await view(page);
-    expect(hs).toMatchObject({ ex: "motd", mode: "before", sel: "roster",
+    expect(hs).toMatchObject({ ex: "motd", mode: "before", sel: "playerList",
       insets: false });
-    for (const k of ["ex=motd", "sel=roster", "mopt=2", "mpt=mult",
-      "mmode=before", "msel=m"]) expect(hs.hash).toContain(k);
+    for (const k of ["ex=motd", "sel=playerList", "mopt=2", "mpt=mult",
+      "mmode=before", "msel=mult"]) expect(hs.hash).toContain(k);
     await page.locator('#mode button[data-mode="after"]').click();
-    await pick(page.locator('#tree li[data-path="total"] > .row'));
+    await pick(page.locator('#tree li[data-path="totalScore"] > .row'));
     await expect.poll(() => page.evaluate(() => location.hash))
-      .toMatch(/mode=after.*sel=total|sel=total.*mode=after/);
+      .toMatch(/mode=after.*sel=totalScore|sel=totalScore.*mode=after/);
     // a cleared default selection stays cleared ("sel=")
-    await pick(page.locator('#tree li[data-path="total"] > .row'));
+    await pick(page.locator('#tree li[data-path="totalScore"] > .row'));
     await expect.poll(() => page.evaluate(() => location.hash))
       .toMatch(/(^#|&)sel=(&|$)/);
     await page.reload();
@@ -72,7 +72,7 @@ test("Escape clears the selection; a click on empty space too",
     await page.locator("#tree .row.sel").focus();
     await page.keyboard.press("Escape");
     await expect(page.locator("#tree .row.sel")).toHaveCount(0);
-    await page.locator('#tree li[data-path="total"] > .row').click();
+    await page.locator('#tree li[data-path="totalScore"] > .row').click();
     await page.locator("h1").click();
     await expect(page.locator("#tree .row.sel")).toHaveCount(0);
   });

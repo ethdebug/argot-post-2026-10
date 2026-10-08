@@ -1,7 +1,7 @@
 // A value's place in its tree, by the tree's own structure: its parent
 // node, not its path's syntax (a function's locals are under the
 // function's node with paths of their own: "points", not
-// "multiplied.points")
+// "_applyCombo.points")
 import type { Path, ValueNode } from "./types";
 
 type Tree = ReadonlyMap<Path, ValueNode>;
