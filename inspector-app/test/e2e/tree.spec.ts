@@ -112,6 +112,11 @@ test("a lit row out of the tree's view: a circle button on the edge",
       ...document.querySelectorAll<HTMLElement>("#tree li > .row")]
       .map((r) => r.offsetTop)));
     const t0 = await tops();
+    // (the tree's bottom edge in view first: the click below would scroll
+    // the page to the button, and the pointer, left where it was, would
+    // then be over another byte, which takes the hover, and the button
+    // goes: what a reader scrolling with the wheel would see too)
+    await page.locator("#edge-down").scrollIntoViewIfNeeded();
     await page.locator(
       `#panel .view:not([hidden]) .b[data-owners="${C}.plays"]`)
       .first().hover();
