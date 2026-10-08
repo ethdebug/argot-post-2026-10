@@ -11,6 +11,7 @@ import {
 } from "./fixtures/legacy";
 import { vyperRule } from "./fixtures/vyper-rule";
 import { fromMemory } from "./fixtures/memory";
+import { fromRaw, RAW } from "./fixtures/raw";
 
 const VY_RULE = "arcade-vy-rule";
 
@@ -38,6 +39,15 @@ export async function load(io: Io, manifest = "fixtures/index.json"):
       keys: { from: "trace" } };   // (until its fixture says: below)
   }
   Object.assign(decodings, mem.decodings);
+  // the raw moment (fixtures/raw.json): its bytes, with no variables
+  decodings[RAW] = { id: RAW, compilation: RAW, timeline: RAW,
+    variables: "state", keys: { from: "trace" } };
+  let raw: Promise<ReturnType<typeof fromRaw>> | undefined;
+  const rawOf = () => {
+    const p = raw ??= io.json("fixtures/raw.json").then(fromRaw);
+    p.catch(() => raw === p && (raw = undefined));
+    return p;
+  };
   // a call's calldata, by the ABI (a bookmark that names its function)
   for (const b of bookmarks) {
     if (!b.calldata) continue;
@@ -82,11 +92,12 @@ export async function load(io: Io, manifest = "fixtures/index.json"):
   return {
     bookmarks, decodings, memo: new Map(),
     timeline: async (id) => mem.timelines.find((t) => t.id === id) ??
-      (await fixture(id)).timeline,
+      (id === RAW ? (await rawOf()).timeline : (await fixture(id)).timeline),
     // a fixture's contract: from that fixture
     async compilation(id) {
       const bug = mem.compilations.find((c) => c.id === id);
       if (bug) return bug;
+      if (id === RAW) return (await rawOf()).compilation;
       if (id === VY_RULE) {
         return vyperRule((await fixture("arcade-vyper")).json);
       }
