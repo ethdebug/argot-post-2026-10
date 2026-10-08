@@ -153,6 +153,8 @@ export function Tree(p: { id: ViewId; data: DataRef; filter?: Filter;
   const [view, setView] = useView(p.id);
   const side = useLensState((s) => s.side ?? "after");
   const box = useRef<HTMLDivElement>(null);
+  // (groups closing: drawn open while their members shrink)
+  const [closing, setClosing] = useState<ReadonlySet<string>>(new Set());
   const lens = useLens();
   const comp = useCompilation(p.data);
   const lang = comp?.language ?? "";
@@ -163,7 +165,7 @@ export function Tree(p: { id: ViewId; data: DataRef; filter?: Filter;
   const lit = link.selection && d?.byPath.has(link.selection)
     ? link.selection : link.hover?.path ?? [...light.rows][0] ?? null;
   const c: Ctx = { light, selection: link.selection, pair,
-    collapsed: view.collapsed,
+    collapsed: new Set([...view.collapsed].filter((q) => !closing.has(q))),
     card: pair && insets && light.muted ? treeCard(lit, pair, side)
       : undefined };
   // only the filter's roots, and the groups that hold them
@@ -194,30 +196,43 @@ export function Tree(p: { id: ViewId; data: DataRef; filter?: Filter;
   // Open or close a group: a deliberate action, so the tree may change
   // (a quick height animation, 180 ms; at once with reduced motion). The
   // dump does not move.
+  // (the state changes at once; a closing group stays drawn open while
+  // its members shrink; a click meanwhile turns it round)
   const opened = useRef<string | null>(null);
   const toggle = (path: string) => {
-    const set = (open: boolean) => setView((v) => {
+    const open = view.collapsed.has(path);
+    setView((v) => {
       const next = new Set(v.collapsed);
       if (open) next.delete(path);
       else next.add(path);
       return { ...v, collapsed: next };
     });
-    const open = view.collapsed.has(path);
     const ul = box.current?.querySelector<HTMLElement>(
       `li[data-path="${esc(path)}"] > ul`);
+    ul?.getAnimations?.().forEach((a) => a.cancel());
+    if (ul) ul.style.overflow = "";
     const still = matchMedia?.("(prefers-reduced-motion: reduce)").matches;
-    if (!ul || still || !ul.animate) return set(open);
+    const done = () => setClosing((c) => {
+      if (!c.has(path)) return c;
+      const n = new Set(c);
+      n.delete(path);
+      return n;
+    });
+    if (!ul || still || !ul.animate) return done();
     if (open) {
+      done();
       opened.current = path;
-      return set(true);
+      return;
     }
+    setClosing((c) => new Set([...c, path]));
     const h = ul.scrollHeight;
     ul.style.overflow = "hidden";
-    ul.animate([{ height: `${h}px` }, { height: "0px" }],
-      { duration: 180, easing: "ease-in" }).finished.then(() => {
+    const a = ul.animate([{ height: `${h}px` }, { height: "0px" }],
+      { duration: 180, easing: "ease-in" });
+    a.finished.then(() => {
       ul.style.overflow = "";
-      set(false);
-    });
+      done();
+    }, () => {});
   };
   // (a group just opened: its members grow in)
   useLayoutEffect(() => {
