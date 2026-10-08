@@ -15,7 +15,8 @@ export const insideOnePlay: LensSpec = {
   bookmarks: ["O0/roll", "O0/mult", "O0/writes", "O2/roll", "O2/mult",
     "O2/writes"],
   grid: '"meta meta" "level level" "point point" "mode mode" ' +
-    '"viewing viewing" "note note" "dump tree" "details how" ' +
+    '"viewing viewing" "note note" "dump tree" "sdump tree" ' +
+    '"details how" ' +
     '"legend src" ". src"',
   links: ["mem"],
   views: [
@@ -39,10 +40,10 @@ export const insideOnePlay: LensSpec = {
     { id: "after", kind: "dump", area: "dump", location: "memory",
       link: "mem", data: at("b"), side: "after", title: "Memory",
       steps: true },
-    { id: "sbefore", kind: "dump", area: "dump", location: "storage",
+    { id: "sbefore", kind: "dump", area: "sdump", location: "storage",
       link: "mem", data: at("a"), side: "before", title: "Storage",
       steps: true },
-    { id: "safter", kind: "dump", area: "dump", location: "storage",
+    { id: "safter", kind: "dump", area: "sdump", location: "storage",
       link: "mem", data: at("b"), side: "after", title: "Storage",
       steps: true },
     // (not lined up with the words: vanilla's memory section)
@@ -58,6 +59,6 @@ export const insideOnePlay: LensSpec = {
       data: at("b") },
   ],
   hash: { prefix: "m", levels: true },
-  wrap: { dump: panel("mpanel", "mem") },
-  areas: { dump: "dump", tree: "treebox" },
+  wrap: { dump: panel("mpanel", "mem"), sdump: panel("mspanel", "mem") },
+  areas: { dump: "dump", sdump: "dump", tree: "treebox" },
 };

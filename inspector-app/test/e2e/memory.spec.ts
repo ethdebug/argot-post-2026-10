@@ -24,7 +24,7 @@ const msel = (page: Page) => page.evaluate(() => (document.querySelector(
 const mlit = (page: Page) => page.evaluate(() => {
   const out: Record<string, number[]> = {};
   for (const c of document.querySelectorAll<HTMLElement>(
-    "#mpanel .b.hl:not(.cmp *)")) {
+    ":is(#mpanel, #mspanel) .b.hl:not(.cmp *)")) {
     const w = c.closest<HTMLElement>(".word")!;
     (out[`${w.dataset.side} ${w.dataset.slot}`] ??= []).push(+c.dataset.i!);
   }
@@ -41,7 +41,7 @@ const mcol = (page: Page) => page.evaluate(() => {
     "#mtree li[data-path]")) rows[li.dataset.path!] = k(li.firstElementChild!);
   const bytes: Record<string, Set<string | null>> = {};
   for (const c of document.querySelectorAll(
-    "#mpanel .view:not([hidden]) .b.hl:not(.cmp *)")) {
+    ":is(#mpanel, #mspanel) .view:not([hidden]) .b.hl:not(.cmp *)")) {
     const w = (c.closest(".word") as HTMLElement).dataset.slot!;
     (bytes[w] ??= new Set()).add(k(c));
   }
@@ -87,6 +87,8 @@ test("one point: one dump, Memory; the roll: hit, its last byte",
     expect(v).toEqual([true, "none", "Memory", 0, "paused here"]);
     expect(await msel(page)).toBe("hit");
     expect(await mlit(page)).toEqual({ "after 0x00c0": "31" });
+    // (no slot read at this pause: no storage panel)
+    await expect(page.locator("#mstore")).toBeHidden();
   });
 
 test("inside multiplied: O0 a call with a frame; colours; Before | After; "
@@ -154,8 +156,21 @@ test("before the writes: gained, hit with no location, alice's record",
     expect(c.rows["players[msg.sender]"]).toBe("hl");
     await expect(mrow(page, "players[msg.sender].score").locator(".val"))
       .toHaveText("30");
+    // (each location its own panel: the record's slot in a storage
+    // panel of its own, under memory's; one selection lights both)
+    const pan = await page.evaluate(() => ({
+      mem: document.querySelector("#mwords-h")!.firstChild!.textContent!
+        .trim(),
+      store: document.querySelector("#mstore-h")?.textContent!.trim(),
+      shown: !(document.querySelector("#mstore") as HTMLElement).hidden,
+      inMem: !!document.querySelector("#mpanel .wrow[data-slot$='fb94']"),
+      inStore: !!document.querySelector("#mspanel .wrow[data-slot$='fb94']"),
+      lit: document.querySelectorAll("#mspanel .view:not([hidden]) .b.hl")
+        .length }));
+    expect(pan).toEqual({ mem: "Memory", store: "Storage", shown: true,
+      inMem: false, inStore: true, lit: 32 });
     await page.locator(
-      '#mpanel .b[data-owners="players[msg.sender].score"]').first().click();
+      '#mspanel .b[data-owners="players[msg.sender].score"]').first().click();
     expect(await msel(page)).toBe("players[msg.sender].score");
   });
 
