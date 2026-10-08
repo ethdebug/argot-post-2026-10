@@ -38,6 +38,9 @@ export interface LensState {
   error?: string;
   // (each show of a bookmark, counted: the views start from the top)
   shows?: number;
+  // (a click or Escape that cleared a selection from outside it: no
+  // hover until the pointer moves past 3px from here: ui/hooks.ts hush)
+  hush?: { x: number; y: number };
   // the "Related" view (absent: off): the dumps show only the rows
   // related to the selection, with `context` rows around each; the tree
   // only the selection's path, its members and the related values

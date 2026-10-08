@@ -106,35 +106,57 @@ const unmappedShown = (page: Page) => page.evaluate((r) => [
   document.querySelectorAll(`${r} .b.fl`).length,
   document.querySelector("#panel .pop .pname.pfree")?.className], ROW);
 
-test("a click on unmapped bytes clears the selection; the hover stays",
-  async ({ page }) => {
-    await ready(page);
-    await page.evaluate(() => (window as unknown as W).select("mid",
-      { sel: "total" }));
-    expect(await sel(page)).toBe("total");
-    await page.locator(`${ROW} .b[data-i="10"]`).click();
-    await settle(page);
-    expect(await sel(page)).toBe(null);
-    expect(await unmappedShown(page)).toEqual([28,
-      "pname pfree pbadge pnone"]);
-  });
+test("with a selection, a click on unmapped bytes clears it; no hover " +
+  "until a move, then the run's", async ({ page }) => {
+  await ready(page);
+  await page.evaluate(() => (window as unknown as W).select("mid",
+    { sel: "total" }));
+  const c = page.locator(`${ROW} .b[data-i="10"]`);
+  await c.scrollIntoViewIfNeeded();
+  const b = (await c.boundingBox())!;
+  await page.mouse.click(b.x + b.width / 2, b.y + b.height / 2);
+  await settle(page);
+  expect(await sel(page)).toBe(null);
+  expect(await unmappedShown(page)).toEqual([0, undefined]);
+  await page.mouse.move(b.x + b.width / 2 + 5, b.y + b.height / 2,
+    { steps: 2 });
+  await settle(page);
+  expect(await unmappedShown(page)).toEqual([28,
+    "pname pfree pbadge pnone"]);
+});
 
-test("a click in a row's gap clears the selection; the slot hover stays",
-  async ({ page }) => {
-    await ready(page);
-    await page.evaluate(() => (window as unknown as W).select("mid",
-      { sel: "total" }));
-    await page.locator(ROW).scrollIntoViewIfNeeded();
-    const b7 = await box(page, `${ROW} .b[data-i="7"]`);
-    const b8 = await box(page, `${ROW} .b[data-i="8"]`);
-    await page.mouse.click((b7.x + b7.width + b8.x) / 2,
-      b7.y + b7.height / 2);
-    await settle(page);
-    expect(await sel(page)).toBe(null);
-    // (inside the unmapped run: the run's hover)
-    expect(await unmappedShown(page)).toEqual([28,
-      "pname pfree pbadge pnone"]);
-  });
+test("with nothing selected, a click on unmapped bytes changes nothing: " +
+  "the hover stays", async ({ page }) => {
+  await ready(page);
+  const c = page.locator(`${ROW} .b[data-i="10"]`);
+  await c.hover();
+  await settle(page);
+  const before = await unmappedShown(page);
+  expect(before).toEqual([28, "pname pfree pbadge pnone"]);
+  await c.click();
+  await settle(page);
+  expect(await unmappedShown(page)).toEqual(before);
+});
+
+test("with a selection, a click in a gap of the run clears it; no hover " +
+  "until a move", async ({ page }) => {
+  await ready(page);
+  await page.evaluate(() => (window as unknown as W).select("mid",
+    { sel: "total" }));
+  await page.locator(ROW).scrollIntoViewIfNeeded();
+  const b7 = await box(page, `${ROW} .b[data-i="7"]`);
+  const b8 = await box(page, `${ROW} .b[data-i="8"]`);
+  const [x, y] = [(b7.x + b7.width + b8.x) / 2, b7.y + b7.height / 2];
+  await page.mouse.click(x, y);
+  await settle(page);
+  expect(await sel(page)).toBe(null);
+  expect(await unmappedShown(page)).toEqual([0, undefined]);
+  await page.mouse.move(x, y + 5, { steps: 2 });
+  await page.mouse.move(x, y, { steps: 2 });
+  await settle(page);
+  expect(await unmappedShown(page)).toEqual([28,
+    "pname pfree pbadge pnone"]);
+});
 
 const REC = "players[0x3c44cdddb6a900fa2b585dd299e03d12fa4293bc]";
 const pops = (page: Page) => page.locator("#panel .view:not([hidden]) .pop")

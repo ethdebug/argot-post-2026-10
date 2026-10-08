@@ -13,6 +13,7 @@ import { readHash, writeHash, type Pending } from "./hash";
 import { createStore, type Store } from "./store";
 import {
   decodingOf, LensContext, useLensState, type LensContextValue,
+  hush, pointer,
 } from "./hooks";
 import { viewKinds } from "./views";
 import type {
@@ -228,11 +229,18 @@ export function Lens(props: { spec: LensSpec; project: Project;
     // (a walkthrough with a panel to fold: the panel ends it)
     const panelled = (link: string) => spec.views.some((v) =>
       v.kind === "walkthrough" && v.link === link);
-    const clear = (scope: string | null) => store.set((s) => ({ ...s,
-      links: Object.fromEntries(Object.entries(s.links).map(([k, l]) =>
-        [k, !ours(scope)(k) ? l : l.walk
-          ? { ...l, walk: panelled(k) ? { ...l.walk, exit: true } : null }
-          : l.selection ? { ...l, selection: null } : l])) }));
+    // (a selection it ended: the hover waits for the pointer to move)
+    const ends = (scope: string | null) => Object.entries(store.get().links)
+      .some(([k, l]) => ours(scope)(k) && l.selection && !l.walk);
+    const clear = (scope: string | null) => {
+      const hushed = ends(scope);
+      store.set((s) => ({ ...s,
+        links: Object.fromEntries(Object.entries(s.links).map(([k, l]) =>
+          [k, !ours(scope)(k) ? l : l.walk
+            ? { ...l, walk: panelled(k) ? { ...l.walk, exit: true } : null }
+            : l.selection ? { ...l, selection: null } : l])) }));
+      if (hushed) hush(store);
+    };
     const keyed = (e: KeyboardEvent) => {
       const f = document.activeElement;
       const here = !f || f === document.body ? pressed : here0(f);
@@ -266,15 +274,30 @@ export function Lens(props: { spec: LensSpec; project: Project;
         ".details")) return;
       if (String(window.getSelection?.() ?? "")) return;
       const scope = scopeOf(t);
+      const hushed = ends(scope);
       store.set((s) => ({ ...s, links: Object.fromEntries(Object.entries(
         s.links).map(([k, l]) => [k, ours(scope)(k) && l.selection &&
           !l.walk ? { ...l, selection: null } : l])) }));
+      if (hushed) hush(store);
     };
+    // (where the pointer is; a hush ends once it moves past 3px)
+    const moved = (e: PointerEvent) => {
+      pointer.x = e.clientX;
+      pointer.y = e.clientY;
+      const h = store.get().hush;
+      if (h && Math.hypot(e.clientX - h.x, e.clientY - h.y) > 3) {
+        store.set((s) => ({ ...s, hush: undefined }));
+      }
+    };
+    document.addEventListener("pointermove", moved, true);
+    document.addEventListener("pointerdown", moved, true);
     document.addEventListener("pointerdown", down, true);
     document.addEventListener("keydown", keyed);
     document.addEventListener("click", click);
     return () => {
       document.removeEventListener("pointerdown", down, true);
+      document.removeEventListener("pointermove", moved, true);
+      document.removeEventListener("pointerdown", moved, true);
       document.removeEventListener("keydown", keyed);
       document.removeEventListener("click", click);
     };

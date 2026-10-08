@@ -389,3 +389,15 @@ export function usePointAt(ref: DataRef | undefined):
 
 export const useSnapshot = (ref: DataRef | undefined): Snapshot | undefined =>
   usePoint(ref)?.snapshot;
+
+// Where the pointer is (the lens's listener keeps it)
+export const pointer = { x: 0, y: 0 };
+// A selection cleared from outside it (a click on what it does not
+// light, on empty space; Escape): the page settles, no hover until the
+// pointer moves (past 3px; the lens's listener ends the hush)
+export function hush(store: LensContextValue["store"]) {
+  store.set((s) => ({ ...s, hush: { ...pointer },
+    links: Object.fromEntries(Object.entries(s.links).map(([k, l]) =>
+      [k, l.hover ? { ...l, hover: null } : l])) }));
+}
+
