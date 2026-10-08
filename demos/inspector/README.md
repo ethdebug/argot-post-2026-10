@@ -606,6 +606,12 @@ computed by the page but a flag byte read from the state.
    each step; where they take different branches, the `if` is one
    fork step showing both, followed by each branch's steps.
 
+The last step, "found", shows the selection as it rests (its colours,
+rows and labels), with a plain caption ("That's `players`: 3 records,
+found."): with step 0, it bookends the walkthrough. It counts in
+`n / N` and has its own identity for re-targeting. One constant in
+`main.js`, `FOUND`, turns it off.
+
 Carol's record: the key from `roster[2]`; players declared at slot 3;
 the mapping template takes slot = 3 and her key; her record at
 keccak(key, 3) = …9978; the `Player` template; the six packed fields;
