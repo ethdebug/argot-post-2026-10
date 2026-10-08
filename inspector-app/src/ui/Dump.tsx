@@ -336,7 +336,7 @@ export function Dump(p: { id: ViewId; location: Location; data: DataRef;
     // (lit: the rest steps back; a selection or a step: brown caps)
     className={["view", light.muted ? "active" : "",
       link.selection || link.walk ? "chosen" : ""].filter(Boolean).join(" ")}
-    data-view={`${lens.key}:${p.id}`}
+    data-view={`${lens.key}:${p.id}`} data-point={l?.point}
     onPointerOver={point} onFocus={point}
     onClick={(e: MouseEvent) => {
       // (the lens's click-to-clear leaves a click that acted alone)
