@@ -236,52 +236,31 @@ and parameter in `fixtures/index.json` (`calldata`).
 
 ## Files
 
-- `index.html`, `main.js`, `style.css`: the page. `index.html` also
-  holds the loader (below, "Loading on a slow link"), the scenes'
-  intros and the contract's source.
-- `decode.js`: the decoding, shared by the page and the fixture script.
-- `panel.js`: the words panel (below).
-- `calldata.js`: the calldata view of the setMotd scene.
+The page is the app in `inspector-app/` (React + TypeScript, Vite).
+Its build goes to `demos/inspector/` on the site (`inspector-app/bin/
+site.sh`; the Pages workflow runs it), beside the files here. The app
+reads its fixtures from here. The text below describes the page as it
+was before the app took its place (tag `pre-port-2026-10`); the
+behaviour is the same, the file names are the app's now.
+
+- `decode.js`: the decoding for the fixture scripts (node).
 - `vendor/pointers.js`: `@ethdebug/pointers` bundled with esbuild from
   ethdebug/format `origin/main` at commit
-  `d7cb421a3` (#323: expressions take `~`, not `$`; not yet released),
-  minified. Rebuild with `bin/build-pointers.sh <checkout>` after
-  `yarn install` and building `packages/format` and `packages/pointers`,
-  then run `bin/sizes.mjs`.
+  `d7cb421a3` (#323: expressions take `~`, not `$`), minified, for
+  `decode.js`. Rebuild with `bin/build-pointers.sh <checkout>` after
+  `yarn install` and building `packages/format` and `packages/pointers`.
 - The sigil: ethdebug/format writes a pointer expression's operator
   with `~` (`~keccak256`), and the library takes no other; solc still
   writes `$` (ethdebug/format#324). `decode.js` `solcTilde` rewrites
-  solc's pointers and templates as each storage fixture is read (the
-  page, and `bin/make-fixtures.mjs`); the YAML shows `~`, with a note.
-  bugc writes `~`: `fixtures/memory.json` was made with bugc at
-  `d7cb421a3`.
-- `vendor/shiki.js`: the contract source's colouring, as in the
-  debugger demo (Shiki 3.13.0's core, its JavaScript regex engine, the
-  Solidity grammar, github-light and github-dark), bundled and minified
-  by `bin/build-shiki.sh` (60 KB gzip). The loader fetches it only when
-  the source's `<details>` first opens; until then the source is plain
-  text. The open state is kept in localStorage.
-- `bin/sizes.mjs`: writes the size of the bundle and of each fixture
-  into the loader in `index.html` (for "n KB of m KB"). Run it after
-  changing any of them; `bin/run.mjs` fails when the sizes are stale.
+  solc's pointers and templates as each storage fixture is read
+  (`bin/make-fixtures.mjs`; the app does the same). bugc writes `~`:
+  `fixtures/memory.json` was made with bugc at `d7cb421a3`.
 - `bin/make-fixtures.mjs`: compiles, deploys, runs the transactions,
   writes `fixtures/` (not `index.json`) and puts the contract's source
-  into `index.html`.
-- `bin/run.mjs`: Playwright check in Chromium, Firefox and WebKit;
-  writes `screenshots/` (only `desktop-packed.png` is committed:
-  the first scene, `total` selected by a click on its byte;
-  `desktop-dark.png`: Alice plays, `combo` selected, with "How this was
-  found"; `insets.png`: Alice plays, After, alice's entry lit, with its
-  "before" card; `memory.png`: the lower section, "Inside one play", at O0,
-  inside `multiplied`, `multiplied` selected; `memory-phone.png`: the
-  lower section on a phone; `phone.png`: the motd scene on a phone, `motd`
-  selected). It also checks the loading (below): the sizes, the picker
-  and the intros in `index.html`, the contract in `index.html`, no local
-  paths in the files, a failed load and Retry in each browser, and, in
-  Chromium, the page on "Slow 3G" (it prints each request with its
-  size). Run it with `PAGE=<the page's URL>`; the slow-link check
-  serves the repo itself.
-- `mem.js`, `bug/arcade.bug`, `bin/make-memory-fixture.mjs`,
+  into the app's `index.html`.
+- `screenshots/`: from `inspector-app/bin/run.mjs` (`npm run check` in
+  `inspector-app`; only `desktop-packed.png` is committed).
+- `bug/arcade.bug`, `bin/make-memory-fixture.mjs`,
   `fixtures/memory.json`: the lower section, "Inside one play" (below).
   `bug/arcade.bug` is a copy of `private/arcade/arcade.bug`.
 - `contracts/`: `Arcade.sol` and `Arcade.vy`, copied from the post's
@@ -291,7 +270,7 @@ and parameter in `fixtures/index.json` (`calldata`).
 
 1. `anvil --steps-tracing --port 8555 --silent`
 2. `SOLC=<solc> VYPER=<vyper> RPC_URL=http://127.0.0.1:8555 node
-   bin/make-fixtures.mjs`, then `node bin/sizes.mjs`. `<solc>` is a
+   bin/make-fixtures.mjs`. `<solc>` is a
    native solc built from Walnut's fork, walnuthq/solidity PR #10 (head
    `c434b2ea`, reports `0.8.38-develop.2026.10.5+commit.c434b2ea`);
    stock solc 0.8.37 gives ethdebug types and templates but no program

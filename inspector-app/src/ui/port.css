@@ -1,0 +1,57 @@
+/* The port's own looks, for what the vanilla page does not have
+   (style.css is vanilla's, copied as-is) */
+/* a hand-written compilation's badge, over its tree */
+.handmade { display: inline-block; margin: 0 0 6px; padding: 1px 8px;
+  border-radius: 4px; font-size: 0.8rem; background: var(--plan-bg);
+  color: var(--plan-fg); }
+
+/* The interaction rules of any lens (vanilla's are keyed to #panel and
+   #tree; these are the same rules on the views' own classes): a hover is
+   the plain fill, brown caps only on a view with a selection or a
+   walkthrough step (.view.chosen); the tree's rows, chevrons and box */
+.view:not(.chosen) .b.hl { box-shadow: none; }
+.view:not(.chosen) .word[data-side="before"] .b.hl.chg {
+  box-shadow: inset 0 -2px 0 var(--old); }
+.view:not(.chosen) .word[data-side="after"] .b.hl.chg {
+  box-shadow: inset 0 -2px 0 var(--new); }
+.tree .row { cursor: pointer; border-radius: 4px; }
+.tree .row:focus-visible { outline: 2px solid var(--accent);
+  outline-offset: 1px; }
+.tree:not(#ctree) .row.sel .val { border-color: var(--accent); }
+.treebox > .tree { overflow-y: auto; overflow-x: hidden; box-sizing: border-box;
+  /* (the scrollbar's room kept: the width never changes when it comes
+     and goes) */
+  scrollbar-gutter: stable;
+  /* room inside the scrolling box for the bars and bands that reach out
+     of a row (the selection's bar, 7px), without moving the rows */
+  margin: 0 -8px 0 -10px; padding-left: 10px; padding-right: 8px; }
+.tree li:has(> .chev) > .row { padding-right: calc(28px + 13px); }
+.tree li:has(> .chev) { display: grid; grid-template-columns: minmax(0, 1fr); }
+.tree li:has(> .chev) > .row { grid-area: 1 / 1; }
+.tree li:has(> .chev) > ul, .tree li:has(> .chev) > .empty { grid-column: 1; }
+.tree li > .chev { grid-area: 1 / 1; justify-self: end; align-self: center;
+  margin-right: 9px; width: 28px;
+  height: 28px; padding: 0; box-sizing: border-box;
+  border: 1px solid transparent; border-radius: 6px; background: none;
+  color: var(--fg); font-size: 1.05rem; cursor: pointer; z-index: 1;
+  display: grid; place-items: center; }
+.tree li > .chev svg { width: 1em; height: 1em; transition: transform 0.15s; }
+.tree li > .chev[aria-expanded="false"] svg { transform: rotate(-90deg); }
+.tree li > .chev:is(:hover, :focus-visible, :active) {
+  background: var(--panel); border-color: var(--line); }
+.tree li > .chev:active { border-color: var(--accent); }
+.tree li > .chev:focus-visible { outline: 2px solid var(--accent);
+  outline-offset: 1px; }
+.tree li.collapsed > ul { display: none; }
+.tree li.blk .row { border-radius: 0; }
+@media (prefers-reduced-motion: reduce) {
+  .tree li > .chev svg { transition: none; }
+}
+/* (each dump's view fits its own box, the .dump container: the same rule
+   as .views, on the view, so a lens with no .views wrapper fits too) */
+.lens .dump .view { font-family: var(--mono); font-variant-numeric: tabular-nums;
+  font-size: clamp(10px, calc((100cqi - 12px) / var(--k32, 56)), 20px); }
+@container (max-width: 559.98px) {
+  .lens .dump .view { font-size: clamp(10px,
+    calc((100cqi - 12px) / var(--k16, 30)), 20px); }
+}

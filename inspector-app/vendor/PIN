@@ -1,0 +1,31 @@
+@ethdebug/format and @ethdebug/pointers, packed (npm pack) from
+ethdebug/format at commit d7cb421a36a3b4cef1a9d954da8316cf6e43424e
+(main, after #323: pointer expressions take "~", and the library takes
+no "$"), from a detached worktree (yarn install --frozen-lockfile
+builds them). Earlier pin: ec7a81386.
+
+sha256:
+594ddf488669cb119b8900dba4b00c113c4ca74a7e1e74dbc1bed220e4cab8f5  ethdebug-format-0.1.0-draft.1.tgz
+3716110fc961757bc9bdae1914609be14f67cceb7cccb3e6092e847202dfe55d  ethdebug-pointers-0.1.0-preview.1.tgz
+
+Decision (gnidan, 2026-10-07): the pin need not be byte-equal to
+vanilla's bundle; "parity is dependent on behavior, not bundle bytes".
+The gate is src/engine/lib.parity.test.ts (in npm test): vanilla's
+vendor/pointers.js at sync-base against lib.ts, for every state
+variable and every players[key] of the four fixtures at both points
+(48 dereferences; solc's "$" read as "~" first, as the page does):
+identical regions (name, location, slot, offset, length) and identical
+bytes read; and some expressions evaluate the same. Vanilla's bundle
+at sync-base embeds the commit it was built from; the test checks it
+is this one.
+
+To re-pin: in a detached ethdebug/format worktree at the commit, yarn
+install --frozen-lockfile; npm pack packages/format and
+packages/pointers into vendor/ (replace the .tgz); update this file
+(commit, sha256); drop the @ethdebug entries from package-lock.json and
+node_modules/@ethdebug, then npm install (else npm keeps the old
+integrity); npm test (the parity gate). A running dev server restarts
+and pre-bundles the library again when this file or the lockfile
+changes (vite.config.ts repin; test/e2e/repin.spec.ts); without that,
+its cache keeps the old library and the page fails ("failure to
+recognize kind of expression").
