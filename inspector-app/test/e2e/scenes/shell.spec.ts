@@ -1,4 +1,4 @@
-import { test, expect } from "@playwright/test";
+import { test, expect } from "../../page";
 import { lenses } from "../../../src/lenses";
 
 test("picker lists every lens; ] moves on; reload restores",

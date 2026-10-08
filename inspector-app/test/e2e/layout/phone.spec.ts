@@ -1,14 +1,10 @@
 // The page on a phone: concrete defects, fixed one by one
-import { test, expect, type Page } from "@playwright/test";
+import type { Page } from "@playwright/test";
+import { test, expect, ready, select, type Win } from "../../page";
 
-type W = { select(id: string, view?: { sel?: string | null }):
-  Promise<boolean>; results: { done: boolean } };
 const SIZES = [[390, 844], [375, 667]] as const;
-const ready = async (page: Page, w: number, h: number) => {
-  await page.setViewportSize({ width: w, height: h });
-  await page.goto("./");
-  await page.waitForFunction(() => (window as unknown as W).results?.done);
-};
+const at = (page: Page, width: number, height: number) =>
+  ready(page, { width, height });
 // (an element cut at its end: its content wider than its box)
 const cut = (page: Page, sel: string) => page.locator(sel).evaluate((e) =>
   e.scrollWidth > e.clientWidth + 1);
@@ -16,9 +12,8 @@ const cut = (page: Page, sel: string) => page.locator(sel).evaluate((e) =>
 for (const [w, h] of SIZES) {
   test(`${w}px: the bar shows the selection and its button whole`,
     async ({ page }) => {
-      await ready(page, w, h);
-      await page.evaluate(() => (window as unknown as W).select("mid",
-        { sel: "players[0x70997970c51812dc3a010c7d01b50e0d17dc79c8]" }));
+      await at(page, w, h);
+      await select(page, "mid", "players[0x70997970c51812dc3a010c7d01b50e0d17dc79c8]");
       const bar = page.locator("#details");
       expect(await cut(page, "#details .rsel")).toBe(false);
       expect(await cut(page, "#details .rstart")).toBe(false);
@@ -31,13 +26,13 @@ for (const [w, h] of SIZES) {
 for (const [w, h] of SIZES) {
   test(`${w}px: no scene scrolls sideways; no popover runs out of its box`,
     async ({ page }) => {
-      await ready(page, w, h);
+      await at(page, w, h);
       const scenes = await page.locator("#picker button[data-fixture]")
         .evaluateAll((bs) => bs.map((b) => (b as HTMLElement).dataset
           .fixture!));
       for (const s of scenes) {
         await page.locator(`#picker button[data-fixture="${s}"]`).click();
-        await page.waitForFunction(() => (window as unknown as W).results
+        await page.waitForFunction(() => (window as Win).results
           ?.done);
         await page.evaluate(() => new Promise((r) => setTimeout(r, 300)));
         expect(await page.evaluate(() => [document.documentElement
@@ -61,14 +56,13 @@ const small = (page: Page, sel: string) => page.locator(sel).evaluateAll(
 for (const [w, h] of SIZES) {
   test(`${w}px: the bar's buttons and Before | After are tap-sized`,
     async ({ page }) => {
-      await ready(page, w, h);
+      await at(page, w, h);
       await page.locator('#picker button[data-fixture="arcade-alice"]')
         .click();
-      await page.waitForFunction(() => (window as unknown as W).results
+      await page.waitForFunction(() => (window as Win).results
         ?.done);
       expect(await small(page, "#mode button")).toEqual([]);
-      await page.evaluate(() => (window as unknown as W).select("alice",
-        { sel: "totalScore" }));
+      await select(page, "alice", "totalScore");
       const bar = page.locator("#details");
       const h0 = (await bar.boundingBox())!.height;
       expect(await small(page, "#details button")).toEqual([]);

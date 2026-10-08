@@ -1,13 +1,13 @@
 // The related view: All | Related over the storage dump, its context
 // rows, the hash, the tree, and a walkthrough in it
 import { pick } from "../../pick";
-import { test, expect, type Page } from "@playwright/test";
+import type { Page } from "@playwright/test";
+import { test, expect, type Win } from "../../page";
 import { A } from "../../expect";
 
-type W = { results: { done: boolean } };
 const open = async (page: Page, hash: string) => {
   await page.goto(`./#${hash}`);
-  await page.waitForFunction(() => (window as unknown as W).results?.done);
+  await page.waitForFunction(() => (window as Win).results?.done);
 };
 // the storage dump's rows shown, by name
 const rows = (page: Page) => page.locator(

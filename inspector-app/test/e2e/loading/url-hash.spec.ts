@@ -1,14 +1,14 @@
 // Mirrors bin/run.mjs's hash checks (storage keys; vanilla d235617)
 import { pick } from "../../pick";
-import { test, expect, type Page } from "@playwright/test";
+import type { Page } from "@playwright/test";
+import { test, expect, type Win } from "../../page";
 import { A } from "../../expect";
 
-type W = { results: { done: boolean } };
 const go = async (page: Page, hash: string) => {
   await page.goto("about:blank");
   await page.goto(`./#${hash}`);
   // (both sections ready: each has shown its view, and written its keys)
-  await page.waitForFunction(() => (window as unknown as W).results?.done &&
+  await page.waitForFunction(() => (window as Win).results?.done &&
     (window as unknown as { memResults?: { done: boolean } }).memResults
       ?.done);
 };
@@ -40,7 +40,7 @@ test("the hash restores the view, and keeps the memory keys",
     await expect.poll(() => page.evaluate(() => location.hash))
       .toMatch(/(^#|&)sel=(&|$)/);
     await page.reload();
-    await page.waitForFunction(() => (window as unknown as W).results?.done);
+    await page.waitForFunction(() => (window as Win).results?.done);
     await expect(page.locator("#tree .row.sel")).toHaveCount(0);
     expect(await page.evaluate(() => location.hash)).toContain("mpt=mult");
   });

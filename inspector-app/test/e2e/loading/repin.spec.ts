@@ -1,4 +1,5 @@
-import { test, expect, type Page } from "@playwright/test";
+import type { Page } from "@playwright/test";
+import { test, expect } from "../../page";
 import { spawn } from "node:child_process";
 import fs from "node:fs";
 import os from "node:os";
@@ -6,10 +7,14 @@ import path from "node:path";
 
 // A re-pin of the vendored library (vendor/PIN, the lockfile) restarts a
 // running dev server, which pre-bundles the library again: no old copy
-// stays in its cache (vite.config.ts repin). Its own server, on 5190,
-// watching a stand-in for vendor/PIN (REPIN_FILES): touching the real
-// one would restart every dev server on this checkout.
-const URL = "http://localhost:5190/demos/inspector/";
+// stays in its cache (vite.config.ts repin). Its own server, on 5190
+// (REPIN_PORT), watching a stand-in for vendor/PIN (REPIN_FILES):
+// touching the real one would restart every dev server on this
+// checkout.
+const PORT = process.env.REPIN_PORT ?? "5190";
+const URL = `http://localhost:${PORT}/demos/inspector/`;
+// (its page is on another port: another host, to the error check)
+test.use({ quiet: false });
 
 async function loads(page: Page) {
   const errors: string[] = [];
@@ -32,7 +37,7 @@ test("a re-pin restarts the dev server; the page loads clean after",
     const dir = fs.mkdtempSync(path.join(os.tmpdir(), "repin-"));
     const pin = path.join(dir, "PIN");
     fs.copyFileSync("vendor/PIN", pin);
-    const vite = spawn("npx", ["vite", "--port", "5190", "--strictPort"],
+    const vite = spawn("npx", ["vite", "--port", PORT, "--strictPort"],
       { stdio: ["ignore", "pipe", "pipe"],
         env: { ...process.env, REPIN_FILES: pin } });
     let log = "";

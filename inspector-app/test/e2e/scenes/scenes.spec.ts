@@ -1,40 +1,31 @@
-import { test, expect, type Page } from "@playwright/test";
+import type { Page } from "@playwright/test";
+import { test, expect, usable, select, type Win } from "../../page";
 import { expected, defaults } from "../../expect";
 import fs from "node:fs";
 
 const scenes = JSON.parse(fs.readFileSync("../demos/inspector/fixtures/index.json",
   "utf8")) as { id: string; summary: string; points: string[] }[];
 
-type W = Window & typeof globalThis & {
-  select(id: string, view?: { mode?: string; sel?: string | null }):
-    Promise<boolean>;
-  results: { done: boolean; errors: string[];
-    decoded: Record<string, Record<string, { before?: string;
-      after?: string }>> };
-};
-const ready = (page: Page) => page.waitForFunction(() =>
-  (window as unknown as W).results?.done);
 
 test("each scene's values, via window.select", async ({ page }) => {
   await page.goto("./");
-  await ready(page);
+  await usable(page);
   for (const id of ["mid", "alice", "motd", "vyper"]) {
-    expect(await page.evaluate((x) => (window as unknown as W)
-      .select(x, { sel: null }), id)).toBe(true);
+    expect(await select(page, id, null)).toBe(true);
     const got = await page.evaluate((x) =>
-      (window as unknown as W).results.decoded[x], id);
+      (window as Win).results.decoded[x], id);
     for (const [p, b, a] of expected[id]) {
       expect([got[p]?.before, got[p]?.after], `${id} ${p}`).toEqual([b, a]);
     }
   }
-  expect(await page.evaluate(() => (window as unknown as W).results.errors))
+  expect(await page.evaluate(() => (window as Win).results.errors))
     .toEqual([]);
 });
 
 test("intro and summary follow the scene; one-point hides mode",
   async ({ page }) => {
     await page.goto("./");
-    await ready(page);
+    await usable(page);
     for (const s of scenes) {
       await page.locator(`#picker button[data-id="${s.id}"]`).click();
       await expect(page.locator(`#picker button[data-id="${s.id}"]`))
@@ -67,7 +58,7 @@ test("intro and summary follow the scene; one-point hides mode",
 test("Before | After shows the other side's dump and values",
   async ({ page }) => {
     await page.goto("./");
-    await ready(page);
+    await usable(page);
     await page.locator('#picker button[data-id="alice"]').click();
     const score = page.locator(
       '#tree li[data-path$="c8].score"] > .row .val');
@@ -86,8 +77,8 @@ test("Before | After shows the other side's dump and values",
 test("the Vyper scene shows Vyper's words, owned by nobody",
   async ({ page }) => {
     await page.goto("./");
-    await ready(page);
-    await page.evaluate(() => (window as unknown as W).select("vyper"));
+    await usable(page);
+    await select(page, "vyper");
     const vy = page.locator(
       '#panel .view:not([hidden]) .wrow[data-name^="Vyper\'s keccak"]');
     await expect(vy).toHaveCount(25);
