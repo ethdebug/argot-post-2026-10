@@ -10,6 +10,7 @@ import type { Colour, Decoded, Filter, Light, ValueNode } from
   "../engine/types";
 import { changed } from "../engine/timeline";
 import { blockOf } from "../engine/target";
+import { relClass } from "../engine/related";
 import {
   useCompilation, useDecoded, useLens, useLensState, useLight, useLink,
   useRelatedRoots, useView, useWalkthrough,
@@ -71,7 +72,10 @@ function Row({ n, top, c, inBlk }: { n: ValueNode; top?: boolean; c: Ctx;
   const blk = !!ks && ks.size === 1;
   const blkK = blk ? [...ks!][0] : undefined;
   const cls = ["row", sel ? "sel" : "", on ? "hl" : "", on ? pk(k) : "",
-    on && mutedRow(c, n) ? "muted" : ""].filter(Boolean).join(" ");
+    on && mutedRow(c, n) ? "muted" : "",
+    // (a value the selection consulted: the related treatment)
+    !on ? relClass(light, [n.path]) ?? "" : ""]
+    .filter(Boolean).join(" ");
   const chg = pair && changed(pair[0], pair[1], n.path);
   // (a function's value, its frame, stands for its locals: changed when
   // they did, as vanilla mem.js)

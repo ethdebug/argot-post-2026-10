@@ -1,9 +1,12 @@
 import { it, expect } from "vitest";
 import { testProject } from "../../test/project";
-import { A } from "../../test/expect";
+import { A, C } from "../../test/expect";
+import { forPath } from "./light";
 import { decode } from "./decode";
 import { layout } from "./layout";
-import { related, relatedValues } from "./related";
+import {
+  related, relatedValues, relClass, withRelated,
+} from "./related";
 import { walkthrough } from "./walkthrough/fold";
 
 const mid = async () => {
@@ -65,4 +68,26 @@ it("the tree's: the selection, and where its key comes from",
       .toEqual(["roster[1]"]);
     expect(relatedValues(d, "players", w("players"))).toEqual(["players",
       "roster[0]", "roster[1]", "roster[2]"]);
+  });
+
+it("what it consulted: each key in its record's colour; the anchor",
+  async () => {
+    const { d, w } = await mid();
+    const l = layout(d, "storage");
+    const of = (path: string) => withRelated(forPath(d, l, path,
+      { selection: true }), d, l, path, w(path));
+    const all = of("players");
+    expect(["roster[0]", "roster[1]", "roster[2]"].map((q) =>
+      all.relColours!.get(q))).toEqual([1, 2, 3]);
+    expect([...all.anchors!.values()]).toEqual(["players"]);
+    expect(all.related!.has(`0x${"3".padStart(64, "0")}`)).toBe(true);
+    // (the selection's own colours: as they were)
+    expect(all.colours).toEqual(forPath(d, l, "players",
+      { selection: true }).colours);
+    // (a key that leads to the selection as a whole: neutral)
+    const one = of(C);
+    expect([...one.relColours!]).toEqual([["roster[2]", 0]]);
+    expect(relClass(one, ["roster[2]"])).toBe("rel pkn");
+    expect(relClass(all, ["roster[1]"])).toBe("rel pk2");
+    expect(relClass(all, [`${A}.score`])).toBe(null);
   });

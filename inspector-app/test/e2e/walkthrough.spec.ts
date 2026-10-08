@@ -620,7 +620,10 @@ test("a step's own gutter rows keep a dark label (not muted, not dropped)",
           let run: HTMLElement[] | null = null;
           for (const el of [...document.querySelector(
             "#panel .view:not([hidden]) .rows")!.children] as HTMLElement[]) {
-            if (el.classList.contains("gut")) {
+            // (but a row only consulted, found's resting view: its light
+            // label, as at rest: the anchor)
+            if (el.classList.contains("gut") &&
+              !el.classList.contains("rel")) {
               if (!run) runs.push(run = []);
               run.push(el);
             } else if (!el.classList.contains("cmp")) run = null;

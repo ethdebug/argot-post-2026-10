@@ -237,6 +237,14 @@ export interface Light {                // DERIVED per view, never stored
   rest?: boolean;
   // (pointed at: bytes no value owns, `at`)
   unmapped?: boolean;
+  // (a selection's consulted rows, engine/related.ts withRelated: the
+  // related rows it does not light; the bytes of the related values
+  // outside it, and their tree rows with the colour each leads to (0:
+  // neutral); the related rows that are a variable's empty own slot,
+  // its anchor, by its path)
+  related?: ReadonlySet<Hex>; relBytes?: ReadonlySet<ByteKey>;
+  relColours?: ReadonlyMap<Path, Colour>;
+  anchors?: ReadonlyMap<Hex, Path>;
 }
 export interface Filter {               // truncation, per view
   roots?: Path[];                       // only these subtrees
