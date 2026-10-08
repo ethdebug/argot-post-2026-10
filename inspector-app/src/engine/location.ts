@@ -1,19 +1,23 @@
 // What a dump needs of a data location, and nothing else differs between
-// them: how its bytes fall into rows (storage: 32-byte slots by number;
-// memory: 32-byte words by offset; calldata: the 4-byte selector, then
-// 32-byte words from byte 4), the row after a row (for the gaps), a
-// row's address as the gutter shows it, its name, and a row's bytes at
-// a point.
+// them: how its bytes fall into rows, the row after a row (for the gaps),
+// a row's address as the gutter shows it, its name, and a row's bytes at
+// a point. Rows follow from the location's addressing: storage is
+// slot-addressed (a row is a slot, by number); memory and calldata are
+// offset-addressed segments, one stream of bytes from byte 0, where rows
+// are only layout: 32 bytes a row (a word), from 0x0000 by 0x0020.
 import type { Hex, Location, ResolvedRegion, Snapshot } from "./types";
 import { slotHex } from "./hex";
 
 export const hex4 = (n: number): Hex =>
   `0x${n.toString(16).padStart(4, "0")}`;
-// (memory and calldata: rows by byte offset)
-const byOffset = (l: Location) => l === "memory" || l === "calldata";
-const rowOf = (l: Location, i: number): [number, number] =>
-  l === "calldata" ? i < 4 ? [0, i] : [4 + Math.floor((i - 4) / 32) * 32,
-    (i - 4) % 32] : [Math.floor(i / 32) * 32, i % 32];
+// how a location's bytes are found: by slot, or by offset in a segment
+export const addressing = (l: Location): "slot" | "offset" =>
+  l === "storage" ? "slot" : "offset";
+const byOffset = (l: Location) => addressing(l) === "offset";
+// (an offset-addressed segment: its rows, of a word each)
+const ROW = 32;
+const rowOf = (i: number): [number, number] =>
+  [Math.floor(i / ROW) * ROW, i % ROW];
 
 // The rows and bytes a region covers. Offsets count from the most
 // significant byte; a region longer than the rest of its row goes on
@@ -21,7 +25,7 @@ const rowOf = (l: Location, i: number): [number, number] =>
 export function regionBytes(r: ResolvedRegion): [Hex, number][] {
   if (byOffset(r.location)) {
     return Array.from({ length: r.length }, (_, k) => {
-      const [row, i] = rowOf(r.location, r.offset + k);
+      const [row, i] = rowOf(r.offset + k);
       return [hex4(row), i];
     });
   }
@@ -34,8 +38,7 @@ export function regionBytes(r: ResolvedRegion): [Hex, number][] {
 
 // the row after `row`
 export const nextRow = (l: Location, row: Hex): bigint =>
-  !byOffset(l) ? BigInt(row) + 1n
-    : l === "calldata" && BigInt(row) === 0n ? 4n : BigInt(row) + 32n;
+  !byOffset(l) ? BigInt(row) + 1n : BigInt(row) + BigInt(ROW);
 
 // The addresses kept of `all` (in address order): `rows`, and up to
 // `context` rows on each side of each, where the rows are adjacent (the
@@ -72,18 +75,25 @@ export const goesOn = (l: Location) => l !== "calldata";
 export const addressText = (l: Location, row: Hex) =>
   byOffset(l) ? row : `…${row.slice(-4)}`;
 
-// a row's bytes at a point, as hex pairs: as many as the row has
-// (calldata's first: 4); undefined: past the end of memory
+// an offset-addressed location's bytes at a point (none: empty)
+export const segmentOf = (s: Snapshot | undefined, l: Location) =>
+  (l === "memory" ? s?.memory : l === "calldata" ? s?.calldata
+    : undefined) ?? new Uint8Array();
+// the rows of a whole segment (one that does not go on): every row of
+// its bytes, its padding too
+export const segmentRows = (s: Snapshot | undefined, l: Location): Hex[] =>
+  addressing(l) !== "offset" || goesOn(l) ? []
+    : Array.from({ length: Math.ceil(segmentOf(s, l).length / ROW) },
+      (_, k) => hex4(k * ROW));
+// a row's bytes at a point, as hex pairs; undefined: past the end of the
+// segment
 export function rowBytes(s: Snapshot | undefined, l: Location,
   row: Hex): (string | undefined)[] {
   const pair = (b: number) => b.toString(16).padStart(2, "0");
   if (byOffset(l)) {
-    const m = (l === "memory" ? s?.memory : s?.calldata) ??
-      new Uint8Array();
+    const m = segmentOf(s, l);
     const at = Number(BigInt(row));
-    // (calldata's first row, the selector: 4 bytes; past them, none)
-    const n = l === "calldata" && at === 0 ? 4 : 32;
-    return Array.from({ length: 32 }, (_, i) => i < n && at + i < m.length
+    return Array.from({ length: ROW }, (_, i) => at + i < m.length
       ? pair(m[at + i]) : undefined);
   }
   const w = (s?.storage.get(row) ?? "0x").slice(2).padStart(64, "0");

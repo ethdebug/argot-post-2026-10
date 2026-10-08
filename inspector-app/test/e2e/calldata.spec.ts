@@ -27,7 +27,7 @@ const lit = (page: Page) => page.evaluate(() => [...document
   .querySelectorAll<HTMLElement>("#cpanel .b.hl")].map((b) =>
   Number(b.closest<HTMLElement>(".wrow")!.dataset.slot) + +b.dataset.i!));
 // (byte 40: the 5th of the word at 0x24, the length's)
-const LEN = '#cpanel .wrow[data-slot="0x0024"] .b[data-i="4"]';
+const LEN = '#cpanel .wrow[data-slot="0x0020"] .b[data-i="8"]';
 const range = (a: number, b: number) =>
   Array.from({ length: b - a }, (_, i) => a + i);
 
@@ -94,7 +94,7 @@ test("its selection is its own: storage's stays; Escape clears its own",
     expect(await storage()).toBe("motd");
     // (keyboard: Enter on a byte run selects its part)
     await page.locator(
-      '#cpanel .wrow[data-slot="0x0044"] .b[data-i="0"]').focus();
+      '#cpanel .wrow[data-slot="0x0040"] .b[data-i="4"]').focus();
     await page.keyboard.press("Enter");
     expect((await cd(page)).chosen).toBe("m-data");
     expect(await dl(page, "#cdetails")).toMatchObject({

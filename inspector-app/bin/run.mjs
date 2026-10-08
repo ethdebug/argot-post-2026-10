@@ -3316,7 +3316,7 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
       .slice(0, 8)) problems.push(`calldata: ${shownCd} ${selector}`);
     // offset 32, then the length (48) at 0x24, then the bytes at 0x44
     await pick(page.locator(
-      '#cpanel .wrow[data-slot="0x0024"] .b[data-i="4"]'));
+      '#cpanel .wrow[data-slot="0x0020"] .b[data-i="8"]'));
     const c = await cdl();
     if (c.chosen !== "m-length") problems.push(`calldata byte: ${c.chosen}`);
     const cdetails = await dl("#cdetails");
@@ -3325,7 +3325,7 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
       problems.push(`calldata details: ${JSON.stringify(cdetails)}`);
     }
     await pick(page.locator(
-      '#cpanel .wrow[data-slot="0x0024"] .b[data-i="4"]'));
+      '#cpanel .wrow[data-slot="0x0020"] .b[data-i="8"]'));
     await page.locator('#ctree li[data-part="m"] > .row').hover();
     // (each byte's place in the calldata: its row's start, plus its
     // index in the row)
