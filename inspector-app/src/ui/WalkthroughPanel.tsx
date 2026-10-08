@@ -15,7 +15,9 @@ import type { Decoded } from "../engine/types";
 import { locked } from "../engine/target";
 import { retarget, type Form, type Step, type Tok } from
   "../engine/walkthrough/fold";
-import { FOOT, footOf, shortCap } from "../engine/walkthrough/words";
+import {
+  constructOf, FOOT, footOf, placeOf,
+} from "../engine/walkthrough/words";
 import {
   decodingOf, useDecoded, useLayout, useLens, useLensState, useLink,
   usePoint, useViewSpec, useWalkthrough,
@@ -43,6 +45,7 @@ const still = () =>
 const parts = (ps: Part[]) => ps.map((p, k) => typeof p === "string"
   ? <Fragment key={k}>{p}</Fragment> : <code key={k}>{p.code}</code>);
 // a caption's names from the code (in `backticks`), in monospace
+const plain = (t: string) => t.replace(/`/g, "");
 const cap = (t: string) => t.split(/`([^`]+)`/).map((x, k) => k % 2
   ? <code key={k} className="id">{x}</code>
   : <Fragment key={k}>{x}</Fragment>);
@@ -241,7 +244,7 @@ export function WalkthroughPanel(p: { id: ViewId; data: DataRef;
     if (!u) return;
     const top = walk ? `${scrollerOf(u).pad}px` : "";
     if (u.style.top !== top) u.style.top = top;
-  });
+  }, [!!walk]);
   const exit = async () => {
     if (!walk || unfolding) return;
     await fold(false);
@@ -312,10 +315,9 @@ export function WalkthroughPanel(p: { id: ViewId; data: DataRef;
       last.current = { sel, steps: w.steps, at: r.at };
       setLink((s) => s.walk ? { ...s, walk: { step: r.at,
         n: w.steps.length } } : s);
-      if (r.moved) {
-        setCue((c) => ({ text: `→ step ${r.at + (w.steps[0]?.goal ? 0 : 1)}`,
-          n: (c?.n ?? 0) + 1 }));
-      }
+      // (on any change of target: what it walks now, and where)
+      setCue((c) => ({ text: `now: ${w.name}, ${placeOf(w.steps, r.at)}`,
+        n: (c?.n ?? 0) + 1 }));
       return;
     }
     last.current = walk && w && sel ? { sel, steps: w.steps, at: i } : null;
@@ -333,112 +335,89 @@ export function WalkthroughPanel(p: { id: ViewId; data: DataRef;
     if (unfolding) return;
     if (k === "start") start(0, { x: e.clientX, y: e.clientY });
     else if (k === "exit") void exit();
-    else if (k === "first") stepTo(0);
-    else if (k === "last") stepTo(Infinity);
     else stepTo(i + (k === "next" ? 1 : -1));
   };
 
   let barBody: ReactNode;
   let text: ReactNode;
-  const selSpan = node && (() => {
-    const own = node.children && node.regions.some((r) =>
-      r.role === "length");
-    const v = node.value?.text ?? (own ? node.summary : undefined);
-    const n = node.children?.length ?? 0;
-    return <span className="rsel"><code>{shortKeys(sel!)}</code>{
-      node.typeText && <> <span className="type">{node.typeText}</span></>}
-      {v !== undefined ? <> = <b>{v}</b></> : node.children ? <> <span
-        className="muted">{n} {partsWord(node.typeText, n)}</span></>
-        : null}{!single && <> <span className="muted">({side})</span></>}
-    </span>;
-  })();
-  // footnote numbers: by first use in this walkthrough
-  const notes: string[] = [];
-  for (const s of steps) {
-    const c = footOf(s);
-    if (c && !notes.includes(c)) notes.push(c);
-  }
+  // (the scene, for the walkthrough's one line of context)
+  const scene = useLensState((x) => x.bookmark);
+  const sceneTitle = lens.project.bookmarks.find((b) => b.id === scene)
+    ?.title;
+  // The bar at rest, two lines (one footprint, selection or none): what
+  // is selected, and the way in; with nothing selected, how to begin
   if (!node || !sides) {
-    barBody = <><span className="rmode" /><span className="rsel muted">
-      Select a value to see how it was found.</span><span className="rctl" />
-      <span className="rcount" /><span className="rshort" />
-      <span className="rexit" /></>;
+    barBody = <><span className="rline1"><span className="rsel muted">
+      Click a variable or a byte, then “How it was found” walks the
+      pointer to its bytes.</span><span className="rctl" /></span><span
+      className="rline2" /></>;
     const t = sides && locked(link.hover, null, sides.d.byPath);
     text = <Details info={sides ? infoOf(sides, t ?? null) : null} />;
   } else if (st && w) {
-    // (at step 0, ▶ has a halo: the way on; vanilla 23c7c00)
-    const btn = (r: string, label: string, glyph: string, off: boolean) =>
-      <button type="button" className={`btn${r === "next" && st.goal
-        ? " halo" : ""}`} data-r={r} aria-label={label}
-        disabled={off}>{glyph}</button>;
+    // The bar in a walkthrough, three lines: what the reader is doing
+    // and the way out; ◀ ▶, where they are, the steps as dots (each a
+    // jump; its caption on hover); the step, in its one wording, with
+    // what it is about and where its facts come from
     const lastStep = i === steps.length - 1;
     const fc = footOf(st);
-    barBody = <><span className="rmode">Walkthrough</span>{selSpan}
-      <span className="rctl">{btn("first", "First step", "⏮", !i)}
-        {btn("prev", "Previous step", "◀", !i)}
-        {btn("next", "Next step", "▶", lastStep)}
-        {btn("last", "Last step", "⏭", lastStep)}</span>
-      <span className="rcount">{i + 1 - goal} / {steps.length - goal}</span>
-      <span className="rshort">{cap(shortCap(st, w.variable))}</span>
-      <span className="rexit"><button type="button" className="btn"
-        data-r="exit">✕ Exit</button></span>
-      {cue && <span key={cue.n} className="rcue" aria-live="polite">
-        {cue.text}</span>}</>;
-    text = <><p className="rcap">{cap(st.cap)}</p>
-      <p className="rform"><FormView f={st.form} /></p>
-      <p className="rsrc">{st.constructs.map((c) => <Fragment key={c}>
-        <code className="badge">{c}{c === fc && <sup className="fn">{
-          notes.indexOf(c) + 1}</sup>}</code>{" "}</Fragment>)}<span
-        className={`source${st.sourceTint ? " pksrc" : ""}`}>{st.source}
-      </span></p>
-      <p className="fnotes">{fc && <span className="fnote"><sup>{
-        notes.indexOf(fc) + 1}</sup> <a href={FOOT[fc][1]} target="_blank"
-        rel="noopener">{FOOT[fc][0]}</a></span>}</p></>;
+    const kind = constructOf(st);
+    barBody = <><span className="rline1"><span className="rtitle">How the
+      pointer finds <code>{w.name}</code></span>{sceneTitle && <span
+        className="rscene muted"> · {sceneTitle}</span>}<span
+        className="rexit"><button type="button" className="btn"
+        data-r="exit">✕ Exit</button></span></span>
+      <span className="rline2"><span className="rctl"><button type="button"
+        className="btn" data-r="prev" aria-label="Previous step"
+        disabled={!i}>◀</button>
+        {/* (at step 0, ▶ has a halo: the way on; vanilla 23c7c00) */}
+        <button type="button" className={`btn rnext${st.goal ? " halo"
+          : ""}`} data-r="next" aria-label="Next step"
+          disabled={lastStep}>▶</button></span>
+        <span className="rcount">{placeOf(steps, i)}</span>
+        <span id={p.domId ? "dots" : undefined} className="rdots">
+          {steps.map((s, k) => <button key={k} type="button"
+            className={`dot ${k < i ? "done" : k === i ? "cur" : "later"}`}
+            data-k={k} data-n={s.goal ? undefined : k - goal}
+            title={plain(s.cap)}
+            aria-label={`Step ${placeOf(steps, k)}: ${plain(s.cap)}`}
+            aria-current={k === i ? "step" : undefined}
+            onClick={() => stepTo(k)} />)}</span>
+        {cue && <span key={cue.n} className="rcue" aria-live="polite">
+          {cue.text}</span>}</span>
+      <span className="rline3"><span className="rcap">{cap(st.cap)}</span>
+        <span className="rsrc">{kind && <span className="rkind">construct:
+          {" "}<b>{kind}</b> · </span>}<span className="source">{st.source}
+        </span>{fc && <span className="fnotes"> · <a href={FOOT[fc][1]}
+          target="_blank" rel="noopener" title={FOOT[fc][0]}>ⓘ {FOOT[fc][0]}
+        </a></span>}</span></span></>;
+    text = <p className="rform"><FormView f={st.form} /></p>;
   } else {
     const own = node.children && node.regions.some((r) =>
       r.role === "length");
     const v = node.value?.text ?? (own ? node.summary : undefined);
     const n = node.children?.length ?? 0;
     const otherText = o?.byPath.get(node.path)?.value?.text;
-    barBody = <><span className="rmode" />{selSpan}
-      <span className="rctl"><button type="button" className="btn rstart"
-        data-r="start" disabled={!w?.steps.length}>▸ Show how<span className="rlong"> it was
-        found</span></button></span>
-      <span className="rcount" /><span className="rshort" />
-      <span className="rexit" /></>;
-    text = <>{v !== undefined ? <p className="rcap rwhere">{parts(whereOf(
-      sides, sel!))}{otherText !== undefined && otherText !== v &&
-      <> <span className="muted">({side === "after" ? "before" : "after"
-      }: {otherText})</span></>}</p>
-      : <p className="rcap rwhere">{node.children ? `${n} ${partsWord(
-        node.typeText, n)}` : missing(d!, sel!)}</p>}
-      <p className="fnotes"><span className="muted">Each step is one part
-        of the ethdebug data from the compiler for {sel!.split(/[.[]/)[0]}.
-      </span></p></>;
+    // (the selection, as the tree names it; its value or its parts)
+    barBody = <><span className="rline1"><span className="rsel"><code>{
+      shortKeys(sel!)}</code>{node.typeText && <> <span className="type">{
+      node.typeText}</span></>}{v !== undefined ? <> = <b>{v}</b></>
+      : node.children ? <span className="rparts"> · <span className="muted">
+        {n} {partsWord(node.typeText, n)}</span></span> : null}{!single && <> <span
+        className="muted">({side})</span></>}</span><span className="rctl">
+        <button type="button" className="btn rstart" data-r="start"
+          disabled={!w?.steps.length}><span className="rplay"
+          aria-hidden="true">▶</span> How it was found</button></span>
+      </span><span className="rline2 muted">{v === undefined &&
+        !node.children ? missing(d!, sel!) : <>{otherText !== undefined &&
+        otherText !== v && `${side === "after" ? "before" : "after"}: ${
+          otherText} · `}Esc clears the selection</>}
+      </span></>;
+    text = null;
   }
 
-  // the chips: one per step (not step 0), done, current or later; all
-  // done at rest
-  const at = walk ? i : steps.length;
-  const chips = node && steps.slice(goal).map((s, k) => <Fragment key={k}>
-    {k > 0 && <span className="carrow" aria-hidden="true">→</span>}
-    <button type="button" className={`chip ${k + goal < at ? "done"
-      : k + goal === at ? "cur" : "later"}`} data-k={k}
-      aria-label={`Step ${k + 1}: ${s.cap.replace(/`/g, "")}`}
-      onClick={() => walk ? stepTo(k + goal) : start(k + goal)}>
-      <span className="ctext">{s.chip}</span>
-      <span className="clabel">{s.chipLabel}</span></button></Fragment>);
-  const chipsRef = useRef<HTMLDivElement>(null);
-  useLayoutEffect(() => {
-    // the current chip, scrolled into the chips' row
-    const box = chipsRef.current;
-    if (!box) return;
-    const cur = box.querySelector<HTMLElement>(".chip.cur");
-    const right = cur ? cur.offsetLeft - box.offsetLeft + cur.offsetWidth
-      : 0;
-    box.scrollLeft = Math.max(0, right - box.clientWidth + 8);
-  });
-
+  // (the focus picker: only at a step it changes, the packed fields;
+  // its row kept, empty, at the others)
+  const focusing = !!walk && !!w?.recs && st?.phase === "fields";
   return <div ref={unit} className={`wpanel${walk ? " walking" : ""}`}
     data-view={`${lens.key}:${p.id}`}>
     <div ref={bar} id={p.domId} className={`rbar${walk ? " replaying" : ""}`}
@@ -453,15 +432,13 @@ export function WalkthroughPanel(p: { id: ViewId; data: DataRef;
           <div id={p.domId ? "dtext" : undefined} className="dtext">{text}
           </div>
           <div id={p.domId ? "dpick" : undefined} className="dpick">
-            {walk && w?.recs && <><span className="plab">Focus</span>
-              {[{ path: "*", who: "all", full: "all" }, ...w.recs].map((r) =>
+            {focusing && <><span className="plab">Focus</span>
+              {[{ path: "*", who: "all", full: "all" }, ...w!.recs!].map((r) =>
                 <button key={r.path} type="button" className="btn"
-                  data-focus={r.path} aria-pressed={r.path === w.focus
+                  data-focus={r.path} aria-pressed={r.path === w!.focus
                     ? "true" : "false"} onClick={() => setFocus(r.path)}
                   aria-label={`Focus: ${r.full ?? r.who}`}>
                   {r.who}</button>)}</>}</div>
-          <div ref={chipsRef} id={p.domId ? "chips" : undefined}
-            className="chips">{chips}</div>
         </div>
         <div className="ptr" aria-label="Ethdebug data from the compiler">
           <p className="plabel">Ethdebug data from the compiler <span

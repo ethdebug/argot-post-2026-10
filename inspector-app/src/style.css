@@ -972,71 +972,6 @@ main[data-single] > .cols :is(.chglegend, .legend .bchg, .intro .two) {
 .colhead { margin-top: 0; }
 /* the dump's state is in the bar and the Show toggle */
 .scols .view-name { display: none; }
-/* the bar: one line, at one height, always, in the page's flow: the
-   selection in a fixed-width spot, then the controls, then
-   the short caption, which is cut at its end if it must be */
-.rbar { display: grid; align-items: center; gap: 10px; height: 2.6em;
-  line-height: 1.2;
-  box-sizing: border-box; padding: 0 10px; margin: 0;
-  grid-template-columns: 7.4em minmax(0, 32ch) 15em 3.6em minmax(0, 1fr)
-    6em;
-  background: var(--panel); border: 1px solid var(--line);
-  border-left: 3px solid var(--accent); border-radius: 6px;
-  white-space: nowrap; position: relative; z-index: 1; }
-/* (each slot as tall as the bar, whatever it holds) */
-.rbar > * { overflow: hidden; text-overflow: ellipsis; min-width: 0;
-  align-self: stretch; }
-.rbar > :is(.rmode, .rsel, .rcount, .rshort) { line-height: 2.45; }
-.rbar > :is(.rctl, .rexit) { display: flex; align-items: center; }
-.rbar .rctl { display: flex; align-items: center; gap: 4px;
-  overflow: visible; }
-.rbar .rctl .btn { padding: 1px 10px; }
-.rshort { font-weight: 600; }
-/* a replay: the whole bar tinted, "Replay" at its start; the details
-   joined under it, in the same tint: one panel, the bar its header row */
-.rbar.replaying, .dpanel { background: color-mix(in srgb, var(--accent) 10%,
-  var(--panel)); }
-.rbar.replaying { border-bottom-left-radius: 0;
-  border-bottom-right-radius: 0;
-  border-bottom-color: color-mix(in srgb, var(--accent) 25%, var(--line)); }
-/* (it unfolds at entry and folds at exit: main.js fold) */
-.dwrap { margin: 0 0 10px; }
-.dwrap.folding { overflow: hidden; }
-.rmode { font-size: 0.72rem; font-weight: 700; text-transform: uppercase;
-  letter-spacing: 0.06em; color: var(--accent); }
-.rbar .rcount { margin: 0; text-align: right; }
-/* a re-targeted walkthrough's cue: over the bar, taking no room */
-.rbar .rcue { position: absolute; right: 7em; top: 50%;
-  transform: translateY(-50%); padding: 1px 8px; border-radius: 999px;
-  background: var(--accent); color: #fff; font-size: 0.75rem;
-  font-weight: 600; pointer-events: none; transition: opacity 0.4s;
-  overflow: visible; }
-.rbar .rcue.gone { opacity: 0; }
-.rbar .rexit { display: flex; justify-content: flex-end; overflow: visible; }
-.rbar .rstart { width: 100%; padding: 1px 6px; overflow: hidden;
-  text-overflow: ellipsis; }
-@media (max-width: 759px) {
-  /* (the selection, the controls, the count, Exit; the caption is in
-     the sheet) */
-  .rbar { grid-template-columns: 0 minmax(0, 1fr) 9.6em 2.6em 4.4em;
-    gap: 4px; padding: 0 6px; height: 2.6em; }
-  .rbar .rmode { visibility: hidden; }
-  .rbar .rshort { display: none; }
-  .rbar .rsel .type, .rbar .rsel .muted { display: none; }
-  .rbar .rctl .btn { padding: 1px 6px; }
-  .rbar .rexit .btn { padding: 1px 4px; font-size: 0.8rem; }
-  .rbar .rstart { font-size: 0.8rem; }
-  /* (at rest: no count or Exit yet, so the selection takes their room;
-     the button's label short, "▸ Show how", so both show whole; its
-     place kept with nothing selected: nothing moves on a selection) */
-  .rbar:not(.replaying) {
-    grid-template-columns: 0 minmax(0, 1fr) 5.8em 0 0; }
-  .rbar .rstart .rlong { display: none; }
-  /* (tap-sized, inside the bar's height) */
-  .rbar .btn { min-height: 32px; }
-  .rbar .rctl .btn { min-width: 32px; }
-  .mode button { min-height: 32px; }
-}
 /* under the bar, joined to it, during a replay only, at one size:
    the step (its caption, formula, constructs, footnote; then the chips,
    one row) and the pointer. Each part has its own fixed room. */
@@ -1049,7 +984,7 @@ main[data-single] > .cols :is(.chglegend, .legend .bchg, .intro .two) {
 /* (the pointer on the left, the explanation on the right; stacked on a
    phone, the pointer first) */
 .dpanel .ptr { order: -1; }
-.dleft { display: grid; grid-template-rows: minmax(0, 1fr) 1.9em 3.4em;
+.dleft { display: grid; grid-template-rows: minmax(0, 1fr) 1.9em;
   min-height: 0; gap: 6px; }
 /* the focus entry: one fixed row; empty but there when there is none */
 .dpick { display: flex; align-items: center; gap: 4px; min-width: 0;
@@ -1167,17 +1102,8 @@ main[data-single] > .cols :is(.chglegend, .legend .bchg, .intro .two) {
 }
 /* on a phone: the same, compact (the step's caption and formula, a
    few lines of the pointer; the rest scrolls inside it) */
-@media (max-width: 759px) {
-  .dpanel { grid-template-columns: minmax(0, 1fr);
-    grid-template-rows: 5.4em auto; height: 19.1em; gap: 4px;
-    padding: 6px 10px; }
-  .dleft { grid-template-rows: auto 1.9em; }
-  .dpanel .chips, .dpanel .rsrc, .dpanel .fnotes, .ptr .plabel {
-    display: none; }
-  .ptr { grid-template-rows: minmax(0, 1fr); }
-}
-.rcap { margin: 0; font-size: 1rem; line-height: 1.35; height: 2.7em;
-  overflow: hidden; }
+
+
 .rform { margin: 0; font-family: ui-monospace, Menlo, monospace;
   font-size: 0.85rem; line-height: 1.4; height: 4.2em; overflow: hidden;
   overflow-wrap: anywhere; }
@@ -1225,14 +1151,9 @@ main[data-single] > .cols :is(.chglegend, .legend .bchg, .intro .two) {
 .rform .prose { font-family: system-ui, -apple-system, "Segoe UI",
   sans-serif; color: var(--muted); }
 .rwhere { font-family: inherit; height: auto; }
-.rsrc { margin: 4px 0 0; height: 1.6em; overflow: hidden;
-  white-space: nowrap; }
-@media (max-width: 759px) {
-  .rcap { height: 4.05em; font-size: 0.95rem; }
-  .rform { height: 6.8em; font-size: 0.8rem; }
-}
-.rcount { margin-left: 6px; color: var(--muted); font-size: 0.85rem;
-  font-variant-numeric: tabular-nums; }
+
+
+
 .rctl .btn[disabled] { opacity: 0.4; cursor: default; }
 .gloss { font-family: system-ui, sans-serif; font-size: 0.75em;
   color: var(--muted); }
@@ -1243,27 +1164,6 @@ main[data-single] > .cols :is(.chglegend, .legend .bchg, .intro .two) {
 .source.pksrc { background: var(--pksrc); color: var(--pksrc-fg);
   opacity: 1; padding: 0 6px; border-radius: 9px; }
 sup.fn { font-size: 0.7em; color: var(--accent); margin-left: 1px; }
-/* the chips: one row, which scrolls sideways inside itself */
-.chips { display: flex; flex-wrap: nowrap; align-items: flex-start;
-  gap: 3px; margin: 0; height: 3.4em; overflow-x: auto; overflow-y: hidden;
-  scrollbar-width: thin; }
-.chip { flex: none; }
-.chip { display: inline-flex; flex-direction: column; align-items: center;
-  gap: 1px; max-width: 16em; padding: 2px 8px; border-radius: 10px;
-  border: 1px solid var(--line); background: var(--panel); color: var(--fg);
-  font: inherit; font-size: 0.78rem; cursor: pointer; }
-.chip .ctext { font-family: ui-monospace, Menlo, monospace; max-width: 100%;
-  overflow-wrap: anywhere; }
-.chip .clabel { font-size: 0.68rem; color: var(--muted); }
-.chip.cur { background: var(--mark); color: var(--chg-fg);
-  border-color: var(--accent); }
-.chip.cur .clabel { color: inherit; }
-.chip.later { opacity: 0.45; }
-.carrow { color: var(--muted); align-self: center; font-size: 0.8rem; }
-.fnotes { margin: 4px 0 0; font-size: 0.75rem; height: 1.7em;
-  overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
-.fnote { margin-right: 10px; }
-.fnote sup { color: var(--accent); line-height: 0; }
 .fname { font-weight: 700; }
 /* a slot's byte positions, under it, during a replay step about its
    bytes */
@@ -1339,9 +1239,9 @@ html { overflow-anchor: none; }
      of a row (the selection's bar, 7px), without moving the rows */
   margin: 0 -8px 0 -10px; padding-left: 10px; padding-right: 8px; }
 /* names from the code, in monospace (types stay proportional) */
-.tree .name, .rcap code.id, .rshort code.id { font-family: ui-monospace,
+.tree .name, .rcap code.id, .rtitle code { font-family: ui-monospace,
   Menlo, monospace; font-weight: 600; }
-.rcap code.id, .rshort code.id { background: none; padding: 0; border: 0;
+.rcap code.id, .rtitle code { background: none; padding: 0; border: 0;
   font-size: 0.95em; }
 /* the tree's box, and the circle buttons on its edges (overlays: they
    push no rows): the selection yellow, an arrow, no text; they fade in
@@ -1461,3 +1361,108 @@ html { overflow-anchor: none; }
 @keyframes halo { 50% { box-shadow: 0 0 0 6px color-mix(in srgb,
   var(--pknt-edge) 35%, transparent); } }
 .tedge { background: var(--panel); color: var(--fg); }
+
+/* The bar over both columns (the walkthrough review's redesign): at
+   rest two lines at one height, selection or none: what is selected and
+   the way in, then "Esc clears the selection" (it replaces the page's
+   "viewing …" pill). In a walkthrough three lines: what the reader is
+   doing and the way out; ◀ ▶, the step's place and the steps as dots;
+   the step in its one wording, with its construct and where its facts
+   come from. Each line keeps its room, used or not: stepping moves
+   nothing. */
+.rbar { display: flex; flex-direction: column; justify-content: center;
+  gap: 3px; height: 4.4em; box-sizing: border-box; padding: 4px 12px;
+  margin: 0; line-height: 1.3; background: var(--panel);
+  border: 1px solid var(--line); border-left: 3px solid var(--accent);
+  border-radius: 6px; position: relative; z-index: 1; min-width: 0; }
+.rbar > span { display: flex; align-items: center; gap: 10px; min-width: 0;
+  white-space: nowrap; flex: none; }
+/* (each line at its own height, whatever it holds) */
+.rbar .rline1 { height: 1.9em; flex: none; }
+.rbar .rline2 { font-size: 0.8rem; color: var(--muted); height: 1.3em;
+  overflow: hidden; text-overflow: ellipsis; }
+.rbar:not(.replaying) .rline2 { display: block; }
+.rbar .rsel { flex: 1; min-width: 0; overflow: hidden;
+  text-overflow: ellipsis; }
+.rbar .rctl { display: flex; align-items: center; gap: 6px; flex: none; }
+.rbar .rctl .rstart { padding: 3px 14px; font-weight: 600; color: var(--panel);
+  background: var(--accent); border-color: var(--accent); }
+.rbar .rctl .rstart:hover:not(:disabled) { filter: brightness(1.1); }
+.rbar .rctl .rstart[disabled] { opacity: 0.5; cursor: default; }
+.rbar .rplay { font-size: 0.85em; margin-right: 2px; }
+/* a walkthrough: the whole bar tinted, its top edge in the accent; the
+   details joined under it, in the same tint */
+.rbar.replaying, .dpanel { background: color-mix(in srgb, var(--accent) 12%,
+  var(--panel)); }
+.rbar.replaying { height: 8.7em; justify-content: flex-start;
+  padding-top: 6px; box-shadow: inset 0 2px 0 var(--accent);
+  border-bottom-left-radius: 0; border-bottom-right-radius: 0;
+  border-bottom-color: color-mix(in srgb, var(--accent) 25%, var(--line)); }
+.rbar .rtitle { font-weight: 600; overflow: hidden; text-overflow: ellipsis;
+  min-width: 0; }
+.rbar .rscene { font-size: 0.85rem; overflow: hidden; text-overflow: ellipsis;
+  flex: 0 1 auto; min-width: 0; }
+.rbar .rexit { margin-left: auto; flex: none; }
+.rbar .rexit .btn { padding: 1px 10px; }
+.rbar.replaying .rline2 { font-size: inherit; color: inherit; height: 2em; }
+.rbar .rctl .btn { padding: 1px 10px; min-width: 2.2em; }
+/* ▶, the way on, the main control */
+.rbar .rctl .rnext { padding: 1px 18px; font-size: 1.05rem; font-weight: 700;
+  border-color: var(--accent); }
+.rbar .rctl .btn[disabled] { opacity: 0.4; cursor: default; }
+.rbar .rcount { color: var(--muted); font-size: 0.9rem; min-width: 4.4em;
+  font-variant-numeric: tabular-nums; }
+/* the steps as dots: done filled, the current one ringed, later ones
+   empty; each a jump (its caption on hover) */
+.rbar .rdots { display: flex; align-items: center; gap: 2px; flex-wrap: wrap;
+  min-width: 0; overflow: hidden; height: 1.6em; }
+.rbar .dot { width: 14px; height: 14px; padding: 0; border: 0;
+  background: none; cursor: pointer; display: grid; place-items: center; }
+.rbar .dot::before { content: ""; width: 8px; height: 8px; border-radius: 50%;
+  box-sizing: border-box; border: 1.5px solid var(--muted); }
+.rbar .dot.done::before { background: var(--muted); }
+.rbar .dot.cur::before { width: 11px; height: 11px; background: var(--accent);
+  border-color: var(--accent); }
+.rbar .dot:focus-visible { outline: 2px solid var(--accent);
+  outline-offset: 1px; border-radius: 50%; }
+.rbar .rline3 { flex-direction: column; align-items: stretch; gap: 2px;
+  white-space: normal; }
+.rbar .rcap { margin: 0; font-size: 1rem; line-height: 1.35; height: 2.7em;
+  overflow: hidden; }
+.rbar .rsrc { font-size: 0.78rem; color: var(--muted); height: 1.4em;
+  overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.rbar .rsrc .source { font-size: inherit; color: inherit; opacity: 1; }
+.rbar .rkind b { color: var(--fg); font-weight: 600; }
+.rbar .fnotes a { color: var(--accent); }
+/* a re-targeted walkthrough's cue: over the bar, taking no room */
+.rbar .rcue { position: absolute; right: 12px; top: 2.6em; padding: 1px 8px;
+  border-radius: 999px; background: var(--accent); color: var(--panel);
+  font-size: 0.75rem; font-weight: 600; pointer-events: none; }
+/* the details under the bar: the pointer on the left, the step's values
+   and the focus on the right */
+.dpanel { height: 14.4em; }
+.dtext .rform { height: auto; overflow: visible; }
+@media (max-width: 759px) {
+  /* (a phone: the title and ✕, then ◀ ▶ and the place, then the step;
+     nothing cut but the title) */
+  .rbar { padding: 4px 6px; height: 4.6em; }
+  .rbar > span { gap: 6px; }
+  .rbar.replaying { height: 9.6em; }
+  .rbar .rscene { display: none; }
+  .rbar .rsel .type, .rbar .rsel .muted, .rbar .rparts { display: none; }
+  .rbar .rctl .rstart { font-size: 0.85rem; }
+  .rbar .rcap { font-size: 0.95rem; height: 4.05em; }
+  .rbar .rsrc { display: none; }
+  .rbar .btn { min-height: 32px; }
+  .rbar .rctl .btn { min-width: 36px; }
+  .rbar .rctl .rstart { padding: 3px 7px; }
+  .rbar .rdots { display: none; }
+  .mode button { min-height: 32px; }
+  .dpanel { grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: minmax(0, 1fr) auto; height: 16em; gap: 4px;
+    padding: 6px 10px; overflow: hidden; }
+  .dleft { grid-template-rows: auto 1.9em; }
+  .ptr .plabel { display: none; }
+  .ptr { grid-template-rows: minmax(0, 1fr); }
+  .rform { font-size: 0.8rem; }
+}

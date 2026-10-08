@@ -167,15 +167,8 @@ try {
                 : [n.part] };
         }, () => {});
     }
-    // the locked state: what the view is on, and the way out (it keeps
-    // its room)
-    const sel = s.links.storage?.selection;
-    $("viewing").style.visibility = sel ? "visible" : "hidden";
-    $("viewing").textContent = sel ? `viewing ${sel.replace(
-      /\[(0x[0-9a-fA-F]{16,})\]/g, (_, h: string) => {
-        const x = "0x" + (h.replace(/^0x0*/, "") || "0");
-        return `[${x.slice(0, 6)}…${x.slice(-4)}]`;
-      })} · Esc to clear` : "\u00a0";
+    // (the locked state, what the view is on and the way out, is the
+    // bar's: WalkthroughPanel)
   };
 
   // (a scene's values are recorded the first time it shows: picked, or

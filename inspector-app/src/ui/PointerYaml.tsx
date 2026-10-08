@@ -220,9 +220,8 @@ export function PointerYaml({ domId, data, variable, band, before, goal,
     {/* (at step 0, over the blurred pointer: the way on, with an arrow
       glyph toward ▶: vanilla goGlyph) */}
     <p ref={pgo} id={domId ? "pgo" : undefined} className="pgo"
-      hidden={!goal}><span className="ptext">Step through the pointer's
-      dereference to see how this compiler output finds these
-      bytes</span><span className="pglyph" aria-hidden="true">{glyph}
+      hidden={!goal}><span className="ptext">Press ▶ to see how this data
+      from the compiler finds these bytes</span><span className="pglyph" aria-hidden="true">{glyph}
       </span></p></div>;
 }
 

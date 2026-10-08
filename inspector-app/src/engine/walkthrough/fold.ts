@@ -54,6 +54,8 @@ export interface Walkthrough {
   // (the slots the walkthrough touches: its labels' runs; and who each
   // key is, for the labels: "0x7099…79c8" → "alice")
   span: Hex[]; names: Map<string, string>;
+  // (the selection, its keys by name: players[carol].name)
+  name: string;
 }
 export interface WalkInput {
   d: Decoded; c: Compilation; snap?: Snapshot; keys: KeySource;
@@ -862,12 +864,12 @@ export function walkthrough(x: WalkInput, path: Path, focus?: string):
           ? `, where it is ${theirs}` : ""}; ${RULE(foreign.language)} ${
           read !== undefined ? `read ${read} ` : "read "}from ${solS.length
           === 1 ? `slot ${tail(solS[0])}` : "slots"} where ${L} keeps ${
-          blank ? "nothing" : "other data"}. (${L}'s rule here is ` +
-          `hand-written for comparison: ${L} emits no ethdebug.)`,
+          blank ? "nothing" : "other data"}.`,
         form: table(words.map((w) => [[tail(w.slot)], [w.r.role === "length"
           ? `${w.name} (length)` : `${w.name} = ${w.text}`], 9])),
-        constructs: [], source: `from: ${L}'s layout, hand-written (not ` +
-          "ethdebug)", chip: L, chipLabel: "hand-written",
+        constructs: [], source: `from: ${L}'s layout, hand-written for ` +
+          `comparison (${L} emits no ethdebug)`, chip: L,
+        chipLabel: "hand-written",
         parts: [{ regions: words.map((w) => w.r), rows: [], k: 9 },
           { regions: ownR, rows: [path], colours: M }],
         rows: [path], gutters: [], band: [] });
@@ -879,7 +881,7 @@ export function walkthrough(x: WalkInput, path: Path, focus?: string):
     if (k && nameOf(i)) names.set(short(k), who(i));
   }
   return { target: path, steps: out, recs, focus: every ? "*" : f,
-    variable, span: allS, names };
+    variable, span: allS, names, name: sk };
 }
 
 // The slots steps touch: their regions' (whole), their parts' slots,
