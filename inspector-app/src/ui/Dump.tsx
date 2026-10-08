@@ -193,15 +193,20 @@ export function Dump(p: { id: ViewId; location: Location; data: DataRef;
     if (a) return { row: (a.parentElement as HTMLElement).dataset.slot as Hex };
     return null;
   };
-  // the pointer in a row but on none of its bytes (a gap between its
-  // groups of eight, its ends, above or below its bytes): its address,
-  // as if pointed at; in a gap between two bytes of one value, that
-  // value's bytes
-  const inRow = (el: EventTarget, x: number, y: number): Target | null => {
-    const r = (el as Element).closest?.(".wrow[data-slot]") as
-      HTMLElement | null;
-    if (!r || !me.current?.contains(r)) return null;
-    const row = r.dataset.slot as Hex;
+  // What a point stands for (the one resolver for the hover, a click and
+  // the cursor): a byte, itself; in a gap between two bytes of one value
+  // (or of one run no value owns), the byte before it, so the gap is
+  // the value's; elsewhere in a row but on none of its bytes (a gap
+  // between values, its ends): the row, its slot hover; else nothing
+  const spot = (el: EventTarget, x?: number, y?: number):
+    Element | "row" | null => {
+    const e = el as Element;
+    if (e.closest?.(".b[data-g]") || e.closest?.(".wrow[data-slot] > .addr")) {
+      return e;
+    }
+    const r = e.closest?.(".wrow[data-slot]") as HTMLElement | null;
+    if (!r || !me.current?.contains(r) || x === undefined ||
+      y === undefined) return null;
     // (the bytes on the pointer's line: a phone's word has two)
     const line = [...r.querySelectorAll<HTMLElement>(".b[data-g]")]
       .map((c) => [c, c.getBoundingClientRect()] as const)
@@ -209,23 +214,37 @@ export function Dump(p: { id: ViewId; location: Location; data: DataRef;
     const left = line.filter(([, b]) => b.right <= x).at(-1)?.[0];
     const right = line.find(([, b]) => b.left >= x)?.[0];
     const own = (c?: HTMLElement) => c?.dataset.owners?.split("|")[0];
-    // (or bytes no value owns, one run of them: the run's)
     if (left && right && own(left) === own(right) && (own(left) ||
-      left.dataset.g === right.dataset.g)) {
-      const [from, to] = left.dataset.g!.split("-").map(Number);
-      return { bytes: { row, from, to, location: p.location } };
-    }
-    return { row };
+      left.dataset.g === right.dataset.g)) return left;
+    return "row";
   };
-  const target = (el: EventTarget, sel: string | null, at?: PointerEvent) => {
-    const h = hit(el) ?? (at ? inRow(el, at.clientX, at.clientY) : null);
+  const xy = (e: { target: EventTarget }) => "clientX" in e
+    ? [(e as PointerEvent).clientX, (e as PointerEvent).clientY] as const
+    : [undefined, undefined] as const;
+  const target = (e: { target: EventTarget }, sel: string | null) => {
+    const at = spot(e.target, ...xy(e));
+    const r = (e.target as Element).closest?.(".wrow[data-slot]") as
+      HTMLElement | null;
+    const h = at === "row" ? { row: r!.dataset.slot as Hex }
+      : at ? hit(at) : null;
     return h && d && l ? resolveTarget(h, sel, d.byPath, l) : null;
   };
+  // (the cursor in a gap: its value's bytes' cursor, by the same rules)
+  const cursorAt = (e: PointerEvent) => {
+    const r = (e.target as Element).closest?.(".wrow[data-slot]") as
+      HTMLElement | null;
+    if (!r) return;
+    const at = spot(e.target, e.clientX, e.clientY);
+    const c = at && at !== "row" && at !== e.target &&
+      !(e.target as Element).closest(".b, .addr")
+      ? getComputedStyle(at).cursor : "";
+    if (r.style.cursor !== c) r.style.cursor = c;
+  };
   const point = (e: PointerEvent | { target: EventTarget }) => {
+    if ("clientX" in e) cursorAt(e);
     if (lens.store.get().hush) return;
     setLink((s) => {
-      const t = target(e.target, s.selection,
-        "clientX" in e ? e : undefined);
+      const t = target(e, s.selection);
       return JSON.stringify(s.hover) === JSON.stringify(t) ? s
         : { ...s, hover: t };
     });
@@ -390,7 +409,12 @@ export function Dump(p: { id: ViewId; location: Location; data: DataRef;
     onPointerOver={point} onPointerMove={point} onFocus={point}
     onClick={(e: MouseEvent) => {
       // (the lens's click-to-clear leaves a click that acted alone)
-      if (act(e.target)) (e.nativeEvent as { acted?: boolean }).acted = true;
+      // (a gap inside a value: the value's byte; between values, or
+      // outside the bytes: no act, the click as on empty space)
+      const at = spot(e.target, e.clientX, e.clientY);
+      if (at && at !== "row" && act(at)) {
+        (e.nativeEvent as { acted?: boolean }).acted = true;
+      }
     }} onKeyDown={onKey}>
     <div className="view-head"><span className="view-name">{title}</span>
       <div className="wrow head"><span className="addr" /><Ruler /></div>

@@ -117,3 +117,21 @@ test("between two rows there is no point with no hover", async ({ page }) => {
       document.querySelectorAll("#panel .pop").length)).toBeGreaterThan(0);
   }
 });
+
+test("a gap inside one value is clickable as its bytes, with their cursor",
+  async ({ page }) => {
+    await ready(page, "mid");
+    const row = `${V} .wrow[data-slot="0x${"1".padStart(64, "0")}"]`;
+    const owners = await page.locator(`${row} .b[data-i="7"]`)
+      .getAttribute("data-owners");
+    expect(owners).toBe("motd#length");
+    const b7 = await box(page, `${row} .b[data-i="7"]`);
+    const b8 = await box(page, `${row} .b[data-i="8"]`);
+    const [x, y] = [(b7.x + b7.width + b8.x) / 2, b7.y + b7.height / 2];
+    await page.mouse.move(x, y, { steps: 2 });
+    expect(await page.locator(row).evaluate((r) =>
+      getComputedStyle(r).cursor)).toBe("pointer");
+    await page.mouse.click(x, y);
+    expect(await page.evaluate(() => document.querySelector(
+      "#tree .row.sel")?.parentElement?.dataset.path)).toBe("motd");
+  });
