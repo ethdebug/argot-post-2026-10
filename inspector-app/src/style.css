@@ -1,5 +1,9 @@
 /* Storage inspector. Tokens and shared components (header, code,
    picker, tags, notes) are in ../appendix.css. */
+/* (the page keeps one line a scene: its intro; this one is for the
+   checks and the loader) */
+#summary { display: none; }
+.about { margin: 32px 0 0; }
 .summary {
   font-family: ui-monospace, Menlo, monospace;
   font-size: 0.85rem;
@@ -1129,7 +1133,7 @@ main[data-single] > .cols :is(.chglegend, .legend .bchg, .intro .two) {
    few lines of the pointer; the rest scrolls inside it) */
 @media (max-width: 759px) {
   .dpanel { grid-template-columns: minmax(0, 1fr);
-    grid-template-rows: 5.4em auto; height: 17.9em; gap: 4px;
+    grid-template-rows: 5.4em auto; height: 19.1em; gap: 4px;
     padding: 6px 10px; }
   .dleft { grid-template-rows: auto 1.9em; }
   .dpanel .chips, .dpanel .rsrc, .dpanel .fnotes, .ptr .plabel {
@@ -1147,9 +1151,33 @@ main[data-single] > .cols :is(.chglegend, .legend .bchg, .intro .two) {
 /* a step's bytes in one slot, drawn as a dump row: 32 cells (3fr each)
    in four groups of eight, a group's gap a third of a cell, as the
    dump's (2.4ch cells, 0.8ch gaps); its byte positions under it */
-.bstrip { display: grid; gap: 2px; font-family: var(--mono); }
+.bstrip { display: block; font-family: var(--mono); }
+.bs32, .bs16 { display: grid; gap: 2px; }
+.bs16 { display: none; }
 .bsrow { display: grid; grid-template-columns: repeat(8, 3fr) 1fr
   repeat(8, 3fr) 1fr repeat(8, 3fr) 1fr repeat(8, 3fr); }
+.bs16 .bsrow { grid-template-columns: repeat(8, 3fr) 1fr repeat(8, 3fr); }
+@media (max-width: 759px) {
+  .bs32 { display: none; }
+  .bs16 { display: grid; gap: 1px; }
+  /* (a row kept for names over their spans only where there is one) */
+  .bs16 .bscall:empty { display: none; }
+  .bs16 .bsv { height: 1.3em; line-height: 1.3em; }
+  .bs16 .bsbar { min-height: 1.3em; }
+}
+/* (a name standing over its span: a row kept for it, a tick down) */
+.bscall { height: 1.25em; }
+.bsbar { min-height: 1.5em; }
+.bsc { position: relative; min-width: 0; }
+.bsc::after { content: ""; position: absolute; left: 50%; bottom: -2px;
+  height: 4px; border-left: 1px solid var(--muted); }
+.bsl { position: absolute; bottom: 3px; left: 50%; transform:
+  translateX(-50%); white-space: nowrap; padding: 0 4px; border-radius: 3px;
+  font-size: 0.72em; line-height: 1.4; font-weight: 600;
+  background: var(--pk); color: var(--pk-fg); }
+.bsl.pk0 { --pk: var(--mark); --pk-fg: var(--chg-fg); }
+.bsc.lft .bsl { left: 0; transform: none; }
+.bsc.rgt .bsl { left: auto; right: 0; transform: none; }
 .bsv { height: 1.5em; line-height: 1.5em; border-radius: 3px; min-width: 0;
   overflow: hidden; text-align: center; background: var(--pk);
   color: var(--pk-fg); box-shadow: inset 0 0 0 1px color-mix(in srgb,
@@ -1166,7 +1194,7 @@ main[data-single] > .cols :is(.chglegend, .legend .bchg, .intro .two) {
   white-space: nowrap; }
 @media (max-width: 759px) {
   .rcap { height: 4.05em; font-size: 0.95rem; }
-  .rform { height: 5.6em; font-size: 0.8rem; }
+  .rform { height: 6.8em; font-size: 0.8rem; }
 }
 .rcount { margin-left: 6px; color: var(--muted); font-size: 0.85rem;
   font-variant-numeric: tabular-nums; }

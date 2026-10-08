@@ -441,7 +441,7 @@ test("the packed fields: a strip shaped like a dump row, the fields in "
       .evaluate((e: HTMLElement) => e.click());
     await expect(page.locator("#dtext .bstrip")).toBeAttached();
     const x = await page.evaluate(() => {
-      const s = document.querySelector("#dtext .bstrip")!;
+      const s = document.querySelector("#dtext .bstrip .bs32")!;
       const idx = [...s.querySelectorAll(".bsidx span")].map((e) =>
         e.getBoundingClientRect());
       const cell = idx[1].left - idx[0].left;
@@ -470,6 +470,27 @@ test("the packed fields: a strip shaped like a dump row, the fields in "
       "score 24-31"], rows: true, oneLine: true });
     await page.keyboard.press("Escape");
   }
+  // (a name too long for its span stands over it, whole, with a tick;
+  // never cut to a letter: carol's one-byte length flag; vanilla 5ec2f00)
+  await select(page, C);
+  await page.locator('#details button[data-r="start"]').click();
+  await page.locator('#chips .chip[data-k="8"]')
+    .evaluate((e: HTMLElement) => e.click());
+  await expect(page.locator("#dtext .bstrip .bs32 .bsl")).toBeAttached();
+  const call = await page.evaluate(() => {
+    const s = document.querySelector("#dtext .bstrip .bs32")!;
+    const l = s.querySelector(".bsl");
+    const v = s.querySelector(".bsv");
+    const lr = l?.getBoundingClientRect();
+    const vr = v?.getBoundingClientRect();
+    return { text: l?.textContent, inside: !v?.textContent,
+      over: !!lr && !!vr && lr.bottom <= vr.top && lr.right >= vr.left &&
+        lr.left <= vr.right,
+      cut: [...s.querySelectorAll<HTMLElement>(".bsn")].some((n) =>
+        n.scrollWidth > n.clientWidth + 1) };
+  });
+  expect(call).toEqual({ text: "length-flag = 0x45", inside: true,
+    over: true, cut: false });
 });
 
 test("stepping moves nothing; the details unfold only at entry and exit",
