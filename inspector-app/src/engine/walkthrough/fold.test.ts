@@ -293,3 +293,10 @@ it("a step's variables, as the focus has them, for its band's lines "
   expect(map.notes?.values).toEqual({ slot: "3", key: "carol" });
   expect(rec.notes?.values).toEqual({ key: "carol", slot: "3" });
 });
+
+it("one side of a pair: step 0 names the side it walks (the review's T7)",
+  async () => {
+    const x = await at("motd", "after");
+    const g = walkthrough({ ...x, when: "after setMotd" }, "motd")!.steps[0];
+    expect(g.cap).toBe("After setMotd, this slot holds `motd`.");
+  });
