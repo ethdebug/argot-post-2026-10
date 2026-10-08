@@ -473,3 +473,37 @@ test("stepping moves nothing; the details unfold only at entry and exit",
       expect(await boxes(), `step ${k + 1}`).toBe(b0);
     }
   });
+
+test("every lit run has its popover at every step (not step 0, which has "
+  + "no labels)", async ({ page }) => {
+  await ready(page);
+  const bare: string[] = [];
+  for (const x of ["players", C]) {
+    await select(page, x);
+    await page.locator('#details button[data-r="start"]').click();
+    for (let k = 0; k < 20; k++) {
+      await page.mouse.move(1, 1);
+      const goal = (await stepNow(page)).count?.startsWith("0 /");
+      const miss = await page.evaluate(() => {
+        const out: HTMLElement[][] = [];
+        let run: HTMLElement[] | null = null;
+        for (const el of [...document.querySelector(
+          "#panel .view:not([hidden]) .rows")!.children] as HTMLElement[]) {
+          if (el.classList.contains("wrow") && el.classList.contains("on")) {
+            if (!run) out.push(run = []);
+            run.push(el);
+          } else if (!el.classList.contains("cmp")) run = null;
+        }
+        return out.filter((r) => !r.some((e) => e.querySelector(".pop")))
+          .map((r) => r[0].dataset.slot!.slice(-4));
+      });
+      if (!goal && miss.length) bare.push(`${x.slice(0, 12)} ${k}: ${miss}`);
+      const n = page.locator(
+        '#details button[data-r="next"]:not([disabled])');
+      if (!(await n.count())) break;
+      await n.click();
+    }
+    await page.keyboard.press("Escape");
+  }
+  expect(bare).toEqual([]);
+});
