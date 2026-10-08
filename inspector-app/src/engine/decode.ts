@@ -10,6 +10,7 @@ import type { Project } from "./project";
 import { machineState } from "./snapshot";
 import { decodeValue, isValueType, summary, typeName } from "./values";
 import { keysFor } from "./keys";
+import { abiTree } from "./calldata";
 import { walk as walkGraph } from "./deref/walk";
 import { regionsOf, sameAsLibrary } from "./deref/check";
 import { short, slotHex, toBig, toHex } from "./hex";
@@ -63,9 +64,11 @@ async function decodeAt(p: Project, d: Decoding, point: PointId):
   const at = timeline.points.find((x) => x.id === point);
   if (!at) throw new Error(`no point ${point} in ${d.timeline}`);
   const state = machineState(at.snapshot);
-  if (d.variables === "locals") {
+  if (d.variables === "locals" || d.variables === "abi") {
     const graphs = new Map<string, DerefGraph>();
-    const tree = await localsAt(c, at, state, graphs);
+    const tree = d.variables === "abi"
+      ? abiTree(at.snapshot.calldata ?? new Uint8Array(), d.abi!.param)
+      : await localsAt(c, at, state, graphs);
     const byPath = new Map<string, ValueNode>();
     const index = (n: ValueNode) => {
       byPath.set(n.path, n);

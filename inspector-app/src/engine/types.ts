@@ -102,8 +102,11 @@ export interface Decoding {             // "this rule over that storage"
   id: DecodingId;
   compilation: CompilationId;           // whose variables + templates
   timeline: TimelineId;                 // whose snapshots
-  variables: "state" | "locals";
+  variables: "state" | "locals" | "abi";
   keys: KeySource;                      // where mapping keys come from
+  // ("abi": a call's calldata by the ABI encoding, for this function and
+  // its one string parameter)
+  abi?: { signature: string; param: string };
 }
 export type KeySource = { from: "list"; path: Path }   // roster (provenance)
   | { from: "trace" };

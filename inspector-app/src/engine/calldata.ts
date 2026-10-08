@@ -5,7 +5,8 @@
 // this file computes them itself (vanilla calldata.js calldataParts).
 // When the compiler gives a pointer for the parameter, a layout made
 // from the library's regions takes this one's place.
-import type { Hex } from "./types";
+import type { Hex, ValueNode } from "./types";
+import { toHex } from "./hex";
 
 export interface CalldataPart {
   id: "selector" | "m-offset" | "m-length" | "m-data";
@@ -43,4 +44,24 @@ export function abiParts(input: Hex, param = "m"): Calldata {
   ];
   return { bytes, parts, param, offset, lenAt, length, dataAt, text,
     partAt: (i) => parts.find((p) => i >= p.from && i <= p.to) };
+}
+
+// The calldata as values (the dump's and the tree's): the selector, and
+// the parameter with its parts, each owning its bytes (location
+// calldata). Paths are vanilla's part ids.
+export function abiTree(calldata: Uint8Array, param: string): ValueNode[] {
+  const cd = abiParts(toHex(calldata), param);
+  const [sel, off, len, data] = cd.parts;
+  const node = (p: typeof sel, label: string, typeText: string,
+    root: string): ValueNode => ({ path: p.id, label, root, type: "",
+    typeText, value: { text: p.value, hex: "0x" }, regions: [{
+      location: "calldata", offset: p.from, length: p.to - p.from + 1,
+      role: "value", instance: "" }] });
+  return [node(sel, "selector", "bytes4", "selector"),
+    { path: "m", label: param, root: "m", type: "",
+      typeText: "string calldata", regions: [],
+      value: { text: data.value, hex: "0x" },
+      children: [node(off, "offset", "uint256", "m"),
+        node(len, "length", "uint256", "m"),
+        node(data, "bytes", "bytes", "m")] }];
 }

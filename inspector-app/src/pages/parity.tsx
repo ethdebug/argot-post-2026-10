@@ -112,7 +112,9 @@ try {
     ?.textContent ?? undefined, text: $("contract-src").textContent! };
   const mount = { pick: place($("picker")), mode: place($("mode")),
     dump: place($("panel")), tree: place($("tree")),
-    bar: place($("details")), cd: place($("calldata")),
+    bar: place($("details")), cdump: place($("cpanel")),
+    ctree: place($("ctree")), cdetails: place($("cdetails")),
+    chow: place($("chow")),
     contract: place($("contract-box")) };
   // (the walkthrough panel draws the details under its bar)
   $("dwrap").remove();
@@ -121,6 +123,8 @@ try {
   $("edge-down").remove();
 
   // the scene's intro and summary, and no Before | After at one point
+  // (the calldata section: its own link group's part of the page)
+  $("calldata").setAttribute("data-link-scope", "calldata");
   const scene = (lens: LensContextValue) => {
     const s = lens.store.get();
     const bm = project.bookmarks.find((b) => b.id === s.bookmark);
@@ -132,6 +136,22 @@ try {
     document.querySelector("main")!.toggleAttribute("data-single",
       bm.points.length === 1);
     $("summary").textContent = bm.summary ?? "";
+    // (the call's calldata, for a scene that names its function; what it
+    // lights, for bin/run.mjs: the parts lit, and the one chosen)
+    $("calldata").hidden = !bm.calldata;
+    const cl = s.links.calldata;
+    const abi = project.decodings[`abi:${bm.id}`];
+    if (abi) {
+      void decode(project, abi, bm.points[bm.points.length - 1])
+        .then((d) => {
+          const k = cl?.hover?.path ?? cl?.selection ?? null;
+          const n = k ? d.byPath.get(k) : undefined;
+          (window as unknown as { calldataResults: unknown })
+            .calldataResults = { chosen: cl?.selection ?? null,
+              lit: !n ? [] : n.children ? n.children.map((x) => x.path)
+                : [n.path] };
+        }, () => {});
+    }
     // the locked state: what the view is on, and the way out (it keeps
     // its room)
     const sel = s.links.storage?.selection;
@@ -236,7 +256,7 @@ try {
   // (each section's part of the page: its Escape and its clicks; vanilla
   // main.js and mem.js keySection)
   const memoryPart = (el: Element) => !!el.closest?.("#memory");
-  const storagePart = (el: Element) => !el.closest?.("#memory, #calldata");
+  const storagePart = (el: Element) => !el.closest?.("#memory");
   const host = document.createElement("div");
   document.body.append(host);
   createRoot(host).render(<>
