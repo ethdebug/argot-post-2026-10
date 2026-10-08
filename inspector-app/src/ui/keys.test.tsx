@@ -35,7 +35,9 @@ it("Escape exits a walkthrough first, then clears", async () => {
   const row = mount(0).querySelector<HTMLElement>("#tree .row")!;
   row.focus();
   act(() => void fireEvent.keyDown(row, { key: "Escape" }));
-  expect([link(0).walk, link(0).selection]).toEqual([null, A]);
+  // (the walkthrough's panel folds its details, then ends it)
+  await waitFor(() => expect([link(0).walk, link(0).selection])
+    .toEqual([null, A]), slow);
   act(() => void fireEvent.keyDown(row, { key: "Escape" }));
   expect(link(0).selection).toBe(null);
   // (the other lens: untouched)
