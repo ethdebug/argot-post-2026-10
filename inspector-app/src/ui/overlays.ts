@@ -502,8 +502,12 @@ function annotate(root: El, v: El, compare: boolean, names: OverlayNames,
         const a = prow.querySelector<El>(".a")!;
         place(pop, a);
         // (its names, cut to its room; then placed again, at its width)
-        if (pop.querySelector<El>(".pop-how")!.scrollWidth + 16 >
-          parseFloat(pop.style.maxWidth)) fitWhat(pop);
+        const over = () => pop.querySelector<El>(".pop-how")!.scrollWidth +
+          16 > parseFloat(pop.style.maxWidth);
+        if (over()) fitWhat(pop);
+        // (still too wide, all its names cut: a narrow page. It wraps,
+        // over the rows, rather than run out of its box)
+        if (over()) pop.classList.add("wrap");
         place(pop, a);
         const r = pop.getBoundingClientRect();
         // (one rule for every label, muted or not; and never outside the
