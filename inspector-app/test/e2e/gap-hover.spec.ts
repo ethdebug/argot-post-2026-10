@@ -64,13 +64,28 @@ test("a gap between two values, and the row's ends: the address's hover",
     expect(await state(page)).toContain("pbadge");
     const b0 = await box(page, `${row} .b[data-i="0"]`);
     const ad = await box(page, `${row} > .addr`);
-    // (the gap, the row's end, between the address and the bytes. The
-    // bytes fill the row's height: no space above or below them)
-    expect([b7.y, b7.height]).toEqual([r.y, r.height]);
+    // (the gap, the row's end, between the address and the bytes, and
+    // the 1px above and below its bytes: rows are 2px apart)
+    expect(b7.y - r.y).toBeGreaterThanOrEqual(0.9);
+    expect(r.y + r.height - (b7.y + b7.height)).toBeGreaterThanOrEqual(0.9);
     const b31 = await box(page, `${row} .b[data-i="31"]`);
     const end = b31.x + b31.width;
     for (const [x, yy] of [[(b7.x + b7.width + b8.x) / 2, y],
       [(ad.x + ad.width + b0.x) / 2, y],
+      // (the whole pixels over this row but not its bytes: where a
+      // pointer can be)
+      ...(await page.evaluate(([x, top, bottom, slot]) => {
+        const ys: number[] = [];
+        for (let t = Math.floor(top); t <= Math.ceil(bottom); t++) {
+          const e = document.elementFromPoint(x, t);
+          if (e && !e.closest(".b") &&
+            e.closest<HTMLElement>(".wrow")?.dataset.slot === slot) {
+            ys.push(t);
+          }
+        }
+        return ys;
+      }, [b7.x + b7.width / 2, r.y, r.y + r.height, slot] as const))
+        .map((t) => [b7.x + b7.width / 2, t]),
       // (past the last byte, where the row goes on: not in every browser)
       ...r.x + r.width - end > 1 ? [[(end + r.x + r.width) / 2, y]] : []]) {
       await page.mouse.move(x, yy, { steps: 2 });
@@ -135,3 +150,37 @@ test("a gap inside one value is clickable as its bytes, with their cursor",
     expect(await page.evaluate(() => document.querySelector(
       "#tree .row.sel")?.parentElement?.dataset.path)).toBe("motd");
   });
+
+test("16 bytes a line: 2px between a word's lines where two values meet; " +
+  "joined where one goes on", async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await ready(page, "mid");
+  const geo = (slot: string, i: number) => page.evaluate(([v, s, i]) => {
+    const r = document.querySelector(`${v} .wrow[data-slot$="${s}"]`)!;
+    const a = r.querySelector(`.b[data-i="${i}"]`)!;
+    const b = r.querySelector(`.b[data-i="${+i + 16}"]`)!;
+    const ar = a.getBoundingClientRect(), br = b.getBoundingClientRect();
+    const after = getComputedStyle(a, "::after");
+    return { gap: br.top - ar.bottom, joined: a.classList.contains("jd"),
+      fill: after.content !== "none" && after.content !== "normal" };
+  }, [V, slot, String(i)] as const);
+  // (slot 0: roster's length, one value over both lines)
+  const len = await geo("0000", 0);
+  expect(len.gap).toBeCloseTo(2, 0);
+  expect([len.joined, len.fill]).toEqual([true, true]);
+  // (alice's record: lastBlock over plays, two values)
+  const rec = await page.evaluate((v) => [...document.querySelectorAll(
+    `${v} .wrow[data-slot]`)].find((r) => r.querySelector(
+    '.b[data-i="0"]')?.getAttribute("data-owners")?.endsWith(
+    "lastBlock"))!.getAttribute("data-slot")!.slice(-4), V);
+  const two = await geo(rec, 0);
+  expect([two.joined, two.fill]).toEqual([false, false]);
+  // (the gap under a joined byte is the value's: its popover badged)
+  const c = (await page.locator(`${V} .wrow[data-slot$="0000"] .b[data-i="3"]`)
+    .boundingBox())!;
+  await page.mouse.move(c.x + c.width / 2, c.y + c.height + 1);
+  await page.evaluate(() => new Promise((r) =>
+    requestAnimationFrame(() => requestAnimationFrame(r))));
+  expect(await page.locator("#panel .pop .pbadge").allInnerTexts())
+    .toEqual(["length"]);
+});
