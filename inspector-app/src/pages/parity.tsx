@@ -251,7 +251,13 @@ try {
     window.select = async (id, view) => {
       const ok = await lens.show(id, view);
       if (ok) await recorded(id);
-      // (once the views have drawn it: as vanilla's, which draws at once)
+      // (once the dump has drawn it: as vanilla's, which draws at once)
+      const s = lens.store.get();
+      const want = s.points[s.side === "before" ? "a" : "b"];
+      for (let k = 0; ok && k < 200 && !document.querySelector(
+        `#panel .view:not([hidden])[data-point="${want}"]`); k++) {
+        await new Promise((r) => requestAnimationFrame(() => r(null)));
+      }
       await new Promise((r) => requestAnimationFrame(() => r(null)));
       return ok;
     };
