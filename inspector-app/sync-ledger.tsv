@@ -30,3 +30,4 @@ ab53776	Inspector: the page decluttered to put the inspector on the first screen
 6b1df3a	Inspector: a last walkthrough step, found: the selection's resting view, behind one constant (FOUND)	f522c80 (S9; 86cffd0's three already so)
 970d902	Inspector: memory's panels draw the selection's caps, as storage's	e1c3e21 (S10; the port already so)
 9975a1f	Inspector: calldata's text lights its parts in child colours, as any composite in the shared panel	e1c3e21 (S10; the port already so)
+fb6887f	Inspector: pointing at a calldata part lights only its row, as any value in the shared panel	8c1d37d (S11; the port already so)
