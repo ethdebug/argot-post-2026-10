@@ -1,4 +1,5 @@
 // Mirrors bin/run.mjs's hash checks (storage keys; vanilla d235617)
+import { pick } from "../pick";
 import { test, expect, type Page } from "@playwright/test";
 import { A } from "../expect";
 
@@ -31,11 +32,11 @@ test("the hash restores the view, and keeps the memory keys",
     for (const k of ["ex=motd", "sel=roster", "mopt=2", "mpt=mult",
       "mmode=before", "msel=m"]) expect(hs.hash).toContain(k);
     await page.locator('#mode button[data-mode="after"]').click();
-    await page.locator('#tree li[data-path="total"] > .row').click();
+    await pick(page.locator('#tree li[data-path="total"] > .row'));
     await expect.poll(() => page.evaluate(() => location.hash))
       .toMatch(/mode=after.*sel=total|sel=total.*mode=after/);
     // a cleared default selection stays cleared ("sel=")
-    await page.locator('#tree li[data-path="total"] > .row').click();
+    await pick(page.locator('#tree li[data-path="total"] > .row'));
     await expect.poll(() => page.evaluate(() => location.hash))
       .toMatch(/(^#|&)sel=(&|$)/);
     await page.reload();

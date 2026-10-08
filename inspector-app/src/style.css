@@ -1384,3 +1384,8 @@ html { overflow-anchor: none; }
 
 /* (a location panel with one view: its header names it; no view name) */
 .view-name:empty { display: none; }
+/* While a selection rests, a click on what it does not light only ends
+   it: no pointer there (data-exits: ui/types.ts exiting) */
+[data-exits] .b[data-owners]:not(.hl),
+:is(#tree, #mtree, .tree)[data-exits] .row:not(.hl) {
+  cursor: default; }

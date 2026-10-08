@@ -1,5 +1,6 @@
 // Mirrors bin/run.mjs's memory block (vanilla 78bce69 mem.js): "Inside
 // one play", the locals bugc lists at three pauses, at O0 and O2
+import { pick } from "../pick";
 import { test, expect, type Page } from "@playwright/test";
 
 type W = { memResults: { done: boolean; errors: string[];
@@ -122,7 +123,10 @@ test("inside multiplied: O0 a call with a frame; colours; Before | After; "
   await page.locator('#mpanel .view:not([hidden]) .b[data-owners="points"]')
     .first().click();
   expect(await msel(page)).toBe("points");
-  await mrow(page, "m").click();
+  await pick(mrow(page, "m"));
+  // (the details of the selection: the pointer off the rows, which the
+  // exit may have moved under it)
+  await page.locator("h1").hover();
   const dd = await dl(page, "#mdetails");
   const [a, b] = [dd.Before, dd.After].map((x) =>
     x?.match(/^0x([0-9a-f]+)–0x([0-9a-f]+) = (\d)$/));
@@ -131,7 +135,7 @@ test("inside multiplied: O0 a call with a frame; colours; Before | After; "
   expect([parseInt(a![1], 16) - frame, a![3], parseInt(b![1], 16) - frame,
     b![3]]).toEqual([88, "5", 184, "3"]);
   await mopt(page, "2");
-  await mrow(page, "multiplied").click();
+  await pick(mrow(page, "multiplied"));
   await expect(mrow(page, "multiplied").locator(".val"))
     .toHaveText("inlined: no frame");
   expect("0x0080" in (await mcol(page)).bytes).toBe(false);
@@ -147,7 +151,7 @@ test("before the writes: gained, hit with no location, alice's record",
     const t = await page.locator("#mtree").innerText();
     expect(t).toMatch(/gained[\s\S]*30/);
     expect(t).toMatch(/hit[\s\S]*no location at this point/);
-    await mrow(page, "players[msg.sender]").click();
+    await pick(mrow(page, "players[msg.sender]"));
     const c = await mcol(page);
     const ms = ["score", "combo", "bestCombo", "plays", "hitCount",
       "lastBlock"].map((x) => c.rows[`players[msg.sender].${x}`]);

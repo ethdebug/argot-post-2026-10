@@ -17,6 +17,10 @@ export interface LinkState {    // shared by the views of one link group
   walk: { step: number; focus?: string; n?: number; busy?: boolean;
     exit?: boolean } | null;
 }
+// While a selection rests (no walkthrough), a click (not a key) on what
+// it does not light only ends it: the one rule for the clicks and the
+// cursor (the views' data-exits)
+export const exiting = (s: LinkState) => !!s.selection && !s.walk;
 export interface ViewState {    // one view instance's own state
   collapsed: ReadonlySet<Path>; // Tree only; default empty (expanded)
   // (Tree, the related view: the selection's members the reader opened;

@@ -1,3 +1,4 @@
+import { pick } from "../pick";
 import { test, expect } from "@playwright/test";
 
 test("the parity page and the shell load", async ({ page }) => {
@@ -18,7 +19,7 @@ for (const url of ["./", "./shell.html"]) {
       await expect(page.locator("#tree li[data-path]").first())
         .toBeAttached();
       // (a selection shows its pointer: the colouring loads)
-      await page.locator('#tree li[data-path="players"] > .row').click();
+      await pick(page.locator('#tree li[data-path="players"] > .row'));
       await page.locator('#details button[data-r="start"]').click();
       await expect(page.locator("#ptr .line span[style]").first())
         .toBeAttached();
