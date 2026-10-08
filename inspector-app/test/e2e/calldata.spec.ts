@@ -41,7 +41,7 @@ test("setMotd's calldata: selector, a byte selects its part, details",
     await page.locator(LEN).click();
     expect((await cd(page)).chosen).toBe("m-length");
     expect(await dl(page, "#cdetails")).toMatchObject({ Holds: "5",
-      Where: "bytes 0x0024–0x0043" });
+      Where: "calldata 0x0024–0x0043" });
     await expect(page.locator('#ctree li[data-part="m-length"] > .row'))
       .toHaveAttribute("aria-pressed", "true");
     await page.locator(LEN).click();

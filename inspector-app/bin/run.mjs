@@ -3326,7 +3326,7 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
     if (c.chosen !== "m-length") problems.push(`calldata byte: ${c.chosen}`);
     const cdetails = await dl("#cdetails");
     if (cdetails.Holds !== "5" ||
-      cdetails.Where !== "bytes 0x0024–0x0043") {
+      cdetails.Where !== "calldata 0x0024–0x0043") {
       problems.push(`calldata details: ${JSON.stringify(cdetails)}`);
     }
     await pick(page.locator(
@@ -3912,7 +3912,7 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
   {
     const d = await dl("#mdetails");
     const [a, b] = [d.Before, d.After].map((x) =>
-      x?.match(/^0x([0-9a-f]+)–0x([0-9a-f]+) = (\d)$/));
+      x?.match(/^memory 0x([0-9a-f]+)–0x([0-9a-f]+) = (\d)$/));
     const frame = parseInt((await mrow("multiplied").locator(".val")
       .textContent()).trim().slice(9), 16);
     if (!a || !b || parseInt(a[1], 16) !== frame + 88 || a[3] !== "5" ||
