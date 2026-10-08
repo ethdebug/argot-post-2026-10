@@ -10,11 +10,14 @@ const port = (at >= 0 && Number(process.argv[at + 1])) || 5180;
 // (a re-pin of the vendored library, vendor/PIN and the lockfile, takes
 // effect in a running dev server too: it restarts and pre-bundles its
 // dependencies again, so no old copy of the library stays in its cache.
-// A server started later sees the new lockfile and pre-bundles anyway.)
+// A server started later sees the new lockfile and pre-bundles anyway.
+// REPIN_FILES: other files to watch instead, for its test, which must
+// not restart every other server on this checkout.)
 const repin = {
   name: "repin",
   configureServer(server: import("vite").ViteDevServer) {
-    const files = ["vendor/PIN", "package-lock.json"].map((f) =>
+    const files = (process.env.REPIN_FILES?.split(",") ??
+      ["vendor/PIN", "package-lock.json"]).map((f) =>
       path.resolve(server.config.root, f));
     server.watcher.add(files);
     server.watcher.on("change", (f) => {
