@@ -49,9 +49,9 @@
 }
 /* (each dump's view fits its own box, the .dump container: the same rule
    as .views, on the view, so a lens with no .views wrapper fits too) */
-.dump .view { font-family: var(--mono); font-variant-numeric: tabular-nums;
+.lens .dump .view { font-family: var(--mono); font-variant-numeric: tabular-nums;
   font-size: clamp(10px, calc((100cqi - 12px) / var(--k32, 56)), 20px); }
 @container (max-width: 559.98px) {
-  .dump .view { font-size: clamp(10px,
+  .lens .dump .view { font-size: clamp(10px,
     calc((100cqi - 12px) / var(--k16, 30)), 20px); }
 }
