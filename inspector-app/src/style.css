@@ -1197,9 +1197,17 @@ sup.fn { font-size: 0.7em; color: var(--accent); margin-left: 1px; }
    tree row; their popover badges), in a desaturated version of the
    colour of what it leads to (a record's), else (pkn) a neutral one.
    One token, --rel, from the palette entry: weaker than any lit colour. */
-:root { --rel-grey: color-mix(in srgb, var(--muted) 22%, var(--panel)); }
+/* (about a third of the active colour's OKLCH chroma or less, nearer
+   the panel: lighter in light mode, darker in dark mode) */
+:root { --rel-grey: color-mix(in srgb, var(--muted) 18%, var(--panel));
+  --rel-mix: 28%; }
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) { --rel-mix: 24%; }
+}
+:root[data-theme="dark"] { --rel-mix: 24%; }
 .pkn { --pk: var(--rel-grey); --pk-fg: var(--fg); }
-.rel { --rel: color-mix(in srgb, var(--pk) 42%, var(--rel-grey)); }
+.rel { --rel: color-mix(in oklch, var(--pk) var(--rel-mix),
+  var(--rel-grey)); }
 .b.rel:not(.hl), .active .b.rel:not(.hl):not(.at) {
   background: var(--rel); opacity: 1; filter: none; }
 .row.rel:not(.hl) { background: var(--rel); border-radius: 4px;
