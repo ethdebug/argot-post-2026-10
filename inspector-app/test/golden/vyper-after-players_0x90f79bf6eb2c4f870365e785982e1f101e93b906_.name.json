@@ -38,15 +38,11 @@
       "band": []
     },
     {
-      "cap": "key = \"\"'s address, from `the trace`",
+      "cap": "key = 0x90f7…b906's address, from `the trace`",
       "form": {
         "kind": "text",
         "toks": [
-          "0x90f7…b906",
-          " ",
-          {
-            "gloss": "\"\""
-          }
+          "0x90f7…b906"
         ]
       },
       "constructs": [],
@@ -102,7 +98,7 @@
       "id": "declared|players"
     },
     {
-      "cap": "The template `mapping(address => Player)` takes slot = 3, key = \"\"'s address",
+      "cap": "The template `mapping(address => Player)` takes slot = 3, key = 0x90f7…b906's address",
       "form": {
         "kind": "text",
         "toks": [

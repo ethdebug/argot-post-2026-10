@@ -170,3 +170,14 @@ it("reads come from the graph's edges, not from the pointer's text: "
         .toEqual(walkthrough(x, p)!.steps.map((s) => s.phase));
     }
   });
+
+it("an empty on-chain name falls back to the short address (Vyper's "
+  + "records, read by solc's rule, have none)", async () => {
+  const x = await at("vyper", "after");
+  const w = walkthrough(x, "players")!;
+  expect(w.recs!.map((r) => r.who)).toEqual(w.recs!.map((r) =>
+    r.path.replace(/^players\[(0x.{4}).*(.{4})\]$/, "$1…$2")));
+  const text = JSON.stringify(w.steps, (_, v) =>
+    typeof v === "bigint" ? String(v) : v);
+  expect(text).not.toContain('\\"\\"');
+});
