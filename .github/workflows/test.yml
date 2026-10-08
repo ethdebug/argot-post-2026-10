@@ -4,10 +4,13 @@ on:
   pull_request:
   workflow_dispatch:
 permissions: { contents: read }
+# (every push to main gets its own run, to the end; a PR's newer push
+# replaces its run)
 concurrency:
-  group: test-${{ github.ref }}
-  # (every push to main gets its run; a PR's newer push replaces it)
-  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+  group: >-
+    test-${{ github.event_name == 'pull_request' && github.ref
+    || github.sha }}
+  cancel-in-progress: true
 defaults:
   run: { working-directory: inspector-app }
 # The inspector app's whole gate (npm run test:full), split so its parts
