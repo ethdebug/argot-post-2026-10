@@ -47,7 +47,7 @@ const cap = (t: string) => t.split(/`([^`]+)`/).map((x, k) => k % 2
   ? <code key={k} className="id">{x}</code>
   : <Fragment key={k}>{x}</Fragment>);
 const pk = (k: number | string | undefined) =>
-  k === "src" ? "pksrc" : k ? `pk${k}` : "";
+  k === undefined || k === 0 ? "" : `pk${k}`;
 
 function toks(ts: Tok[]): ReactNode {
   return ts.map((t, k) => typeof t === "string"
@@ -73,7 +73,8 @@ function FormView({ f }: { f: Form }) {
   if (f.kind === "table") {
     return <span className="itab">{f.rows.map((r, k) => <Fragment key={k}>
       <span>{toks(r.a)}</span><span className="prose">→</span>
-      <span className={r.k ? `${pk(r.k)} isw` : undefined}>{toks(r.b)}
+      <span className={r.k ? `${pk(r.k)} isw` : r.k === 0 ? "pk0 isw"
+        : undefined}>{toks(r.b)}
       </span></Fragment>)}</span>;
   }
   // (as a dump row: 32 cells, a gap after each eight; on a phone two
@@ -127,50 +128,6 @@ function missing(d: Decoded, path: string) {
     } item${len === "1" ? "" : "s"})` : ""}`;
 }
 
-// The Vyper scene: the same entry by Vyper's own rule (hand-written: no
-// ethdebug from Vyper), its words listed, each lighting its word
-function Contrast({ d, path, side, onPoint }: { d?: Decoded; path: string;
-  side: string; onPoint: (slot: bigint | null) => void }) {
-  const entry = path.match(/^players\[[^\]]*\]/)?.[0];
-  const e = entry && d?.byPath.get(entry);
-  if (!d || !e) return null;
-  const words: { slot: bigint; name: string; text: string }[] = [];
-  for (const m of e.children ?? []) {
-    const value = m.regions.find((r) => r.role === "value");
-    const len = m.regions.find((r) => r.role === "length");
-    if (len && value) {
-      const s = JSON.parse(m.value?.text ?? '""') as string;
-      const bytes = new TextEncoder().encode(s);
-      words.push({ slot: len.slot!, name: `${m.label} (length)`,
-        text: String(bytes.length) });
-      for (let k = 0; k * 32 < Math.max(1, bytes.length); k++) {
-        words.push({ slot: value.slot! + BigInt(k),
-          name: `${m.label} (bytes)`, text: JSON.stringify(
-            new TextDecoder().decode(bytes.slice(k * 32, k * 32 + 32))) });
-      }
-    } else if (value) {
-      words.push({ slot: value.slot!, name: m.label,
-        text: m.value?.text ?? "" });
-    }
-  }
-  const first = "0x" + (words[0]?.slot ?? 0n).toString(16).padStart(64, "0");
-  return <>
-    <p className="howside">Vyper's rule, for contrast: not from ethdebug
-      (Vyper emits none). Vyper's <code>players</code> is slot 108; it
-      hashes the slot first, <code>keccak256(slot 108 . key)</code>, and
-      puts each member in its own slot, the name's length and bytes after
-      them.</p>
-    <ol className="steps vyper">{words.map((w, k) => <li key={k}
-      data-side={side} tabIndex={0}
-      onPointerEnter={() => onPoint(w.slot)} onFocus={() => onPoint(w.slot)}
-      onPointerLeave={() => onPoint(null)} onBlur={() => onPoint(null)}>
-      <span className="k">Slot {k ? `+ ${k}` : ""}</span><div className="c">
-        {k ? "" : <><span className="hex short">{first.slice(0, 14)}…{
-          first.slice(-12)}</span>: </>}<code>{w.name}</code> = <b>{w.text}
-        </b></div></li>)}</ol>
-  </>;
-}
-
 export function WalkthroughPanel(p: { id: ViewId; data: DataRef;
   link?: LinkId; domId?: string; compare?: DataRef;
   others?: { decoding: string; who?: string }[] }) {
@@ -184,11 +141,6 @@ export function WalkthroughPanel(p: { id: ViewId; data: DataRef;
   useViewSpec(p.id);
   const lens = useLens();
   const w = useWalkthrough(p.id);
-  // (the Vyper scene: Vyper's own reading of the same point)
-  const vyRef = p.others?.find((x) => d && decodingOf(lens, x.decoding)
-    ?.timeline === decodingOf(lens, d.decoding)?.timeline);
-  const vy = useDecoded(vyRef && d ? { decoding: vyRef.decoding,
-    point: d.point } : undefined);
   const sides: Sides | undefined = d && l ? { d, l, snap: here?.snapshot,
     ...(o ? { pair: side === "before"
       ? { before: { d, snap: here?.snapshot },
@@ -450,7 +402,7 @@ export function WalkthroughPanel(p: { id: ViewId; data: DataRef;
     const otherText = o?.byPath.get(node.path)?.value?.text;
     barBody = <><span className="rmode" />{selSpan}
       <span className="rctl"><button type="button" className="btn rstart"
-        data-r="start">▸ Show how<span className="rlong"> it was
+        data-r="start" disabled={!w?.steps.length}>▸ Show how<span className="rlong"> it was
         found</span></button></span>
       <span className="rcount" /><span className="rshort" />
       <span className="rexit" /></>;
@@ -487,10 +439,6 @@ export function WalkthroughPanel(p: { id: ViewId; data: DataRef;
     box.scrollLeft = Math.max(0, right - box.clientWidth + 8);
   });
 
-  const pointVy = (slot: bigint | null) => setLink((s) => s.walk ? s
-    : { ...s, hover: slot === null ? null : { region: { location: "storage",
-      slot, offset: 0, length: 32, role: "value", instance: "" } } });
-
   return <div ref={unit} className={`wpanel${walk ? " walking" : ""}`}
     data-view={`${lens.key}:${p.id}`}>
     <div ref={bar} id={p.domId} className={`rbar${walk ? " replaying" : ""}`}
@@ -517,13 +465,10 @@ export function WalkthroughPanel(p: { id: ViewId; data: DataRef;
         </div>
         <div className="ptr" aria-label="Ethdebug data from the compiler">
           <p className="plabel">Ethdebug data from the compiler <span
-            className="pnote">(as YAML; template names shortened; solc
-            writes <code>$</code>, shown as <code>~</code>)</span></p>
+            className="pnote">(as YAML; template names shortened)</span></p>
           <PointerYaml domId={p.domId ? "ptr" : undefined} data={p.data}
             variable={sel?.split(/[.[]/)[0]} band={st?.band}
-            goal={!!st?.goal} shown={!!walk}
-            before={vy && sel ? <Contrast d={vy} path={sel} side={side}
-              onPoint={pointVy} /> : null} />
+            goal={!!st?.goal} shown={!!walk} />
         </div>
       </div>
     </div>
