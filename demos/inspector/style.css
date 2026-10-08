@@ -1078,22 +1078,20 @@ main[data-single] > .cols :is(.chglegend, .legend .bchg, .intro .two) {
 .ptrscroll.goal .ptrlines { filter: blur(2.5px); opacity: 0.5; }
 /* (and still: a preview, not yet read; no band, no scrolling) */
 .ptrscroll.goal { overflow: hidden; }
-/* (the sentence a block, the glyph beside it, at its top, about two
-   lines tall) */
+/* (the sentence a block, the glyph beside it, centred on it) */
 .pgo { position: absolute; left: 50%; top: 55%; z-index: 3; margin: 0;
   transform: translate(-50%, -50%); width: max-content;
-  max-width: calc(100% - 48px); display: flex; align-items: flex-start;
+  max-width: calc(100% - 48px); display: flex; align-items: center;
   gap: 8px; color: var(--fg); font-size: 0.95rem; font-weight: 600;
   line-height: 1.4; pointer-events: none; }
 .pgo .ptext { display: inline-block; text-align: left; max-width: 22em;
   text-wrap: balance; }
-.pgo .pglyph { font-size: 3.2em; line-height: 0.8; font-weight: 400;
-  margin-top: -0.12em; }
+.pgo .pglyph { font-size: 1.4em; line-height: 1; font-weight: 400; }
 .pgo[hidden] { display: none; }
 /* (▶'s halo at step 0, in the walkthrough's own colour: yellow is the
    selection's) */
-.pgo .pglyph { font-family: "Apple Symbols", "Segoe UI Symbol",
-  "Noto Sans Symbols 2", system-ui, sans-serif; font-weight: 400; }
+.pgo .pglyph { font-family: system-ui, -apple-system, "Segoe UI",
+  "Segoe UI Symbol", sans-serif; }
 .rbar .btn.halo { box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent)
   45%, transparent); animation: halo 1.4s ease-in-out 3; }
 @keyframes halo { 50% { box-shadow: 0 0 0 6px color-mix(in srgb,
