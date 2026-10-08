@@ -133,7 +133,8 @@ function itemOf(x: Item, path: string, side: string, two: boolean,
   }
   return <li key="result" className="final" {...at}>
     <span className="k">Result</span><div className="c">memory{" "}
-      {span(x.region)}, {x.region.length} bytes.
+      {span(x.region)}, {x.region.length} {x.region.length === 1 ? "byte"
+        : "bytes"}.
       <div>Read{two ? ` ${side} the step` : ""}: <b>{x.text}</b></div>
       {evals}</div></li>;
 }
