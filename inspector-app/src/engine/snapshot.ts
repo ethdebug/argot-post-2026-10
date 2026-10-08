@@ -1,5 +1,6 @@
-// A Machine.State over a snapshot (vanilla decode.js storageState): the
-// storage words it knows; any other part throws when read
+// A Machine.State over a snapshot (vanilla decode.js storageState,
+// memoryState): the storage words it knows, and its memory (bytes past
+// the end read as zero, as in the EVM); any other part throws when read
 import { Data, type Machine } from "./lib";
 import type { Hex, Snapshot } from "./types";
 import { slotHex } from "./hex";
@@ -27,7 +28,22 @@ export function machineState(s: Snapshot): Machine.State {
       },
       peek: () => none("stack"),
     },
-    get memory() { return none("memory"); },
+    get memory() {
+      const mem = s.memory;
+      if (!mem) return none("memory");
+      return {
+        get length() {
+          return Promise.resolve(BigInt(mem.length));
+        },
+        async read({ slice }: { slice: { offset: bigint;
+          length: bigint } }) {
+          const o = Number(slice.offset);
+          const out = new Uint8Array(Number(slice.length));
+          out.set(mem.slice(o, Math.min(o + out.length, mem.length)));
+          return Data.fromBytes(out);
+        },
+      } as unknown as Machine.State["memory"];
+    },
     get calldata() { return none("calldata"); },
     get returndata() { return none("returndata"); },
     get transient() { return none("transient"); },
