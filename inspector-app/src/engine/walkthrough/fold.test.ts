@@ -142,6 +142,17 @@ it("re-targeting keeps the step: same identity, or the nearest earlier",
     // (no match: the first step)
     const total = walkthrough(x, "total")!.steps;
     expect(retarget(carolName, 3, total)).toEqual({ at: 0, moved: true });
+    // (no match: the first step after the goal, as vanilla: total ->
+    // players lands on step 1, the same number: no cue)
+    const players = walkthrough(x, "players")!.steps;
+    expect(retarget(total, 0, players)).toEqual({ at: 1, moved: false });
+    // (the cue: when the step's number changes; roster's step 2 ->
+    // total's step 1. Vanilla's cue compares off by one here; see the
+    // M5 report)
+    const roster = walkthrough(x, "roster")!.steps;
+    expect(retarget(roster, 2, total)).toEqual({ at: 0, moved: true });
+    const bob = walkthrough(x, B)!.steps;
+    expect(retarget(players, 5, bob)).toEqual({ at: 5, moved: false });
   });
 
 it("step 0, as vanilla: the slots the steps touch, whole; the question",

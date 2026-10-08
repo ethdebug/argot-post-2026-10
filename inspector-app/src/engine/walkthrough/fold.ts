@@ -753,12 +753,16 @@ export function retarget(from: Step[], at: number, to: Step[]):
     else if (L[i + 1][j] >= L[i][j + 1]) i++;
     else j++;
   }
-  let k = 0;
+  // (no match: the first step after the goal; moved: the step's number,
+  // not counting the goal, changed: vanilla main.js retarget)
+  const oa = from[0]?.goal ? 1 : 0;
+  const ob = to[0]?.goal ? 1 : 0;
+  let k = Math.min(ob, to.length - 1);
   for (let i = at; i >= 0; i--) {
     if (match.has(i)) {
       k = match.get(i)!;
       break;
     }
   }
-  return { at: k, moved: !(match.has(at) && match.get(at) === at) };
+  return { at: k, moved: k - ob !== at - oa };
 }
