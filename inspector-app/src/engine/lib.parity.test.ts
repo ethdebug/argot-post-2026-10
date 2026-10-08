@@ -1,24 +1,20 @@
-// The pinned library (lib.ts, from vendor/*.tgz) against vanilla's
-// bundle (vendor/pointers.js at sync-base): every state variable, and
+// The pinned library (lib.ts, from vendor/*.tgz) against the demo's own
+// bundle (demos/inspector/vendor/pointers.js, which make-fixtures uses
+// through decode.js): every state variable, and
 // every players[key], of the four fixtures at both points, gives the
 // same regions and the same bytes; and some expressions evaluate the
 // same. (Parity is behaviour, not bundle bytes: vendor/PIN.)
 import { it, expect, beforeAll } from "vitest";
 import fs from "node:fs";
 import path from "node:path";
-import { vanillaFile, syncBase } from "../../bin/vanilla.mjs";
 import * as pinned from "./lib";
 import { solcTilde } from "./fixtures/legacy";
 
 type Lib = typeof pinned;
 const libs = {} as { vanilla: Lib };
 beforeAll(async () => {
-  const dir = path.join("node_modules", ".cache");
-  const file = path.resolve(dir, `vanilla-pointers-${syncBase()}.mjs`);
-  fs.mkdirSync(dir, { recursive: true });
-  if (!fs.existsSync(file)) {
-    fs.writeFileSync(file, vanillaFile("vendor/pointers.js"));
-  }
+  const file = path.resolve("..", "demos", "inspector", "vendor",
+    "pointers.js");
   libs.vanilla = await import(/* @vite-ignore */ file);
 });
 
@@ -32,7 +28,7 @@ interface Fixture {
 }
 // (solc's "$" read as "~" first, as the page does: legacy.ts solcTilde)
 const fixture = (id: string) => {
-  const f = JSON.parse(fs.readFileSync(`static/fixtures/${id}.json`,
+  const f = JSON.parse(fs.readFileSync(`../demos/inspector/fixtures/${id}.json`,
     "utf8")) as Fixture;
   f.contract.pointers = solcTilde(f.contract.pointers);
   f.contract.variables = f.contract.variables.map((v) =>
@@ -110,7 +106,7 @@ const cases = ["arcade-mid", "arcade-alice", "arcade-motd", "arcade-vyper"]
     pointers(fixture(id)).map(([name, p]) =>
       [`${id} ${side} ${name}`, id, side, p] as const)));
 
-it("vanilla's bundle at sync-base is the pinned commit", () => {
+it("the demo's bundle is the pinned commit", () => {
   expect((libs.vanilla as unknown as { commit: string }).commit)
     .toMatch(/^d7cb421a3/);
 });

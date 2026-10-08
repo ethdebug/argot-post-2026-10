@@ -127,8 +127,9 @@ export function states() {
 }
 
 if (process.argv[1] === fileURLToPath(import.meta.url)) {
-  const vanilla = fs.readFileSync(path.join(app, "sync-base"), "utf8")
-    .trim();
+  // (the vanilla page's last sync: the oracle's)
+  const vanilla = JSON.parse(fs.readFileSync(path.join(app, "test",
+    "oracle", "vanilla.json"), "utf8")).sha;
   console.log(JSON.stringify({ vanilla, threshold: 0, states: states() },
     null, 1));
 }

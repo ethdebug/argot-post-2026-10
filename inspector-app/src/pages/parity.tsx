@@ -1,5 +1,5 @@
-// The parity page: the vanilla page's markup (index.html, from
-// bin/copy-vanilla.mjs) with the full-inspector lens in its storage
+// The parity page: the vanilla page's markup (index.html, copied
+// from it at the switch) with the full-inspector lens in its storage
 // section: its views take the places of the static #picker, #mode,
 // #panel and #tree. The page keeps what is its own: the scene's intro
 // and summary, main[data-single], and the hooks bin/run.mjs uses

@@ -8,11 +8,11 @@ export default defineConfig({
     // (as bin/run.mjs: motion only where a test asks for it)
     reducedMotion: "reduce",
     baseURL: process.env.PAGE ??
-      `http://localhost:${PORT}/demos/inspector-next/`,
+      `http://localhost:${PORT}/demos/inspector/`,
   },
   webServer: process.env.PAGE ? undefined : {
     command: `npm run dev -- --port ${PORT}`,
-    url: `http://localhost:${PORT}/demos/inspector-next/`,
+    url: `http://localhost:${PORT}/demos/inspector/`,
     reuseExistingServer: true,
   },
   projects: [
