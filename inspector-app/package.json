@@ -6,7 +6,9 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "test": "tsc --noEmit -p . && vitest run && node --test bin/",
+    "test": "tsc --noEmit -p . && vitest run && node --test bin/*.test.mjs",
+    "test:fast": "npm test && playwright test --project=chromium --grep-invert @slow",
+    "test:full": "npm test && playwright test && npm run check",
     "check": "node bin/check.mjs",
     "e2e": "playwright test",
     "perf": "node bin/perf.mjs"

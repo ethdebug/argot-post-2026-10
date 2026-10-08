@@ -4,7 +4,7 @@
 // are out of view; Start scrolls first, then unfolds; Exit goes back to
 // where the reader was
 import { test, expect, type Page } from "@playwright/test";
-import { C } from "../expect";
+import { C } from "../../expect";
 
 type W = { select(id: string, view?: { sel?: string | null }):
   Promise<boolean>; results: { done: boolean } };

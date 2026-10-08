@@ -1,8 +1,8 @@
 // The related view: All | Related over the storage dump, its context
 // rows, the hash, the tree, and a walkthrough in it
-import { pick } from "../pick";
+import { pick } from "../../pick";
 import { test, expect, type Page } from "@playwright/test";
-import { A } from "../expect";
+import { A } from "../../expect";
 
 type W = { results: { done: boolean } };
 const open = async (page: Page, hash: string) => {

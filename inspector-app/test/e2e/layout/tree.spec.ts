@@ -1,7 +1,7 @@
 // Mirrors bin/run.mjs's collapse and edge-button checks (vanilla
 // 2ff37ec), on the parity page
 import { test, expect, type Page } from "@playwright/test";
-import { A, B, C } from "../expect";
+import { A, B, C } from "../../expect";
 
 type W = { select(id: string, view?: { sel?: string | null }):
   Promise<boolean>; results: { done: boolean } };

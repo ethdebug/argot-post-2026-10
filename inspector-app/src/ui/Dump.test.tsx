@@ -1,9 +1,8 @@
 // @vitest-environment jsdom
 import { it, expect, afterEach } from "vitest";
-import { render, fireEvent, cleanup, waitFor } from "@testing-library/react";
-import { Lens } from "./Lens";
-import { fullInspector } from "../lenses/full-inspector";
-import { testProject } from "../../test/project";
+import { fireEvent, cleanup, waitFor } from "@testing-library/react";
+import { slotHex } from "../engine/hex";
+import { inspector, mount, slow } from "../../test/lens";
 
 afterEach(cleanup);
 
@@ -11,13 +10,12 @@ afterEach(cleanup);
 // has no layout)
 const shape = (root: Element) => [...root.querySelectorAll("*")].map((e) =>
   `${e.tagName}#${e.id}`);
-const slow = { timeout: 5000 };
-const slot2 = "0x" + "2".padStart(64, "0");
+const slot2 = slotHex(2n);
+// (the full inspector's two dumps alone)
+const dumps = () => mount(inspector("before", "after"));
 
 it("hovering a byte changes classes only, not the markup", async () => {
-  const project = await testProject();
-  const { container } = render(<Lens spec={fullInspector}
-    project={project} />);
+  const { container } = await dumps();
   await waitFor(() => expect(container.querySelector(
     '.b[data-owners="totalScore"]')).toBeTruthy(), slow);
   const before = shape(container);
@@ -29,9 +27,7 @@ it("hovering a byte changes classes only, not the markup", async () => {
 });
 
 it("one word per row, its owners' bytes marked", async () => {
-  const project = await testProject();
-  const { container } = render(<Lens spec={fullInspector}
-    project={project} />);
+  const { container } = await dumps();
   // (the layout, then the words: the last byte reads 8c)
   await waitFor(() => expect(container.querySelector(
     `.view[data-side="after"] .wrow[data-slot="${slot2}"] .b[data-i="31"]`)
@@ -42,7 +38,6 @@ it("one word per row, its owners' bytes marked", async () => {
   expect(container.querySelector('.view[data-side="before"]')!
     .hasAttribute("hidden")).toBe(true);
   const row = view.querySelector(`.rows .wrow[data-slot="${slot2}"]`)!;
-  expect(row.getAttribute("data-slot")).toBe("0x" + "2".padStart(64, "0"));
   expect(row.getAttribute("data-name")).toBe("slot 2");
   const cells = [...row.querySelectorAll(".b")];
   expect(cells).toHaveLength(32);

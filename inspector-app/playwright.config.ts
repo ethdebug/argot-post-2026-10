@@ -1,23 +1,31 @@
 import { defineConfig, devices } from "@playwright/test";
 
 const PORT = process.env.E2E_PORT ?? "5181";
+// (a test tagged @chromium runs in Chromium only: the oracle, the dev
+// server's re-pin)
+const others = { grepInvert: /@chromium/ };
 
 export default defineConfig({
   testDir: "test/e2e",
+  // (a quarter of the cores: the machines these run on are often busy,
+  // and a starved browser misses its timing; E2E_WORKERS to change it)
+  workers: process.env.E2E_WORKERS ?? (process.env.CI ? 2 : "25%"),
+  reporter: process.env.CI ? [["list"], ["github"]] : "list",
   use: {
-    // (as bin/run.mjs: motion only where a test asks for it)
+    // (motion only where a test asks for it)
     reducedMotion: "reduce",
     baseURL: process.env.PAGE ??
       `http://localhost:${PORT}/demos/inspector/`,
+    trace: "retain-on-failure",
   },
   webServer: process.env.PAGE ? undefined : {
-    command: `npm run dev -- --port ${PORT}`,
+    command: `npm run dev -- --port ${PORT} --strictPort`,
     url: `http://localhost:${PORT}/demos/inspector/`,
-    reuseExistingServer: true,
+    reuseExistingServer: !process.env.CI,
   },
   projects: [
     { name: "chromium", use: { ...devices["Desktop Chrome"] } },
-    { name: "firefox", use: { ...devices["Desktop Firefox"] } },
-    { name: "webkit", use: { ...devices["Desktop Safari"] } },
+    { name: "firefox", use: { ...devices["Desktop Firefox"] }, ...others },
+    { name: "webkit", use: { ...devices["Desktop Safari"] }, ...others },
   ],
 });

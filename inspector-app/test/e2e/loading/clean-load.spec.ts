@@ -1,4 +1,4 @@
-import { pick } from "../pick";
+import { pick } from "../../pick";
 import { test, expect } from "@playwright/test";
 
 test("the parity page and the shell load", async ({ page }) => {
