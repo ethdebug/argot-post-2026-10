@@ -146,15 +146,15 @@ export function Dump(p: { id: ViewId; location: Location; data: DataRef;
   filter?: Filter; link?: LinkId; domId?: string;
   side?: "before" | "after"; hidden?: boolean; title?: string;
   when?: string; compare?: DataRef; cards?: boolean }) {
-  const { l } = useLayout(p.id, p.filter);
+  const { l } = useLayout(p.id, p.filter, undefined, p.compare);
   const hereAt = usePointAt(p.data);
   const thereAt = usePointAt(p.compare);
   const here = hereAt?.p;
   const snap = here?.snapshot;
   const otherPoint = thereAt?.p;
-  const light = useLight(p.id, p.filter);
+  const light = useLight(p.id, p.filter, undefined, p.compare);
   // what the compared point lights (a slot lit there only: "only")
-  const there = useLight(p.id, p.filter, p.compare);
+  const there = useLight(p.id, p.filter, p.compare, p.data);
   const [link, setLink] = useLink(p.link);
   const d = useDecoded(p.data);
   const lens = useLens();
