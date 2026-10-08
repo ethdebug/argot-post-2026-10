@@ -862,7 +862,8 @@ li.same > .row .name, li.same > .row .type { opacity: 0.55; }
    change legends (main[data-single]; the memory section keeps its own) */
 .intros p { max-width: 78ch; margin: 10px 0 0; }
 main[data-single] #storage :is(#mode-l, #mode, .chipcheck),
-main[data-single] > .cols :is(.chglegend, .legend .bchg, .intro .two) {
+main[data-single] .walkzone > .cols :is(.chglegend, .legend .bchg,
+  .intro .two) {
   display: none; }
 /* The contract, above the scenes; the calldata of setMotto, under its
    scene's storage */
@@ -1347,13 +1348,6 @@ html { overflow-anchor: none; }
   .ptrlines .line.on { background: color-mix(in srgb, var(--pknt) 70%,
     transparent); }
 }
-/* a slot a step computes (not read yet): its word outlined in its
-   entry's colour, the bytes as they are */
-.wrow.whole > .word { position: relative; }
-.wrow.whole > .word::after { content: ""; position: absolute;
-  inset: 1px 0; border-radius: 4px; pointer-events: none;
-  box-shadow: inset 0 0 0 2px var(--pk-edge, var(--pk-fg)); }
-.wrow.whole.pk0 > .word::after { --pk-edge: var(--accent); }
 /* (step 0's halo on ▶, and the tree's edge buttons: not the selection's
    yellow) */
 .rbar .btn.halo { box-shadow: 0 0 0 3px color-mix(in srgb, var(--pknt-edge)
