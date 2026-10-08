@@ -58,3 +58,29 @@ it("a click on empty space clears; a click in another lens does not",
     act(() => void fireEvent.click(mount(1).querySelector(".view .gap")!));
     expect([link(0).selection, link(1).selection]).toEqual([A, null]);
   });
+
+it("Review Focus 4: walkthrough keys move only the lens they are in",
+  async () => {
+    const { got, link, mount } = await two();
+    for (const g of got) {
+      act(() => g.store.set((s) => ({ ...s, links: { ...s.links,
+        storage: { ...s.links.storage, walk: { step: 3, n: 12 } } } })));
+    }
+    const bar = mount(1).querySelector<HTMLElement>("#details, .rbar")!;
+    bar.focus();
+    act(() => void fireEvent.keyDown(bar, { key: "ArrowLeft" }));
+    expect([link(0).walk!.step, link(1).walk!.step]).toEqual([3, 2]);
+    act(() => void fireEvent.keyDown(bar, { key: "End" }));
+    act(() => void fireEvent.keyDown(bar, { key: "ArrowRight" }));
+    expect([link(0).walk!.step, link(1).walk!.step]).toEqual([3, 11]);
+    act(() => void fireEvent.keyDown(bar, { key: "Home" }));
+    expect(link(1).walk!.step).toBe(0);
+  });
+
+it("a bookmark change ends a walkthrough", async () => {
+  const { got, link } = await two();
+  act(() => got[0].store.set((s) => ({ ...s, links: { ...s.links,
+    storage: { ...s.links.storage, walk: { step: 3, n: 12 } } } })));
+  await act(async () => void await got[0].show("alice"));
+  expect(link(0).walk).toBe(null);
+});
