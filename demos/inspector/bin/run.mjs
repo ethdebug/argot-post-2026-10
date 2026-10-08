@@ -3671,7 +3671,8 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
   const storageLit = await page.locator("#panel .b.hl:not(.cmp *)").count();
   const mlit = () => page.evaluate(() => {
     const out = {};
-    for (const c of document.querySelectorAll("#mpanel .b.hl:not(.cmp *)")) {
+    for (const c of document.querySelectorAll(
+      ":is(#mpanel, #mspanel) .b.hl:not(.cmp *)")) {
       const w = c.closest(".word");
       (out[`${w.dataset.side} ${w.dataset.slot}`] ??= []).push(+c.dataset.i);
     }
@@ -3695,7 +3696,7 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
     }
     const bytes = {};
     for (const c of document.querySelectorAll(
-      "#mpanel .view:not([hidden]) .b.hl:not(.cmp *)")) {
+      ":is(#mpanel, #mspanel) .view:not([hidden]) .b.hl:not(.cmp *)")) {
       const w = c.closest(".word").dataset.slot;
       (bytes[w] ??= new Set()).add(k(c));
     }
@@ -3709,8 +3710,8 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
     const v = await page.evaluate(() => [
       document.querySelector("#mmoderow").hidden,
       getComputedStyle(document.querySelector("#mmoderow")).display,
-      [...document.querySelectorAll("#mpanel .view-name")].map((x) =>
-        x.textContent).join(),
+      // (the panel's own header names it: "Memory")
+      document.querySelector("#mwords-h").firstChild.textContent.trim(),
       document.querySelectorAll("#mpanel .cmp, #mpanel .b.chg").length,
       document.querySelector("#msrclegend").textContent.trim()]);
     if (!same(v, [true, "none", "Memory", 0, "paused here"])) {
@@ -3813,8 +3814,33 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
       .locator(".val").textContent();
     if (score.trim() !== "30") problems.push(`memory score: ${score}`);
   }
+  // each location its own panel: the record's slot in a STORAGE panel
+  // of its own, under MEMORY, with its own header; one selection lights
+  // both (the record in storage, a local in memory); popovers in each
+  {
+    const pan = await page.evaluate(() => ({
+      mem: document.querySelector("#mwords-h").firstChild.textContent.trim(),
+      store: document.querySelector("#mstore-h")?.textContent.trim(),
+      shown: !document.querySelector("#mstore").hidden,
+      inMem: !!document.querySelector("#mpanel .wrow[data-slot$='fb94']"),
+      inStore: !!document.querySelector("#mspanel .wrow[data-slot$='fb94']"),
+      pops: document.querySelectorAll("#mspanel .view:not([hidden]) .pop")
+        .length,
+      lit: document.querySelectorAll("#mspanel .view:not([hidden]) .b.hl")
+        .length }));
+    await mrow("gained").click();
+    const both = await page.evaluate(() => [
+      document.querySelectorAll("#mpanel .view:not([hidden]) .b.hl").length,
+      document.querySelectorAll("#mpanel .view:not([hidden]) .pop").length]);
+    await mrow("players[msg.sender]").click();
+    if (pan.mem !== "Memory" || pan.store !== "Storage" || !pan.shown ||
+      pan.inMem || !pan.inStore || !pan.pops || pan.lit !== 32 ||
+      !both[0] || !both[1]) {
+      problems.push(`memory panels: ${JSON.stringify({ pan, both })}`);
+    }
+  }
   // a click on the score's bytes selects the score
-  await page.locator('#mpanel .b[data-owners="players[msg.sender].score"]')
+  await page.locator('#mspanel .b[data-owners="players[msg.sender].score"]')
     .first().click();
   if (await msel() !== "players[msg.sender].score") {
     problems.push(`memory record byte: ${await msel()}`);

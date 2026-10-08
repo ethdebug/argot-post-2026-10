@@ -73,7 +73,16 @@ export function short(h, keep = 4) {
 // The storage bytes a region covers, as [slot word, byte index] pairs.
 // Offsets count from the most significant byte; a region longer than the
 // rest of its word goes on into the next slots.
+// A memory word's key: its offset, as "0x0080"
+export const memWord = (n) => "0x" + n.toString(16).padStart(4, "0");
 export function regionBytes(r) {
+  // (memory: by its words' offsets)
+  if (r.location === "memory") {
+    const o = Number(num(r.offset));
+    const n = r.length === undefined ? 32 : Number(num(r.length));
+    return Array.from({ length: n }, (_, k) =>
+      [memWord(Math.floor((o + k) / 32) * 32), (o + k) % 32]);
+  }
   if (r.location !== "storage" || r.slot === undefined) return [];
   const slot = num(r.slot);
   const offset = Number(num(r.offset));
@@ -271,22 +280,33 @@ export const octets = (cells) =>
 const empty = () => Array.from({ length: 32 }, () => []);
 
 // One slot's word in one view, all 32 bytes on one line
-function wordHtml(m, s, side, tint, name) {
-  const { before, after } = m.f.slots[s];
-  const mine = pairs(side === "before" ? before : after);
-  const other = pairs(side === "before" ? after : before);
-  const ids = m.cover[side].get(s) ?? empty();
+// One location's panel (storage, memory, calldata, …): the same rows,
+// gutter, gap lines, cells and hooks for every location; only `loc`
+// differs. `loc`: { id, sides, title(side), aria(side), word(w, side) →
+// 32 hex pairs (undefined: none there), rows: [{ w, name, gutter, what,
+// facts, same, ring, full, next }] in address order (`next`: whether the
+// row follows the one before it with no gap; "room": with a line of
+// room for a popover), top (no line before the first row), end (a gap
+// line after the last) }. Its owners and their bytes come from
+// m.owners and m.cover[side] (by row key and byte index).
+function wordHtml(m, loc, w, side, tint, name) {
+  const mine = loc.word(w, side);
+  const other = loc.sides.length === 2 ? loc.word(w, side === "before"
+    ? "after" : "before") : mine;
+  const ids = m.cover[side].get(w) ?? empty();
   const cells = [];
   for (const g of groups(ids)) {
     const label = g.owners.map((id) => m.owners.get(id).label).join(", ");
     for (let i = g.from; i <= g.to; i++) {
+      const b = mine[i];
       const cls = ["b"];
       if (g.owners.length) cls.push(`t${tint.get(g.owners[0]) % TINTS}`);
       else cls.push("free");
       if (i === g.from) cls.push("gs");
       if (i === g.to) cls.push("ge");
-      if (mine[i] === "00") cls.push("z");
-      if (mine[i] !== other[i]) cls.push("chg");
+      if (b === undefined) cls.push("past");
+      else if (b === "00") cls.push("z");
+      if (b !== undefined && b !== other[i]) cls.push("chg");
       const first = i === g.from && g.owners.length;
       const range = g.from === g.to ? `byte ${g.from}`
         : `bytes ${g.from} to ${g.to}`;
@@ -294,35 +314,66 @@ function wordHtml(m, s, side, tint, name) {
         ` data-g="${g.from}-${g.to}"${g.owners.length
           ? ` data-owners="${esc(g.owners.join("|"))}"` : ""}` +
         `${first ? ` tabindex="0" role="button" aria-label="${esc(
-          `${label}, ${range} of ${name}, ${side}`)}"` : ""}` +
-        `>${mine[i]}</span>`);
+          `${label}, ${range} of ${name}${loc.sides.length === 2
+            ? `, ${side}` : ""}`)}"` : ""}` +
+        `>${b ?? "··"}</span>`);
     }
   }
-  return `<div class="word" data-side="${side}" data-slot="${s}">` +
+  return `<div class="word" data-side="${side}" data-slot="${w}">` +
     `<div class="bytes">${octets(cells)}</div></div>`;
 }
-
-// "…0002": the end of a slot's address, as a dump shows it
-const tail = (s) => `…${s.slice(-4)}`;
-
-// Two dumps of storage, stacked: before the transaction, then after.
-// Each is one column of words in address order, one word to a line,
-// with the address in a narrow gutter and a gap line where the
-// addresses jump. Names stay out of the dump: the tree and the line
-// above relate to it by highlighting.
-export function renderPanel(m) {
-  const rows = m.order.map((s) => {
-    const name = slotName(m, s);
-    const n = num(s);
-    // Owners in byte order, each with its tint, the same in both views
+export function renderLocation(m, loc) {
+  const rows = loc.rows.map((x) => {
+    // owners in byte order, each with its tint, the same in every view
     const tint = new Map();
-    for (const side of SIDES) {
-      for (const ids of m.cover[side].get(s) ?? []) {
+    for (const side of loc.sides) {
+      for (const ids of m.cover[side].get(x.w) ?? []) {
         for (const id of ids) if (!tint.has(id)) tint.set(id, tint.size);
       }
     }
+    return { ...x, tint };
+  });
+  const gap = `<div class="gap" aria-hidden="true"><span>⋯</span></div>`;
+  const room = `<div class="gap room" aria-hidden="true"></div>`;
+  const view = (side) => {
+    const lines = [];
+    rows.forEach((x, k) => {
+      // a gap line where the addresses jump (none before a first row at
+      // the very start); room for a popover where a row asks for it
+      if (k === 0 ? !loc.top : !x.next) lines.push(gap);
+      else if (x.next === "room") lines.push(room);
+      lines.push(`<div class="wrow${x.same ? " same" : ""}${k % 2
+        ? " zb" : ""}"` +
+        ` data-slot="${x.w}" data-name="${esc(x.name)}"` +
+        ` data-facts="${esc(x.facts ?? "")}"${x.full
+          ? ` data-full="${esc(x.full)}"` : ""}>` +
+        `<span class="addr" tabindex="0"` +
+        ` aria-label="${esc(x.what)}">${x.ring
+          ? `<span class="ring"` +
+          ` aria-label="written, same value"></span>` : ""}<span class="a">${
+          esc(x.gutter)}</span></span>` +
+        wordHtml(m, loc, x.w, side, x.tint, x.name) + `</div>`);
+    });
+    if (loc.end !== false) lines.push(gap);
+    return `<div class="view" data-side="${side}" role="group"` +
+      ` aria-label="${esc(loc.aria(side))}">` +
+      `<div class="view-head"><span class="view-name">${esc(loc.title(side))
+      }</span><div class="wrow head"><span class="addr"></span>${ruler()
+      }</div></div><div class="rows">${lines.join("")}</div></div>`;
+  };
+  return `<p class="muted small swipe">Each word is one line of 32 bytes;
+    scroll sideways to see bytes 24 to 31.</p>` +
+    `<div class="views" data-loc="${loc.id}">${loc.sides.map(view)
+      .join("")}</div>`;
+}
+const tail = (s) => `…${s.slice(-4)}`;
+// Storage, in a scene: its slots by number
+export function renderPanel(m) {
+  const zero = (w) => !w || /^0x0*$/.test(w);
+  const rows = m.order.map((s, k) => {
+    const name = slotName(m, s);
+    const n = num(s);
     const { before, after } = m.f.slots[s];
-    const zero = (w) => !w || /^0x0*$/.test(w);
     const same = !m.single && before === after;
     const rd = m.read.has(s);
     const wr = m.written.has(s);
@@ -332,51 +383,23 @@ export function renderPanel(m) {
       : "not read or written")
       : zero(after) && !zero(before) ? "cleared (written to zero)"
         : same ? "written, same value" : rd ? "read, written" : "written";
-    // the one mark at rest: written without a change, which nothing
-    // else would show
-    const ring = !m.single && wr && same;
-    return { s, n, name, tint, same, facts, ring };
+    const what = `${name}${name.startsWith("slot") ? "" : ` (slot ${
+      short(s)})`}${facts ? `; ${facts}` : ""}`;
+    // (room for a popover before a hashed slot that starts a value right
+    // after another slot)
+    const prev = m.order[k - 1];
+    const next = prev !== undefined && n === num(prev) + 1n
+      ? /^slot \d+$|\+ \d+$/.test(name) ? true : "room" : false;
+    return { w: s, name, gutter: tail(s), what: `${s}; ${what}`, facts,
+      same, ring: !m.single && wr && same, next,
+      full: name === slotRef(s) ? null : `= ${s}` };
   });
-  const gap = `<div class="gap" aria-hidden="true"><span>⋯</span></div>`;
-  const room = `<div class="gap room" aria-hidden="true"></div>`;
-  const view = (side) => {
-    const title = m.single ? "Storage" : side === "before" ? "Before"
-      : "After";
-    const lines = [];
-    rows.forEach((x, k) => {
-      const prev = rows[k - 1];
-      // a gap line where the addresses jump; and room for a popover
-      // before a hashed slot that starts a value right after another
-      // slot (a "room" line, with no "⋯")
-      // (nothing comes before slot 0: no line at all)
-      if (k === 0 && x.n === 0n) {
-        // slot 0 at the top
-      } else if (k === 0 || x.n !== prev.n + 1n) lines.push(gap);
-      else if (!/^slot \d+$|\+ \d+$/.test(x.name)) lines.push(room);
-      const what = `${x.name}${x.name.startsWith("slot") ? "" : ` (slot ${
-        short(x.s)})`}${x.facts ? `; ${x.facts}` : ""}`;
-      lines.push(`<div class="wrow${x.same ? " same" : ""}${k % 2
-        ? " zb" : ""}"` +
-        ` data-slot="${x.s}" data-name="${esc(x.name)}"` +
-        ` data-facts="${esc(x.facts)}"${x.name === slotRef(x.s) ? ""
-          : ` data-full="= ${x.s}"`}>` +
-        `<span class="addr" tabindex="0"` +
-        ` aria-label="${esc(`${x.s}; ${what}`)}">${x.ring
-          ? `<span class="ring"` +
-          ` aria-label="written, same value"></span>` : ""}<span class="a">${
-          tail(x.s)}</span></span>` +
-        wordHtml(m, x.s, side, x.tint, x.name) + `</div>`);
-    });
-    lines.push(gap);
-    return `<div class="view" data-side="${side}" role="group"` +
-      ` aria-label="Storage ${esc(m.when[side])}">` +
-      `<div class="view-head"><span class="view-name">${title}</span>` +
-      `<div class="wrow head"><span class="addr"></span>${ruler()}</div>` +
-      `</div><div class="rows">${lines.join("")}</div></div>`;
-  };
-  return `<p class="muted small swipe">Each word is one line of 32 bytes;
-    scroll sideways to see bytes 24 to 31.</p>` +
-    `<div class="views">${view("before")}${view("after")}</div>`;
+  return renderLocation(m, { id: "storage", sides: SIDES, rows,
+    top: num(m.order[0] ?? "0x1") === 0n,
+    title: (side) => m.single ? "Storage" : side === "before" ? "Before"
+      : "After",
+    aria: (side) => `Storage ${m.when[side]}`,
+    word: (s, side) => pairs(m.f.slots[s][side]) });
 }
 
 // --------------------------------------------------------- highlight
