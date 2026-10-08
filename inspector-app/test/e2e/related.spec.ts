@@ -79,17 +79,17 @@ test("a walkthrough in the related view: step 0 to found, the same rows",
     const shown = await rows(page);
     expect(shown).toEqual(["slot 3", ROSTER0, RECORD, `${RECORD} + 1`]);
     await page.locator('#details button[data-r="start"]').click();
-    await expect(page.locator("#details .rcount")).toHaveText(/^0\s*\/\s*12$/);
+    await expect(page.locator("#details .rcount")).toHaveText(/^0\s*\/\s*10$/);
     // (step 0: the record's slots lit, in rows that are shown)
     const lit = () => page.locator(
       "#panel .view:not([hidden]) .wrow:has(.b.hl)").evaluateAll((rs) =>
       rs.map((r) => (r as HTMLElement).dataset.name));
     await expect.poll(lit).toEqual(["slot 3", RECORD, `${RECORD} + 1`]);
     await page.locator("#details").focus();
-    for (let i = 1; i <= 12; i++) {
+    for (let i = 1; i <= 10; i++) {
       await page.keyboard.press("ArrowRight");
       await expect(page.locator("#details .rcount"))
-        .toHaveText(new RegExp(`^${i}\\s*/\\s*12$`));
+        .toHaveText(new RegExp(`^${i}\\s*/\\s*10$`));
       expect(await rows(page)).toEqual(shown);
     }
     await expect(page.locator("#details .rshort")).toHaveText(/found/);

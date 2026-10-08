@@ -1423,3 +1423,41 @@ html { overflow-anchor: none; }
 .wpanel.walking .dwrap { margin-bottom: 0; }
 .lens > [data-area]:has(> .wpanel.walking) { position: sticky; top: 0;
   z-index: 8; align-self: start; }
+/* A walkthrough's colours: yellow is the selection's alone. A row or
+   slot lit that is not the selection, with no colour of its own: the
+   neutral tone; the pointer's band and the slots found so far (their
+   gutter group), the same neutral tone */
+:root { --pknt: #d3dbe6; --pknt-fg: #1d2a3b; --pknt-edge: #6f8197; }
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) { --pknt: #33404f; --pknt-fg: #dbe4ef;
+    --pknt-edge: #8fa1b6; }
+}
+:root[data-theme="dark"] { --pknt: #33404f; --pknt-fg: #dbe4ef;
+  --pknt-edge: #8fa1b6; }
+.pknt { --pk: var(--pknt); --pk-fg: var(--pknt-fg); }
+.pk0 { --pk: var(--mark); --pk-fg: var(--chg-fg); }
+.b.hl.pknt { background: var(--pk); color: var(--pk-fg); }
+.row.hl.pknt { background: var(--pk); color: var(--pk-fg);
+  box-shadow: -4px 0 0 var(--pk), 4px 0 0 var(--pk); }
+.view.walking .addr.grp::before {
+  background: color-mix(in srgb, var(--pknt) 80%, var(--panel)); }
+.ptrlines .line.on { background: color-mix(in srgb, var(--pknt) 70%,
+  transparent); box-shadow: inset 3px 0 0 var(--pknt-edge); }
+@media (prefers-color-scheme: dark) {
+  .ptrlines .line.on { background: color-mix(in srgb, var(--pknt) 70%,
+    transparent); }
+}
+/* a slot a step computes (not read yet): its word outlined in its
+   entry's colour, the bytes as they are */
+.wrow.whole > .word { position: relative; }
+.wrow.whole > .word::after { content: ""; position: absolute;
+  inset: 1px 0; border-radius: 4px; pointer-events: none;
+  box-shadow: inset 0 0 0 2px var(--pk-edge, var(--pk-fg)); }
+.wrow.whole.pk0 > .word::after { --pk-edge: var(--accent); }
+/* (step 0's halo on ▶, and the tree's edge buttons: not the selection's
+   yellow) */
+.rbar .btn.halo { box-shadow: 0 0 0 3px color-mix(in srgb, var(--pknt-edge)
+  70%, transparent); }
+@keyframes halo { 50% { box-shadow: 0 0 0 6px color-mix(in srgb,
+  var(--pknt-edge) 35%, transparent); } }
+.tedge { background: var(--panel); color: var(--fg); }
