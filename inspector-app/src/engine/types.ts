@@ -157,6 +157,9 @@ export interface Row {
   what: { path: Path; name: string }[]; // byte order: "rounds · total"
   role?: "own-slot";          // a variable's slot with none of its data
   gapBefore?: boolean;
+  // (a row of another location than its dump's: a memory dump's storage
+  // slot, read by the page's own rule)
+  location?: Location;
 }
 
 // ------------------------------------------------- 1.5 Dereference graph

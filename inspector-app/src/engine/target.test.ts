@@ -47,10 +47,11 @@ it.each([
 });
 
 it("blockOf: the selection's child holding a path", () => {
-  expect(blockOf(`${A}.name`, "players")).toBe(A);
-  expect(blockOf("roster[2]", "roster")).toBe("roster[2]");
-  expect(blockOf("total", "players")).toBe("total");
-  expect(blockOf(`${A}.name`, null)).toBe(`${A}.name`);
+  const t = at.d.byPath;
+  expect(blockOf(`${A}.name`, "players", t)).toBe(A);
+  expect(blockOf("roster[2]", "roster", t)).toBe("roster[2]");
+  expect(blockOf("total", "players", t)).toBe("total");
+  expect(blockOf(`${A}.name`, null, t)).toBe(`${A}.name`);
 });
 
 it("locked: inside the selection keeps it, outside is ignored", () => {

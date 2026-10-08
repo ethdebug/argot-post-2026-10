@@ -3,17 +3,21 @@
 // the blocks" (spec §4.1)
 import type { Layout, Path, Target, ValueNode } from "./types";
 import { byteKey } from "./hex";
+import { parentIn, within } from "./tree-paths";
 
-const CHILD = /^(\.[^.[]+|\[[^\]]*\])/;
+type Tree = ReadonlyMap<Path, ValueNode>;
 
 // With a composite selected, the selection's immediate child whose
 // block holds `path`; else `path`
-export function blockOf(path: Path, selection: Path | null): Path {
-  if (!selection || path === selection ||
-    !(path.startsWith(selection + ".") || path.startsWith(selection + "["))) {
-    return path;
+export function blockOf(path: Path, selection: Path | null,
+  tree: Tree): Path {
+  if (!selection || path === selection) return path;
+  for (let q: Path | undefined = path; q !== undefined;) {
+    const up = parentIn(tree, q);
+    if (up === selection) return q;
+    q = up;
   }
-  return selection + path.slice(selection.length).match(CHILD)![0];
+  return path;
 }
 
 // The variable whose own slot (holding none of its data) a row is
@@ -35,10 +39,10 @@ export function resolveTarget(hit: Target, selection: Path | null,
     const id = l.cover.get(byteKey(b.location, b.row, b.from))?.[0];
     const owner = id?.replace(/#length$/, "");
     if (!owner || !tree.has(owner)) return { bytes: b };
-    const block = blockOf(owner, selection);
+    const block = blockOf(owner, selection, tree);
     return block !== owner ? { path: block } : { path: owner, bytes: b };
   }
-  return hit.path ? { path: blockOf(hit.path, selection) } : {};
+  return hit.path ? { path: blockOf(hit.path, selection, tree) } : {};
 }
 
 // While a value is selected, the view stays on it: a hover on its own
@@ -49,6 +53,5 @@ export function locked(hover: Target | null, selection: Path | null,
   if (!selection || !hover) return hover;
   const p = hover.path;
   if (!p || !tree.has(p)) return null;
-  return p === selection || p.startsWith(selection + ".") ||
-    p.startsWith(selection + "[") ? hover : null;
+  return within(tree, p, selection) ? hover : null;
 }

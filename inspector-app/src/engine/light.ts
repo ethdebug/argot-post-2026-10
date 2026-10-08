@@ -6,22 +6,21 @@ import type {
 } from "./types";
 import { byteKey, slotHex, toBig } from "./hex";
 import { regionBytes } from "./layout";
+import { parentIn, within } from "./tree-paths";
 import type { Part, Step } from "./walkthrough/fold";
 
 export const noLight: Light = { bytes: new Set(), rows: new Set(),
   colours: new Map(), cap: new Set(), gutters: new Set(), muted: false };
 
-const under = (p: Path, root: Path) => p === root ||
-  p.startsWith(root + ".") || p.startsWith(root + "[");
+type Tree = Decoded["byPath"];
 // an owner id's value: `${path}#length` is a part of `path`
 export const ownerPath = (id: string): Path => id.replace(/#length$/, "");
-const parentOf = (p: Path) => p.replace(/(\.[^.[\]]+|\[[^\]]*\])$/, "");
 
 // A row hidden in a collapsed group shows as its outermost collapsed
 // ancestor
-function shownAs(p: Path, collapsed: ReadonlySet<Path>): Path {
+function shownAs(t: Tree, p: Path, collapsed: ReadonlySet<Path>): Path {
   let v = p;
-  for (let a = parentOf(p); a !== p && a; p = a, a = parentOf(a)) {
+  for (let a = parentIn(t, p); a !== undefined; a = parentIn(t, a)) {
     if (collapsed.has(a)) v = a;
   }
   return v;
@@ -46,7 +45,9 @@ export function childColours(d: Decoded, path: Path, picks: 9 | 8):
   const out = new Map<Path, Colour>([[path, 0]]);
   kids.forEach((k, i) => {
     const c = (1 + i % picks) as Colour;
-    for (const q of d.byPath.keys()) if (under(q, k.path)) out.set(q, c);
+    for (const q of d.byPath.keys()) {
+      if (within(d.byPath, q, k.path)) out.set(q, c);
+    }
   });
   return out;
 }
@@ -68,15 +69,17 @@ function baseSlotOf(d: Decoded, root: string): Hex | undefined {
 export function forPath(d: Decoded, l: Layout, path: Path,
   o: { collapsed?: ReadonlySet<Path>; selection?: boolean } = {}): Light {
   const owners = [...l.owned.keys()].filter((q) =>
-    under(ownerPath(q), path));
-  const below = [...d.byPath.keys()].filter((q) => under(q, path));
+    within(d.byPath, ownerPath(q), path));
+  const below = [...d.byPath.keys()].filter((q) =>
+    within(d.byPath, q, path));
   let rows = [path, ...owners.map(ownerPath), ...below];
-  let colours = childColours(d, path, 9) as Map<Path, Colour>;
+  let colours = childColours(d, path, l.location === "memory" ? 8 : 9) as
+    Map<Path, Colour>;
   if (o.collapsed?.size) {
     const c = o.collapsed;
-    rows = rows.flatMap((p) => [p, shownAs(p, c)]);
+    rows = rows.flatMap((p) => [p, shownAs(d.byPath, p, c)]);
     colours = new Map([...colours].map(([p, k]) => {
-      const v = shownAs(p, c);
+      const v = shownAs(d.byPath, p, c);
       return [p, v === p || colours.get(v) === k ? k : 0];
     }));
   }
@@ -91,8 +94,17 @@ export function forPath(d: Decoded, l: Layout, path: Path,
       gutters.add(r.address);
     }
   }
-  return { ...noLight, bytes: lit(l, owners), rows: new Set(rows),
-    colours, gutters, muted: true };
+  // (and the regions read to find them: a local's frame pointer)
+  const bytes = lit(l, owners);
+  for (const q of below) {
+    for (const r of d.byPath.get(q)?.reads ?? []) {
+      for (const [row, i] of regionBytes(r)) {
+        bytes.add(byteKey(r.location, row, i));
+      }
+    }
+  }
+  return { ...noLight, bytes, rows: new Set(rows), colours, gutters,
+    muted: true };
 }
 
 // A whole row, from its address in the gutter: pointed at, nothing lit
@@ -113,7 +125,8 @@ export function forBytes(d: Decoded, l: Layout,
   }
   const rows = [...owners].map(ownerPath);
   return { ...noLight, bytes: lit(l, [...owners]), rows: new Set(
-    o.collapsed?.size ? rows.flatMap((p) => [p, shownAs(p, o.collapsed!)])
+    o.collapsed?.size
+      ? rows.flatMap((p) => [p, shownAs(d.byPath, p, o.collapsed!)])
       : rows), at, muted: true };
 }
 
