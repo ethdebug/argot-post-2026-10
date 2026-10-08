@@ -29,6 +29,7 @@ import {
 } from "./hooks";
 import { blockOf, resolveTarget } from "../engine/target";
 import { noLight } from "../engine/light";
+import { relClass } from "../engine/related";
 import { readWritten } from "../engine/timeline";
 import { addressText, goesOn, rowBytes } from "../engine/location";
 import type { DataRef, LinkId, ViewId } from "./types";
@@ -148,6 +149,9 @@ function Word({ l, ls, loc, row, mine, theirs, side, name, light,
           light.dim?.has(byteKey(loc, row, i))) {
           cls.push("muted");
         }
+      } else if (light.relBytes?.has(byteKey(loc, row, i))) {
+        // (a consulted value's: the related treatment)
+        cls.push(relClass(light, g.owners) ?? "rel pkn");
       }
       if (isAt) cls.push("at");
       // (bytes no value owns, pointed at: a neutral light)
@@ -407,9 +411,11 @@ export function Dump(p: { id: ViewId; location: Location; data: DataRef;
     const gut = !on && !only && light.gutters.has(r.address);
     // (a row a walkthrough has found by now keeps its label)
     const known = !on && !only && !!light.known?.has(r.address);
+    // (a row the selection consulted: the related treatment)
+    const rel = !on && !only && !!light.related?.has(r.address);
     const cls = ["wrow", same ? "same" : "", k % 2 ? "zb" : "",
       on ? "on" : "", only ? "only" : "", known ? "known" : "",
-      gut ? "gut" : ""]
+      gut ? "gut" : "", rel ? "rel" : ""]
       .filter(Boolean).join(" ");
     lines.push(<div key={r.address} className={cls} data-slot={r.address}
       data-name={name} data-facts={facts}

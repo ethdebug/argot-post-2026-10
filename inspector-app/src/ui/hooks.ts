@@ -15,7 +15,9 @@ import {
 import {
   walkthrough, type WalkInput, type Walkthrough,
 } from "../engine/walkthrough/fold";
-import { related, relatedValues } from "../engine/related";
+import {
+  related, relatedValues, withRelated,
+} from "../engine/related";
 import { locked } from "../engine/target";
 import { byteKey } from "../engine/hex";
 import { regionBytes } from "../engine/layout";
@@ -288,9 +290,11 @@ export function useLight(id: string, filter?: Filter, at?: DataRef,
     // (the last step, found: exactly the selection's resting view)
     const step = link.walk && w ? w.steps[Math.min(link.walk.step,
       w.steps.length - 1)] : null;
+    // (with what it consulted: the resting view's related treatment)
     if (step?.phase === "found" && selection && d.byPath.has(selection)) {
-      return { ...forPath(d, l, selection, { ...o, selection: true }),
-        cap: new Set([selection]), rest: true };
+      return { ...withRelated(forPath(d, l, selection, { ...o,
+        selection: true }), d, l, selection, w),
+      cap: new Set([selection]), rest: true };
     }
     if (link.walk && w) return forStep(d, l, w.steps, Math.min(link.walk.step,
       w.steps.length - 1));
@@ -309,7 +313,9 @@ export function useLight(id: string, filter?: Filter, at?: DataRef,
       return { ...noLight, bytes, muted: true };
     }
     if (sel) {
-      const base = forPath(d, l, sel, { ...o, selection: true });
+      // (and what it consulted: the related treatment)
+      const base = withRelated(forPath(d, l, sel, { ...o,
+        selection: true }), d, l, sel, w);
       const lk = locked(hover, sel, d.byPath);
       const k = lk?.path && lk.path !== sel
         ? base.colours.get(lk.path) : undefined;

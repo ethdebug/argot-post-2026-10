@@ -3558,9 +3558,12 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
         `.wrow[data-slot="0x${"0".repeat(63)}3"]`);
       return { grp: r.querySelector(".addr").classList.contains("grp"),
         lit: r.querySelectorAll(".b.hl").length,
-        pop: r.querySelector(".pop")?.textContent };
+        pop: r.querySelector(".pop")?.textContent,
+        light: !!r.querySelector(".pop.kept.related") };
     });
-    if (!s3.grp || s3.lit || s3.pop !== "slot 3") {
+    // (a slot the selection consulted, its anchor: a light label)
+    if (!s3.grp || s3.lit || s3.pop !== "slot 3 : players (anchor)" ||
+      !s3.light) {
       problems.push(`players' slot 3: ${JSON.stringify(s3)}`);
     }
     await page.evaluate((x) => window.select("mid", { sel: x }), A);
@@ -3646,8 +3649,10 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
     "keccak(0x90f7…b906, slot 3) : players[0x90f7…b906], 2 slots",
     "keccak(keccak(0x90f7…b906, slot 3) + 1) : players[0x90f7…b906].name, " +
       "2 slots",
-    // (and players' own slot, by its gutter)
-    "slot 3"].join("|")) {
+    // (and what it consulted: the keys' slots, players' own, its anchor)
+    "keccak(slot 0) : (unmapped) · [0] / (unmapped) · [1] / (unmapped) · " +
+      "[2], 3 slots",
+    "slot 3 : players (anchor)"].join("|")) {
     problems.push(`popover room: ${JSON.stringify(room)}`);
   }
   await page.keyboard.press("Escape");
