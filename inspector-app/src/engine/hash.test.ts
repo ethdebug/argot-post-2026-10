@@ -15,7 +15,7 @@ it("round-trips every bookmark x side x selection", async () => {
     const single = bm.points.length === 1;
     for (const side of single ? ["after"] as const
       : ["before", "after"] as const) {
-      for (const sel of [null, bm.select ?? null, "total"]) {
+      for (const sel of [null, bm.select ?? null, "totalScore"]) {
         for (const insets of [true, false]) {
           const h = toHash(lens, { bookmark: bm.id, side, insets,
             selection: sel }, p.bookmarks);
@@ -57,7 +57,7 @@ it("Review Focus 3: a stale or foreign hash gives the first bookmark's "
   + "defaults", async () => {
   const p = await testProject();
   for (const h of ["ex=token", "ex=nope&mode=compare&sel=zzz&mopt=7",
-    "memory", "mpt=mult&msel=m"]) {
+    "memory", "mpt=mult&msel=mult"]) {
     expect(fromHash(lens, q(h.includes("=") ? h : ""), p.bookmarks))
       .toEqual({ bookmark: "mid", side: "after", insets: true,
         selection: A });
@@ -76,9 +76,9 @@ const mem: HashLens = { links: ["mem"],
 
 it("the memory section's keys: mopt, mpt, mmode, msel", async () => {
   const p = await testProject();
-  expect(fromHash(mem, q("ex=motd&mode=before&sel=roster&mopt=2&mpt=mult"
-    + "&mmode=before&msel=m&insets=0"), p.bookmarks)).toEqual({
-    bookmark: "O2/mult", side: "before", insets: true, selection: "m" });
+  expect(fromHash(mem, q("ex=motd&mode=before&sel=playerList&mopt=2&mpt=mult"
+    + "&mmode=before&msel=mult&insets=0"), p.bookmarks)).toEqual({
+    bookmark: "O2/mult", side: "before", insets: true, selection: "mult" });
   expect(fromHash(mem, q("mopt=2"), p.bookmarks)).toMatchObject({
     bookmark: "O2/roll", selection: "hit" });
   expect(fromHash(mem, q("mpt=writes&msel="), p.bookmarks)).toMatchObject({
@@ -87,7 +87,7 @@ it("the memory section's keys: mopt, mpt, mmode, msel", async () => {
   expect(fromHash(mem, q("mopt=7&mpt=x&msel=zzz"), p.bookmarks))
     .toMatchObject({ bookmark: "O0/roll", selection: "zzz" });
   expect(toHash(mem, { bookmark: "O2/mult", side: "before", insets: true,
-    selection: "multiplied" }, p.bookmarks)).toEqual({ mopt: "2",
+    selection: "_applyCombo" }, p.bookmarks)).toEqual({ mopt: "2",
     mpt: "mult", mmode: "before", msel: null, mrel: null });
   expect(toHash(mem, { bookmark: "O0/roll", side: "after", insets: true,
     selection: null }, p.bookmarks)).toEqual({ mopt: "0", mpt: "roll",
@@ -100,7 +100,7 @@ it("the related view: rel, its context rows (none: off)", async () => {
   expect([at("ex=mid"), at("ex=mid&rel=0"), at("ex=mid&rel=1"),
     at("ex=mid&rel=x")]).toEqual([undefined, 0, 1, undefined]);
   const s = { bookmark: "mid", side: "after" as const, insets: true,
-    selection: "total" };
+    selection: "totalScore" };
   expect(toHash(lens, s, p.bookmarks).rel).toBe(null);
   expect(toHash(lens, { ...s, related: 1 }, p.bookmarks).rel).toBe("1");
   expect(toHash(mem, { ...s, bookmark: "O0/roll", related: 0 },

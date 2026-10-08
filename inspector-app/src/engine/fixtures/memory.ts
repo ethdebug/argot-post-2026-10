@@ -25,12 +25,12 @@ interface MemoryJson {
 
 // the function the locals of a pause are in, if not play()'s body; the
 // selection each pause opens with (vanilla mem.js GROUP, DEFAULT)
-const SCOPE: Record<string, string> = { mult: "multiplied" };
-const SELECT: Record<string, string> = { roll: "hit", mult: "multiplied",
+const SCOPE: Record<string, string> = { mult: "_applyCombo" };
+const SELECT: Record<string, string> = { roll: "hit", mult: "_applyCombo",
   writes: "gained" };
 // Player's members, from the low end of the slot (BUG's rule, Solidity's)
 const MEMBERS: [string, number][] = [["score", 8], ["combo", 4],
-  ["bestCombo", 4], ["plays", 4], ["hitCount", 4], ["lastBlock", 8]];
+  ["bestCombo", 4], ["plays", 4], ["hits", 4], ["lastBlock", 8]];
 
 const bytesOf = (h: Hex) => Uint8Array.from((h.slice(2).match(/../g) ?? [])
   .map((b) => parseInt(b, 16)));

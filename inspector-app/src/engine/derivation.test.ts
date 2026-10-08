@@ -11,10 +11,10 @@ const at = async (o: string, pt: string) => {
     snap: t.points.find((x) => x.id === pt)!.snapshot };
 };
 
-it("O0, m before m = combo: the frame word, then m's at frame + 88",
+it("O0, mult before mult = combo: the frame word, then mult's at frame + 88",
   async () => {
     const { d, snap } = await at("O0", "O0/mult:0");
-    const s = derivation(d, snap, "m")!;
+    const s = derivation(d, snap, "mult")!;
     expect(s.map((x) => x.kind)).toEqual(["start", "region", "region",
       "result"]);
     const [, frame, m, res] = s;

@@ -45,9 +45,9 @@ it("the chevron toggles the group only", async () => {
 it("pointing at a chevron points at its row", async () => {
   const { lens, li } = await mount(null);
   act(() => void fireEvent.pointerOver(
-    li("roster").querySelector(":scope > .chev")!));
-  expect(lens.store.get().links.storage.hover).toEqual({ path: "roster" });
-  await waitFor(() => expect(li("roster").querySelector(":scope > .row")!
+    li("playerList").querySelector(":scope > .chev")!));
+  expect(lens.store.get().links.storage.hover).toEqual({ path: "playerList" });
+  await waitFor(() => expect(li("playerList").querySelector(":scope > .row")!
     .classList.contains("hl")).toBe(true), slow);
 });
 

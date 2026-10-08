@@ -45,7 +45,7 @@ const settle = (page: Page) => page.evaluate(() => new Promise((r) =>
 test("a gap between two values, and the row's ends: the address's hover",
   async ({ page }) => {
     await ready(page, "alice");
-    const slot = await rowOf(page, "lastBlock", "hitCount");
+    const slot = await rowOf(page, "lastBlock", "hits");
     expect(slot).toBeTruthy();
     const row = `${V} .wrow[data-slot="${slot}"]`;
     await page.locator(`${row} > .addr`).hover();
@@ -58,7 +58,7 @@ test("a gap between two values, and the row's ends: the address's hover",
     const b8 = await box(page, `${row} .b[data-i="8"]`);
     const r = await box(page, row);
     const y = b7.y + b7.height / 2;
-    // (in from a byte of lastBlock: the gap, then hitCount's byte)
+    // (in from a byte of lastBlock: the gap, then hits's byte)
     await page.mouse.move(b7.x + b7.width / 2, y);
     await settle(page);
     expect(await state(page)).toContain("pbadge");
@@ -97,7 +97,7 @@ test("a gap between two values, and the row's ends: the address's hover",
     await settle(page);
     const s = await state(page);
     expect(s).toContain("pbadge");
-    expect(s).toMatch(/pbadge[^>]*>hitCount</);
+    expect(s).toMatch(/pbadge[^>]*>hits</);
     expect(await rects(page)).toBe(still);
   });
 
@@ -164,7 +164,7 @@ test("16 bytes a line: 2px between a word's lines where two values meet; " +
     return { gap: br.top - ar.bottom, joined: a.classList.contains("jd"),
       fill: after.content !== "none" && after.content !== "normal" };
   }, [V, slot, String(i)] as const);
-  // (slot 0: roster's length, one value over both lines)
+  // (slot 0: playerList's length, one value over both lines)
   const len = await geo("0000", 0);
   expect(len.gap).toBeCloseTo(2, 0);
   expect([len.joined, len.fill]).toEqual([true, true]);

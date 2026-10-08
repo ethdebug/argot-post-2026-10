@@ -116,7 +116,7 @@ export function layout(d: Decoded, location: Location, filter: Filter = {},
         // (a string's length parts are an owner of their own, as vanilla)
         const part = r.role === "length" && !n.children;
         // (a function's own region, its frame pointer: an owner of its
-        // own, by the region's name, as vanilla's "multiplied#frame")
+        // own, by the region's name, as vanilla's "_applyCombo#frame")
         const key = part ? `${n.path}#length` : n.kind === "group" &&
           r.name ? `${n.path}#${r.name.replace(/^-/, "")}` : n.path;
         for (const [row, i] of regionBytes(r)) {
@@ -214,7 +214,7 @@ export function layout(d: Decoded, location: Location, filter: Filter = {},
         // (a value's other region by its role, under its name; an
         // array's own word alone in its slot: its length)
         const own = !g.length && !!g.node.children && !g.node.kind;
-        // (a part of its own, by its id: "multiplied#frame")
+        // (a part of its own, by its id: "_applyCombo#frame")
         if (!g.length && g.key !== g.path) {
           return { path: g.path, name: g.key };
         }

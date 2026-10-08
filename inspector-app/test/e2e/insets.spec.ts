@@ -83,7 +83,7 @@ test("the tree's cards: the other state's value, for what changed",
       await row(page, `${B}.score`).hover();
       await expect.poll(() => tins(page)).toEqual([]);
     }
-    for (const p of ["roster[0]", `${A}.name`, `${B}.score`, "motd"]) {
+    for (const p of ["playerList[0]", `${A}.name`, `${B}.score`, "motd"]) {
       for (const m of ["before", "after"]) {
         await select(page, "alice", p, m);
         await page.mouse.move(1, 1);
@@ -108,7 +108,7 @@ test('"show other state" off: no cards; lighting still works',
 
 test("one point: no cards, no tray", async ({ page }) => {
   await ready(page);
-  for (const sel of ["players", A, "roster", "motd", "total"]) {
+  for (const sel of ["players", A, "playerList", "motd", "totalScore"]) {
     await select(page, "mid", sel);
     await page.mouse.move(1, 1);
     await expect(page.locator("#panel .cmp, #panel .tray, #tree .tcard"))

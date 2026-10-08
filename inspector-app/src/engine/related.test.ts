@@ -42,7 +42,7 @@ it("one row of context: each related row's neighbours that are rows",
 
 it("a value with a walkthrough of one step: its own slot", async () => {
   const { rows } = await mid();
-  expect(rows("total")).toEqual(["slot 2"]);
+  expect(rows("totalScore")).toEqual(["slot 2"]);
 });
 
 it("a string: its record's slots, its length and its data", async () => {
@@ -53,21 +53,21 @@ it("a string: its record's slots, its length and its data", async () => {
 
 it("no walkthrough: the value's own rows", async () => {
   const { d } = await mid();
-  expect(related(d, "total", null, "storage")).toEqual([
+  expect(related(d, "totalScore", null, "storage")).toEqual([
     `0x${"2".padStart(64, "0")}`]);
-  expect(related(d, "total", null, "memory")).toEqual([]);
+  expect(related(d, "totalScore", null, "memory")).toEqual([]);
 });
 
 it("the tree's: the selection, and where its key comes from",
   async () => {
     const { d, w } = await mid();
     expect(relatedValues(d, `${A}.score`, w(`${A}.score`)))
-      .toEqual([`${A}.score`, "roster[0]"]);
-    // (its own variable's rows, roster's length: the groups that hold it)
-    expect(relatedValues(d, "roster[1]", w("roster[1]")))
-      .toEqual(["roster[1]"]);
+      .toEqual([`${A}.score`, "playerList[0]"]);
+    // (its own variable's rows, playerList's length: the groups that hold it)
+    expect(relatedValues(d, "playerList[1]", w("playerList[1]")))
+      .toEqual(["playerList[1]"]);
     expect(relatedValues(d, "players", w("players"))).toEqual(["players",
-      "roster[0]", "roster[1]", "roster[2]"]);
+      "playerList[0]", "playerList[1]", "playerList[2]"]);
   });
 
 it("what it consulted: each key in its record's colour; the anchor",
@@ -77,7 +77,7 @@ it("what it consulted: each key in its record's colour; the anchor",
     const of = (path: string) => withRelated(forPath(d, l, path,
       { selection: true }), d, l, path, w(path));
     const all = of("players");
-    expect(["roster[0]", "roster[1]", "roster[2]"].map((q) =>
+    expect(["playerList[0]", "playerList[1]", "playerList[2]"].map((q) =>
       all.relColours!.get(q))).toEqual([1, 2, 3]);
     expect([...all.anchors!.values()]).toEqual(["players"]);
     expect(all.related!.has(`0x${"3".padStart(64, "0")}`)).toBe(true);
@@ -86,8 +86,8 @@ it("what it consulted: each key in its record's colour; the anchor",
       { selection: true }).colours);
     // (a key that leads to the selection as a whole: neutral)
     const one = of(C);
-    expect([...one.relColours!]).toEqual([["roster[2]", 0]]);
-    expect(relClass(one, ["roster[2]"])).toBe("rel pkn");
-    expect(relClass(all, ["roster[1]"])).toBe("rel pk2");
+    expect([...one.relColours!]).toEqual([["playerList[2]", 0]]);
+    expect(relClass(one, ["playerList[2]"])).toBe("rel pkn");
+    expect(relClass(all, ["playerList[1]"])).toBe("rel pk2");
     expect(relClass(all, [`${A}.score`])).toBe(null);
   });

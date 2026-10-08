@@ -110,7 +110,7 @@ test("with a selection, a click on unmapped bytes clears it; no hover " +
   "until a move, then the run's", async ({ page }) => {
   await ready(page);
   await page.evaluate(() => (window as unknown as W).select("mid",
-    { sel: "total" }));
+    { sel: "totalScore" }));
   const c = page.locator(`${ROW} .b[data-i="10"]`);
   await c.scrollIntoViewIfNeeded();
   const b = (await c.boundingBox())!;
@@ -142,7 +142,7 @@ test("with a selection, a click in a gap of the run clears it; no hover " +
   "until a move", async ({ page }) => {
   await ready(page);
   await page.evaluate(() => (window as unknown as W).select("mid",
-    { sel: "total" }));
+    { sel: "totalScore" }));
   await page.locator(ROW).scrollIntoViewIfNeeded();
   const b7 = await box(page, `${ROW} .b[data-i="7"]`);
   const b8 = await box(page, `${ROW} .b[data-i="8"]`);

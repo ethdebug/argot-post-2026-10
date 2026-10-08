@@ -60,7 +60,7 @@ for (const [w, h] of [[1440, 900], [390, 844]]) {
 test("a step whose lit rows are in view does not scroll the page",
   async ({ page }) => {
     await ready(page);
-    await select(page, "roster");
+    await select(page, "playerList");
     await page.locator('#details button[data-r="start"]').click();
     await settled(page);
     const y = (await geo(page)).y;

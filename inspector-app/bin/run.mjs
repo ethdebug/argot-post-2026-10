@@ -37,16 +37,16 @@ const same2 = (rows) => rows.map(([p, v]) => [p, v, v]);
 const NAME_C = "carol, the unstoppable combo queen";
 const player = (p, [score, combo, best, plays, hc], name) => [
   [`${p}.score`, score], [`${p}.combo`, combo], [`${p}.bestCombo`, best],
-  [`${p}.plays`, plays], [`${p}.hitCount`, hc], [`${p}.name`, name]];
+  [`${p}.plays`, plays], [`${p}.hits`, hc], [`${p}.name`, name]];
 // the middle of the game
 const mid = [
   ...player(A, ["30", "2", "2", "2", "2"], '"alice"'),
   ...player(B, ["10", "1", "1", "1", "1"], '"bob"'),
-  ...player(C, ["0", "0", "0", "1", "0"], `"${NAME_C}"`),
-  ["roster", "length 3"],
-  ["roster[0]", "0x70997970c51812dc3a010c7d01b50e0d17dc79c8"],
-  ["roster[2]", "0x90f79bf6eb2c4f870365e785982e1f101e93b906"],
-  ["motd", `"${MOTD[0]}"`], ["total", "40"], ["rounds", "3"],
+  ...player(C, ["100", "0", "4", "5", "4"], `"${NAME_C}"`),
+  ["playerList", "length 3"],
+  ["playerList[0]", "0x70997970c51812dc3a010c7d01b50e0d17dc79c8"],
+  ["playerList[2]", "0x90f79bf6eb2c4f870365e785982e1f101e93b906"],
+  ["motd", `"${MOTD[0]}"`], ["totalScore", "140"], ["totalHits", "7"],
 ];
 const expected = {
   mid: same2(mid),
@@ -55,18 +55,18 @@ const expected = {
     [`${A}.combo`, "2", "3"],
     [`${A}.bestCombo`, "2", "3"],
     [`${A}.plays`, "2", "3"],
-    [`${A}.hitCount`, "2", "3"],
+    [`${A}.hits`, "2", "3"],
     [`${A}.name`, '"alice"', '"alice"'],
     [`${B}.score`, "10", "10"],
-    ["total", "40", "70"],
-    ["rounds", "3", "4"],
+    ["totalScore", "140", "170"],
+    ["totalHits", "7", "8"],
   ],
   motd: [
     ["motd", `"${MOTD[0]}"`, `"${MOTD[1]}"`],
     [`${A}.score`, "60", "60"],
     [`${C}.name`, `"${NAME_C}"`, `"${NAME_C}"`],
-    ["total", "70", "70"],
-    ["rounds", "4", "4"],
+    ["totalScore", "170", "170"],
+    ["totalHits", "8", "8"],
   ],
   // Solidity's rule, applied to the Vyper contract's storage
   vyper: same2([A, B, C].flatMap((p) => [[`${p}.score`, "0"],
@@ -312,7 +312,7 @@ async function slowLink(browser) {
   await p.locator('#picker button[data-id="vyper"]').click();
   await p.waitForFunction(() => "vyper" in window.results.decoded &&
     document.querySelector('#picker [aria-checked="true"]')?.dataset.id ===
-    "vyper" && !document.querySelector('#tree li[data-path="roster"]'));
+    "vyper" && !document.querySelector('#tree li[data-path="playerList"]'));
   const pick = Date.now() - t1;
   const rows = await p.evaluate(() => [performance.getEntriesByType(
     "navigation")[0], ...performance.getEntriesByType("resource")]
@@ -509,11 +509,11 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
     }
   };
   // Player packs six counters into one full word, from the low end:
-  // score (8 bytes), combo, bestCombo, plays, hitCount (4 each),
+  // score (8 bytes), combo, bestCombo, plays, hits (4 each),
   // lastBlock (8); before and after
   await want("score", `${A}.score`, range(24, 31), 2);
   await want("combo", `${A}.combo`, range(20, 23), 2);
-  await want("hitCount", `${A}.hitCount`, range(8, 11), 2);
+  await want("hits", `${A}.hits`, range(8, 11), 2);
   await want("lastBlock", `${A}.lastBlock`, range(0, 7), 2);
   // Clicking a byte selects the variable that owns it (selection lives
   // on the tree row)
@@ -600,7 +600,7 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
   await page.keyboard.press("Escape");
   await page.locator("h1").hover();
 
-  // The slots are named as the templates computed them: roster'
+  // The slots are named as the templates computed them: playerList'
   // elements and the long motd's data
   const slotNames = () => page.locator("#panel .wrow[data-name]")
     .evaluateAll((rs) => [...new Set(rs.map((r) => r.dataset.name))]);
@@ -609,26 +609,28 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
     !named.includes("keccak(0x7099…79c8, slot 3)")) {
     problems.push(`combo slots: ${named}`);
   }
-  // slot 2 holds rounds, then total, in byte order
+  // slot 2 holds totalHits, then totalScore, in byte order
   const slot3 = "0x" + "0".repeat(63) + "2";
   const owners = await page.locator('#panel .word[data-side="after"]' +
     `[data-slot="${slot3}"] .b[data-owners]`).evaluateAll((cs) =>
     [...new Set(cs.map((c) => c.dataset.owners))]);
-  if (owners.join() !== "rounds,total") problems.push(`owners: ${owners}`);
-  await want("rounds", "rounds", range(8, 15), 2);
-  await want("total", "total", range(16, 31), 2);
+  if (owners.join() !== "totalHits,totalScore") {
+    problems.push(`owners: ${owners}`);
+  }
+  await want("totalHits", "totalHits", range(8, 15), 2);
+  await want("totalScore", "totalScore", range(16, 31), 2);
 
   // Hovering a value lights it in both views and in the tree
-  await page.locator('#tree li[data-path="rounds"] > .row').hover();
+  await page.locator('#tree li[data-path="totalHits"] > .row').hover();
   const both = Object.keys(await lit());
   if (both.sort().join() !== `after ${slot3},before ${slot3}`) {
-    problems.push(`rounds in both views: ${both}`);
+    problems.push(`totalHits in both views: ${both}`);
   }
-  if (!await page.locator('#tree li[data-path="rounds"] > .row.hl')
+  if (!await page.locator('#tree li[data-path="totalHits"] > .row.hl')
     .count()) {
-    problems.push("rounds: tree row not lit");
+    problems.push("totalHits: tree row not lit");
   }
-  // while rounds is lit, every other byte and tree row steps back; lit
+  // while totalHits is lit, every other byte and tree row steps back; lit
   // ones stay at full strength
   await page.waitForTimeout(250);
   const dim = await page.evaluate(() => {
@@ -650,15 +652,17 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
     problems.push(`dimming: ${JSON.stringify(dim)}`);
   }
   const info = await dl();
-  if (info.Value !== "rounds (uint64)" || info.Where !== "slot 2, bytes 8–15" ||
-    info.Before !== "3 (0x0000000000000003)" ||
-    info.After !== "4 (0x0000000000000004)" ||
-    info.scrolls) problems.push(`details rounds: ${JSON.stringify(info)}`);
+  if (info.Value !== "totalHits (uint64)" ||
+    info.Where !== "slot 2, bytes 8–15" ||
+    info.Before !== "7 (0x0000000000000007)" ||
+    info.After !== "8 (0x0000000000000008)" ||
+    info.scrolls) problems.push(`details totalHits: ${JSON.stringify(info)}`);
   // and a popover at slot 2's address, in the dump shown
   const pops = () => page.locator("#panel .pop").allInnerTexts();
   let pp0 = await pops();
-  if (pp0.join("|") !== "slot 2 : (unmapped) · rounds · total · read, written") {
-    problems.push(`pops rounds: ${pp0}`);
+  if (pp0.join("|") !==
+    "slot 2 : (unmapped) · totalHits · totalScore · read, written") {
+    problems.push(`pops totalHits: ${pp0}`);
   }
   pp0 = [];
   // and from a byte in one view, the same position in the other
@@ -688,11 +692,13 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
   await page.locator(`#panel .word[data-side="after"][data-slot="${slot3}"]` +
     ' .b[data-i="31"]').hover();
   const one = await dl();
-  if (one.Value !== "total (uint128)" || one.Where !== "slot 2, bytes 16–31" ||
-    one.Holds !== "40 (0x…000028)" || "Before" in one || "After" in one) {
+  if (one.Value !== "totalScore (uint128)" ||
+    one.Where !== "slot 2, bytes 16–31" ||
+    one.Holds !== "140 (0x…00008c)" || "Before" in one || "After" in one) {
     problems.push(`one point details: ${JSON.stringify(one)}`);
   }
-  if ((await pops()).join("|") !== "slot 2 : (unmapped) · rounds · total") {
+  if ((await pops()).join("|") !==
+    "slot 2 : (unmapped) · totalHits · totalScore") {
     problems.push(`one point pops: ${await pops()}`);
   }
   if (await page.locator("#panel .cmp, #tree .tcard").count()) {
@@ -1178,9 +1184,9 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
   // The first scene, as its intro asks: a click on a byte of slot 2
   await page.locator('#picker button[data-id="mid"]').click();
   await pick(page.locator('#panel .word[data-side="after"] ' +
-    '.b[data-owners="total"][data-i="31"]'));
+    '.b[data-owners="totalScore"][data-i="31"]'));
   await page.locator("h1").hover();
-  if ((await selected()).join() !== "total") {
+  if ((await selected()).join() !== "totalScore") {
     problems.push(`packed: byte click selected ${await selected()}`);
   }
   if (name === "chromium") {
@@ -1305,7 +1311,7 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
   }
   let w = await walk("players");
   const stats = "all";
-  const roster = { "keccak(slot 0)": range(12, 31).join(),
+  const playerList = { "keccak(slot 0)": range(12, 31).join(),
     "keccak(slot 0) + 1": range(12, 31).join(),
     "keccak(slot 0) + 2": range(12, 31).join() };
   const cdata = `keccak(${cl0} + 1)`;
@@ -1314,9 +1320,9 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
   // (a define into a template is one step with the template it enters:
   // its computed slots outlined, not lit; walkthrough review T1, top 2)
   const wantPlayers = [
-    // the inputs first: the keys, from roster (no band)
+    // the inputs first: the keys, from playerList (no band)
     ["The keys: a mapping does not store its keys; the page takes them " +
-      "from roster", roster, null, null, []],
+      "from playerList", playerList, null, null, []],
     ["players is declared at slot 3; that slot holds nothing",
       {}, null, "slot: 0x03", ["slot 3"]],
     ["The template mapping(address => Player) takes slot and key", {}, null,
@@ -1350,7 +1356,7 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
     problems.push(`replay players: ${w.length} steps, controls at ${w.ctl}`);
   }
   // step 0, the goal: players' slots, whole, in the selection's yellow,
-  // with no label and no band; total has none; ⏮ and ◀ reach it; a
+  // with no label and no band; totalScore has none; ⏮ and ◀ reach it; a
   // re-target from it stays on it
   {
     const g = w.goal;
@@ -1379,14 +1385,14 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
       await page.keyboard.press("Escape");
       return x;
     })();
-    const tw = await walk("total");
+    const tw = await walk("totalScore");
     // (the bar counts the found step too: N + 1)
     if (g?.count !== `0 / ${N + 1}` || !all || Object.keys(g.lit).length < 9 ||
       labels.pops || labels.hues || labels.band || labels.cur ||
       labels.prev !== `0 / ${N + 1}` || labels.first !== `0 / ${N + 1}` ||
       labels.re !== "0 / 10" || tw.goal || tw[0].count !== "1 / 1") {
       problems.push(`step 0: ${JSON.stringify({ g: g?.count, lit: g?.lit,
-        labels, total: tw.goal ?? tw[0]?.count })}`);
+        labels, totalScore: tw.goal ?? tw[0]?.count })}`);
     }
   }
   // the pointer's box: no scrollbar shown; circle buttons where there is
@@ -1442,7 +1448,7 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
       problems.push(`pointer box: ${JSON.stringify({ z, o, d })}`);
     }
   }
-  // the byte strip: at the packed fields (and a flag, total), one line,
+  // the byte strip: at the packed fields (and a flag, totalScore), one line,
   // 32 equal cells, evenly spaced, each field's
   // span over its own cells, no wrapping at 1280 and 1440
   {
@@ -1475,7 +1481,7 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
       });
       await page.keyboard.press("Escape");
       if (!x || !x.even || !x.rows ||
-        !x.oneLine || x.spans.join() !== ["lastBlock 0-7", "hitCount 8-11",
+        !x.oneLine || x.spans.join() !== ["lastBlock 0-7", "hits 8-11",
         "plays 12-15", "bestCombo 16-19", "combo 20-23", "score 24-31"]
           .join()) bad.push(`${wd} ${JSON.stringify(x)}`);
     }
@@ -1517,7 +1523,7 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
       p: [...document.querySelectorAll("#panel .view:not([hidden]) .pop")]
         .map((p) => p.textContent) }));
     const bad = [];
-    for (const x of ["players", C, "roster"]) {
+    for (const x of ["players", C, "playerList"]) {
       await page.evaluate((y) => window.select("mid", { sel: y }), x);
       await page.mouse.move(1, 1);
       const rest = await view();
@@ -1582,7 +1588,7 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
     const cw = await walk(C);
     const cwant = [
       ["The key: carol's address. A mapping does not store its keys; the " +
-        "page takes it from roster[2]",
+        "page takes it from playerList[2]",
         { "keccak(slot 0) + 2": range(12, 31).join() }, [], null],
       ["players is declared at slot 3", {}, ["slot 3"], "slot: 0x03"],
       ["The template mapping(address => Player) takes slot and key", {},
@@ -1612,7 +1618,8 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
     await page.evaluate(() => window.select("mid", { sel: "players" }));
     const cs = await page.locator("#chips .chip").evaluateAll((cs) =>
       cs.map((c) => c.textContent).join("|"));
-    if (cs !== "keysroster|slot 3mapping|mapping(address => Player)template|" +
+    if (cs !== "keysplayerList|slot 3mapping|" +
+      "mapping(address => Player)template|" +
       "keccak(key, slot 3)record|6 fieldsfields|namestring|" +
       "flagstring|short | longbranch|inlinetext|" +
       "keccak(slot …)text|foundplayers") {
@@ -1689,13 +1696,13 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
       .match(/pk\d/)?.[0]), ps);
     await page.locator(`#chips .chip[data-k="${P.input}"]`).dispatchEvent("click");
     await page.mouse.move(1, 1);
-    const ks = await col(["roster[0]", "roster[1]", "roster[2]"]);
+    const ks = await col(["playerList[0]", "playerList[1]", "playerList[2]"]);
     await page.locator(`#chips .chip[data-k="${P.entries}"]`).dispatchEvent("click");
     await page.mouse.move(1, 1);
     const es = await col([A, B, C]);
     const pairs = ks.map((k, i) => [k, es[i]]);
     if (pairs.some(([a, b]) => !a || a !== b)) {
-      problems.push(`step 2 roster colours: ${JSON.stringify(pairs)}`);
+      problems.push(`step 2 playerList colours: ${JSON.stringify(pairs)}`);
     }
     await page.keyboard.press("Escape");
   }
@@ -1940,12 +1947,12 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
   {
     await page.evaluate(() => window.select("mid", { sel: null }));
     const lit = () => page.evaluate(() => ({
-      row: document.querySelector('#tree li[data-path="total"] > .row')
+      row: document.querySelector('#tree li[data-path="totalScore"] > .row')
         .classList.contains("hl"),
       bytes: document.querySelectorAll("#panel .view:not([hidden]) .b.hl")
         .length, sel: !!document.querySelector("#tree .row.sel") }));
-    await pick(row("total"));
-    await pick(row("total"));
+    await pick(row("totalScore"));
+    await pick(row("totalScore"));
     const r = await lit();
     const cell = page.locator(`#panel .view:not([hidden]) .wrow[data-slot="0x${
       "0".repeat(63)}2"] .b[data-i="31"]`);
@@ -1966,14 +1973,14 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
       const bs = [...document.querySelectorAll(
         "#panel .view:not([hidden]) .b.hl")];
       const v = document.querySelector(
-        '#tree li[data-path="roster[0]"] > .row .val');
+        '#tree li[data-path="playerList[0]"] > .row .val');
       return { lit: bs.length, capped: bs.filter((b) =>
         getComputedStyle(b).boxShadow !== "none").length,
       val: getComputedStyle(v).borderTopColor };
     });
-    await row("roster[0]").hover();
+    await row("playerList[0]").hover();
     const h = await caps();
-    await pick(row("roster[0]"));
+    await pick(row("playerList[0]"));
     await page.mouse.move(1, 1);
     const s = await caps();
     const clear = /rgba\(0, 0, 0, 0\)|transparent/;
@@ -1998,14 +2005,14 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
         cs[0].boxShadow !== "none");
     }).length);
     const bad = [];
-    for (const p of ["total", "roster[0]", `${C}.plays`, "motd"]) {
+    for (const p of ["totalScore", "playerList[0]", `${C}.plays`, "motd"]) {
       await row(p).hover();
       if (await lines()) bad.push(p);
     }
     const two = `#panel .view:not([hidden]) .wrow[data-slot="0x${
       "0".repeat(63)}2"]`;
     await page.locator(`${two} .b[data-i="20"]`).hover();
-    if (await lines()) bad.push("a byte of total");
+    if (await lines()) bad.push("a byte of totalScore");
     await page.locator(`${two} .addr`).hover();
     if (await lines()) bad.push("slot 2's address");
     if (bad.length) problems.push(`hover lines: ${bad}`);
@@ -2024,7 +2031,7 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
     await page.evaluate((x) => window.select("mid", { sel: x }), `${B}.plays`);
   }
   // every slot popover sits the same: its arrow's tip the same distance
-  // from its address's tint (players and roster[1] selected, a replay
+  // from its address's tint (players and playerList[1] selected, a replay
   // step), the mapping's root slot included
   {
     const gaps = () => page.evaluate(() => [...document.querySelectorAll(
@@ -2049,7 +2056,7 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
         : ar.top + (parseFloat(bf.top) || 0) - tip)];
     }));
     const seen = [];
-    for (const x of ["players", "roster[1]"]) {
+    for (const x of ["players", "playerList[1]"]) {
       await page.evaluate((y) => window.select("mid", { sel: y }), x);
       await page.mouse.move(1, 1);
       seen.push(...await gaps());
@@ -2166,7 +2173,7 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
     // edge; the tree's content as wide with a scrollbar as without
     const geo = await page.evaluate(() => {
       const c = document.querySelector('#tree li[data-path="players"] > .chev');
-      const v = document.querySelector('#tree li[data-path="total"] .val');
+      const v = document.querySelector('#tree li[data-path="totalScore"] .val');
       const pad = parseFloat(getComputedStyle(v).paddingRight) +
         parseFloat(getComputedStyle(v).borderRightWidth);
       const cs = getComputedStyle(c);
@@ -2243,7 +2250,7 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
     // open group lights its rows as one block, which starts at the
     // row's top and keeps its left and right edges)
     {
-      const kinds = ["players", "roster", A, "total"];
+      const kinds = ["players", "playerList", A, "totalScore"];
       const fill = (p) => page.evaluate((x) => {
         const li = document.querySelector(`#tree li[data-path="${x}"]`);
         const r = li.querySelector(":scope > .row").getBoundingClientRect();
@@ -2290,19 +2297,20 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
       // (pointing at a chevron points at its row: the row's hover, its
       // bytes lit)
       await page.evaluate(() => window.select("mid", { sel: null }));
-      await chev("roster").hover();
+      await chev("playerList").hover();
       const ch = await page.evaluate(() => [document.querySelector(
-        '#tree li[data-path="roster"] > .row').classList.contains("hl"),
+        '#tree li[data-path="playerList"] > .row').classList.contains("hl"),
       document.querySelectorAll("#panel .view:not([hidden]) .b.hl").length]);
       if (!ch[0] || ch[1] !== 92) problems.push(`chevron hover: ${ch}`);
-      // (roster collapsed: pointing at roster[0]'s bytes lights the row
-      // that shows it, roster's)
-      await chev("roster").click();
-      await page.locator('#panel .view:not([hidden]) .b[data-owners="roster[0]"]')
+      // (playerList collapsed: pointing at playerList[0]'s bytes lights the row
+      // that shows it, playerList's)
+      await chev("playerList").click();
+      await page.locator('#panel .view:not([hidden]) ' +
+        '.b[data-owners="playerList[0]"]')
         .first().hover();
       const anc = await page.evaluate(() => document.querySelector(
-        '#tree li[data-path="roster"] > .row').classList.contains("hl"));
-      await chev("roster").click();
+        '#tree li[data-path="playerList"] > .row').classList.contains("hl"));
+      await chev("playerList").click();
       if (!anc) problems.push("a hidden row's ancestor not lit");
       await page.evaluate(() => window.select("mid", { sel: "players" }));
     }
@@ -2365,12 +2373,13 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
       const t = document.querySelector("#tree").getBoundingClientRect();
       return r.top >= t.top - 1 && r.bottom <= t.bottom + 1;
     }, `${C}.plays`);
-    // (upward: the tree scrolled to its end, a roster byte pointed at)
+    // (upward: the tree scrolled to its end, a playerList byte pointed at)
     await page.evaluate(() => {
       const t = document.querySelector("#tree");
       t.scrollTop = t.scrollHeight;
     });
-    await page.locator(`#panel .view:not([hidden]) .b[data-owners="roster[0]"]`)
+    await page.locator("#panel .view:not([hidden]) " +
+      '.b[data-owners="playerList[0]"]')
       .first().hover();
     const up = await pill("up");
     // (the panel's colour: not the selection's yellow, which is the
@@ -2388,7 +2397,7 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
       up.bg !== mark ||
       !down.label.includes(`to ${C}.plays`) ||
       !down.inside || t1 !== t0 || !inView ||
-      !up || up.text || !up.label.includes("to roster[0]") || !up.inside) {
+      !up || up.text || !up.label.includes("to playerList[0]") || !up.inside) {
       problems.push(`edge pills: ${JSON.stringify({ down, up, inView,
         moved: t1 !== t0 })}`);
     }
@@ -2467,7 +2476,7 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
       text: p.textContent, ks: [...p.querySelectorAll(".pname")].map((n) =>
         n.className.match(/pk\d/)?.[0] ?? "") })));
     const got = {};
-    for (const x of ["roster", "total", "players"]) {
+    for (const x of ["playerList", "totalScore", "players"]) {
       await page.evaluate((y) => window.select("mid", { sel: y }), x);
       await page.mouse.move(1, 1);
       got[x] = await pops();
@@ -2477,7 +2486,7 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
     await page.mouse.move(1, 1);
     got.fields = await pops();
     // (the colours of alice's first three fields' bytes, left to right)
-    const fk = await page.evaluate((a) => ["lastBlock", "hitCount", "plays"]
+    const fk = await page.evaluate((a) => ["lastBlock", "hits", "plays"]
       .map((f) => document.querySelector(`#panel .view:not([hidden]) ` +
         `.b.hl[data-owners="${a}.${f}"]`)?.className.match(/pk\d/)?.[0]), A);
     await page.keyboard.press("Escape");
@@ -2485,9 +2494,10 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
     // (in a walkthrough, its keys by the names its steps use)
     const alice = got.fields.find((p) => p.text.startsWith(
       "keccak(alice, slot 3) :"));
-    if (!t("roster").includes("slot 0 : length") ||
-      !t("total").includes("slot 2 : (unmapped) · rounds · total") ||
-      got.total[0]?.ks.join() !== ",,pk0" ||
+    if (!t("playerList").includes("slot 0 : length") ||
+      !t("totalScore").includes(
+        "slot 2 : (unmapped) · totalHits · totalScore") ||
+      got.totalScore[0]?.ks.join() !== ",,pk0" ||
       !t("players").includes(
         "keccak(0x7099…79c8, slot 3) : players[0x7099…79c8], 2 slots") ||
       !alice?.text.startsWith("keccak(alice, slot 3) : lastBlock · ") ||
@@ -2500,7 +2510,7 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
   // a click in the tree or the dump during a walkthrough re-targets it,
   // in the mode, keeping the place by the steps' identities: carol's
   // name → bob's name keeps the step; carol's record at its fields →
-  // carol's name lands on the record's step; a name → total, step 1
+  // carol's name lands on the record's step; a name → totalScore, step 1
   {
     const at = async (from, k, to, how = "row") => {
       await page.evaluate((x) => window.select("mid", { sel: x }), from);
@@ -2522,11 +2532,11 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
     };
     const r1 = await at(`${C}.name`, 4, `${B}.name`);
     const r2 = await at(C, 4, `${C}.name`);
-    const r3 = await at(`${C}.name`, 4, "total", "byte");
+    const r3 = await at(`${C}.name`, 4, "totalScore", "byte");
     if (!r1.on || r1.sel !== `${B}.name` || r1.count !== "5 / 9" ||
       !r1.cap.startsWith("name is in the next slot") ||
       !r2.on || !r2.cap.startsWith("The record is at") ||
-      !r3.on || r3.sel !== "total" || r3.count !== "1 / 1" || r1.cue ||
+      !r3.on || r3.sel !== "totalScore" || r3.count !== "1 / 1" || r1.cue ||
       !r2.cue || !r3.cue) {
       problems.push(`re-target: ${JSON.stringify([r1, r2, r3])}`);
     }
@@ -2705,7 +2715,7 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
   // walkthroughs
   {
     const bare = [];
-    for (const x of ["players", C, "roster"]) {
+    for (const x of ["players", C, "playerList"]) {
       await page.evaluate((y) => window.select("mid", { sel: y }), x);
       await page.locator('#details button[data-r="start"]').click();
       for (let k = 0; k < 20; k++) {
@@ -2791,7 +2801,7 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
     await page.mouse.move(1, 1);
     seen.push(...await arrows());
     await page.keyboard.press("Escape");
-    await page.evaluate(() => window.select("mid", { sel: "roster[1]" }));
+    await page.evaluate(() => window.select("mid", { sel: "playerList[1]" }));
     await page.mouse.move(1, 1);
     seen.push(...await arrows());
     const gaps = seen.map((x) => x.gap);
@@ -2807,43 +2817,43 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
   await page.mouse.move(1, 1);
   const pick3 = ({ cap, lit, chips }) => JSON.stringify({ cap, lit, chips });
   const at0 = pick3(await stepNow());
-  await row("total").hover();
+  await row("totalScore").hover();
   if (pick3(await stepNow()) !== at0) {
     problems.push("replay: a hover changed the step");
   }
   await page.keyboard.press("Escape");
-  // the roster's item; a value with no template
-  // roster: three rules: declared (slot 0's gutter only), the length
+  // the playerList's item; a value with no template
+  // playerList: three rules: declared (slot 0's gutter only), the length
   // (slot 0's bytes; the length region's line), the items (all three,
   // at once; the define and the list, whose count reads the length)
-  w = await walk("roster");
+  w = await walk("playerList");
   const rwant = [
-    ["roster is declared at slot 0", {}, "slot 0", "in: { template: " +
+    ["playerList is declared at slot 0", {}, "slot 0", "in: { template: " +
       "address[] }"],
     ["The template address[] takes slot", {}, "slot 0", "expect: [slot]"],
     ["Slot 0 holds the length", { "slot 0": "all" }, "",
       "- { name: length, location: storage, slot: slot }"],
     ["The items start at keccak(slot 0), one slot each, for length items",
-      roster, "", "count: { ~read: length }"]];
+      playerList, "", "count: { ~read: length }"]];
   if (w.length !== 4 || rwant.some(([cap, lit, gut, band], k) =>
     w[k].cap !== cap || !same(w[k].lit, lit) || w[k].gut.join() !== gut ||
     !w[k].ptr.includes(band) || (k === 2 && w[k].ptr.length !== 1)) ||
     !w[2].form.startsWith("length = 3") ||
     w[3].form !== "keccak(slot 0) = …e563; items 0…2 at + i") {
-    problems.push(`replay roster: ${JSON.stringify(w.map((x) =>
+    problems.push(`replay playerList: ${JSON.stringify(w.map((x) =>
       [x.cap, x.form, x.lit, x.gut, x.ptr]))}`);
   }
   // an item: the same rules, cut to it
-  w = await walk("roster[1]");
+  w = await walk("playerList[1]");
   if (w.length !== 4 || !w[0].gut.includes("slot 0") ||
     !w[2].lit["slot 0"] || !w[3].lit["keccak(slot 0) + 1"]) {
-    problems.push(`replay roster[1]: ${JSON.stringify(w.map((x) =>
+    problems.push(`replay playerList[1]: ${JSON.stringify(w.map((x) =>
       [x.cap, x.lit]))}`);
   }
-  w = await walk("total");
-  if (w.length !== 1 || !w[0].cap.startsWith("total is at slot 2") ||
+  w = await walk("totalScore");
+  if (w.length !== 1 || !w[0].cap.startsWith("totalScore is at slot 2") ||
     !same(w[0].lit, { "slot 2": range(16, 31).join() })) {
-    problems.push(`replay total: ${JSON.stringify(w.map((x) =>
+    problems.push(`replay totalScore: ${JSON.stringify(w.map((x) =>
       [x.cap, x.lit]))}`);
   }
   await page.keyboard.press("Escape");
@@ -2866,9 +2876,9 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
     await page.keyboard.press("Escape");
     if (!seen.every(Boolean)) problems.push(`${id}: dump or tree hidden ${seen}`);
   }
-  // the keys come from roster, and are the trace's keys
+  // the keys come from playerList, and are the trace's keys
   if (!(await page.evaluate(() => window.results.keysMatch ?? []))
-    .every(Boolean)) problems.push("roster's keys differ from the trace's");
+    .every(Boolean)) problems.push("playerList's keys differ from the trace's");
   // the blank row: players' own slot, 3, holds nothing
   if (await page.locator(`#panel .wrow[data-slot="0x${"0".repeat(63)}3"]`)
     .count() !== 2) problems.push("no row for slot 3");
@@ -3254,7 +3264,7 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
   }
   // No card for what did not change: selecting an unchanged value gives
   // none, in the tree or the dump, in either state
-  for (const p of ["roster[0]", `${A}.name`, `${B}.score`, "motd"]) {
+  for (const p of ["playerList[0]", `${A}.name`, `${B}.score`, "motd"]) {
     for (const m of ["before", "after"]) {
       await setMode(m);
       await pick(row(p));
@@ -3454,13 +3464,13 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
   }
   // an array: its length (its own bytes) in the selection colour, its
   // elements in child colours
-  await pick(page.locator('#tree li[data-path="roster"] > .row'));
+  await pick(page.locator('#tree li[data-path="playerList"] > .row'));
   await page.mouse.move(1, 1);
   cl = await colours();
-  if (cl.tree.roster !== "pk0" || cl.dump.roster !== "pk0" ||
-    ["roster[0]", "roster[1]", "roster[2]"].some((q) =>
+  if (cl.tree.playerList !== "pk0" || cl.dump.playerList !== "pk0" ||
+    ["playerList[0]", "playerList[1]", "playerList[2]"].some((q) =>
       !cl.tree[q] || cl.tree[q] === "pk0") || !sameColours(cl)) {
-    problems.push(`roster colours: ${JSON.stringify(cl)}`);
+    problems.push(`playerList colours: ${JSON.stringify(cl)}`);
   }
   await pick(page.locator(`#tree li[data-path="${A}"] > .row`));
   await page.mouse.move(1, 1);
@@ -3516,7 +3526,7 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
   // the pointer: no solc id in the YAML (the short names marked as the
   // page's); a step's block top at the box's middle, as far as it can
   {
-    await page.evaluate(() => window.select("mid", { sel: "roster" }));
+    await page.evaluate(() => window.select("mid", { sel: "playerList" }));
     await page.locator('#details button[data-r="start"]').click();
     const al = await page.evaluate(() => ({
       ids: /\bt_\w+\$/.test([...document.querySelectorAll("#ptr .line")]
@@ -3661,7 +3671,7 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
     problems.push(`popover room: ${JSON.stringify(room)}`);
   }
   await page.keyboard.press("Escape");
-  // a byte of bob's record selects its field; the roster at keccak(slot 0)
+  // a byte of bob's record selects its field; the playerList at keccak(slot 0)
   await pick(page.locator(`#panel .word[data-side="after"] ` +
     `.b[data-owners="${B}.score"][data-i="31"]`));
   await page.locator("h1").hover();
@@ -3669,17 +3679,17 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
     problems.push(`three players: byte selected ${await selected()}`);
   }
   await page.keyboard.press("Escape");
-  await page.locator('#tree li[data-path="roster[2]"] > .row').hover();
+  await page.locator('#tree li[data-path="playerList[2]"] > .row').hover();
   const rl = Object.keys(await lit()).filter((k) => k.startsWith("after "))
     .map((k) => tnames[k.split(" ")[1]]);
-  if (rl.join() !== "keccak(slot 0) + 2") problems.push(`roster[2]: ${rl}`);
-  // roster[1], selected: the middle of the roster's run, with no gap
+  if (rl.join() !== "keccak(slot 0) + 2") problems.push(`playerList[2]: ${rl}`);
+  // playerList[1], selected: the middle of the playerList's run, with no gap
   // line beside it; its popover sits on the unlit row under it
-  await pick(page.locator('#tree li[data-path="roster[1]"] > .row'));
+  await pick(page.locator('#tree li[data-path="playerList[1]"] > .row'));
   await page.mouse.move(1, 1);
   const r1 = await page.evaluate(() => {
     const v = document.querySelector('#panel .view:not([hidden])');
-    // (roster's own slot has its gutter's popover too)
+    // (playerList's own slot has its gutter's popover too)
     const pop = [...v.querySelectorAll(".pop")].find((p) =>
       p.textContent.startsWith("keccak(slot 0) + 1"));
     if (!pop) return "none";
@@ -3690,14 +3700,14 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
       hit(r, c.getBoundingClientRect()));
     return `${pop.textContent}${on ? " on lit" : ""}`;
   });
-  if (r1 !== "keccak(slot 0) + 1 : (unmapped) · roster[1]") {
-    problems.push(`roster[1] popover: ${r1}`);
+  if (r1 !== "keccak(slot 0) + 1 : (unmapped) · playerList[1]") {
+    problems.push(`playerList[1] popover: ${r1}`);
   }
   // every slot popover is placed as a gap line's: its left edge 6 px
   // left of the gutter, its arrow on the middle of its address
   {
     const off = [];
-    for (const p of ["roster[1]", "players", "total"]) {
+    for (const p of ["playerList[1]", "players", "totalScore"]) {
       await page.evaluate((x) => window.select("mid", { sel: x }), p);
       await page.mouse.move(1, 1);
       off.push(...await page.evaluate(() => [...document.querySelectorAll(
@@ -3729,11 +3739,11 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
       .map((r) => [r.dataset.name, `${r.querySelector(".b[data-i='31']")
         .textContent} ${r.querySelectorAll(".b.free").length}`]));
   });
-  // score, combo, bestCombo, plays, hitCount; the name's length
+  // score, combo, bestCombo, plays, hits; the name's length
   for (const [key, vals, len] of [
     ["0x7099…79c8", ["1e", "02", "02", "02", "02"], "05"],
     ["0x3c44…93bc", ["0a", "01", "01", "01", "01"], "03"],
-    ["0x90f7…b906", ["00", "00", "00", "01", "00"], "22"]]) {
+    ["0x90f7…b906", ["64", "00", "04", "05", "04"], "22"]]) {
     const n = (k) => `Vyper's keccak(slot 108, ${key})${k ? ` + ${k}` : ""}`;
     const bad = [...vals.map((x, k) => [n(k), `${x} 32`]),
       [n(6), `${len} 32`]].filter(([k, v]) => vy[k] !== v);
@@ -3783,7 +3793,7 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
   // "Inside one play" (BUG, bugc from main): alice's third hit at -O0
   // and -O2, paused at three points. The locals' values, decoded from
   // bugc's pointers by the library, checked by hand against the source:
-  // the roll is a hit; multiplied(10, 3) has m = 5, then m = combo = 3;
+  // the roll is a hit; _applyCombo(10, 3) has mult = 5, then mult = combo = 3;
   // gained = 10 * 3 = 30. Before the writes, bugc lists hit with no
   // location, without optimization too.
   await page.setViewportSize({ width: 1280, height: 900 });
@@ -3793,8 +3803,8 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
   problems.push(...mr.errors.map((e) => `memory: ${e}`));
   const memWant = {
     roll: [{ hit: "true" }],
-    mult: [{ points: "10", combo: "3", m: "5" },
-      { points: "10", combo: "3", m: "3" }],
+    mult: [{ points: "10", combo: "3", mult: "5" },
+      { points: "10", combo: "3", mult: "3" }],
     writes: [{ gained: "30" }],
   };
   for (const o of ["0", "2"]) {
@@ -3862,20 +3872,20 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
     problems.push(`memory roll: ${await msel()} ${
       JSON.stringify(await mlit())}`);
   }
-  // Inside multiplied at -O0: a real call. multiplied is selected: its
+  // Inside _applyCombo at -O0: a real call. _applyCombo is selected: its
   // own bytes (the frame pointer, the word at 0x80) in the selection
   // colour, each local in a child colour of its own
   await mpt("mult");
   await page.locator("h1").hover();
   {
     const c = await mcol();
-    const kids = ["points", "combo", "m"].map((p) => c.rows[p]);
-    if (await msel() !== "multiplied" || c.rows.multiplied !== "hl" ||
+    const kids = ["points", "combo", "mult"].map((p) => c.rows[p]);
+    if (await msel() !== "_applyCombo" || c.rows._applyCombo !== "hl" ||
       new Set(kids).size !== 3 || kids.some((k) => !/^pk\d$/.test(k)) ||
       c.bytes["0x0080"] !== "hl") {
-      problems.push(`memory multiplied -O0: ${JSON.stringify(c)}`);
+      problems.push(`memory _applyCombo -O0: ${JSON.stringify(c)}`);
     }
-    const frame = await mrow("multiplied").locator(".val").textContent();
+    const frame = await mrow("_applyCombo").locator(".val").textContent();
     if (!/^frame at 0x[0-9a-f]+$/.test(frame.trim())) {
       problems.push(`memory frame -O0: ${frame}`);
     }
@@ -3883,12 +3893,12 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
     await mrow("points").hover();
     const d = await mcol();
     if (d.rows.points !== kids[0] || d.rows.combo !== `${kids[1]} muted` ||
-      d.rows.m !== `${kids[2]} muted` || d.rows.multiplied !== "hl" ||
+      d.rows.mult !== `${kids[2]} muted` || d.rows._applyCombo !== "hl" ||
       d.bytes["0x0080"] !== "hl") {
       problems.push(`memory muting: ${JSON.stringify(d)}`);
     }
   }
-  // two steps (before and after m = combo): Before | After, and the
+  // two steps (before and after mult = combo): Before | After, and the
   // dump of the one picked
   for (const [m, want] of [["before", "Before"], ["after", "After"]]) {
     await page.locator(`#mmode button[data-mode="${m}"]`).click();
@@ -3906,14 +3916,14 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
   }
   // m moves: at -O0 from the frame + 88 to the frame + 184, which
   // holds combo's bytes too
-  await pick(mrow("m"));
+  await pick(mrow("mult"));
   // (the selection's details: the pointer off the rows)
   await page.locator("h1").hover();
   {
     const d = await dl("#mdetails");
     const [a, b] = [d.Before, d.After].map((x) =>
       x?.match(/^memory 0x([0-9a-f]+)–0x([0-9a-f]+) = (\d)$/));
-    const frame = parseInt((await mrow("multiplied").locator(".val")
+    const frame = parseInt((await mrow("_applyCombo").locator(".val")
       .textContent()).trim().slice(9), 16);
     if (!a || !b || parseInt(a[1], 16) !== frame + 88 || a[3] !== "5" ||
       parseInt(b[1], 16) !== frame + 184 || b[3] !== "3") {
@@ -3922,14 +3932,14 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
   }
   // at -O2: inlined, no frame; the locals at fixed offsets
   await mopt(2);
-  await pick(mrow("multiplied"));
+  await pick(mrow("_applyCombo"));
   {
-    const v = (await mrow("multiplied").locator(".val").textContent())
+    const v = (await mrow("_applyCombo").locator(".val").textContent())
       .trim();
     const c = await mcol();
     if (v !== "inlined: no frame" || "0x0080" in c.bytes ||
       await page.locator("#mpanel .wrow[data-slot='0x0080']").count()) {
-      problems.push(`memory multiplied -O2: ${v} ${JSON.stringify(c)}`);
+      problems.push(`memory _applyCombo -O2: ${v} ${JSON.stringify(c)}`);
     }
   }
   // Before the writes: gained = 30; hit with no location; alice's
@@ -3945,7 +3955,7 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
   await pick(mrow("players[msg.sender]"));
   {
     const c = await mcol();
-    const ms = ["score", "combo", "bestCombo", "plays", "hitCount",
+    const ms = ["score", "combo", "bestCombo", "plays", "hits",
       "lastBlock"].map((x) => c.rows[`players[msg.sender].${x}`]);
     if (new Set(ms).size !== 6 || ms.some((k) => !/^pk\d$/.test(k)) ||
       c.rows["players[msg.sender]"] !== "hl") {
@@ -4067,7 +4077,7 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
     await scene("alice");
     await pick(page.locator(`#tree li[data-path="${A}.combo"] > .row`));
     await mpt("mult");
-    await pick(mrow("m"));
+    await pick(mrow("mult"));
     await page.locator("h1").hover();
     let m0 = await memView();
     const steps = [
@@ -4080,7 +4090,7 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
       ["a one-point scene", () => page.locator(
         '#picker button[data-id="mid"]').click()],
       ["Escape", async () => {
-        await pick(page.locator('#tree li[data-path="total"] > .row'));
+        await pick(page.locator('#tree li[data-path="totalScore"] > .row'));
         await page.evaluate(() => document.activeElement?.blur());
         await page.keyboard.press("Escape");
       }],
@@ -4139,8 +4149,8 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
   hp.on("console", (m) => {
     if (m.type() === "error") problems.push(`hash console: ${m.text()}`);
   });
-  await hp.goto(PAGE + "#ex=motd&mode=before&sel=roster&mopt=2&" +
-    "mpt=mult&mmode=before&msel=m&insets=0");
+  await hp.goto(PAGE + "#ex=motd&mode=before&sel=playerList&mopt=2&" +
+    "mpt=mult&mmode=before&msel=mult&insets=0");
   await hp.waitForFunction(() => window.results?.done &&
     window.memResults?.done, null, { timeout: 60000 });
   const hs = await hp.evaluate(() => ({
@@ -4158,22 +4168,22 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
     hash: location.hash,
     insets: document.querySelector("#insets").checked,
   }));
-  if (!same(hs, { ex: "motd", mode: "before", sel: "roster",
+  if (!same(hs, { ex: "motd", mode: "before", sel: "playerList",
     mopt: "2", mpt: "mult", mmode: "before",
-    msel: "m",
+    msel: "mult",
     insets: false, hash: hs.hash }) || !hs.hash.includes("ex=motd") ||
-    !hs.hash.includes("sel=roster")) {
+    !hs.hash.includes("sel=playerList")) {
     problems.push(`hash restore: ${JSON.stringify(hs)}`);
   }
   // changes go back into the hash
   await hp.locator('#mode button[data-mode="after"]').click();
-  await pick(hp.locator('#tree li[data-path="total"] > .row'));
+  await pick(hp.locator('#tree li[data-path="totalScore"] > .row'));
   const h2 = await hp.evaluate(() => location.hash);
-  if (!h2.includes("mode=after") || !h2.includes("sel=total")) {
+  if (!h2.includes("mode=after") || !h2.includes("sel=totalScore")) {
     problems.push(`hash write: ${h2}`);
   }
   // a cleared default selection stays cleared ("sel=")
-  await pick(hp.locator('#tree li[data-path="total"] > .row'));
+  await pick(hp.locator('#tree li[data-path="totalScore"] > .row'));
   await idle(hp);
   await hp.reload();
   await hp.waitForFunction(() => window.results?.done, null,
@@ -4293,13 +4303,13 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
   // (as on the desktop: the lit rows fit, the panel's parts keep to
   // their room)
   await fitsInView(pp, "390 view");
-  // multiplied at -O0, both steps: before, the frame pointer (32
-  // bytes), points (8), m = 5 (8) and combo (4); after, the same but m
+  // _applyCombo at -O0, both steps: before, the frame pointer (32
+  // bytes), points (8), mult = 5 (8) and combo (4); after, the same but mult
   // = 3 over combo's word (8, combo's 4 among them)
   await pp.locator('#mpoint button[data-id="mult"]').click();
   const mlitp = await pp.locator("#mpanel .b.hl:not(.cmp *)").count();
   if (mlitp !== 32 + 8 + 8 + 4 + 32 + 8 + 8) {
-    problems.push(`phone: ${mlitp} bytes lit for multiplied`);
+    problems.push(`phone: ${mlitp} bytes lit for _applyCombo`);
   }
   if (await pp.evaluate(() => document.documentElement.scrollWidth >
     document.documentElement.clientWidth)) {

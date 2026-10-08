@@ -56,11 +56,11 @@ it("players at mid: one rule per template node, 3 instances", async () => {
   expect(byKind(g, "declared").map((n) => n.instances.length))
     .toEqual([3]);
   expect(g.inputs.map((i) => [i.name, i.provenance]))
-    .toEqual([["key", { list: "roster" }]]);
+    .toEqual([["key", { list: "playerList" }]]);
 });
 
-it("roster: ~read length edge and list count edge", async () => {
-  const g = (await mid()).graphs.get("roster")!;
+it("playerList: ~read length edge and list count edge", async () => {
+  const g = (await mid()).graphs.get("playerList")!;
   const [list] = byKind(g, "list");
   const [length] = byKind(g, "region").filter((n) =>
     (n.ast as { name?: string }).name === "length");
@@ -120,8 +120,8 @@ it("NodeIds are template + JSON path; order is pre-order", async () => {
     .toBe(false);
 });
 
-it("total: one declared region", async () => {
-  const g = (await mid()).graphs.get("total")!;
+it("totalScore: one declared region", async () => {
+  const g = (await mid()).graphs.get("totalScore")!;
   expect(nodes(g).map((n) => [n.id, n.kind]))
-    .toEqual([["total#", "declared"]]);
+    .toEqual([["totalScore#", "declared"]]);
 });

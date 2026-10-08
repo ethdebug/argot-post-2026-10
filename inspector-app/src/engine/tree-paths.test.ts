@@ -10,8 +10,8 @@ it("by the tree: a record's member; a function's local", async () => {
     "arcade-mid:after");
   expect(parentIn(s.byPath, `${A}.score`)).toBe(A);
   expect(within(s.byPath, `${A}.score`, "players")).toBe(true);
-  expect(within(s.byPath, "total", "players")).toBe(false);
+  expect(within(s.byPath, "totalScore", "players")).toBe(false);
   const m = await decode(p, p.decodings["mem:O0"], "O0/mult:0");
-  expect(parentIn(m.byPath, "points")).toBe("multiplied");
-  expect(within(m.byPath, "m", "multiplied")).toBe(true);
+  expect(parentIn(m.byPath, "points")).toBe("_applyCombo");
+  expect(within(m.byPath, "mult", "_applyCombo")).toBe(true);
 });

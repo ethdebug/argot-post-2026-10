@@ -14,34 +14,34 @@ const mid = () => at("sol:arcade-mid", "arcade-mid:after");
 const recordOf = (d: Decoded, who: string, k: number): Hex =>
   slotHex(d.byPath.get(`${who}.score`)!.regions[0].slot! + BigInt(k));
 
-it("slot 2 holds rounds, then total, in byte order", async () => {
+it("slot 2 holds totalHits, then totalScore, in byte order", async () => {
   const d = await mid();
   const l = layout(d, "storage", { rows: "values" });
   const row = l.rows.find((r) => r.address === slotHex(2n))!;
-  expect(row.what.map((w) => w.name)).toEqual(["rounds", "total"]);
+  expect(row.what.map((w) => w.name)).toEqual(["totalHits", "totalScore"]);
   expect(row.how).toBe("slot 2");
-  expect([...l.owned.get("total")!]).toEqual(Array.from({ length: 16 },
+  expect([...l.owned.get("totalScore")!]).toEqual(Array.from({ length: 16 },
     (_, i) => byteKey("storage", slotHex(2n), 16 + i)));
   expect(l.cover.get(byteKey("storage", slotHex(2n), 31)))
-    .toEqual(["total"]);
+    .toEqual(["totalScore"]);
 });
 
 it("slot labels", async () => {
   const d = await mid();
   const l = layout(d, "storage", { rows: "values" });
   const label = (h: Hex) => rowLabel(l.rows.find((r) => r.address === h)!);
-  expect(label(slotHex(2n))).toBe("slot 2 : rounds · total");
+  expect(label(slotHex(2n))).toBe("slot 2 : totalHits · totalScore");
   expect(label(slotHex(0n))).toBe("slot 0 : length");
   expect(label(recordOf(d, A, 1)))
     .toMatch(/^keccak\(0x7099…79c8, slot 3\) \+ 1 : name · name\.length$/);
   // (all of them: the popover fits them to its box, vanilla 9728db0)
   expect(label(recordOf(d, A, 0))).toBe("keccak(0x7099…79c8, slot 3) : " +
-    "lastBlock · hitCount · plays · bestCombo · combo · score");
+    "lastBlock · hits · plays · bestCombo · combo · score");
   // a value's other region alone in its slot: by its role
   expect(label(slotHex(1n))).toBe("slot 1 : motd.length");
-  // roster's items, after keccak(slot 0)
-  const item1 = slotHex(d.byPath.get("roster[1]")!.regions[0].slot!);
-  expect(label(item1)).toBe("keccak(slot 0) + 1 : roster[1]");
+  // playerList's items, after keccak(slot 0)
+  const item1 = slotHex(d.byPath.get("playerList[1]")!.regions[0].slot!);
+  expect(label(item1)).toBe("keccak(slot 0) + 1 : playerList[1]");
   // carol's long name: its bytes at keccak(name's slot), two words
   const data = d.byPath.get(`${C}.name`)!.regions[0].slot!;
   expect(label(slotHex(data + 1n))).toBe(
@@ -105,12 +105,12 @@ it("vyper: the Vyper words appear, owned by nobody", async () => {
 
 it("filter.roots keeps only those subtrees' rows (spec §6b)", async () => {
   const d = await mid();
-  const l = layout(d, "storage", { roots: [A, "total", "rounds"],
+  const l = layout(d, "storage", { roots: [A, "totalScore", "totalHits"],
     rows: "values" });
   expect(l.rows.map((r) => r.address)).toEqual([slotHex(2n),
     recordOf(d, A, 0), recordOf(d, A, 1)].sort());
-  expect([...l.owned.keys()].every((p) => p === "total" ||
-    p === "rounds" || p.startsWith(A))).toBe(true);
+  expect([...l.owned.keys()].every((p) => p === "totalScore" ||
+    p === "totalHits" || p.startsWith(A))).toBe(true);
 });
 
 it("filter.maxRows cuts the rows, gaps still marked", async () => {
