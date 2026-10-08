@@ -463,6 +463,7 @@ li.same > .row .name, li.same > .row .type { opacity: 0.55; }
 }
 /* (one line; its names cut to fit by panel.js fitWhat, never by CSS) */
 .pop, .pop .pop-how, .pop .pname { white-space: nowrap; }
+.pop.wrap, .pop.wrap .pop-how { white-space: normal; }
 .pop { box-sizing: border-box; }
 .pop .pname { display: inline-block; }
 .pop .pop-how { display: block; }
