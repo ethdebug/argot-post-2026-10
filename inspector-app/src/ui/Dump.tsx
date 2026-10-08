@@ -2,7 +2,7 @@
 // renderPanel, wordHtml, paint): one word a row, in address order, each
 // byte linked to the value that owns it
 import { useFitDump } from "./fit";
-import { useEffect, useLayoutEffect, useRef } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef } from "react";
 import { drawOverlays, type ViewData } from "./overlays";
 
 // one drawing of a box's overlays per commit, however many of its dumps
@@ -83,6 +83,28 @@ const pick = (light: Light, ids: string[]) => {
   return { k, cls: k === "src" ? "pksrc" : k ? `pk${k}` : "" };
 };
 
+// The owners' tints of a dump: in byte order, row by row, each owner
+// its own (the earlier point's layout first: vanilla renderLocation); a
+// tint per owner, never per row, so a value that goes on to the next row
+// keeps its colour
+const tints = new WeakMap<Layout[], Map<string, number>>();
+function tintsOf(ls: Layout[], loc: Location) {
+  const got = tints.get(ls);
+  if (got) return got;
+  const tint = new Map<string, number>();
+  for (const x of ls) {
+    for (const r of x.rows) {
+      for (let i = 0; i < 32; i++) {
+        for (const id of x.cover.get(byteKey(loc, r.address, i)) ?? []) {
+          if (!tint.has(id)) tint.set(id, tint.size);
+        }
+      }
+    }
+  }
+  tints.set(ls, tint);
+  return tint;
+}
+
 function Word({ l, ls, loc, row, mine, theirs, side, name, light,
   groupsOf }: {
   l: Layout; ls: Layout[]; loc: Location; row: Hex;
@@ -92,12 +114,9 @@ function Word({ l, ls, loc, row, mine, theirs, side, name, light,
   const ownersIn = (x: Layout) => Array.from({ length: 32 }, (_, i) =>
     x.cover.get(byteKey(loc, row, i)) ?? []);
   const owners = ownersIn(l);
-  // owners in byte order, each with its tint, the same in every view of
-  // a pair (the earlier point's first: vanilla renderLocation)
-  const tint = new Map<string, number>();
-  for (const x of ls) for (const ids of ownersIn(x)) for (const id of ids) {
-    if (!tint.has(id)) tint.set(id, tint.size);
-  }
+  // each owner's tint: one per owner, wherever its bytes fall (a region
+  // that crosses rows keeps it), the same in every view of a pair
+  const tint = tintsOf(ls, loc);
   const at = light.at?.row === row ? light.at : undefined;
   const cells: ReactElement[] = [];
   for (const g of groups(owners)) {
@@ -346,8 +365,9 @@ export function Dump(p: { id: ViewId; location: Location; data: DataRef;
   }, [cards]);
   const lines: ReactElement[] = [];
   // (the pair's layouts, the earlier point's first, for the tints)
-  const tintOrder = !l ? [] : !lThere ? [l]
-    : (hereAt?.i ?? 0) < (thereAt?.i ?? 0) ? [l, lThere] : [lThere, l];
+  const tintOrder = useMemo(() => !l ? [] : !lThere ? [l]
+    : (hereAt?.i ?? 0) < (thereAt?.i ?? 0) ? [l, lThere] : [lThere, l],
+  [l, lThere, hereAt?.i, thereAt?.i]);
   const loc = p.location;
   // (storage's rows are named by how they are found: a hashed one gets
   // a line of room above it)
