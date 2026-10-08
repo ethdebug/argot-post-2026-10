@@ -38,18 +38,21 @@ test("details of what is pointed at, at two points and at one",
 test("the bar at rest: the selection, and the way in", async ({ page }) => {
   await ready(page);
   await select(page, "mid", null);
-  await expect(page.locator("#details .rsel"))
-    .toHaveText("Select a value to see how it was found.");
+  // (nothing selected: how to begin; one name for the feature)
+  await expect(page.locator("#details .rsel")).toHaveText("Click a " +
+    "variable or a byte, then “How it was found” walks the pointer to its " +
+    "bytes.");
   await page.locator(`#tree li[data-path="${A}.combo"] > .row`).click();
   const box = await page.locator("#details").innerText();
   expect(box).toContain("players[0x7099…79c8].combo uint32 = 2");
   expect(box).not.toMatch(/\((before|after)/);
-  expect(box).toContain("▸ Show how it was found");
+  expect(box).toContain("▶ How it was found");
   await expect(page.locator('#details button[data-r="start"]'))
     .toHaveCount(1);
-  await expect(page.locator("#viewing")).toBeVisible();
-  await expect(page.locator("#viewing"))
-    .toHaveText("viewing players[0x7099…79c8].combo · Esc to clear");
+  // (the bar is the locked state's one indicator: no pill above it)
+  await expect(page.locator("#details .rline2"))
+    .toHaveText("Esc clears the selection");
+  await expect(page.locator("#viewing")).toHaveCount(0);
   await select(page, "alice", A);
   await expect(page.locator("#details .rsel")).toContainText("(after)");
   await page.locator('#mode button[data-mode="before"]').click();

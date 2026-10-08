@@ -53,11 +53,11 @@ for (const lens of ["alice-plays", "vyper"]) {
 test("players-walk: opens at step 0 of players, and walks", async ({ page }) => {
   await page.goto("./shell.html#lens=players-walk");
   const count = page.locator(".rbar .rcount");
-  await expect(count).toHaveText("0 / 11");
+  await expect(count).toHaveText("start");
   await expect(page.locator(".view .b.hl")).not.toHaveCount(0);
   await page.locator('.rbar button[data-r="next"]').click();
-  await expect(count).toHaveText("1 / 11");
-  await expect(page.locator(".dtext .rcap")).toContainText("The keys");
+  await expect(count).toHaveText("1 / 10");
+  await expect(page.locator(".rbar .rcap")).toContainText("The keys");
 });
 
 // Each dump fits its own box; each tree lines up with its own dumps

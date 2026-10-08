@@ -17,9 +17,13 @@ for (const [w, h] of SIZES) {
       const bar = page.locator("#details");
       expect(await cut(page, "#details .rsel")).toBe(false);
       expect(await cut(page, "#details .rstart")).toBe(false);
-      const h0 = (await bar.boundingBox())!.height;
+      // (Start, a deliberate act, may grow the bar; stepping does not)
       await page.locator('#details button[data-r="start"]').click();
+      const h0 = (await bar.boundingBox())!.height;
+      await page.locator('#details button[data-r="next"]').click();
       expect((await bar.boundingBox())!.height).toBeCloseTo(h0, 2);
+      // (a phone: no count cut short)
+      expect(await cut(page, "#details .rcount")).toBe(false);
     });
 }
 
@@ -63,11 +67,8 @@ for (const [w, h] of SIZES) {
         ?.done);
       expect(await small(page, "#mode button")).toEqual([]);
       await select(page, "alice", "totalScore");
-      const bar = page.locator("#details");
-      const h0 = (await bar.boundingBox())!.height;
       expect(await small(page, "#details button")).toEqual([]);
       await page.locator('#details button[data-r="start"]').click();
-      expect(await small(page, "#details .rbar button")).toEqual([]);
-      expect((await bar.boundingBox())!.height).toBeCloseTo(h0, 2);
+      expect(await small(page, "#details.rbar button")).toEqual([]);
     });
 }

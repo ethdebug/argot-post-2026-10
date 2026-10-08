@@ -110,12 +110,13 @@ test("Start scrolls first, then unfolds; Exit goes back to where the " +
     await page.waitForFunction(() => (window as unknown as S).sampled);
     const during = await page.evaluate(() =>
       (window as unknown as S).samples);
-    // (a smooth scroll's last pixel may land as the details start)
-    const moving = during.filter((x, k) => k > 0 &&
-      Math.abs(x[0] - during[k - 1][0]) > 0.5 &&
-      Math.abs(x[0] - during.at(-1)![0]) > 2);
-    expect(moving.length).toBeGreaterThan(0);
-    expect(moving.every(([, hh]) => hh === 0)).toBe(true);
+    // (once the details start to open, the page is where it scrolls to;
+    // a smooth scroll's last pixel may land as they start)
+    const end = during.at(-1)![0];
+    expect(end).toBeGreaterThan(120);
+    expect(during.filter(([y, hh]) => hh > 0 && Math.abs(y - end) > 2))
+      .toEqual([]);
+    expect(during.at(-1)![1]).toBeGreaterThan(100);
     await page.locator('#details button[data-r="exit"]').click();
     await expect.poll(async () => Math.round(await page.evaluate(() =>
       scrollY))).toBe(120);

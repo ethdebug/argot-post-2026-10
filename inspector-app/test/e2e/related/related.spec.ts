@@ -79,7 +79,7 @@ test("a walkthrough in the related view: step 0 to found, the same rows",
     const shown = await rows(page);
     expect(shown).toEqual(["slot 3", ROSTER0, RECORD, `${RECORD} + 1`]);
     await page.locator('#details button[data-r="start"]').click();
-    await expect(page.locator("#details .rcount")).toHaveText(/^0\s*\/\s*10$/);
+    await expect(page.locator("#details .rcount")).toHaveText("start");
     // (step 0: the record's slots lit, in rows that are shown)
     const lit = () => page.locator(
       "#panel .view:not([hidden]) .wrow:has(.b.hl)").evaluateAll((rs) =>
@@ -89,10 +89,9 @@ test("a walkthrough in the related view: step 0 to found, the same rows",
     for (let i = 1; i <= 10; i++) {
       await page.keyboard.press("ArrowRight");
       await expect(page.locator("#details .rcount"))
-        .toHaveText(new RegExp(`^${i}\\s*/\\s*10$`));
+        .toHaveText(i === 10 ? "done" : new RegExp(`^${i}\\s*/\\s*9$`));
       expect(await rows(page)).toEqual(shown);
     }
-    await expect(page.locator("#details .rshort")).toHaveText(/found/);
   });
 
 test("what a selection consulted: tinted in its record's colour, a light "

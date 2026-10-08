@@ -272,9 +272,9 @@ it("Vyper: Solidity's rule, then the misread, with Vyper's own layout "
   expect(last.phase).toBe("external");
   expect(plain(last.cap)).toBe("The misread: Vyper keeps players[alice]" +
     ".score in slot …0446, where it is 30; Solidity's rule read 0 from " +
-    "slot …aa80 where Vyper keeps nothing. (Vyper's rule here is " +
-    "hand-written for comparison: Vyper emits no ethdebug.)");
-  expect(last.source).toContain("hand-written");
+    "slot …aa80 where Vyper keeps nothing.");
+  expect(last.source).toBe("from: Vyper's layout, hand-written for " +
+    "comparison (Vyper emits no ethdebug)");
   expect(w.steps.at(-2)!.cap).toBe("That's what Solidity's rule reads for " +
     "`players[alice].score`: 0.");
   expect(w.steps.find((s) => s.phase === "declared")!.cap).toContain(
