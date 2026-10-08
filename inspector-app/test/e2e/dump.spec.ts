@@ -24,11 +24,11 @@ test("a value's popover: how : what · what the transaction did",
     await select(page, "alice", null);
     await page.locator('#tree li[data-path="rounds"] > .row').hover();
     await expect.poll(() => pops(page))
-      .toEqual(["slot 2 : rounds · total · read, written"]);
+      .toEqual(["slot 2 : (unmapped) · rounds · total · read, written"]);
     await select(page, "mid", null);
     await page.locator(`#panel .word[data-side="after"][data-slot="${
       SLOT2}"] .b[data-i="31"]`).hover();
-    await expect.poll(() => pops(page)).toEqual(["slot 2 : rounds · total"]);
+    await expect.poll(() => pops(page)).toEqual(["slot 2 : (unmapped) · rounds · total"]);
     await expect(page.locator("#panel .cmp, #panel .tray")).toHaveCount(0);
   });
 

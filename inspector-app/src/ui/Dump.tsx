@@ -125,6 +125,8 @@ function Word({ l, ls, loc, row, mine, theirs, side, name, light,
         }
       }
       if (isAt) cls.push("at");
+      // (bytes no value owns, pointed at: a neutral light)
+      if (isAt && light.unmapped && !g.owners.length) cls.push("fl");
       // (one outline a run, in each group of eight)
       if (isAt && (i === at.from || i % 8 === 0)) cls.push("at-s");
       if (isAt && (i === at.to || i % 8 === 7)) cls.push("at-e");
@@ -205,7 +207,9 @@ export function Dump(p: { id: ViewId; location: Location; data: DataRef;
     const left = line.filter(([, b]) => b.right <= x).at(-1)?.[0];
     const right = line.find(([, b]) => b.left >= x)?.[0];
     const own = (c?: HTMLElement) => c?.dataset.owners?.split("|")[0];
-    if (left && own(left) && own(left) === own(right)) {
+    // (or bytes no value owns, one run of them: the run's)
+    if (left && right && own(left) === own(right) && (own(left) ||
+      left.dataset.g === right.dataset.g)) {
       const [from, to] = left.dataset.g!.split("-").map(Number);
       return { bytes: { row, from, to, location: p.location } };
     }
@@ -249,9 +253,10 @@ export function Dump(p: { id: ViewId; location: Location; data: DataRef;
       const q = t.path ?? null;
       // (a click that clears: the hover of what is under the pointer, at
       // once: vanilla rehover)
-      return q && q === sel
-        ? { ...s, selection: null, hover: resolveTarget(h, null, d.byPath, l) }
-        : { ...s, hover: null, selection: q };
+      // (bytes no value owns: the selection clears, and the pointer
+      // still points at them)
+      return q && q !== sel ? { ...s, hover: null, selection: q }
+        : { ...s, selection: null, hover: resolveTarget(h, null, d.byPath, l) };
     });
     return true;
   };
