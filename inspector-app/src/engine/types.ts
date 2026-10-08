@@ -176,7 +176,7 @@ export interface Instance {
 export type InputId = string;
 export interface InputNode {            // a fact the pointer expects
   id: InputId; name: string;            // "key", "slot"
-  provenance: Provenance;     // ‹roster› ‹trace› ‹storage› ‹ABI›
+  provenance: Provenance;   // ‹roster› ‹trace› ‹storage› ‹ABI›
   values: { value: Hex; source?: Path }[];     // source: roster[i]
 }
 

@@ -2,7 +2,7 @@
 // renderPanel, wordHtml, paint): one word a row, in address order, each
 // byte linked to the value that owns it
 import { useEffect, useLayoutEffect, useRef } from "react";
-import { drawOverlays } from "./overlays";
+import { drawOverlays, type ViewData } from "./overlays";
 
 // one drawing of a box's overlays per commit, however many of its dumps
 // rendered (the pending mark lives on the box's element)
@@ -253,7 +253,8 @@ export function Dump(p: { id: ViewId; location: Location; data: DataRef;
   // are in (the labels are fitted in them)
   const cards = !!p.cards && !link.walk;
   useLayoutEffect(() => {
-    const v = me.current;
+    const v = me.current as (HTMLDivElement & { _data?: ViewData }) | null;
+    if (v && l) v._data = { light, there: p.compare ? there : undefined, l };
     const root = v?.closest<HTMLElement>(".panel") ?? v?.parentElement;
     if (root) schedule(root, cards);
   });
@@ -323,10 +324,11 @@ export function Dump(p: { id: ViewId; location: Location; data: DataRef;
   lines.push(<div key="end" className="gap" aria-hidden="true">
     <span>⋯</span></div>);
 
-  return <div ref={me} className="view" data-side={side} role="group"
+  return <div ref={me} data-side={side} role="group"
     aria-label={p.when ? `${label} ${p.when}` : label} hidden={p.hidden}
-    data-quiet={light.quiet ? "" : undefined}
-    data-ruler={light.ruler}
+    // (lit: the rest steps back; a selection or a step: brown caps)
+    className={["view", light.muted ? "active" : "",
+      link.selection || link.walk ? "chosen" : ""].filter(Boolean).join(" ")}
     data-view={`${lens.key}:${p.id}`}
     onPointerOver={point} onFocus={point}
     onClick={(e: MouseEvent) => {
