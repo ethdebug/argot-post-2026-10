@@ -367,7 +367,7 @@ async function interact(page, out) {
     }
   }
   // a walkthrough: start it, ten steps; then two more starts
-  for (const p of [["players", 10], [`${A}.name`, 0], ["roster[1]", 0]]) {
+  for (const p of [["players", 10], [`${A}.name`, 0], ["playerList[1]", 0]]) {
     await selectRow(page, p[0]);
     await exitWalk(page);
     await page.mouse.move(1, 1);
