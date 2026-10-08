@@ -52,6 +52,7 @@ export function AbiView(p: { id: ViewId; data: DataRef; link?: string;
       onFocus={() => setLink((s) => ({ ...s, hover: { path: n.path } }))}>
       <span className="k">{kk}</span><div className="c">{html}</div></li>;
   const offset = Number(off?.value?.text ?? 0);
+  const bytesWord = len?.value?.text === "1" ? "byte" : "bytes";
   return <div id={p.domId} className="how" data-view={`${lens.key}:${p.id}`}>
     {d && <><p className="howside">By the ABI encoding
       of <code>{sig}</code>, not by ethdebug.</p>
@@ -62,9 +63,9 @@ export function AbiView(p: { id: ViewId; data: DataRef; link?: string;
         so its head word is at {hex4(4)}. A string is dynamic: the word
         holds the offset of its data, counted from byte 4: <b>{offset}</b></>)}
       {step(len, "Length", <>at 4 + {offset} = {hex4(4 + offset)}: the
-        length, <b>{len?.value?.text}</b> bytes</>)}
+        length, <b>{len?.value?.text}</b> {bytesWord}</>)}
       {step(data, "Bytes", <>at {hex4(data?.regions[0].offset ?? 0)}:{" "}
-        {len?.value?.text} bytes, padded with zeros to a whole word →{" "}
+        {len?.value?.text} {bytesWord}, padded with zeros to a whole word →{" "}
         <b>{data?.value?.text}</b></>)}
     </ol></>}</div>;
 }
