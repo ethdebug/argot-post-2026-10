@@ -128,7 +128,7 @@ test("players: step 0 and twelve steps, their light, bands and chips",
         { [`${al} + 1`]: "31", [`${rec} + 1`]: "31", [`${cl0} + 1`]: "31" },
         "name: length-flag", []],
       ['The last byte decides the form: even → short ("alice", "bob"), '
-        + `odd → long (${CAROL})`, { [`${al} + 1`]: "31",
+        + 'odd → long ("carol, the un…")', { [`${al} + 1`]: "31",
         [`${rec} + 1`]: "31", [`${cl0} + 1`]: "all" }, "else:", []],
       ["Each short text is in its slot, from the left", {
         [`${al} + 1`]: "0,1,2,3,4", [`${rec} + 1`]: "0,1,2" },
@@ -204,11 +204,11 @@ test("carol's record: eleven steps; bob's plays and carol's name",
     await select(page, null);
     const cw = (await walk(page, C)).steps;
     const cwant: [string, Record<string, string>, string[], string][] = [
-      [`key = ${CAROL}'s address, from roster[2]`,
+      [`key = the address of ${CAROL}, from roster[2]`,
         { "keccak(slot 0) + 2": range(12, 31) }, [], ""],
       ["players is declared at slot 3", {}, ["slot 3"], "slot: 0x03"],
       ["The template mapping(address => Player) takes slot = 3, key = " +
-        `${CAROL}'s address`, {}, ["slot 3"], "expect: [slot, key]"],
+        `the address of ${CAROL}`, {}, ["slot 3"], "expect: [slot, key]"],
       ["The record is at keccak(0x90f7…b906, 3) = …9978", {}, [cl0],
         "~keccak256"],
       ["The template Player takes slot = …9978", {}, [cl0], "Player:"],
@@ -310,7 +310,8 @@ test("the focus: all by default for players; one entry echoes",
     const btns = await page.locator("#dpick button").evaluateAll((bs) =>
       bs.map((b) => `${b.textContent}${b.getAttribute("aria-pressed") ===
         "true" ? "*" : ""}`).join("|"));
-    expect(btns).toBe(`all*|"alice"|"bob"|${CAROL}`);
+    // (names cut within their quotes; in full in the label)
+    expect(btns).toBe(`all*|"alice"|"bob"|"carol, the un…"`);
     const muted = [];
     for (let k = 0; k < 12; k++) {
       await page.locator(`#chips .chip[data-k="${k}"]`).click();
@@ -426,26 +427,50 @@ test("Vyper: its own words listed, each lighting its word", async ({ page }) => 
   await page.keyboard.press("Escape");
 });
 
-test("the packed fields: a byte strip of the word, the fields in order",
-  async ({ page }) => {
+// (vanilla 5c1edfa run.mjs: one line, 32 cells in four groups whose gaps
+// match the dump's, each field's span over its own cells, at 1280, 1440)
+test("the packed fields: a strip shaped like a dump row, the fields in "
+  + "order over their cells", async ({ page }) => {
+  for (const wd of [1280, 1440]) {
+    await page.setViewportSize({ width: wd, height: 900 });
     await ready(page);
-    await select(page, A);
+    await select(page, "players");
     await page.locator('#details button[data-r="start"]').click();
-    await page.locator('#chips .chip', { hasText: "6 fields" }).click();
-    const s = await page.evaluate(() => {
-      const st = document.querySelector("#dtext .bstrip")!;
-      const cells = [...st.querySelectorAll(".bbytes .b")];
-      const names = [...st.querySelectorAll<HTMLElement>(".bnames .fname")];
-      const row = st.getBoundingClientRect();
-      return { cells: cells.length, lit: cells.filter((c) =>
-        c.classList.contains("hl")).length, names: names.map((n) =>
-        n.textContent), oneLine: names.every((n) =>
-        n.getBoundingClientRect().height < 20), inBox: row.right <=
-        document.querySelector("#dtext")!.getBoundingClientRect().right + 1 };
+    // (the chips' row scrolls: the chip may be past its edge, as vanilla)
+    await page.locator('#chips .chip', { hasText: "6 fields" })
+      .evaluate((e: HTMLElement) => e.click());
+    await expect(page.locator("#dtext .bstrip")).toBeAttached();
+    const x = await page.evaluate(() => {
+      const s = document.querySelector("#dtext .bstrip")!;
+      const idx = [...s.querySelectorAll(".bsidx span")].map((e) =>
+        e.getBoundingClientRect());
+      const cell = idx[1].left - idx[0].left;
+      const gap = idx[8].left - idx[7].left - cell;
+      const w = document.querySelector("#panel .view:not([hidden]) " +
+        ".wrow:not(.head) .word")!;
+      const bs = [...w.querySelectorAll(".b")].map((e) =>
+        e.getBoundingClientRect());
+      const dcell = bs[1].left - bs[0].left;
+      const dgap = bs[8].left - bs[7].left - dcell;
+      const spans = [...s.querySelectorAll(".bsv")].map((v) => {
+        const r = v.getBoundingClientRect();
+        const a = idx.findIndex((q) => Math.abs(q.left - r.left) < 2);
+        const b = idx.findIndex((q) => Math.abs(q.right - r.right) < 2);
+        return `${v.textContent} ${a}-${b}`;
+      });
+      const rows = [...s.querySelectorAll<HTMLElement>(".bsv .bsn")]
+        .every((n) => n.getClientRects().length === 1 &&
+          n.scrollHeight <= n.clientHeight + 1);
+      return { ratio: Math.abs(gap / cell - dgap / dcell) < 0.08, spans,
+        rows, oneLine: s.querySelector(".bsrow")!.getBoundingClientRect()
+          .height < parseFloat(getComputedStyle(s).fontSize) * 2 };
     });
-    expect(s).toEqual({ cells: 32, lit: 32, names: ["lastBlock", "hitCount",
-      "plays", "bestCombo", "combo", "score"], oneLine: true, inBox: true });
-  });
+    expect(x, `${wd}`).toEqual({ ratio: true, spans: ["lastBlock 0-7",
+      "hitCount 8-11", "plays 12-15", "bestCombo 16-19", "combo 20-23",
+      "score 24-31"], rows: true, oneLine: true });
+    await page.keyboard.press("Escape");
+  }
+});
 
 test("stepping moves nothing; the details unfold only at entry and exit",
   async ({ page }) => {
@@ -577,3 +602,25 @@ test("a step's own gutter rows keep a dark label (not muted, not dropped)",
     }
     expect(bad).toEqual([]);
   });
+
+// (vanilla 23c7c00 run.mjs: at step 0, a plain label over the blurred
+// pointer, ending in an arrow glyph toward ▶, and a halo on ▶; none from
+// step 1 on)
+test("step 0: the way on, its glyph toward ▶, and ▶'s halo",
+  async ({ page }) => {
+  await ready(page);
+  await select(page, "players");
+  await page.locator('#details button[data-r="start"]').click();
+  const go = () => page.evaluate(() => {
+    const l = document.querySelector<HTMLElement>("#pgo")!;
+    const n = document.querySelector('#details button[data-r="next"]')!;
+    return { label: !l.hidden && l.tagName === "P" &&
+      /[⤴↖]$/.test(l.textContent!.trim()),
+    arrow: !!document.querySelector("svg#goarrow"),
+    halo: n.classList.contains("halo") };
+  });
+  expect(await go()).toEqual({ label: true, arrow: false, halo: true });
+  await page.locator('#details button[data-r="next"]').click();
+  await expect(page.locator(".rcount")).toHaveText(/^1 \//);
+  expect(await go()).toEqual({ label: false, arrow: false, halo: false });
+});

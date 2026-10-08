@@ -40,8 +40,9 @@ it("players: step 0, then twelve steps, one a rule", async () => {
     "The next slot holds name, a string",
     "The template string takes slot = each name slot",
     "The last byte of each name slot is its length flag",
+    // (names cut to 16 within their quotes: vanilla 0225d35)
     'The last byte decides the form: even → short ("alice", "bob"), odd → '
-      + `long (${CAROL})`,
+      + 'long ("carol, the un…")',
     "Each short text is in its slot, from the left",
     "The text starts at keccak(…9979) = …c248, 34 bytes over 2 slots",
   ];
@@ -53,8 +54,8 @@ it("players: step 0, then twelve steps, one a rule", async () => {
       "keccak(key, 3)record|Playertemplate|6 fieldsfields|namestring|" +
       "stringtemplate|flagstring|short | longbranch|inlinetext|" +
       "keccak(slot)text");
-  expect(w.recs!.map((r) => r.who))
-    .toEqual(['"alice"', '"bob"', CAROL]);
+  expect(w.recs!.map((r) => [r.who, r.full])).toEqual([
+    ['"alice"', '"alice"'], ['"bob"', '"bob"'], ['"carol, the un…"', CAROL]]);
   expect(w.focus).toBe("*");
   const input = formText(w.steps[1].form);
   for (const x of ['0x7099…79c8 "alice"→[0]', '0x3c44…93bc "bob"→[1]',
@@ -76,10 +77,10 @@ it("carol's record: step 0 and the eleven steps", async () => {
   const w = walkthrough(await at(), C)!;
   expect(w.steps[0].goal).toBe(true);
   const caps = w.steps.slice(1).map((s) => plain(s.cap));
-  const want = [`key = ${CAROL}'s address, from roster[2]`,
+  const want = [`key = the address of ${CAROL}, from roster[2]`,
     "players is declared at slot 3",
     'The template mapping(address => Player) takes slot = 3, key = ' +
-      `${CAROL}'s address`,
+      `the address of ${CAROL}`,
     "The record is at keccak(0x90f7…b906, 3) = …9978",
     "The template Player takes slot = …9978",
     "The first slot packs six fields",
