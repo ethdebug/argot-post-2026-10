@@ -240,6 +240,23 @@ try {
     });
   };
 
+  // (once the views have drawn what the lens shows: the dump its point,
+  // the tree its selection; as vanilla's, which draws at once)
+  const drawn = async (lens: LensContextValue) => {
+    const frame = () => new Promise((r) => requestAnimationFrame(() =>
+      r(null)));
+    const done = () => {
+      const s = lens.store.get();
+      const want = s.points[s.side === "before" ? "a" : "b"];
+      const sel = s.links.storage?.selection;
+      return !!document.querySelector(
+        `#panel .view:not([hidden])[data-point="${want}"]`) && (!sel ||
+        !!document.querySelector(`#tree li[data-path="${CSS.escape(sel)}"]` +
+          " > .row.sel"));
+    };
+    for (let k = 0; k < 300 && !done(); k++) await frame();
+    await frame();
+  };
   const ready = (lens: LensContextValue, shown: Promise<boolean>) => {
     // "show other state": the cards in the dump and by the tree's rows
     const box = $("insets") as HTMLInputElement;
@@ -254,14 +271,7 @@ try {
     window.select = async (id, view) => {
       const ok = await lens.show(id, view);
       if (ok) await recorded(id);
-      // (once the dump has drawn it: as vanilla's, which draws at once)
-      const s = lens.store.get();
-      const want = s.points[s.side === "before" ? "a" : "b"];
-      for (let k = 0; ok && k < 200 && !document.querySelector(
-        `#panel .view:not([hidden])[data-point="${want}"]`); k++) {
-        await new Promise((r) => requestAnimationFrame(() => r(null)));
-      }
-      await new Promise((r) => requestAnimationFrame(() => r(null)));
+      if (ok) await drawn(lens);
       return ok;
     };
     // (the view the hash asks for, or the first scene: the lens shows
@@ -270,7 +280,7 @@ try {
     const usable = () => {
       const id = lens.store.get().bookmark;
       if (!id || lens.store.get().error || window.results.done) return;
-      recorded(id).then(() => {
+      recorded(id).then(() => drawn(lens)).then(() => {
         if (window.results.done) return;
         off();
         window.results.usable = performance.now();
