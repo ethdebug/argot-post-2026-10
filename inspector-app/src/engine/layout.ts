@@ -8,8 +8,9 @@ import type {
   Path, ResolvedRegion, Row, TimelinePoint, ValueNode,
 } from "./types";
 import { byteKey, short, slotHex, toBig } from "./hex";
-import { hex4, near, nextRow, regionBytes, rowName, segmentRows }
-  from "./location";
+import {
+  allRows, hex4, near, nextRow, regionBytes, rowName, segmentRows,
+} from "./location";
 
 const PLAIN = 1n << 32n; // below this, a slot is a plain number
 
@@ -165,7 +166,8 @@ export function layout(d: Decoded, location: Location, filter: Filter = {},
   const listed = Array.isArray(filter.rows) ? filter.rows
     : filter.rows === "touched" && tx
       ? [...new Set([...tx.reads, ...tx.writes])].filter((s) =>
-        o.point!.snapshot.storage.has(s)) : [];
+        o.point!.snapshot.storage.has(s))
+      : filter.rows === "all" ? allRows(o.point?.snapshot, location) : [];
 
   // memory: the compared point's words too, and those that changed
   const words = new Set<Hex>();
