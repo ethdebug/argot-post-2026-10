@@ -405,7 +405,8 @@ export function WalkthroughPanel(p: { id: ViewId; data: DataRef;
     const otherText = o?.byPath.get(node.path)?.value?.text;
     barBody = <><span className="rmode" />{selSpan}
       <span className="rctl"><button type="button" className="btn rstart"
-        data-r="start">▸ Show how it was found</button></span>
+        data-r="start">▸ Show how<span className="rlong"> it was
+        found</span></button></span>
       <span className="rcount" /><span className="rshort" />
       <span className="rexit" /></>;
     text = <>{v !== undefined ? <p className="rcap rwhere">{parts(whereOf(
