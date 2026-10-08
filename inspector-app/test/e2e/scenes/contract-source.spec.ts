@@ -3,7 +3,7 @@
 // declaration marked (a member: its struct)
 import { test, expect } from "@playwright/test";
 import fs from "node:fs";
-import { A } from "../expect";
+import { A } from "../../expect";
 
 type W = { results: { done: boolean }; select(id: string,
   view?: { sel?: string | null }): Promise<boolean> };

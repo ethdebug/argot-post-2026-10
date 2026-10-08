@@ -1,29 +1,19 @@
 // @vitest-environment jsdom
 import { it, expect, afterEach } from "vitest";
-import {
-  render, fireEvent, cleanup, waitFor, act,
-} from "@testing-library/react";
-import { Lens } from "./Lens";
-import type { LensContextValue } from "./hooks";
-import { fullInspector } from "../lenses/full-inspector";
-import { testProject } from "../../test/project";
+import { fireEvent, cleanup, waitFor, act } from "@testing-library/react";
+import { inspector, mount as mountLens, slow } from "../../test/lens";
 import { A } from "../../test/expect";
 
 afterEach(cleanup);
-const slow = { timeout: 5000 };
 
+// The full inspector's tree alone, at the middle of the game
 async function mount(sel: string | null) {
-  const project = await testProject();
-  const lens = {} as { it: LensContextValue };
-  const r = render(<Lens spec={fullInspector} project={project}
-    onReady={(x) => void (lens.it = x)} />);
-  await waitFor(() => expect(lens.it).toBeTruthy(), slow);
-  await act(async () => void await lens.it.show("mid", { sel }));
+  const r = await mountLens(inspector("tree"), { sel });
   await waitFor(() => expect(r.container.querySelector(
     '#tree li[data-path="players"] > .chev')).toBeTruthy(), slow);
   const li = (p: string) => r.container.querySelector(
     `#tree li[data-path="${p}"]`) as HTMLElement;
-  return { ...r, lens: lens.it, li };
+  return { ...r, lens: r.lenses[0], li };
 }
 
 it("the chevron toggles the group only", async () => {

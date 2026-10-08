@@ -1,6 +1,6 @@
 // Mirrors bin/run.mjs's details and bar-at-rest checks (vanilla d235617)
 import { test, expect, type Page } from "@playwright/test";
-import { A } from "../expect";
+import { A } from "../../expect";
 
 type W = { select(id: string, view?: { sel?: string | null;
   mode?: string }): Promise<boolean>; results: { done: boolean } };

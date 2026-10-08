@@ -1,7 +1,7 @@
 // Mirrors bin/run.mjs's hash checks (storage keys; vanilla d235617)
-import { pick } from "../pick";
+import { pick } from "../../pick";
 import { test, expect, type Page } from "@playwright/test";
-import { A } from "../expect";
+import { A } from "../../expect";
 
 type W = { results: { done: boolean } };
 const go = async (page: Page, hash: string) => {
