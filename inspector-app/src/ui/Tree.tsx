@@ -11,6 +11,7 @@ import type { Colour, Decoded, Filter, Light, ValueNode } from
 import { changed } from "../engine/timeline";
 import { blockOf } from "../engine/target";
 import { relClass } from "../engine/related";
+import { vtName } from "./transition";
 import {
   useCompilation, useDecoded, useLens, useLensState, useLight, useLink,
   useRelatedRoots, useView, useWalkthrough,
@@ -36,7 +37,9 @@ const pk = (k: Colour | undefined) => k === undefined || k === 0 ? ""
 interface Ctx { light: Light; selection: string | null;
   collapsed: ReadonlySet<string>; pair?: [Decoded, Decoded];
   card?: { path: string; side: string; node: ReactNode };
-  plain?: boolean; partAttr?: boolean }
+  plain?: boolean; partAttr?: boolean;
+  // (a row's name in a view transition: transition.ts)
+  vt?: (path: string) => string }
 
 // a row's colour when lit (0: the selection's yellow)
 const colourOf = (c: Ctx, n: ValueNode) => c.light.colours.get(n.path) ?? 0;
@@ -92,6 +95,7 @@ function Row({ n, top, c, inBlk }: { n: ValueNode; top?: boolean; c: Ctx;
   return <li className={li || undefined} data-path={n.path}
     data-part={c.partAttr ? n.part ?? n.path : undefined}>
     <div className={cls} tabIndex={0} role="button"
+      data-vt={c.vt?.(n.path)}
       aria-pressed={sel ? "true" : "false"}>
       <span className="name">{n.label}</span>
       <span className="type">{n.typeText}</span>
@@ -164,7 +168,9 @@ export function Tree(p: { id: ViewId; data: DataRef; filter?: Filter;
   link?: LinkId; domId?: string; variant?: "tree" | "table";
   compare?: DataRef; align?: ViewId[];
   // (no cards of the other state, no collapsing: the memory section's)
-  plain?: boolean; partAttr?: boolean }) {
+  plain?: boolean; partAttr?: boolean;
+  // (a row's name in a view transition: transition.ts)
+  vt?: (path: string) => string }) {
   const d = useDecoded(p.data);
   const o = useDecoded(p.compare);
   const light = useLight(p.id);
@@ -213,6 +219,7 @@ export function Tree(p: { id: ViewId; data: DataRef; filter?: Filter;
   const c: Ctx = { light, selection: link.selection, pair,
     collapsed: new Set([...shut].filter((q) => !closing.has(q))),
     plain: p.plain, partAttr: p.partAttr,
+    vt: (q) => vtName(lens.key, p.id, q),
     card: pair && insets && light.muted && !p.plain
       ? treeCard(lit, pair, side)
       : undefined };

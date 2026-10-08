@@ -205,7 +205,9 @@ contract Arcade {
           <button role="radio" aria-checked="false">Related</button></div>
         <label class="chipcheck off"><input type="checkbox" disabled>
           ± 1 row</label></div>
-      <div id="dump" class="dump">
+      <!-- (data-vt: named in a view transition, ui/transition.ts: the
+      box and the Variables column move with the rows) -->
+      <div id="dump" class="dump" data-vt="vt-dump">
         <div id="panel" class="panel"></div>
       </div>
       <!-- the calldata of the scene's call (the message of the day only),
@@ -232,7 +234,7 @@ contract Arcade {
       </section>
     </section>
 
-    <section aria-label="Variables" class="storage">
+    <section aria-label="Variables" class="storage" data-vt="vt-vars">
       <h2 class="label colhead">Variables
         <span class="legend chglegend"><span class="chg">changed</span>
         <span class="same">unchanged</span></span></h2>
@@ -253,7 +255,8 @@ contract Arcade {
   </div>
 
 
-  <section id="memory" class="ahead" aria-labelledby="mem-h">
+  <section id="memory" class="ahead" aria-labelledby="mem-h"
+    data-vt="vt-memory">
     <h2 id="mem-h">Inside one play: locals in memory, with BUG
       <span class="tag preview">preview: bugc from ethdebug/format main,
       not yet released</span></h2>
