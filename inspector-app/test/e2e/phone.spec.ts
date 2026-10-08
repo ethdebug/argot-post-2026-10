@@ -27,3 +27,25 @@ for (const [w, h] of SIZES) {
       expect((await bar.boundingBox())!.height).toBeCloseTo(h0, 2);
     });
 }
+
+for (const [w, h] of SIZES) {
+  test(`${w}px: no scene scrolls sideways; no popover runs out of its box`,
+    async ({ page }) => {
+      await ready(page, w, h);
+      const scenes = await page.locator("#picker button[data-fixture]")
+        .evaluateAll((bs) => bs.map((b) => (b as HTMLElement).dataset
+          .fixture!));
+      for (const s of scenes) {
+        await page.locator(`#picker button[data-fixture="${s}"]`).click();
+        await page.waitForFunction(() => (window as unknown as W).results
+          ?.done);
+        await page.evaluate(() => new Promise((r) => setTimeout(r, 300)));
+        expect(await page.evaluate(() => [document.documentElement
+          .scrollWidth, ...[...document.querySelectorAll(".pop")]
+          .filter((p) => p.scrollWidth > p.clientWidth + 1)
+          .map((p) => (p as HTMLElement).innerText)]), s)
+          .toEqual([await page.evaluate(() => document.documentElement
+            .clientWidth)]);
+      }
+    });
+}
