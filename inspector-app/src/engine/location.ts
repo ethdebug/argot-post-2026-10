@@ -2,9 +2,11 @@
 // them: how its bytes fall into rows, the row after a row (for the gaps),
 // a row's address as the gutter shows it, its name, and a row's bytes at
 // a point. Rows follow from the location's addressing: storage is
-// slot-addressed (a row is a slot, by number); memory and calldata are
-// offset-addressed segments, one stream of bytes from byte 0, where rows
-// are only layout: 32 bytes a row (a word), from 0x0000 by 0x0020.
+// slot-addressed (a row is a slot, by number); so is the stack (a row is
+// an item, by its position from the top: 0 is the top); memory and
+// calldata are offset-addressed segments, one stream of bytes from byte
+// 0, where rows are only layout: 32 bytes a row (a word), from 0x0000 by
+// 0x0020.
 import type { Hex, Location, ResolvedRegion, Snapshot } from "./types";
 import { slotHex } from "./hex";
 
@@ -12,7 +14,7 @@ export const hex4 = (n: number): Hex =>
   `0x${n.toString(16).padStart(4, "0")}`;
 // how a location's bytes are found: by slot, or by offset in a segment
 export const addressing = (l: Location): "slot" | "offset" =>
-  l === "storage" ? "slot" : "offset";
+  l === "storage" || l === "stack" ? "slot" : "offset";
 const byOffset = (l: Location) => addressing(l) === "offset";
 // (an offset-addressed segment: its rows, of a word each)
 const ROW = 32;
@@ -64,19 +66,22 @@ export function near(all: Hex[], rows: Iterable<Hex>, context: number,
 
 // a row's name, for a location whose rows are not found by a rule: the
 // location and its offset ("memory 0x0080", "calldata 0x0020")
-export const rowName = (l: Location, row: Hex) => `${l} ${row}`;
+export const rowName = (l: Location, row: Hex) =>
+  `${l} ${l === "stack" ? BigInt(row) : row}`;
 // an offset-addressed range of bytes, first to last, the one way every
 // place names it ("calldata 0x0004–0x0023"; one byte: "memory 0x00df")
 export const rangeText = (l: Location, a: number, b: number) =>
   `${l} ${hex4(a)}${b > a ? `–${hex4(b)}` : ""}`;
 
 // whether rows may follow the last one shown (a gap line after it):
-// calldata ends where the call's input does
-export const goesOn = (l: Location) => l !== "calldata";
+// calldata ends where the call's input does; the stack at its depth
+export const goesOn = (l: Location) => l !== "calldata" && l !== "stack";
 
-// a row's address in the gutter: a slot's last digits; an offset whole
+// a row's address in the gutter: a slot's last digits; an offset whole;
+// a stack item's position from the top
 export const addressText = (l: Location, row: Hex) =>
-  byOffset(l) ? row : `…${row.slice(-4)}`;
+  l === "stack" ? String(BigInt(row)) : byOffset(l) ? row
+    : `…${row.slice(-4)}`;
 
 // an offset-addressed location's bytes at a point (none: empty)
 export const segmentOf = (s: Snapshot | undefined, l: Location) =>
@@ -85,9 +90,17 @@ export const segmentOf = (s: Snapshot | undefined, l: Location) =>
 // the rows of a whole segment (one that does not go on): every row of
 // its bytes, its padding too
 export const segmentRows = (s: Snapshot | undefined, l: Location): Hex[] =>
-  addressing(l) !== "offset" || goesOn(l) ? []
-    : Array.from({ length: Math.ceil(segmentOf(s, l).length / ROW) },
-      (_, k) => hex4(k * ROW));
+  goesOn(l) ? [] : allRows(s, l);
+// every row a point has of a location: storage's slots it knows, every
+// word of a segment, every stack item (the top first)
+export function allRows(s: Snapshot | undefined, l: Location): Hex[] {
+  if (l === "storage") return [...s?.storage.keys() ?? []];
+  if (l === "stack") {
+    return (s?.stack ?? []).map((_, k) => slotHex(BigInt(k)));
+  }
+  return Array.from({ length: Math.ceil(segmentOf(s, l).length / ROW) },
+    (_, k) => hex4(k * ROW));
+}
 // a row's bytes at a point, as hex pairs; undefined: past the end of the
 // segment
 export function rowBytes(s: Snapshot | undefined, l: Location,
@@ -99,6 +112,9 @@ export function rowBytes(s: Snapshot | undefined, l: Location,
     return Array.from({ length: ROW }, (_, i) => at + i < m.length
       ? pair(m[at + i]) : undefined);
   }
-  const w = (s?.storage.get(row) ?? "0x").slice(2).padStart(64, "0");
+  const st = s?.stack;
+  const w = (l === "stack" ? st?.[st.length - 1 - Number(BigInt(row))]
+    : s?.storage.get(row) ?? "0x")?.slice(2).padStart(64, "0") ?? "";
+  if (!w) return Array.from({ length: ROW }, () => undefined);
   return w.match(/../g)!;
 }

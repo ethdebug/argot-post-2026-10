@@ -267,8 +267,9 @@ export interface Light {                // DERIVED per view, never stored
 export interface Filter {               // truncation, per view
   roots?: Path[];                       // only these subtrees
   // dump rows: the values' (and own slots); also the slots the point's
-  // transaction read or wrote; or the values' and these
-  rows?: "values" | "touched" | Hex[];
+  // transaction read or wrote; or the values' and these; or every row
+  // the point has of the location (its whole storage, memory, stack)
+  rows?: "values" | "touched" | "all" | Hex[];
   // only these rows, and `context` adjacent rows on each side of each
   // (the "Related" view: a selection's related rows, engine/related.ts)
   only?: { rows: Hex[]; context?: number };
