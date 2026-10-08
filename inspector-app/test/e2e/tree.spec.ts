@@ -91,9 +91,9 @@ test("a lit row out of the tree's view: a circle button on the edge",
   async ({ page }) => {
     await ready(page);
     await select(page, null);
+    // (the real layout: the tree box as tall as the dump, scrolling
+    // inside itself)
     await page.evaluate(() => {
-      (document.querySelector("#tree") as HTMLElement).style.height =
-        "260px";
       document.querySelector("#tree")!.scrollTop = 0;
     });
     const pill = (x: string) => page.evaluate((way) => {
@@ -178,3 +178,24 @@ test("a slot the value uses only in the other state: marked 'only'",
       '#panel .view[data-side="after"] .wrow.only > .word .b.hl'))
       .toHaveCount(0);
   });
+
+test("the tree box: as tall as the dump, its first row level with the "
+  + "dump's first line", async ({ page }) => {
+  await ready(page);
+  await select(page, null);
+  await page.mouse.move(1, 1);
+  const g = await page.evaluate(() => {
+    const t = document.querySelector<HTMLElement>("#tree")!;
+    const d = document.querySelector<HTMLElement>("#dump")!;
+    const line = document.querySelector<HTMLElement>(
+      "#panel .view:not([hidden]) .rows > *")!;
+    const row = document.querySelector<HTMLElement>("#tree li .row")!;
+    const top = (e: Element, c: string) => e.getBoundingClientRect().top -
+      e.closest(c)!.getBoundingClientRect().top;
+    return { bottom: Math.round(t.getBoundingClientRect().bottom -
+      d.getBoundingClientRect().bottom),
+    scrolls: t.scrollHeight > t.clientHeight + 1,
+    level: Math.round(top(line, ".words") - top(row, ".storage")) };
+  });
+  expect(g).toEqual({ bottom: 0, scrolls: true, level: 0 });
+});
