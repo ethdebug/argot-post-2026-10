@@ -5,7 +5,7 @@ import { forPath } from "./light";
 import { decode } from "./decode";
 import { layout } from "./layout";
 import {
-  related, relatedValues, relClass, withRelated,
+  related, relatedValues, relClass, roles, withRelated,
 } from "./related";
 import { walkthrough } from "./walkthrough/fold";
 
@@ -90,4 +90,19 @@ it("what it consulted: each key in its record's colour; the anchor",
     expect(relClass(one, ["playerList[2]"])).toBe("rel pkn");
     expect(relClass(all, ["playerList[1]"])).toBe("rel pk2");
     expect(relClass(all, [`${A}.score`])).toBe(null);
+  });
+
+it("a slot's role: read (its bytes), anchor (its number), or both",
+  async () => {
+    const { d } = await mid();
+    const S0 = `0x${"0".padStart(64, "0")}` as const;
+    const S3 = `0x${"3".padStart(64, "0")}` as const;
+    const r0 = roles(d, "playerList[0]", "storage");
+    // (playerList[0]: slot 0's length bounds the list, its number the data's
+    // base: both)
+    expect(r0.read.map((r) => [r.slot, r.role])).toEqual([[0n, "length"]]);
+    expect([...r0.anchors.keys()]).toContain(S0);
+    const p = roles(d, `${A}.score`, "storage");
+    expect(p.read).toEqual([]);
+    expect(p.anchors.get(S3)).toBe("players");
   });

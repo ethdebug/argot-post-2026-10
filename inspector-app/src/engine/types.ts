@@ -262,7 +262,7 @@ export interface Light {                // DERIVED per view, never stored
   // its anchor, by its path)
   related?: ReadonlySet<Hex>; relBytes?: ReadonlySet<ByteKey>;
   relColours?: ReadonlyMap<Path, Colour>;
-  anchors?: ReadonlyMap<Hex, Path>;
+  anchors?: ReadonlyMap<Hex, Path>; relReads?: ReadonlySet<Hex>;
 }
 export interface Filter {               // truncation, per view
   roots?: Path[];                       // only these subtrees

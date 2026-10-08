@@ -501,7 +501,8 @@ li.same > .row .name, li.same > .row .type { opacity: 0.55; }
 .pop .pname.muted { filter: saturate(0.25); opacity: 0.7; }
 /* Bytes no value owns: "(unmapped)", italic, muted; pointed at, a
    neutral badge (no colour), and the bytes a neutral light */
-.pop .pname.pfree { font-style: italic; }
+/* (a note: its prose italic, a name in it upright, as names are) */
+.pop .pname.pfree .pprose { font-style: italic; }
 .pop .pname.pbadge.pnone { font-weight: 400;
   --pk: var(--muted); --pk-fg: var(--muted);
   background: color-mix(in srgb, var(--bg) 85%, var(--muted)); }
@@ -1215,9 +1216,9 @@ sup.fn { font-size: 0.7em; color: var(--accent); margin-left: 1px; }
 .tree.active .row.rel:not(.hl) { opacity: 0.9; }
 .pop .pname.pbadge.rel, .pop.kept .pname.pbadge.rel {
   background: var(--rel); color: var(--fg); font-weight: 600; }
-/* (a consulted run's addresses: a neutral group tint; a gutter row,
-   the variable's own slot, keeps its own) */
-.wrow.rel:not(.gut) .addr.grp::before { background: var(--rel-grey); }
+/* (a consulted run's addresses, an anchor's gutter too: the related
+   variant of their tint, the selection yellow's, the neutral grey) */
+.wrow.rel .addr.grp::before { background: var(--rel-grey); }
 /* A change of the related view's rows (ui/transition.ts): the rows that
    stay move, the others fade; the popovers and the tree's edge buttons
    wait until it is done */

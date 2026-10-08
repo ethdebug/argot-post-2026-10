@@ -3600,7 +3600,7 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
         light: !!r.querySelector(".pop.kept.related") };
     });
     // (a slot the selection consulted, its anchor: a light label)
-    if (!s3.grp || s3.lit || s3.pop !== "slot 3 : players (anchor)" ||
+    if (!s3.grp || s3.lit || s3.pop !== "slot 3 : (anchor slot for players)" ||
       !s3.light) {
       problems.push(`players' slot 3: ${JSON.stringify(s3)}`);
     }
@@ -3690,7 +3690,7 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
     // (and what it consulted: the keys' slots, players' own, its anchor)
     "keccak(slot 0) : (unmapped) · [0] / (unmapped) · [1] / (unmapped) · " +
       "[2], 3 slots",
-    "slot 3 : players (anchor)"].join("|")) {
+    "slot 3 : (anchor slot for players)"].join("|")) {
     problems.push(`popover room: ${JSON.stringify(room)}`);
   }
   await page.keyboard.press("Escape");
