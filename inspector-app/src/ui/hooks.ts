@@ -4,15 +4,18 @@ import { createContext, useContext, useEffect, useMemo, useState,
   useSyncExternalStore } from "react";
 import type { Project } from "../engine/project";
 import type {
-  Compilation, Decoded, Decoding, Filter, Hex, Layout, Light, Snapshot,
-  TimelinePoint,
+  Compilation, Decoded, Decoding, Filter, Hex, Layout, Light, Location,
+  Snapshot, TimelinePoint,
 } from "../engine/types";
 import { decode } from "../engine/decode";
 import { layout } from "../engine/layout";
 import {
   forBytes, forPath, forRow, forStep, noLight,
 } from "../engine/light";
-import { walkthrough, type Walkthrough } from "../engine/walkthrough/fold";
+import {
+  walkthrough, type WalkInput, type Walkthrough,
+} from "../engine/walkthrough/fold";
+import { related, relatedValues } from "../engine/related";
 import { locked } from "../engine/target";
 import { byteKey } from "../engine/hex";
 import { regionBytes } from "../engine/layout";
@@ -161,12 +164,81 @@ export function useLayout(id: string, filter?: Filter, at?: DataRef,
     { decoding: mine[0].decoding, point: d.point });
   const location = v.kind === "dump" ? v.location : "storage";
   const cmp = useDecoded(compare);
+  // (the "Related" view: the selection's related rows only)
+  const only = useRelated(id, location, data, compare);
   const l = useMemo(() => {
     if (!d || (mine[0] && !o1)) return undefined;
-    return layout(d, location, f, { point, ...(cmp ? { compare: cmp } : {}),
+    return layout(d, location, only ? { ...f, only } : f, { point,
+      ...(cmp ? { compare: cmp } : {}),
       others: o1 ? [{ d: o1, who: mine[0].who }] : [] });
-  }, [d, o1, point, location, f, mine[0]?.who, cmp]);
+  }, [d, o1, point, location, f, mine[0]?.who, cmp, only]);
   return { d, l };
+}
+
+// The "Related" view's rows for a view (Filter.only): its link group's
+// selection's related rows (engine/related.ts) at the view's point and
+// at the point it compares with, so a pair's two sides keep one set of
+// rows. None while the view is off, or nothing is selected. Hovering
+// changes nothing: only a selection does.
+export function useRelated(id: string, location: Location,
+  data?: DataRef, compare?: DataRef): Filter["only"] | undefined {
+  const v = useViewSpec(id);
+  const context = useLensState((s) => s.related?.context);
+  const [link] = useLink(v.link);
+  const on = context !== undefined && !!link.selection;
+  const a = useWalkInput(on ? data : undefined);
+  const b = useWalkInput(on ? compare : undefined);
+  const { project } = useLens();
+  const sel = link.selection;
+  const key = useMemo(() => {
+    if (!on || !sel) return "";
+    const rows = new Set([a, b].flatMap((x) => x && x.d.byPath.has(sel)
+      ? related(x.d, sel, walkOf(project, x, sel), location) : []));
+    return [...rows].join(" ");
+  }, [on, sel, a, b, project, location]);
+  return useMemo(() => key ? { rows: key.split(" ") as Hex[], context }
+    : undefined, [key, context]);
+}
+
+// The related view's values for a tree (Filter.roots): the selection
+// and the values outside it its walkthrough reads (engine/related.ts);
+// none while the view is off, or nothing is selected
+export function useRelatedRoots(id: string): string[] | undefined {
+  const v = useViewSpec(id);
+  const on = useLensState((s) => s.related !== undefined);
+  const [link] = useLink(v.link);
+  const sel = on ? link.selection : null;
+  const x = useWalkInput(sel && "data" in v ? v.data : undefined);
+  const d = useDecoded(sel && "data" in v ? v.data : undefined);
+  const { project } = useLens();
+  const key = useMemo(() => !sel || !d?.byPath.has(sel) ? ""
+    : relatedValues(d, sel, x ? walkOf(project, x, sel) : null).join("\n"),
+  [sel, d, x, project]);
+  return useMemo(() => key ? key.split("\n") : undefined, [key]);
+}
+
+// What a walkthrough is computed from, for a view's data (state
+// variables only: no walkthrough of locals; the memory section shows
+// its steps)
+function useWalkInput(data: DataRef | undefined): WalkInput | undefined {
+  const lens = useLens();
+  const d = useDecoded(data);
+  const point = usePoint(data);
+  const c = useCompilation(data);
+  return useMemo(() => {
+    const dc = d && decodingOf(lens, d.decoding);
+    return d && point && c && dc && dc.variables === "state"
+      ? { d, c, snap: point.snapshot, keys: dc.keys } : undefined;
+  }, [d, point, c, lens]);
+}
+
+// A walkthrough, memoised per decoding, point, path and focus
+function walkOf(project: Project, x: WalkInput, sel: string,
+  focus?: string): Walkthrough | null {
+  const k = `walk|${x.d.decoding}|${x.d.point}|${sel}|${focus ?? ""}`;
+  const memo = project.memo as Map<string, unknown>;
+  if (!memo.has(k)) memo.set(k, walkthrough(x, sel, focus));
+  return memo.get(k) as Walkthrough | null;
 }
 
 // The groups collapsed in a link group's trees (a collapse recolours
@@ -188,25 +260,12 @@ export function useWalkthrough(id: string, at?: DataRef):
   const v = useViewSpec(id);
   const lens = useLens();
   const data = at ?? ("data" in v ? v.data : undefined);
-  const d = useDecoded(data);
-  const point = usePoint(data);
-  const c = useCompilation(data);
+  const x = useWalkInput(data);
   const [link] = useLink(v.link);
   const sel = link.selection;
   const focus = link.walk?.focus;
-  return useMemo(() => {
-    if (!d || !point || !c || !sel || !d.byPath.has(sel)) return null;
-    const dc = decodingOf(lens, d.decoding);
-    // (no walkthrough of locals: the memory section shows its steps)
-    if (!dc || dc.variables !== "state") return null;
-    const k = `walk|${d.decoding}|${d.point}|${sel}|${focus ?? ""}`;
-    const memo = lens.project.memo as Map<string, unknown>;
-    if (!memo.has(k)) {
-      memo.set(k, walkthrough({ d, c, snap: point.snapshot,
-        keys: dc.keys }, sel, focus));
-    }
-    return memo.get(k) as Walkthrough | null;
-  }, [d, point, c, sel, focus, lens]);
+  return useMemo(() => !x || !sel || !x.d.byPath.has(sel) ? null
+    : walkOf(lens.project, x, sel, focus), [x, sel, focus, lens]);
 }
 
 // What a view lights (vanilla main.js show, panel.js locked): with a

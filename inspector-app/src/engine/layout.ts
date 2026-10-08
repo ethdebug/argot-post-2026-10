@@ -8,7 +8,7 @@ import type {
   Path, ResolvedRegion, Row, TimelinePoint, ValueNode,
 } from "./types";
 import { byteKey, short, slotHex, toBig } from "./hex";
-import { hex4, nextRow, regionBytes, rowName } from "./location";
+import { hex4, near, nextRow, regionBytes, rowName } from "./location";
 
 const PLAIN = 1n << 32n; // below this, a slot is a plain number
 
@@ -222,6 +222,11 @@ export function layout(d: Decoded, location: Location, filter: Filter = {},
     return { address, how: how(address), what,
       ...(own.has(address) ? { role: "own-slot" as const } : {}) };
   });
+  if (filter.only) {
+    const keep = near(addresses, filter.only.rows, filter.only.context ?? 0,
+      location);
+    rows = rows.filter((r) => keep.has(r.address));
+  }
   if (filter.maxRows !== undefined) rows = rows.slice(0, filter.maxRows);
   rows = rows.map((r, k) => ({ ...r, gapBefore: k === 0
     ? BigInt(r.address) !== 0n

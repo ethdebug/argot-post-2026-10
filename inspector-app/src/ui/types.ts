@@ -19,6 +19,9 @@ export interface LinkState {    // shared by the views of one link group
 }
 export interface ViewState {    // one view instance's own state
   collapsed: ReadonlySet<Path>; // Tree only; default empty (expanded)
+  // (Tree, the related view: the selection's members the reader opened;
+  // the others are shut there)
+  open?: ReadonlySet<Path>;
 }
 export interface LensState {
   bookmark?: string;
@@ -31,6 +34,10 @@ export interface LensState {
   error?: string;
   // (each show of a bookmark, counted: the views start from the top)
   shows?: number;
+  // the "Related" view (absent: off): the dumps show only the rows
+  // related to the selection, with `context` rows around each; the tree
+  // only the selection's path, its members and the related values
+  related?: { context: number };
 }
 
 // a view's data: a decoding (or "$bm", the current bookmark's) at a
@@ -63,7 +70,8 @@ export type ViewSpec = { id: ViewId; area: string; link?: LinkId;
       alone?: boolean;
       // (its rows also carry data-part: the calldata section's contract)
       partAttr?: boolean }
-    | { kind: "picker"; of: "bookmarks" | "points" | "side" | "level";
+    | { kind: "picker";
+      of: "bookmarks" | "points" | "side" | "level" | "related";
       // (a side picker in a row of its own, hidden at one point)
       row?: string }
     // the memory section's (Locals.tsx)

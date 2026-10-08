@@ -14,7 +14,7 @@ export const fullInspector: LensSpec = {
     "vyAsSol", "vyRule"],
   bookmarks: ["mid", "alice", "motd", "vyper"],
   grid: '"contract contract" "pick pick" "mode mode" "bar bar" ' +
-    '"dump tree" "cdump ctree" "cdetails chow"',
+    '"rows rows" "dump tree" "cdump ctree" "cdetails chow"',
   links: ["storage", "calldata"],
   scopes: { cdump: "calldata", ctree: "calldata", cdetails: "calldata",
     chow: "calldata" },
@@ -24,6 +24,9 @@ export const fullInspector: LensSpec = {
     { id: "pick", kind: "picker", of: "bookmarks", area: "pick",
       domId: "picker" },
     { id: "mode", kind: "picker", of: "side", area: "mode", domId: "mode" },
+    // All | Related: the rows shown (the related view: the selection's)
+    { id: "rows", kind: "picker", of: "related", area: "rows",
+      link: "storage", domId: "related" },
     { id: "walk", kind: "walkthrough", area: "bar", link: "storage",
       domId: "details", data: { decoding: "$bm", point: { slot: "$side" } },
       others: VYPER },

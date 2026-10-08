@@ -37,6 +37,28 @@ export const nextRow = (l: Location, row: Hex): bigint =>
   !byOffset(l) ? BigInt(row) + 1n
     : l === "calldata" && BigInt(row) === 0n ? 4n : BigInt(row) + 32n;
 
+// The addresses kept of `all` (in address order): `rows`, and up to
+// `context` rows on each side of each, where the rows are adjacent (the
+// next word or slot: nothing is drawn that the dump would not draw)
+export function near(all: Hex[], rows: Iterable<Hex>, context: number,
+  location: Location): Set<Hex> {
+  const want = new Set([...rows].map((h) => BigInt(h)));
+  const keep = new Set<Hex>();
+  all.forEach((a, i) => {
+    if (!want.has(BigInt(a))) return;
+    keep.add(a);
+    for (let k = i; k < i + context && k + 1 < all.length &&
+      nextRow(location, all[k]) === BigInt(all[k + 1]); k++) {
+      keep.add(all[k + 1]);
+    }
+    for (let k = i; k > i - context && k > 0 &&
+      nextRow(location, all[k - 1]) === BigInt(all[k]); k--) {
+      keep.add(all[k - 1]);
+    }
+  });
+  return keep;
+}
+
 // a row's name, for a location whose rows are not found by a rule: by
 // offset ("word 0x0080", "calldata 0x0024")
 export const rowName = (l: Location, row: Hex) =>

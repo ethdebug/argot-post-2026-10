@@ -195,6 +195,15 @@ contract Arcade {
       <h2 class="label colhead" id="words-h">Storage
         <span class="legend"><span class="bchg">changed byte</span>
         <span class="bfree">no value shown</span></span></h2>
+      <!-- All | Related: the rows the dump shows (static until the
+      lens draws it, so nothing moves) -->
+      <div id="related" class="moderow relrow">
+        <span class="modelabel">Rows</span>
+        <div class="picker mode" role="radiogroup" aria-label="Rows">
+          <button role="radio" aria-checked="true">All</button>
+          <button role="radio" aria-checked="false">Related</button></div>
+        <label class="chipcheck off"><input type="checkbox" disabled>
+          ± 1 row</label></div>
       <div id="dump" class="dump">
         <div id="panel" class="panel"></div>
       </div>
@@ -297,6 +306,13 @@ contract Arcade {
         <h2 class="label" id="mwords-h">Memory
           <span class="legend"><span class="bfree">no value
           shown</span></span></h2>
+        <div id="mrelated" class="moderow relrow">
+          <span class="modelabel">Rows</span>
+          <div class="picker mode" role="radiogroup" aria-label="Rows">
+            <button role="radio" aria-checked="true">All</button>
+            <button role="radio" aria-checked="false">Related</button></div>
+          <label class="chipcheck off"><input type="checkbox" disabled>
+            ± 1 row</label></div>
         <div class="dump"><div id="mpanel" class="panel"></div></div>
         <!-- (each location its own panel: alice's record slot, at the
         last point) -->

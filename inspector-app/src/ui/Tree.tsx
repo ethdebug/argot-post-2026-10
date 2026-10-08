@@ -12,7 +12,7 @@ import { changed } from "../engine/timeline";
 import { blockOf } from "../engine/target";
 import {
   useCompilation, useDecoded, useLens, useLensState, useLight, useLink,
-  useView, useWalkthrough,
+  useRelatedRoots, useView, useWalkthrough,
 } from "./hooks";
 import type { DataRef, LinkId, ViewId } from "./types";
 
@@ -193,14 +193,25 @@ export function Tree(p: { id: ViewId; data: DataRef; filter?: Filter;
   const lit = link.walk ? to ?? null
     : link.selection && d?.byPath.has(link.selection)
       ? link.selection : link.hover?.path ?? [...light.rows][0] ?? null;
+  // (the related view: only the selection, the groups that hold it and
+  // the values its walkthrough reads outside it; its members that are
+  // groups shut, unless the reader opened them)
+  const related = useRelatedRoots(p.id);
+  const sel = link.selection;
+  const auto = related && sel ? (d?.byPath.get(sel)?.children ?? [])
+    .filter((x) => x.children?.length && !view.open?.has(x.path))
+    .map((x) => x.path) : [];
+  const shut = new Set([...view.collapsed, ...auto]);
+  const fewer = !!related;
   const c: Ctx = { light, selection: link.selection, pair,
-    collapsed: new Set([...view.collapsed].filter((q) => !closing.has(q))),
+    collapsed: new Set([...shut].filter((q) => !closing.has(q))),
     plain: p.plain, partAttr: p.partAttr,
     card: pair && insets && light.muted && !p.plain
       ? treeCard(lit, pair, side)
       : undefined };
-  // only the filter's roots, and the groups that hold them
-  const roots = p.filter?.roots;
+  // only the filter's roots (the related view's), and the groups that
+  // hold them
+  const roots = related ?? p.filter?.roots;
   const keep = (n: ValueNode): ValueNode | null => {
     if (!roots || roots.some((r) => n.path === r ||
       n.path.startsWith(r + ".") || n.path.startsWith(r + "["))) return n;
@@ -231,12 +242,18 @@ export function Tree(p: { id: ViewId; data: DataRef; filter?: Filter;
   // its members shrink; a click meanwhile turns it round)
   const opened = useRef<string | null>(null);
   const toggle = (path: string) => {
-    const open = view.collapsed.has(path);
+    const open = shut.has(path);
     setView((v) => {
       const next = new Set(v.collapsed);
       if (open) next.delete(path);
       else next.add(path);
-      return { ...v, collapsed: next };
+      // (a member the related view shut: opened by the reader)
+      const was = v.open ?? new Set<string>();
+      const keep = open && auto.includes(path) ? new Set([...was, path])
+        : !open && was.has(path)
+          ? new Set([...was].filter((q) => q !== path)) : was;
+      return { ...v, collapsed: next, ...(keep.size ? { open: keep }
+        : { open: undefined }) };
     });
     const ul = box.current?.querySelector<HTMLElement>(
       `li[data-path="${esc(path)}"] > ul`);
@@ -278,7 +295,7 @@ export function Tree(p: { id: ViewId; data: DataRef; filter?: Filter;
       { duration: 180, easing: "ease-out" }).finished.then(() => {
       ul.style.overflow = "";
     });
-  }, [view.collapsed]);
+  }, [view.collapsed, view.open]);
   // a row selects its value (its block, by pointer), or, when it is the
   // selected one, clears
   const act = (el: EventTarget, keys = false) => {
@@ -311,7 +328,6 @@ export function Tree(p: { id: ViewId; data: DataRef; filter?: Filter;
 
   // a new selection opens the groups it is in, and the tree (inside its
   // box only) scrolls to it
-  const sel = link.selection;
   useEffect(() => {
     if (!sel) return;
     setView((v) => {
@@ -403,7 +419,9 @@ export function Tree(p: { id: ViewId; data: DataRef; filter?: Filter;
       const bottom = Math.max(...all.map((x) =>
         (x.closest(".dump") ?? x).getBoundingClientRect().bottom));
       const tb = tree.getBoundingClientRect();
-      const h = wide ? `${Math.max(100, bottom - tb.top)}px` : "";
+      // (the related view: as tall as its few rows; its dumps are short)
+      const h = wide && !fewer ? `${Math.max(100, bottom - tb.top)}px`
+        : "";
       if (tree.style.height !== h || was !== h) tree.style.height = h;
       if (tree.scrollTop !== scrolled) tree.scrollTop = scrolled;
     };
@@ -424,7 +442,7 @@ export function Tree(p: { id: ViewId; data: DataRef; filter?: Filter;
       removeEventListener("resize", align);
     };
     // (when the tree is drawn anew, as vanilla's renderTree, and on resize)
-  }, [d, side, lens.key, alignKey, shows]);
+  }, [d, side, lens.key, alignKey, shows, fewer]);
 
   // lit rows out of the box's view: a yellow circle button on the edge
   // past which they are (an overlay; a click scrolls to the first)

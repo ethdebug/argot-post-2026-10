@@ -182,6 +182,11 @@ li.same > .row .name, li.same > .row .type { opacity: 0.55; }
 .modelabel { font-size: 0.8rem; color: var(--muted); }
 .mpicks .moderow { margin: 0 0 6px; }
 .mpicks .modelabel { min-width: 1.2em; }
+/* All | Related: the rows a dump shows (its context box muted, not
+   gone, with All: nothing moves) */
+.relrow { margin: 0 0 8px; }
+.relrow .chipcheck.off { opacity: 0.5; cursor: default; }
+.relrow .relhint { font-size: 0.8rem; }
 .how details { margin-top: 4px; }
 .how summary { cursor: pointer; color: var(--muted); font-size: 0.85rem; }
 .how pre {
