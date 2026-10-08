@@ -4204,8 +4204,9 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
   if (scrollX) problems.push("phone: page scrolls sideways");
   await pp.waitForFunction(() => window.memResults?.done);
   // the bar offers the replay; nothing moves on the phone either
+  // (its label short on a phone)
   if (!(await pp.locator("#details").innerText()).includes(
-    "▸ Show how it was found")) {
+    "▸ Show how")) {
     problems.push("phone: no replay button");
   }
   await still(pp, "390");
