@@ -74,3 +74,18 @@ test("selecting moves nothing", async ({ page }) => {
   await page.mouse.move(1, 1);
   await expect.poll(boxes).toEqual(rest);
 });
+
+// (a scene with one point has no other state: no change legends over
+// the storage and the variables; regression: the walkthrough's box
+// around the columns had hidden them from the rule)
+test("one point: no change legends; two points: the legends",
+  async ({ page }) => {
+    await ready(page);
+    const shown = () => page.locator(".scols .chglegend, .scols .legend " +
+      ".bchg").evaluateAll((es) => es.filter((e) =>
+      (e as HTMLElement).offsetParent).length);
+    await select(page, "mid", null);
+    expect(await shown()).toBe(0);
+    await select(page, "alice", null);
+    expect(await shown()).toBe(2);
+  });
