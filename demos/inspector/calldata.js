@@ -7,6 +7,7 @@
 // are the ABI's, and this file computes them itself.
 import {
   details, paint as paintPanel, regionBytes, renderLocation, memWord,
+  childColor,
 } from "./panel.js";
 
 const $ = (id) => document.getElementById(id);
@@ -147,6 +148,11 @@ function paint() {
       .map(([w, i]) => `after|${w}|${i}`))),
   rows: new Set([...lit].map((id) => PATH[id]).concat(k === "m" ||
     (k && k.startsWith("m-")) ? [PATH.m] : [])), label: "" } : null;
+  // (a composite's parts in child colours, as in every panel)
+  if (h && k === "m") {
+    h.colors = new Map([[PATH.m, 0], ...ids("m").map((id, n) =>
+      [PATH[id], childColor(n)])]);
+  }
   paintPanel($("cpanel"), $("ctree"), h, { cards: false, chosen: !!chosen });
   for (const li of $("ctree").querySelectorAll("li[data-part]")) {
     const r = li.querySelector(":scope > .row");

@@ -3293,6 +3293,13 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
     if (cl.join() !== range(4, 72).join()) {
       problems.push(`calldata m lit: ${cl.length}`);
     }
+    // (its parts in child colours, one each, as any composite's)
+    const ck = await page.evaluate(() => [...new Set([...document
+      .querySelectorAll("#cpanel .b.hl")].map((b) =>
+      b.className.match(/pk\d/)?.[0] ?? ""))]);
+    if (ck.length !== 3 || ck.some((k) => !k)) {
+      problems.push(`calldata colours: ${ck}`);
+    }
     // (the same panel as storage's: a popover on the lit rows, the
     // panel's header)
     const cpop = await page.evaluate(() => [document.querySelectorAll(
