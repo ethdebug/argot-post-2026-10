@@ -19,14 +19,14 @@ it("a lens brings its own decoding", async () => {
     id: "own", title: "Own", timelines: ["arcade-alice"], grid: '"t"',
     decodings: [{ id: "mine", compilation: "sol@arcade-alice",
       timeline: "arcade-alice", variables: "state",
-      keys: { from: "list", path: "roster" } }],
+      keys: { from: "list", path: "playerList" } }],
     links: ["s"],
     views: [{ id: "t", kind: "tree", area: "t", link: "s",
       data: { decoding: "mine", point: "arcade-alice:before" } }],
   };
   expect(project.decodings.mine).toBeUndefined();
   const { container } = render(<Lens spec={spec} project={project} />);
-  await waitFor(() => expect(val(container, "total")).toBe("40"),
+  await waitFor(() => expect(val(container, "totalScore")).toBe("140"),
     { timeout: 5000 });
 });
 
@@ -50,7 +50,7 @@ it("two dumps at two literal points: both shown, neither a side",
       `.wrow[data-slot="${slot2}"] .b`)].map((b) => b.textContent).join("")
       .slice(-2);
     await waitFor(() => expect([...container.querySelectorAll(".view")]
-      .map(word)).toEqual(["28", "46"]), { timeout: 5000 });
+      .map(word)).toEqual(["8c", "aa"]), { timeout: 5000 });
     const views = [...container.querySelectorAll(".view")];
     expect(views.map((v) => v.hasAttribute("hidden")))
       .toEqual([false, false]);
@@ -79,11 +79,11 @@ it("Phase 2's 'alice plays' (spec §6b): two literal points compare, "
   const paths = [...container.querySelectorAll<HTMLElement>(
     ".tree li[data-path]")].map((li) => li.dataset.path!);
   expect(paths.filter((p) => !p.startsWith(A)))
-    .toEqual(["total", "rounds", "players"].filter((p) =>
+    .toEqual(["totalScore", "totalHits", "players"].filter((p) =>
       paths.includes(p)));
   expect(paths).toContain(`${A}.score`);
   expect(paths.some((p) => p.startsWith("players[0x3c44"))).toBe(false);
-  expect(paths).not.toContain("roster");
+  expect(paths).not.toContain("playerList");
   // (the score changed: its row says so)
   expect(container.querySelector(`li[data-path="${A}.score"]`)!.classList
     .contains("chg")).toBe(true);

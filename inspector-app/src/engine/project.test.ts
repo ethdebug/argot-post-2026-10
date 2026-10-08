@@ -44,7 +44,7 @@ it("a bookmark names its points, timeline and decoding", async () => {
   await p.timeline("arcade-mid");
   expect(p.decodings["sol:arcade-mid"]).toEqual({ id: "sol:arcade-mid",
     compilation: "sol@arcade-mid", timeline: "arcade-mid", variables: "state",
-    keys: { from: "list", path: "roster", names: PLAYERS } });
+    keys: { from: "list", path: "playerList", names: PLAYERS } });
   await p.timeline("arcade-vyper");
   // (Vyper's: the keys from the trace; solc's rule over another
   // compiler's storage, with that compiler's own reading beside it)
@@ -63,11 +63,11 @@ it("a point's snapshot is that side's storage", async () => {
   const p = await load(fsIo());
   const t = await p.timeline("arcade-alice");
   const slot2 = ("0x" + "2".padStart(64, "0")) as `0x${string}`;
-  expect(t.points[0].snapshot.storage.get(slot2)?.slice(-2)).toBe("28");
-  expect(t.points[1].snapshot.storage.get(slot2)?.slice(-2)).toBe("46");
+  expect(t.points[0].snapshot.storage.get(slot2)?.slice(-2)).toBe("8c");
+  expect(t.points[1].snapshot.storage.get(slot2)?.slice(-2)).toBe("aa");
   expect((await p.compilation("sol@arcade-alice")).stateVariables
     .map((v) => v.identifier))
-    .toEqual(["roster", "motd", "total", "rounds", "players"]);
+    .toEqual(["playerList", "motd", "totalScore", "totalHits", "players"]);
 });
 
 it("each fixture's contract is its own compilation, whatever the fetch "
@@ -79,8 +79,8 @@ it("each fixture's contract is its own compilation, whatever the fetch "
   const d = await decode(p, p.decodings["sol:arcade-mid"],
     "arcade-mid:after");
   expect(d.tree.map((n) => n.path))
-    .toEqual(["roster", "motd", "total", "rounds", "players"]);
+    .toEqual(["playerList", "motd", "totalScore", "totalHits", "players"]);
   expect((await p.compilation("sol@arcade-mid")).stateVariables
     .map((v) => v.identifier))
-    .toEqual(["roster", "motd", "total", "rounds", "players"]);
+    .toEqual(["playerList", "motd", "totalScore", "totalHits", "players"]);
 });

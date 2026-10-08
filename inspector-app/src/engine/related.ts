@@ -1,7 +1,7 @@
 // The rows related to a selection (the "Related" view's filter): the
 // rows that hold its bytes, the rows read to find it (a local's frame
 // pointer), and every slot its walkthrough touches: where its keys come
-// from (roster[0]), the slots it is declared at (a mapping's root), the
+// from (playerList[0]), the slots it is declared at (a mapping's root), the
 // slots each step hands on (a record's), the regions each step reads.
 // One rule for every location; storage's state variables have a
 // walkthrough, other values have none.
@@ -34,7 +34,7 @@ export function related(d: Decoded, path: Path, w: Walkthrough | null,
 
 // The values related to a selection, for the tree (Filter.roots): the
 // selection, and the values its walkthrough's steps light outside it and
-// the groups that hold it (where its keys come from: roster[0])
+// the groups that hold it (where its keys come from: playerList[0])
 export function relatedValues(d: Decoded, path: Path,
   w: Walkthrough | null): Path[] {
   const out = new Set<Path>([path]);

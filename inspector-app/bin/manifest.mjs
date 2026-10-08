@@ -12,10 +12,6 @@
 // then Next until Next is disabled; in the memory section, each step of
 // the selected value's derivation ("#mhow li[data-region]"), focused.
 import { fileURLToPath } from "node:url";
-import path from "node:path";
-import fs from "node:fs";
-
-const app = path.dirname(path.dirname(fileURLToPath(import.meta.url)));
 
 // alice, bob and carol (as in vanilla bin/run.mjs)
 const ADDR = {
@@ -35,17 +31,17 @@ const SIDES = [["mid", null], ["alice", "before"], ["alice", "after"],
   ["motd", "before"], ["motd", "after"], ["vyper", null]];
 
 // null: none selected ("sel="); undefined: the bookmark's default
-const SELECTIONS = [null, undefined, "roster", "roster[1]", "motd",
-  "total", "rounds", "players", A, `${A}.score`, `${C}.name`];
-const WALKS = ["players", A, "roster", "roster[1]", "total", "motd",
-  `${C}.name`, `${B}.plays`];
+const SELECTIONS = [null, undefined, "playerList", "playerList[1]", "motd",
+  "totalScore", "totalHits", "players", A, `${A}.score`, `${C}.name`];
+const WALKS = ["players", A, "playerList", "playerList[1]", "totalScore",
+  "motd", `${C}.name`, `${B}.plays`];
 
 // The memory section: each level's points, their sides, and the values
 // in the tree at each point (from the vanilla page at sync-base)
 const POINTS = [["roll", [null], ["hit"]],
-  ["mult", ["before", "after"], ["multiplied", "points", "combo", "m"]],
+  ["mult", ["before", "after"], ["_applyCombo", "points", "combo", "mult"]],
   ["writes", [null], ["gained", "hit", "players[msg.sender]",
-    ...["score", "combo", "bestCombo", "plays", "hitCount", "lastBlock"]
+    ...["score", "combo", "bestCombo", "plays", "hits", "lastBlock"]
       .map((f) => `players[msg.sender].${f}`)]]];
 
 const START = '#details button[data-r="start"]';
@@ -127,9 +123,5 @@ export function states() {
 }
 
 if (process.argv[1] === fileURLToPath(import.meta.url)) {
-  // (the vanilla page's last sync: the oracle's)
-  const vanilla = JSON.parse(fs.readFileSync(path.join(app, "test",
-    "oracle", "vanilla.json"), "utf8")).sha;
-  console.log(JSON.stringify({ vanilla, threshold: 0, states: states() },
-    null, 1));
+  console.log(JSON.stringify({ threshold: 0, states: states() }, null, 1));
 }

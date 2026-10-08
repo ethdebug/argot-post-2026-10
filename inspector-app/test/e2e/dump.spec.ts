@@ -22,13 +22,15 @@ test("a value's popover: how : what · what the transaction did",
   async ({ page }) => {
     await ready(page);
     await select(page, "alice", null);
-    await page.locator('#tree li[data-path="rounds"] > .row').hover();
+    await page.locator('#tree li[data-path="totalHits"] > .row').hover();
     await expect.poll(() => pops(page))
-      .toEqual(["slot 2 : (unmapped) · rounds · total · read, written"]);
+      .toEqual([
+        "slot 2 : (unmapped) · totalHits · totalScore · read, written"]);
     await select(page, "mid", null);
     await page.locator(`#panel .word[data-side="after"][data-slot="${
       SLOT2}"] .b[data-i="31"]`).hover();
-    await expect.poll(() => pops(page)).toEqual(["slot 2 : (unmapped) · rounds · total"]);
+    await expect.poll(() => pops(page))
+      .toEqual(["slot 2 : (unmapped) · totalHits · totalScore"]);
     await expect(page.locator("#panel .cmp, #panel .tray")).toHaveCount(0);
   });
 
@@ -171,7 +173,7 @@ test("hovering and clicking move nothing", async ({ page }) => {
   await page.locator(`#panel .view:not([hidden]) .b[data-owners="${C}.plays"]`)
     .first().hover();
   await expect.poll(boxes).toEqual(rest);
-  await page.locator('#tree li[data-path="total"] > .row').click();
+  await page.locator('#tree li[data-path="totalScore"] > .row').click();
   await expect.poll(boxes).toEqual(rest);
 });
 
@@ -200,7 +202,7 @@ test("popovers scale with the dump; the arrow's tip on its address",
     const seen: { wd: number; ratio: number; gaps: number[] }[] = [];
     for (const wd of [1280, 1440, 1920, 760, 390]) {
       await page.setViewportSize({ width: wd, height: 900 });
-      await page.goto("./#ex=mid&sel=roster");
+      await page.goto("./#ex=mid&sel=playerList");
       await page.waitForFunction(() =>
         (window as unknown as W).results?.done);
       await page.mouse.move(1, 1);
@@ -240,7 +242,7 @@ test("slot 0's popover: under row 0, inside the dump, never empty",
   async ({ page }) => {
     for (const wd of [1280, 390]) {
       await page.setViewportSize({ width: wd, height: 900 });
-      await page.goto("./#ex=mid&sel=roster");
+      await page.goto("./#ex=mid&sel=playerList");
       await page.waitForFunction(() =>
         (window as unknown as W).results?.done);
       await page.mouse.move(1, 1);

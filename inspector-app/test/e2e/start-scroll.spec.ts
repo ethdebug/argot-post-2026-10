@@ -12,7 +12,7 @@ const ready = async (page: Page) => {
 };
 const start = async (page: Page) => {
   await page.evaluate(() => (window as unknown as W).select("mid",
-    { sel: "total" }));
+    { sel: "totalScore" }));
   await page.evaluate(() => scrollTo(0, 0));
   await page.locator('#details button[data-r="start"]').click();
   // (the smooth scroll, done: the bar still for two frames)

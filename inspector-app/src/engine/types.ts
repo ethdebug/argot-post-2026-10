@@ -112,7 +112,8 @@ export interface Decoding {             // "this rule over that storage"
   // of that storage by its own compiler's layout, for the contrast)
   foreign?: { language: string; rule: DecodingId };
 }
-export type KeySource = ({ from: "list"; path: Path }   // roster (provenance)
+// (from: "list": a list in storage, e.g. playerList; its provenance)
+export type KeySource = ({ from: "list"; path: Path }
   | { from: "trace" }) & {
   // (who each key is, by the fixture: its 40 hex digits, lower case →
   // the name the scene's story gives it)
@@ -166,7 +167,7 @@ export interface Layout {
 export interface Row {
   address: Hex;                         // slot, or word offset
   how: string;                // "slot 0", "keccak(0x7099…79c8, slot 3) + 1"
-  what: { path: Path; name: string }[]; // byte order: "rounds · total"
+  what: { path: Path; name: string }[]; // byte order: "totalHits · totalScore"
   role?: "own-slot";          // a variable's slot with none of its data
   gapBefore?: boolean;
 }
@@ -210,8 +211,9 @@ export interface Instance {
 export type InputId = string;
 export interface InputNode {            // a fact the pointer expects
   id: InputId; name: string;            // "key", "slot"
-  provenance: Provenance;   // ‹roster› ‹trace› ‹storage› ‹ABI›
-  values: { value: Hex; source?: Path }[];     // source: roster[i]
+  provenance: Provenance;   // ‹playerList› ‹trace› ‹storage›
+                            // ‹ABI›
+  values: { value: Hex; source?: Path }[];     // source: playerList[i]
 }
 
 // ------------------------------------------------- 1.6-1.7 (engine part)

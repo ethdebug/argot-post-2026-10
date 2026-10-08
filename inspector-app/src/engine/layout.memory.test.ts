@@ -18,7 +18,7 @@ const pair = async (o: string, pt: string, k = 1) => {
       : undefined };
 };
 
-it("O0 inside multiplied: the frame pointer's word, and the locals' "
+it("O0 inside _applyCombo: the frame pointer's word, and the locals' "
   + "words at either step, by offset", async () => {
   const x = await pair("O0", "mult");
   const l = layout(x.d, "memory", {}, { compare: x.other, point: x.point,
@@ -30,13 +30,13 @@ it("O0 inside multiplied: the frame pointer's word, and the locals' "
   expect(l.rows.map((r) => !!r.gapBefore)).toEqual([true, true, false,
     true]);
   // (vanilla's label: the frame pointer's owner id)
-  expect(rowLabel(l.rows[0])).toBe("memory 0x0080 : multiplied#frame");
-  // (after m = combo, m's last 4 bytes are combo's: two owners)
+  expect(rowLabel(l.rows[0])).toBe("memory 0x0080 : _applyCombo#frame");
+  // (after mult = combo, mult's last 4 bytes are combo's: two owners)
   expect([...l.cover.get(byteKey("memory", "0x0720", 31))!].sort())
-    .toEqual(["combo", "m"]);
+    .toEqual(["combo", "mult"]);
 });
 
-it("O2 inside multiplied: no frame word", async () => {
+it("O2 inside _applyCombo: no frame word", async () => {
   const x = await pair("O2", "mult");
   const l = layout(x.d, "memory", {}, { compare: x.other, point: x.point,
     comparePoint: x.otherPoint });
@@ -56,7 +56,7 @@ it("before the writes: gained's word in memory; alice's record slot, in "
 });
 
 it("the record selected: its six members in six child colours; "
-  + "multiplied: its frame word in the selection's own", async () => {
+  + "_applyCombo: its frame word in the selection's own", async () => {
   const { forPath } = await import("./light");
   const x = await pair("O0", "writes", 0);
   const l = layout(x.d, "storage", {}, { point: x.point });
@@ -67,10 +67,10 @@ it("the record selected: its six members in six child colours; "
   const y = await pair("O0", "mult");
   const m = layout(y.d, "memory", {}, { compare: y.other, point: y.point,
     comparePoint: y.otherPoint });
-  const h = forPath(y.d, m, "multiplied", { selection: true });
+  const h = forPath(y.d, m, "_applyCombo", { selection: true });
   expect(h.bytes.has(byteKey("memory", "0x0080", 31))).toBe(true);
-  expect(h.colours.get("multiplied")).toBe(0);
-  expect(new Set(["points", "combo", "m"].map((p) => h.colours.get(p))))
+  expect(h.colours.get("_applyCombo")).toBe(0);
+  expect(new Set(["points", "combo", "mult"].map((p) => h.colours.get(p))))
     .toEqual(new Set([1, 2, 3]));
   // (a local selected: its bytes, and the frame word it is found from)
   const pts = forPath(y.d, m, "points", { selection: true });

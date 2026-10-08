@@ -120,7 +120,7 @@ test("players: step 0 and ten steps, their light, bands and chips",
     await ready(page);
     await select(page, null);
     const { steps: w, goal, ctl } = await walk(page, "players");
-    const roster = { "keccak(slot 0)": range(12, 31),
+    const playerList = { "keccak(slot 0)": range(12, 31),
       "keccak(slot 0) + 1": range(12, 31),
       "keccak(slot 0) + 2": range(12, 31) };
     const rows3 = [al, rec, cl0];
@@ -128,7 +128,7 @@ test("players: step 0 and ten steps, their light, bands and chips",
     const want: [string, Record<string, string>, string | null,
       string[], string[]][] = [
       ["The keys: a mapping does not store its keys; the page takes them "
-        + "from roster", roster, null, [], []],
+        + "from playerList", playerList, null, [], []],
       ["players is declared at slot 3; that slot holds nothing", {},
         "slot: 0x03", ["slot 3"], []],
       ["The template mapping(address => Player) takes slot and key", {},
@@ -217,7 +217,7 @@ test("step 0: no labels, no band; ⏮ and ◀ reach it; a re-target keeps it",
     expect((await stepNow(page)).count).toBe("0 / 10");
     await page.keyboard.press("Escape");
     await select(page, null);
-    const t = await walk(page, "total");
+    const t = await walk(page, "totalScore");
     expect([t.goal, t.steps[0].count]).toEqual([undefined, "1 / 1"]);
   });
 
@@ -229,7 +229,7 @@ test("carol's record: eleven steps; bob's plays and carol's name",
     const cwant: [string, Record<string, string>, string[], string,
       string[]][] = [
       ["The key: carol's address. A mapping does not store its keys; the " +
-        "page takes it from roster[2]",
+        "page takes it from playerList[2]",
         { "keccak(slot 0) + 2": range(12, 31) }, [], "", []],
       ["players is declared at slot 3", {}, ["slot 3"], "slot: 0x03", []],
       ["The template mapping(address => Player) takes slot and key", {},
@@ -381,13 +381,13 @@ test("entries and fields never share a colour; found rows keep labels",
     expect(entryHues.length).toBe(3);
     expect(fieldHues.length).toBe(6);
     expect(fieldHues.some((x) => entryHues.includes(x))).toBe(false);
-    // (the input step: roster's items in their entries' colours)
+    // (the input step: playerList's items in their entries' colours)
     await page.locator('#details button[data-r="start"]').click();
     await page.locator('#chips .chip[data-k="0"]').dispatchEvent("click");
     const col = (ps: string[]) => page.evaluate((x) => x.map((p) =>
       document.querySelector(`#tree li[data-path="${p}"] > .row`)
         ?.className.match(/pk\d/)?.[0]), ps);
-    const ks = await col(["roster[0]", "roster[1]", "roster[2]"]);
+    const ks = await col(["playerList[0]", "playerList[1]", "playerList[2]"]);
     await page.locator('#chips .chip[data-k="3"]').dispatchEvent("click");
     const es = await col([A, B, C]);
     // (the record's step: their tree rows in their entries' colours too,
@@ -465,7 +465,7 @@ test("Vyper: Solidity's rule, then the misread: Vyper's own layout, "
     // (re-targeted at the last step: it stays there)
     await row(page, `${C}.score`).click();
     expect(await page.locator("#dtext .rcap").innerText()).toContain(
-      "where it is 0");
+      "where it is 100");
     await page.keyboard.press("Escape");
   });
 
@@ -504,7 +504,7 @@ test("the packed fields: a strip shaped like a dump row, the fields in "
           .height < parseFloat(getComputedStyle(s).fontSize) * 2 };
     });
     expect(x, `${wd}`).toEqual({ even: true, spans: ["lastBlock 0-7",
-      "hitCount 8-11", "plays 12-15", "bestCombo 16-19", "combo 20-23",
+      "hits 8-11", "plays 12-15", "bestCombo 16-19", "combo 20-23",
       "score 24-31"], rows: true, oneLine: true });
     await page.keyboard.press("Escape");
   }
@@ -715,7 +715,7 @@ test("the last step, found: the selection's resting view",
         r.className.match(/pk\d/)?.[0] ?? ""}`),
     p: [...document.querySelectorAll("#panel .view:not([hidden]) .pop")]
       .map((p) => p.textContent) }));
-  for (const x of ["players", C, "roster"]) {
+  for (const x of ["players", C, "playerList"]) {
     await select(page, x);
     await page.mouse.move(1, 1);
     const rest = await view();

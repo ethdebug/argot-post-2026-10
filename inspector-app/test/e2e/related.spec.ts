@@ -48,7 +48,7 @@ test("the hash: a reload keeps the view and its context", async ({ page }) => {
 test("the tree: the selection's path, and where its key came from",
   async ({ page }) => {
     await open(page, `ex=mid&sel=${A}.score&rel=0`);
-    await expect.poll(() => tree(page)).toEqual(["roster", "roster[0]",
+    await expect.poll(() => tree(page)).toEqual(["playerList", "playerList[0]",
       "players", A, `${A}.score`]);
   });
 
@@ -64,12 +64,12 @@ test("hover moves nothing; a click selects, and the rows follow",
   async ({ page }) => {
     await open(page, `ex=mid&sel=${A}.score&rel=0`);
     await expect.poll(() => rows(page)).toHaveLength(3);
-    await page.locator('#tree li[data-path="roster"] > .row').hover();
-    await page.locator('#tree li[data-path="roster[0]"] > .row').hover();
+    await page.locator('#tree li[data-path="playerList"] > .row').hover();
+    await page.locator('#tree li[data-path="playerList[0]"] > .row').hover();
     expect(await rows(page)).toEqual(["slot 3", ROSTER0, RECORD]);
     // (not lit by the selection: the first click ends it, the second
     // selects: test/pick.ts)
-    await pick(page.locator('#tree li[data-path="roster[0]"] > .row'));
+    await pick(page.locator('#tree li[data-path="playerList[0]"] > .row'));
     await expect.poll(() => rows(page)).toEqual(["slot 0", ROSTER0]);
   });
 
@@ -100,14 +100,15 @@ test("what a selection consulted: tinted in its record's colour, a light "
   // (the same in All and in Related)
   for (const rel of ["", "&rel=0"]) {
     await open(page, `ex=mid&sel=players${rel}`);
-    const roster = page.locator(
+    const playerList = page.locator(
       '#panel .view:not([hidden]) .wrow[data-name^="keccak(slot 0)"]');
-    await expect(roster).toHaveCount(3);
-    await expect(roster.first()).toHaveClass(/\brel\b/);
+    await expect(playerList).toHaveCount(3);
+    await expect(playerList.first()).toHaveClass(/\brel\b/);
     // (alice's address, her record's colour, desaturated: blue)
-    await expect(roster.first().locator(".b.rel.pk1").first()).toBeVisible();
+    await expect(playerList.first().locator(".b.rel.pk1").first())
+      .toBeVisible();
     await expect(page.locator(
-      '#tree li[data-path="roster[1]"] > .row')).toHaveClass(/rel pk2/);
+      '#tree li[data-path="playerList[1]"] > .row')).toHaveClass(/rel pk2/);
     const pop = page.locator(".pop.kept.related");
     await expect(pop.filter({ hasText: "keccak(slot 0)" })).toHaveCount(1);
     await expect(pop.filter({ hasText: "slot 3 : players (anchor)" }))

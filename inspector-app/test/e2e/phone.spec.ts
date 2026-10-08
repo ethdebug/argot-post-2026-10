@@ -68,7 +68,7 @@ for (const [w, h] of SIZES) {
         ?.done);
       expect(await small(page, "#mode button")).toEqual([]);
       await page.evaluate(() => (window as unknown as W).select("alice",
-        { sel: "total" }));
+        { sel: "totalScore" }));
       const bar = page.locator("#details");
       const h0 = (await bar.boundingBox())!.height;
       expect(await small(page, "#details button")).toEqual([]);

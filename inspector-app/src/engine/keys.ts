@@ -1,6 +1,6 @@
 // Mapping keys (vanilla decode.js mappingKeys; main.js decode keysFor):
 // from the KECCAK256 inputs a trace saw (a mapping hashes key ++ slot),
-// or from a list in the same storage (roster lists players' keys)
+// or from a list in the same storage (playerList lists players' keys)
 import type {
   Decoding, Hex, InputNode, TxFacts, ValueNode,
 } from "./types";

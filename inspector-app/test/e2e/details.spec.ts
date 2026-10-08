@@ -26,16 +26,16 @@ test("details of what is pointed at, at two points and at one",
   async ({ page }) => {
     await ready(page);
     await select(page, "alice", null);
-    await page.locator('#tree li[data-path="rounds"] > .row').hover();
+    await page.locator('#tree li[data-path="totalHits"] > .row').hover();
     await expect.poll(() => dl(page)).toEqual({
-      Value: "rounds (uint64)", Where: "slot 2, bytes 8–15",
-      Before: "3 (0x0000000000000003)", After: "4 (0x0000000000000004)" });
+      Value: "totalHits (uint64)", Where: "slot 2, bytes 8–15",
+      Before: "7 (0x0000000000000007)", After: "8 (0x0000000000000008)" });
     await select(page, "mid", null);
     await page.locator(`#panel .word[data-side="after"][data-slot="${
       SLOT2}"] .b[data-i="31"]`).hover();
     const one = await dl(page);
-    expect(one).toMatchObject({ Value: "total (uint128)",
-      Where: "slot 2, bytes 16–31", Holds: "40 (0x…000028)" });
+    expect(one).toMatchObject({ Value: "totalScore (uint128)",
+      Where: "slot 2, bytes 16–31", Holds: "140 (0x…00008c)" });
     expect("Before" in one || "After" in one).toBe(false);
     await page.mouse.move(1, 1);
     await expect.poll(() => dl(page)).toEqual({
@@ -74,7 +74,7 @@ test("selecting moves nothing", async ({ page }) => {
       .map(Math.round).join();
   }));
   const rest = await boxes();
-  await page.locator('#tree li[data-path="total"] > .row').click();
+  await page.locator('#tree li[data-path="totalScore"] > .row').click();
   await page.mouse.move(1, 1);
   await expect.poll(boxes).toEqual(rest);
 });

@@ -16,6 +16,6 @@ it("a member: its struct; a variable: its declaration", async () => {
       linesOf(text, r)))).join("\n");
   };
   expect(at(`${A}.combo`)).toMatch(/^\s*struct Player \{[\s\S]*\}/);
-  expect(at("total")).toContain("total");
+  expect(at("totalScore")).toContain("totalScore");
   expect(at(A)).toContain("mapping(address => Player)");
 });
