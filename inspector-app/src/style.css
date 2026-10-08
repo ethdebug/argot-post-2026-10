@@ -22,7 +22,7 @@ main { max-width: 1440px; }
 /* THE breakpoint, its one definition: two columns from here; scripts
    read --two-cols (Tree.tsx), never the width */
 :root { --two-cols: 0; }
-@media (min-width: 900px) {
+@media (min-width: 660px) {
   :root { --two-cols: 1; }
   .cols {
     grid-template-columns: minmax(0, 7fr) minmax(0, 5fr);

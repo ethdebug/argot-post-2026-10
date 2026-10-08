@@ -2664,7 +2664,8 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
       problems.push(`badges mirror the bytes: ${bn}`);
     }
     await page.mouse.move(1, 1);
-    await page.setViewportSize({ width: 760, height: 900 });
+    // (one column, narrow: below the two columns' 660px)
+    await page.setViewportSize({ width: 659, height: 900 });
     await page.waitForTimeout(100);
     await page.evaluate((x) => window.select("mid", { sel: x }), A);
     await page.mouse.move(1, 1);
