@@ -157,3 +157,16 @@ it("step 0, as vanilla: the slots the steps touch, whole; the question",
     expect(walkthrough(await at(), `${B}.plays`)!.steps[0].goal)
       .toBeUndefined();
   });
+
+it("reads come from the graph's edges, not from the pointer's text: "
+  + "the steps stay as they are with the operators spelled otherwise",
+  async () => {
+    const x = await at();
+    const spelled = JSON.parse(JSON.stringify(x.c.templates)
+      .replace(/"~(read|keccak256|sum|wordsized)"/g, '"~$1-x"'));
+    const y = { ...x, c: { ...x.c, templates: spelled } };
+    for (const p of ["roster", "motd", `${C}.name`]) {
+      expect(walkthrough(y, p)!.steps.map((s) => s.phase), p)
+        .toEqual(walkthrough(x, p)!.steps.map((s) => s.phase));
+    }
+  });
