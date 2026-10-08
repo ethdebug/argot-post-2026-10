@@ -1,9 +1,46 @@
 // The dumps' overlays (vanilla panel.js at d235617: paint's second half,
 // annotate, popFor, whatIn, whatHtml, fitWhat, place, block, fit, the
-// tray): drawn on the rendered dumps after each render, from what the
-// views lit (their classes: .b.hl, .pkN, .muted, .wrow.on, .gut). They
+// tray): drawn on the rendered dumps after each render, from what each
+// view lights (its Light and Layout, which the Dump puts on its element:
+// `ViewData`); the DOM gives only geometry and the cards' pictures. They
 // are overlays: nothing in the dumps moves for them.
+import type { Hex, Layout, Light } from "../engine/types";
+import { byteKey } from "../engine/hex";
+
 type El = HTMLElement;
+// what a dump view lights: its own Light, the compared point's (a slot
+// lit there only: "only"), its layout
+export interface ViewData { light: Light; there?: Light; l: Layout }
+const data = (e: Element | null): ViewData | undefined =>
+  (e?.closest(".view") as (El & { _data?: ViewData }) | null)?._data;
+const slotOf = (r: El) => r.dataset.slot as Hex;
+const rowLit = (x: ViewData | undefined, l: Light | undefined, r: El) =>
+  !!x && !!l && Array.from({ length: 32 }, (_, i) =>
+    l.bytes.has(byteKey(x.l.location, slotOf(r), i))).some(Boolean);
+// a row's state: lit, lit in the other point only, found by an earlier
+// walkthrough step, a gutter
+function rowState(r: El) {
+  const x = data(r);
+  const on = rowLit(x, x?.light, r);
+  const only = !on && rowLit(x, x?.there, r);
+  return { on, only, known: !on && !only && !!x?.light.known?.has(slotOf(r)),
+    gut: !on && !only && !!x?.light.gutters.has(slotOf(r)) };
+}
+// a byte's lighting, from its view's Light
+function byteLight(c: El) {
+  const x = data(c);
+  const w = c.closest<El>(".word");
+  if (!x || !w) return { hl: false, k: null as string | null, muted: false };
+  const key = byteKey(x.l.location, w.dataset.slot as Hex, +c.dataset.i!);
+  const hl = x.light.bytes.has(key);
+  const ids = (c.dataset.owners ?? "").split("|").filter(Boolean);
+  const k = hl ? ids.map((id) => x.light.colours.get(id.replace(/#length$/,
+    ""))).find((y) => y !== undefined) : undefined;
+  const muted = hl && ((x.light.focus !== undefined && !!k &&
+    k !== x.light.focus) || !!x.light.dim?.has(key));
+  return { hl, k: !hl ? null : typeof k === "number" && k ? `pk${k}` : "pk0",
+    muted };
+}
 type Rect = { top: number; left: number; bottom: number; right: number };
 interface Item { text: string; k: string | null; muted: boolean;
   sep: string; seg?: number; id?: string }
@@ -66,9 +103,8 @@ function runs(view: El): El[][] {
   const out: El[][] = [];
   let run: El[] | null = null;
   for (const el of [...view.querySelector(".rows")!.children] as El[]) {
-    if (el.classList.contains("wrow") && (el.classList.contains("on") ||
-      el.classList.contains("only") || el.classList.contains("known") ||
-      el.classList.contains("gut"))) {
+    const st = el.classList.contains("wrow") ? rowState(el) : null;
+    if (st && (st.on || st.only || st.known || st.gut)) {
       if (!run) out.push(run = []);
       run.push(el);
     } else if (!el.classList.contains("cmp")) {
@@ -103,7 +139,7 @@ function runName(rows: El[]): string {
 function whatIn(root: El, rowsIn: El[]): Item[] {
   // (the lit rows of a run, if some are: a run may take in rows an
   // earlier step found)
-  const lit = rowsIn.filter((r) => r.classList.contains("on"));
+  const lit = rowsIn.filter((r) => rowState(r).on);
   const rows = lit.length ? lit : rowsIn;
   // each row's owners, in byte order
   const perRow = rows.map((r) => {
@@ -124,14 +160,14 @@ function whatIn(root: El, rowsIn: El[]): Item[] {
   // a name's colour: its bytes' now (the selection's yellow, pk0, for a
   // lit byte with no child colour); none where they are not lit
   const colour = (cells: El[]) => {
-    const on = cells.filter((c) => c.classList.contains("hl"));
-    if (!on.length) return null;
-    return [...on[0].classList].find((x) => /^pk\d$/.test(x)) ?? "pk0";
+    const on = cells.map(byteLight).filter((b) => b.hl);
+    return on.length ? on[0].k : null;
   };
   // (muted where its bytes are: an echo)
-  const muted = (cells: El[]) => cells.some((c) =>
-    c.classList.contains("hl")) && cells.filter((c) =>
-    c.classList.contains("hl")).every((c) => c.classList.contains("muted"));
+  const muted = (cells: El[]) => {
+    const on = cells.map(byteLight).filter((b) => b.hl);
+    return on.length > 0 && on.every((b) => b.muted);
+  };
   const item = (cells: El[], text: string, sep = " · "): Item =>
     ({ text, k: colour(cells), muted: muted(cells), sep });
   // (several slots in one colour: the value they make up, by its path)
@@ -299,7 +335,7 @@ function popFor(root: El, rows: El[], more: number): Pop {
   const what = whatIn(root, rows);
   pop._what = what;
   // (a run with one lit row names that row's values: "how : what")
-  const one = rows.filter((r) => r.classList.contains("on")).length === 1 &&
+  const one = rows.filter((r) => rowState(r).on).length === 1 &&
     rows.length > 1;
   const [, how, n] = runName(rows).match(/^(.*?)(, \d+ slots)?$/)!;
   const count = one ? "" : n;
@@ -322,7 +358,7 @@ function block(root: El, rows: El[], side: string, label: string) {
     if (!t) return null;
     const cells = (x: El) => all(x, ":scope > .word .b");
     const [mine, theirs] = [cells(r), cells(t)];
-    const at = [...mine, ...theirs].filter((c) => c.classList.contains("hl"))
+    const at = [...mine, ...theirs].filter((c) => byteLight(c).hl)
       .map((c) => +c.dataset.i!);
     return at.some((i) => mine[i]?.textContent !== theirs[i]?.textContent)
       ? t : null;
@@ -413,12 +449,14 @@ function annotate(root: El, v: El, compare: boolean, names: OverlayNames,
   };
   const words = all(v, ".rows > .wrow > .word").map((e) =>
     ({ row: e.closest<El>(".wrow")!, r: e.getBoundingClientRect() }));
-  const labels = all(v, ".rows > .wrow:is(.on, .only, .known) > .addr")
-    .map((e) => ({ row: e.closest<El>(".wrow")!,
-      r: e.getBoundingClientRect() }));
+  const labels = all(v, ".rows > .wrow > .addr").filter((e) => {
+    const st = rowState(e.closest<El>(".wrow")!);
+    return st.on || st.only || st.known;
+  }).map((e) => ({ row: e.closest<El>(".wrow")!,
+    r: e.getBoundingClientRect() }));
   const pinned: { run: El[]; el: El }[] = [];
   // (step 0 of a walkthrough: its slots, no labels)
-  const quiet = v.hasAttribute("data-quiet");
+  const quiet = !!data(v)?.light.quiet;
   for (const run of runList) {
     // the run's addresses, tinted as one rounded group in the gutter
     run.forEach((r, k) => r.querySelector(":scope > .addr")!.classList.add(
@@ -427,8 +465,7 @@ function annotate(root: El, v: El, compare: boolean, names: OverlayNames,
     if (!quiet) {
       const pop = popFor(root, run, 0);
       // (a run a walkthrough found at an earlier step: a muted label)
-      if (run.every((r) => r.classList.contains("known") &&
-        !r.classList.contains("gut"))) pop.classList.add("kept");
+      if (run.every((r) => rowState(r).known)) pop.classList.add("kept");
       const ways = side === "before" ? ["over", "under"]
         : ["under", "over"];
       let placed = false;
@@ -494,8 +531,9 @@ export function drawOverlays(root: El, o: { cards: boolean;
   names?: Partial<OverlayNames> }) {
   clearOverlays(root);
   const views = all(root, ".view").filter((v) => !v.hidden);
-  const lit = () => all(root, ".b.hl").map((c) =>
-    c.getBoundingClientRect() as Rect);
+  const lit = () => all(root, ".view .rows .word .b[data-i]")
+    .filter((c) => byteLight(c).hl).map((c) =>
+      c.getBoundingClientRect() as Rect);
   const compare = o.cards && lit().length > 0;
   const names = { ...NAMES, ...o.names };
   // The tray is the same for Before and After: lay the hidden dump out
@@ -521,7 +559,7 @@ export function drawOverlays(root: El, o: { cards: boolean;
   // a walkthrough step about bytes in a slot: their positions, 0 to 31,
   // over that slot (an overlay, like a popover)
   for (const v of views) {
-    const at = v.dataset.ruler;
+    const at = (v as El & { _data?: ViewData })._data?.light.ruler;
     const row = at && v.querySelector<El>(`.wrow[data-slot="${at}"]`);
     const w = row && row.querySelector<El>(":scope > .word");
     if (!row || !w) continue;
