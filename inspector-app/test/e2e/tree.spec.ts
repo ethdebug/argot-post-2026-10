@@ -199,3 +199,28 @@ test("the tree box: as tall as the dump, its first row level with the "
   });
   expect(g).toEqual({ bottom: 0, scrolls: true, level: 0 });
 });
+
+test("quick chevron clicks during the animation end in the right state",
+  async ({ page }) => {
+    await page.emulateMedia({ reducedMotion: "no-preference" });
+    await ready(page);
+    await select(page, null);
+    const li = page.locator('#tree li[data-path="roster"]');
+    await chev(page, "roster").click();
+    await chev(page, "roster").click();
+    await page.waitForTimeout(400);
+    await expect(li).not.toHaveClass(/\bcollapsed\b/);
+    await expect(chev(page, "roster")).toHaveAttribute("aria-expanded",
+      "true");
+    await chev(page, "roster").click();
+    await chev(page, "roster").click();
+    await chev(page, "roster").click();
+    await page.waitForTimeout(400);
+    await expect(li).toHaveClass(/\bcollapsed\b/);
+    // (a selection made meanwhile is not hidden by a late close)
+    await chev(page, "players").click();
+    await select(page, `${A}.score`);
+    await page.waitForTimeout(400);
+    await expect(page.locator('#tree li[data-path="players"]'))
+      .not.toHaveClass(/\bcollapsed\b/);
+  });
