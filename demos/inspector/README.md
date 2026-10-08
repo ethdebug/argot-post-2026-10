@@ -114,6 +114,13 @@ How to read the dump: one 32-byte word per row, byte 0 at the left;
 
 ### Inside one play (the memory section)
 
+Each data location is its own panel, drawn by the one location panel
+(`panel.js` `renderLocation`, with `regionBytes` for every location):
+the section shows a Memory panel and, at the last point, a Storage
+panel for alice's record slot, each with its own header and gutter,
+both lit by the same selection and walkthrough and painted the same
+way (`paint`, with its popovers and cards).
+
 BUG is ethdebug's teaching language, and bugc is ethdebug's reference
 compiler. Arcade has a BUG port, and the section shows alice's third
 hit again, paused at three points inside `play()`. At each point,
