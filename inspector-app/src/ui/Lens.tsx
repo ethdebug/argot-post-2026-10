@@ -72,8 +72,11 @@ function shower(store: Store<LensState>, spec: LensSpec, project: Project,
     store.set((s) => ({ ...s, bookmark: id, error: undefined,
       shows: (s.shows ?? 0) + 1,
       points: { a: bm.points[0], b: bm.points[1] ?? bm.points[0] }, side,
+      // (a link group of its own section starts with nothing selected:
+      // the bookmark's selection is the others')
       links: Object.fromEntries(spec.links.map((l) => [l,
-        { selection, hover: null, walk: null }])) }));
+        { selection: Object.values(spec.scopes ?? {}).includes(l) ? null
+          : selection, hover: null, walk: null }])) }));
     return true;
   };
   return show;

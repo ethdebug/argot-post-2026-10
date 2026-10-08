@@ -14,7 +14,7 @@ export const noLight: Light = { bytes: new Set(), rows: new Set(),
 
 type Tree = Decoded["byPath"];
 // an owner id's value: `${path}#length` is a part of `path`
-export const ownerPath = (id: string): Path => id.replace(/#length$/, "");
+export const ownerPath = (id: string): Path => id.replace(/#[a-z]+$/, "");
 
 // A row hidden in a collapsed group shows as its outermost collapsed
 // ancestor
