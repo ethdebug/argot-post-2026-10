@@ -2569,11 +2569,26 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
   // walkthroughs
   {
     const bare = [];
-    for (const x of ["players", C]) {
+    for (const x of ["players", C, "roster"]) {
       await page.evaluate((y) => window.select("mid", { sel: y }), x);
       await page.locator('#details button[data-r="start"]').click();
       for (let k = 0; k < 20; k++) {
         await page.mouse.move(1, 1);
+        // (every popover inside the rows' box, with its text shown on
+        // top: nothing paints over it)
+        const outside = await page.evaluate(() => [...document
+          .querySelectorAll("#panel .view:not([hidden]) .pop")].filter((p) => {
+          const r = p.getBoundingClientRect();
+          const b = p.closest(".rows").getBoundingClientRect();
+          // (and off the column ruler over the rows, which would paint
+          // over it)
+          const h = p.closest(".view").querySelector(".view-head")
+            ?.getBoundingClientRect();
+          const under = h && r.top < h.bottom - 0.5 && r.bottom > h.top + 0.5;
+          return r.top < b.top - 0.5 || r.bottom > b.bottom + 0.5 ||
+            !p.textContent.trim() || under;
+        }).map((p) => p.textContent || "(empty)"));
+        if (outside.length) bare.push(`${x.slice(0, 12)} ${k}: out ${outside}`);
         const miss = await page.evaluate(() => {
           const out = [];
           let run = null;
