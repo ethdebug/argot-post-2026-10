@@ -15,6 +15,7 @@ import {
 import { walkthrough, type Walkthrough } from "../engine/walkthrough/fold";
 import { locked } from "../engine/target";
 import { byteKey } from "../engine/hex";
+import { regionBytes } from "../engine/layout";
 import type { Store } from "./store";
 import type {
   DataAt, DataRef, LensSpec, LensState, LinkState, ViewState, ViewSpec,
@@ -233,6 +234,11 @@ export function useLight(id: string, filter?: Filter, at?: DataRef,
           ...(hover.bytes ? { at: hover.bytes } : {}) };
     }
     if (hover?.bytes) return forBytes(d, l, hover.bytes, o);
+    if (hover?.region) {
+      const bytes = new Set(regionBytes(hover.region).map(([row, b]) =>
+        byteKey(l.location, row, b)));
+      return { ...noLight, bytes, muted: true };
+    }
     if (hover?.row) return forRow(d, l, hover.row as Hex);
     if (hover) return { ...noLight, muted: true };
     return noLight;

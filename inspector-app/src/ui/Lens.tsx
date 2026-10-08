@@ -181,10 +181,23 @@ export function Lens(props: { spec: LensSpec; project: Project;
         ? { ...l, walk: null } : l.selection ? { ...l, selection: null }
           : l])) }));
     const keyed = (e: KeyboardEvent) => {
-      if (e.key !== "Escape") return;
       const f = document.activeElement;
       const here = !f || f === document.body ? pressed : mine(f);
-      if (here) clear();
+      if (!here) return;
+      if (e.key === "Escape") return clear();
+      // in a walkthrough: ← → Home End step, from anywhere in the lens
+      // but a text field
+      const moves: Record<string, (k: number, n: number) => number> = {
+        ArrowLeft: (k) => k - 1, ArrowRight: (k) => k + 1,
+        Home: () => 0, End: (_, n) => n - 1 };
+      const move = moves[e.key];
+      if (!move || (e.target as Element).closest?.("input, textarea, select")
+        || !Object.values(store.get().links).some((l) => l.walk)) return;
+      e.preventDefault();
+      store.set((s) => ({ ...s, links: Object.fromEntries(Object.entries(
+        s.links).map(([k, l]) => [k, l.walk ? { ...l, walk: { ...l.walk,
+          step: Math.max(0, Math.min((l.walk.n ?? 1) - 1, move(l.walk.step,
+            l.walk.n ?? 1))) } } : l])) }));
     };
     const click = (e: MouseEvent) => {
       const t = e.target as Element;
