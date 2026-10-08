@@ -241,17 +241,24 @@ contract Arcade {
   <!-- under the bar, only during a replay (it appears when the replay
   starts and goes when it ends: the one movement, at those two moments),
   at one size: the step in full, its footnote, the chips, and the
-  pointer solc wrote -->
+  ethdebug data from the compiler (the pointer) -->
   <div id="dwrap" class="dwrap"><div id="dpanel" class="dpanel" hidden>
     <div class="dleft">
       <div id="dtext" class="dtext"></div>
       <div id="dpick" class="dpick"></div>
       <div id="chips" class="chips"></div>
     </div>
-    <div class="ptr" aria-label="The pointer solc wrote">
-      <p class="plabel">The pointer solc wrote <span class="pnote">(as YAML;
+    <div class="ptr" aria-label="Ethdebug data from the compiler">
+      <p class="plabel">Ethdebug data from the compiler <span class="pnote">(as YAML;
       template names shortened)</span></p>
-      <div id="ptr" class="ptrscroll"></div>
+      <!-- (it scrolls inside itself, with no scrollbar shown: a blurred
+      band on its top or bottom edge where there is more, with a chevron
+      that scrolls it) -->
+      <div class="ptrbox"><div id="ptr" class="ptrscroll" tabindex="0"></div>
+      <div class="pedge up" aria-hidden="true"><button type="button"
+        id="pedge-up" tabindex="-1"></button></div>
+      <div class="pedge down" aria-hidden="true"><button type="button"
+        id="pedge-down" tabindex="-1"></button></div></div>
     </div>
   </div></div>
 
