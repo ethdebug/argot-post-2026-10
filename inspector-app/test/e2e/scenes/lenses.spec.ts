@@ -1,7 +1,8 @@
 // The shell's Phase 2 fit lenses get the same interaction rules as the
 // page: hover a plain fill (no caps), the rest steps back, caps on a
 // selection; chevrons at the row's right end
-import { test, expect, type Page } from "@playwright/test";
+import type { Page } from "@playwright/test";
+import { test, expect } from "../../page";
 
 const A = "players[0x70997970c51812dc3a010c7d01b50e0d17dc79c8]";
 const open = async (page: Page, lens: string) => {

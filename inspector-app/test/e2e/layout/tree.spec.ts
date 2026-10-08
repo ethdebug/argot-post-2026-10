@@ -1,17 +1,9 @@
 // Mirrors bin/run.mjs's collapse and edge-button checks (vanilla
 // 2ff37ec), on the parity page
-import { test, expect, type Page } from "@playwright/test";
+import type { Page } from "@playwright/test";
+import { test, expect, ready, select, type Win } from "../../page";
 import { A, B, C } from "../../expect";
 
-type W = { select(id: string, view?: { sel?: string | null }):
-  Promise<boolean>; results: { done: boolean } };
-const w = (page: Page) => page as unknown as Page;
-const select = (page: Page, sel: string | null) => page.evaluate((x) =>
-  (window as unknown as W).select("mid", { sel: x }), sel);
-const ready = async (page: Page) => {
-  await w(page).goto("./");
-  await page.waitForFunction(() => (window as unknown as W).results?.done);
-};
 const chev = (page: Page, p: string) =>
   page.locator(`#tree li[data-path="${p}"] > .chev`);
 const st = (page: Page) => page.evaluate(() => {
@@ -36,7 +28,7 @@ const st = (page: Page) => page.evaluate(() => {
 test("groups collapse by their chevron; the dump never moves",
   async ({ page }) => {
     await ready(page);
-    await select(page, "players");
+    await select(page, "mid", "players");
     await page.mouse.move(1, 1);
     const s0 = await st(page);
     await chev(page, "players").click();
@@ -47,7 +39,7 @@ test("groups collapse by their chevron; the dump never moves",
     const s2 = await st(page);
     await page.keyboard.press(" ");
     const s3 = await st(page);
-    await select(page, null);
+    await select(page, "mid", null);
     await page.locator(
       `#panel .view:not([hidden]) .b[data-owners="${A}.score"]`)
       .first().click();
@@ -65,7 +57,7 @@ test("groups collapse by their chevron; the dump never moves",
 test("a chevron points at its row; a hidden row lights its ancestor",
   async ({ page }) => {
     await ready(page);
-    await select(page, null);
+    await select(page, "mid", null);
     await chev(page, "playerList").hover();
     await expect(page.locator('#tree li[data-path="playerList"] > .row'))
       .toHaveClass(/\bhl\b/);
@@ -90,7 +82,7 @@ test("a chevron points at its row; a hidden row lights its ancestor",
 test("a lit row out of the tree's view: a circle button on the edge",
   async ({ page }) => {
     await ready(page);
-    await select(page, null);
+    await select(page, "mid", null);
     // (the real layout: the tree box as tall as the dump, scrolling
     // inside itself)
     await page.evaluate(() => {
@@ -144,7 +136,7 @@ test("a group opens and closes with a short height animation; none with "
   + "reduced motion", async ({ page }) => {
   await page.emulateMedia({ reducedMotion: "no-preference" });
   await ready(page);
-  await select(page, null);
+  await select(page, "mid", null);
   const heights = async () => {
     const out: number[] = [];
     for (let k = 0; k < 6; k++) {
@@ -171,9 +163,8 @@ test("a group opens and closes with a short height animation; none with "
 test("a slot the value uses only in the other state: marked 'only'",
   async ({ page }) => {
     await page.goto("./");
-    await page.waitForFunction(() => (window as unknown as W).results?.done);
-    await page.evaluate(() => (window as unknown as W).select("motd",
-      { sel: "motd" }));
+    await page.waitForFunction(() => (window as Win).results?.done);
+    await select(page, "motd", "motd");
     await page.mouse.move(1, 1);
     // (After: motd is short, in slot 1; its old data slots, lit Before,
     // are "only" After)
@@ -187,7 +178,7 @@ test("a slot the value uses only in the other state: marked 'only'",
 test("the tree box: as tall as the dump, its first row level with the "
   + "dump's first line", async ({ page }) => {
   await ready(page);
-  await select(page, null);
+  await select(page, "mid", null);
   await page.mouse.move(1, 1);
   const g = await page.evaluate(() => {
     const t = document.querySelector<HTMLElement>("#tree")!;
@@ -210,7 +201,7 @@ test("quick chevron clicks during the animation end in the right state",
   async ({ page }) => {
     await page.emulateMedia({ reducedMotion: "no-preference" });
     await ready(page);
-    await select(page, null);
+    await select(page, "mid", null);
     const li = page.locator('#tree li[data-path="playerList"]');
     await chev(page, "playerList").click();
     await chev(page, "playerList").click();
@@ -225,7 +216,7 @@ test("quick chevron clicks during the animation end in the right state",
     await expect(li).toHaveClass(/\bcollapsed\b/);
     // (a selection made meanwhile is not hidden by a late close)
     await chev(page, "players").click();
-    await select(page, `${A}.score`);
+    await select(page, "mid", `${A}.score`);
     await page.waitForTimeout(400);
     await expect(page.locator('#tree li[data-path="players"]'))
       .not.toHaveClass(/\bcollapsed\b/);

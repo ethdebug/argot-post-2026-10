@@ -2,16 +2,9 @@
 // setMotd's calldata by the ABI; a byte selects its part of text, a part
 // lights its bytes; under the storage dump; the motd scene only; its
 // selection apart from storage's
-import { test, expect, type Page } from "@playwright/test";
+import type { Page } from "@playwright/test";
+import { test, expect, ready, select, type Win } from "../../page";
 
-type W = { select(id: string, view?: { sel?: string | null;
-  mode?: string }): Promise<boolean>; results: { done: boolean };
-  calldataResults: { lit: string[]; chosen: string | null };
-  storageSel(): string | null };
-const ready = async (page: Page, hash = "") => {
-  await page.goto("./" + hash);
-  await page.waitForFunction(() => (window as unknown as W).results?.done);
-};
 const dl = (page: Page, q: string) => page.evaluate((q) => {
   const out: Record<string, string> = {};
   for (const dt of document.querySelectorAll(`${q} dt`)) {
@@ -21,7 +14,7 @@ const dl = (page: Page, q: string) => page.evaluate((q) => {
   return out;
 }, q);
 const cd = (page: Page) => page.evaluate(() =>
-  (window as unknown as W).calldataResults);
+  (window as Win).calldataResults);
 // (each lit byte's offset in the calldata: its row's, and its place)
 const lit = (page: Page) => page.evaluate(() => [...document
   .querySelectorAll<HTMLElement>("#cpanel .b.hl")].map((b) =>
@@ -33,7 +26,7 @@ const range = (a: number, b: number) =>
 
 test("setMotd's calldata: selector, a byte selects its part, details",
   async ({ page }) => {
-    await ready(page, "#ex=motd");
+    await ready(page, { hash: "#ex=motd" });
     await expect(page.locator("#calldata")).toBeVisible();
     await expect(page.locator('#ctree li[data-part="selector"] .val'))
       .toHaveText("0x5fe59b9d");
@@ -62,7 +55,7 @@ test("setMotd's calldata: selector, a byte selects its part, details",
 
 test("under the storage dump, in its column; the motd scene only",
   async ({ page }) => {
-    await ready(page, "#ex=motd");
+    await ready(page, { hash: "#ex=motd" });
     // (at rest: polled, the dump's font fitted)
     await expect.poll(() => page.evaluate(() => {
       const r = (q: string) => document.querySelector(q)!
@@ -73,16 +66,16 @@ test("under the storage dump, in its column; the motd scene only",
         shown: c.height > 100 };
     })).toEqual({ left: true, under: true, shown: true });
     for (const id of ["mid", "alice", "vyper"]) {
-      await page.evaluate((i) => (window as unknown as W).select(i), id);
+      await select(page, id);
       await expect(page.locator("#calldata")).toBeHidden();
     }
-    await page.evaluate(() => (window as unknown as W).select("motd"));
+    await select(page, "motd");
     await expect(page.locator("#calldata")).toBeVisible();
   });
 
 test("its selection is its own: storage's stays; Escape clears its own",
   async ({ page }) => {
-    await ready(page, "#ex=motd&sel=motd");
+    await ready(page, { hash: "#ex=motd&sel=motd" });
     const storage = () => page.evaluate(() =>
       new URLSearchParams(location.hash.slice(1)).get("sel"));
     expect(await storage()).toBe("motd");

@@ -1,22 +1,14 @@
 // A run of bytes no value owns is its own item in the slot's popover,
 // "(unmapped)", in byte order; pointing at those bytes badges it
 // in a neutral style and lights them in a neutral one.
-import { test, expect, type Page } from "@playwright/test";
+import type { Page } from "@playwright/test";
+import { test, expect, ready, select, settle, box, V } from "../../page";
 
-type W = { select(id: string, view?: { sel?: string | null }):
-  Promise<boolean>; results: { done: boolean } };
-const V = "#panel .view:not([hidden])";
 const ROW = `${V} .wrow[data-slot$="7528"]`;
-const ready = async (page: Page) => {
-  await page.goto("./");
-  await page.waitForFunction(() => (window as unknown as W).results?.done);
-  await page.evaluate(() => (window as unknown as W).select("mid",
-    { sel: null }));
+const at = async (page: Page) => {
+  await ready(page);
+  await select(page, "mid", null);
 };
-const settle = (page: Page) => page.evaluate(() => new Promise((r) =>
-  requestAnimationFrame(() => requestAnimationFrame(r))));
-const box = async (page: Page, sel: string) =>
-  (await page.locator(sel).boundingBox())!;
 // the popover's names: [text, classes]
 const names = (page: Page) => page.evaluate(() =>
   [...document.querySelectorAll("#panel .pop .pname")].map((e) =>
@@ -30,7 +22,7 @@ const rects = (page: Page) => page.evaluate((v) => JSON.stringify(
 
 test("the row's unmapped run: an item in byte order, plain",
   async ({ page }) => {
-    await ready(page);
+    await at(page);
     await page.locator(`${ROW} > .addr`).hover();
     await settle(page);
     const n = await names(page);
@@ -41,7 +33,7 @@ test("the row's unmapped run: an item in byte order, plain",
   });
 
 test("a row with no unmapped bytes has no such item", async ({ page }) => {
-  await ready(page);
+  await at(page);
   await page.locator(`${V} .wrow[data-slot$="0000"] > .addr`).hover();
   await settle(page);
   expect((await names(page)).map(([t]) => t))
@@ -50,7 +42,7 @@ test("a row with no unmapped bytes has no such item", async ({ page }) => {
 
 test("pointing at unmapped bytes badges the item neutrally",
   async ({ page }) => {
-    await ready(page);
+    await at(page);
     await page.locator(`${ROW} > .addr`).hover();
     await settle(page);
     const still = await rects(page);
@@ -108,9 +100,8 @@ const unmappedShown = (page: Page) => page.evaluate((r) => [
 
 test("with a selection, a click on unmapped bytes clears it; no hover " +
   "until a move, then the run's", async ({ page }) => {
-  await ready(page);
-  await page.evaluate(() => (window as unknown as W).select("mid",
-    { sel: "totalScore" }));
+  await at(page);
+  await select(page, "mid", "totalScore");
   const c = page.locator(`${ROW} .b[data-i="10"]`);
   await c.scrollIntoViewIfNeeded();
   const b = (await c.boundingBox())!;
@@ -127,7 +118,7 @@ test("with a selection, a click on unmapped bytes clears it; no hover " +
 
 test("with nothing selected, a click on unmapped bytes changes nothing: " +
   "the hover stays", async ({ page }) => {
-  await ready(page);
+  await at(page);
   const c = page.locator(`${ROW} .b[data-i="10"]`);
   await c.hover();
   await settle(page);
@@ -140,9 +131,8 @@ test("with nothing selected, a click on unmapped bytes changes nothing: " +
 
 test("with a selection, a click in a gap of the run clears it; no hover " +
   "until a move", async ({ page }) => {
-  await ready(page);
-  await page.evaluate(() => (window as unknown as W).select("mid",
-    { sel: "totalScore" }));
+  await at(page);
+  await select(page, "mid", "totalScore");
   await page.locator(ROW).scrollIntoViewIfNeeded();
   const b7 = await box(page, `${ROW} .b[data-i="7"]`);
   const b8 = await box(page, `${ROW} .b[data-i="8"]`);
@@ -164,17 +154,15 @@ const pops = (page: Page) => page.locator("#panel .view:not([hidden]) .pop")
 
 test("every popover lists a row's unmapped run: the selection's",
   async ({ page }) => {
-    await ready(page);
+    await at(page);
     await page.setViewportSize({ width: 1600, height: 900 });
     // (the record, two slots: the run is cut first, and leaves its "…")
-    await page.evaluate((s) => (window as unknown as W).select("mid",
-      { sel: s }), REC);
+    await select(page, "mid", REC);
     await settle(page);
     const p = (await pops(page)).find((t) => t.includes("2 slots"));
     expect(p).toContain("/ name · … · name.length, 2 slots");
     // (its name, one slot: it fits; not lit: plain)
-    await page.evaluate((s) => (window as unknown as W).select("mid",
-      { sel: s }), `${REC}.name`);
+    await select(page, "mid", `${REC}.name`);
     await settle(page);
     expect(await pops(page)).toContain(
       "keccak(0x3c44…93bc, slot 3) + 1 : name · (unmapped) · name.length");
@@ -185,7 +173,7 @@ test("every popover lists a row's unmapped run: the selection's",
 // (not in a walkthrough, which is about where bytes are: the review's W7)
 test("a walkthrough step's popovers list no unmapped run",
   async ({ page }) => {
-    await ready(page);
+    await at(page);
     await page.setViewportSize({ width: 1600, height: 900 });
     await page.locator(`#tree li[data-path="${REC}"] > .row`).click();
     await page.mouse.move(1, 1);

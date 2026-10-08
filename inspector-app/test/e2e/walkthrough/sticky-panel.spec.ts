@@ -3,18 +3,12 @@
 // step brings its lit rows into view under it, scrolling only when they
 // are out of view; Start scrolls first, then unfolds; Exit goes back to
 // where the reader was
-import { test, expect, type Page } from "@playwright/test";
+import type { Page } from "@playwright/test";
+import { test, expect, ready, select } from "../../page";
 import { C } from "../../expect";
 
-type W = { select(id: string, view?: { sel?: string | null }):
-  Promise<boolean>; results: { done: boolean } };
-const ready = async (page: Page, w = 1440, h = 900) => {
-  await page.setViewportSize({ width: w, height: h });
-  await page.goto("./");
-  await page.waitForFunction(() => (window as unknown as W).results?.done);
-};
-const select = (page: Page, sel: string) => page.evaluate((x) =>
-  (window as unknown as W).select("mid", { sel: x }), sel);
+const at = (page: Page, width = 1440, height = 900) =>
+  ready(page, { width, height });
 const next = (page: Page) =>
   page.locator('#details button[data-r="next"]').click();
 // (the page, still for two readings)
@@ -36,8 +30,8 @@ const geo = (page: Page) => page.evaluate(() => {
 for (const [w, h] of [[1440, 900], [390, 844]]) {
   test(`${w}px: the panel sticks; every step's lit rows are in view ` +
     "under it", async ({ page }) => {
-    await ready(page, w, h);
-    await select(page, `${C}.name`);
+    await at(page, w, h);
+    await select(page, "mid", `${C}.name`);
     await page.locator('#details button[data-r="start"]').click();
     await settled(page);
     for (let k = 0; k < 20; k++) {
@@ -59,8 +53,8 @@ for (const [w, h] of [[1440, 900], [390, 844]]) {
 
 test("a step whose lit rows are in view does not scroll the page",
   async ({ page }) => {
-    await ready(page);
-    await select(page, "playerList");
+    await at(page);
+    await select(page, "mid", "playerList");
     await page.locator('#details button[data-r="start"]').click();
     await settled(page);
     const y = (await geo(page)).y;
@@ -71,7 +65,7 @@ test("a step whose lit rows are in view does not scroll the page",
 
 test("a host's scroll-padding-top: the panel sticks below it",
   async ({ page }) => {
-    await ready(page);
+    await at(page);
     await page.evaluate(() => {
       const hd = document.createElement("header");
       hd.style.cssText = "position: sticky; top: 0; height: 80px; " +
@@ -79,7 +73,7 @@ test("a host's scroll-padding-top: the panel sticks below it",
       document.body.prepend(hd);
       document.documentElement.style.scrollPaddingTop = "80px";
     });
-    await select(page, `${C}.name`);
+    await select(page, "mid", `${C}.name`);
     await page.locator('#details button[data-r="start"]').click();
     await settled(page);
     await page.evaluate(() => scrollBy(0, 500));
@@ -92,35 +86,37 @@ test("a host's scroll-padding-top: the panel sticks below it",
 test("Start scrolls first, then unfolds; Exit goes back to where the " +
   "reader was", async ({ page }) => {
     await page.emulateMedia({ reducedMotion: "no-preference" });
-    await ready(page);
-    await select(page, "players");
+    await at(page);
+    await select(page, "mid", "players");
     await page.evaluate(() => scrollTo(0, 120));
     await settled(page);
     // (while the page scrolls, the details stay shut: sampled every
-    // frame from before the click)
+    // frame from before the click, until the details are open and still)
+    type S = { samples: number[][]; sampled?: boolean };
     await page.evaluate(() => {
-      const out: number[][] = [];
-      (window as unknown as { samples: number[][] }).samples = out;
-      const t0 = performance.now();
+      const w = window as unknown as S;
+      const out: number[][] = w.samples = [];
       const tick = () => {
         out.push([scrollY, document.querySelector<HTMLElement>("#dwrap")!
           .offsetHeight]);
-        if (performance.now() - t0 < 2500) requestAnimationFrame(tick);
+        const [a, b] = [out.at(-1)!, out.at(-10)];
+        if (out.length > 10 && a[1] > 100 && a[0] === b![0] &&
+          a[1] === b![1]) w.sampled = true;
+        else requestAnimationFrame(tick);
       };
       tick();
     });
     await page.locator('#details button[data-r="start"]').click();
-    await page.waitForTimeout(2700);
+    await page.waitForFunction(() => (window as unknown as S).sampled);
     const during = await page.evaluate(() =>
-      (window as unknown as { samples: number[][] }).samples);
+      (window as unknown as S).samples);
     // (a smooth scroll's last pixel may land as the details start)
     const moving = during.filter((x, k) => k > 0 &&
       Math.abs(x[0] - during[k - 1][0]) > 0.5 &&
       Math.abs(x[0] - during.at(-1)![0]) > 2);
     expect(moving.length).toBeGreaterThan(0);
     expect(moving.every(([, hh]) => hh === 0)).toBe(true);
-    expect(during.at(-1)![1]).toBeGreaterThan(100);
     await page.locator('#details button[data-r="exit"]').click();
-    await page.waitForTimeout(1200);
-    expect(Math.round(await page.evaluate(() => scrollY))).toBe(120);
+    await expect.poll(async () => Math.round(await page.evaluate(() =>
+      scrollY))).toBe(120);
   });

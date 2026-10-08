@@ -1,16 +1,9 @@
 // Mirrors bin/run.mjs's details and bar-at-rest checks (vanilla d235617)
-import { test, expect, type Page } from "@playwright/test";
+import type { Page } from "@playwright/test";
+import { test, expect, ready, select } from "../../page";
 import { A } from "../../expect";
+import { slotHex } from "../../../src/engine/hex";
 
-type W = { select(id: string, view?: { sel?: string | null;
-  mode?: string }): Promise<boolean>; results: { done: boolean } };
-const ready = async (page: Page) => {
-  await page.goto("./");
-  await page.waitForFunction(() => (window as unknown as W).results?.done);
-};
-const select = (page: Page, id: string, sel: string | null) =>
-  page.evaluate(([i, s]) => (window as unknown as W).select(i!,
-    { sel: s }), [id, sel]);
 const dl = (page: Page) => page.evaluate(() => {
   const el = document.querySelector("#dtext")!;
   const out: Record<string, string | boolean> = {};
@@ -20,7 +13,7 @@ const dl = (page: Page) => page.evaluate(() => {
   if (!dts.length) out.text = el.textContent!.trim();
   return out;
 });
-const SLOT2 = "0x" + "2".padStart(64, "0");
+const SLOT2 = slotHex(2n);
 
 test("details of what is pointed at, at two points and at one",
   async ({ page }) => {

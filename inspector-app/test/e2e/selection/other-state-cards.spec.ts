@@ -1,22 +1,12 @@
 // Mirrors bin/run.mjs's cards checks (vanilla d235617): the other
 // state's picture beside lit runs, the tree's cards, the tray, and
 // "show other state"
-import { test, expect, type Page } from "@playwright/test";
+import type { Page } from "@playwright/test";
+import { test, expect, ready, select, row } from "../../page";
 import { A, B } from "../../expect";
 
-type W = { select(id: string, view?: { sel?: string | null;
-  mode?: string }): Promise<boolean>; results: { done: boolean } };
-const ready = async (page: Page) => {
-  await page.goto("./");
-  await page.waitForFunction(() => (window as unknown as W).results?.done);
-};
-const select = (page: Page, id: string, sel: string | null, mode?: string) =>
-  page.evaluate(([i, s, m]) => (window as unknown as W).select(i!,
-    { sel: s, ...(m ? { mode: m } : {}) }), [id, sel, mode]);
 const setMode = (page: Page, m: string) =>
   page.locator(`#mode button[data-mode="${m}"]`).click();
-const row = (page: Page, p: string) =>
-  page.locator(`#tree li[data-path="${p}"] > .row`);
 // (as run.mjs: the card's frame against the row it hangs from)
 const cmp = (page: Page) => page.evaluate(() => [...document
   .querySelectorAll<HTMLElement>("#panel .cmp:not(.pinned)")].map((el) => {
