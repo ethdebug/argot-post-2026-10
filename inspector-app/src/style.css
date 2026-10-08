@@ -1147,15 +1147,14 @@ main[data-single] > .cols :is(.chglegend, .legend .bchg, .intro .two) {
 /* (step 0's question: its own paragraph, in the formula's room) */
 .rform .prose.rq { display: block; margin-top: 0.35em; font-size: 1rem;
   color: var(--fg); }
-/* a step's bytes in one slot, drawn as a dump row: 32 cells (3fr each)
-   in four groups of eight, a group's gap a third of a cell, as the
-   dump's (2.4ch cells, 0.8ch gaps); its byte positions under it */
+/* a step's bytes in one slot: 32 equal cells, each value a span over
+   its own; its byte positions under it */
 .bstrip { display: block; font-family: var(--mono); }
 .bs32, .bs16 { display: grid; gap: 2px; }
 .bs16 { display: none; }
-.bsrow { display: grid; grid-template-columns: repeat(8, 3fr) 1fr
-  repeat(8, 3fr) 1fr repeat(8, 3fr) 1fr repeat(8, 3fr); }
-.bs16 .bsrow { grid-template-columns: repeat(8, 3fr) 1fr repeat(8, 3fr); }
+/* (32 equal cells, no gaps between groups: those are the dump's) */
+.bsrow { display: grid; grid-template-columns: repeat(32, 1fr); }
+.bs16 .bsrow { grid-template-columns: repeat(16, 1fr); }
 @media (max-width: 759px) {
   .bs32 { display: none; }
   .bs16 { display: grid; gap: 1px; }

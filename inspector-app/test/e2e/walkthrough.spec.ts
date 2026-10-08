@@ -444,14 +444,10 @@ test("the packed fields: a strip shaped like a dump row, the fields in "
       const s = document.querySelector("#dtext .bstrip .bs32")!;
       const idx = [...s.querySelectorAll(".bsidx span")].map((e) =>
         e.getBoundingClientRect());
-      const cell = idx[1].left - idx[0].left;
-      const gap = idx[8].left - idx[7].left - cell;
-      const w = document.querySelector("#panel .view:not([hidden]) " +
-        ".wrow:not(.head) .word")!;
-      const bs = [...w.querySelectorAll(".b")].map((e) =>
-        e.getBoundingClientRect());
-      const dcell = bs[1].left - bs[0].left;
-      const dgap = bs[8].left - bs[7].left - dcell;
+      // (equal steps from cell to cell, across the groups too: vanilla
+      // 6767a25)
+      const steps = idx.slice(1).map((q, i) => q.left - idx[i].left);
+      const even = Math.max(...steps) - Math.min(...steps) < 1;
       const spans = [...s.querySelectorAll(".bsv")].map((v) => {
         const r = v.getBoundingClientRect();
         const a = idx.findIndex((q) => Math.abs(q.left - r.left) < 2);
@@ -461,11 +457,11 @@ test("the packed fields: a strip shaped like a dump row, the fields in "
       const rows = [...s.querySelectorAll<HTMLElement>(".bsv .bsn")]
         .every((n) => n.getClientRects().length === 1 &&
           n.scrollHeight <= n.clientHeight + 1);
-      return { ratio: Math.abs(gap / cell - dgap / dcell) < 0.08, spans,
+      return { even, spans,
         rows, oneLine: s.querySelector(".bsrow")!.getBoundingClientRect()
           .height < parseFloat(getComputedStyle(s).fontSize) * 2 };
     });
-    expect(x, `${wd}`).toEqual({ ratio: true, spans: ["lastBlock 0-7",
+    expect(x, `${wd}`).toEqual({ even: true, spans: ["lastBlock 0-7",
       "hitCount 8-11", "plays 12-15", "bestCombo 16-19", "combo 20-23",
       "score 24-31"], rows: true, oneLine: true });
     await page.keyboard.press("Escape");

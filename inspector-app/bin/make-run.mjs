@@ -30,15 +30,6 @@ export const PATCHES = [
       `  let f = u.startsWith("${NEXT}") ? path.join(root, "dist",\n` +
       `    u.slice(${NEXT.length - 1})) : path.join(site, u);`,
     count: 1 },
-  // (decided 10-07: every location one Dump; a byte's data-i is its
-  // place in its row, as in storage and memory: calldata's byte 40 is
-  // the 5th of the word at 0x24)
-  { name: "calldata byte", from: `'#cpanel .b[data-i="40"]'`,
-    to: `'#cpanel .wrow[data-slot="0x0024"] .b[data-i="4"]'`, count: 2 },
-  { name: "calldata lit",
-    from: '"#cpanel .b.hl")].map((b) => +b.dataset.i));',
-    to: '"#cpanel .b.hl")].map((b) => Number(b.closest(".wrow")' +
-      '.dataset.slot) + +b.dataset.i));', count: 1 },
   { name: "print", from: "/^.*\\/demos\\/inspector\\//",
     to: "/^.*\\/demos\\/inspector-next\\//", count: 1 },
 ];

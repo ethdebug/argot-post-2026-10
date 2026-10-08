@@ -59,6 +59,7 @@ export const insideOnePlay: LensSpec = {
       data: at("b") },
   ],
   hash: { prefix: "m", levels: true },
-  wrap: { dump: panel("mpanel", "mem"), sdump: panel("mspanel", "mem") },
+  wrap: { dump: panel("mpanel", "mem", "memory"),
+    sdump: panel("mspanel", "mem") },
   areas: { dump: "dump", sdump: "dump", tree: "treebox" },
 };
