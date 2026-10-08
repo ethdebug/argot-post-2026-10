@@ -17,7 +17,7 @@ function schedule(root: HTMLElement & { _overlays?: boolean },
   });
 }
 import type {
-  KeyboardEvent, MouseEvent, PointerEvent, ReactElement,
+  CSSProperties, KeyboardEvent, MouseEvent, PointerEvent, ReactElement,
 } from "react";
 import type {
   ByteKey, Colour, Filter, Hex, Layout, Light, Location, Row, Target,
@@ -32,8 +32,10 @@ import { blockOf, resolveTarget } from "../engine/target";
 import { noLight } from "../engine/light";
 import { relClass } from "../engine/related";
 import { readWritten } from "../engine/timeline";
-import { addressText, goesOn, rowBytes } from "../engine/location";
-import type { DataRef, LinkId, ViewId } from "./types";
+import {
+  addressText, addressing, goesOn, hex4, rowBytes,
+} from "../engine/location";
+import type { DataRef, Display, LinkId, ViewId } from "./types";
 import { exiting } from "./types";
 
 const TINTS = 5;
@@ -71,6 +73,35 @@ function Ruler() {
     <Octets cells={Array.from({ length: 32 }, (_, i) =>
       <span key={i} className="b">{i % 8 === 0 ? i : ""}</span>)} />
   </div></div>;
+}
+
+// a word abbreviated to its last `n` bytes: 0x…aa80 (its leading zero
+// bytes dropped first: a word that short whole, 0x22; zero, 0x00)
+export function abbreviated(bytes: (string | undefined)[], n: number) {
+  const hex = bytes.map((b) => b ?? "").join("").replace(/^(00)+/, "");
+  return hex.length > 2 * n ? `0x…${hex.slice(-2 * n)}`
+    : `0x${hex || "00"}`;
+}
+
+// The rows' bytes as one run, `per` bytes a line (Display "flow"): each
+// line's address, where the location is a segment (its offset)
+function Flow({ rows, loc, snap, per }: { rows: Row[]; loc: Location;
+  snap?: TimelinePoint["snapshot"]; per: number }) {
+  const all = rows.flatMap((r) => rowBytes(snap, loc, r.address)
+    .filter((b): b is string => b !== undefined));
+  const from = rows.length ? Number(BigInt(rows[0].address)) : 0;
+  const lines: ReactElement[] = [];
+  for (let k = 0; k * per < all.length; k++) {
+    const at = from + k * per;
+    lines.push(<div key={k} className={`wrow${k % 2 ? " zb" : ""}`}>
+      <span className="addr"><span className="a">
+        {addressing(loc) === "offset" ? hex4(at) : ""}</span></span>
+      <div className="word"><div className="bytes">
+        {all.slice(k * per, (k + 1) * per).map((b, i) =>
+          <span key={i} className={`b${b === "00" ? " z" : ""}`}>{b}</span>)}
+      </div></div></div>);
+  }
+  return <div style={{ "--per": per } as CSSProperties}>{lines}</div>;
 }
 
 // an owner id's label: a value's path, or "<path> (length)" for its
@@ -112,11 +143,22 @@ function tintsOf(ls: Layout[], loc: Location) {
 }
 
 function Word({ l, ls, loc, row, mine, theirs, side, name, light,
-  groupsOf }: {
+  groupsOf, bare, abbreviate }: {
   l: Layout; ls: Layout[]; loc: Location; row: Hex;
   mine: (string | undefined)[]; theirs: (string | undefined)[];
   side?: string; name: string; light: Light;
-  groupsOf: (id: string) => boolean }) {
+  groupsOf: (id: string) => boolean; bare?: boolean;
+  abbreviate?: number }) {
+  if (abbreviate !== undefined) {
+    return <div className="word" data-side={side} data-slot={row}>
+      <span className="ab">{abbreviated(mine, abbreviate)}</span></div>;
+  }
+  if (bare) {
+    return <div className="word" data-side={side} data-slot={row}>
+      <div className="bytes"><Octets cells={mine.map((b, i) =>
+        <span key={i} className={`b${b === undefined ? " past"
+          : b === "00" ? " z" : ""}`}>{b ?? "··"}</span>)} /></div></div>;
+  }
   const ownersIn = (x: Layout) => Array.from({ length: 32 }, (_, i) =>
     x.cover.get(byteKey(loc, row, i)) ?? []);
   const owners = ownersIn(l);
@@ -185,7 +227,10 @@ function Word({ l, ls, loc, row, mine, theirs, side, name, light,
 export function Dump(p: { id: ViewId; location: Location; data: DataRef;
   filter?: Filter; link?: LinkId; domId?: string;
   side?: "before" | "after"; hidden?: boolean; title?: string;
-  when?: string; compare?: DataRef; cards?: boolean }) {
+  when?: string; compare?: DataRef; cards?: boolean; display?: Display }) {
+  const disp = p.display ?? {};
+  const bare = !!disp.bare;
+  const flow = disp.density === "flow";
   const { l } = useLayout(p.id, p.filter, undefined, p.compare);
   const { l: lThere0 } = useLayout(p.id, p.filter, p.compare, p.data);
   const lThere = p.compare ? lThere0 : undefined;
@@ -197,7 +242,7 @@ export function Dump(p: { id: ViewId; location: Location; data: DataRef;
   const lit0 = useLight(p.id, p.filter, undefined, p.compare);
   const [walkLink] = useLink(p.link);
   // (a walkthrough lights the side it walks, the one shown)
-  const light = p.hidden && walkLink.walk ? noLight : lit0;
+  const light = bare || (p.hidden && walkLink.walk) ? noLight : lit0;
   // what the compared point lights (a slot lit there only: "only"; none
   // in a walkthrough, which walks one side: vanilla panel.js)
   const there0 = useLight(p.id, p.filter, p.compare, p.data);
@@ -353,12 +398,14 @@ export function Dump(p: { id: ViewId; location: Location; data: DataRef;
   // are in (the labels are fitted in them)
   const cards = !!p.cards && !link.walk;
   useLayoutEffect(() => {
+    if (bare) return;
     const v = me.current as (HTMLDivElement & { _data?: ViewData }) | null;
     if (v && l) v._data = { light, there: p.compare ? there : undefined, l };
     const root = v?.closest<HTMLElement>(".panel") ?? v?.parentElement;
     if (root) schedule(root, cards);
   });
   useEffect(() => {
+    if (bare) return;
     const again = () => {
       const v = me.current;
       const root = v?.closest<HTMLElement>(".panel") ?? v?.parentElement;
@@ -371,7 +418,7 @@ export function Dump(p: { id: ViewId; location: Location; data: DataRef;
       live = false;
       removeEventListener("resize", again);
     };
-  }, [cards]);
+  }, [cards, bare]);
   const lines: ReactElement[] = [];
   // (the pair's layouts, the earlier point's first, for the tints)
   const tintOrder = useMemo(() => !l ? [] : !lThere ? [l]
@@ -389,7 +436,7 @@ export function Dump(p: { id: ViewId; location: Location; data: DataRef;
     } else if (r.gapBefore) {
       lines.push(<div key={`g${k}`} className="gap" aria-hidden="true">
         <span>⋯</span></div>);
-    } else if (slots && !/^slot \d+$|\+ \d+$/.test(name)) {
+    } else if (slots && !bare && !/^slot \d+$|\+ \d+$/.test(name)) {
       lines.push(<div key={`r${k}`} className="gap room"
         aria-hidden="true" />);
     }
@@ -430,34 +477,29 @@ export function Dump(p: { id: ViewId; location: Location; data: DataRef;
       data-name={name} data-facts={facts}
       {...(name === slotRef(r.address) || !slots ? {}
         : { "data-full": `= ${r.address}` })}>
-      <span className="addr" tabIndex={0}
-        aria-label={`${r.address}; ${what}`}>
+      <span className="addr" tabIndex={bare ? undefined : 0}
+        aria-label={bare ? undefined : `${r.address}; ${what}`}>
         {ring && <span className="ring" aria-label="written, same value" />}
         <span className="a">{addressText(loc, r.address)}</span></span>
       {l && <Word l={l} ls={tintOrder} loc={loc} row={r.address}
         mine={rowBytes(snap, loc, r.address)}
         theirs={rowBytes((p.compare ? otherPoint : here)?.snapshot, loc,
           r.address)}
-        side={side} name={name} light={light} groupsOf={groupsOf} />}
+        side={side} name={name} light={light} groupsOf={groupsOf}
+        bare={bare} abbreviate={disp.abbreviate} />}
     </div>);
   });
-  if (goesOn(loc)) {
+  if (goesOn(loc) && !flow) {
     lines.push(<div key="end" className="gap" aria-hidden="true">
       <span>⋯</span></div>);
   }
 
   // (nothing of this location to show here: no dump)
   if (l && !rows.length) return null;
-  return <div ref={me} data-side={side} role="group"
-    aria-label={p.when ? `${label} ${p.when}` : label} hidden={p.hidden}
-    // (lit: the rest steps back; a selection or a step: brown caps)
-    className={["view", light.muted ? "active" : "",
-      link.selection || link.walk ? "chosen" : "",
-      light.walk ? "walking" : ""].filter(Boolean).join(" ")}
-    data-view={`${lens.key}:${p.id}`} data-point={l?.point}
-    data-exits={exiting(link) || undefined}
-    onPointerOver={point} onPointerMove={point} onFocus={point}
-    onClick={(e: MouseEvent) => {
+  // (bare: the bytes only, nothing to point at or click)
+  const handlers = bare ? {} : {
+    onPointerOver: point, onPointerMove: point, onFocus: point,
+    onClick: (e: MouseEvent) => {
       // (the lens's click-to-clear leaves a click that acted alone)
       // (a gap inside a value: the value's byte; between values, or
       // outside the bytes: no act, the click as on empty space)
@@ -465,10 +507,26 @@ export function Dump(p: { id: ViewId; location: Location; data: DataRef;
       if (at && at !== "row" && act(at)) {
         (e.nativeEvent as { acted?: boolean }).acted = true;
       }
-    }} onKeyDown={onKey}>
+    }, onKeyDown: onKey };
+  const ruler = disp.shape !== "strip" && disp.abbreviate === undefined &&
+    !flow;
+  return <div ref={me} data-side={side} role="group"
+    aria-label={p.when ? `${label} ${p.when}` : label} hidden={p.hidden}
+    // (lit: the rest steps back; a selection or a step: brown caps)
+    className={["view", light.muted ? "active" : "",
+      link.selection || link.walk ? "chosen" : "",
+      light.walk ? "walking" : "", disp.shape === "strip" ? "strip" : "",
+      disp.abbreviate !== undefined ? "abbr" : "", flow ? "flow" : "",
+      bare ? "bare" : ""].filter(Boolean).join(" ")}
+    data-view={`${lens.key}:${p.id}`} data-point={l?.point}
+    data-exits={exiting(link) || undefined} {...handlers}>
     <div className="view-head"><span className="view-name">{title}</span>
-      <div className="wrow head"><span className="addr" /><Ruler /></div>
+      {ruler && <div className="wrow head"><span className="addr" />
+        <Ruler /></div>}
     </div>
-    <div className="rows">{lines}</div>
+    <div className="rows" style={disp.scale ? { fontSize: `${disp.scale}em` }
+      : undefined}>{flow
+        ? <Flow rows={rows} loc={loc} snap={snap}
+          per={disp.perLine ?? 16} /> : lines}</div>
   </div>;
 }
