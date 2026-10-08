@@ -43,6 +43,10 @@ export interface Step {
   parts: Part[]; rows: Path[]; gutters: Hex[]; band: string[];
   ruler?: Hex; tkind?: string; rname?: string;
   goal?: boolean;        // step 0: what we are about to find
+  // (the values of the pointer's variables at this step, as the focus
+  // has them: shown beside the band's lines that name them)
+  // (the template, or "" for the variable's own pointer, they hold in)
+  notes?: { block: string; values: Record<string, string> };
 }
 // (a rule's instances in a form's table: `k` its entry's colour; `dim`:
 // not the focus, an echo)
@@ -475,7 +479,10 @@ export function walkthrough(x: WalkInput, path: Path, focus?: string):
         }
         return `${k} = ${xs.map((y) => valOf(y, k)).join(" · ")}`;
       };
+      const fx = xs.find((y) => y.inst === f) ?? xs[0];
       step({ phase: "template", tkind: t?.kind, id: nd.k,
+        notes: { block: nd.s.name, values: Object.fromEntries(ks.filter((k) =>
+          fx.s.inputs?.[k]).map((k) => [k, valOf(fx, k)])) },
         cap: `The template \`${tn(nd.s.name)}\` takes ${ks.map((k) =>
           `\`${k}\``).join(" and ")}`,
         form: text(ks.map(what).join("; ")),
@@ -524,7 +531,14 @@ export function walkthrough(x: WalkInput, path: Path, focus?: string):
           : xs.map((y) => leafOf(y).path);
         const fm: Form = many ? table(xs.map((y) => [[who(y.inst)],
           [formula(y)], kOf(y.inst)])) : text(formula(xs[0]));
+        // (its variables, as the focus has them)
+        const fy = xs.find((y) => y.inst === f) ?? xs[0];
+        const base = inputs.get(`${fy.inst}|${types[nd.block]?.kind}`);
+        const notes: Record<string, string> = {};
+        if (base?.key) notes.key = who(fy.inst);
+        if (base?.slot) notes.slot = small(base.slot.hex);
         step({ phase: "handoff", tkind: t?.kind, id: nd.k,
+          notes: { block: nd.block, values: notes },
           cap: isRecord ? `${many ? "Each record is" : "The record is"} ` +
             `at keccak(key, slot ${slotN}); ${into1}`
             : `\`${fname(xs[0])}\` is in the next slot, slot + 1; ${into1}`,

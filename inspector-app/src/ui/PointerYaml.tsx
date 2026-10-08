@@ -33,8 +33,9 @@ function shiki(): Shiki {
 // `goal`: a walkthrough's step 0 (the pointer blurred and still);
 // `shown`: the details are open (the edges' buttons only then)
 export function PointerYaml({ domId, data, variable, band, before, goal,
-  shown }: { domId?: string; data: DataRef; variable?: string;
-  band?: string[]; before?: ReactNode; goal?: boolean; shown?: boolean }) {
+  shown, notes }: { domId?: string; data: DataRef; variable?: string;
+  band?: string[]; before?: ReactNode; goal?: boolean; shown?: boolean;
+  notes?: { block: string; values: Record<string, string> } }) {
   const c = useCompilation(data);
   const { lines, names } = useMemo(() => c && variable
     ? pointerText(c, variable) : { lines: [], names: {} }, [c, variable]);
@@ -203,15 +204,22 @@ export function PointerYaml({ domId, data, variable, band, before, goal,
         const on = lit.has(k);
         const cls = `line${on ? ` on${lit.has(k - 1) ? "" : " on-top"}${
           lit.has(k + 1) ? "" : " on-end"}` : ""}`;
+        // (a band line's variables, as the focus has them: "  # key =
+        // alice, slot = 3"; the review's T4)
+        const note = on && notes ? noteOf(l, notes) : "";
         if (coloured) {
-          return <span key={`${k}:${coloured[k]}`} className={`${cls} html`}
-            dangerouslySetInnerHTML={{ __html: coloured[k] ?? "" }} />;
+          return <span key={`${k}:${coloured[k]}:${note}`}
+            className={`${cls} html`} dangerouslySetInnerHTML={{
+              __html: (coloured[k] ?? "") + (note ? `<span class="lnote">${
+                note.replace(/[&<>]/g, (c) => `&#${c.charCodeAt(0)};`)
+              }</span>` : "") }} />;
         }
         const a = aliasAt(l.text);
         return <span key={k} className={cls}>{a ? <>{l.text.slice(0,
           a.from)}<span className="alias" tabIndex={0} role="button"
           data-id={a.id}>{l.text.slice(a.from, a.to)}</span>{
-          l.text.slice(a.to)}</> : l.text}</span>;
+          l.text.slice(a.to)}</> : l.text}{note && <span className="lnote">
+          {note}</span>}</span>;
       })}</code></pre>
       {Object.keys(names).length > 0 && <p className="muted small pids">
         {alias ? <><code className="alias">{alias.split("\n")[0]}</code> =
@@ -223,6 +231,17 @@ export function PointerYaml({ domId, data, variable, band, before, goal,
       hidden={!goal}><span className="ptext">Press ▶ to see how this data
       from the compiler finds these bytes</span><span className="pglyph" aria-hidden="true">{glyph}
       </span></p></div>;
+}
+
+// The values of the variables a line uses (an operand, not a key:
+// "{ ~wordsized: key }", "expect: [slot, key]"), in its own block
+function noteOf(l: { text: string; pos: string },
+  n: { block: string; values: Record<string, string> }) {
+  if (l.pos.split("|")[0] !== n.block) return "";
+  const used = Object.keys(n.values).filter((v) => new RegExp(
+    `(^|[^\\w~-])${v}(?![\\w:-])`).test(l.text.replace(/^\s*[\w-]+:/, "")));
+  return used.length ? `  # ${used.map((v) => `${v} = ${n.values[v]}`)
+    .join(", ")}` : "";
 }
 
 // a range of a line's text, wrapped in a button for its template's id
