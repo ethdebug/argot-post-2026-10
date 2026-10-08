@@ -1055,8 +1055,27 @@ function replaySteps(path, side, focus) {
       parts: [{ regions: all.map((sl) => ({ location: "storage", slot: sl,
         offset: "0x0", length: "0x20" })), rows: [path] }] };
   }
+  // the last step, "found": the selection as it rests, its colours and
+  // labels (stepLight); the bookend to step 0 (FOUND: off removes it)
+  if (FOUND && out.length) {
+    const t = types[node.typeId];
+    const n = node.children?.length ?? 0;
+    const vt = t?.kind === "mapping" ? types[t.contains?.value?.type?.id]
+      : null;
+    const what = t?.kind === "mapping" ? `${n} ${vt?.kind === "struct"
+      ? n === 1 ? "record" : "records" : n === 1 ? "entry" : "entries"}`
+      : t?.kind === "struct" ? `${n} ${n === 1 ? "field" : "fields"}`
+        : t?.kind === "array" ? `${n} ${n === 1 ? "item" : "items"}`
+          : node[side]?.text ?? "";
+    out.push({ phase: "found", id: "found", constructs: [], band: [],
+      parts: null, rows: [path], gutters: [],
+      cap: `That's \`${shortKeys(path)}\`${what ? `: ${what}` : ""}, found.`,
+      form: "", source: "", chip: "found", chipLabel: shortKeys(path) });
+  }
   return out;
 }
+// (the walkthrough's last step, "found": one switch, to try it)
+const FOUND = true;
 
 // The spec pages, one per pointer construct (ethdebug/format)
 const SPEC = "https://ethdebug.github.io/format/spec/pointer/";
@@ -1264,6 +1283,10 @@ function colourYaml(variable, text) {
 // The highlight of a step: its slots' rows and its regions' bytes, its
 // tree rows, in the colours of what it is about
 function stepLight(st) {
+  // (found: exactly the selection's resting view)
+  if (st.phase === "found") {
+    return forRow(current.panel, replay.path, { roots: true });
+  }
   const h = st.parts ? partsLight(st) : forStep(current.panel, replay.side,
     st);
   if (!st.parts) h.rows = new Set(st.rows);
@@ -1337,6 +1360,7 @@ function shortCap(st) {
       : "'s"} own slot`;
     case "entries": return "every record, from its key";
     case "goal": return "what we're about to find";
+    case "found": return "found";
     case "input": return st.chip === "key" ? "the key" : "the keys";
     case "handoff": return st.tkind === "struct" ? "the record's slot"
       : "into a template";
