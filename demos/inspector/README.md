@@ -47,12 +47,13 @@ multiplayer game. A player calls `join(name)` once, then `play()`,
 which rolls a hit or a miss. A hit adds 1 to the player's combo and
 scores 10 × combo (at most 5×); a miss sets the combo back to 0, and
 the score stays. Each player's `Player` in `players` is one full
-packed slot (score, combo, bestCombo, plays, hitCount, lastBlock) and
-a name in the next slot; `roster` lists who joined, since a mapping
-cannot list its keys; `total` and `rounds` count all points and hits;
-`setMotd` sets the message of the day. The story: deploy with a
-50-byte motd; alice, bob and carol join; alice hits twice, bob hits,
-carol misses (the middle of the game); alice hits a third time; then
+packed slot (score, combo, bestCombo, plays, hits, lastBlock) and
+a name in the next slot; `playerList` lists who joined, since a mapping
+cannot list its keys; `totalScore` and `totalHits` count all points
+and hits; `setMotd` sets the message of the day. The story: deploy
+with a 50-byte motd; alice, bob and carol join; alice hits twice, bob
+hits, carol hits four times (a best combo of 4), then misses (the
+middle of the game); alice hits a third time; then
 the motd becomes "gl hf". Each player is an anvil account.
 
 ### The scenes
@@ -63,13 +64,15 @@ the motd becomes "gl hf". Each player is an anvil account.
   records land far apart. Each is one word with six counters packed in
   it. The name is in the next slot: alice's and bob's fit in it;
   carol's is 34 bytes, so its bytes move to keccak256(that slot).
-  `roster` keeps its length in slot 0 and its items from
-  keccak256(slot 0); `motd` is slot 1; `total` and `rounds` share slot
-  2. alice's record is selected.
+  `playerList` keeps its length in slot 0 and its items from
+  keccak256(slot 0); `motd` is slot 1; `totalScore` and `totalHits`
+  share slot 2. carol's record shows combo 0 beside bestCombo 4. alice's
+  record is selected.
 - Alice plays: alice hits a third time: combo 3, so she scores
   10 × 3 = 30. In her one slot, score goes from 30 to 60, combo,
-  bestCombo, plays and hitCount from 2 to 3, and lastBlock to this
-  block; `total` goes from 40 to 70 and `rounds` from 3 to 4. Before
+  bestCombo, plays and hits from 2 to 3, and lastBlock to this
+  block; `totalScore` goes from 140 to 170 and `totalHits` from 7 to 8.
+  Before
   is the middle of the game, After is after her hit. Beside the lit
   word, a card shows it in the other state.
 - A string moves into its slot: Arcade was deployed with a 50-byte
@@ -100,7 +103,7 @@ How to read the dump: one 32-byte word per row, byte 0 at the left;
 
 - Mapping keys. A mapping does not list its keys. The page shows only
   keys read from the KECCAK256 inputs in a trace (the players'
-  addresses, from their `join` and `play` calls; `roster` lists them
+  addresses, from their `join` and `play` calls; `playerList` lists them
   too). Other entries may exist but are not shown.
 - Nested mappings. A mapping inside a struct or another mapping needs
   one template applied after another, with a key for each level. The
@@ -128,7 +131,7 @@ compiler. Arcade has a BUG port, and the section shows alice's third
 hit again, paused at three points inside `play()`. At each point,
 bugc's debug data lists the local variables in scope, and gives most
 of them a pointer: bugc keeps them in memory. Compile it without
-optimization (O0) or with it (O2): at O0, `multiplied` is a real call,
+optimization (O0) or with it (O2): at O0, `_applyCombo` is a real call,
 and its locals are in a frame whose address is in the word at 0x80; at
 O2 it is inlined, so its locals are at fixed offsets, with no frame. A
 local that bugc lists with its type only has no location at that
@@ -146,8 +149,8 @@ a value, a byte or an address to light it up.
 - "no location at this point": bugc lists the local with its type and
   no pointer. This happens with optimization (a value the optimizer
   folded away) and without it (at O0, `hit` after its `if`).
-- Inside `multiplied`, `m = combo` moves `m`: after it, bugc points
-  `m` at a word that holds `combo`'s bytes too.
+- Inside `_applyCombo`, `mult = combo` moves `mult`: after it, bugc points
+  `mult` at a word that holds `combo`'s bytes too.
 - Alice's record slot is the page's own: bugc's pointer for `players`
   gives only its base slot, so the slot (keccak256 of the key and 4)
   and the packed members follow BUG's rules, which are Solidity's.
@@ -171,15 +174,17 @@ point), so that the page does not move when the data comes;
 `bin/run.mjs` checks that they match.
 
 1. The middle of the game: one point, after alice's two hits, bob's
-   hit and carol's miss. All three players: each record is one full
-   packed slot at keccak(address . slot 3) (score, combo, bestCombo,
-   plays, hitCount, lastBlock), the name in the next slot (alice's and
-   bob's inline; carol's 34-byte name at keccak of that slot, over two
-   slots); the roster (slot 0) at keccak(slot 0) + i; `motd` in slot 1;
-   `total` and `rounds` packed in slot 2. `players[alice]` selected.
+   hit, carol's four hits and carol's miss. All three players: each
+   record is one full packed slot at keccak(address . slot 3) (score,
+   combo, bestCombo, plays, hits, lastBlock), the name in the next slot
+   (alice's and bob's inline; carol's 34-byte name at keccak of that
+   slot, over two slots); `playerList` (slot 0) at keccak(slot 0) + i;
+   `motd` in slot 1; `totalScore` and `totalHits` packed in slot 2.
+   `players[alice]` selected.
 2. Alice plays: the middle of the game → after her third hit (combo 3,
-   +30): score 30 → 60, combo, bestCombo, plays and hitCount 2 → 3,
-   lastBlock; `total` 40 → 70, `rounds` 3 → 4. `players[alice]`
+   +30): score 30 → 60, combo, bestCombo, plays and hits 2 → 3,
+   lastBlock; `totalScore` 140 → 170, `totalHits` 7 → 8.
+   `players[alice]`
    selected.
 3. A string moves into its slot: before and after `setMotd("gl hf")`.
    The motd was deployed with 50 bytes ("season 2 starts friday, see you
@@ -212,7 +217,7 @@ with `players` at slot 108 (its arrays are inline, nothing is packed),
 keccak256(108 . key), puts each counter in its own slot, then the
 name's length and bytes: alice at `0xb306…0446` (30, 2, 2, 2, 2, her
 lastBlock, length 5, "alice"); bob at `0x87c6…f242` (10, 1, 1, 1, 1, …,
-length 3, "bob"); carol at `0x51eb…c89e` (0, 0, 0, 1, 0, …, length 34,
+length 3, "bob"); carol at `0x51eb…c89e` (100, 0, 4, 5, 4, …, length 34,
 two words of name). Those words are in the dump, named "Vyper's
 keccak(slot 108, …)", and no value owns them. "How this was found" ends
 with "Vyper's rule, for contrast: not from ethdebug", one step per word
@@ -294,8 +299,8 @@ behaviour is the same, the file names are the app's now.
 3. The story, on a fresh anvil (deployer: account 0; alice, bob,
    carol: accounts 1, 2, 3): deploy with the 50-byte motd; alice, bob
    and carol join (names "alice", "bob", "carol, the unstoppable combo
-   queen"); alice hits; alice hits; bob hits; carol misses (the middle
-   of the game); alice hits (combo 3); `setMotd("gl hf")`, after a
+   queen"); alice hits; alice hits; bob hits; carol hits four times,
+   then misses (the middle of the game); alice hits (combo 3); `setMotd("gl hf")`, after a
    deploy with the motd "season 2 starts friday, see you on the
    leaderboard". A play rolls from prevrandao,
    which anvil draws at random and cannot be told, so each play is sent
@@ -330,9 +335,10 @@ intros and buttons in `index.html`, and the expected values in
 
 `bin/run.mjs` checks the decoded values against the values the calls
 wrote (at the middle of the game alice 30 / combo 2 / best 2 / plays 2
-/ hits 2, bob 10 / 1 / 1 / 1 / 1, carol 0 / 0 / 0 / 1 / 0, the names,
-the roster, total 40, rounds 3; after alice's third hit 60 / 3 / 3 / 3
-/ 3, total 70, rounds 4; and the Vyper storage values).
+/ hits 2, bob 10 / 1 / 1 / 1 / 1, carol 100 / 0 / 4 / 5 / 4, the
+names, `playerList`, totalScore 140, totalHits 7; after alice's third
+hit 60 / 3 / 3 / 3 / 3, totalScore 170, totalHits 8; and the Vyper
+storage values).
 
 ## Which data is ethdebug, which is not
 
@@ -509,7 +515,7 @@ tree, inside itself, to the first of them. Hover alone never scrolls
 the tree. The buttons are overlays that fade in and out: no row moves.
 
 Where a step's formula is byte ranges within one slot (the packed
-fields, a string's flag byte, `total` or `rounds`), the details draw
+fields, a string's flag byte, `totalScore` or `totalHits`), the details draw
 them as a one-line strip of 32 equal cells (no group gaps: those are
 the dump's), each value a
 span over its cells in its colour, named, the byte positions under it
@@ -520,7 +526,7 @@ cells. Its aria-label gives the ranges in words.
 A slot's label (a black popover) reads "how it is found : what it
 holds": the names of the values in its slots as the pointer names
 them, in byte order, " · " within a slot and " / " between slots
-(`slot 2 : rounds · total`; `keccak(0x7099…79c8, slot 3) : lastBlock ·
+(`slot 2 : totalHits · totalScore`; `keccak(0x7099…79c8, slot 3) : lastBlock ·
 … · score / name · name.length, 2 slots`); a value's other regions by
 their role under its name (`name.length`; an array's own word alone,
 `length`); a run of several slots in one colour, by the path of the
@@ -575,7 +581,7 @@ variable's pointer or a template; and its path of keys). Nothing is
 computed by the page but a flag byte read from the state.
 
 1. Inputs first: facts the page supplies, not ethdebug (a mapping's
-   keys, from `roster` or the trace), with no band; the source lights.
+   keys, from `playerList` or the trace), with no band; the source lights.
 2. Then the pointer's nodes in the YAML's document order: the band
    only moves down.
 3. Every template entered is a step: its frame (name, `expect`,
@@ -599,14 +605,14 @@ found."): with step 0, it bookends the walkthrough. It counts in
 `n / N` and has its own identity for re-targeting. One constant in
 `main.js`, `FOUND`, turns it off.
 
-Carol's record: the key from `roster[2]`; players declared at slot 3;
+Carol's record: the key from `playerList[2]`; players declared at slot 3;
 the mapping template takes slot = 3 and her key; her record at
 keccak(key, 3) = …9978; the `Player` template; the six packed fields;
 the next slot holds `name`, a string (…9979); the `string` template;
 the length flag, 0x45; odd → long, length 34; the text at
 keccak(…9979). `players` as a whole: the same, for all three, with the
-fork (alice and bob short, carol long): 12 steps. `roster`: 4 steps;
-`motd`: 5; `total`: 1; bob's `plays`: 6. In the packed-fields step the
+fork (alice and bob short, carol long): 12 steps. `playerList`: 4 steps;
+`motd`: 5; `totalScore`: 1; bob's `plays`: 6. In the packed-fields step the
 focus entry is at full strength and the others echo it, muted; the
 picker (alice, bob, carol) changes the focus and moves nothing. A row a
 step has derived keeps its label (a muted popover) at later steps.
@@ -677,7 +683,7 @@ points inside `play()`, with memory at each point and the locals bugc
 lists there as a tree. bugc (ethdebug/format main, from PR #368 on)
 compiles the port as written: the roll is
 `keccak256(block.prevrandao, msg.sender) % 3 != 0`, as in Solidity;
-`!hit`; `roster.push(msg.sender)`; names and the motd as text. Each
+`!hit`; `playerList.push(msg.sender)`; names and the motd as text. Each
 instruction's `variables` context gives each local in scope, and a
 pointer for those it has a location for. bugc keeps play()'s locals in
 memory, at -O0 and at -O2 (it gives a stack pointer only to a value it
@@ -690,16 +696,16 @@ point is picked by how many locals have a location there, not by line
 
 - After the roll: the first step where `hit` has a location (`true`).
   It is the only local listed; at O0 for 11 steps, at O2 for 10.
-- Inside multiplied: two steps, with all three of `points` (10),
-  `combo` (3) and `m` located: the last with `m` = 5, the first with
-  `m` = 3 (around `m = combo`). A two-step point has Show: Before |
+- Inside _applyCombo: two steps, with all three of `points` (10),
+  `combo` (3) and `mult` located: the last with `mult` = 5, the first with
+  `mult` = 3 (around `mult = combo`). A two-step point has Show: Before |
   After and the cards, as the storage scenes with two points. At O0,
-  `multiplied` is a real call: each local's pointer reads the frame's
+  `_applyCombo` is a real call: each local's pointer reads the frame's
   address from the word at 0x80 (region `-frame`) and adds an offset.
   At O2 it is inlined: fixed offsets, no frame. In the tree,
-  `multiplied` holds the three; selected, its own bytes (the frame
+  `_applyCombo` holds the three; selected, its own bytes (the frame
   pointer, at O0) take the selection colour, and each local a child
-  colour. After `m = combo`, bugc points `m` at a word that holds
+  colour. After `mult = combo`, bugc points `mult` at a word that holds
   `combo`'s bytes too, so those bytes have two owners.
 - Before the writes: `gained` = 30, at the last step before the SSTORE
   of `score`, and `hit` listed with no location. Alice's record slot is
@@ -733,8 +739,8 @@ How the fixture was made:
    emitted them, with the source path made relative), its code range,
    and memory after the step (a context describes the state after its
    instruction). It checks the values by hand (above), the record's
-   members (score 30, combo 3, bestCombo 3, plays 3, hitCount 3,
-   lastBlock = the block), and that the roster holds three players.
+   members (score 30, combo 3, bestCombo 3, plays 3, hits 3,
+   lastBlock = the block), and that `playerList` holds three players.
    Hashes and blocks differ from run to run; values and steps do not.
 
 The page dereferences each pointer with `@ethdebug/pointers` against
