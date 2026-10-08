@@ -42,7 +42,9 @@ const WHEN = { before: "before the transaction",
 // Show a bookmark: its points, the side it opens with (or `view.mode`),
 // and its selection (or `view.sel`; one the tree does not have is none),
 // in every link group. Waits for its data; a later call wins.
-function shower(store: Store<LensState>, spec: LensSpec, project: Project) {
+// (`onFail`: the page's report of a load that failed, with a retry)
+function shower(store: Store<LensState>, spec: LensSpec, project: Project,
+  onFail?: (e: unknown, again: () => void) => void) {
   let wanted = 0;
   const show: LensContextValue["show"] = async (id, view) => {
     const ticket = ++wanted;
@@ -58,13 +60,16 @@ function shower(store: Store<LensState>, spec: LensSpec, project: Project) {
       tree = await decode(project, dc!, point);
       await Promise.all(bm.points.map((p) => decode(project, dc!, p)));
     } catch (e) {
-      console.error(e);
+      if (ticket !== wanted) return false;
+      store.set((s) => ({ ...s, error: String((e as Error)?.message ?? e) }));
+      if (onFail) onFail(e, () => void show(id, view));
+      else console.error(e);
       return false;
     }
     if (ticket !== wanted) return true; // another was asked for since
     const want = view && "sel" in view ? view.sel : bm.select;
     const selection = want && tree.byPath.has(want) ? want : null;
-    store.set((s) => ({ ...s, bookmark: id,
+    store.set((s) => ({ ...s, bookmark: id, error: undefined,
       points: { a: bm.points[0], b: bm.points[1] ?? bm.points[0] }, side,
       links: Object.fromEntries(spec.links.map((l) => [l,
         { selection, hover: null, walk: null }])) }));
@@ -111,12 +116,17 @@ export function Lens(props: { spec: LensSpec; project: Project;
   hash?: boolean; kinds?: Kinds; mount?: Record<string, Element>;
   // the page's handle on the lens (the parity page's window.select),
   // and when its first view is shown
-  onReady?: (lens: LensContextValue, ready: Promise<boolean>) => void }) {
+  onReady?: (lens: LensContextValue, ready: Promise<boolean>) => void;
+  onFail?: (e: unknown, again: () => void) => void;
+  // (its part of the page: Escape after a press there, and a click on
+  // empty space there, are its own; default: its views)
+  within?: (el: Element) => boolean }) {
   const { spec, project, mount, onReady } = props;
   const [store] = useState(() => createStore(initialState(spec, project)));
   const key = useId();
   const value = useMemo(() => ({ spec, project, store, key,
-    show: shower(store, spec, project) }), [spec, project, store, key]);
+    show: shower(store, spec, project, props.onFail) }),
+  [spec, project, store, key, props.onFail]);
   // pointing anywhere but at this lens's views (or a tree's edge button,
   // which is for what is lit) ends its hovers (vanilla onOver)
   useEffect(() => {
@@ -129,8 +139,18 @@ export function Lens(props: { spec: LensSpec; project: Project;
           .map(([k, l]) => [k, l.hover ? { ...l, hover: null } : l])) }
         : s);
     };
+    // (and focus leaving its views, to nothing or elsewhere: vanilla)
+    const out = (e: FocusEvent) => {
+      const to = e.relatedTarget as Element | null;
+      if (to?.closest?.(`[data-view^="${key}:"]`)) return;
+      over({ target: to ?? document.body } as unknown as Event);
+    };
     document.addEventListener("pointerover", over);
-    return () => document.removeEventListener("pointerover", over);
+    document.addEventListener("focusout", out);
+    return () => {
+      document.removeEventListener("pointerover", over);
+      document.removeEventListener("focusout", out);
+    };
   }, [key, store, spec]);
   // the first bookmark, with its defaults (unless the page shows one)
   // the view the URL hash asks for (`hash`), or the first bookmark with
@@ -177,9 +197,11 @@ export function Lens(props: { spec: LensSpec; project: Project;
       `[data-view^="${key}:"]`);
     const other = (el: Element | null) => !!el?.closest?.("[data-view]") &&
       !mine(el);
+    const here0 = (el: Element | null) => !!el &&
+      (props.within ? props.within(el) : mine(el));
     let pressed = false;
     const down = (e: Event) => {
-      pressed = mine(e.target as Element);
+      pressed = here0(e.target as Element);
     };
     // (a walkthrough with a panel to fold: the panel ends it)
     const panelled = (link: string) => spec.views.some((v) =>
@@ -190,7 +212,7 @@ export function Lens(props: { spec: LensSpec; project: Project;
         : l.selection ? { ...l, selection: null } : l])) }));
     const keyed = (e: KeyboardEvent) => {
       const f = document.activeElement;
-      const here = !f || f === document.body ? pressed : mine(f);
+      const here = !f || f === document.body ? pressed : here0(f);
       if (!here) return;
       // (a view with a selection of its own keeps its Escape)
       if (e.key === "Escape" && !(e.target as Element).closest?.(
@@ -213,7 +235,9 @@ export function Lens(props: { spec: LensSpec; project: Project;
     const click = (e: MouseEvent) => {
       const t = e.target as Element;
       if ((e as MouseEvent & { acted?: boolean }).acted || other(t) ||
-        t.closest?.("[data-scoped]")) return;
+        t.closest?.("[data-scoped]") || (props.within && !props.within(t))) {
+        return;
+      }
       if (t.closest?.("#picker, #details, #dwrap, .addr, .tray, a, " +
         "button, summary, details, input, label, .shellbar")) return;
       if (String(window.getSelection?.() ?? "")) return;
@@ -229,7 +253,7 @@ export function Lens(props: { spec: LensSpec; project: Project;
       document.removeEventListener("keydown", keyed);
       document.removeEventListener("click", click);
     };
-  }, [key, store, spec]);
+  }, [key, store, spec, props.within]);
   const kinds: Kinds = { ...viewKinds, ...props.kinds };
   const areas: Record<string, ReactNode[]> = {};
   for (const v of spec.views) {

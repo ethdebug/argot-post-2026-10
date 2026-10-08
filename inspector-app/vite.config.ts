@@ -1,6 +1,7 @@
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 import path from "node:path";
+import { isLibrary, loaderPage } from "./bin/vite-loader";
 
 // (the dev server's own port: 5180, or `--port`; the live-reload client
 // connects to it straight, not through a proxy in front of the page)
@@ -29,10 +30,15 @@ const repin = {
 export default defineConfig({
   base: "/demos/inspector-next/",
   publicDir: "static",
-  plugins: [react(), repin],
+  plugins: [react(), repin, loaderPage()],
   server: { port: 5180, strictPort: true, fs: { allow: [".."] },
     hmr: { clientPort: port } },
   build: {
-    rollupOptions: { input: { index: "index.html", shell: "shell.html" } },
+    rollupOptions: { input: { index: "index.html", shell: "shell.html" },
+      // (the decoder bundle: one chunk the loader fetches with progress)
+      output: {
+        manualChunks: (id) => isLibrary(id) ? "pointers" : undefined,
+        chunkFileNames: (c) => c.name === "pointers" ? "vendor/pointers.js"
+          : "assets/[name]-[hash].js" } },
   },
 });

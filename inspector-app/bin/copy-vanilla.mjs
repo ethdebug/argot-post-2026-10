@@ -15,11 +15,13 @@ export const COPIES = [
   ["src/style.css", "style.css"],
 ];
 
-const ENTRY = '<script type="module" src="/src/pages/parity.tsx"></script>';
+const ENTRY = '<!-- loader -->\n' +
+  '<script type="module" src="/src/pages/parity.tsx"></script>';
 
 // vanilla index.html -> the parity page: the stylesheet links, their
 // `styled` script and the module preloads go (the entry imports the
-// CSS and the code); the loader script becomes the entry
+// CSS and the code); the loader script becomes the port's loader (inlined
+// at <!-- loader -->: bin/vite-loader.ts) and the entry
 export function skeleton(html) {
   const out = html
     .replace(/<script>\s*\/\/ Shows the page once[\s\S]*?<\/script>\n/, "")

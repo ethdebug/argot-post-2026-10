@@ -27,6 +27,8 @@ export interface LensState {
   insets: boolean;              // Phase 1 parity; fate open
   links: Record<LinkId, LinkState>;
   views: Record<ViewId, ViewState>;
+  // (a bookmark whose data did not load: the error, until it does)
+  error?: string;
 }
 
 // a view's data: a decoding (or "$bm", the current bookmark's) at a
@@ -58,6 +60,8 @@ export type ViewSpec = { id: ViewId; area: string; link?: LinkId;
     // the memory section's (Locals.tsx)
     | { kind: "details" | "derivation"; data: DataRef }
     | { kind: "source"; data: DataRef; part?: "legend" }
+    // the contract's source, its selection's declaration marked
+    | { kind: "contract"; data: DataRef }
     | { kind: "note"; data: DataRef; part: "note" | "viewing" | "meta" }
     // the bookmark's call's calldata, by the ABI (its own selection)
     | { kind: "calldata"; data: DataRef }

@@ -50,6 +50,14 @@ export function useLensState<T>(pick: (s: LensState) => T): T {
   return useSyncExternalStore(store.subscribe, () => pick(store.get()));
 }
 
+// (a load that failed is the lens's to report, once, with Retry: Lens
+// show; here it is left out, and anything else is logged)
+const quiet = (e: unknown) => {
+  if (!String((e as Error)?.message ?? e).startsWith("Could not load")) {
+    console.error(e);
+  }
+};
+
 export const NO_LINK: LinkState = { selection: null, hover: null,
   walk: null };
 export const NO_VIEW: ViewState = { collapsed: new Set() };
@@ -76,6 +84,8 @@ export function useDecoded(ref: DataRef | undefined): Decoded | undefined {
     const at = ref && resolveRef(ref, s, project);
     return at ? `${at.decoding}\n${at.point}` : "";
   });
+  // (fetched again once a load that failed loads: Retry)
+  const failed = useLensState((s) => !!s.error);
   const [got, setGot] = useState<{ key: string; d: Decoded }>();
   useEffect(() => {
     if (!key) return;
@@ -85,11 +95,11 @@ export function useDecoded(ref: DataRef | undefined): Decoded | undefined {
     if (!dc) return console.error(`no decoding ${decoding}`);
     decode(project, dc, point).then((d) => {
       if (live) setGot({ key, d });
-    }, (e) => console.error(e));
+    }, quiet);
     return () => {
       live = false;
     };
-  }, [lens, project, key]);
+  }, [lens, project, key, failed]);
   return got?.key === key ? got.d : undefined;
 }
 
@@ -254,16 +264,17 @@ export function useCompilation(ref: DataRef | undefined):
     const at = ref && resolveRef(ref, s, lens.project);
     return at ? decodingOf(lens, at.decoding)?.compilation ?? "" : "";
   });
+  const failed = useLensState((s) => !!s.error);
   const [got, setGot] = useState<Compilation>();
   useEffect(() => {
     if (!key) return;
     let live = true;
     lens.project.compilation(key).then((c) => live && setGot(c),
-      (e) => console.error(e));
+      quiet);
     return () => {
       live = false;
     };
-  }, [lens, key]);
+  }, [lens, key, failed]);
   return got?.id === key ? got : undefined;
 }
 
@@ -279,6 +290,8 @@ export function usePointAt(ref: DataRef | undefined):
     const at = ref && resolveRef(ref, s, project);
     return at ? `${at.decoding}\n${at.point}` : "";
   });
+  // (fetched again once a load that failed loads: Retry)
+  const failed = useLensState((s) => !!s.error);
   const [got, setGot] = useState<{ key: string;
     at: { p: TimelinePoint; i: number } }>();
   useEffect(() => {
@@ -290,11 +303,11 @@ export function usePointAt(ref: DataRef | undefined):
     project.timeline(dc.timeline).then((t) => {
       const i = t.points.findIndex((x) => x.id === point);
       if (live && i >= 0) setGot({ key, at: { p: t.points[i], i } });
-    }, (e) => console.error(e));
+    }, quiet);
     return () => {
       live = false;
     };
-  }, [lens, project, key]);
+  }, [lens, project, key, failed]);
   return got?.key === key ? got.at : undefined;
 }
 
