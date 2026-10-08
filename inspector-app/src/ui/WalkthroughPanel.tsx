@@ -332,9 +332,14 @@ export function WalkthroughPanel(p: { id: ViewId; data: DataRef;
     const b = (e.target as Element).closest<HTMLElement>("button[data-r]");
     if (!b) return;
     const k = b.dataset.r!;
+    // (✕ Exit while the details unfold: asked for, it ends the
+    // walkthrough once they are open, as Escape does; never dropped)
+    if (k === "exit") {
+      setLink((x) => x.walk ? { ...x, walk: { ...x.walk, exit: true } } : x);
+      return;
+    }
     if (unfolding) return;
     if (k === "start") start(0, { x: e.clientX, y: e.clientY });
-    else if (k === "exit") void exit();
     else stepTo(i + (k === "next" ? 1 : -1));
   };
 
