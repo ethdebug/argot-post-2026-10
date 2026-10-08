@@ -1284,8 +1284,6 @@ function annotate(root, v, compare, names, tray, taken, room, force) {
   };
   // the address labels of the lit rows, which no popover may cover (an
   // unlit row's may be covered, as by a card)
-  const words = [...v.querySelectorAll(".rows > .wrow > .word")]
-    .map((e) => ({ row: e.closest(".wrow"), r: e.getBoundingClientRect() }));
   const labels = [...v.querySelectorAll(
     ".rows > .wrow:is(.on, .only, .known) > .addr")]
     .map((e) => ({ row: e.closest(".wrow"), r: e.getBoundingClientRect() }));
@@ -1329,11 +1327,11 @@ function annotate(root, v, compare, names, tray, taken, room, force) {
         }
         place(pop, prow.querySelector(".a"), beside);
         const r = pop.getBoundingClientRect();
-        // (a muted label, for a run found at an earlier step, covers no
-        // other row's bytes either: it would hide data)
-        const kept = pop.classList.contains("kept") && words.some((t) =>
-          !run.includes(t.row) && overlaps(t.r, r));
-        if (!kept && !labels.some((t) => !run.includes(t.row) &&
+        // (one rule for every label, muted or not; and never outside the
+        // rows' box: nothing is above the first row, nor below the last)
+        const rows = v.querySelector(".rows").getBoundingClientRect();
+        const out = r.top < rows.top - 0.5 || r.bottom > rows.bottom + 0.5;
+        if (!out && !labels.some((t) => !run.includes(t.row) &&
           overlaps(t.r, r)) && fits(pop)) {
           placed = true;
           break;
