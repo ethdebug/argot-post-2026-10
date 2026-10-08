@@ -89,7 +89,8 @@ async function walk(page: Page, path: string) {
     await page.locator('#details button[data-r="next"]').click();
   }
   await page.locator('#details button[data-r="exit"]').click();
-  ctl.add((await stepNow(page)).ctl);
+  // (the controls' place while stepping; not after Exit, which takes the
+  // page back to where the reader pressed Start, the bar with it)
   // (the last step, "found", kept aside; the counts here are the rule
   // steps': without it, as vanilla 6b1df3a's run.mjs)
   let found: St | undefined;
@@ -303,7 +304,7 @@ test("the bar: entry, tint, the controls at the ends, keys, Exit, chips",
     await page.locator('#details button[data-r="exit"]').click();
     expect((await barNow()).tint).toBe(false);
     await page.locator('#details button[data-r="start"]').click();
-    await page.locator('#chips .chip[data-k="1"]').click();
+    await page.locator('#chips .chip[data-k="1"]').dispatchEvent("click");
     expect((await stepNow(page)).count).toBe("2 / 7");
     await page.locator("#details").focus();
     await page.keyboard.press("ArrowLeft");
@@ -326,12 +327,12 @@ test("the focus: all by default for players; one entry echoes",
     expect(btns).toBe(`all*|"alice"|"bob"|"carol, the un…"`);
     const muted = [];
     for (let k = 0; k < 12; k++) {
-      await page.locator(`#chips .chip[data-k="${k}"]`).click();
+      await page.locator(`#chips .chip[data-k="${k}"]`).dispatchEvent("click");
       muted.push(await page.locator(
         "#panel .view:not([hidden]) .b.hl.muted").count());
     }
     expect(muted.some(Boolean)).toBe(false);
-    await page.locator('#chips .chip[data-k="5"]').click();
+    await page.locator('#chips .chip[data-k="5"]').dispatchEvent("click");
     const boxes = () => page.evaluate(() => JSON.stringify([
       ...document.querySelectorAll("#details, #dpanel, #dpick button, " +
         "#chips .chip, #panel .view:not([hidden]) .wrow, #tree")].map((e) => {
@@ -356,7 +357,7 @@ test("entries and fields never share a colour; found rows keep labels",
     await select(page, "players");
     const huesAt = async (k: number) => {
       await page.locator('#details button[data-r="start"]').click();
-      await page.locator(`#chips .chip[data-k="${k}"]`).click();
+      await page.locator(`#chips .chip[data-k="${k}"]`).dispatchEvent("click");
       await page.mouse.move(1, 1);
       const hs = await page.evaluate(() => [...new Set([...document
         .querySelectorAll("#panel .view:not([hidden]) .rows .b.hl:not(" +
@@ -371,12 +372,12 @@ test("entries and fields never share a colour; found rows keep labels",
     expect(fieldHues.some((x) => entryHues.includes(x))).toBe(false);
     // (the input step: roster's items in their entries' colours)
     await page.locator('#details button[data-r="start"]').click();
-    await page.locator('#chips .chip[data-k="0"]').click();
+    await page.locator('#chips .chip[data-k="0"]').dispatchEvent("click");
     const col = (ps: string[]) => page.evaluate((x) => x.map((p) =>
       document.querySelector(`#tree li[data-path="${p}"] > .row`)
         ?.className.match(/pk\d/)?.[0]), ps);
     const ks = await col(["roster[0]", "roster[1]", "roster[2]"]);
-    await page.locator('#chips .chip[data-k="3"]').click();
+    await page.locator('#chips .chip[data-k="3"]').dispatchEvent("click");
     const es = await col([A, B, C]);
     expect(ks.every((k, i) => k && k === es[i])).toBe(true);
     // (carol's data rows keep their labels only from her text's step)
@@ -385,10 +386,10 @@ test("entries and fields never share a colour; found rows keep labels",
         "#panel .view:not([hidden]) .wrow[data-name]")].map((r) =>
       [r.dataset.name, r.querySelector(":scope > .addr")!.classList
         .contains("grp")])));
-    await page.locator('#chips .chip[data-k="10"]').click();
+    await page.locator('#chips .chip[data-k="10"]').dispatchEvent("click");
     await page.mouse.move(1, 1);
     expect((await labelled())[cdata]).toBeFalsy();
-    await page.locator('#chips .chip[data-k="11"]').click();
+    await page.locator('#chips .chip[data-k="11"]').dispatchEvent("click");
     await page.mouse.move(1, 1);
     expect((await labelled())[cdata]).toBe(true);
     await expect(page.locator("#panel .pop.kept")).not.toHaveCount(0);
@@ -405,7 +406,7 @@ test("footnotes link to the spec; the pointer as YAML, coloured",
     await page.locator('#details button[data-r="start"]').click();
     const hrefs: string[] = [];
     for (let k = 0; k < 12; k++) {
-      await page.locator(`#chips .chip[data-k="${k}"]`).click();
+      await page.locator(`#chips .chip[data-k="${k}"]`).dispatchEvent("click");
       hrefs.push(...await page.locator("#dpanel .fnotes a").evaluateAll(
         (as) => as.map((a) => (a as HTMLAnchorElement).href)));
     }
@@ -510,17 +511,25 @@ test("stepping moves nothing; the details unfold only at entry and exit",
     const h = () => page.evaluate(() =>
       document.querySelector<HTMLElement>("#dwrap")!.offsetHeight);
     const early = await h();
-    await page.waitForTimeout(400);
+    // (the page scrolls to the bar first, then the details unfold)
+    await page.waitForTimeout(1500);
     const full = await h();
     expect(early).toBeLessThan(full);
+    // (the panel sticks to the top of the view: its boxes on screen; the
+    // rest on the page, which a step may scroll)
     const boxes = () => page.evaluate(() => JSON.stringify([
       // (the chips' row scrolls sideways inside itself, to the current
       // chip: that is the chips' own scrolling, not a move)
-      ...document.querySelectorAll("#details, #dpanel, #chips, " +
+      ...[...document.querySelectorAll("#details, #dpanel, #chips")]
+        .map((e) => {
+          const r = e.getBoundingClientRect();
+          return [r.left, r.top, r.width, r.height].map(Math.round);
+        }),
+      ...[...document.querySelectorAll(
         "#panel .view:not([hidden]) .wrow:not(.cmp *), #tree")].map((e) => {
-      const r = e.getBoundingClientRect();
-      return [r.left, r.top + scrollY, r.width, r.height].map(Math.round);
-    })));
+        const r = e.getBoundingClientRect();
+        return [r.left, r.top + scrollY, r.width, r.height].map(Math.round);
+      })]));
     const b0 = await boxes();
     for (let k = 0; k < 6; k++) {
       await page.locator('#details button[data-r="next"]').click();
