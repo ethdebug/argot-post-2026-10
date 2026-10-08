@@ -1289,13 +1289,13 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
       {}, null, "slot: 0x03", ["slot 3"]],
     ["The template mapping(address => Player) takes slot = 3, key = each " +
       "address in roster", {}, null, "expect: [slot, key]", ["slot 3"]],
-    ["Each record is at keccak(key, 3)", {}, null, "$keccak256", rows3],
+    ["Each record is at keccak(key, 3)", {}, null, "~keccak256", rows3],
     ["The template Player takes slot = each record's slot", {}, null,
       "expect: [slot]", rows3],
     // (focus "all": all three at full strength)
     ["The first slot packs six fields, from the right",
       { [al]: stats, [rec]: stats, [cl0]: stats }, null, "name: score", []],
-    ["The next slot holds name, a string", {}, null, "$sum: [slot, 0x01]",
+    ["The next slot holds name, a string", {}, null, "~sum: [slot, 0x01]",
       rows3.map((x) => `${x} + 1`)],
     ["The template string takes slot = each name slot", {}, null,
       "expect: [slot]", rows3.map((x) => `${x} + 1`)],
@@ -1311,7 +1311,7 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
       "in: { name: data", []],
     ["The text starts at keccak(…9979) = …c248, 34 bytes over 2 slots",
       { [cdata]: "all", [`${cdata} + 1`]: "0,1" }, null,
-      "start: { $keccak256", []],
+      "start: { ~keccak256", []],
   ];
   const P = Object.fromEntries(["input", "decl", "map", "entries", "player",
     "fields", "handoff", "string", "flag", "name", "short", "long"]
@@ -1440,7 +1440,7 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
       ["The template mapping(address => Player) takes slot = 3, key = " +
         "carol's address", {}, ["slot 3"], "expect: [slot, key]"],
       ["The record is at keccak(0x90f7…b906, 3) = …9978", {}, [cl0],
-        "$keccak256"],
+        "~keccak256"],
       ["The template Player takes slot = …9978", {}, [cl0], "Player:"],
       ["The first slot packs six fields", { [cl0]: "all" }, [],
         "name: lastBlock"],
@@ -1670,11 +1670,14 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
         .id].kind} => ${types[t.contains.value.type.id].definition.name})`;
       return t.definition?.name ?? t.kind;
     };
+    // (solc's "$" read as "~", as the page does: decode.js solcTilde)
     const norm = (v, ren = true) => typeof v === "string" &&
+      /^\$[a-z]/.test(v) ? `~${v.slice(1)}` : typeof v === "string" &&
       /^0x[0-9a-f]+$/i.test(v) ? Number(v) : Array.isArray(v)
       ? v.map((x) => norm(x, ren)) : v && typeof v === "object"
         ? Object.fromEntries(Object.entries(v).map(([k, x]) =>
-          [k, k === "template" && ren ? nameOf(x) : norm(x, ren)])) : v;
+          [k.replace(/^\$/, "~"), k === "template" && ren ? nameOf(x)
+            : norm(x, ren)])) : v;
     const want = { players: norm(f.contract.variables.find((v) =>
       v.identifier === "players").pointer) };
     for (const n of Object.keys(f.contract.pointers)) {
@@ -2621,7 +2624,7 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
     ["slot 0 holds the length: 3", { "slot 0": "all" }, "",
       "- { name: length, location: storage, slot: slot }"],
     ["The items start at keccak(0), one slot each, for length items",
-      roster, "", "count: { $read: length }"]];
+      roster, "", "count: { ~read: length }"]];
   if (w.length !== 4 || rwant.some(([cap, lit, gut, band], k) =>
     w[k].cap !== cap || !same(w[k].lit, lit) || w[k].gut.join() !== gut ||
     !w[k].ptr.includes(band) || (k === 2 && w[k].ptr.length !== 1)) ||

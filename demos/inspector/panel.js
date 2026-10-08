@@ -127,9 +127,9 @@ export function buildPanel(f, tree, { single = false, when, names } = {}) {
   };
   const learn = (how) => {
     for (const s of how?.steps ?? []) {
-      if (s.kind !== "define" || !s.expr?.$keccak256 || !s.args) continue;
+      if (s.kind !== "define" || !s.expr?.["~keccak256"] || !s.args) continue;
       hashes.set(num(s.value.hex), s.args.map((a) => ({
-        name: a.expr?.$wordsized ?? JSON.stringify(a.expr),
+        name: a.expr?.["~wordsized"] ?? JSON.stringify(a.expr),
         value: num(a.value.hex),
       })));
     }

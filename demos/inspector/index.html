@@ -250,7 +250,8 @@ contract Arcade {
     </div>
     <div class="ptr" aria-label="Ethdebug data from the compiler">
       <p class="plabel">Ethdebug data from the compiler <span class="pnote">(as YAML;
-      template names shortened)</span></p>
+      template names shortened; solc writes <code>$</code>, shown as
+      <code>~</code>)</span></p>
       <!-- (it scrolls inside itself, with no scrollbar shown: a blurred
       band on its top or bottom edge where there is more, with a chevron
       that scrolls it) -->
@@ -441,14 +442,14 @@ contract Arcade {
 (() => {
   // the size of each file, in bytes (bin/sizes.mjs writes this)
   const SIZES = /* sizes */{
-    "vendor/pointers.js": 278654,
+    "vendor/pointers.js": 278472,
     "vendor/shiki.js": 211902,
     "fixtures/arcade-alice.json": 17770,
     "fixtures/arcade-mid.json": 14381,
     "fixtures/arcade-motd.json": 13572,
     "fixtures/arcade-vyper.json": 19767,
     "fixtures/index.json": 1594,
-    "fixtures/memory.json": 34785
+    "fixtures/memory.json": 30620
   }/* end sizes */;
   const bar = document.getElementById("loadbar");
   const files = new Map(); // url -> { got, size, label, shown, promise }
