@@ -235,6 +235,8 @@ export interface Light {                // DERIVED per view, never stored
   known?: ReadonlySet<Hex>; ruler?: Hex; quiet?: boolean;
   // (a walkthrough's last step, found: the resting view, both sides)
   rest?: boolean;
+  // (pointed at: bytes no value owns, `at`)
+  unmapped?: boolean;
 }
 export interface Filter {               // truncation, per view
   roots?: Path[];                       // only these subtrees

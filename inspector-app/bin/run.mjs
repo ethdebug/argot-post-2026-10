@@ -644,7 +644,7 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
   // and a popover at slot 2's address, in the dump shown
   const pops = () => page.locator("#panel .pop").allInnerTexts();
   let pp0 = await pops();
-  if (pp0.join("|") !== "slot 2 : rounds · total · read, written") {
+  if (pp0.join("|") !== "slot 2 : (unmapped) · rounds · total · read, written") {
     problems.push(`pops rounds: ${pp0}`);
   }
   pp0 = [];
@@ -679,7 +679,7 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
     one.Holds !== "40 (0x…000028)" || "Before" in one || "After" in one) {
     problems.push(`one point details: ${JSON.stringify(one)}`);
   }
-  if ((await pops()).join("|") !== "slot 2 : rounds · total") {
+  if ((await pops()).join("|") !== "slot 2 : (unmapped) · rounds · total") {
     problems.push(`one point pops: ${await pops()}`);
   }
   if (await page.locator("#panel .cmp, #tree .tcard").count()) {
@@ -2471,8 +2471,8 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
     const alice = got.fields.find((p) => p.text.startsWith(
       "keccak(0x7099…79c8, slot 3) :"));
     if (!t("roster").includes("slot 0 : length") ||
-      !t("total").includes("slot 2 : rounds · total") ||
-      got.total[0]?.ks.join() !== ",pk0" ||
+      !t("total").includes("slot 2 : (unmapped) · rounds · total") ||
+      got.total[0]?.ks.join() !== ",,pk0" ||
       !t("players").includes(
         "keccak(0x7099…79c8, slot 3) : players[0x7099…79c8], 2 slots") ||
       !alice?.text.startsWith("keccak(0x7099…79c8, slot 3) : lastBlock · ") ||
@@ -3644,7 +3644,7 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
       hit(r, c.getBoundingClientRect()));
     return `${pop.textContent}${on ? " on lit" : ""}`;
   });
-  if (r1 !== "keccak(slot 0) + 1 : roster[1]") {
+  if (r1 !== "keccak(slot 0) + 1 : (unmapped) · roster[1]") {
     problems.push(`roster[1] popover: ${r1}`);
   }
   // every slot popover is placed as a gap line's: its left edge 6 px

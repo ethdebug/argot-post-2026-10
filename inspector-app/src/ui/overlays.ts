@@ -43,7 +43,7 @@ function byteLight(c: El) {
 }
 type Rect = { top: number; left: number; bottom: number; right: number };
 interface Item { text: string; k: string | null; muted: boolean;
-  sep: string; seg?: number; id?: string }
+  sep: string; seg?: number; id?: string; free?: boolean }
 type Pop = El & { _what?: Item[] };
 
 const esc = (s: unknown) => String(s).replace(/[&<>"]/g, (c) =>
@@ -141,10 +141,17 @@ function whatIn(root: El, rowsIn: El[]): Item[] {
   // earlier step found)
   const lit = rowsIn.filter((r) => rowState(r).on);
   const rows = lit.length ? lit : rowsIn;
-  // each row's owners, in byte order
+  // each row's owners, in byte order, and its runs of bytes no value
+  // owns (`free`: one item a run, "(unmapped)")
   const perRow = rows.map((r) => {
-    const os: { id: string; cells: El[] }[] = [];
-    for (const c of all(r, ":scope > .word .b[data-owners]")) {
+    const os: { id: string; cells: El[]; free?: boolean }[] = [];
+    for (const c of all(r, ":scope > .word .b[data-g]")) {
+      if (!c.dataset.owners) {
+        const id = `#free:${slotOf(r)}:${c.dataset.g}`;
+        if (!os.some((o) => o.id === id)) os.push({ id, cells: [], free: true });
+        os.find((o) => o.id === id)!.cells.push(c);
+        continue;
+      }
       for (const id of c.dataset.owners!.split("|")) {
         if (!os.some((o) => o.id === id)) os.push({ id, cells: [] });
         os.find((o) => o.id === id)!.cells.push(c);
@@ -152,7 +159,7 @@ function whatIn(root: El, rowsIn: El[]): Item[] {
     }
     return os;
   });
-  const owners = perRow.flat();
+  const owners = perRow.flat().filter((o) => !o.free);
   if (!owners.length) return [];
   // (a length part names its value; another part, as vanilla, by its id)
   const path = (id: string) => id.replace(/#length$/, "");
@@ -206,8 +213,10 @@ function whatIn(root: El, rowsIn: El[]): Item[] {
   const out: Item[] = [];
   perRow.forEach((os, r) => {
     os.forEach((o, n) => {
-      const x = item(o.cells, label(o, owners.length === 1), n === 0 && r
-        ? " / " : " · ");
+      const sep = n === 0 && r ? " / " : " · ";
+      const x = o.free ? { text: "(unmapped)", sep, muted: false,
+        free: true, k: o.cells.some((c) => c.classList.contains("fl"))
+          ? "pnone" : null } : item(o.cells, label(o, owners.length === 1), sep);
       x.seg = r;
       // (a value running on into the next slot: named once)
       const prev = out.at(-1);
@@ -228,20 +237,27 @@ function whatHtml(items: Item[], keep: number[]) {
   const cut = '<span class="pcut">…</span>';
   const parts: string[] = [];
   for (const g of segs) {
+    // (an "(unmapped)" cut leaves no "…": no name is hidden)
     const idx = items.map((x, i) => [x, i] as const)
-      .filter(([x]) => (x.seg ?? 0) === g).map(([, i]) => i);
+      .filter(([x, i]) => (x.seg ?? 0) === g && (!x.free || kept.has(i)))
+      .map(([, i]) => i);
     const on = idx.filter((i) => kept.has(i));
     if (!on.length) {
       if (parts.at(-1) !== cut) parts.push(cut);
       continue;
     }
     let seg = "";
+    // (by place in the slot's shown items: a cut is a gap there)
     let last = idx[0] - 1;
     for (const i of on) {
-      if (i !== last + 1) seg += `${seg ? " · " : ""}${cut}`;
+      if (idx.indexOf(i) !== idx.indexOf(last) + 1) {
+        seg += `${seg ? " · " : ""}${cut}`;
+      }
       const x = items[i];
-      seg += `${seg ? " · " : ""}<code class="pname${x.k ? ` pbadge ${x.k}`
-        : ""}${x.k && x.muted ? " muted" : ""}">${esc(x.text)}</code>`;
+      // (bytes no value owns: pfree; badged, pointed at, in no colour)
+      seg += `${seg ? " · " : ""}<code class="pname${x.free ? " pfree" : ""}${
+        x.k ? ` pbadge ${x.k}` : ""}${x.k && x.muted ? " muted" : ""}">${
+        esc(x.text)}</code>`;
       last = i;
     }
     if (last !== idx.at(-1)) seg += ` · ${cut}`;
@@ -268,8 +284,11 @@ function fitWhat(pop: Pop) {
   const segs = [...new Set(items.map((x) => x.seg ?? 0))];
   const segOf = (i: number) => items[i].seg ?? 0;
   // (a slot's first or last name)
-  const ends = (i: number) => !(items.some((_, j) => segOf(j) === segOf(i) &&
-    j < i) && items.some((_, j) => segOf(j) === segOf(i) && j > i));
+  const ends = (i: number) => {
+    const by = (j: number) => !items[j].free && segOf(j) === segOf(i);
+    return !(items.some((_, j) => by(j) && j < i) &&
+      items.some((_, j) => by(j) && j > i));
+  };
   const C = keep.filter((i) => items[i].k);
   const near = (i: number) => C.length
     ? Math.min(...C.map((c) => Math.abs(c - i))) : i;
@@ -278,7 +297,10 @@ function fitWhat(pop: Pop) {
   };
   const many = segs.length > 1;
   while (over()) {
-    const plain = keep.filter((i) => !items[i].k && (!many || !ends(i)));
+    // (an "(unmapped)" first, then the plain names)
+    const free = keep.filter((i) => items[i].free && !items[i].k);
+    const plain = free.length ? free
+      : keep.filter((i) => !items[i].k && (!many || !ends(i)));
     if (plain.length) {
       // (the farthest from a coloured name; the later one on a tie)
       const far = plain.reduce((a, b) => near(b) >= near(a) ? b : a);
