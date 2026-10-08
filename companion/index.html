@@ -347,11 +347,11 @@ pull request #328, merged 2026-10-06); solc in a later stage
   a byte <code>offset</code> and <code>length</code>. A region can have
   a <code>name</code>, so other parts can refer to it.</li>
   <li><strong>Expressions:</strong> any slot, offset or length can be
-  computed: arithmetic (<code>$sum</code>, <code>$difference</code>,
-  <code>$product</code>, <code>$quotient</code>,
-  <code>$remainder</code>), <code>$read</code> (the bytes now in a named
-  region), <code>$keccak256</code>, <code>$concat</code>,
-  <code>$wordsized</code> (give a value an exact 32-byte width, as a
+  computed: arithmetic (<code>~sum</code>, <code>~difference</code>,
+  <code>~product</code>, <code>~quotient</code>,
+  <code>~remainder</code>), <code>~read</code> (the bytes now in a named
+  region), <code>~keccak256</code>, <code>~concat</code>,
+  <code>~wordsized</code> (give a value an exact 32-byte width, as a
   hash needs), and the <code>.slot</code>, <code>.offset</code> and
   <code>.length</code> of a named region.</li>
   <li><strong>Collections:</strong> <code>group</code> (several
@@ -368,12 +368,16 @@ pull request #328, merged 2026-10-06); solc in a later stage
 <p>Inside a slot, <code>offset</code> counts from the most significant
 byte. solc's <code>storageLayout</code> counts from the other end, so a
 converter must flip it.</p>
-<p>The expression keys start with <code>$</code> today. ethdebug/format
-issue #310 proposes <code>~</code> instead, because <code>$</code> can
-collide with identifiers.</p>
+<p>The expression keys start with <code>~</code> (ethdebug/format
+switched from <code>$</code> in pull request #323, because
+<code>$</code> can collide with identifiers). solc still writes
+<code>$</code>
+(<a href="https://github.com/ethdebug/format/issues/324">issue #324</a>),
+so the solc output quoted on this page is shown with <code>~</code>
+keys; nothing else in it is changed.</p>
 
 <h3>solc's mapping template</h3>
-<p>This is real output from the #16990 build, complete and unedited,
+<p>This is real output from the #16990 build, complete and with its values unedited,
 for <code>mapping(address =&gt; Account) accounts</code> at slot 0, where
 <code>struct Account { uint256 balance; uint64 nonce; bool frozen;
 }</code>. The mapping's template refers only to the struct's, so these
@@ -385,9 +389,9 @@ two are the whole set. They sit in the <em>resources</em> file, under
     "for": {
       "define": {
         "slot": {
-          "$keccak256": [
-            { "$wordsized": "key" },
-            { "$wordsized": "slot" }
+          "~keccak256": [
+            { "~wordsized": "key" },
+            { "~wordsized": "slot" }
           ]
         }
       },
@@ -408,12 +412,12 @@ two are the whole set. They sit in the <em>resources</em> file, under
         { "location": "storage", "name": "balance", "slot": "slot" },
         {
           "location": "storage", "name": "nonce",
-          "slot": { "$sum": ["slot", "0x01"] },
+          "slot": { "~sum": ["slot", "0x01"] },
           "offset": "0x18", "length": "0x08"
         },
         {
           "location": "storage", "name": "frozen",
-          "slot": { "$sum": ["slot", "0x01"] },
+          "slot": { "~sum": ["slot", "0x01"] },
           "offset": "0x17", "length": "0x01"
         }
       ]
@@ -486,19 +490,19 @@ and the keys reordered to read <code>if</code>, <code>then</code>,
     "group": [
       {
         "name": "length-flag", "location": "storage", "slot": "slot",
-        "offset": { "$difference": ["$wordsize", "0x01"] },
+        "offset": { "~difference": ["~wordsize", "0x01"] },
         "length": "0x01"
       },
       {
         "if": {
-          "$remainder": [
-            { "$sum": [{ "$read": "length-flag" }, "0x01"] },
+          "~remainder": [
+            { "~sum": [{ "~read": "length-flag" }, "0x01"] },
             "0x02"
           ]
         },
         "then": {
           "define": {
-            "length": { "$quotient": [{ "$read": "length-flag" }, "0x02"] }
+            "length": { "~quotient": [{ "~read": "length-flag" }, "0x02"] }
           },
           "in": {
             "name": "data", "location": "storage", "slot": "slot",
@@ -511,15 +515,15 @@ and the keys reordered to read <code>if</code>, <code>then</code>,
             {
               "define": {
                 "length": {
-                  "$quotient": [
-                    { "$difference": [{ "$read": "long-length" }, "0x01"] },
+                  "~quotient": [
+                    { "~difference": [{ "~read": "long-length" }, "0x01"] },
                     "0x02"
                   ]
                 }
               },
               "in": {
                 "define": {
-                  "start": { "$keccak256": [{ "$wordsized": "slot" }] }
+                  "start": { "~keccak256": [{ "~wordsized": "slot" }] }
                 },
                 "in": {
                   "name": "data", "location": "storage", "slot": "start",
@@ -536,7 +540,7 @@ and the keys reordered to read <code>if</code>, <code>then</code>,
 <h4>Walkthrough</h4>
 <ol>
   <li><code>length-flag</code> is the last byte of the slot (offset
-  <code>$wordsize</code> − 1, where <code>$wordsize</code> is 32).</li>
+  <code>~wordsize</code> − 1, where <code>~wordsize</code> is 32).</li>
   <li>The <code>if</code> reads that byte, adds 1 and takes the
   remainder by 2. For an even byte (short string) the result is 1, so
   <code>then</code> applies; for an odd byte (long string) it is 0, so
@@ -588,9 +592,9 @@ C++, Rust). It is a good format, and we learn from it. Its
 with section numbers from DWARF 5:</p>
 <div class="table-wrap"><table>
 <tr><th>EVM case</th><th>DWARF 5</th><th>ethdebug pointer</th></tr>
-<tr><td>Dynamic array in memory</td><td>Possible (§5.18, the machinery for Fortran arrays)</td><td><code>$read</code> the length, then a <code>list</code></td></tr>
+<tr><td>Dynamic array in memory</td><td>Possible (§5.18, the machinery for Fortran arrays)</td><td><code>~read</code> the length, then a <code>list</code></td></tr>
 <tr><td>Packed struct fields</td><td>Possible (§5.7.6)</td><td><code>offset</code> and <code>length</code> in a slot</td></tr>
-<tr><td>Hashed storage: mappings, storage arrays, long strings</td><td>No operation hashes. A vendor operation (§7.7.1) would work only in tools that add it; gdb, lldb and gimli (the Rust DWARF library) do not. No type for "the value at key k".</td><td><code>$keccak256</code></td></tr>
+<tr><td>Hashed storage: mappings, storage arrays, long strings</td><td>No operation hashes. A vendor operation (§7.7.1) would work only in tools that add it; gdb, lldb and gimli (the Rust DWARF library) do not. No type for "the value at key k".</td><td><code>~keccak256</code></td></tr>
 <tr><td>Short-or-long strings</td><td>Variant parts (§5.7.10) fit only in part, since the long case needs a hash</td><td><code>if</code> / <code>then</code> / <code>else</code></td></tr>
 <tr><td>Several items packed per slot</td><td>One stride per array; cannot express it</td><td><code>list</code> with computed offsets</td></tr>
 <tr><td>Several data locations</td><td>Only <code>DW_OP_xderef</code>, with numbered address spaces that DWARF does not define (§2.5.1.3)</td><td>Seven named locations</td></tr>
@@ -624,7 +628,7 @@ lets the compiler state the rule, and a generic evaluator apply it.</p>
 <p>Vyper, another contract language, hashes a mapping's key and slot in
 the opposite order, a perfectly good choice. As a pointer, that is just
 the two operands swapped:</p>
-<pre><code class="language-json">{ "$keccak256": [{ "$wordsized": "slot" }, { "$wordsized": "key" }] }</code></pre>
+<pre><code class="language-json">{ "~keccak256": [{ "~wordsized": "slot" }, { "~wordsized": "key" }] }</code></pre>
 <p>Vyper does not pack values into slots either, so its regions would
 simply have no <code>offset</code>. The tool reading them would not
 change. Vyper does not emit ethdebug; we wrote this from its rule, and

@@ -906,8 +906,8 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
   await page.locator(`#tree li[data-path="${A}.combo"] > .row`).hover();
   pp0 = await pops();
   if (pp0.length !== 1 || !pp0[0].startsWith(
-    "keccak(0x7099…79c8, slot 3) : lastBlock · hitCount · plays +3 · read, " +
-    "written")) {
+    "keccak(0x7099…79c8, slot 3) : ") || !pp0[0].includes("combo") ||
+    !pp0[0].endsWith(" · read, written") || /\+\d/.test(pp0[0])) {
     problems.push(`pops combo: ${pp0}`);
   }
   // each popover's left edge is at the gutter's, its arrow at its
@@ -1206,6 +1206,9 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
         c.className.replace("chip ", "")).join(),
       ptr: [...document.querySelectorAll("#ptr .line.on")].map((l) =>
         l.textContent.trim()),
+      // (the band's first line)
+      band0: [...document.querySelectorAll("#ptr .line")].findIndex((l) =>
+        l.classList.contains("on")),
       lit: [...document.querySelectorAll(
         "#panel .view:not([hidden]) .b.hl")].map((c) =>
         `${c.closest(".wrow").dataset.slot} ${c.dataset.i}`),
@@ -1236,6 +1239,13 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
     await page.locator('#details button[data-r="start"]').click();
     const out = [];
     const ctl = new Set();
+    // (step 0, the goal, where there is one: kept aside)
+    const g = await stepNow();
+    if (g.count?.startsWith("0 /")) {
+      out.goal = { ...g, lit: litNamed(g, nm) };
+      ctl.add(g.ctl);
+      await page.locator('#details button[data-r="next"]').click();
+    }
     // (▶ stops at the last step; ✕ Exit leaves)
     for (let k = 0; k < 20; k++) {
       const x = await stepNow();
@@ -1251,6 +1261,15 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
     await page.locator('#details button[data-r="exit"]').click();
     ctl.add((await stepNow()).ctl);
     out.ctl = ctl.size;
+    // (the last step, "found", kept aside; the counts here are the rule
+    // steps': without it)
+    if (out.at(-1)?.cap?.startsWith("That's ")) {
+      out.found = out.pop();
+      for (const x of out) {
+        x.count = x.count?.replace(/(\d+) \/ (\d+)/, (_, a, b) =>
+          `${a} / ${+b - 1}`);
+      }
+    }
     return out;
   };
   const al = "keccak(0x7099…79c8, slot 3)";
@@ -1270,81 +1289,353 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
     "keccak(slot 0) + 1": range(12, 31).join(),
     "keccak(slot 0) + 2": range(12, 31).join() };
   const cdata = `keccak(${cl0} + 1)`;
-  // (cap, lit, at full strength, the band's line, the gutters)
+  // (cap, lit, at full strength, a line of the band, the gutters)
+  const rows3 = [al, rec, cl0];
   const wantPlayers = [
-    // (its own slot named, not read: the gutter only)
+    // the inputs first: the keys, from roster (no band)
+    ["The keys: the addresses in roster", roster, null, null, []],
     ["players is declared at slot 3; that slot holds nothing",
       {}, null, "slot: 0x03", ["slot 3"]],
-    // (a template entered: the inputs it takes; the keys' items lit)
     ["The template mapping(address => Player) takes slot = 3, key = each " +
-      "address in roster", roster, null, "expect: [slot, key]", ["slot 3"]],
-    // (all three entries at once, and the roster items of their keys)
-    ["Each record is at keccak(key, 3); the keys are the addresses in roster",
-      { [al]: "all", [rec]: "all", [cl0]: "all", ...roster }, null,
-      "$keccak256", []],
+      "address in roster", {}, null, "expect: [slot, key]", ["slot 3"]],
+    ["Each record is at keccak(key, 3)", {}, null, "~keccak256", rows3],
     ["The template Player takes slot = each record's slot", {}, null,
-      "expect: [slot]", [al, rec, cl0]],
-    // (alice, the focus, at full strength; bob and carol echo, muted)
-    ["A record is two slots: stats, then name", { [al]: "all",
-      [`${al} + 1`]: "0,1,2,3,4,31", [rec]: "all", [`${rec} + 1`]: "0,1,2,31",
-      [cl0]: "all", [`${cl0} + 1`]: "all" },
-    { [al]: "all", [`${al} + 1`]: "0,1,2,3,4,31" }, "$sum: [slot, 0x01]", []],
-    ["The stats share one slot, packed from the right",
-      { [al]: stats, [rec]: stats, [cl0]: stats }, { [al]: stats },
-      "name: score", []],
-    ["The template string takes slot = each record's name slot", {}, null,
-      "expect: [slot]", [`${al} + 1`, `${rec} + 1`, `${cl0} + 1`]],
-    // (both branches: alice's and bob's short names, carol's long one)
-    ["The last byte decides name's form", { [`${al} + 1`]: "0,1,2,3,4,31",
-      [`${rec} + 1`]: "0,1,2,31", [`${cl0} + 1`]: "all", [cdata]: "all",
-      [`${cdata} + 1`]: "0,1" }, null, "else:", []],
+      "expect: [slot]", rows3],
+    // (focus "all": all three at full strength)
+    ["The first slot packs six fields, from the right",
+      { [al]: stats, [rec]: stats, [cl0]: stats }, null, "name: score", []],
+    ["The next slot holds name, a string", {}, null, "~sum: [slot, 0x01]",
+      rows3.map((x) => `${x} + 1`)],
+    ["The template string takes slot = each name slot", {}, null,
+      "expect: [slot]", rows3.map((x) => `${x} + 1`)],
+    ["The last byte of each name slot is its length flag",
+      { [`${al} + 1`]: "31", [`${rec} + 1`]: "31", [`${cl0} + 1`]: "31" },
+      null, "name: length-flag", []],
+    // (one fork: both branches)
+    // (the instances by their names on chain: carol's, cut in a caption)
+    ["The last byte decides the form: even → short (\"alice\", \"bob\"), " +
+      "odd → long (\"carol, the un…\")", { [`${al} + 1`]: "31", [`${rec} + 1`]: "31",
+      [`${cl0} + 1`]: "all" }, null, "else:", []],
+    ["Each short text is in its slot, from the left", {
+      [`${al} + 1`]: "0,1,2,3,4", [`${rec} + 1`]: "0,1,2" }, null,
+      "in: { name: data", []],
+    ["The text starts at keccak(…9979) = …c248, 34 bytes over 2 slots",
+      { [cdata]: "all", [`${cdata} + 1`]: "0,1" }, null,
+      "start: { ~keccak256", []],
   ];
-  const P = Object.fromEntries(["decl", "map", "entries", "player", "record",
-    "fields", "string", "name"].map((k, i) => [k, i]));
-  if (w.length !== 8 || w.ctl !== 1) {
+  const P = Object.fromEntries(["input", "decl", "map", "entries", "player",
+    "fields", "handoff", "string", "flag", "name", "short", "long"]
+    .map((k, i) => [k, i]));
+  const N = wantPlayers.length;
+  if (w.length !== N || w.ctl !== 1) {
     problems.push(`replay players: ${w.length} steps, controls at ${w.ctl}`);
   }
+  // step 0, the goal: players' slots, whole, in the selection's yellow,
+  // with no label and no band; total has none; ⏮ and ◀ reach it; a
+  // re-target from it stays on it
+  {
+    const g = w.goal;
+    const all = g && Object.values(g.lit).every((v) => v === "all");
+    const labels = await (async () => {
+      await page.evaluate(() => window.select("mid", { sel: "players" }));
+      await page.locator('#details button[data-r="start"]').click();
+      await page.mouse.move(1, 1);
+      const x = await page.evaluate(() => ({
+        pops: document.querySelectorAll("#panel .view:not([hidden]) .pop")
+          .length,
+        hues: [...document.querySelectorAll(
+          "#panel .view:not([hidden]) .b.hl")].filter((b) =>
+          /\bpk\d/.test(b.className)).length,
+        band: document.querySelectorAll("#ptr .line.on").length,
+        cur: document.querySelectorAll("#chips .chip.cur").length }));
+      await page.locator('#details button[data-r="next"]').click();
+      await page.locator('#details button[data-r="prev"]').click();
+      x.prev = (await stepNow()).count;
+      await page.locator('#details button[data-r="last"]').click();
+      await page.locator('#details button[data-r="first"]').click();
+      x.first = (await stepNow()).count;
+      // (re-targeted at step 0: to carol's record, step 0 too)
+      await row(C).click();
+      x.re = (await stepNow()).count;
+      await page.keyboard.press("Escape");
+      return x;
+    })();
+    const tw = await walk("total");
+    // (the bar counts the found step too: N + 1)
+    if (g?.count !== `0 / ${N + 1}` || !all || Object.keys(g.lit).length < 9 ||
+      labels.pops || labels.hues || labels.band || labels.cur ||
+      labels.prev !== `0 / ${N + 1}` || labels.first !== `0 / ${N + 1}` ||
+      labels.re !== "0 / 12" || tw.goal || tw[0].count !== "1 / 1") {
+      problems.push(`step 0: ${JSON.stringify({ g: g?.count, lit: g?.lit,
+        labels, total: tw.goal ?? tw[0]?.count })}`);
+    }
+  }
+  // the pointer's box: no scrollbar shown; circle buttons where there is
+  // more, which scroll it; blurred at step 0 only; its new header
+  {
+    await page.evaluate(() => window.select("mid", { sel: "players" }));
+    await page.locator('#details button[data-r="start"]').click();
+    const pb = () => page.evaluate(() => {
+      const p = document.querySelector("#ptr");
+      return { bar: p.offsetWidth - p.clientWidth - 2 * p.clientLeft,
+        top: p.scrollTop, up: document.querySelector(".pedge.up").classList
+          .contains("on"), down: document.querySelector(".pedge.down")
+          .classList.contains("on"), yellow: [...document.querySelectorAll(
+          ".pedge, .pedge button")].some((e) => getComputedStyle(e)
+          .backgroundColor === "rgb(255, 224, 138)"), blur: getComputedStyle(p.querySelector(
+          ".ptrlines")).filter, head: document.querySelector(".ptr .plabel")
+          .textContent };
+    });
+    // (step 0: no band, and it does not scroll)
+    await page.locator("#ptr").hover({ position: { x: 20, y: 20 } });
+    await page.mouse.wheel(0, 300);
+    await page.waitForTimeout(150);
+    const z = await pb();
+    z.bands = await page.locator(".pedge.on").count();
+    // (and a plain label over it, an arrow from it ending at ▶, and a
+    // halo on ▶; none from step 1 on)
+    const go = () => page.evaluate(() => {
+      const l = document.querySelector("#pgo");
+      const n = document.querySelector('#details button[data-r="next"]');
+      return { label: !l.hidden && l.tagName === "P" && /[⤴↖]$/.test(
+        l.textContent.trim()), arrow: !!document.querySelector("svg#goarrow"),
+      halo: n.classList.contains("halo") };
+    });
+    z.go = await go();
+    await page.locator('#details button[data-r="next"]').click();
+    z.after = (await stepNow()).count;
+    z.goAfter = await go();
+    await page.locator('#details button[data-r="first"]').click();
+    await page.locator('#details button[data-r="next"]').click();
+    await page.waitForTimeout(100);
+    const o = await pb();
+    if (o.down) await page.locator("#pedge-down").click();
+    await page.waitForTimeout(100);
+    const d = await pb();
+    await page.keyboard.press("Escape");
+    if (z.bar || z.top || z.bands || z.up || z.down || !z.go.label ||
+      z.go.arrow || !z.go.halo || z.goAfter.label || z.goAfter.arrow ||
+      z.goAfter.halo || !z.after.startsWith("1 /") ||
+      !/blur/.test(z.blur) || o.blur !== "none" || !o.down ||
+      o.up || o.yellow ||
+      d.top <= o.top || !d.up ||
+      !z.head.startsWith("Ethdebug data from the compiler")) {
+      problems.push(`pointer box: ${JSON.stringify({ z, o, d })}`);
+    }
+  }
+  // the byte strip: at the packed fields (and a flag, total), one line,
+  // 32 equal cells, evenly spaced, each field's
+  // span over its own cells, no wrapping at 1280 and 1440
+  {
+    const bad = [];
+    for (const wd of [1280, 1440]) {
+      await page.setViewportSize({ width: wd, height: 900 });
+      await page.evaluate(() => window.select("mid", { sel: "players" }));
+      await page.locator('#details button[data-r="start"]').click();
+      await page.locator(`#chips .chip[data-k="${P.fields}"]`).click();
+      const x = await page.evaluate(() => {
+        const s = document.querySelector("#dtext .bstrip .bs32");
+        if (!s) return null;
+        const idx = [...s.querySelectorAll(".bsidx span")].map((e) =>
+          e.getBoundingClientRect());
+        // (equal steps from cell to cell, across the groups too)
+        const steps = idx.slice(1).map((q, i) => q.left - idx[i].left);
+        const even = Math.max(...steps) - Math.min(...steps) < 1;
+        const spans = [...s.querySelectorAll(".bsv")].map((v) => {
+          const r = v.getBoundingClientRect();
+          const a = idx.findIndex((q) => Math.abs(q.left - r.left) < 2);
+          const b = idx.findIndex((q) => Math.abs(q.right - r.right) < 2);
+          return `${v.textContent} ${a}-${b}`;
+        });
+        const rows = [...s.querySelectorAll(".bsv .bsn")].every((n) =>
+          n.getClientRects().length === 1 && n.scrollHeight <=
+          n.clientHeight + 1);
+        return { even, spans, rows,
+          oneLine: s.querySelector(".bsrow").getBoundingClientRect().height <
+            parseFloat(getComputedStyle(s).fontSize) * 2 };
+      });
+      await page.keyboard.press("Escape");
+      if (!x || !x.even || !x.rows ||
+        !x.oneLine || x.spans.join() !== ["lastBlock 0-7", "hitCount 8-11",
+        "plays 12-15", "bestCombo 16-19", "combo 20-23", "score 24-31"]
+          .join()) bad.push(`${wd} ${JSON.stringify(x)}`);
+    }
+    // (a name too long for its span stands over it, whole, with a tick;
+    // never cut to a letter: carol's one-byte length flag)
+    await page.evaluate((x) => window.select("mid", { sel: x }), C);
+    await page.locator('#details button[data-r="start"]').click();
+    await page.locator('#chips .chip[data-k="8"]').click();
+    const call = await page.evaluate(() => {
+      const s = document.querySelector("#dtext .bstrip .bs32");
+      const l = s.querySelector(".bsl");
+      const v = s.querySelector(".bsv");
+      const lr = l?.getBoundingClientRect();
+      const vr = v?.getBoundingClientRect();
+      return { text: l?.textContent, inside: !v?.textContent,
+        over: lr && vr && lr.bottom <= vr.top && lr.right >= vr.left &&
+          lr.left <= vr.right,
+        cut: [...s.querySelectorAll(".bsn")].some((n) =>
+          n.scrollWidth > n.clientWidth + 1) };
+    });
+    await page.keyboard.press("Escape");
+    if (call.text !== "length-flag = 0x45" || !call.inside || !call.over ||
+      call.cut) bad.push(`callout ${JSON.stringify(call)}`);
+    await page.evaluate((x) => window.select("mid", { sel: x }), `${B}.plays`);
+    await page.setViewportSize({ width: 1280, height: 900 });
+    if (bad.length) problems.push(`byte strip: ${bad}`);
+  }
+  // the last step, "found": the resting view (the same lit bytes,
+  // colours, rows and labels as the selection at rest); a re-target
+  // there stays on found
+  {
+    const view = () => page.evaluate(() => JSON.stringify({
+      b: [...document.querySelectorAll("#panel .view:not([hidden]) .b.hl")]
+        .map((c) => `${c.closest(".wrow").dataset.slot.slice(-4)} ${
+          c.dataset.i} ${c.className.match(/pk\d/)?.[0] ?? ""}`),
+      r: [...document.querySelectorAll("#tree .row.hl")].map((r) =>
+        `${r.parentElement.dataset.path} ${r.className.match(/pk\d/)
+          ?.[0] ?? ""}`),
+      p: [...document.querySelectorAll("#panel .view:not([hidden]) .pop")]
+        .map((p) => p.textContent) }));
+    const bad = [];
+    for (const x of ["players", C, "total"]) {
+      await page.evaluate((y) => window.select("mid", { sel: y }), x);
+      await page.mouse.move(1, 1);
+      const rest = await view();
+      await page.locator('#details button[data-r="start"]').click();
+      await page.locator('#details button[data-r="last"]').click();
+      await page.mouse.move(1, 1);
+      const f = await view();
+      const cap = (await stepNow()).cap;
+      if (f !== rest || !cap.startsWith("That's ")) bad.push(x.slice(0, 12));
+      if (x === C) {
+        await row(`${C}.name`).click();
+        const r = await stepNow();
+        if (!r.cap.startsWith("That's ") || !/^(\d+) \/ \1$/.test(r.count)) {
+          bad.push(`re-target at found: ${r.count}`);
+        }
+      }
+      await page.keyboard.press("Escape");
+    }
+    if (bad.length) problems.push(`found step: ${bad}`);
+    await page.evaluate((x) => window.select("mid", { sel: x }), `${B}.plays`);
+  }
+  // (after the inputs, the band only moves down)
+  const down = (ws) => ws.map((x) => x.band0).filter((b) => b >= 0)
+    .every((b, i, a) => !i || b >= a[i - 1]);
+  if (!down(w)) problems.push(`players band moves up: ${w.map((x) =>
+    x.band0)}`);
   for (const [k, [cap, lit0, full0, ptr, gut]] of wantPlayers.entries()) {
     const x = w[k];
     if (!x?.cap.startsWith(cap) || !same(x.lit, lit0) ||
       !same(x.full, full0 ?? lit0) || !x.dim || !x.fits ||
-      x.count !== `${k + 1} / 8` || !x.short ||
+      x.count !== `${k + 1} / ${N}` || !x.short ||
       [...x.gut].sort().join() !== [...gut].sort().join() ||
-      !x.ptr.some((l) => l.includes(ptr))) {
+      (ptr ? !x.ptr.some((l) => l.includes(ptr)) : x.ptr.length)) {
       problems.push(`players step ${k + 1}: ${JSON.stringify({ cap: x?.cap,
         lit: x?.lit, full: x?.full, gut: x?.gut, fits: x?.fits,
         ptr: x?.ptr })}`);
     }
-    const chips = wantPlayers.map((_, j) => j < k ? "done" : j === k ? "cur"
-      : "later").join();
+    const chips = [...wantPlayers, null].map((_, j) => j < k ? "done"
+      : j === k ? "cur" : "later").join();
     if (x?.chips !== chips) problems.push(`players chips ${k + 1}: ${x?.chips}`);
   }
   // a template step's band is its frame (name, expect, for:); the next
   // step's band starts inside it (group:)
   if (w[P.player]?.ptr.join("|") !== "Player:|expect: [slot]|for:" ||
-    w[P.record]?.ptr[0] !== "group:") {
-    problems.push(`template frame: ${w[P.player]?.ptr} | ${w[P.record]
+    !w[P.fields]?.ptr[0].startsWith("- name: score")) {
+    problems.push(`template frame: ${w[P.player]?.ptr} | ${w[P.fields]
       ?.ptr.slice(0, 2)}`);
   }
-  // step 2's instances, one row a key; step 5's two branches
-  if (!["0x7099…79c8 alice→…aa80", "0x3c44…93bc bob→…7527",
-    "0x90f7…b906 carol→…9978"].every((x) => w[P.entries]?.form
-    .includes(x)) ||
+  if (!["0x7099…79c8 \"alice\"→[0]", "0x3c44…93bc \"bob\"→[1]",
+    "0x90f7…b906 \"carol, the unstoppable combo queen\"→[2]"].every((x) => w[P.input]?.form.includes(x)) ||
     !w[P.name]?.form.includes("even: 0x0a → 5 bytes inline") ||
     !w[P.name]?.form.includes("odd: 0x45 → 34 bytes at keccak(…9979)")) {
-    problems.push(`players forms: ${w[P.entries]?.form} | ${w[P.name]
+    problems.push(`players forms: ${w[P.input]?.form} | ${w[P.name]
       ?.form}`);
+  }
+  // carol's record: eleven steps, as the reference walkthrough
+  {
+    const cw = await walk(C);
+    const cwant = [
+      ["key = the address of \"carol, the unstoppable combo queen\", from " +
+        "roster[2]",
+        { "keccak(slot 0) + 2": range(12, 31).join() }, [], null],
+      ["players is declared at slot 3", {}, ["slot 3"], "slot: 0x03"],
+      ["The template mapping(address => Player) takes slot = 3, key = " +
+        "the address of \"carol, the unstoppable combo queen\"", {},
+        ["slot 3"], "expect: [slot, key]"],
+      ["The record is at keccak(0x90f7…b906, 3) = …9978", {}, [cl0],
+        "~keccak256"],
+      ["The template Player takes slot = …9978", {}, [cl0], "Player:"],
+      ["The first slot packs six fields", { [cl0]: "all" }, [],
+        "name: lastBlock"],
+      ["The next slot holds name, a string: …9978 + 1 = …9979", {},
+        [`${cl0} + 1`], "template: string"],
+      ["The template string takes slot = …9979", {}, [`${cl0} + 1`],
+        "string:"],
+      ["The last byte is the length flag, 0x45", { [`${cl0} + 1`]: "31" },
+        [], "name: length-flag"],
+      ["Odd → long: the slot holds 2 × length + 1, so length = 34",
+        { [`${cl0} + 1`]: "all" }, [], "long-length"],
+      ["The text starts at keccak(…9979) = …c248, 34 bytes over 2 slots",
+        { [cdata]: "all", [`${cdata} + 1`]: "0,1" }, [], "name: data"]];
+    const bad = cwant.filter(([cap, lit, gut, band], k) => !cw[k] ||
+      !cw[k].cap.startsWith(cap) || !same(cw[k].lit, lit) ||
+      cw[k].gut.join() !== gut.join() || (band ? !cw[k].ptr.some((l) =>
+        l.includes(band)) : cw[k].ptr.length)).map(([cap]) => cap);
+    if (cw.length !== 11 || bad.length || !down(cw)) {
+      problems.push(`carol's walkthrough: ${cw.length} ${bad.slice(0, 3)} ${
+        cw.map((x) => x.band0)}`);
+    }
   }
   // the chips: one per rule, with its storage noun
   {
     await page.evaluate(() => window.select("mid", { sel: "players" }));
     const cs = await page.locator("#chips .chip").evaluateAll((cs) =>
       cs.map((c) => c.textContent).join("|"));
-    if (cs !== "slot 3mapping|mapping(address => Player)template|" +
-      "keccak(key, 3)records|Playertemplate|2 slotsrecord|" +
-      "6 fieldsfields|stringtemplate|name: short | longstring") {
+    if (cs !== "keysroster|slot 3mapping|mapping(address => Player)template|" +
+      "keccak(key, 3)record|Playertemplate|6 fieldsfields|namestring|" +
+      "stringtemplate|flagstring|short | longbranch|inlinetext|" +
+      "keccak(slot)text|foundplayers") {
       problems.push(`chips: ${cs}`);
     }
+  }
+  // the focus: "all" first and by default for players (every record at
+  // full strength at every step); alice gives the echo; carol's record
+  // alone is in focus, with nothing muted
+  {
+    await page.evaluate(() => window.select("mid", { sel: "players" }));
+    await page.locator('#details button[data-r="start"]').click();
+    const btns = await page.locator("#dpick button").evaluateAll((bs) =>
+      bs.map((b) => `${b.textContent}${b.getAttribute("aria-pressed") ===
+        "true" ? "*" : ""}`).join());
+    const muted = [];
+    for (let k = 0; k < N; k++) {
+      await page.locator(`#chips .chip[data-k="${k}"]`).click();
+      muted.push(await page.locator(
+        "#panel .view:not([hidden]) .b.hl.muted").count());
+    }
+    await page.locator(`#chips .chip[data-k="${P.fields}"]`).click();
+    await page.locator("#dpick button", { hasText: '"alice"' }).click();
+    const echo = await page.locator(
+      "#panel .view:not([hidden]) .b.hl.muted").count();
+    await page.keyboard.press("Escape");
+    await page.evaluate((x) => window.select("mid", { sel: x }), C);
+    await page.locator('#details button[data-r="start"]').click();
+    let cm = 0;
+    for (let k = 0; k < 11; k++) {
+      await page.locator(`#chips .chip[data-k="${k}"]`).click();
+      cm += await page.locator("#panel .view:not([hidden]) .b.hl.muted")
+        .count();
+    }
+    await page.keyboard.press("Escape");
+    if (btns !== 'all*,"alice","bob","carol, the un…"' ||
+      muted.some(Boolean) || !echo ||
+      cm) {
+      problems.push(`focus all: ${JSON.stringify({ btns, muted, echo, cm })}`);
+    }
+    await page.evaluate(() => window.select("mid", { sel: "players" }));
   }
   // the focus picker: bob at full strength in steps 3 and 4, and in the
   // formulas; nothing moves
@@ -1359,33 +1650,32 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
       return [r.left, r.top, r.width, r.height].map(Math.round);
     })));
     const b0 = await boxes();
-    await page.locator('#dpick button', { hasText: "bob" }).click();
+    await page.locator('#dpick button', { hasText: '"bob"' }).click();
     await page.mouse.move(1, 1);
     const x = await stepNow();
     const b1 = await boxes();
     const pressed = await page.locator('#dpick button[aria-pressed="true"]')
       .innerText();
-    await page.locator(`#chips .chip[data-k="${P.record}"]`).click();
-    const y = await stepNow();
-    if (b0 !== b1 || pressed !== "bob" || x.count !== "6 / 8" ||
-      !same(litNamed({ lit: x.full }), { [rec]: stats }) ||
-      !y.form.startsWith("bob: …7527") || !same(litNamed({ lit: y.full }),
-        { [rec]: "all", [`${rec} + 1`]: "0,1,2,31" })) {
+    if (b0 !== b1 || pressed !== '"bob"' || x.count !== `${P.fields + 1} / ${N + 1}` ||
+      !same(litNamed({ lit: x.full }), { [rec]: stats })) {
       problems.push(`focus picker: ${b0 !== b1 ? "moved " : ""}${pressed} ${
-        x.count} ${JSON.stringify(litNamed({ lit: x.full }))} ${y.form}`);
+        x.count} ${JSON.stringify(litNamed({ lit: x.full }))}`);
     }
     await page.keyboard.press("Escape");
   }
   // the key's list items light at step 2, in their entries' colours
   {
     await page.locator('#details button[data-r="start"]').click();
+    const col = (ps) => page.evaluate((x) => x.map((p) => document
+      .querySelector(`#tree li[data-path="${p}"] > .row`)?.className
+      .match(/pk\d/)?.[0]), ps);
+    await page.locator(`#chips .chip[data-k="${P.input}"]`).click();
+    await page.mouse.move(1, 1);
+    const ks = await col(["roster[0]", "roster[1]", "roster[2]"]);
     await page.locator(`#chips .chip[data-k="${P.entries}"]`).click();
     await page.mouse.move(1, 1);
-    const pairs = await page.evaluate((es) => es.map((e, i) => {
-      const c = (p) => document.querySelector(`#tree li[data-path="${p}"] ` +
-        "> .row")?.className.match(/pk\d/)?.[0];
-      return [c(`roster[${i}]`), c(e)];
-    }), [A, B, C]);
+    const es = await col([A, B, C]);
+    const pairs = ks.map((k, i) => [k, es[i]]);
     if (pairs.some(([a, b]) => !a || a !== b)) {
       problems.push(`step 2 roster colours: ${JSON.stringify(pairs)}`);
     }
@@ -1402,8 +1692,7 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
     await page.keyboard.press("Escape");
     return hs;
   };
-  const entryHues = [...new Set([...await huesAt(P.entries),
-    ...await huesAt(P.record)])];
+  const entryHues = await huesAt(P.input);
   const fieldHues = await huesAt(P.fields);
   if (entryHues.length !== 3 || fieldHues.length !== 6 ||
     fieldHues.some((x) => entryHues.includes(x))) {
@@ -1418,7 +1707,7 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
       r.querySelector(":scope > .addr").classList.contains("grp")])));
     await page.locator('#details button[data-r="start"]').click();
     const seen = [];
-    for (let k = 0; k < 8; k++) {
+    for (let k = 0; k < N; k++) {
       await page.locator(`#chips .chip[data-k="${k}"]`).click();
       await page.mouse.move(1, 1);
       seen.push(await labelled());
@@ -1426,15 +1715,15 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
     const data = cdata;
     const bad = [];
     // (all three entries from the entries step)
-    for (let k = P.entries; k < 8; k++) {
+    for (let k = P.entries; k < N; k++) {
       for (const [who, e] of [["alice", al], ["bob", rec], ["carol", cl0]]) {
         if (!seen[k][e]) bad.push(`${who} ${k + 1}`);
       }
     }
-    for (let k = 0; k < P.name; k++) {
+    for (let k = 0; k < P.long; k++) {
       if (seen[k][data]) bad.push(`carol ${k + 1}`);
     }
-    if (!seen[P.name][data]) bad.push("carol at the name");
+    if (!seen[P.long][data]) bad.push("carol at her text");
     await page.locator('#details button[data-r="prev"]').click();
     if ((await labelled())[data]) bad.push("◀ kept carol's data");
     // the current step's labels are dark; earlier ones are muted
@@ -1455,7 +1744,7 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
     await page.evaluate(() => window.select("mid", { sel: "players" }));
     await page.locator('#details button[data-r="start"]').click();
     const hrefs = [];
-    for (let k = 0; k < 8; k++) {
+    for (let k = 0; k < N; k++) {
       await page.locator(`#chips .chip[data-k="${k}"]`).click();
       hrefs.push(...await page.locator("#dpanel .fnotes a").evaluateAll(
         (as) => as.map((a) => a.href)));
@@ -1508,11 +1797,14 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
         .id].kind} => ${types[t.contains.value.type.id].definition.name})`;
       return t.definition?.name ?? t.kind;
     };
+    // (solc's "$" read as "~", as the page does: decode.js solcTilde)
     const norm = (v, ren = true) => typeof v === "string" &&
+      /^\$[a-z]/.test(v) ? `~${v.slice(1)}` : typeof v === "string" &&
       /^0x[0-9a-f]+$/i.test(v) ? Number(v) : Array.isArray(v)
       ? v.map((x) => norm(x, ren)) : v && typeof v === "object"
         ? Object.fromEntries(Object.entries(v).map(([k, x]) =>
-          [k, k === "template" && ren ? nameOf(x) : norm(x, ren)])) : v;
+          [k.replace(/^\$/, "~"), k === "template" && ren ? nameOf(x)
+            : norm(x, ren)])) : v;
     const want = { players: norm(f.contract.variables.find((v) =>
       v.identifier === "players").pointer) };
     for (const n of Object.keys(f.contract.pointers)) {
@@ -1536,10 +1828,9 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
   // strength in the stats); carol's name: all but the stats
   w = await walk(`${B}.plays`);
   if (w.map((x) => x.cap.split(" ")[1]).join() !==
-    "is,template,record,template,record,stats" ||
-    !w[2].form.includes("0x3c44…93bc") || !w[4].form.startsWith("bob:") ||
-    !same(w[5].full, { [rec]: range(12, 15).join() }) ||
-    !same(w[5].lit, { [al]: stats, [rec]: stats, [cl0]: stats }) ||
+    "=,is,template,record,template,is" ||
+    !w[2].form.includes("0x3c44…93bc") ||
+    !same(w[5].lit, { [rec]: range(12, 15).join() }) || !down(w) ||
     w.ctl !== 1) {
     problems.push(`replay bob's plays: ${JSON.stringify(w.map((x) =>
       [x.cap, x.full]))}`);
@@ -1552,13 +1843,12 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
   }
   w = await walk(`${C}.name`);
   if (w.map((x) => x.cap.split(" ")[1]).join() !==
-    "is,template,record,template,record,template,last" ||
-    !w[6]?.cap.includes("form") || !w[4]?.form.startsWith("carol:") ||
-    w.ctl !== 1) {
+    "=,is,template,record,template,next,template,last,→,text" ||
+    !down(w) || w.ctl !== 1) {
     problems.push(`replay carol's name: ${JSON.stringify(w.map((x) =>
       x.cap))}`);
   }
-  // The bar: at rest, the entry; in a replay, tinted, "Replay", ⏮ ◀ ▶ ⏭
+  // The bar: at rest, the entry; in a walkthrough, tinted, "Walkthrough", ⏮ ◀ ▶ ⏭
   // (each disabled at its end), the count, ✕ Exit. ▶ and ⏭ never exit;
   // only ✕ Exit and Escape do. Keys work from anywhere, also after a
   // mouse click; a double click on the entry does not skip a step
@@ -1579,32 +1869,32 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
   }
   await page.locator('#details button[data-r="start"]').dblclick();
   bs = await barNow();
-  if (!bs.tint || bs.mode !== "Replay" || bs.count !== "1 / 6" ||
+  if (!bs.tint || bs.mode !== "Walkthrough" || bs.count !== "1 / 7" ||
     bs.off !== "first,prev" || !bs.exit) {
     problems.push(`bar at step 1 (after a double click): ${JSON.stringify(bs)}`);
   }
   await page.locator('#details button[data-r="last"]').click();
   bs = await barNow();
-  if (bs.count !== "6 / 6" || bs.off !== "next,last") {
+  if (bs.count !== "7 / 7" || bs.off !== "next,last") {
     problems.push(`⏭: ${JSON.stringify(bs)}`);
   }
   // ▶ at the last step: disabled; → stays
   await page.keyboard.press("ArrowRight");
   bs = await barNow();
-  if (bs.count !== "6 / 6" || !bs.tint) problems.push(`→ at the end: ${bs.count}`);
+  if (bs.count !== "7 / 7" || !bs.tint) problems.push(`→ at the end: ${bs.count}`);
   await page.locator('#details button[data-r="first"]').click();
-  if ((await barNow()).count !== "1 / 6") problems.push("⏮");
+  if ((await barNow()).count !== "1 / 7") problems.push("⏮");
   // keys after a mouse click on ▶, and from anywhere (the focus moved)
   await page.locator('#details button[data-r="next"]').click();
   await page.keyboard.press("ArrowRight");
-  if ((await barNow()).count !== "3 / 6") {
+  if ((await barNow()).count !== "3 / 7") {
     problems.push(`→ after a click: ${(await barNow()).count}`);
   }
   await page.evaluate(() => document.activeElement?.blur());
   await page.keyboard.press("Home");
-  if ((await barNow()).count !== "1 / 6") problems.push("Home");
+  if ((await barNow()).count !== "1 / 7") problems.push("Home");
   await page.keyboard.press("End");
-  if ((await barNow()).count !== "6 / 6") problems.push("End");
+  if ((await barNow()).count !== "7 / 7") problems.push("End");
   // ✕ Exit
   await page.locator('#details button[data-r="exit"]').click();
   if ((await barNow()).tint) problems.push("✕ Exit did not exit");
@@ -1612,15 +1902,15 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
   await page.locator('#details button[data-r="start"]').click();
   await page.locator('#chips .chip[data-k="1"]').click();
   st = await stepNow();
-  if (st.count !== "2 / 6") problems.push(`chip jump: ${st.count}`);
+  if (st.count !== "2 / 7") problems.push(`chip jump: ${st.count}`);
   await page.locator("#details").focus();
   await page.keyboard.press("ArrowLeft");
   st = await stepNow();
-  if (st.count !== "1 / 6") problems.push(`←: ${st.count}`);
+  if (st.count !== "1 / 7") problems.push(`←: ${st.count}`);
   await page.keyboard.press("ArrowRight");
   await page.keyboard.press("ArrowRight");
   st = await stepNow();
-  if (st.count !== "3 / 6") problems.push(`→: ${st.count}`);
+  if (st.count !== "3 / 7") problems.push(`→: ${st.count}`);
   await page.keyboard.press("Escape");
   st = await stepNow();
   if (!st.resolved || (await selected()).join() !== `${B}.plays`) {
@@ -1725,11 +2015,17 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
       const ar = a.getBoundingClientRect();
       const pr = p.getBoundingClientRect();
       const bf = getComputedStyle(a, "::before");
-      const arrow = getComputedStyle(p, "::after");
-      const ah = parseFloat(arrow.borderTopWidth) +
-        parseFloat(arrow.borderBottomWidth);
+      const tipOf = (p) => {
+        const o = getComputedStyle(p, "::after");
+        const r = p.getBoundingClientRect();
+        const bt = parseFloat(getComputedStyle(p).borderTopWidth);
+        const c = r.top + bt + parseFloat(o.top) + parseFloat(o.height) / 2;
+        const d = parseFloat(o.height) / Math.SQRT2;
+        return p.classList.contains("under") ? c - d : c + d;
+      };
       const under = p.classList.contains("under");
-      const tip = under ? pr.top - ah : pr.bottom + ah;
+      const tip = tipOf(p);
+      void pr;
       return [p.textContent.slice(0, 12), Math.round(under
         ? tip - (ar.bottom - (parseFloat(bf.bottom) || 0))
         : ar.top + (parseFloat(bf.top) || 0) - tip)];
@@ -2032,7 +2328,11 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
         text: p.textContent.trim(), label: p.getAttribute("aria-label"),
         title: p.hasAttribute("title"), inside: r.top >= t.top - 1 &&
           r.bottom <= t.bottom + 1,
-        bg: getComputedStyle(p).backgroundColor };
+        bg: getComputedStyle(p).backgroundColor,
+        round: getComputedStyle(p).borderTopLeftRadius === "50%" &&
+          Math.abs(r.width - r.height) < 1 && r.width < 40,
+        centred: Math.abs((r.left + r.right) / 2 - (t.left + t.right) / 2) <
+          12 };
     }, w);
     const t0 = await tops();
     const cp = `#panel .view:not([hidden]) .b[data-owners="${C}.plays"]`;
@@ -2064,6 +2364,8 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
       return c;
     });
     if (!down || down.text || down.title || down.bg !== mark ||
+      !down.round || !down.centred || !up?.round || !up.centred ||
+      up.bg !== mark ||
       !down.label.includes(`to ${C}.plays`) ||
       !down.inside || t1 !== t0 || !inView ||
       !up || up.text || !up.label.includes("to roster[0]") || !up.inside) {
@@ -2106,6 +2408,35 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
     }
     await page.setViewportSize({ width: 1280, height: 900 });
     if (bad.length) problems.push(`dump fit: ${bad}`);
+    // (and the slot popovers scale with the dump's font: one ratio at
+    // every width, the arrow's tip on its address)
+    const ratios = [];
+    for (const w of [1280, 1440, 1920]) {
+      await page.setViewportSize({ width: w, height: 900 });
+      await page.evaluate(() => window.select("mid", { sel: "players" }));
+      await page.mouse.move(1, 1);
+      ratios.push(await page.evaluate(() => {
+        const p = document.querySelector("#panel .view:not([hidden]) .pop");
+        const d = p.closest(".views");
+        const o = getComputedStyle(p, "::after");
+        const r = p.getBoundingClientRect();
+        const a = p.parentElement.getBoundingClientRect();
+        const bf = getComputedStyle(p.parentElement, "::before");
+        const c = r.top + parseFloat(getComputedStyle(p).borderTopWidth) +
+          parseFloat(o.top) + parseFloat(o.height) / 2;
+        const tip = p.classList.contains("under")
+          ? c - parseFloat(o.height) / Math.SQRT2
+          : c + parseFloat(o.height) / Math.SQRT2;
+        const edge = p.classList.contains("under") ? a.bottom -
+          (parseFloat(bf.bottom) || 0) : a.top + (parseFloat(bf.top) || 0);
+        return [parseFloat(getComputedStyle(p).fontSize) /
+          parseFloat(getComputedStyle(d).fontSize), Math.abs(tip - edge)];
+      }));
+    }
+    await page.setViewportSize({ width: 1280, height: 900 });
+    if (ratios.some(([q, g]) => Math.abs(q - ratios[0][0]) > 0.01 || g > 1)) {
+      problems.push(`popover scale: ${JSON.stringify(ratios)}`);
+    }
   }
   // a slot's label: how it is found, then what it holds, by name, in
   // byte order; each name in its bytes' colour when the colours tell
@@ -2135,13 +2466,313 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
       "keccak(0x7099…79c8, slot 3) :"));
     if (!t("roster").includes("slot 0 : length") ||
       !t("total").includes("slot 2 : rounds · total") ||
-      got.total[0]?.ks.some(Boolean) ||
+      got.total[0]?.ks.join() !== ",pk0" ||
       !t("players").includes(
         "keccak(0x7099…79c8, slot 3) : players[0x7099…79c8], 2 slots") ||
-      alice?.text !== "keccak(0x7099…79c8, slot 3) : lastBlock · hitCount · " +
-        "plays +3" || alice.ks.join() !== fk.join() || !fk.every(Boolean) ||
-      new Set(fk).size !== 3) {
+      !alice?.text.startsWith("keccak(0x7099…79c8, slot 3) : lastBlock · ") ||
+      !alice.text.endsWith(" · score") || alice.ks[0] !== fk[0] ||
+      !fk.every(Boolean) || new Set(fk).size !== 3) {
       problems.push(`slot labels: ${JSON.stringify({ got, fk })}`);
+    }
+    await page.evaluate((x) => window.select("mid", { sel: x }), `${B}.plays`);
+  }
+  // a click in the tree or the dump during a walkthrough re-targets it,
+  // in the mode, keeping the place by the steps' identities: carol's
+  // name → bob's name keeps the step; carol's record at its fields →
+  // carol's name lands on the Player template; a name → total, step 1
+  {
+    const at = async (from, k, to, how = "row") => {
+      await page.evaluate((x) => window.select("mid", { sel: x }), from);
+      await page.locator('#details button[data-r="start"]').click();
+      await page.locator(`#chips .chip[data-k="${k}"]`).click();
+      if (how === "row") await row(to).click();
+      else {
+        await page.locator(`#panel .view:not([hidden]) .b[data-owners="${to
+          }"]`).first().click();
+      }
+      // (the cue, exactly when the step number shown changes)
+      const cue = await page.locator("#details .rcue").count();
+      await page.mouse.move(1, 1);
+      const x = await stepNow();
+      const sel = (await selected()).join();
+      const on = await page.locator("#details.replaying").count();
+      await page.keyboard.press("Escape");
+      return { cap: x.cap, count: x.count, sel, on, cue };
+    };
+    const r1 = await at(`${C}.name`, 6, `${B}.name`);
+    const r2 = await at(C, 5, `${C}.name`);
+    const r3 = await at(`${C}.name`, 6, "total", "byte");
+    if (!r1.on || r1.sel !== `${B}.name` || r1.count !== "7 / 11" ||
+      !r1.cap.startsWith("The template string") ||
+      !r2.on || !r2.cap.startsWith("The template Player") ||
+      !r3.on || r3.sel !== "total" || r3.count !== "1 / 2" || r1.cue ||
+      !r2.cue || !r3.cue) {
+      problems.push(`re-target: ${JSON.stringify([r1, r2, r3])}`);
+    }
+    await page.evaluate((x) => window.select("mid", { sel: x }), `${B}.plays`);
+  }
+  // popovers: white cards; a lit value's name a chip in its bytes'
+  // colour (the selection's yellow too), others plain; coloured names
+  // never cut: score selected, "… · score" at the end; alice's entry on
+  // a narrow dump, its first and last chips with "…" between
+  {
+    const popOf = (slotEnd, how) => page.evaluate(([e, h]) => {
+      const r = [...document.querySelectorAll(
+        "#panel .view:not([hidden]) .wrow[data-slot]")].find((x) =>
+        x.dataset.slot.endsWith(e));
+      const pop = [...document.querySelectorAll(
+        "#panel .view:not([hidden]) .pop")].find((p) =>
+        p.querySelector(".phow")?.textContent === h);
+      if (!pop) return null;
+      const kids = [...pop.querySelector(".pwhat")?.children ?? []];
+      const lit = r ? [...r.querySelectorAll(".b.hl")].map((c) =>
+        getComputedStyle(c).backgroundColor) : [];
+      return { bg: getComputedStyle(pop).backgroundColor,
+        parts: kids.map((k) => k.classList.contains("pcut") ? "…"
+          : k.classList.contains("pbadge") ? `[${k.textContent}]`
+            : k.textContent),
+        chipBgs: kids.filter((k) => k.classList.contains("pbadge")).map((k) =>
+          getComputedStyle(k).backgroundColor),
+        chipFgs: kids.filter((k) => k.classList.contains("pbadge")).map((k) =>
+          getComputedStyle(k).color), lit: [...new Set(lit)] };
+    }, [slotEnd, how]);
+    await page.evaluate((x) => window.select("mid", { sel: x }), `${A}.score`);
+    await page.mouse.move(1, 1);
+    const sc = await popOf("aa80", "keccak(0x7099…79c8, slot 3)");
+    await page.evaluate(() => window.select("mid", { sel: "players" }));
+    await page.mouse.move(1, 1);
+    const pl = await popOf("9978", "keccak(0x90f7…b906, slot 3)");
+    // (the tree's text colour for a value lit in a colour: its tone)
+    const tone = (k) => page.evaluate((c) => {
+      const e = document.createElement("span");
+      e.className = `row hl ${c}`;
+      document.querySelector("#tree").append(e);
+      const v = getComputedStyle(e).color;
+      e.remove();
+      return v;
+    }, k);
+    const light = (c) => {
+      const [r, g, b] = c.match(/\d+/g).map(Number);
+      return (r + g + b) / 3 > 200;
+    };
+    const black = await page.evaluate(() => getComputedStyle(
+      document.body).color);
+    if (sc?.bg !== black || sc.parts.at(-1) !== "[score]" || !light(sc.chipBgs[0]) ||
+      sc.chipFgs[0] === black || !light(pl?.chipBgs[0]) ||
+      pl.chipFgs[0] !== await tone("pk3") || pl.parts.join() !==
+      "[players[0x90f7…b906]]") {
+      problems.push(`popover v2: ${JSON.stringify({ sc, pl })}`);
+    }
+    // (alice's entry at 1280, 1440 and 1920: inside the dump's box, cut
+    // by names only (never by CSS, never the suffix), slots apart by
+    // " / ", no badge twice in a row; her root slot's gutter tinted)
+    const full = [];
+    for (const wd of [1280, 1440, 1920]) {
+      await page.setViewportSize({ width: wd, height: 900 });
+      await page.waitForTimeout(100);
+      await page.evaluate((x) => window.select("mid", { sel: x }), A);
+      await page.mouse.move(1, 1);
+      const x = await popOf("aa80", "keccak(0x7099…79c8, slot 3)");
+      const t = await page.evaluate(() => [...document.querySelectorAll(
+        "#panel .view:not([hidden]) .pop")].map((p) => ({ text:
+        p.textContent, css: getComputedStyle(p.querySelector(".pop-how"))
+        .textOverflow, over: p.querySelector(".pop-how").scrollWidth >
+          p.getBoundingClientRect().width + 4,
+      out: p.getBoundingClientRect().right > p.closest(".dump")
+        .getBoundingClientRect().right - 8 })));
+      const gut = await page.locator(`#panel .view:not([hidden]) ` +
+        `.wrow.gut[data-slot="0x${"0".repeat(63)}3"]`).count();
+      const ps = x?.parts ?? [];
+      full.push({ wd, parts: ps.join(" "), t, gut });
+      // (her two slots: the stats, then the name; each slot's first and
+      // last names kept, and as many more as fit)
+      const segs = (t.find((y) => y.text.startsWith(
+        "keccak(0x7099…79c8, slot 3) :"))?.text ?? "").replace(/, 2 slots$/,
+        "").split(" : ")[1]?.split(" / ") ?? [];
+      const stats = segs[0]?.split(" · ").filter((y) => y !== "…") ?? [];
+      if (ps[0] !== "[lastBlock]" || ps.at(-1) !== "[name.length]" ||
+        segs.length !== 2 || segs[1] !== "name · name.length" ||
+        stats.at(-1) !== "score" || stats.length < (wd === 1280 ? 2 : 3) ||
+        ps.some((y, i) => i && y === ps[i - 1] && y !== "…") ||
+        t.some((y) => y.over || y.out || y.css === "ellipsis") ||
+        !t.some((y) => y.text.endsWith(", 2 slots")) ||
+        !t.some((y) => / \/ (name|…) · |score \/ /.test(y.text) ||
+          y.text.includes(" / ")) || !gut) {
+        problems.push(`popover full at ${wd}: ${JSON.stringify(full.at(-1))}`);
+      }
+    }
+    // (one line, always: carol's name, players, alice, a walkthrough)
+    const tall = [];
+    const lines = async (tag) => tall.push(...(await page.evaluate(() =>
+      [...document.querySelectorAll("#panel .view:not([hidden]) .pop")]
+        .filter((p) => {
+          const r = p.getBoundingClientRect();
+          // (and every text's box inside its badge and its popover)
+          const spill = [...p.querySelectorAll(".pname, .phow, .pcut")]
+            .some((e) => {
+              const q = document.createRange();
+              q.selectNodeContents(e);
+              const t = q.getBoundingClientRect();
+              const b = e.closest(".pname")?.getBoundingClientRect() ?? r;
+              return t.left < Math.max(b.left, r.left) - 1 ||
+                t.right > Math.min(b.right, r.right) + 1;
+            });
+          return spill || r.height > parseFloat(getComputedStyle(p)
+            .lineHeight) * 1.4 + 4;
+        }).map((p) => p.textContent))).map((t) => `${tag}: ${t}`));
+    for (const x of [`${C}.name`, "players", A, `${A}.score`]) {
+      await page.evaluate((y) => window.select("mid", { sel: y }), x);
+      await page.mouse.move(1, 1);
+      await lines(x);
+    }
+    await page.evaluate(() => window.select("mid", { sel: "players" }));
+    await page.locator('#details button[data-r="start"]').click();
+    for (let k = 0; k < N; k++) {
+      await page.locator(`#chips .chip[data-k="${k}"]`).click();
+      await lines(`step ${k + 1}`);
+    }
+    await page.keyboard.press("Escape");
+    if (tall.length) problems.push(`popovers over one line: ${tall}`);
+    // (a name is a badge only while its own bytes are lit: bob's name's
+    // bytes pointed at, its length byte not)
+    await page.evaluate(() => window.select("mid", { sel: null }));
+    await page.locator(`#panel .view:not([hidden]) .b[data-owners="${B
+      }.name"]`).first().hover();
+    const bn = await page.evaluate(() => [...document.querySelectorAll(
+      "#panel .view:not([hidden]) .pop .pname")].map((n) => `${
+      n.textContent}${n.classList.contains("pbadge") ? "*" : ""}`).join());
+    if (!/(^|,)name\*/.test(bn) || !/name\.length(,|$)/.test(bn)) {
+      problems.push(`badges mirror the bytes: ${bn}`);
+    }
+    await page.mouse.move(1, 1);
+    await page.setViewportSize({ width: 760, height: 900 });
+    await page.waitForTimeout(100);
+    await page.evaluate((x) => window.select("mid", { sel: x }), A);
+    await page.mouse.move(1, 1);
+    const al0 = await popOf("aa80", "keccak(0x7099…79c8, slot 3)");
+    await page.setViewportSize({ width: 1280, height: 900 });
+    await page.waitForTimeout(100);
+    const chips = al0?.parts.filter((x) => x.startsWith("["));
+    if (!al0 || al0.parts[0] !== "[lastBlock]" || al0.parts.at(-1) !==
+      "[name.length]" || !al0.parts.includes("…") || chips.length < 2 ||
+      al0.parts.some((x) => !x.startsWith("[") && x !== "…")) {
+      problems.push(`popover many chips: ${JSON.stringify(al0)}`);
+    }
+    await page.evaluate((x) => window.select("mid", { sel: x }), `${B}.plays`);
+  }
+  // a selection inside a mapping: the mapping's root slot's gutter is
+  // tinted, with its popover; its bytes stay plain
+  {
+    const r3 = `#panel .view:not([hidden]) .wrow[data-slot="0x${
+      "0".repeat(63)}3"]`;
+    const seen = [];
+    for (const x of [A, `${B}.plays`]) {
+      await page.evaluate((y) => window.select("mid", { sel: y }), x);
+      await page.mouse.move(1, 1);
+      seen.push(await page.evaluate((q) => ({
+        gut: !!document.querySelector(`${q}.gut`),
+        pop: !!document.querySelector(`${q} .pop`),
+        lit: document.querySelectorAll(`${q} .b.hl`).length }), r3));
+    }
+    if (seen.some((x) => !x.gut || !x.pop || x.lit)) {
+      problems.push(`root slot gutter: ${JSON.stringify(seen)}`);
+    }
+    await page.evaluate((x) => window.select("mid", { sel: x }), `${B}.plays`);
+  }
+  // every lit run has its popover, at every step of players' and carol's
+  // walkthroughs
+  {
+    const bare = [];
+    for (const x of ["players", C, "roster"]) {
+      await page.evaluate((y) => window.select("mid", { sel: y }), x);
+      await page.locator('#details button[data-r="start"]').click();
+      for (let k = 0; k < 20; k++) {
+        await page.mouse.move(1, 1);
+        // (every popover inside the rows' box, with its text shown on
+        // top: nothing paints over it)
+        const outside = await page.evaluate(() => [...document
+          .querySelectorAll("#panel .view:not([hidden]) .pop")].filter((p) => {
+          const r = p.getBoundingClientRect();
+          const b = p.closest(".rows").getBoundingClientRect();
+          // (and off the column ruler over the rows, which would paint
+          // over it)
+          const h = p.closest(".view").querySelector(".view-head")
+            ?.getBoundingClientRect();
+          const under = h && r.top < h.bottom - 0.5 && r.bottom > h.top + 0.5;
+          return r.top < b.top - 0.5 || r.bottom > b.bottom + 0.5 ||
+            !p.textContent.trim() || under;
+        }).map((p) => p.textContent || "(empty)"));
+        if (outside.length) bare.push(`${x.slice(0, 12)} ${k}: out ${outside}`);
+        const miss = await page.evaluate(() => {
+          const out = [];
+          let run = null;
+          for (const el of document.querySelector(
+            "#panel .view:not([hidden]) .rows").children) {
+            if (el.classList.contains("wrow") && el.classList.contains("on")) {
+              if (!run) out.push(run = []);
+              run.push(el);
+            } else if (!el.classList.contains("cmp")) run = null;
+          }
+          return out.filter((r) => !r.some((e) => e.querySelector(".pop")))
+            .map((r) => r[0].dataset.slot.slice(-4));
+        });
+        // (not at step 0, the goal: it has no labels)
+        const g0 = (await stepNow()).count?.startsWith("0 /");
+        if (miss.length && !g0) bare.push(`${x.slice(0, 12)} ${k}: ${miss}`);
+        const n = page.locator('#details button[data-r="next"]:not([disabled])');
+        if (!(await n.count())) break;
+        await n.click();
+      }
+      await page.keyboard.press("Escape");
+    }
+    if (bare.length) problems.push(`lit runs with no popover: ${bare}`);
+    await page.evaluate((x) => window.select("mid", { sel: x }), `${B}.plays`);
+  }
+  // every popover, black or muted, has an arrow: its outer triangle in a
+  // colour unlike the rows' fill behind it, its tip at the address
+  {
+    const arrows = () => page.evaluate(() => [...document.querySelectorAll(
+      "#panel .view:not([hidden]) .pop")].map((p) => {
+      const kept = p.classList.contains("kept");
+      const under = p.classList.contains("under");
+      const o = getComputedStyle(p, "::after");
+      const a = p.parentElement.getBoundingClientRect();
+      const bf = getComputedStyle(p.parentElement, "::before");
+      const h = parseFloat(o.height);
+      const tipOf = (p) => {
+        const o = getComputedStyle(p, "::after");
+        const r = p.getBoundingClientRect();
+        const bt = parseFloat(getComputedStyle(p).borderTopWidth);
+        const c = r.top + bt + parseFloat(o.top) + parseFloat(o.height) / 2;
+        const d = parseFloat(o.height) / Math.SQRT2;
+        return p.classList.contains("under") ? c - d : c + d;
+      };
+      const t = tipOf(p);
+      const edge = under ? a.bottom - (parseFloat(bf.bottom) || 0)
+        : a.top + (parseFloat(bf.top) || 0);
+      // (the arrow's outer edge: a muted one's line, a black one's fill)
+      const colour = kept ? under ? o.borderLeftColor : o.borderRightColor
+        : o.backgroundColor;
+      const behind = getComputedStyle(p.closest(".rows")).backgroundColor;
+      return { text: p.textContent.slice(0, 14), kept, shown:
+        o.display !== "none" && h > 0, colour, behind,
+      gap: Math.round((under ? t - edge : edge - t) * 2) / 2 };
+    }));
+    const seen = [];
+    await page.evaluate(() => window.select("mid", { sel: "players" }));
+    await page.locator('#details button[data-r="start"]').click();
+    await page.locator('#chips .chip[data-k="4"]').click();
+    await page.mouse.move(1, 1);
+    seen.push(...await arrows());
+    await page.keyboard.press("Escape");
+    await page.evaluate(() => window.select("mid", { sel: "roster[1]" }));
+    await page.mouse.move(1, 1);
+    seen.push(...await arrows());
+    const gaps = seen.map((x) => x.gap);
+    if (!seen.some((x) => x.kept) || seen.some((x) => !x.shown ||
+      x.colour === x.behind || x.colour === "rgba(0, 0, 0, 0)") ||
+      gaps.some((g) => Math.abs(g) > 1)) {
+      problems.push(`popover arrows: ${JSON.stringify(seen)}`);
     }
     await page.evaluate((x) => window.select("mid", { sel: x }), `${B}.plays`);
   }
@@ -2167,11 +2798,11 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
     ["slot 0 holds the length: 3", { "slot 0": "all" }, "",
       "- { name: length, location: storage, slot: slot }"],
     ["The items start at keccak(0), one slot each, for length items",
-      roster, "", "count: { $read: length }"]];
+      roster, "", "count: { ~read: length }"]];
   if (w.length !== 4 || rwant.some(([cap, lit, gut, band], k) =>
     w[k].cap !== cap || !same(w[k].lit, lit) || w[k].gut.join() !== gut ||
     !w[k].ptr.includes(band) || (k === 2 && w[k].ptr.length !== 1)) ||
-    w[2].form !== "length = 3" ||
+    !w[2].form.startsWith("length = 3") ||
     w[3].form !== "keccak256(0) = …e563; items 0…2 at + i") {
     problems.push(`replay roster: ${JSON.stringify(w.map((x) =>
       [x.cap, x.form, x.lit, x.gut, x.ptr]))}`);
@@ -2321,7 +2952,7 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
         await tap('#details button[data-r="start"]');
       }
     }
-    for (let k = 1; k < 8; k++) {
+    for (let k = 1; k < 12; k++) {
       await tap('#details button[data-r="next"]');
       const bx = await check(`step ${k + 1}`, null, true);
       if (await pg.evaluate(() => scrollY) !== top[1]) {
@@ -2367,7 +2998,7 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
     await pg.evaluate(() => document.querySelector(
       '#details button[data-r="start"]').click());
     const bad = [];
-    for (let k = 0; k < 8; k++) {
+    for (let k = 0; k < 12; k++) {
       await pg.evaluate((x) => document.querySelector(
         `#chips .chip[data-k="${x}"]`).click(), k);
       const covered = [];
@@ -2444,7 +3075,7 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
     const a3 = await full();
     await page.emulateMedia({ reducedMotion: "reduce" });
     if (!r0.panel || r0.wrap !== r0.panel || r1.wrap || r1.replaying ||
-      a0.wrap >= a0.panel || a0.count !== "1 / 8" ||
+      a0.wrap >= a0.panel || a0.count !== "0 / 13" ||
       a1.wrap !== a1.panel || !a1.panel || !a2.replaying ||
       a3.wrap || a3.replaying) {
       problems.push(`unfold: ${JSON.stringify([r0, r1, a0, a1, a2, a3])}`);
@@ -2534,8 +3165,9 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
       problems.push(`mode ${m}: box ${box}`);
     }
     await page.locator('#details button[data-r="start"]').click();
-    await page.locator('#details button[data-r="next"]').click();
-    await page.locator('#details button[data-r="next"]').click();
+    await page.locator('#details button[data-r="last"]').click();
+    // (the step before found: the found step is the resting view)
+    await page.locator('#details button[data-r="prev"]').click();
     const sideLit = await page.evaluate(() => [...new Set([...document
       .querySelectorAll("#panel .b.hl")].map((c) =>
       c.closest(".word").dataset.side))].join());
@@ -2612,8 +3244,8 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
   // motd goes long -> short: the replay takes the long-string layout
   // before (its data at keccak(slot 1)) and the short one after
   await scene("motd");
-  for (const [m, words, at] of [["after", "0x0a = 2 × 5", "slot 1"],
-    ["before", "2 × 50 + 1 = 0x65", "keccak(slot 1)"]]) {
+  for (const [m, words, at] of [["after", "even: 0x0a → 5 bytes inline",
+    "slot 1"], ["before", "odd: 0x65 → 50 bytes", "keccak(slot 1)"]]) {
     await setMode(m);
     const nm = await page.locator(`#panel .view[data-side="${m}"] ` +
       ".wrow[data-name]").evaluateAll((rs) => Object.fromEntries(
@@ -2641,7 +3273,8 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
     if (!shownCd || selector !== "0x" + keccak256("setMotd(string)")
       .slice(0, 8)) problems.push(`calldata: ${shownCd} ${selector}`);
     // offset 32, then the length (48) at 0x24, then the bytes at 0x44
-    await page.locator('#cpanel .b[data-i="40"]').click();
+    await page.locator(
+      '#cpanel .wrow[data-slot="0x0024"] .b[data-i="4"]').click();
     const c = await cdl();
     if (c.chosen !== "m-length") problems.push(`calldata byte: ${c.chosen}`);
     const cdetails = await dl("#cdetails");
@@ -2649,12 +3282,41 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
       cdetails.Where !== "bytes 0x0024–0x0043") {
       problems.push(`calldata details: ${JSON.stringify(cdetails)}`);
     }
-    await page.locator('#cpanel .b[data-i="40"]').click();
+    await page.locator(
+      '#cpanel .wrow[data-slot="0x0024"] .b[data-i="4"]').click();
     await page.locator('#ctree li[data-part="m"] > .row').hover();
+    // (each byte's place in the calldata: its row's start, plus its
+    // index in the row)
     const cl = await page.evaluate(() => [...document.querySelectorAll(
-      "#cpanel .b.hl")].map((b) => +b.dataset.i));
+      "#cpanel .b.hl")].map((b) => parseInt(b.closest(".wrow").dataset.slot,
+      16) + +b.dataset.i));
     if (cl.join() !== range(4, 72).join()) {
       problems.push(`calldata m lit: ${cl.length}`);
+    }
+    // (pointing at a part lights its row only; text, its own row too)
+    const crows = () => page.evaluate(() => [...document.querySelectorAll(
+      "#ctree .row.hl")].map((r) => r.parentElement.dataset.part).join());
+    const tm = await crows();
+    await page.locator('#ctree li[data-part="m-length"] > .row').hover();
+    const tl = await crows();
+    await page.locator('#ctree li[data-part="m"] > .row').hover();
+    if (tl !== "m-length" || !tm.split(",").includes("m")) {
+      problems.push(`calldata rows: ${tm} | ${tl}`);
+    }
+    // (its parts in child colours, one each, as any composite's)
+    const ck = await page.evaluate(() => [...new Set([...document
+      .querySelectorAll("#cpanel .b.hl")].map((b) =>
+      b.className.match(/pk\d/)?.[0] ?? ""))]);
+    if (ck.length !== 3 || ck.some((k) => !k)) {
+      problems.push(`calldata colours: ${ck}`);
+    }
+    // (the same panel as storage's: a popover on the lit rows, the
+    // panel's header)
+    const cpop = await page.evaluate(() => [document.querySelectorAll(
+      "#cpanel .pop").length, document.querySelector("#cpanel .views")
+      ?.dataset.loc]);
+    if (!cpop[0] || cpop[1] !== "calldata") {
+      problems.push(`calldata panel: ${cpop}`);
     }
     if (!(await page.locator("#chow").textContent()).includes(
       "not by ethdebug")) problems.push("calldata: no why-not");
@@ -2818,14 +3480,15 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
     await page.keyboard.press("Escape");
     await page.evaluate(() => window.select("mid", { sel: "players" }));
     await page.locator('#details button[data-r="start"]').click();
-    // (at step 1, the block at the first line shows whole, under the
-    // header)
+    // (at the declared step, after the input, the block at the first
+    // line shows whole, under the header)
+    await page.locator('#chips .chip[data-k="1"]').click();
     const first = await page.evaluate(() => {
       // (against the scroll box's clip edge: inside its border)
       const p = document.querySelector("#ptr");
       const clip = p.getBoundingClientRect().top + p.clientTop;
       const on = p.querySelector(".line.on").getBoundingClientRect();
-      return on.top >= clip + 4 && getComputedStyle(p).maskImage === "none";
+      return on.top >= clip + 4 && !p.classList.contains("more-up");
     });
     if (!first) problems.push("step 1: the block's top is cut");
     // (at a step in the middle of the YAML: the block's top a third of
@@ -2964,7 +3627,9 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
   await page.mouse.move(1, 1);
   const r1 = await page.evaluate(() => {
     const v = document.querySelector('#panel .view:not([hidden])');
-    const pop = v.querySelector(".pop");
+    // (roster's own slot has its gutter's popover too)
+    const pop = [...v.querySelectorAll(".pop")].find((p) =>
+      p.textContent.startsWith("keccak(slot 0) + 1"));
     if (!pop) return "none";
     const hit = (a, b) => a.left < b.right - 0.5 && b.left < a.right - 0.5 &&
       a.top < b.bottom - 0.5 && b.top < a.bottom - 0.5;
@@ -3040,9 +3705,19 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
     .includes(vslot.slice(0, 6))) {
     problems.push(`vyper pops: ${vp}`);
   }
-  // carol, selected: her Vyper words, her long name over two words
+  // (Vyper's records hold no name: the walkthrough names them by their
+  // short addresses)
+  {
+    const vn = await page.evaluate(() => [...document.querySelectorAll(
+      "#dtext .rform, #dtext .rcap, #dpick button")].map((e) =>
+      e.textContent).join(" "));
+    if (vn.includes('""') || !vn.includes("0x7099…79c8")) {
+      problems.push(`vyper names: ${vn.slice(0, 200)}`);
+    }
+  }
+  // carol, selected (a click re-targets the walkthrough): her Vyper
+  // words, her long name over two words
   await page.locator(`#tree li[data-path="${C}.score"] > .row`).click();
-  await page.locator('#details button[data-r="start"]').click();
   text = (await how()).replace(/\s+/g, " ");
   if (!/plays = 1[\s\S]*name \(length\) = 34[\s\S]*"carol, the unstoppable combo que"[\s\S]*"en"/
     .test(text)) {
@@ -3082,7 +3757,8 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
   const storageLit = await page.locator("#panel .b.hl:not(.cmp *)").count();
   const mlit = () => page.evaluate(() => {
     const out = {};
-    for (const c of document.querySelectorAll("#mpanel .b.hl:not(.cmp *)")) {
+    for (const c of document.querySelectorAll(
+      ":is(#mpanel, #mspanel) .b.hl:not(.cmp *)")) {
       const w = c.closest(".word");
       (out[`${w.dataset.side} ${w.dataset.slot}`] ??= []).push(+c.dataset.i);
     }
@@ -3106,7 +3782,7 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
     }
     const bytes = {};
     for (const c of document.querySelectorAll(
-      "#mpanel .view:not([hidden]) .b.hl:not(.cmp *)")) {
+      ":is(#mpanel, #mspanel) .view:not([hidden]) .b.hl:not(.cmp *)")) {
       const w = c.closest(".word").dataset.slot;
       (bytes[w] ??= new Set()).add(k(c));
     }
@@ -3120,8 +3796,8 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
     const v = await page.evaluate(() => [
       document.querySelector("#mmoderow").hidden,
       getComputedStyle(document.querySelector("#mmoderow")).display,
-      [...document.querySelectorAll("#mpanel .view-name")].map((x) =>
-        x.textContent).join(),
+      // (the panel's own header names it: "Memory")
+      document.querySelector("#mwords-h").firstChild.textContent.trim(),
       document.querySelectorAll("#mpanel .cmp, #mpanel .b.chg").length,
       document.querySelector("#msrclegend").textContent.trim()]);
     if (!same(v, [true, "none", "Memory", 0, "paused here"])) {
@@ -3224,8 +3900,48 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
       .locator(".val").textContent();
     if (score.trim() !== "30") problems.push(`memory score: ${score}`);
   }
+  // each location its own panel: the record's slot in a STORAGE panel
+  // of its own, under MEMORY, with its own header; one selection lights
+  // both (the record in storage, a local in memory); popovers in each
+  {
+    const pan = await page.evaluate(() => ({
+      mem: document.querySelector("#mwords-h").firstChild.textContent.trim(),
+      store: document.querySelector("#mstore-h")?.textContent.trim(),
+      shown: !document.querySelector("#mstore").hidden,
+      inMem: !!document.querySelector("#mpanel .wrow[data-slot$='fb94']"),
+      inStore: !!document.querySelector("#mspanel .wrow[data-slot$='fb94']"),
+      pops: document.querySelectorAll("#mspanel .view:not([hidden]) .pop")
+        .length,
+      lit: document.querySelectorAll("#mspanel .view:not([hidden]) .b.hl")
+        .length }));
+    await mrow("gained").click();
+    const both = await page.evaluate(() => [
+      document.querySelectorAll("#mpanel .view:not([hidden]) .b.hl").length,
+      document.querySelectorAll("#mpanel .view:not([hidden]) .pop").length]);
+    await mrow("players[msg.sender]").click();
+    if (pan.mem !== "Memory" || pan.store !== "Storage" || !pan.shown ||
+      pan.inMem || !pan.inStore || !pan.pops || pan.lit !== 32 ||
+      !both[0] || !both[1]) {
+      problems.push(`memory panels: ${JSON.stringify({ pan, both })}`);
+    }
+  }
+  // (one palette, of 9 child colours, for every location: memory's
+  // record members use the storage scenes' classes)
+  {
+    const ks = await page.evaluate(() => [...new Set([...document
+      .querySelectorAll("#mtree .row.hl, #panel .b.hl")].flatMap((e) =>
+      [...e.classList].filter((c) => /^pk\d+$/.test(c))))]);
+    if (ks.some((k) => +k.slice(2) > 9)) problems.push(`palette: ${ks}`);
+  }
+  // (the selection's brown caps, in memory's panels as in storage's)
+  {
+    const capped = await page.evaluate(() => [...document.querySelectorAll(
+      "#mspanel .view:not([hidden]) .b.hl")].filter((b) =>
+      getComputedStyle(b).boxShadow !== "none").length);
+    if (!capped) problems.push("memory: no caps on the selection");
+  }
   // a click on the score's bytes selects the score
-  await page.locator('#mpanel .b[data-owners="players[msg.sender].score"]')
+  await page.locator('#mspanel .b[data-owners="players[msg.sender].score"]')
     .first().click();
   if (await msel() !== "players[msg.sender].score") {
     problems.push(`memory record byte: ${await msel()}`);
@@ -3487,6 +4203,31 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
     problems.push("phone: no replay button");
   }
   await still(pp, "390");
+  // (the byte strip in two rows of 16, as the phone's dump)
+  {
+    await pp.evaluate(() => window.select("mid", { sel: "players" }));
+    await pp.evaluate(() => document.querySelector(
+      '#details button[data-r="start"]').click());
+    await pp.evaluate((k) => document.querySelector(
+      `#chips .chip[data-k="${k}"]`).click(), P.fields);
+    const rows = await pp.evaluate(() => {
+      const s = document.querySelector("#dtext .bs16");
+      const idx = [...s.querySelectorAll(".bsidx")].map((r) =>
+        [...r.children].map((c) => c.textContent).join());
+      const box = document.querySelector("#dtext .rform")
+        .getBoundingClientRect();
+      const last = s.querySelectorAll(".bsidx")[1]?.getBoundingClientRect();
+      return { shown: getComputedStyle(s).display !== "none" &&
+        getComputedStyle(document.querySelector("#dtext .bs32")).display ===
+        "none", idx, fits: !!last && last.bottom <= box.bottom + 0.5 };
+    });
+    await pp.keyboard.press("Escape");
+    if (!rows.shown || !rows.fits || rows.idx.join("|") !== [
+      [...Array(16).keys()].join(), [...Array(16).keys()].map((i) => i + 16)
+        .join()].join("|")) {
+      problems.push(`phone strip: ${JSON.stringify(rows)}`);
+    }
+  }
   // (16 bytes a line, filling the box)
   {
     const bad = (await fill(pp)).filter((x) => x.r < 0.98 || x.r > 1.001 ||
