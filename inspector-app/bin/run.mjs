@@ -1294,7 +1294,7 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
     out.ctl = ctl.size;
     // (the last step, "found", kept aside: "done"; the counts are the
     // rule steps')
-    if (out.at(-1)?.cap?.startsWith("That's ")) out.found = out.pop();
+    if (out.at(-1)?.count === "done") out.found = out.pop();
     return out;
   };
   const al = "keccak(0x7099…79c8, slot 3)";
@@ -1533,11 +1533,12 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
       await page.mouse.move(1, 1);
       const f = await view();
       const cap = (await stepNow()).cap;
-      if (f !== rest || !cap.startsWith("That's ")) bad.push(x.slice(0, 12));
+      if (f !== rest || !/ holds | = /.test(cap)) bad.push(x.slice(0, 12));
       if (x === C) {
         await pick(row(`${C}.name`));
         const r = await stepNow();
-        if (!r.cap.startsWith("That's ") || r.count !== "done") {
+        if (!r.cap.startsWith("players[carol].name = ") ||
+          r.count !== "done") {
           bad.push(`re-target at found: ${r.count}`);
         }
       }
@@ -1623,7 +1624,7 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
     const ds = await page.locator("#dots .dot").evaluateAll((ds) =>
       ds.map((d) => d.getAttribute("title")));
     if (ds.length !== N + 2 || !ds[0].startsWith("These 9 slots") ||
-      !ds.at(-1).startsWith("That's players") ||
+      ds.at(-1) !== "players holds 3 records: alice, bob, carol." ||
       await page.locator("#chips").count()) {
       problems.push(`dots: ${ds}`);
     }
