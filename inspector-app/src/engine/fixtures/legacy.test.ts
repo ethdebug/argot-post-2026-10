@@ -2,7 +2,7 @@ import { it, expect } from "vitest";
 import fs from "node:fs";
 import { fromFixture, solcTilde } from "./legacy";
 
-const mid = JSON.parse(fs.readFileSync("static/fixtures/arcade-mid.json",
+const mid = JSON.parse(fs.readFileSync("../demos/inspector/fixtures/arcade-mid.json",
   "utf8"));
 
 it("solc's \"$\" expressions read as \"~\" (ethdebug/format#324): keys and "

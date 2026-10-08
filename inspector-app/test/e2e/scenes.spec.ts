@@ -2,7 +2,7 @@ import { test, expect, type Page } from "@playwright/test";
 import { expected, defaults } from "../expect";
 import fs from "node:fs";
 
-const scenes = JSON.parse(fs.readFileSync("static/fixtures/index.json",
+const scenes = JSON.parse(fs.readFileSync("../demos/inspector/fixtures/index.json",
   "utf8")) as { id: string; summary: string; points: string[] }[];
 
 type W = Window & typeof globalThis & {

@@ -9,7 +9,7 @@ import path from "node:path";
 // stays in its cache (vite.config.ts repin). Its own server, on 5190,
 // watching a stand-in for vendor/PIN (REPIN_FILES): touching the real
 // one would restart every dev server on this checkout.
-const URL = "http://localhost:5190/demos/inspector-next/";
+const URL = "http://localhost:5190/demos/inspector/";
 
 async function loads(page: Page) {
   const errors: string[] = [];

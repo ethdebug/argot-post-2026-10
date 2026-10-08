@@ -1,5 +1,5 @@
-// The walkthroughs against the oracle: vanilla's page at sync-base,
-// captured step by step (bin/oracle.mjs -> test/oracle/vanilla.json).
+// The walkthroughs against the oracle: the vanilla page at its last
+// sync (oracle.sha), captured step by step; frozen since the switch.
 // Every step, every field, equal.
 import { test, expect } from "@playwright/test";
 import fs from "node:fs";
@@ -15,11 +15,10 @@ const port1 = (_w: string, _f: string, v: unknown) => JSON.stringify(v);
 const vanilla1 = port1;
 const same = (_f: string, a: string, b: string) => a === b;
 
-test("every walkthrough step equals vanilla's at sync-base", async ({ page,
+test("every walkthrough step equals the oracle's", async ({ page,
   browserName }) => {
   test.skip(browserName !== "chromium", "one browser: the oracle's");
   test.setTimeout(240_000);
-  expect(oracle.sha).toBe(fs.readFileSync("sync-base", "utf8").trim());
   await page.goto("./");
   const port = await captureAll(page) as Record<string, Step[] | null>;
   const diffs: string[] = [];

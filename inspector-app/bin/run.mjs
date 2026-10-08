@@ -1,6 +1,7 @@
 // Opens the page in Chromium, Firefox and WebKit (Playwright), checks the
 // decoded values against what the transactions wrote, and takes
-// screenshots. Usage: node bin/run.mjs
+// screenshots. Usage: npm run check (it builds, runs bin/site.sh, starts
+// the dev server; PAGE=<url> for another page).
 import { chromium, firefox, webkit, devices } from "playwright";
 import { fileURLToPath } from "node:url";
 import path from "node:path";
@@ -9,9 +10,11 @@ import http from "node:http";
 import zlib from "node:zlib";
 import { current as sizesCurrent } from "./sizes.mjs";
 
-const PAGE = process.env.PAGE ?? "http://localhost:8000/demos/inspector/";
+const PAGE = process.env.PAGE ?? "http://localhost:5181/demos/inspector/";
 const root = path.dirname(path.dirname(fileURLToPath(import.meta.url)));
-const shot = (name) => path.join(root, "screenshots", name);
+// the demo's own files: its fixtures, contract and screenshots
+const demo = path.join(path.dirname(root), "demos", "inspector");
+const shot = (name) => path.join(demo, "screenshots", name);
 
 // alice, bob and carol: anvil's accounts 1, 2 and 3
 const A = "players[0x70997970c51812dc3a010c7d01b50e0d17dc79c8]";
@@ -78,8 +81,8 @@ const same = (a, b) => {
 let failed = 0;
 // The base slots come from the program context: no fixture has
 // storageLayout (by name, or as a contract's `layout`)
-for (const file of fs.readdirSync(path.join(root, "fixtures"))) {
-  const text = fs.readFileSync(path.join(root, "fixtures", file), "utf8");
+for (const file of fs.readdirSync(path.join(demo, "fixtures"))) {
+  const text = fs.readFileSync(path.join(demo, "fixtures", file), "utf8");
   if (text.includes("storageLayout") ||
     JSON.parse(text).contract?.layout !== undefined) {
     console.log(`fixtures/${file} has storageLayout`);
@@ -100,7 +103,7 @@ if (!sizesCurrent()) {
     .map(([, a, t]) => `${a.match(/data-id="([^"]+)"/)?.[1]} ${
       a.match(/data-fixture="([^"]+)"/)?.[1]} ${/data-single/.test(a)
       ? 1 : 2} ${t.replace(/\s+/g, " ")}`).join("\n");
-  const scenes = JSON.parse(fs.readFileSync(path.join(root, "fixtures",
+  const scenes = JSON.parse(fs.readFileSync(path.join(demo, "fixtures",
     "index.json"), "utf8"));
   const want = scenes.map((x) => `${x.id} ${x.fixture} ${x.points.length
   } ${x.title}`).join("\n");
@@ -125,15 +128,16 @@ if (!sizesCurrent()) {
   const html = fs.readFileSync(path.join(root, "index.html"), "utf8");
   const pre = html.match(/<pre id="contract-src" class="src">([\s\S]*?)<\/pre>/)
     ?.[1].replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&amp;/g, "&");
-  if (pre !== fs.readFileSync(path.join(root, "contracts", "Arcade.sol"),
+  if (pre !== fs.readFileSync(path.join(demo, "contracts", "Arcade.sol"),
     "utf8")) {
     console.log("index.html: the contract differs from contracts/Arcade.sol");
     failed++;
   }
 }
 // No native tooltips: no title attribute in the page's markup or code
-for (const f of ["index.html", "main.js", "panel.js", "mem.js",
-  "calldata.js"]) {
+for (const f of ["index.html", ...fs.readdirSync(path.join(root, "src"),
+  { recursive: true }).filter((f) => /\.tsx?$/.test(f))
+  .map((f) => path.join("src", f))]) {
   if (/\stitle="/.test(fs.readFileSync(path.join(root, f), "utf8"))) {
     console.log(`${f} sets a title attribute`);
     failed++;
@@ -156,12 +160,14 @@ for (const f of ["index.html", "main.js", "panel.js", "mem.js",
 
 // A static server like GitHub Pages: the repo's public root, text
 // gzipped. For the slow-link check.
-const site = path.dirname(path.dirname(root));
+// (the site as Pages gets it: bin/site.sh's _site, the app built)
+const site = path.join(path.dirname(root), "_site");
 const TYPES = { ".html": "text/html", ".js": "text/javascript",
   ".css": "text/css", ".json": "application/json" };
 const server = http.createServer((req, res) => {
-  let f = path.join(site, decodeURIComponent(new URL(req.url,
-    "http://x").pathname));
+  const u = decodeURIComponent(new URL(req.url, "http://x")
+    .pathname);
+  let f = path.join(site, u);
   if (f.endsWith("/")) f += "index.html";
   if (!f.startsWith(site) || !fs.existsSync(f)) {
     res.writeHead(404);
@@ -376,7 +382,7 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
       return [p.textContent.trim(), new Set([...p.querySelectorAll(
         "span[style]")].map((s) => getComputedStyle(s).color)).size];
     });
-    if (col[0] !== fs.readFileSync(path.join(root, "contracts",
+    if (col[0] !== fs.readFileSync(path.join(demo, "contracts",
       "Arcade.sol"), "utf8").trim() || col[1] < 3) {
       problems.push(`source colouring: ${col[1]} colours`);
     }
@@ -1758,7 +1764,7 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
   // one line each, nothing wraps
   {
     const { parse } = await import("yaml");
-    const f = JSON.parse(fs.readFileSync(path.join(root, "fixtures",
+    const f = JSON.parse(fs.readFileSync(path.join(demo, "fixtures",
       "arcade-mid.json"), "utf8"));
     await page.evaluate(() => window.select("mid", { sel: "players" }));
     await page.waitForFunction(() => document.querySelector(
