@@ -3227,7 +3227,8 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
     if (!shownCd || selector !== "0x" + keccak256("setMotd(string)")
       .slice(0, 8)) problems.push(`calldata: ${shownCd} ${selector}`);
     // offset 32, then the length (48) at 0x24, then the bytes at 0x44
-    await page.locator('#cpanel .b[data-i="40"]').click();
+    await page.locator(
+      '#cpanel .wrow[data-slot="0x0024"] .b[data-i="4"]').click();
     const c = await cdl();
     if (c.chosen !== "m-length") problems.push(`calldata byte: ${c.chosen}`);
     const cdetails = await dl("#cdetails");
@@ -3235,12 +3236,24 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
       cdetails.Where !== "bytes 0x0024–0x0043") {
       problems.push(`calldata details: ${JSON.stringify(cdetails)}`);
     }
-    await page.locator('#cpanel .b[data-i="40"]').click();
+    await page.locator(
+      '#cpanel .wrow[data-slot="0x0024"] .b[data-i="4"]').click();
     await page.locator('#ctree li[data-part="m"] > .row').hover();
+    // (each byte's place in the calldata: its row's start, plus its
+    // index in the row)
     const cl = await page.evaluate(() => [...document.querySelectorAll(
-      "#cpanel .b.hl")].map((b) => +b.dataset.i));
+      "#cpanel .b.hl")].map((b) => parseInt(b.closest(".wrow").dataset.slot,
+      16) + +b.dataset.i));
     if (cl.join() !== range(4, 72).join()) {
       problems.push(`calldata m lit: ${cl.length}`);
+    }
+    // (the same panel as storage's: a popover on the lit rows, the
+    // panel's header)
+    const cpop = await page.evaluate(() => [document.querySelectorAll(
+      "#cpanel .pop").length, document.querySelector("#cpanel .views")
+      ?.dataset.loc]);
+    if (!cpop[0] || cpop[1] !== "calldata") {
+      problems.push(`calldata panel: ${cpop}`);
     }
     if (!(await page.locator("#chow").textContent()).includes(
       "not by ethdebug")) problems.push("calldata: no why-not");
