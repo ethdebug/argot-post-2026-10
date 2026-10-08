@@ -26,6 +26,7 @@ import {
   useDecoded, useLayout, useLens, useLight, useLink, usePointAt,
 } from "./hooks";
 import { blockOf, resolveTarget } from "../engine/target";
+import { noLight } from "../engine/light";
 import { readWritten } from "../engine/timeline";
 import type { DataRef, LinkId, ViewId } from "./types";
 
@@ -152,7 +153,10 @@ export function Dump(p: { id: ViewId; location: Location; data: DataRef;
   const here = hereAt?.p;
   const snap = here?.snapshot;
   const otherPoint = thereAt?.p;
-  const light = useLight(p.id, p.filter, undefined, p.compare);
+  const lit0 = useLight(p.id, p.filter, undefined, p.compare);
+  const [walkLink] = useLink(p.link);
+  // (a walkthrough lights the side it walks, the one shown)
+  const light = p.hidden && walkLink.walk ? noLight : lit0;
   // what the compared point lights (a slot lit there only: "only")
   const there = useLight(p.id, p.filter, p.compare, p.data);
   const [link, setLink] = useLink(p.link);
@@ -213,7 +217,11 @@ export function Dump(p: { id: ViewId; location: Location; data: DataRef;
       }
       const t = resolveTarget(h, keys ? null : sel, d.byPath, l);
       const q = t.path ?? null;
-      return { ...s, hover: null, selection: q && q === sel ? null : q };
+      // (a click that clears: the hover of what is under the pointer, at
+      // once: vanilla rehover)
+      return q && q === sel
+        ? { ...s, selection: null, hover: resolveTarget(h, null, d.byPath, l) }
+        : { ...s, hover: null, selection: q };
     });
     return true;
   };
@@ -309,8 +317,9 @@ export function Dump(p: { id: ViewId; location: Location; data: DataRef;
     const ring = same && !!a?.transaction?.writes.has(r.address);
     const what = `${name}${name.startsWith("slot") ? ""
       : ` (slot ${short(r.address)})`}${facts ? `; ${facts}` : ""}`;
-    const on = [...Array(32).keys()].some((i) =>
-      light.bytes.has(byteKey(p.location, r.address, i)));
+    // (lit, or pointed at: a gutter address)
+    const on = light.at?.row === r.address || [...Array(32).keys()].some(
+      (i) => light.bytes.has(byteKey(p.location, r.address, i)));
     const only = !on && !!p.compare && [...there.bytes].some((b) =>
       b.split("|")[1] === r.address);
     const gut = !on && !only && light.gutters.has(r.address);

@@ -196,6 +196,8 @@ export function WalkthroughPanel(p: { id: ViewId; data: DataRef;
     const h = dp?.offsetHeight ?? 0;
     if (!dp || !wr || still() || !h || !wr.animate) return Promise.resolve();
     setUnfolding(true);
+    // (no step while the details move: the lens's keys see it)
+    setLink((s) => s.walk ? { ...s, walk: { ...s.walk, busy: true } } : s);
     wr.classList.add("folding");
     const o2 = { duration: 280, easing: open ? "ease-out" : "ease-in" };
     const hs = [{ height: "0px" }, { height: `${h}px` }];
@@ -210,6 +212,8 @@ export function WalkthroughPanel(p: { id: ViewId; data: DataRef;
       dp.getAnimations().forEach((a) => a.cancel());
       wr.classList.remove("folding");
       setUnfolding(false);
+      setLink((s) => s.walk ? { ...s, walk: { ...s.walk, busy: false } }
+        : s);
     });
   };
   const opening = useRef(false);
@@ -226,7 +230,10 @@ export function WalkthroughPanel(p: { id: ViewId; data: DataRef;
     if (!opening.current || !walk) return;
     opening.current = false;
     void fold(true);
-    const before = bar.current?.previousElementSibling;
+    // (the line before the bar in the page: its own sibling, or its
+    // place's, on the parity page)
+    const before = bar.current?.previousElementSibling ??
+      bar.current?.parentElement?.previousElementSibling;
     if (before) {
       const y = before.getBoundingClientRect().bottom + scrollY +
         parseFloat(getComputedStyle(before).marginBottom || "0");
@@ -242,9 +249,18 @@ export function WalkthroughPanel(p: { id: ViewId; data: DataRef;
     if (!walk || unfolding) return;
     await fold(false);
     setLink((s) => ({ ...s, walk: null }));
+    exiting.current = false;
     setTimeout(() => bar.current?.querySelector<HTMLElement>(
       'button[data-r="start"]')?.focus({ preventScroll: true }));
   };
+  // (an exit asked elsewhere: Escape in the lens)
+  const exiting = useRef(false);
+  useEffect(() => {
+    if (walk?.exit && !exiting.current && !unfolding) {
+      exiting.current = true;
+      void exit();
+    }
+  });
   const stepTo = (k: number) => {
     if (!walk || unfolding) return;
     const to = Math.max(0, Math.min(steps.length - 1, k));

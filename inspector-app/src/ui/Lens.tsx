@@ -126,7 +126,7 @@ export function Lens(props: { spec: LensSpec; project: Project;
     };
     document.addEventListener("pointerover", over);
     return () => document.removeEventListener("pointerover", over);
-  }, [key, store]);
+  }, [key, store, spec]);
   // the first bookmark, with its defaults (unless the page shows one)
   // the view the URL hash asks for (`hash`), or the first bookmark with
   // its defaults; then (with `hash`) every change goes back into it
@@ -176,10 +176,13 @@ export function Lens(props: { spec: LensSpec; project: Project;
     const down = (e: Event) => {
       pressed = mine(e.target as Element);
     };
+    // (a walkthrough with a panel to fold: the panel ends it)
+    const panelled = (link: string) => spec.views.some((v) =>
+      v.kind === "walkthrough" && v.link === link);
     const clear = () => store.set((s) => ({ ...s, links: Object.fromEntries(
       Object.entries(s.links).map(([k, l]) => [k, l.walk
-        ? { ...l, walk: null } : l.selection ? { ...l, selection: null }
-          : l])) }));
+        ? { ...l, walk: panelled(k) ? { ...l.walk, exit: true } : null }
+        : l.selection ? { ...l, selection: null } : l])) }));
     const keyed = (e: KeyboardEvent) => {
       const f = document.activeElement;
       const here = !f || f === document.body ? pressed : mine(f);
@@ -194,6 +197,7 @@ export function Lens(props: { spec: LensSpec; project: Project;
       if (!move || (e.target as Element).closest?.("input, textarea, select")
         || !Object.values(store.get().links).some((l) => l.walk)) return;
       e.preventDefault();
+      if (Object.values(store.get().links).some((l) => l.walk?.busy)) return;
       store.set((s) => ({ ...s, links: Object.fromEntries(Object.entries(
         s.links).map(([k, l]) => [k, l.walk ? { ...l, walk: { ...l.walk,
           step: Math.max(0, Math.min((l.walk.n ?? 1) - 1, move(l.walk.step,
@@ -217,7 +221,7 @@ export function Lens(props: { spec: LensSpec; project: Project;
       document.removeEventListener("keydown", keyed);
       document.removeEventListener("click", click);
     };
-  }, [key, store]);
+  }, [key, store, spec]);
   const kinds: Kinds = { ...viewKinds, ...props.kinds };
   const areas: Record<string, ReactNode[]> = {};
   for (const v of spec.views) {

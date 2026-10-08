@@ -254,8 +254,11 @@ export function Tree(p: { id: ViewId; data: DataRef; filter?: Filter;
     const at = rowOf(el);
     if (!at) return false;
     const path = keys ? at : blockOf(at, link.selection);
-    setLink((s) => ({ ...s, hover: null,
-      selection: path === s.selection ? null : path }));
+    // (a click that clears: what is under the pointer gets its hover at
+    // once, with no mouse move: vanilla rehover)
+    setLink((s) => path === s.selection
+      ? { ...s, selection: null, hover: { path: at } }
+      : { ...s, hover: null, selection: path });
     return true;
   };
   const onClick = (e: MouseEvent) => {

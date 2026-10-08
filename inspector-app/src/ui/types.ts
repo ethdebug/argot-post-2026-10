@@ -12,7 +12,10 @@ export interface LinkState {    // shared by the views of one link group
   hover: Target | null;
   // a walkthrough (null: none): the step shown, the instance in focus
   // ("*": all; a path: one entry), and how many steps it has
-  walk: { step: number; focus?: string; n?: number } | null;
+  // (`busy`: the details are unfolding or folding, no step meanwhile;
+  // `exit`: asked to end, the panel folds the details first)
+  walk: { step: number; focus?: string; n?: number; busy?: boolean;
+    exit?: boolean } | null;
 }
 export interface ViewState {    // one view instance's own state
   collapsed: ReadonlySet<Path>; // Tree only; default empty (expanded)
