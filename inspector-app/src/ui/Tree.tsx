@@ -285,6 +285,47 @@ export function Tree(p: { id: ViewId; data: DataRef; filter?: Filter;
     }
   }, [sel, d]);
 
+  // The tree's box and the dump start at one height: its first row at
+  // the height of the dump's first line (the dump has its byte ruler
+  // above); on a wide page, as tall as the dump, scrolling inside itself
+  // (vanilla main.js alignColumns)
+  useLayoutEffect(() => {
+    const tree = box.current;
+    if (!tree) return;
+    const align = () => {
+      const dump = [...document.querySelectorAll<HTMLElement>(
+        `.view[data-view^="${lens.key}:"]:not([hidden])`)][0];
+      const d = dump?.querySelector(".rows > *");
+      const t = tree.querySelector("li .row");
+      if (!dump || !d || !t) return;
+      tree.style.paddingTop = "";
+      const col = (e: Element, c: string) => e.closest(c) ??
+        e.closest("[data-area]") ?? document.body;
+      const top = (e: Element, c: string) => e.getBoundingClientRect().top -
+        col(e, c).getBoundingClientRect().top;
+      const now = parseFloat(getComputedStyle(tree).paddingTop) || 0;
+      const delta = top(d, ".words") - top(t, ".storage");
+      tree.style.paddingTop = `${Math.max(0, now + delta)}px`;
+      const box2 = dump.closest(".dump") ?? dump;
+      const db = box2.getBoundingClientRect();
+      const tb = tree.getBoundingClientRect();
+      tree.style.height = innerWidth >= 1100
+        ? `${Math.max(100, db.bottom - tb.top)}px` : "";
+    };
+    align();
+    // (again once the dump's rows and the page's fonts are in)
+    const later = requestAnimationFrame(align);
+    let live = true;
+    document.fonts?.ready.then(() => live && align());
+    addEventListener("resize", align);
+    return () => {
+      live = false;
+      cancelAnimationFrame(later);
+      removeEventListener("resize", align);
+    };
+    // (when the tree is drawn anew, as vanilla's renderTree, and on resize)
+  }, [d, side, lens.key]);
+
   // lit rows out of the box's view: a yellow circle button on the edge
   // past which they are (an overlay; a click scrolls to the first)
   const [past, setPast] = useState<{ up: string[]; down: string[] }>(
