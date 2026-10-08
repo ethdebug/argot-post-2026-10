@@ -57,8 +57,20 @@ export interface TimelinePoint {
     | { tx: Hex; step: number };              // a trace step (later)
   snapshot: Snapshot;
   transaction?: TxFacts;                // the tx this point is before/after
-  locals?: Variable[];                  // instruction context here (BUG memory)
+  locals?: Local[];                     // instruction context here (BUG memory)
+  // (the port's, for a paused step: the trace step, its instruction and
+  // source range; the function whose frame the locals are in, if not
+  // the body's; a storage slot the page reads by its own rule)
+  paused?: { step: number; op: string; of: number;
+    range?: { source: string; offset: number; length: number } };
+  scope?: string;
+  record?: { path: Path; key: Hex; base: number; slot: Hex;
+    members: [name: string, bytes: number][] };
 }
+// a local variable, as an instruction's context lists it: one with no
+// pointer has no location there
+export type Local = Omit<Variable, "pointer"> &
+  { pointer?: Format.Pointer };
 export interface Snapshot {             // known state only; unknown = absent
   storage: ReadonlyMap<Hex, Hex>;       // slot -> word
   memory?: Uint8Array;
@@ -111,6 +123,12 @@ export interface ValueNode {
   regions: ResolvedRegion[];    // the bytes it owns (incl. length parts)
   children?: ValueNode[];
   summary?: string;             // "length 3", "3 entries", "7 fields"
+  // (memory: a local listed with no location; the regions read to find
+  // the value, e.g. a frame pointer; what the node is, if not a value of
+  // a variable: a function's locals, a slot read by the page's own rule)
+  none?: true;
+  reads?: ResolvedRegion[];
+  kind?: "group" | "record";
   note?: string;                // "no ethdebug type …"
 }
 export type Location = "storage" | "memory" | "stack" | "calldata"

@@ -20,7 +20,9 @@ const file = (bm: string, side: string, p: string) => path.join(DIR,
 const cases = async () => {
   const p = await testProject();
   const out: [string, string, string, () => Promise<unknown>][] = [];
-  for (const b of p.bookmarks) {
+  // (the storage scenes: the memory pauses have no walkthrough)
+  for (const b of p.bookmarks.filter((x) => p.decodings[x.decoding]
+    .variables === "state")) {
     const dc = p.decodings[b.decoding];
     const c = await p.compilation(dc.compilation);
     const t = await p.timeline(b.timeline);

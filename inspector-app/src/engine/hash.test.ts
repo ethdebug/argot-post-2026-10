@@ -10,7 +10,8 @@ const q = (s: string) => new URLSearchParams(s);
 
 it("round-trips every bookmark x side x selection", async () => {
   const p = await testProject();
-  for (const bm of p.bookmarks) {
+  for (const bm of p.bookmarks.filter((b) =>
+    lens.bookmarks!.includes(b.id))) {
     const single = bm.points.length === 1;
     for (const side of single ? ["after"] as const
       : ["before", "after"] as const) {

@@ -4,7 +4,7 @@
 import { dereference, Data, type Pointer } from "./lib";
 import type {
   Compilation, Decoded, Decoding, DerefGraph, Format, Hex, InputNode,
-  PointId, ResolvedRegion, ValueNode, Variable,
+  PointId, ResolvedRegion, TimelinePoint, ValueNode, Variable,
 } from "./types";
 import type { Project } from "./project";
 import { machineState } from "./snapshot";
@@ -12,7 +12,7 @@ import { decodeValue, isValueType, summary, typeName } from "./values";
 import { keysFor } from "./keys";
 import { walk as walkGraph } from "./deref/walk";
 import { regionsOf, sameAsLibrary } from "./deref/check";
-import { slotHex, toBig, toHex } from "./hex";
+import { short, slotHex, toBig, toHex } from "./hex";
 
 type Types = Record<string, Format.Type>;
 type State = ReturnType<typeof machineState>;
@@ -63,6 +63,17 @@ async function decodeAt(p: Project, d: Decoding, point: PointId):
   const at = timeline.points.find((x) => x.id === point);
   if (!at) throw new Error(`no point ${point} in ${d.timeline}`);
   const state = machineState(at.snapshot);
+  if (d.variables === "locals") {
+    const graphs = new Map<string, DerefGraph>();
+    const tree = await localsAt(c, at, state, graphs);
+    const byPath = new Map<string, ValueNode>();
+    const index = (n: ValueNode) => {
+      byPath.set(n.path, n);
+      n.children?.forEach(index);
+    };
+    tree.forEach(index);
+    return { decoding: d.id, point, tree, byPath, graphs, layouts: {} };
+  }
   const vars = c.stateVariables.filter((v) => {
     const q = v.pointer as { location?: string; define?: object };
     return q.location === "storage" || q.define !== undefined;
@@ -88,6 +99,79 @@ async function decodeAt(p: Project, d: Decoding, point: PointId):
   };
   tree.forEach(index);
   return { decoding: d.id, point, tree, byPath, graphs, layouts: {} };
+}
+
+const hex4 = (n: number) => "0x" + n.toString(16).padStart(4, "0");
+
+// The locals an instruction's context lists at a point (vanilla decode.js
+// decodeLocals, mem.js sideTree, recordNode): each one in memory,
+// dereferenced by the library against the point's memory (a pointer that
+// reads the stack is left out: the state has no stack); one listed with
+// no pointer has no location there. Inside a function (the point's
+// scope), its locals are under one node for it, which owns the frame
+// pointer they are found from, if any. Then a storage slot the page
+// reads by its own rule (alice's record).
+async function localsAt(c: Compilation, at: TimelinePoint, state: State,
+  graphs: Map<string, DerefGraph>): Promise<ValueNode[]> {
+  const out: ValueNode[] = [];
+  for (const v of at.locals ?? []) {
+    const type = v.type as Format.Type;
+    const node: ValueNode = { path: v.identifier, label: v.identifier,
+      root: v.identifier, type: "", typeText: typeName(type, {}),
+      regions: [] };
+    if (!v.pointer) {
+      out.push({ ...node, none: true });
+      continue;
+    }
+    const json = JSON.stringify(v.pointer);
+    if (!json.includes('"memory"') || json.includes('"stack"')) continue;
+    if (!isValueType(type, {})) {
+      throw new Error(`${v.identifier}: a ${node.typeText} in memory is ` +
+        "not supported");
+    }
+    const pointer = v.pointer as Pointer;
+    const ids = await graphOf(c, v.identifier, pointer, state, [], graphs,
+      async () => [...(await viewOf(pointer, state, c)).regions]);
+    const view = await viewOf(pointer, state, c);
+    const all = [...view.regions] as unknown as LibRegion[];
+    const k = all.map((r) => r.name).lastIndexOf(v.identifier);
+    const bytes = await view.read(view.regions[k]);
+    out.push({ ...node, value: decodeValue(type, bytes, {}),
+      regions: [resolved(all[k], "value", ids[k])],
+      reads: all.flatMap((r, i) => i === k ? [] : [resolved(r, "value",
+        ids[i])]) });
+  }
+  let tree = out;
+  if (at.scope) {
+    const frame = out.flatMap((n) => n.reads ?? [])
+      .find((r) => r.name === "-frame");
+    const word = frame && at.snapshot.memory!.slice(frame.offset,
+      frame.offset + 32);
+    const addr = word && Number(toBig(toHex(word)));
+    tree = [{ path: at.scope, label: at.scope, root: at.scope, type: "",
+      typeText: "function", kind: "group", regions: frame ? [frame] : [],
+      value: { text: word ? `frame at ${hex4(addr!)}` : "inlined: no frame",
+        hex: word ? toHex(word) : "0x" }, children: out }];
+  }
+  const r = at.record;
+  if (r) {
+    const w = BigInt(at.snapshot.storage.get(r.slot)!);
+    let low = 0;
+    const children = r.members.map(([name, n]): ValueNode => {
+      const v = (w >> BigInt(8 * low)) & ((1n << BigInt(8 * n)) - 1n);
+      const offset = 32 - low - n;
+      low += n;
+      return { path: `${r.path}.${name}`, label: name, root: r.path,
+        type: "", typeText: `uint${8 * n}`,
+        value: { text: String(v), hex: `0x${v.toString(16)}` },
+        regions: [{ location: "storage", slot: BigInt(r.slot), offset,
+          length: n, role: "value", instance: "" }] };
+    });
+    tree = [...tree, { path: r.path, label: r.path, root: r.path,
+      type: "", typeText: "Player", kind: "record", regions: [],
+      value: { text: `slot ${short(r.slot)}`, hex: r.slot }, children }];
+  }
+  return tree;
 }
 
 // The graph of a variable's pointer (deref/walk), checked against the
