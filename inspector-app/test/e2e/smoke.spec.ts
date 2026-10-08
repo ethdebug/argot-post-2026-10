@@ -22,6 +22,11 @@ for (const url of ["./", "./shell.html"]) {
       await page.locator('#details button[data-r="start"]').click();
       await expect(page.locator("#ptr .line span[style]").first())
         .toBeAttached();
-      expect(errors).toEqual([]);
+      // (and none the page caught: an old copy of the library in the dev
+      // server's cache fails here, "failure to recognize kind of
+      // expression", see repin.spec.ts)
+      const caught = await page.evaluate(() => (window as unknown as
+        { results?: { errors: string[] } }).results?.errors ?? []);
+      expect([...errors, ...caught]).toEqual([]);
     });
 }
