@@ -14,7 +14,14 @@ const PLAIN = 1n << 32n; // below this, a slot is a plain number
 // The words and bytes a region covers. Offsets count from the most
 // significant byte; a region longer than the rest of its word goes on
 // into the next slots.
+// A memory region: the words it covers, by offset ("0x0080").
+export const memWord = (n: number): Hex =>
+  `0x${n.toString(16).padStart(4, "0")}`;
 export function regionBytes(r: ResolvedRegion): [Hex, number][] {
+  if (r.location === "memory") {
+    return Array.from({ length: r.length }, (_, k) =>
+      [memWord(Math.floor((r.offset + k) / 32) * 32), (r.offset + k) % 32]);
+  }
   if (r.slot === undefined) return [];
   const out: [Hex, number][] = [];
   for (let k = 0; k < r.length; k++) {
@@ -108,8 +115,9 @@ const shortKeys = (path: string) =>
 export function layout(d: Decoded, location: Location, filter: Filter = {},
   o: { others?: { d: Decoded; who?: string }[]; point?: TimelinePoint;
     // the point it is compared with: its slots' names too (a slot the
-    // value left, at this point, is named as there)
-    compare?: Decoded } = {}): Layout {
+    // value left, at this point, is named as there); memory: its words
+    // too, and the words that changed between the two
+    compare?: Decoded; comparePoint?: TimelinePoint } = {}): Layout {
   const others = o.others ?? [];
   const cover = new Map<ByteKey, Path[]>();
   const owned = new Map<Path, Set<ByteKey>>();
@@ -118,15 +126,22 @@ export function layout(d: Decoded, location: Location, filter: Filter = {},
     node: ValueNode; length: boolean }>>();
   const roots = filter.roots;
   const kept = (p: Path) => !roots || roots.some((r) => under(p, r));
+  // (a memory dump shows a storage slot the page reads, after its words)
+  const rowLoc = new Map<Hex, Location>();
+  const shown = (r: ResolvedRegion) => r.location === location ||
+    (location === "memory" && r.location === "storage");
   const visit = (n: ValueNode) => {
     if (kept(n.path)) {
       for (const r of n.regions) {
-        if (r.location !== location) continue;
+        if (!shown(r)) continue;
+        if (r.location !== location) {
+          for (const [row] of regionBytes(r)) rowLoc.set(row, r.location);
+        }
         // (a string's length parts are an owner of their own, as vanilla)
         const part = r.role === "length" && !n.children;
         const key = part ? `${n.path}#length` : n.path;
         for (const [row, i] of regionBytes(r)) {
-          const k = byteKey(location, row, i);
+          const k = byteKey(r.location, row, i);
           cover.set(k, [...new Set([...(cover.get(k) ?? []), key])]);
           if (!owned.has(key)) owned.set(key, new Set());
           owned.get(key)!.add(k);
@@ -173,10 +188,37 @@ export function layout(d: Decoded, location: Location, filter: Filter = {},
       ? [...new Set([...tx.reads, ...tx.writes])].filter((s) =>
         o.point!.snapshot.storage.has(s)) : [];
 
+  // memory: the compared point's words too, and those that changed
+  const words = new Set<Hex>();
+  if (location === "memory" && o.compare) {
+    for (const n of o.compare.byPath.values()) {
+      for (const r of n.regions) {
+        if (r.location === "memory") {
+          for (const [row] of regionBytes(r)) words.add(row);
+        }
+      }
+    }
+    const [a, b] = [o.point?.snapshot.memory, o.comparePoint?.snapshot
+      .memory];
+    if (a && b) {
+      for (let w = 0; w < Math.max(a.length, b.length); w += 32) {
+        const x = a.slice(w, w + 32).join();
+        if (x !== b.slice(w, w + 32).join()) words.add(memWord(w));
+      }
+    }
+  }
+  const order = (a: Hex, b: Hex) => (rowLoc.has(a) ? 1 : 0) -
+    (rowLoc.has(b) ? 1 : 0) || (BigInt(a) < BigInt(b) ? -1
+      : BigInt(a) > BigInt(b) ? 1 : 0);
   const addresses = [...new Set<Hex>([...first.keys(), ...own.keys(),
-    ...extra.keys(), ...listed])].sort((a, b) =>
-    BigInt(a) < BigInt(b) ? -1 : BigInt(a) > BigInt(b) ? 1 : 0);
+    ...extra.keys(), ...listed, ...words])].sort(order);
+  const record = o.point?.record;
   const how = (a: Hex) => {
+    if (rowLoc.has(a)) {
+      return record?.slot === a
+        ? `keccak(msg.sender, slot ${record.base})` : `slot ${short(a)}`;
+    }
+    if (location === "memory") return `word ${a}`;
     const n = BigInt(a);
     return n < PLAIN ? `slot ${n}` : names.get(n) ?? extra.get(a) ??
       `slot ${short(a)}`;
@@ -192,17 +234,24 @@ export function layout(d: Decoded, location: Location, filter: Filter = {},
           : g.path.slice(parentOf(g.path).length).replace(/^\./, "");
         // (a value's other region by its role, under its name; an
         // array's own word alone in its slot: its length)
-        const own = !g.length && !!g.node.children;
+        const own = !g.length && !!g.node.children && !g.node.kind;
+        // (a function's frame pointer: by its owner id, as vanilla's
+        // label has it)
+        if (g.node.kind === "group") {
+          return { path: g.path, name: `${g.path}#frame` };
+        }
         return { path: g.path, name: one && own ? "length"
           : g.length || own ? `${named}.length` : named };
       });
     return { address, how: how(address), what,
-      ...(own.has(address) ? { role: "own-slot" as const } : {}) };
+      ...(own.has(address) ? { role: "own-slot" as const } : {}),
+      ...(rowLoc.has(address) ? { location: rowLoc.get(address)! } : {}) };
   });
   if (filter.maxRows !== undefined) rows = rows.slice(0, filter.maxRows);
+  const step = location === "memory" ? 32n : 1n;
   rows = rows.map((r, k) => ({ ...r, gapBefore: k === 0
-    ? BigInt(r.address) !== 0n
-    : BigInt(r.address) !== BigInt(rows[k - 1].address) + 1n }));
+    ? BigInt(r.address) !== 0n : !!r.location !== !!rows[k - 1].location ||
+      BigInt(r.address) !== BigInt(rows[k - 1].address) + step }));
   return { location, point: d.point, rows, cover, owned };
 }
 
