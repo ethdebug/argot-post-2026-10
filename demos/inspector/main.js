@@ -444,7 +444,7 @@ function byteStrip(items) {
   // with a tick down to its cells; never cut to a letter)
   const fits = (name, a, b) => name.length <= (b - a + 1) * 2.6;
   const row = (lo, hi) => {
-    const col = (i) => (i - lo) + Math.floor((i - lo) / 8) + 1;
+    const col = (i) => i - lo + 1;
     const vs = [];
     const cs = [];
     for (const { name, region, k } of items) {

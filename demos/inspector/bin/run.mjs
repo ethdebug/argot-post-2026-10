@@ -1414,7 +1414,7 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
     }
   }
   // the byte strip: at the packed fields (and a flag, total), one line,
-  // 32 cells in four groups whose gaps match the dump's, each field's
+  // 32 equal cells, evenly spaced, each field's
   // span over its own cells, no wrapping at 1280 and 1440
   {
     const bad = [];
@@ -1428,14 +1428,9 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
         if (!s) return null;
         const idx = [...s.querySelectorAll(".bsidx span")].map((e) =>
           e.getBoundingClientRect());
-        const cell = idx[1].left - idx[0].left;
-        const gap = idx[8].left - idx[7].left - cell;
-        const w = document.querySelector("#panel .view:not([hidden]) " +
-          ".wrow:not(.head) .word");
-        const bs = [...w.querySelectorAll(".b")].map((e) =>
-          e.getBoundingClientRect());
-        const dcell = bs[1].left - bs[0].left;
-        const dgap = bs[8].left - bs[7].left - dcell;
+        // (equal steps from cell to cell, across the groups too)
+        const steps = idx.slice(1).map((q, i) => q.left - idx[i].left);
+        const even = Math.max(...steps) - Math.min(...steps) < 1;
         const spans = [...s.querySelectorAll(".bsv")].map((v) => {
           const r = v.getBoundingClientRect();
           const a = idx.findIndex((q) => Math.abs(q.left - r.left) < 2);
@@ -1445,12 +1440,12 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
         const rows = [...s.querySelectorAll(".bsv .bsn")].every((n) =>
           n.getClientRects().length === 1 && n.scrollHeight <=
           n.clientHeight + 1);
-        return { ratio: gap / cell, dratio: dgap / dcell, spans, rows,
+        return { even, spans, rows,
           oneLine: s.querySelector(".bsrow").getBoundingClientRect().height <
             parseFloat(getComputedStyle(s).fontSize) * 2 };
       });
       await page.keyboard.press("Escape");
-      if (!x || Math.abs(x.ratio - x.dratio) > 0.08 || !x.rows ||
+      if (!x || !x.even || !x.rows ||
         !x.oneLine || x.spans.join() !== ["lastBlock 0-7", "hitCount 8-11",
         "plays 12-15", "bestCombo 16-19", "combo 20-23", "score 24-31"]
           .join()) bad.push(`${wd} ${JSON.stringify(x)}`);
