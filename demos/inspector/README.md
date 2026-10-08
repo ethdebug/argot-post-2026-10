@@ -675,6 +675,49 @@ is imported from the package's dist (it is not a public export).
   Arcade has none.
 - No calldata pointer from solc: the calldata view uses the ABI rules.
 
+## The raw lens: one moment, bytes with no names
+
+The post's first figure shows bytes the way tools have always had
+them: no names, no colours, no popovers, no tree. The lens
+`src/lenses/raw.ts` composes four bare dumps (the Dump's `display`
+parameters: `bare`, `shape: "strip"`, `abbreviate`, `density:
+"flow"`, `perLine`, `scale`) of one frozen moment, in three
+compositions to pick from: `raw-hero` (V1: storage top left, the
+stack a full-height strip on the right, memory under storage, a
+corner open for a caption), `raw-spine` (V2: the stack down the left,
+memory and calldata in a narrow column on the right) and
+`raw-sheets` (V3: overlapping sheets). Each is a lens in the shell's
+picker (`shell.html#lens=raw-hero`).
+
+The moment (`fixtures/raw.json`, made by `bin/make-raw-fixture.mjs`):
+the same build as the storage fixtures, on a fresh anvil; deploy,
+alice joins, bob joins, then carol's
+`join("carol, the unstoppable combo queen")`. Her name is 34 bytes,
+so its text takes two words, at keccak256(her name's slot) + 0 and
++ 1. The moment is step 569 of 868: the step just after the SSTORE of
+the first text word (step 568), before the second (step 627). Her
+name is half in storage: its first 32 bytes are there, its last two
+bytes and its length word are not yet. The instruction there is pc
+2908, ADD, in solc's helper that copies a string from calldata to
+storage; its source range is the whole contract (lines 4–46). The
+helper is called at step 442 from line 22,
+`players[msg.sender].name = name;`.
+
+The state is the machine's as the node reports it for that step,
+before its instruction runs: the stack (14 items; among them her name's
+slot, the length 0x22, the loop's counters and the data slot being
+written), memory (96 bytes: the hash inputs at 0x00 and 0x20, the
+free-memory pointer at 0x40; the name is not in memory, because
+`join` takes it as `calldata`), the call's calldata, and the
+contract's whole storage then (9 slots: every slot the deployment and
+the joins before wrote, with her join's SSTOREs before the step).
+
+To make it again: `anvil --steps-tracing --port 8556 --silent`, then
+`SOLC=<solc> RPC_URL=http://127.0.0.1:8556 node
+bin/make-raw-fixture.mjs` (solc as for `bin/make-fixtures.mjs`).
+No play is sent, so nothing is rolled: the step, the pc and the
+bytes depend only on the build and the calls.
+
 ## Inside one play: locals in memory, with BUG (bugc from ethdebug/format main)
 
 A separate section under the storage demo shows alice's third hit
