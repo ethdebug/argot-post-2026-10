@@ -2,7 +2,7 @@
 // width and at a phone's, four dumps, none past the page's edge, the
 // stack beside or under storage; bare bytes, which a hover leaves as
 // they are
-import { test, expect } from "@playwright/test";
+import { test, expect, settle } from "../../page";
 
 for (const lens of ["raw-hero", "raw-spine", "raw-sheets"]) {
   for (const width of [1360, 390]) {
@@ -33,7 +33,7 @@ for (const lens of ["raw-hero", "raw-spine", "raw-sheets"]) {
         else expect(sk[2]).toBeGreaterThan(st[2]);
         const before = await page.locator(".lens").innerHTML();
         await page.locator('[data-area="storage"] .b').nth(40).hover();
-        await page.waitForTimeout(200);
+        await settle(page);
         expect(await page.locator(".lens").innerHTML()).toBe(before);
         expect(await page.locator(".pop, .b.hl, .b[data-owners]").count())
           .toBe(0);
