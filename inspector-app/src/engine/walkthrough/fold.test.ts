@@ -1,6 +1,6 @@
 import { it, expect } from "vitest";
 import { testProject } from "../../../test/project";
-import { A, B, C, NAME_C } from "../../../test/expect";
+import { A, B, C, MOTD, NAME_C } from "../../../test/expect";
 
 const CAROL = `"${NAME_C}"`;
 import { decode } from "../decode";
@@ -217,9 +217,10 @@ it("the last step, found: the selection, what it is; a re-target there "
   const cap = (p: string) => walkthrough(x, p)!.steps.at(-1)!;
   expect(cap("players")).toMatchObject({ phase: "found", id: "found",
     chip: "found", chipLabel: "players",
-    cap: "That's `players`: 3 records (alice, bob, carol), found." });
-  expect(cap("playerList").cap).toBe("That's `playerList`: 3 items, found.");
-  expect(cap(C).cap).toBe("That's `players[carol]`: 7 fields, found.");
+    cap: "`players` holds 3 records: alice, bob, carol." });
+  expect(cap("playerList").cap).toBe("`playerList` holds 3 items.");
+  expect(cap(C).cap).toBe("`players[carol]` holds 7 fields.");
+  expect(cap("motd").cap).toBe(`\`motd\` = "${MOTD[0]}".`);
   const a = walkthrough(x, C)!.steps;
   const b = walkthrough(x, `${C}.name`)!.steps;
   expect(retarget(a, a.length - 1, b).at).toBe(b.length - 1);
@@ -278,8 +279,8 @@ it("Vyper: Solidity's rule, then the misread, with Vyper's own layout "
     "slot …aa80 where Vyper keeps nothing.");
   expect(last.source).toBe("from: Vyper's layout, hand-written for " +
     "comparison (Vyper emits no ethdebug)");
-  expect(w.steps.at(-2)!.cap).toBe("That's what Solidity's rule reads for " +
-    "`players[alice].score`: 0.");
+  expect(w.steps.at(-2)!.cap).toBe("Solidity's rule reads " +
+    "`players[alice].score` = 0.");
   expect(w.steps.find((s) => s.phase === "declared")!.cap).toContain(
     "in Vyper's storage, that slot holds something else");
 });
