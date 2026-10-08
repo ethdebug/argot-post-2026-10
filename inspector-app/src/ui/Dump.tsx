@@ -111,6 +111,10 @@ function Word({ l, ls, loc, row, mine, theirs, side, name, light,
       const cls = ["b", g.owners.length
         ? `t${tint.get(g.owners[0])! % TINTS}` : "free"];
       if (i === g.from) cls.push("gs");
+      // (the same value under it, on a word's second line: joined)
+      if (i < 16 && g.owners.length && owners[i + 16]?.[0] === g.owners[0]) {
+        cls.push("jd");
+      }
       if (i === g.to) cls.push("ge");
       if (mine[i] === undefined) cls.push("past");
       else if (mine[i] === "00") cls.push("z");
@@ -196,7 +200,8 @@ export function Dump(p: { id: ViewId; location: Location; data: DataRef;
   // What a point stands for (the one resolver for the hover, a click and
   // the cursor): a byte, itself; in a gap between two bytes of one value
   // (or of one run no value owns), the byte before it, so the gap is
-  // the value's; elsewhere in a row but on none of its bytes (a gap
+  // the value's; so too between a word's two lines, where the value goes
+  // on to the next; elsewhere in a row but on none of its bytes (a gap
   // between values, its ends): the row, its slot hover; else nothing
   const spot = (el: EventTarget, x?: number, y?: number):
     Element | "row" | null => {
@@ -207,13 +212,22 @@ export function Dump(p: { id: ViewId; location: Location; data: DataRef;
     const r = e.closest?.(".wrow[data-slot]") as HTMLElement | null;
     if (!r || !me.current?.contains(r) || x === undefined ||
       y === undefined) return null;
+    const cells = [...r.querySelectorAll<HTMLElement>(".b[data-g]")]
+      .map((c) => [c, c.getBoundingClientRect()] as const);
+    const own = (c?: HTMLElement) => c?.dataset.owners?.split("|")[0];
+    // (between a word's two lines, under a byte of one value whose next
+    // line goes on with it: the value's)
+    const above = cells.filter(([, b]) => b.bottom <= y && x >= b.left &&
+      x < b.right).at(-1);
+    const below = cells.find(([, b]) => b.top >= y && x >= b.left &&
+      x < b.right);
+    if (above && below && own(above[0]) &&
+      above[0].classList.contains("jd") &&
+      below[1].top - above[1].bottom < 4) return above[0];
     // (the bytes on the pointer's line: a phone's word has two)
-    const line = [...r.querySelectorAll<HTMLElement>(".b[data-g]")]
-      .map((c) => [c, c.getBoundingClientRect()] as const)
-      .filter(([, b]) => y >= b.top && y < b.bottom);
+    const line = cells.filter(([, b]) => y >= b.top && y < b.bottom);
     const left = line.filter(([, b]) => b.right <= x).at(-1)?.[0];
     const right = line.find(([, b]) => b.left >= x)?.[0];
-    const own = (c?: HTMLElement) => c?.dataset.owners?.split("|")[0];
     if (left && right && own(left) === own(right) && (own(left) ||
       left.dataset.g === right.dataset.g)) return left;
     return "row";
