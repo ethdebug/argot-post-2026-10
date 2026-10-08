@@ -13,19 +13,19 @@ msg ArcadeMsg {
 
 // Fe's StorageMap values must fit in one word: one map per Player field.
 struct ArcadeStore {
-    roster: StorageMap<u256, Address, 0>,   // everyone who has joined (a mapping can't list its keys)
-    roster_len: u256,                       //   (no dynamic array: a map by index + a length)
-    total: u128,                            // all players' points
-    rounds: u64,                            // the number of hits
+    player_list: StorageMap<u256, Address, 0>,   // who joined, in order (a mapping can't list its keys)
+    player_count: u256,                          //   (no dynamic array: a map by index + a length)
+    total_score: u128,                           // ┐ every player's points
+    total_hits: u64,                             // ┘   and every player's hits
     scores: StorageMap<Address, u64, 3>,
     combos: StorageMap<Address, u32, 4>,
     best_combos: StorageMap<Address, u32, 5>,
     plays: StorageMap<Address, u32, 6>,
-    hit_counts: StorageMap<Address, u32, 7>,
+    hits: StorageMap<Address, u32, 7>,
     last_blocks: StorageMap<Address, u64, 8>,   // when they last played
 }
 
-type Motd = StorageBytes<u256, 1, 2>       // the server's message of the day
+type Motd = StorageBytes<u256, 1, 2>       // the message of the day
 type Names = StorageBytes<Address, 9, 10>  // each player's name
 
 // a toy roll (not safe randomness): 2 in 3 is a hit
@@ -37,7 +37,7 @@ fn reset_combo(who: Address) uses (store: mut ArcadeStore) {
     store.combos.set(key: who, value: 0)
 }
 
-fn multiplied(points: u64, combo: u32) -> u64 {
+fn apply_combo(points: u64, combo: u32) -> u64 {   // the multiplier stops at 5
     if combo < 5 {
         return points * (combo as u64)
     }
@@ -49,8 +49,8 @@ pub contract Arcade uses (ctx: Ctx) {
     mut motd: Motd
     mut names: Names
 
-    init(m: DynString) uses (mut motd) {
-        motd.store_view(key: 0, view: m.as_bytes().view())
+    init(initial_motd: DynString) uses (mut motd) {
+        motd.store_view(key: 0, view: initial_motd.as_bytes().view())
     }
 
     recv ArcadeMsg {
@@ -58,8 +58,8 @@ pub contract Arcade uses (ctx: Ctx) {
             let me: Address = ctx.caller()
             assert(name.len() > 0 && names.len(key: me) == 0)
             names.store_view(key: me, view: name.as_bytes().view())
-            store.roster.set(key: store.roster_len, value: me)
-            store.roster_len = store.roster_len + 1
+            store.player_list.set(key: store.player_count, value: me)
+            store.player_count = store.player_count + 1
         }
         Play uses (mut store, names, ctx) {
             let me: Address = ctx.caller()
@@ -71,16 +71,16 @@ pub contract Arcade uses (ctx: Ctx) {
                 return
             }
             store.combos.set(key: me, value: store.combos.get(key: me) + 1)
-            store.hit_counts.set(key: me, value: store.hit_counts.get(key: me) + 1)
+            store.hits.set(key: me, value: store.hits.get(key: me) + 1)
             if store.combos.get(key: me) > store.best_combos.get(key: me) {
                 store.best_combos.set(key: me, value: store.combos.get(key: me))
             }
-            let gained: u64 = multiplied(points: 10, combo: store.combos.get(key: me))
+            let gained: u64 = apply_combo(points: 10, combo: store.combos.get(key: me))
             store.scores.set(key: me, value: store.scores.get(key: me) + gained)
-            store.total = store.total + gained as u128
-            store.rounds = store.rounds + 1
+            store.total_score = store.total_score + gained as u128
+            store.total_hits = store.total_hits + 1
         }
-        SetMotd { text } uses (mut motd) {
+        SetMotd { text } uses (mut motd) {   // anyone may
             motd.store_view(key: 0, view: text.as_bytes().view())
         }
     }
