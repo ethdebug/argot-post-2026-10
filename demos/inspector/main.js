@@ -978,8 +978,9 @@ function replaySteps(path, side, focus) {
     out.goal = { phase: "goal", id: "goal", constructs: [], band: [],
       cap: `${all.length === 1 ? "This slot holds" : `These ${all.length
         } slots hold`} \`${shortKeys(path)}\`${apart
-        ? ", scattered across storage" : ""}. Which bytes are what, and ` +
-        "how do we know?", form: "", source: "",
+        ? ", scattered across storage" : ""}.` +
+        "", form: '<span class="prose rq">How do we find them, and what ' +
+        "do they mean?</span>", source: "",
       chip: "", chipLabel: "", bare: true, rows: [path],
       parts: [{ regions: all.map((sl) => ({ location: "storage", slot: sl,
         offset: "0x0", length: "0x20" })), rows: [path] }] };

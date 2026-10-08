@@ -1005,6 +1005,9 @@ main[data-single] > .cols :is(.chglegend, .legend .bchg, .intro .two) {
   border: 1px solid var(--line); border-top: 0;
   border-left: 3px solid var(--accent); border-radius: 0 0 6px 6px; }
 .dpanel[hidden] { display: none; }
+/* (the pointer on the left, the explanation on the right; stacked on a
+   phone, the pointer first) */
+.dpanel .ptr { order: -1; }
 .dleft { display: grid; grid-template-rows: minmax(0, 1fr) 1.9em 3.4em;
   min-height: 0; gap: 6px; }
 /* the focus entry: one fixed row; empty but there when there is none */
@@ -1061,7 +1064,7 @@ main[data-single] > .cols :is(.chglegend, .legend .bchg, .intro .two) {
    few lines of the pointer; the rest scrolls inside it) */
 @media (max-width: 759px) {
   .dpanel { grid-template-columns: minmax(0, 1fr);
-    grid-template-rows: auto 5.4em; height: 17.9em; gap: 4px;
+    grid-template-rows: 5.4em auto; height: 17.9em; gap: 4px;
     padding: 6px 10px; }
   .dleft { grid-template-rows: auto 1.9em; }
   .dpanel .chips, .dpanel .rsrc, .dpanel .fnotes, .ptr .plabel {
@@ -1073,6 +1076,9 @@ main[data-single] > .cols :is(.chglegend, .legend .bchg, .intro .two) {
 .rform { margin: 0; font-family: ui-monospace, Menlo, monospace;
   font-size: 0.85rem; line-height: 1.4; height: 4.2em; overflow: hidden;
   overflow-wrap: anywhere; }
+/* (step 0's question: its own paragraph, in the formula's room) */
+.rform .prose.rq { display: block; margin-top: 0.35em; font-size: 1rem;
+  color: var(--fg); }
 .rform .prose { font-family: system-ui, -apple-system, "Segoe UI",
   sans-serif; color: var(--muted); }
 .rwhere { font-family: inherit; height: auto; }
