@@ -242,3 +242,20 @@ test("a scrolled tree aligns as an unscrolled one (its padding stays)",
       requestAnimationFrame(() => requestAnimationFrame(r))));
     expect(await pad()).toBe(before);
   });
+
+test("every scene: the columns equal, the tree's first row level with the "
+  + "dump's", async ({ page }) => {
+  await ready(page);
+  for (const id of ["mid", "alice", "motd", "vyper"]) {
+    await select(page, id, null);
+    const c = await page.evaluate(() => {
+      scrollTo(0, 0);
+      const r = (q: string) => document.querySelector(q)!
+        .getBoundingClientRect();
+      return [r(".scols .words").width - r(".scols .storage").width,
+        r("#panel .view:not([hidden]) .rows > *").top -
+          r("#tree li .row").top].map((x) => Math.abs(x) <= 1);
+    });
+    expect(c, id).toEqual([true, true]);
+  }
+});

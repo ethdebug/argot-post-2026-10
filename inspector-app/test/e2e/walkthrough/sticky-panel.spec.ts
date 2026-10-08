@@ -144,3 +144,68 @@ test("one ✕ Exit, even while the details unfold, ends the walkthrough",
       await page.keyboard.press("Escape");
     }
   });
+
+for (const [w, h] of [[1440, 900], [390, 844]]) {
+  test(`${w}px: at every step, nothing covers a lit byte; the panel's `
+    + "parts keep to their room", async ({ page, browserName }) => {
+    // (a known defect, found when this check moved from bin/run.mjs:
+    // Firefox at 390px, the packed fields' step: the strip's box is 2px
+    // taller than its room)
+    test.fail(browserName === "firefox" && w === 390,
+      "Firefox, 390px: .rform overflows by 2px at the fields step");
+    await at(page, w, h);
+    await select(page, "mid", "players");
+    await page.locator('#details button[data-r="start"]').click();
+    for (let k = 0; k < 20; k++) {
+      await settled(page);
+      // (each lit row's byte, in the middle of the view under the stuck
+      // panel: what the pointer finds there is that byte)
+      const covered = await page.evaluate(async () => {
+        const out: string[] = [];
+        for (const c of [...document.querySelectorAll<HTMLElement>(
+          "#panel .view:not([hidden]) .wrow")].map((r) =>
+          r.querySelector<HTMLElement>(".b.hl")).filter(Boolean)) {
+          c!.scrollIntoView({ block: "center" });
+          const pb = document.querySelector(".wpanel")!
+            .getBoundingClientRect().bottom;
+          scrollBy(0, c!.getBoundingClientRect().top -
+            (pb + (innerHeight - pb) / 2));
+          const r = c!.getBoundingClientRect();
+          const e = document.elementFromPoint(r.left + r.width / 2,
+            r.top + r.height / 2);
+          if (e !== c && !c!.contains(e)) {
+            out.push(c!.closest<HTMLElement>(".wrow")!.dataset.slot!
+              .slice(-4));
+          }
+        }
+        return out;
+      });
+      expect(covered, `step ${k}: covered`).toEqual([]);
+      const over = await page.evaluate(() => {
+        const dp = document.querySelector("#dpanel")!;
+        const parts = [...dp.querySelectorAll<HTMLElement>(".rcap, .rform, " +
+          ".rsrc, .fnotes, .dpick, .chips, .ptrscroll")]
+          .filter((e) => e.offsetHeight);
+        const hit = (a: DOMRect, b: DOMRect) => a.left < b.right - 0.5 &&
+          b.left < a.right - 0.5 && a.top < b.bottom - 0.5 &&
+          b.top < a.bottom - 0.5;
+        const out = parts.filter((e) => !e.matches(".chips, .ptrscroll") &&
+          e.scrollHeight > e.clientHeight + 1).map((e) => e.className);
+        const rs = parts.map((e) => e.getBoundingClientRect());
+        const box = dp.getBoundingClientRect();
+        rs.forEach((r, i) => {
+          if (r.bottom > box.bottom + 0.5) out.push(`${parts[i].className} out`);
+          rs.slice(i + 1).forEach((q, j) => {
+            if (hit(r, q)) out.push(`${parts[i].className} on ${
+              parts[i + 1 + j].className}`);
+          });
+        });
+        return out;
+      });
+      expect(over, `step ${k}: parts`).toEqual([]);
+      const n = page.locator('#details button[data-r="next"]');
+      if (await n.isDisabled()) break;
+      await n.click();
+    }
+  });
+}
