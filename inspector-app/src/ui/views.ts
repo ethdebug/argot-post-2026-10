@@ -5,13 +5,13 @@ import { Dump } from "./Dump";
 import { Tree } from "./Tree";
 import { Picker } from "./Picker";
 import { WalkthroughPanel } from "./WalkthroughPanel";
-import { Calldata } from "./Calldata";
+import { AbiView } from "./Calldata";
 import { Derivation, LocalsDetails, Note, Source } from "./Locals";
 import { ContractSource } from "./ContractSource";
 
 export const viewKinds: Partial<Record<ViewKind, ComponentType<any>>> = {
   dump: Dump, tree: Tree, picker: Picker, walkthrough: WalkthroughPanel,
-  calldata: Calldata,
+  abi: AbiView,
   details: LocalsDetails, derivation: Derivation, source: Source,
   note: Note, contract: ContractSource,
 };

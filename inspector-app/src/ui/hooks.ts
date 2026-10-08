@@ -67,9 +67,11 @@ export const NO_VIEW: ViewState = { collapsed: new Set() };
 // the other one of the pair)
 export function resolveRef(ref: DataRef, s: LensState, p: Project):
   DataAt | undefined {
+  // ("$abi": the bookmark's call's calldata, when it names one)
   const decoding = ref.decoding === "$bm"
     ? p.bookmarks.find((b) => b.id === s.bookmark)?.decoding
-    : ref.decoding;
+    : ref.decoding === "$abi" ? (p.decodings[`abi:${s.bookmark}`]
+      ? `abi:${s.bookmark}` : undefined) : ref.decoding;
   const slot = typeof ref.point === "string" ? null : ref.point.slot;
   const point = slot === null ? ref.point as string
     : s.points[slot === "$side" ? (s.side === "before" ? "a" : "b")

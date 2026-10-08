@@ -32,7 +32,7 @@ const pk = (k: Colour | undefined) => k === "src" ? "pksrc"
 interface Ctx { light: Light; selection: string | null;
   collapsed: ReadonlySet<string>; pair?: [Decoded, Decoded];
   card?: { path: string; side: string; node: ReactNode };
-  plain?: boolean }
+  plain?: boolean; partAttr?: boolean }
 
 // a row's colour when lit (0: the selection's yellow)
 const colourOf = (c: Ctx, n: ValueNode) => c.light.colours.get(n.path) ?? 0;
@@ -79,7 +79,8 @@ function Row({ n, top, c, inBlk }: { n: ValueNode; top?: boolean; c: Ctx;
   // (the other state's card: under the row and its members in Before,
   // over the row in After)
   const card = c.card?.path === n.path ? c.card : undefined;
-  return <li className={li || undefined} data-path={n.path}>
+  return <li className={li || undefined} data-path={n.path}
+    data-part={c.partAttr ? n.path : undefined}>
     <div className={cls} tabIndex={0} role="button"
       aria-pressed={sel ? "true" : "false"}>
       <span className="name">{n.label}</span>
@@ -153,7 +154,7 @@ export function Tree(p: { id: ViewId; data: DataRef; filter?: Filter;
   link?: LinkId; domId?: string; variant?: "tree" | "table";
   compare?: DataRef; align?: ViewId[];
   // (no cards of the other state, no collapsing: the memory section's)
-  plain?: boolean }) {
+  plain?: boolean; partAttr?: boolean }) {
   const d = useDecoded(p.data);
   const o = useDecoded(p.compare);
   const light = useLight(p.id);
@@ -175,7 +176,7 @@ export function Tree(p: { id: ViewId; data: DataRef; filter?: Filter;
     ? link.selection : link.hover?.path ?? [...light.rows][0] ?? null;
   const c: Ctx = { light, selection: link.selection, pair,
     collapsed: new Set([...view.collapsed].filter((q) => !closing.has(q))),
-    plain: p.plain,
+    plain: p.plain, partAttr: p.partAttr,
     card: pair && insets && light.muted && !p.plain
       ? treeCard(lit, pair, side)
       : undefined };

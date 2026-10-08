@@ -22,9 +22,12 @@ const dl = (page: Page, q: string) => page.evaluate((q) => {
 }, q);
 const cd = (page: Page) => page.evaluate(() =>
   (window as unknown as W).calldataResults);
+// (each lit byte's offset in the calldata: its row's, and its place)
 const lit = (page: Page) => page.evaluate(() => [...document
   .querySelectorAll<HTMLElement>("#cpanel .b.hl")].map((b) =>
-  +b.dataset.i!));
+  Number(b.closest<HTMLElement>(".wrow")!.dataset.slot) + +b.dataset.i!));
+// (byte 40: the 5th of the word at 0x24, the length's)
+const LEN = '#cpanel .wrow[data-slot="0x0024"] .b[data-i="4"]';
 const range = (a: number, b: number) =>
   Array.from({ length: b - a }, (_, i) => a + i);
 
@@ -35,13 +38,13 @@ test("setMotd's calldata: selector, a byte selects its part, details",
     await expect(page.locator('#ctree li[data-part="selector"] .val'))
       .toHaveText("0x5fe59b9d");
     // offset 32, then the length (5) at 0x24, then the bytes at 0x44
-    await page.locator('#cpanel .b[data-i="40"]').click();
+    await page.locator(LEN).click();
     expect((await cd(page)).chosen).toBe("m-length");
     expect(await dl(page, "#cdetails")).toMatchObject({ Holds: "5",
       Where: "bytes 0x0024–0x0043" });
     await expect(page.locator('#ctree li[data-part="m-length"] > .row'))
       .toHaveAttribute("aria-pressed", "true");
-    await page.locator('#cpanel .b[data-i="40"]').click();
+    await page.locator(LEN).click();
     expect((await cd(page)).chosen).toBe(null);
     await page.locator('#ctree li[data-part="m"] > .row').hover();
     expect(await lit(page)).toEqual(range(4, 73));
@@ -85,7 +88,8 @@ test("its selection is its own: storage's stays; Escape clears its own",
     expect((await cd(page)).chosen).toBe(null);
     expect(await storage()).toBe("motd");
     // (keyboard: Enter on a byte run selects its part)
-    await page.locator('#cpanel .b[data-i="68"]').focus();
+    await page.locator(
+      '#cpanel .wrow[data-slot="0x0044"] .b[data-i="0"]').focus();
     await page.keyboard.press("Enter");
     expect((await cd(page)).chosen).toBe("m-data");
     expect(await dl(page, "#cdetails")).toMatchObject({

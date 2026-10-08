@@ -94,7 +94,8 @@ function Present({ v, View }: { v: ViewSpec; View: ComponentType<any> }) {
       : v.data.point.slot === "b" ? "a" : "$other" } } : undefined;
   const other = ("compare" in v ? v.compare : undefined) ?? pair;
   if (v.kind === "tree" || v.kind === "walkthrough") {
-    return <View {...v} compare={other} />;
+    return <View {...v} compare={v.kind === "tree" && v.plain ? undefined
+      : other} />;
   }
   if (v.kind !== "dump") return <View {...v} />;
   const side = v.side;
@@ -199,24 +200,34 @@ export function Lens(props: { spec: LensSpec; project: Project;
       !mine(el);
     const here0 = (el: Element | null) => !!el &&
       (props.within ? props.within(el) : mine(el));
+    // (a link group of its own part of the page: Escape and a click on
+    // empty space there clear it alone; elsewhere, the others)
+    const scopeOf = (el: Element | null) => el?.closest?.(
+      "[data-link-scope]")?.getAttribute("data-link-scope") ?? null;
+    const scoped = new Set(Object.values(spec.scopes ?? {}));
+    const ours = (scope: string | null) => (k: string) =>
+      scope ? k === scope : !scoped.has(k);
     let pressed = false;
+    let pressedScope: string | null = null;
     const down = (e: Event) => {
       pressed = here0(e.target as Element);
+      pressedScope = scopeOf(e.target as Element);
     };
     // (a walkthrough with a panel to fold: the panel ends it)
     const panelled = (link: string) => spec.views.some((v) =>
       v.kind === "walkthrough" && v.link === link);
-    const clear = () => store.set((s) => ({ ...s, links: Object.fromEntries(
-      Object.entries(s.links).map(([k, l]) => [k, l.walk
-        ? { ...l, walk: panelled(k) ? { ...l.walk, exit: true } : null }
-        : l.selection ? { ...l, selection: null } : l])) }));
+    const clear = (scope: string | null) => store.set((s) => ({ ...s,
+      links: Object.fromEntries(Object.entries(s.links).map(([k, l]) =>
+        [k, !ours(scope)(k) ? l : l.walk
+          ? { ...l, walk: panelled(k) ? { ...l.walk, exit: true } : null }
+          : l.selection ? { ...l, selection: null } : l])) }));
     const keyed = (e: KeyboardEvent) => {
       const f = document.activeElement;
       const here = !f || f === document.body ? pressed : here0(f);
       if (!here) return;
-      // (a view with a selection of its own keeps its Escape)
-      if (e.key === "Escape" && !(e.target as Element).closest?.(
-        "[data-scoped]")) return clear();
+      if (e.key === "Escape") {
+        return clear(!f || f === document.body ? pressedScope : scopeOf(f));
+      }
       // in a walkthrough: ← → Home End step, from anywhere in the lens
       // but a text field
       const moves: Record<string, (k: number, n: number) => number> = {
@@ -235,15 +246,17 @@ export function Lens(props: { spec: LensSpec; project: Project;
     const click = (e: MouseEvent) => {
       const t = e.target as Element;
       if ((e as MouseEvent & { acted?: boolean }).acted || other(t) ||
-        t.closest?.("[data-scoped]") || (props.within && !props.within(t))) {
+        (props.within && !props.within(t))) {
         return;
       }
       if (t.closest?.("#picker, #details, #dwrap, .addr, .tray, a, " +
-        "button, summary, details, input, label, .shellbar")) return;
+        "button, summary, details, input, label, .shellbar, .how, " +
+        ".details")) return;
       if (String(window.getSelection?.() ?? "")) return;
+      const scope = scopeOf(t);
       store.set((s) => ({ ...s, links: Object.fromEntries(Object.entries(
-        s.links).map(([k, l]) => [k, l.selection && !l.walk
-          ? { ...l, selection: null } : l])) }));
+        s.links).map(([k, l]) => [k, ours(scope)(k) && l.selection &&
+          !l.walk ? { ...l, selection: null } : l])) }));
     };
     document.addEventListener("pointerdown", down, true);
     document.addEventListener("keydown", keyed);
@@ -272,6 +285,7 @@ export function Lens(props: { spec: LensSpec; project: Project;
       gridTemplateAreas: spec.grid }}>
       {Object.entries(wrapped).map(([a, n]) =>
         <div key={a} className={spec.areas?.[a]} data-area={a}
+          data-link-scope={spec.scopes?.[a]}
           style={{ gridArea: a }}>{n}</div>)}
     </div>;
   return <LensContext.Provider value={value}>{body}</LensContext.Provider>;

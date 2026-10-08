@@ -103,8 +103,11 @@ export function fromFixture(json: unknown, fixtureId: string):
     id: `${fixtureId}:${side}`,
     label: `${side} the transaction`,
     at: { tx: f.tx.hash, side },
+    // (and the call's input, its calldata)
     snapshot: { storage: new Map(Object.entries(f.slots).map(
-      ([s, w]) => [s as Hex, w[side]])) },
+      ([s, w]) => [s as Hex, w[side]])),
+    calldata: Uint8Array.from((f.tx.input.slice(2).match(/../g) ?? [])
+      .map((b) => parseInt(b, 16))) },
     transaction,
   }));
   return { compilation, timeline: { id: fixtureId,
