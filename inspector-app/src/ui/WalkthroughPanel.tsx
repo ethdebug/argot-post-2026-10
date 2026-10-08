@@ -75,20 +75,18 @@ function FormView({ f }: { f: Form }) {
       <span className={r.k ? `${pk(r.k)} isw` : undefined}>{toks(r.b)}
       </span></Fragment>)}</span>;
   }
-  const hex = f.word.slice(2).padStart(64, "0").match(/../g) ?? [];
-  const owner = (i: number) => f.fields.find((x) => i >= x.from && i <= x.to);
+  // (as a dump row: 32 cells, a gap after each eight; vanilla byteStrip)
+  const col = (i: number) => i + Math.floor(i / 8) + 1;
   return <span className="bstrip" role="img" aria-label={f.fields.map((x) =>
-    `${x.name} bytes ${x.from}–${x.to}`).join(", ")}>
-    <span className="bbytes">{hex.map((b, i) => {
-      const o = owner(i);
-      return <span key={i} className={`b${o ? ` hl ${pk(o.k)}` : " free"}${
-        o && i === o.from ? " gs" : ""}${o && i === o.to ? " ge" : ""}`}>
-        {b}</span>;
-    })}</span>
-    <span className="bnames">{f.fields.map((x) => <span key={x.path}
-      className={`fname ${pk(x.k)}`} data-path={x.path}
-      style={{ gridColumn: `${x.from + 1} / ${x.to + 2}` }}>{x.name}</span>)}
-    </span>
+    `${x.name}: ${x.from === x.to ? `byte ${x.from}`
+      : `bytes ${x.from} to ${x.to}`}`).join("; ")}>
+    <span className="bsrow">{f.fields.map((x, k) => <span key={k}
+      className={`bsv pk${x.k || 0}`} data-path={x.path}
+      style={{ gridColumn: `${col(x.from)} / ${col(x.to) + 1}` }}>
+      <span className="bsn">{x.name}</span></span>)}</span>
+    <span className="bsrow bsidx" aria-hidden="true">{Array.from(
+      { length: 32 }, (_, i) => <span key={i} style={{ gridColumn: col(i) }}>
+        {i}</span>)}</span>
   </span>;
 }
 
@@ -349,8 +347,10 @@ export function WalkthroughPanel(p: { id: ViewId; data: DataRef;
     const t = sides && locked(link.hover, null, sides.d.byPath);
     text = <Details info={sides ? infoOf(sides, t ?? null) : null} />;
   } else if (st && w) {
+    // (at step 0, ▶ has a halo: the way on; vanilla 23c7c00)
     const btn = (r: string, label: string, glyph: string, off: boolean) =>
-      <button type="button" className="btn" data-r={r} aria-label={label}
+      <button type="button" className={`btn${r === "next" && st.goal
+        ? " halo" : ""}`} data-r={r} aria-label={label}
         disabled={off}>{glyph}</button>;
     const lastStep = i === steps.length - 1;
     const fc = footOf(st);
@@ -437,10 +437,11 @@ export function WalkthroughPanel(p: { id: ViewId; data: DataRef;
           </div>
           <div id={p.domId ? "dpick" : undefined} className="dpick">
             {walk && w?.recs && <><span className="plab">Focus</span>
-              {[{ path: "*", who: "all" }, ...w.recs].map((r) =>
+              {[{ path: "*", who: "all", full: "all" }, ...w.recs].map((r) =>
                 <button key={r.path} type="button" className="btn"
                   data-focus={r.path} aria-pressed={r.path === w.focus
-                    ? "true" : "false"} onClick={() => setFocus(r.path)}>
+                    ? "true" : "false"} onClick={() => setFocus(r.path)}
+                  aria-label={`Focus: ${r.full ?? r.who}`}>
                   {r.who}</button>)}</>}</div>
           <div ref={chipsRef} id={p.domId ? "chips" : undefined}
             className="chips">{chips}</div>

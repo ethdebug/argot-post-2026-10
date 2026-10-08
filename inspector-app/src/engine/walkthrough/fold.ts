@@ -24,11 +24,11 @@ export type Form =
   | { kind: "text"; toks: Tok[] }
   | { kind: "table"; rows: { a: Tok[]; b: Tok[]; k: Colour }[] }
   | { kind: "lines"; lines: Tok[][] }
-  // a one-line strip of a word's 32 bytes, as a dump row draws it: the
-  // fields over their bytes, in their colours
-  | { kind: "strip"; row: Hex; word: Hex;
-    fields: { path: Path; name: string; from: number; to: number;
-      k: Colour }[] };
+  // byte ranges within one slot, drawn as a dump row is: 32 cells in
+  // four groups of eight, each value a span over its cells, in its
+  // colour, named; the byte positions under it (vanilla 5c1edfa)
+  | { kind: "strip"; fields: { path?: Path; name: string; from: number;
+    to: number; k: Colour }[] };
 export interface Part { regions: ResolvedRegion[]; rows: Path[];
   colours?: ReadonlyMap<Path, Colour>; dim?: boolean; slots?: Hex[] }
 export interface Step {
@@ -43,7 +43,7 @@ export interface Step {
 export interface Walkthrough {
   target: Path; steps: Step[];
   // a mapping's entries, for the focus picker; "*": all at full strength
-  recs: { path: Path; who: string }[] | null; focus: string;
+  recs: { path: Path; who: string; full?: string }[] | null; focus: string;
   variable: string;
 }
 export interface WalkInput {
@@ -272,8 +272,13 @@ export function walkthrough(x: WalkInput, path: Path, focus?: string):
     return [short(h), ...(nm ? [" ", { gloss: nm }] : [])];
   };
   const isRec = insts.some((i) => keyOf(i));
+  // (shortened, within its quotes, for a narrow place: vanilla 0225d35)
+  const clip = (t: string, n = 16) => t.length > n
+    ? `${t.slice(0, n - 2)}…${t.endsWith('"') ? '"' : ""}` : t;
+  const whoShort = (i: string) => clip(who(i));
   const recs = isRec && insts.length > 1
-    ? insts.map((i) => ({ path: i, who: who(i) })) : null;
+    ? insts.map((i) => ({ path: i, who: whoShort(i), full: who(i) }))
+    : null;
   // the focus: one instance at full strength, the others echoing it;
   // or "*", all of them (by default for a composite with several; one
   // entry or a value in it: that entry)
@@ -293,6 +298,10 @@ export function walkthrough(x: WalkInput, path: Path, focus?: string):
     return st;
   };
   const text = (...toks: Tok[]): Form => ({ kind: "text", toks });
+  // (within one slot: a range past its end stops at byte 31)
+  const strip = (fields: Extract<Form, { kind: "strip" }>["fields"]): Form =>
+    ({ kind: "strip", fields: fields.map((f) => ({ ...f,
+      to: Math.min(31, f.to) })) });
   const table = (rows: [Tok[], Tok[], Colour][]): Form =>
     ({ kind: "table", rows: rows.map(([a, b, k]) => ({ a, b, k })) });
   const pos = (block: string, at: (string | number)[]) =>
@@ -307,7 +316,7 @@ export function walkthrough(x: WalkInput, path: Path, focus?: string):
     const one = keyed.length === 1;
     const has = items.filter(([, it]) => it) as [string, ValueNode][];
     step({ phase: "input", id: "input",
-      cap: one ? `key = ${who(keyed[0])}'s address, from \`${
+      cap: one ? `key = the address of ${who(keyed[0])}, from \`${
         items[0][1]?.path ?? "the trace"}\``
         : `The keys: the addresses in \`${keyList ?? "the trace"}\``,
       form: one ? text(...addr(keyOf(keyed[0])!)) : table(items.map(([i, it]) =>
@@ -329,8 +338,8 @@ export function walkthrough(x: WalkInput, path: Path, focus?: string):
       step({ phase: "declared", id: `declared|${variable}`, band: ["~var"],
         cap: `\`${variable}\` is at slot ${small(r.slot!)}, ${r.length} ` +
           `bytes from offset ${r.offset}`,
-        form: text(`slot ${small(r.slot!)}, bytes ${r.offset}–${r.offset +
-          r.length - 1}`),
+        form: strip([{ name: variable, from: r.offset, to: r.offset +
+          r.length - 1, k: 0 }]),
         constructs: ["pointer"], source: "ethdebug data from the compiler",
         chip: `slot ${small(r.slot!)}`, chipLabel: "value",
         parts: [{ regions: [r], rows: [variable] }], rows: [variable] });
@@ -384,7 +393,7 @@ export function walkthrough(x: WalkInput, path: Path, focus?: string):
       const what = (k: string) => {
         const vs = vals(k);
         if (vs.length === 1 && vs[0] !== undefined) {
-          return k === "key" ? `key = ${who(xs[0].inst)}'s address`
+          return k === "key" ? `key = the address of ${who(xs[0].inst)}`
             : `${k} = ${small(vs[0])}`;
         }
         return k === "key" ? `key = each address in \`${keyList ??
@@ -517,7 +526,9 @@ export function walkthrough(x: WalkInput, path: Path, focus?: string):
           : `${lbl}${name === "length-flag" ? ", " : ": "}${byte(
             vals[0][1])}`,
         form: many ? table(vals.map(([y, r]) => [[who(y.inst)], [byte(r)],
-          kOf(y.inst)])) : text(`${name} = ${byte(vals[0][1])}`),
+          kOf(y.inst)])) : strip([{ name: `${name} = ${byte(vals[0][1])}`,
+          from: vals[0][1].offset, to: vals[0][1].offset +
+            vals[0][1].length - 1, k: kOf(vals[0][0].inst) }]),
         constructs: ["region"], source: "read from storage",
         chip: name === "length-flag" ? "flag" : name,
         chipLabel: name === "length" ? "array" : "string",
@@ -615,10 +626,9 @@ export function walkthrough(x: WalkInput, path: Path, focus?: string):
         : `\`${nm(items[0])}\` is ${bytesText(items[0].region)} of the ` +
           "record's first slot",
       // (the byte strip: the word, its fields over their bytes)
-      form: { kind: "strip", row, word: (wordAt(row) ?? "0x") as Hex,
-        fields: items.map((z) => ({ path: z.leaf.path, name: nm(z),
-          from: z.region.offset, to: z.region.offset + z.region.length - 1,
-          k: kc(z.leaf.path) })) },
+      form: strip(items.map((z) => ({ path: z.leaf.path, name: nm(z),
+        from: z.region.offset, to: z.region.offset + z.region.length - 1,
+        k: kc(z.leaf.path) }))),
       chip: n > 1 ? `${n} fields` : nm(items[0]),
       chipLabel: n > 1 ? "fields" : "field",
       ruler: row,
@@ -666,7 +676,8 @@ export function walkthrough(x: WalkInput, path: Path, focus?: string):
       ? `even: 0x${flagOf(y.inst)?.slice(-2)} → ${lens(y.inst)} bytes inline`
       : `odd: 0x${flagOf(y.inst)?.slice(-2)} → ${lens(y.inst)} bytes at ` +
         `keccak(${tail(regs(y.inst)[0]?.slot ?? 0n)})`;
-    const names = (list: X[]) => list.map((y) => who(y.inst)).join(", ");
+    const names = (list: X[]) => list.map((y) => whoShort(y.inst))
+      .join(", ");
     const fork = shorts.length && longs.length;
     Object.assign(st, {
       cap: fork ? `The last byte decides the form: even → short (${names(
