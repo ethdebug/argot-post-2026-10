@@ -3,7 +3,9 @@ import type { LensSpec } from "../ui/types";
 import { fullInspector } from "./full-inspector";
 import { alicePlays } from "./alice-plays";
 import { vyper } from "./vyper";
+import { playersWalk } from "./players-walk";
 
 // (Phase 1's page first; then lenses made of Phase 1 parts only, which
 // show the architecture fits Phase 2: spec §6b, §6c)
-export const lenses: LensSpec[] = [fullInspector, alicePlays, vyper];
+export const lenses: LensSpec[] = [fullInspector, playersWalk, alicePlays,
+  vyper];
