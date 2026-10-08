@@ -1,22 +1,7 @@
 // The Phase 1 page as a lens: the storage scenes (bookmarks), the
 // dumps (before, after) and the tree, linked; Before | After
-import type { ReactNode } from "react";
-import { useLensState, useLink } from "../ui/hooks";
+import { panel } from "../ui/Panel";
 import type { LensSpec } from "../ui/types";
-
-// The dumps' panel (vanilla #panel): both sides in one box; "active"
-// while something is lit, "chosen" while a value is selected
-function Panel({ children }: { children: ReactNode }) {
-  const [link] = useLink("storage");
-  const side = useLensState((s) => s.side ?? "after");
-  const cls = ["panel", link.selection || link.hover ? "active" : "",
-    link.selection ? "chosen" : ""].filter(Boolean).join(" ");
-  return <div id="panel" className={cls} data-mode={side}>
-    <p className="muted small swipe">Each word is one line of 32 bytes;
-      scroll sideways to see bytes 24 to 31.</p>
-    <div className="views">{children}</div>
-  </div>;
-}
 
 // (the Vyper scene's dump shows Vyper's own words: no value owns them)
 const VYPER = [{ decoding: "vyRule", who: "Vyper's" }];
@@ -48,7 +33,7 @@ export const fullInspector: LensSpec = {
       domId: "tree", data: { decoding: "$bm", point: { slot: "$side" } } },
   ],
   hash: { prefix: "", legacy: true },
-  wrap: { dump: Panel },
+  wrap: { dump: panel("panel", "storage") },
   // (the grid cells: vanilla's dump box and tree box)
   areas: { dump: "dump", tree: "treebox" },
 };

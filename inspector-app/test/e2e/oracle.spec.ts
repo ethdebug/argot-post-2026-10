@@ -51,7 +51,8 @@ const same = (f: string, a: string, b: string) => {
   }
   if (f === "pops") {
     const cut = (x: string) => (JSON.parse(x) as string[]).map((p) =>
-      p.includes("…") && p.includes(" : ") ? p.replace(/ : .* · /, " : … · ")
+      p.includes("…") && p.includes(" : ")
+        ? p.replace(/ : .* · /, " : … · ")
         : p);
     return JSON.stringify(cut(a)) === JSON.stringify(cut(b));
   }
@@ -80,7 +81,9 @@ test("every walkthrough step equals vanilla's at sync-base", async ({ page,
       for (const f of Object.keys(v)) {
         const a = vanilla1(w, f, v[f]);
         const b = port1(w, f, got[k]?.[f]);
-        if (!same(f, a, b)) diffs.push(`${w} | ${k} | ${f}\n  V ${a}\n  P ${b}`);
+        if (!same(f, a, b)) {
+          diffs.push(`${w} | ${k} | ${f}\n  V ${a}\n  P ${b}`);
+        }
       }
     });
   }

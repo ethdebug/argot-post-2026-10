@@ -193,6 +193,10 @@ export interface Instance {
   // (the port's: the instances the walk was inside when it made this
   // one, outermost first: templates, defines, lists, conditionals)
   within?: InstanceId[];
+  // (a region's: each field's expression and value, and an operation's
+  // operands that are expressions, with theirs)
+  fields?: { field: "slot" | "offset" | "length"; expr: unknown; value: Hex;
+    args?: { expr: unknown; value: Hex }[] }[];
 }
 export type InputId = string;
 export interface InputNode {            // a fact the pointer expects

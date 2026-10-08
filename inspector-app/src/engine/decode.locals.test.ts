@@ -31,6 +31,8 @@ for (const o of ["O0", "O2"]) {
   it(`${o}: before the writes: gained 30; hit listed, no location; `
     + "alice's record", async () => {
     const d = await at(o, "writes");
+    expect(d.tree.map((n) => n.path)).toEqual(["gained", "hit",
+      "players[msg.sender]"]);
     expect(values(d.tree)).toEqual({ hit: "none", gained: "30" });
     const r = d.byPath.get("players[msg.sender]")!;
     expect(r.kind).toBe("record");
