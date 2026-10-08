@@ -10,6 +10,7 @@ import {
   type ProjectBookmark,
 } from "./fixtures/legacy";
 import { vyperRule } from "./fixtures/vyper-rule";
+import { fromMemory } from "./fixtures/memory";
 
 const VY_RULE = "arcade-vy-rule";
 
@@ -22,16 +23,21 @@ export interface Project {
   memo: Map<string, Promise<unknown>>;
 }
 
+// (and fixtures/memory.json: the BUG example's pauses, levels and locals)
 export async function load(io: Io, manifest = "fixtures/index.json"):
   Promise<Project> {
-  const scenes = await io.json<LegacyScene[]>(manifest);
-  const bookmarks = scenes.map(bookmarkOf);
+  const [scenes, memJson] = await Promise.all([
+    io.json<LegacyScene[]>(manifest), io.json("fixtures/memory.json")]);
+  const mem = fromMemory(memJson);
+  const bookmarks = [...scenes.map(bookmarkOf), ...mem.bookmarks];
   const decodings: Record<DecodingId, Decoding> = {};
   for (const b of bookmarks) {
+    if (mem.decodings[b.decoding]) continue;
     decodings[b.decoding] = { id: b.decoding, compilation: solOf(b.timeline),
       timeline: b.timeline, variables: "state",
       keys: { from: "trace" } };   // (until its fixture says: below)
   }
+  Object.assign(decodings, mem.decodings);
   // Vyper's own layout, over the same storage (hand-written)
   if (decodings.vyAsSol) {
     decodings.vyRule = { id: "vyRule", compilation: VY_RULE,
@@ -59,9 +65,12 @@ export async function load(io: Io, manifest = "fixtures/index.json"):
   };
   return {
     bookmarks, decodings, memo: new Map(),
-    timeline: async (id) => (await fixture(id)).timeline,
+    timeline: async (id) => mem.timelines.find((t) => t.id === id) ??
+      (await fixture(id)).timeline,
     // a fixture's contract: from that fixture
     async compilation(id) {
+      const bug = mem.compilations.find((c) => c.id === id);
+      if (bug) return bug;
       if (id === VY_RULE) {
         return vyperRule((await fixture("arcade-vyper")).json);
       }

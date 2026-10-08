@@ -4,17 +4,19 @@ import type { Io } from "./io";
 import { load } from "./project";
 import { decode } from "./decode";
 
-it("loads only the index until a timeline is asked for", async () => {
+it("loads only the index and the memory pauses until a timeline is "
+  + "asked for", async () => {
   const seen: string[] = [];
   const io = { ...fsIo(), json: <T>(q: string) => (seen.push(q),
     fsIo().json<T>(q)) };
   const p = await load(io as Io);
-  expect(seen).toEqual(["fixtures/index.json"]);
+  expect(seen).toEqual(["fixtures/index.json", "fixtures/memory.json"]);
   expect(p.bookmarks.map((b) => b.id))
-    .toEqual(["mid", "alice", "motd", "vyper"]);
+    .toEqual(["mid", "alice", "motd", "vyper", "O0/roll", "O0/mult",
+      "O0/writes", "O2/roll", "O2/mult", "O2/writes"]);
   await p.timeline("arcade-mid");
   await p.timeline("arcade-mid");
-  expect(seen).toEqual(["fixtures/index.json",
+  expect(seen).toEqual(["fixtures/index.json", "fixtures/memory.json",
     "fixtures/arcade-mid.json"]);
 });
 
