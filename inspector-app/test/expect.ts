@@ -1,4 +1,4 @@
-// The expected values, from vanilla bin/run.mjs at sync-base
+// The expected values, from vanilla bin/run.mjs (now bin/run.mjs)
 // (A, B, C, MOTD, NAME_C, player(), mid, expected, defaults)
 
 // alice, bob and carol: anvil's accounts 1, 2 and 3

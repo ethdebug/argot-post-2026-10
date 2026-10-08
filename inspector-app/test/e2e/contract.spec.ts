@@ -30,7 +30,7 @@ test("closed at first; a click opens and colours it; remembered; Enter "
     return [p.textContent!.trim(), new Set([...p.querySelectorAll(
       "span[style]")].map((s) => getComputedStyle(s).color)).size];
   });
-  expect(col[0]).toBe(fs.readFileSync("contracts/Arcade.sol", "utf8")
+  expect(col[0]).toBe(fs.readFileSync("../demos/inspector/contracts/Arcade.sol", "utf8")
     .trim());
   expect(col[1]).toBeGreaterThanOrEqual(3);
   await page.reload();

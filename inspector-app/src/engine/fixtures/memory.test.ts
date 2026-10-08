@@ -2,7 +2,7 @@ import { it, expect } from "vitest";
 import fs from "node:fs";
 import { fromMemory } from "./memory";
 
-const json = JSON.parse(fs.readFileSync("static/fixtures/memory.json",
+const json = JSON.parse(fs.readFileSync("../demos/inspector/fixtures/memory.json",
   "utf8"));
 
 it("memory.json: bugc at O0 and O2, a timeline each, three pauses as "

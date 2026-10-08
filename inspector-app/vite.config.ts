@@ -27,9 +27,14 @@ const repin = {
   },
 };
 
-export default defineConfig({
-  base: "/demos/inspector-next/",
-  publicDir: "static",
+// The dev server serves the app at /demos/inspector/ (the post's path;
+// the local proxy depends on it), with the demo's own files beside it,
+// the fixtures among them: one source, demos/inspector/fixtures. The
+// build is relative ("./"): Pages serves the site under the repo's
+// name; bin/site.sh puts dist at demos/inspector/, over those files.
+export default defineConfig(({ command }) => ({
+  base: command === "build" ? "./" : "/demos/inspector/",
+  publicDir: command === "build" ? false : "../demos/inspector",
   plugins: [react(), repin, loaderPage()],
   server: { port: 5180, strictPort: true, fs: { allow: [".."] },
     hmr: { clientPort: port } },
@@ -41,4 +46,4 @@ export default defineConfig({
         chunkFileNames: (c) => c.name === "pointers" ? "vendor/pointers.js"
           : "assets/[name]-[hash].js" } },
   },
-});
+}));

@@ -5,7 +5,7 @@ import { A, B, C, NAME_C } from "../../../test/expect";
 import { decode } from "../decode";
 
 const fixture = JSON.parse(fs.readFileSync(
-  "static/fixtures/arcade-vyper.json", "utf8")) as { vyper: { entries:
+  "../demos/inspector/fixtures/arcade-vyper.json", "utf8")) as { vyper: { entries:
   { key: string; members: { slot: string; name: string;
     text: string }[] }[] } };
 const POINT = "arcade-vyper:after";

@@ -414,10 +414,10 @@ const SOL_SLOT = BigInt(baseSlot(arcade.variables.find((v) =>
   console.log("vyper", vyVersion);
 }
 
-// The contract at the top of the page: contracts/Arcade.sol, as is, and
-// its file name in the summary line
+// The contract at the top of the page (the app's index.html):
+// contracts/Arcade.sol, as is, and its file name in the summary line
 {
-  const html = path.join(root, "index.html");
+  const html = path.join(root, "..", "..", "inspector-app", "index.html");
   const esc = (t) => t.replace(/&/g, "&amp;").replace(/</g, "&lt;")
     .replace(/>/g, "&gt;");
   fs.writeFileSync(html, fs.readFileSync(html, "utf8").replace(
@@ -425,4 +425,4 @@ const SOL_SLOT = BigInt(baseSlot(arcade.variables.find((v) =>
     (_, a, b) => a + esc(arcade.source) + b).replace(
     /(<span class="srcfile">)[^<]*(<\/span>)/, `$1${arcade.file}$2`));
 }
-// then: node bin/sizes.mjs
+// (the app's build writes the loader's sizes)

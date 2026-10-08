@@ -2,9 +2,9 @@
 // (vanilla's or the port's; the same DOM contract, bin/run.mjs's): the
 // count, caption, form, short caption, source, footnotes, chips, the
 // pointer's band, the lit and full-strength bytes, the gutters, the
-// address groups, the labels and the focus picker. bin/oracle.mjs
-// captures vanilla's at sync-base (the oracle); test/e2e/oracle.spec.ts
-// captures the port's and compares.
+// address groups, the labels and the focus picker. The oracle
+// (test/oracle/vanilla.json) is vanilla's at its last sync, frozen;
+// test/e2e/oracle.spec.ts captures the port's and compares.
 
 export const A = "players[0x70997970c51812dc3a010c7d01b50e0d17dc79c8]";
 export const B = "players[0x3c44cdddb6a900fa2b585dd299e03d12fa4293bc]";
