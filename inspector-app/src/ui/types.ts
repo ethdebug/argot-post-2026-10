@@ -59,6 +59,8 @@ export type ViewSpec = { id: ViewId; area: string; link?: LinkId;
       variant?: "tree" | "table"; compare?: DataRef;
       // the dumps it lines up with (default: the lens's)
       align?: ViewId[]; plain?: boolean;
+      // (compared with no other point: one call's calldata)
+      alone?: boolean;
       // (its rows also carry data-part: the calldata section's contract)
       partAttr?: boolean }
     | { kind: "picker"; of: "bookmarks" | "points" | "side" | "level";

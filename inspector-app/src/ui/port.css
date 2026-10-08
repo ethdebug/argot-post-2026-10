@@ -47,22 +47,6 @@
 @media (prefers-reduced-motion: reduce) {
   .tree li > .chev svg { transition: none; }
 }
-/* the byte strip (a walkthrough's packed fields): one word's 32 bytes as
-   a dump row draws them, the fields' names over their bytes, in their
-   colours */
-.bstrip { display: grid; gap: 1px; max-width: 100%;
-  font-family: var(--mono); font-size: 0.72rem; line-height: 1.35; }
-.bstrip .bbytes, .bstrip .bnames { display: grid;
-  grid-template-columns: repeat(32, minmax(0, 1fr)); }
-.bstrip .b { text-align: center; color: var(--muted); }
-.bstrip .b.hl { background: var(--pk, var(--mark));
-  color: var(--pk-fg, var(--chg-fg)); }
-.bstrip .b.gs { border-radius: 3px 0 0 3px; }
-.bstrip .b.ge { border-radius: 0 3px 3px 0; }
-.bstrip .b.gs.ge { border-radius: 3px; }
-.bstrip .bnames .fname { overflow: hidden; white-space: nowrap;
-  text-align: center; font-family: system-ui, -apple-system, "Segoe UI",
-  sans-serif; font-size: 0.68rem; padding: 0 2px; border-radius: 3px; }
 /* (each dump's view fits its own box, the .dump container: the same rule
    as .views, on the view, so a lens with no .views wrapper fits too) */
 .dump .view { font-family: var(--mono); font-variant-numeric: tabular-nums;

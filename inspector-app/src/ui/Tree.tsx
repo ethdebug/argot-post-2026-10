@@ -12,7 +12,7 @@ import { changed } from "../engine/timeline";
 import { blockOf } from "../engine/target";
 import {
   useCompilation, useDecoded, useLens, useLensState, useLight, useLink,
-  useView,
+  useView, useWalkthrough,
 } from "./hooks";
 import type { DataRef, LinkId, ViewId } from "./types";
 
@@ -70,8 +70,11 @@ function Row({ n, top, c, inBlk }: { n: ValueNode; top?: boolean; c: Ctx;
   const cls = ["row", sel ? "sel" : "", on ? "hl" : "", on ? pk(k) : "",
     on && mutedRow(c, n) ? "muted" : ""].filter(Boolean).join(" ");
   const chg = pair && changed(pair[0], pair[1], n.path);
-  const valueChg = pair && pair[0].byPath.get(n.path)?.value?.text !==
-    pair[1].byPath.get(n.path)?.value?.text;
+  // (a function's value, its frame, stands for its locals: changed when
+  // they did, as vanilla mem.js)
+  const valueChg = pair && (n.kind === "group" ? !!chg
+    : pair[0].byPath.get(n.path)?.value?.text !==
+      pair[1].byPath.get(n.path)?.value?.text);
   const li = [pair ? (chg ? "chg" : "same") : "", top ? "top" : "",
     n.none ? "none" : "",
     shut ? "collapsed" : "", blk ? "blk" : "", blk ? pk(blkK) : "",
@@ -183,7 +186,8 @@ export function Tree(p: { id: ViewId; data: DataRef; filter?: Filter;
   const c: Ctx = { light, selection: link.selection, pair,
     collapsed: new Set([...view.collapsed].filter((q) => !closing.has(q))),
     plain: p.plain, partAttr: p.partAttr,
-    card: pair && insets && light.muted && !p.plain
+    // (none in a walkthrough, as the dump's cards: vanilla)
+    card: pair && insets && light.muted && !p.plain && !link.walk
       ? treeCard(lit, pair, side)
       : undefined };
   // only the filter's roots, and the groups that hold them
@@ -309,17 +313,23 @@ export function Tree(p: { id: ViewId; data: DataRef; filter?: Filter;
         .filter((q) => !shut.includes(q))) };
     });
   }, [sel, setView]);
+  // (the selection's row in view; in a walkthrough, the step's first
+  // row: vanilla treeTo, on a selection and on each step)
+  const walkOf = useWalkthrough(p.id);
+  const stepNo = link.walk?.step;
+  const to = link.walk && walkOf && stepNo !== undefined
+    ? walkOf.steps[Math.min(stepNo, walkOf.steps.length - 1)]?.rows[0] : sel;
   useLayoutEffect(() => {
     const tree = box.current;
-    const row = sel && tree?.querySelector(`li[data-path="${
-      esc(sel)}"] > .row`);
+    const row = to && tree?.querySelector(`li[data-path="${
+      esc(to)}"] > .row`);
     if (!tree || !row || tree.scrollHeight <= tree.clientHeight) return;
     const r = row.getBoundingClientRect();
     const b = tree.getBoundingClientRect();
     if (r.top < b.top || r.bottom > b.bottom) {
       tree.scrollTop += r.top - b.top - (b.height - r.height) / 2;
     }
-  }, [sel, d]);
+  }, [to, d]);
 
   // The tree's box and its dumps start at one height: its first row at
   // the height of their first line (a dump has its byte ruler above); on
