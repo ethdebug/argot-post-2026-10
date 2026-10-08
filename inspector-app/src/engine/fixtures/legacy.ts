@@ -73,10 +73,25 @@ function facts(f: Fixture): TxFacts {
     keccakInputs: f.keys ? gathered : keccakInputs };
 }
 
+// ethdebug/format writes a pointer expression's operator with "~"
+// (`~keccak256`, `~wordsize`; #323), and the library takes no other.
+// solc still writes "$" (ethdebug/format#324): its pointers and
+// templates are rewritten here, where its output is read, and nowhere
+// else (vanilla decode.js solcTilde). bugc writes "~".
+export function solcTilde<T>(v: T): T {
+  const re = (x: unknown): unknown => Array.isArray(x) ? x.map(re)
+    : x && typeof x === "object" ? Object.fromEntries(Object.entries(x)
+      .map(([k, y]) => [k.startsWith("$") ? `~${k.slice(1)}` : k, re(y)]))
+    : typeof x === "string" && /^\$[a-z]/.test(x) ? `~${x.slice(1)}` : x;
+  return re(v) as T;
+}
+
 export function fromFixture(json: unknown, fixtureId: string):
   { compilation: Compilation; timeline: Timeline } {
   const f = json as Fixture;
-  const c = f.contract;
+  const c = { ...f.contract, pointers: solcTilde(f.contract.pointers),
+    variables: f.contract.variables.map((v) =>
+      ({ ...v, pointer: solcTilde(v.pointer) })) };
   const compilation: Compilation = {
     id: solOf(fixtureId), language: "solidity", compiler: c.compiler,
     provenance: "compiler",

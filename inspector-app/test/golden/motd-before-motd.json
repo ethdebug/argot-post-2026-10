@@ -210,7 +210,7 @@
         ]
       },
       "constructs": [
-        "$keccak256",
+        "~keccak256",
         "region"
       ],
       "source": "ethdebug data from the compiler",

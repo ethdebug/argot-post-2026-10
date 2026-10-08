@@ -53,10 +53,10 @@ export function slotNames(graphs: Iterable<DerefGraph>,
         : i.region?.slot;
       if (v === undefined || v < PLAIN || into.has(v)) continue;
       const a = ast(i);
-      if (i.value !== undefined && a && a.$keccak256) {
-        const args = (a.$keccak256 as unknown[]).map((x) => {
+      if (i.value !== undefined && a && a["~keccak256"]) {
+        const args = (a["~keccak256"] as unknown[]).map((x) => {
           const id = typeof x === "string" ? x
-            : (x as { $wordsized?: string }).$wordsized;
+            : (x as { "~wordsized"?: string })["~wordsized"];
           const h = id ? i.bindings[id] : undefined;
           if (!h) return JSON.stringify(x);
           const n = toBig(h);

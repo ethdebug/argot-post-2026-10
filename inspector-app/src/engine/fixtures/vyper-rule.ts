@@ -10,7 +10,7 @@ import type { Compilation, Variable } from "../types";
 const member = (name: string, k: number, size: number) => ({
   name, location: "storage", offset: `0x${(32 - size).toString(16)}`,
   length: `0x${size.toString(16).padStart(2, "0")}`,
-  slot: k ? { $sum: ["slot", `0x${k.toString(16).padStart(2, "0")}`] }
+  slot: k ? { "~sum": ["slot", `0x${k.toString(16).padStart(2, "0")}`] }
     : "slot" });
 const MEMBERS: [string, string, number][] = [["score", "vy_uint64", 8],
   ["combo", "vy_uint32", 4], ["bestCombo", "vy_uint32", 4],
@@ -45,20 +45,20 @@ export function vyperRule(fixture: unknown): Compilation {
     } as never,
     templates: {
       vy_players: { expect: ["slot", "key"], for: {
-        define: { slot: { $keccak256: [{ $wordsized: "slot" },
-          { $wordsized: "key" }] } },
+        define: { slot: { "~keccak256": [{ "~wordsized": "slot" },
+          { "~wordsized": "key" }] } },
         in: { template: "vy_Player", yields: yields("value",
           [...MEMBERS.map(([n]) => n), "name-length", "name-data"]) } } },
       vy_Player: { expect: ["slot"], for: { group: [
         ...MEMBERS.map(([name, , size], k) => member(name, k, size)),
-        { define: { slot: { $sum: ["slot", "0x06"] } },
+        { define: { slot: { "~sum": ["slot", "0x06"] } },
           in: { template: "vy_String64",
             yields: yields("name", ["length", "data"]) } }] } },
       vy_String64: { expect: ["slot"], for: { group: [
         { name: "length", location: "storage", slot: "slot" },
         { name: "data", location: "storage",
-          slot: { $sum: ["slot", "0x01"] }, offset: "0x00",
-          length: { $read: "length" } }] } },
+          slot: { "~sum": ["slot", "0x01"] }, offset: "0x00",
+          length: { "~read": "length" } }] } },
     } as never,
     stateVariables: [players],
   };

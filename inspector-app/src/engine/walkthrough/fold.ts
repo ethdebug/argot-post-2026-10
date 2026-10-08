@@ -115,9 +115,9 @@ export function walkthrough(x: WalkInput, path: Path, focus?: string):
   const getAt = (block: string, at: (string | number)[]) =>
     at.reduce<Any>((o, k) => o?.[k], block ? pointers[block] : null);
   const reads = (block: string, name: string) =>
-    JSON.stringify(pointers[block] ?? {}).includes(`"$read":"${name}"`);
+    JSON.stringify(pointers[block] ?? {}).includes(`"~read":"${name}"`);
   const hasRead = (e: unknown) =>
-    JSON.stringify(e ?? null).includes('"$read"');
+    JSON.stringify(e ?? null).includes('"~read"');
   const opOf = (e: Any) => e && typeof e === "object" ? Object.keys(e)[0]
     : null;
   // the keys: from the contract's own list of them (roster, decoded from
@@ -165,9 +165,9 @@ export function walkthrough(x: WalkInput, path: Path, focus?: string):
     }
     if (n.kind === "define") {
       const id = n.id.split("/").at(-1)!;
-      const args = ast?.$keccak256
-        ? (ast.$keccak256 as Any[]).map((a) => {
-          const v = typeof a === "string" ? a : a?.$wordsized;
+      const args = ast?.["~keccak256"]
+        ? (ast["~keccak256"] as Any[]).map((a) => {
+          const v = typeof a === "string" ? a : a?.["~wordsized"];
           return { value: { hex: i.bindings[v] ?? "0x" } };
         }) : undefined;
       return { id, expr: ast, value: { hex: i.value ?? "0x" }, args };
@@ -402,11 +402,11 @@ export function walkthrough(x: WalkInput, path: Path, focus?: string):
         const op = opOf(nd.s.expr);
         const formula = (y: X) => {
           const v = y.s.value.hex as Hex;
-          if (op === "$keccak256" && y.s.args?.length === 2) {
+          if (op === "~keccak256" && y.s.args?.length === 2) {
             const [a, b] = y.s.args.map((z: Any) => z.value.hex);
             return `keccak(${short(a)}, ${small(b)}) = ${tail(v)}`;
           }
-          if (op === "$sum") {
+          if (op === "~sum") {
             const base = inputs.get(`${y.inst}|${types[nd.block]?.kind}`)
               ?.slot?.hex;
             const dd = base ? toBig(v) - toBig(base) : null;
@@ -529,7 +529,7 @@ export function walkthrough(x: WalkInput, path: Path, focus?: string):
         form: text(`keccak256(${small(base)}) = ${start ? tail(start) : "?"}${
           one ? `; item ${is[0]} at + ${is[0]}` : `; items ${is[0]}…${is.at(
             -1)} at + i`}`),
-        constructs: ["$keccak256", "list"], source: "ethdebug data from the compiler",
+        constructs: ["~keccak256", "list"], source: "ethdebug data from the compiler",
         chip: `keccak(${small(base)})`, chipLabel: "items",
         parts: [{ regions: regionsOf(nd), rows: instRows(nd), colours: ec }],
         rows: instRows(nd), band: bandR });
@@ -556,7 +556,7 @@ export function walkthrough(x: WalkInput, path: Path, focus?: string):
         form: many ? table(xs.map((y) => [[who(y.inst)], [`${lenOf(y)
           } bytes at ${tail(y.regions[0].slot!)}`], kOf(y.inst)]))
           : text(xs[0].leaves.at(-1)!.value?.text ?? ""),
-        constructs: long ? ["$keccak256", "region"] : ["region"],
+        constructs: long ? ["~keccak256", "region"] : ["region"],
         source: "ethdebug data from the compiler", chip: long ? "keccak(slot)"
           : "inline", chipLabel: "text",
         parts: [{ regions: regionsOf(nd), rows: [...new Set(instRows(nd))],

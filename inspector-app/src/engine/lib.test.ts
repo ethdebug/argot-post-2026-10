@@ -12,7 +12,7 @@ it("the tarballs are the pinned ones", () => {
     expect(pin).toContain(createHash("sha256")
       .update(fs.readFileSync(`vendor/${f}`)).digest("hex"));
   }
-  expect(pin).toContain("ec7a81386");
+  expect(pin).toContain("d7cb421a3");
 });
 
 it("dereferences a storage region", async () => {
@@ -26,7 +26,7 @@ it("dereferences a storage region", async () => {
 });
 
 it("exposes the evaluator", async () => {
-  const v = await evaluate({ $sum: [1, 2] } as never,
+  const v = await evaluate({ "~sum": [1, 2] } as never,
     { state: {} as never, regions: {}, variables: {} });
   expect(v).toEqual({ sort: "integer", value: 3n });
 });
