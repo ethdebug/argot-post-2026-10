@@ -132,8 +132,8 @@ export function useViewSpec(id: string): ViewSpec {
 // `others` (decodings of its timeline) show their words, owned by none.
 // (`at`: another point or decoding than the view's own: what it
 // compares with)
-export function useLayout(id: string, filter?: Filter, at?: DataRef):
-  { d?: Decoded; l?: Layout } {
+export function useLayout(id: string, filter?: Filter, at?: DataRef,
+  compare?: DataRef): { d?: Decoded; l?: Layout } {
   const v = useViewSpec(id);
   const lens = useLens();
   const data = at ?? ("data" in v ? v.data : undefined);
@@ -147,11 +147,12 @@ export function useLayout(id: string, filter?: Filter, at?: DataRef):
   const o1 = useDecoded(mine[0] && d &&
     { decoding: mine[0].decoding, point: d.point });
   const location = v.kind === "dump" ? v.location : "storage";
+  const cmp = useDecoded(compare);
   const l = useMemo(() => {
     if (!d || (mine[0] && !o1)) return undefined;
-    return layout(d, location, f, { point,
+    return layout(d, location, f, { point, ...(cmp ? { compare: cmp } : {}),
       others: o1 ? [{ d: o1, who: mine[0].who }] : [] });
-  }, [d, o1, point, location, f, mine[0]?.who]);
+  }, [d, o1, point, location, f, mine[0]?.who, cmp]);
   return { d, l };
 }
 
@@ -199,9 +200,10 @@ export function useWalkthrough(id: string, at?: DataRef):
 // pointed at in focus (a hover elsewhere is ignored); else what is
 // pointed at: a value (a run of its own bytes: only that owner's
 // bytes), bytes no value owns, or a row's address
-export function useLight(id: string, filter?: Filter, at?: DataRef): Light {
+export function useLight(id: string, filter?: Filter, at?: DataRef,
+  compare?: DataRef): Light {
   const v = useViewSpec(id);
-  const { d, l } = useLayout(id, filter, at);
+  const { d, l } = useLayout(id, filter, at, compare);
   const [link] = useLink(v.link);
   const collapsed = useCollapsed(v.link);
   const w = useWalkthrough(id, at);
