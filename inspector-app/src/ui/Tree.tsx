@@ -80,7 +80,7 @@ function Row({ n, top, c, inBlk }: { n: ValueNode; top?: boolean; c: Ctx;
   // over the row in After)
   const card = c.card?.path === n.path ? c.card : undefined;
   return <li className={li || undefined} data-path={n.path}
-    data-part={c.partAttr ? n.path : undefined}>
+    data-part={c.partAttr ? n.part ?? n.path : undefined}>
     <div className={cls} tabIndex={0} role="button"
       aria-pressed={sel ? "true" : "false"}>
       <span className="name">{n.label}</span>
@@ -325,9 +325,10 @@ export function Tree(p: { id: ViewId; data: DataRef; filter?: Filter;
   // the height of their first line (a dump has its byte ruler above); on
   // a wide page, down to the last one's bottom, scrolling inside itself
   // (vanilla main.js alignColumns). Its dumps: `align` (the view's), else
-  // every dump of the lens; aligned again when they change size.
-  const mine = p.align ?? lens.spec.views.filter((v) => v.kind === "dump")
-    .map((v) => v.id);
+  // its link group's dumps; aligned again when they change size.
+  // (default: the dumps of its own link group, not another section's)
+  const mine = p.align ?? lens.spec.views.filter((v) => v.kind === "dump" &&
+    v.link === p.link).map((v) => v.id);
   const alignKey = mine.join(" ");
   useLayoutEffect(() => {
     const tree = box.current;

@@ -37,6 +37,15 @@ export const nextRow = (l: Location, row: Hex): bigint =>
   !byOffset(l) ? BigInt(row) + 1n
     : l === "calldata" && BigInt(row) === 0n ? 4n : BigInt(row) + 32n;
 
+// a row's name, for a location whose rows are not found by a rule: by
+// offset ("word 0x0080", "calldata 0x0024")
+export const rowName = (l: Location, row: Hex) =>
+  `${l === "calldata" ? "calldata" : "word"} ${row}`;
+
+// whether rows may follow the last one shown (a gap line after it):
+// calldata ends where the call's input does
+export const goesOn = (l: Location) => l !== "calldata";
+
 // a row's address in the gutter: a slot's last digits; an offset whole
 export const addressText = (l: Location, row: Hex) =>
   byOffset(l) ? row : `…${row.slice(-4)}`;
@@ -50,9 +59,9 @@ export function rowBytes(s: Snapshot | undefined, l: Location,
     const m = (l === "memory" ? s?.memory : s?.calldata) ??
       new Uint8Array();
     const at = Number(BigInt(row));
-    const n = l === "calldata" ? Math.max(0, Math.min(at === 0 ? 4 : 32,
-      m.length - at)) : 32;
-    return Array.from({ length: n }, (_, i) => at + i < m.length
+    // (calldata's first row, the selector: 4 bytes; past them, none)
+    const n = l === "calldata" && at === 0 ? 4 : 32;
+    return Array.from({ length: 32 }, (_, i) => i < n && at + i < m.length
       ? pair(m[at + i]) : undefined);
   }
   const w = (s?.storage.get(row) ?? "0x").slice(2).padStart(64, "0");

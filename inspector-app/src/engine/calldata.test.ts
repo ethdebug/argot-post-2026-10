@@ -29,18 +29,26 @@ it("as a decoding: the selector and the parameter's parts, each its "
   async () => {
     const { testProject } = await import("../../test/project");
     const { decode } = await import("./decode");
-    const { layout } = await import("./layout");
+    const { layout, rowLabel } = await import("./layout");
     const { byteKey } = await import("./hex");
     const p = await testProject();
     const d = await decode(p, p.decodings["abi:motd"], "arcade-motd:after");
-    expect([...d.byPath.keys()]).toEqual(["selector", "m", "m-offset",
-      "m-length", "m-data"]);
-    expect(d.byPath.get("m-length")!.value!.text).toBe("5");
+    // (paths by the parameter's name, as vanilla's tree: text.length;
+    // each node keeps its ABI part's id)
+    expect([...d.byPath.keys()]).toEqual(["selector", "text", "text.offset",
+      "text.length", "text.bytes"]);
+    expect([...d.byPath.values()].map((n) => n.part)).toEqual(["selector",
+      "m", "m-offset", "m-length", "m-data"]);
+    expect(d.byPath.get("text.length")!.value!.text).toBe("5");
     const l = layout(d, "calldata");
-    expect(l.rows.map((r) => [r.address, !!r.gapBefore])).toEqual([
-      ["0x0000", false], ["0x0004", false], ["0x0024", false],
-      ["0x0044", false]]);
+    // (the selector's row, then words from byte 4; named "calldata …")
+    expect(l.rows.map((r) => [r.address, r.how, !!r.gapBefore])).toEqual([
+      ["0x0000", "calldata 0x0000", false],
+      ["0x0004", "calldata 0x0004", false],
+      ["0x0024", "calldata 0x0024", false],
+      ["0x0044", "calldata 0x0044", false]]);
+    expect(rowLabel(l.rows[2])).toBe("calldata 0x0024 : text.length");
     // (byte 40: word 0x0024's byte 4, the length's)
     expect(l.cover.get(byteKey("calldata", "0x0024", 4))).toEqual(
-      ["m-length"]);
+      ["text.length"]);
   });

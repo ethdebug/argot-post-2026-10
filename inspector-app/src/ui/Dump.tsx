@@ -29,7 +29,7 @@ import {
 import { blockOf, resolveTarget } from "../engine/target";
 import { noLight } from "../engine/light";
 import { readWritten } from "../engine/timeline";
-import { addressText, rowBytes } from "../engine/location";
+import { addressText, goesOn, rowBytes } from "../engine/location";
 import type { DataRef, LinkId, ViewId } from "./types";
 
 const TINTS = 5;
@@ -73,10 +73,10 @@ function Ruler() {
 // length part or an array's own word
 const ownerLabel = (id: string, composite: boolean) =>
   id.endsWith("#length") || composite
-    ? `${shortKeys(id.replace(/#length$/, ""))} (length)` : shortKeys(id);
+    ? `${shortKeys(id.replace(/#[a-z]+$/, ""))} (length)` : shortKeys(id);
 // a lit byte's colour class, from its first owner with one
 const pick = (light: Light, ids: string[]) => {
-  const k = ids.map((id) => light.colours.get(id.replace(/#length$/, "")))
+  const k = ids.map((id) => light.colours.get(id.replace(/#[a-z]+$/, "")))
     .find((x) => x !== undefined);
   return { k, cls: k === "src" ? "pksrc" : k ? `pk${k}` : "" };
 };
@@ -100,11 +100,6 @@ function Word({ l, loc, row, mine, theirs, side, name, light, groupsOf }: {
     const range = g.from === g.to ? `byte ${g.from}`
       : `bytes ${g.from} to ${g.to}`;
     for (let i = g.from; i <= g.to; i++) {
-      // (a row shorter than 32: calldata's selector; blank cells after)
-      if (i >= mine.length) {
-        cells.push(<span key={i} className="b" />);
-        continue;
-      }
       const hl = light.bytes.has(byteKey(loc, row, i));
       const isAt = !!at && i >= at.from && i <= at.to;
       const cls = ["b", g.owners.length
@@ -216,7 +211,7 @@ export function Dump(p: { id: ViewId; location: Location; data: DataRef;
         const ids = new Set(Array.from({ length: 32 }, (_, i) =>
           l.cover.get(byteKey(p.location, h.row as Hex, i))?.[0])
           .filter((x): x is string => !!x)
-          .map((x) => blockOf(x.replace(/#length$/, ""), sel, d.byPath)));
+          .map((x) => blockOf(x.replace(/#[a-z]+$/, ""), sel, d.byPath)));
         const [only] = ids;
         return ids.size === 1 && only !== sel
           ? { ...s, hover: null, selection: only } : s;
@@ -326,8 +321,10 @@ export function Dump(p: { id: ViewId; location: Location; data: DataRef;
         side={side} name={name} light={light} groupsOf={groupsOf} />}
     </div>);
   });
-  lines.push(<div key="end" className="gap" aria-hidden="true">
-    <span>⋯</span></div>);
+  if (goesOn(loc)) {
+    lines.push(<div key="end" className="gap" aria-hidden="true">
+      <span>⋯</span></div>);
+  }
 
   // (nothing of this location to show here: no dump)
   if (l && !rows.length) return null;

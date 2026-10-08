@@ -8,7 +8,7 @@ import type {
   Path, ResolvedRegion, Row, TimelinePoint, ValueNode,
 } from "./types";
 import { byteKey, short, slotHex, toBig } from "./hex";
-import { hex4, nextRow, regionBytes } from "./location";
+import { hex4, nextRow, regionBytes, rowName } from "./location";
 
 const PLAIN = 1n << 32n; // below this, a slot is a plain number
 
@@ -105,7 +105,7 @@ export function layout(d: Decoded, location: Location, filter: Filter = {},
   const owned = new Map<Path, Set<ByteKey>>();
   // row -> owner groups (a path, or its length part) -> first byte
   const first = new Map<Hex, Map<string, { path: Path; at: number;
-    node: ValueNode; length: boolean }>>();
+    node: ValueNode; length: boolean; key: string }>>();
   const roots = filter.roots;
   const kept = (p: Path) => !roots || roots.some((r) => under(p, r));
   const visit = (n: ValueNode) => {
@@ -114,7 +114,10 @@ export function layout(d: Decoded, location: Location, filter: Filter = {},
         if (r.location !== location) continue;
         // (a string's length parts are an owner of their own, as vanilla)
         const part = r.role === "length" && !n.children;
-        const key = part ? `${n.path}#length` : n.path;
+        // (a function's own region, its frame pointer: an owner of its
+        // own, by the region's name, as vanilla's "multiplied#frame")
+        const key = part ? `${n.path}#length` : n.kind === "group" &&
+          r.name ? `${n.path}#${r.name.replace(/^-/, "")}` : n.path;
         for (const [row, i] of regionBytes(r)) {
           const k = byteKey(r.location, row, i);
           cover.set(k, [...new Set([...(cover.get(k) ?? []), key])]);
@@ -124,7 +127,7 @@ export function layout(d: Decoded, location: Location, filter: Filter = {},
           const f = first.get(row)!;
           const was = f.get(key);
           if (!was || i < was.at) {
-            f.set(key, { path: n.path, at: i, node: n, length: part });
+            f.set(key, { path: n.path, at: i, node: n, length: part, key });
           }
         }
       }
@@ -192,7 +195,7 @@ export function layout(d: Decoded, location: Location, filter: Filter = {},
     if (location === "storage" && record?.slot === a) {
       return `keccak(msg.sender, slot ${record.base})`;
     }
-    if (location !== "storage") return `word ${a}`;
+    if (location !== "storage") return rowName(location, a);
     const n = BigInt(a);
     return n < PLAIN ? `slot ${n}` : names.get(n) ?? extra.get(a) ??
       `slot ${short(a)}`;
@@ -209,10 +212,9 @@ export function layout(d: Decoded, location: Location, filter: Filter = {},
         // (a value's other region by its role, under its name; an
         // array's own word alone in its slot: its length)
         const own = !g.length && !!g.node.children && !g.node.kind;
-        // (a function's frame pointer: by its owner id, as vanilla's
-        // label has it)
-        if (g.node.kind === "group") {
-          return { path: g.path, name: `${g.path}#frame` };
+        // (a part of its own, by its id: "multiplied#frame")
+        if (!g.length && g.key !== g.path) {
+          return { path: g.path, name: g.key };
         }
         return { path: g.path, name: one && own ? "length"
           : g.length || own ? `${named}.length` : named };

@@ -102,10 +102,10 @@ for (const lens of ["alice-plays", "vyper", "players-walk"]) {
   }
 }
 
-test("the parity page opened at the Vyper scene: the tree as tall as the "
-  + "dump", async ({ page }) => {
+for (const ex of ["vyper", "motd", "mid"]) test(`the parity page opened at `
+  + `${ex}: the tree as tall as the storage dump`, async ({ page }) => {
   await page.setViewportSize({ width: 1280, height: 900 });
-  await page.goto("./#ex=vyper");
+  await page.goto(`./#ex=${ex}`);
   await page.waitForFunction(() =>
     (window as unknown as { results?: { done: boolean } }).results?.done);
   await page.waitForTimeout(200);

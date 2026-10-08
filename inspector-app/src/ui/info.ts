@@ -78,7 +78,7 @@ const flat = (ps: Part[]) => ps.map((p) => typeof p === "string" ? p
 // A value (an owner: a path, or `<path>#length`)
 function ownerInfo(x: Sides, id: string): Info {
   const length = id.endsWith("#length");
-  const path = id.replace(/#length$/, "");
+  const path = id.replace(/#[a-z]+$/, "");
   const n = x.d.byPath.get(path);
   const composite = !!n?.children;
   const label = length || (composite && n?.regions.length)
@@ -114,7 +114,7 @@ export function infoOf(x: Sides, t: Target | null): Info | null {
   const { l } = x;
   if (t.path && !t.bytes) {
     const ids = [...l.owned.keys()].filter((q) => {
-      const p = q.replace(/#length$/, "");
+      const p = q.replace(/#[a-z]+$/, "");
       return p === t.path || p.startsWith(t.path + ".") ||
         p.startsWith(t.path + "[");
     });
@@ -144,7 +144,7 @@ export function infoOf(x: Sides, t: Target | null): Info | null {
       return [...ownerInfo(x, ids[0]), ["Pointed at", bytes]];
     }
     return [["Values", [{ code: ids.map((id) => shortKeys(
-      id.replace(/#length$/, ""))).join(", ") }]], ["Bytes", bytes], ...hex];
+      id.replace(/#[a-z]+$/, ""))).join(", ") }]], ["Bytes", bytes], ...hex];
   }
   if (t.row) {
     const s = t.row as Hex;

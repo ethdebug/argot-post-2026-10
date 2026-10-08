@@ -37,7 +37,7 @@ export function resolveTarget(hit: Target, selection: Path | null,
   if (hit.bytes) {
     const b = hit.bytes;
     const id = l.cover.get(byteKey(b.location, b.row, b.from))?.[0];
-    const owner = id?.replace(/#length$/, "");
+    const owner = id?.replace(/#[a-z]+$/, "");
     if (!owner || !tree.has(owner)) return { bytes: b };
     const block = blockOf(owner, selection, tree);
     return block !== owner ? { path: block } : { path: owner, bytes: b };

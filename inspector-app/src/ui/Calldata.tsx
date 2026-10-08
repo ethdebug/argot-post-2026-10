@@ -24,7 +24,8 @@ export function AbiView(p: { id: ViewId; data: DataRef; link?: string;
   const bm = useLensState((s) => lens.project.bookmarks.find((b) =>
     b.id === s.bookmark));
   const k = link.hover?.path ?? link.selection;
-  const m = d?.byPath.get("m");
+  // (the parameter: the node with parts)
+  const m = d?.tree.find((n) => n.children);
   const parts = m?.children ?? [];
   if (p.part === "details") {
     const n = k ? d?.byPath.get(k) : undefined;
@@ -47,7 +48,7 @@ export function AbiView(p: { id: ViewId; data: DataRef; link?: string;
   const lit = (q: string) => !!k && (q === k || d?.byPath.get(k)?.children
     ?.some((x) => x.path === q));
   const step = (n: ValueNode | undefined, kk: string, html: ReactNode) =>
-    n && <li key={n.path} data-part={n.path} tabIndex={0}
+    n && <li key={n.path} data-part={n.part} tabIndex={0}
       className={lit(n.path) ? "hl" : undefined}
       onPointerOver={() => setLink((s) => ({ ...s, hover: { path: n.path } }))}
       onFocus={() => setLink((s) => ({ ...s, hover: { path: n.path } }))}>

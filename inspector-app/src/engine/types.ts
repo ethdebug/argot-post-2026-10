@@ -132,6 +132,8 @@ export interface ValueNode {
   none?: true;
   reads?: ResolvedRegion[];
   kind?: "group" | "record";
+  // (a calldata part's ABI id: "m-length", vanilla's data-part)
+  part?: string;
   note?: string;                // "no ethdebug type …"
 }
 export type Location = "storage" | "memory" | "stack" | "calldata"
@@ -216,6 +218,8 @@ export interface Target {               // what the pointer (or finger) is on
   // (the port's: a region named elsewhere, e.g. Vyper's word in the
   // walkthrough's contrast list: its bytes, owned or not)
   region?: ResolvedRegion;
+  // (and the side of a pair it was found at: a derivation's step)
+  side?: "before" | "after";
 }
 export interface Light {                // DERIVED per view, never stored
   bytes: ReadonlySet<ByteKey>; rows: ReadonlySet<Path>;
