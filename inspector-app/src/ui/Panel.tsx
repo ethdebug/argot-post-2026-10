@@ -3,7 +3,9 @@
 import type { ReactNode } from "react";
 import { useLensState, useLink } from "./hooks";
 
-export const panel = (id: string, link: string) =>
+// (`loc`: the location its dumps show, on .views: the one panel for
+// every location)
+export const panel = (id: string, link: string, loc = "storage") =>
   function Panel({ children }: { children: ReactNode }) {
     const [l] = useLink(link);
     const side = useLensState((s) => s.side ?? "after");
@@ -12,6 +14,6 @@ export const panel = (id: string, link: string) =>
     return <div id={id} className={cls} data-mode={side}>
       <p className="muted small swipe">Each word is one line of 32 bytes;
         scroll sideways to see bytes 24 to 31.</p>
-      <div className="views">{children}</div>
+      <div className="views" data-loc={loc}>{children}</div>
     </div>;
   };

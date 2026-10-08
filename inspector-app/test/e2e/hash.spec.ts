@@ -25,8 +25,12 @@ test("the hash restores the view, and keeps the memory keys",
     const hs = await view(page);
     expect(hs).toMatchObject({ ex: "motd", mode: "before", sel: "roster",
       insets: false });
+    // (each section writes its own keys, once it shows its view)
     for (const k of ["ex=motd", "sel=roster", "mopt=2", "mpt=mult",
-      "mmode=before", "msel=m"]) expect(hs.hash).toContain(k);
+      "mmode=before", "msel=m"]) {
+      await expect.poll(() => page.evaluate(() => location.hash))
+        .toContain(k);
+    }
     await page.locator('#mode button[data-mode="after"]').click();
     await page.locator('#tree li[data-path="total"] > .row').click();
     await expect.poll(() => page.evaluate(() => location.hash))

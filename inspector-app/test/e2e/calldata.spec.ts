@@ -48,6 +48,11 @@ test("setMotd's calldata: selector, a byte selects its part, details",
     expect((await cd(page)).chosen).toBe(null);
     await page.locator('#ctree li[data-part="m"] > .row').hover();
     expect(await lit(page)).toEqual(range(4, 73));
+    // (the same panel as storage's: a popover on the lit rows; the
+    // panel's location: vanilla 4c6de15)
+    expect(await page.evaluate(() => [document.querySelectorAll(
+      "#cpanel .pop").length > 0, (document.querySelector("#cpanel .views") as
+      HTMLElement)?.dataset.loc])).toEqual([true, "calldata"]);
     await expect(page.locator("#chow")).toContainText("not by ethdebug");
     await expect(page.locator('#chow li[data-part="m-length"]'))
       .toHaveClass(/hl/);
