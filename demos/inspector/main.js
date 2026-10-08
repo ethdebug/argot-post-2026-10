@@ -279,6 +279,7 @@ document.fonts?.ready.then(() => {
 });
 document.addEventListener("scroll", (e) => {
   if (e.target.id === "tree") edges();
+  if (e.target.id === "ptr") ptrEdges();
 }, true);
 
 function render() {
@@ -592,7 +593,7 @@ function replaySteps(path, side, focus) {
           `from offset ${c.offset}`,
         form: esc(`slot ${small(c.slot)}, bytes ${c.offset}–${c.offset +
           c.length - 1}`),
-        constructs: ["pointer"], source: "from solc's pointer",
+        constructs: ["pointer"], source: "ethdebug data from the compiler",
         chip: `slot ${small(c.slot)}`, chipLabel: "value",
         parts: [{ regions: [declared.region], rows: [variable] }],
         rows: [variable] });
@@ -604,7 +605,7 @@ function replaySteps(path, side, focus) {
             "that slot holds nothing"
           : `\`${variable}\` is declared at slot ${small(declared.slot)}`,
         form: esc(`slot ${small(declared.slot)}`),
-        constructs: ["pointer"], source: "from solc's pointer",
+        constructs: ["pointer"], source: "ethdebug data from the compiler",
         chip: `slot ${small(declared.slot)}`, chipLabel: ["mapping", "string",
           "array", "struct"].includes(kind) ? kind === "struct" ? "record"
           : kind : "value",
@@ -662,7 +663,7 @@ function replaySteps(path, side, focus) {
             x.s.inputs[k].hex)}`).join(", ")), kOf(x.inst)]))
           : esc(ks.map((k) => `${k} = ${k === "key" ? short(xs[0].s.inputs[k]
             .hex) : small(xs[0].s.inputs[k].hex)}`).join(", ")),
-        constructs: ["template"], source: "from solc's pointer",
+        constructs: ["template"], source: "ethdebug data from the compiler",
         chip: tn(nd.s.name), chipLabel: "template",
         gutters: [...new Set(xs.map((x) => x.s.inputs?.slot?.hex)
           .filter(Boolean).map(w32))],
@@ -707,7 +708,7 @@ function replaySteps(path, side, focus) {
           form: many ? table(xs.map((x) => [esc(who(x.inst)), esc(formula(x)),
             kOf(x.inst)])) : esc(formula(xs[0])),
           constructs: ["define", ...(op ? [op] : [])],
-          source: "from solc's pointer",
+          source: "ethdebug data from the compiler",
           chip: isRecord ? `keccak(key, ${small(xs[0].s.args?.[1]?.value.hex ??
             "0x0")})` : fname(xs[0]), chipLabel: isRecord ? "record"
             : tn(into.template),
@@ -804,7 +805,7 @@ function replaySteps(path, side, focus) {
         form: esc(`keccak256(${small(base)}) = ${start ? tail(start) : "?"}${
           one ? `; item ${is[0]} at + ${is[0]}` : `; items ${is[0]}…${is.at(-1)
           } at + i`}`),
-        constructs: ["$keccak256", "list"], source: "from solc's pointer",
+        constructs: ["$keccak256", "list"], source: "ethdebug data from the compiler",
         chip: `keccak(${small(base)})`, chipLabel: "items",
         parts: [{ regions: regionsOf(nd), rows: instRows(nd), colors: ec }],
         rows: instRows(nd), band });
@@ -832,7 +833,7 @@ function replaySteps(path, side, focus) {
           } bytes at ${tail(x.regions[0].slot)}`), kOf(x.inst)]))
           : esc(xs[0].leaves.at(-1)[side].text),
         constructs: long ? ["$keccak256", "region"] : ["region"],
-        source: "from solc's pointer", chip: long ? "keccak(slot)" : "inline",
+        source: "ethdebug data from the compiler", chip: long ? "keccak(slot)" : "inline",
         chipLabel: "text",
         parts: [{ regions: regionsOf(nd), rows: [...new Set(instRows(nd))],
           colors: ec }],
@@ -848,7 +849,7 @@ function replaySteps(path, side, focus) {
     }
     step({ phase: "fields", parent: `${nd.block}|${parent}`, nodes: [nd],
       id: `fields|${nd.block}|${parent}`,
-      band, constructs: ["region"], source: "from solc's pointer",
+      band, constructs: ["region"], source: "ethdebug data from the compiler",
       chipLabel: "fields" });
   }
 
@@ -1006,7 +1007,7 @@ const FOOT = {
 const footOf = (st) => st.constructs.find((c) => FOOT[c]);
 
 // The pointer panel: the selection's variable's pointer, and the
-// templates it uses, as YAML, as solc wrote them (the template names
+// templates it uses, as YAML, as the compiler wrote them (the template names
 // shortened to their types' names). One line each, nothing wraps: leaf
 // regions and expressions in flow style. Each line keeps tags for what
 // it is part of, so a step can light the lines it uses.
@@ -1401,8 +1402,8 @@ function renderBox() {
   // (at rest: what the steps are, in one line)
   text.innerHTML = full + `<p class="fnotes">${replay
     ? [footOf(curStep())].filter(Boolean).map(fnote).join(" ")
-    : `<span class="muted">Each step is one part of the pointer solc ` +
-      `wrote for ${esc(chosen.split(/[.[]/)[0])}.</span>`}</p>`;
+    : `<span class="muted">Each step is one part of the ethdebug data ` +
+      `from the compiler for ${esc(chosen.split(/[.[]/)[0])}.</span>`}</p>`;
   // the focus entry, in a mapping's replay: which one the layout steps
   // show at full strength (the others echo it, muted)
   const rec = replay && steps.find((x) => x.recs);
@@ -1442,6 +1443,8 @@ function renderBox() {
   const ids = Object.entries(names).map(([id, n]) => `${n} = ${id}`);
   void fc;
   $("ptr").classList.toggle("lit", !!lit?.size);
+  $("ptr").classList.toggle("goal", !!replay && replay.i < 0);
+  if (replay && replay.i < 0) $("ptr").scrollTop = 0;
   // (in the Vyper scene: Vyper's own words for the player, first)
   $("ptr").innerHTML = vyperRule(node, mode) +
     // (one line each, as blocks; a run of lit lines is one block: rounded
@@ -1461,6 +1464,8 @@ function renderBox() {
   const box = $("ptr");
   const top = on ? Math.min(Math.max(0, on.offsetTop - box.clientHeight / 3),
     box.scrollHeight - box.clientHeight) : 0;
+  requestAnimationFrame(ptrEdges);
+  if (box.classList.contains("goal")) return;
   box.scrollTo({ top, behavior: on && matchMedia(
     "(prefers-reduced-motion: reduce)").matches ? "auto" : on ? "smooth"
     : "auto" });
@@ -1822,6 +1827,46 @@ function edges() {
       path}${list.length > 1 ? `, and ${list.length - 1} more lit rows` : ""}`);
   }
 }
+// The pointer's box scrolls inside itself, with no scrollbar shown: a
+// circle button on its top or bottom edge where there is more; it
+// scrolls toward the step's band, when that is out of view that way,
+// else by about a box's height
+function ptrEdges() {
+  const box = $("ptr");
+  const on = box.querySelector(".line.on");
+  const b = box.getBoundingClientRect();
+  const r = on?.getBoundingClientRect();
+  const more = { up: box.scrollTop > 1, down: box.scrollTop +
+    box.clientHeight < box.scrollHeight - 1 };
+  for (const way of ["up", "down"]) {
+    const btn = $(`pedge-${way}`);
+    const show = more[way] && !$("dpanel").hidden &&
+      !box.classList.contains("goal");
+    btn.parentElement.classList.toggle("on", show);
+    btn.parentElement.setAttribute("aria-hidden", String(!show));
+    btn.tabIndex = show ? 0 : -1;
+    const band = r && (way === "up" ? r.bottom <= b.top + 1
+      : r.top >= b.bottom - 1);
+    btn.dataset.band = band ? "1" : "";
+    const icon = ARROW(way === "up" ? "M4 10l4-4 4 4" : "M4 6l4 4 4-4");
+    const text = `${band ? "current step" : "more"} ${way === "up" ? "above"
+      : "below"}`;
+    btn.innerHTML = way === "up" ? `${icon}<span>${text}</span>`
+      : `<span>${text}</span>${icon}`;
+    btn.setAttribute("aria-label", band ? `Scroll the pointer ${way} to ` +
+      "the step's lines" : `Scroll the pointer ${way}`);
+    box.classList.toggle(`more-${way}`, show);
+  }
+}
+function ptrGo(btn) {
+  const box = $("ptr");
+  const on = box.querySelector(".line.on");
+  const up = btn.id === "pedge-up";
+  const top = btn.dataset.band && on ? on.offsetTop - box.clientHeight / 3
+    : box.scrollTop + (up ? -1 : 1) * box.clientHeight * 0.85;
+  box.scrollTo({ top: Math.max(0, top), behavior: still() ? "auto"
+    : "smooth" });
+}
 function edgeGo(pill) {
   const tree = $("tree");
   const r = tree.querySelector(`li[data-path="${CSS.escape(
@@ -2061,6 +2106,8 @@ document.addEventListener("click", (e) => {
     applyMode();
     return keep();
   }
+  const pe = t.closest(".pedge button");
+  if (pe) return ptrGo(pe);
   const ed = t.closest(".tedge");
   if (ed) return edgeGo(ed);
   const cv = t.closest("#tree .chev");

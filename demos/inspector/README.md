@@ -413,7 +413,8 @@ room: the step in full (caption, formula, the pointer constructs it
 uses with one footnote marker, where its input came from), the
 footnote (a link to the spec page of the step's construct), the focus
 picker (a mapping's replay only), the chips (one a rule, with its
-storage noun), and the pointer solc wrote, as YAML (keys in the spec's
+storage noun), and the ethdebug data from the compiler (the pointer),
+as YAML (keys in the spec's
 order: a conditional's if, then, else; a region's name, location,
 slot, offset, length; a line too long for the box in block style;
 template names shortened, solc's ids listed under it), Shiki-coloured,

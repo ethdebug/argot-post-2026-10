@@ -1359,6 +1359,43 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
         labels, total: tw.goal ?? tw[0]?.count })}`);
     }
   }
+  // the pointer's box: no scrollbar shown; circle buttons where there is
+  // more, which scroll it; blurred at step 0 only; its new header
+  {
+    await page.evaluate(() => window.select("mid", { sel: "players" }));
+    await page.locator('#details button[data-r="start"]').click();
+    const pb = () => page.evaluate(() => {
+      const p = document.querySelector("#ptr");
+      return { bar: p.offsetWidth - p.clientWidth - 2 * p.clientLeft,
+        top: p.scrollTop, up: document.querySelector(".pedge.up").classList
+          .contains("on"), down: document.querySelector(".pedge.down")
+          .classList.contains("on"), yellow: [...document.querySelectorAll(
+          ".pedge, .pedge button")].some((e) => getComputedStyle(e)
+          .backgroundColor === "rgb(255, 224, 138)"), blur: getComputedStyle(p.querySelector(
+          ".ptrlines")).filter, head: document.querySelector(".ptr .plabel")
+          .textContent };
+    });
+    // (step 0: no band, and it does not scroll)
+    await page.locator("#ptr").hover();
+    await page.mouse.wheel(0, 300);
+    await page.waitForTimeout(150);
+    const z = await pb();
+    z.bands = await page.locator(".pedge.on").count();
+    await page.locator('#details button[data-r="next"]').click();
+    await page.waitForTimeout(100);
+    const o = await pb();
+    if (o.down) await page.locator("#pedge-down").click();
+    await page.waitForTimeout(100);
+    const d = await pb();
+    await page.keyboard.press("Escape");
+    if (z.bar || z.top || z.bands || z.up || z.down ||
+      !/blur/.test(z.blur) || o.blur !== "none" || !o.down ||
+      o.up || o.yellow ||
+      d.top <= o.top || !d.up ||
+      !z.head.startsWith("Ethdebug data from the compiler")) {
+      problems.push(`pointer box: ${JSON.stringify({ z, o, d })}`);
+    }
+  }
   // (after the inputs, the band only moves down)
   const down = (ws) => ws.map((x) => x.band0).filter((b) => b >= 0)
     .every((b, i, a) => !i || b >= a[i - 1]);
@@ -3242,7 +3279,7 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
       const p = document.querySelector("#ptr");
       const clip = p.getBoundingClientRect().top + p.clientTop;
       const on = p.querySelector(".line.on").getBoundingClientRect();
-      return on.top >= clip + 4 && getComputedStyle(p).maskImage === "none";
+      return on.top >= clip + 4 && !p.classList.contains("more-up");
     });
     if (!first) problems.push("step 1: the block's top is cut");
     // (at a step in the middle of the YAML: the block's top a third of
