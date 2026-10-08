@@ -6,11 +6,9 @@ import type { ValueNode } from "../engine/types";
 import { hex4 } from "../engine/location";
 import { useDecoded, useLens, useLensState, useLink } from "./hooks";
 import type { DataRef, ViewId } from "./types";
+import { span as spanOf } from "../engine/derivation";
 
-const span = (n: ValueNode) => {
-  const r = n.regions[0];
-  return `bytes ${hex4(r.offset)}–${hex4(r.offset + r.length - 1)}`;
-};
+const span = (n: ValueNode) => spanOf(n.regions[0]);
 // a part's name: "text (length)"; the selector's own
 const nameOf = (m: ValueNode | undefined, n: ValueNode) =>
   n.root === n.path ? n.label : `${m?.label} (${n.label === "bytes"

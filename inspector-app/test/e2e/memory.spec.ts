@@ -129,7 +129,7 @@ test("inside multiplied: O0 a call with a frame; colours; Before | After; "
   await page.locator("h1").hover();
   const dd = await dl(page, "#mdetails");
   const [a, b] = [dd.Before, dd.After].map((x) =>
-    x?.match(/^0x([0-9a-f]+)–0x([0-9a-f]+) = (\d)$/));
+    x?.match(/^memory 0x([0-9a-f]+)–0x([0-9a-f]+) = (\d)$/));
   const frame = parseInt((await mrow(page, "multiplied").locator(".val")
     .textContent())!.trim().slice(9), 16);
   expect([parseInt(a![1], 16) - frame, a![3], parseInt(b![1], 16) - frame,
@@ -293,7 +293,7 @@ test("a derivation step lights its region alone", async ({ page }) => {
   await page.locator("#mhow li[data-region]").first().focus();
   await expect.poll(() => mlit(page)).toEqual({ "after 0x0080": "all" });
   await expect(page.locator("#mpanel .view:not([hidden]) .pop"))
-    .toHaveText(["word 0x0080 : multiplied#frame · unchanged"]);
+    .toHaveText(["memory 0x0080 : multiplied#frame · unchanged"]);
 });
 
 // (a step of the other side's derivation marks its word "only" in the

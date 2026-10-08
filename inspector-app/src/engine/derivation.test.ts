@@ -24,7 +24,7 @@ it("O0, m before m = combo: the frame word, then m's at frame + 88",
       field: "offset", expr: { "~sum": [{ "~read": "-frame" }, 88] },
       args: [{ value: expect.stringMatching(/^0x0*680$/) },
         { value: expect.stringMatching(/^0x0*58$/) }] });
-    expect(res.eval).toBe("0x06d8–0x06df = 5");
+    expect(res.eval).toBe("memory 0x06d8–0x06df = 5");
   });
 
 it("O2: one region at a fixed offset; hit's last byte at 0x120",
@@ -32,5 +32,5 @@ it("O2: one region at a fixed offset; hit's last byte at 0x120",
     const { d, snap } = await at("O2", "O2/roll");
     const s = derivation(d, snap, "hit")!;
     expect(s.map((x) => x.kind)).toEqual(["start", "region", "result"]);
-    expect(s[2].eval).toBe("0x013f–0x013f = true");
+    expect(s[2].eval).toBe("memory 0x013f = true");
   });

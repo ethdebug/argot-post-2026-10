@@ -25,12 +25,12 @@ it("O0 inside multiplied: the frame pointer's word, and the locals' "
     comparePoint: x.otherPoint });
   expect(l.rows.map((r) => r.address)).toEqual(["0x0080", "0x06c0",
     "0x06e0", "0x0720"]);
-  expect(l.rows.map((r) => r.how)).toEqual(["word 0x0080", "word 0x06c0",
-    "word 0x06e0", "word 0x0720"]);
+  expect(l.rows.map((r) => r.how)).toEqual(["memory 0x0080", "memory 0x06c0",
+    "memory 0x06e0", "memory 0x0720"]);
   expect(l.rows.map((r) => !!r.gapBefore)).toEqual([true, true, false,
     true]);
   // (vanilla's label: the frame pointer's owner id)
-  expect(rowLabel(l.rows[0])).toBe("word 0x0080 : multiplied#frame");
+  expect(rowLabel(l.rows[0])).toBe("memory 0x0080 : multiplied#frame");
   // (after m = combo, m's last 4 bytes are combo's: two owners)
   expect([...l.cover.get(byteKey("memory", "0x0720", 31))!].sort())
     .toEqual(["combo", "m"]);
@@ -47,7 +47,7 @@ it("before the writes: gained's word in memory; alice's record slot, in "
   + "storage, its own dump's, named by BUG's rule", async () => {
   const x = await pair("O0", "writes", 0);
   const l = layout(x.d, "memory", {}, { point: x.point });
-  expect(l.rows.map((r) => r.how)).toEqual(["word 0x00a0"]);
+  expect(l.rows.map((r) => r.how)).toEqual(["memory 0x00a0"]);
   const s = layout(x.d, "storage", {}, { point: x.point });
   expect(s.rows).toEqual([expect.objectContaining({
     address: x.point.record!.slot, how: "keccak(msg.sender, slot 4)" })]);

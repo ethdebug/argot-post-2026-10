@@ -7,6 +7,7 @@
 // steps' derivations side by side.
 import type { Decoded, Hex, Path, ResolvedRegion, Snapshot } from "./types";
 import { toBig } from "./hex";
+import { rangeText } from "./location";
 
 export interface Field { field: string; expr: unknown; value: Hex;
   args?: { expr: unknown; value: Hex }[] }
@@ -18,10 +19,11 @@ export type Item =
     text: string };
 
 const hex4 = (n: number) => "0x" + n.toString(16).padStart(4, "0");
-// "0x00b8–0x00bf"; a storage region: "bytes 24–31 of the slot"
+// "memory 0x00b8–0x00bf" (location.ts rangeText); a storage region:
+// "bytes 24–31 of the slot"
 export const span = (r: ResolvedRegion) => r.location === "storage"
   ? `bytes ${r.offset}–${r.offset + r.length - 1} of the slot`
-  : `${hex4(r.offset)}–${hex4(r.offset + r.length - 1)}`;
+  : rangeText(r.location, r.offset, r.offset + r.length - 1);
 // a value from the evaluator: small numbers in decimal, others in hex
 export const shown = (h: Hex) => {
   const n = toBig(h);
