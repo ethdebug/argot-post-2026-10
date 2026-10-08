@@ -277,3 +277,65 @@ test("the dump fits the same opened at Before or After (one measure for "
   }
   expect(new Set(fs).size, fs.join()).toBe(1);
 });
+
+test("at rest: no popover, nothing steps back, the dump only hex",
+  async ({ page }) => {
+    await ready(page);
+    await select(page, "alice", null);
+    await page.locator("h1").hover();
+    expect(await pops(page)).toEqual([]);
+    await expect(page.locator("#panel.active, #tree.active")).toHaveCount(0);
+    // (names live in the tree)
+    expect((await page.locator("#panel .rows").allInnerTexts()).join(" ")
+      .replace(/[0-9a-f…⋯\s]/g, "")).toBe("");
+  });
+
+test("an address focused from the keyboard shows its popover",
+  async ({ page }) => {
+    await ready(page);
+    await select(page, "alice", null);
+    const addr = page.locator(
+      '#panel .view[data-side="after"] .wrow [tabindex]').first();
+    // (in view first: a scroll after the focus would move the pointer)
+    await addr.scrollIntoViewIfNeeded();
+    await page.mouse.move(1, 1);
+    await addr.focus();
+    expect(await pops(page)).toHaveLength(1);
+  });
+
+test("no popover covers a lit byte, another row's address, or another "
+  + "popover", async ({ page }) => {
+  await ready(page);
+  for (const [id, sel] of [["mid", "players"], ["mid", "playerList[1]"],
+    ["mid", A], ["mid", "motd"], ["motd", "motd"], ["vyper", `${A}.score`],
+    ["alice", A]]) {
+    await select(page, id, sel);
+    await page.mouse.move(1, 1);
+    const cover = await page.evaluate(() => {
+      const v = document.querySelector("#panel .view:not([hidden])")!;
+      const hit = (a: DOMRect, b: DOMRect) => a.left < b.right - 0.5 &&
+        b.left < a.right - 0.5 && a.top < b.bottom - 0.5 &&
+        b.top < a.bottom - 0.5;
+      const ps = [...v.querySelectorAll(".pop")];
+      const out: string[] = [];
+      ps.forEach((p, i) => {
+        const r = p.getBoundingClientRect();
+        const own = p.closest(".wrow");
+        for (const e of v.querySelectorAll(".rows > .wrow.on > .addr .a, " +
+          ".rows > .wrow > .word .b.hl")) {
+          if (e.closest(".wrow") !== own &&
+            hit(r, e.getBoundingClientRect())) {
+            out.push(`${p.textContent!.slice(0, 24)} on ${e.textContent}`);
+          }
+        }
+        for (const q of ps.slice(i + 1)) {
+          if (hit(r, q.getBoundingClientRect())) {
+            out.push(`${p.textContent!.slice(0, 24)} on a popover`);
+          }
+        }
+      });
+      return out;
+    });
+    expect(cover, `${id} ${sel}`).toEqual([]);
+  }
+});

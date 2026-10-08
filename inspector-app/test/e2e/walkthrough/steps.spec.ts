@@ -731,3 +731,41 @@ test("the last step, found: the selection's resting view",
     await page.keyboard.press("Escape");
   }
 });
+
+test("while it walks, pointing elsewhere changes nothing", async ({ page }) => {
+  await ready(page);
+  await select(page, "mid", "players");
+  await page.locator('#details button[data-r="start"]').click();
+  await page.mouse.move(1, 1);
+  const now = async () => {
+    const x = await stepNow(page);
+    return [x.cap, x.lit, x.chips];
+  };
+  const before = await now();
+  await row(page, "totalScore").hover();
+  expect(await now()).toEqual(before);
+});
+
+test("on a phone, the packed fields' strip is two rows of 16, in its box",
+  async ({ page }) => {
+    await ready(page, { width: 390, height: 844 });
+    await select(page, "mid", "players");
+    await page.locator('#details button[data-r="start"]').click();
+    await page.locator('#dots .dot[data-n="4"]')
+      .evaluate((e: HTMLElement) => e.click());
+    await expect(page.locator("#dtext .bstrip")).toBeAttached();
+    expect(await page.evaluate(() => {
+      const s = document.querySelector("#dtext .bs16")!;
+      const box = document.querySelector("#dtext .rform")!
+        .getBoundingClientRect();
+      const last = s.querySelectorAll(".bsidx")[1]?.getBoundingClientRect();
+      return { shown: getComputedStyle(s).display !== "none" &&
+        getComputedStyle(document.querySelector("#dtext .bs32")!)
+          .display === "none",
+      idx: [...s.querySelectorAll(".bsidx")].map((r) =>
+        [...r.children].map((c) => c.textContent).join()),
+      fits: !!last && last.bottom <= box.bottom + 0.5 };
+    })).toEqual({ shown: true, fits: true, idx: [
+      [...Array(16).keys()].join(),
+      [...Array(16).keys()].map((i) => i + 16).join()] });
+  });
