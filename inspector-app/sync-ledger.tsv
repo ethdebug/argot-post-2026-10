@@ -1,5 +1,5 @@
 vanilla sha	subject	port
-da55848	Inspector: call the pointer replay a walkthrough in the visible copy (the bar's label, the memory note); widen the label's slot	deferred: T4.5, T5.2, T5.3
+da55848	Inspector: call the pointer replay a walkthrough in the visible copy (the bar's label, the memory note); widen the label's slot	815a02f (T4.5: the bar's label, Walkthrough), 145a77d (T5.3: the memory section's words)
 0ded043	Inspector: a yellow circle button on the tree box's edge, with an arrow, replaces the coloured strip	1f3dfab (T3.2: the tree's yellow circle edge buttons)
 bdc2b85	Inspector: the walkthrough follows general rules (inputs first; the pointer's nodes in document order; every template entry, hand-off, read region and branch a step; instances together, with a fork step where branches differ), built from each node's place in the pointer	3e49200 (T2.2 node identity), 046e0ef (T4.2-4.3 the rules), 90d00b4 (T4.4 goldens)
 c3dd6a8	Inspector: a click in the tree or dump during a walkthrough re-targets it, keeping the place by aligning the steps' identities	815a02f (T4.5: re-targeting, LCS, the cue)
