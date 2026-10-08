@@ -29,26 +29,12 @@ import {
 import { blockOf, resolveTarget } from "../engine/target";
 import { noLight } from "../engine/light";
 import { readWritten } from "../engine/timeline";
+import { addressText, rowBytes } from "../engine/location";
 import type { DataRef, LinkId, ViewId } from "./types";
 
 const TINTS = 5;
 const PLAIN = 1n << 32n;
 
-const pairs = (h?: string) =>
-  (h ?? "0x" + "0".repeat(64)).slice(2).padStart(64, "0").match(/../g)!;
-// A row's 32 bytes at a point, as hex pairs: a storage slot's word; a
-// memory word's bytes (undefined: past the end of memory)
-function bytesAt(pt: TimelinePoint | undefined, loc: Location,
-  row: Hex): (string | undefined)[] {
-  if (loc === "memory") {
-    const m = pt?.snapshot.memory ?? new Uint8Array();
-    const at = Number(BigInt(row));
-    return Array.from({ length: 32 }, (_, i) => at + i < m.length
-      ? m[at + i].toString(16).padStart(2, "0") : undefined);
-  }
-  return pairs(pt?.snapshot.storage.get(row));
-}
-const locOf = (l: Layout, r: Row) => r.location ?? l.location;
 // "slot 1" or "slot 0x7230…a723"
 const slotRef = (s: Hex) => BigInt(s) < PLAIN ? `slot ${BigInt(s)}`
   : `slot ${short(s)}`;
@@ -114,6 +100,11 @@ function Word({ l, loc, row, mine, theirs, side, name, light, groupsOf }: {
     const range = g.from === g.to ? `byte ${g.from}`
       : `bytes ${g.from} to ${g.to}`;
     for (let i = g.from; i <= g.to; i++) {
+      // (a row shorter than 32: calldata's selector; blank cells after)
+      if (i >= mine.length) {
+        cells.push(<span key={i} className="b" />);
+        continue;
+      }
       const hl = light.bytes.has(byteKey(loc, row, i));
       const isAt = !!at && i >= at.from && i <= at.to;
       const cls = ["b", g.owners.length
@@ -190,11 +181,8 @@ export function Dump(p: { id: ViewId; location: Location; data: DataRef;
     const w = c?.closest(".word") as HTMLElement | null;
     if (c && w) {
       const [from, to] = c.dataset.g!.split("-").map(Number);
-      // (a row of its own location: a memory dump's storage slot)
-      const loc = (w.closest<HTMLElement>(".wrow")?.dataset.loc ??
-        p.location) as Location;
       return { bytes: { row: w.dataset.slot as Hex, from, to,
-        location: loc } };
+        location: p.location } };
     }
     const a = e.closest?.(".wrow[data-slot] > .addr");
     if (a) return { row: (a.parentElement as HTMLElement).dataset.slot as Hex };
@@ -226,8 +214,7 @@ export function Dump(p: { id: ViewId; location: Location; data: DataRef;
           selection: t.path === sel ? null : t.path };
         if (keys || !sel) return s;
         const ids = new Set(Array.from({ length: 32 }, (_, i) =>
-          l.cover.get(byteKey(l.rows.find((r) => r.address === h.row)
-            ?.location ?? p.location, h.row as Hex, i))?.[0])
+          l.cover.get(byteKey(p.location, h.row as Hex, i))?.[0])
           .filter((x): x is string => !!x)
           .map((x) => blockOf(x.replace(/#length$/, ""), sel, d.byPath)));
         const [only] = ids;
@@ -281,21 +268,19 @@ export function Dump(p: { id: ViewId; location: Location; data: DataRef;
     };
   }, [cards]);
   const lines: ReactElement[] = [];
-  const memory = p.location === "memory";
+  const loc = p.location;
+  // (storage's rows are named by how they are found: a hashed one gets
+  // a line of room above it)
+  const slots = loc === "storage";
   rows.forEach((r, k) => {
     const n = BigInt(r.address);
     const name = r.how;
-    const loc = locOf(l!, r);
     if (k === 0 && n === 0n) {
-      // slot 0 at the top: no line before it
-    } else if (r.location && r.gapBefore) {
-      // (a memory dump's storage slot, after its words)
-      lines.push(<div key={`s${k}`} className="gap mstore"
-        aria-hidden="true"><span>storage</span></div>);
+      // row 0 at the top: no line before it
     } else if (r.gapBefore) {
       lines.push(<div key={`g${k}`} className="gap" aria-hidden="true">
         <span>⋯</span></div>);
-    } else if (!memory && !/^slot \d+$|\+ \d+$/.test(name)) {
+    } else if (slots && !/^slot \d+$|\+ \d+$/.test(name)) {
       lines.push(<div key={`r${k}`} className="gap room"
         aria-hidden="true" />);
     }
@@ -303,14 +288,16 @@ export function Dump(p: { id: ViewId; location: Location; data: DataRef;
     // (the earlier point is before the transaction between them)
     const [b, a] = (hereAt?.i ?? 0) < (thereAt?.i ?? 0) ? [here, otherPoint]
       : [otherPoint, here];
-    const words = [b, a].map((x) => bytesAt(x, loc, r.address).join());
+    const words = [b, a].map((x) => rowBytes(x?.snapshot, loc,
+      r.address).join());
     const same = !!p.compare && words[0] === words[1];
-    // (memory: whether the step changed the word)
-    const facts = !p.compare || !a || !b ? "" : memory
-      ? same ? "unchanged" : "changed"
-      : readWritten(b, a, r.address) ?? "not read or written";
+    // (what the transaction did to it, where the points know: storage's
+    // reads and writes; else whether it changed)
+    const facts = !p.compare || !a || !b ? "" : slots && a.transaction
+      ? readWritten(b, a, r.address) ?? "not read or written"
+      : same ? "unchanged" : "changed";
     const ring = same && !!a?.transaction?.writes.has(r.address);
-    const what = `${name}${name.startsWith("slot") || memory ? ""
+    const what = `${name}${name.startsWith("slot") || !slots ? ""
       : ` (slot ${short(r.address)})`}${facts ? `; ${facts}` : ""}`;
     // (lit, or pointed at: a gutter address)
     const on = light.at?.row === r.address || [...Array(32).keys()].some(
@@ -325,25 +312,25 @@ export function Dump(p: { id: ViewId; location: Location; data: DataRef;
       gut ? "gut" : ""]
       .filter(Boolean).join(" ");
     lines.push(<div key={r.address} className={cls} data-slot={r.address}
-      data-name={name} data-facts={facts} data-loc={r.location}
-      {...(name === slotRef(r.address) || (memory && !r.location) ? {}
+      data-name={name} data-facts={facts}
+      {...(name === slotRef(r.address) || !slots ? {}
         : { "data-full": `= ${r.address}` })}>
       <span className="addr" tabIndex={0}
         aria-label={`${r.address}; ${what}`}>
         {ring && <span className="ring" aria-label="written, same value" />}
-        <span className="a">{memory && !r.location ? r.address
-          : tail(r.address)}</span></span>
+        <span className="a">{addressText(loc, r.address)}</span></span>
       {l && <Word l={l} loc={loc} row={r.address}
-        mine={bytesAt(here, loc, r.address)}
-        theirs={bytesAt(p.compare ? otherPoint : here, loc, r.address)}
+        mine={rowBytes(snap, loc, r.address)}
+        theirs={rowBytes((p.compare ? otherPoint : here)?.snapshot, loc,
+          r.address)}
         side={side} name={name} light={light} groupsOf={groupsOf} />}
     </div>);
   });
-  if (!rows.at(-1)?.location) {
-    lines.push(<div key="end" className="gap" aria-hidden="true">
-      <span>⋯</span></div>);
-  }
+  lines.push(<div key="end" className="gap" aria-hidden="true">
+    <span>⋯</span></div>);
 
+  // (nothing of this location to show here: no dump)
+  if (l && !rows.length) return null;
   return <div ref={me} data-side={side} role="group"
     aria-label={p.when ? `${label} ${p.when}` : label} hidden={p.hidden}
     // (lit: the rest steps back; a selection or a step: brown caps)

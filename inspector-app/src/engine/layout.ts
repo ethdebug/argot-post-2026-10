@@ -8,29 +8,11 @@ import type {
   Path, ResolvedRegion, Row, TimelinePoint, ValueNode,
 } from "./types";
 import { byteKey, short, slotHex, toBig } from "./hex";
+import { hex4, nextRow, regionBytes } from "./location";
 
 const PLAIN = 1n << 32n; // below this, a slot is a plain number
 
-// The words and bytes a region covers. Offsets count from the most
-// significant byte; a region longer than the rest of its word goes on
-// into the next slots.
-// A memory region: the words it covers, by offset ("0x0080").
-export const memWord = (n: number): Hex =>
-  `0x${n.toString(16).padStart(4, "0")}`;
-export function regionBytes(r: ResolvedRegion): [Hex, number][] {
-  if (r.location === "memory") {
-    return Array.from({ length: r.length }, (_, k) =>
-      [memWord(Math.floor((r.offset + k) / 32) * 32), (r.offset + k) % 32]);
-  }
-  if (r.slot === undefined) return [];
-  const out: [Hex, number][] = [];
-  for (let k = 0; k < r.length; k++) {
-    const at = r.offset + k;
-    out.push([slotHex(r.slot + BigInt(Math.floor(at / 32))), at % 32]);
-  }
-  return out;
-}
-
+export { regionBytes } from "./location";
 // "name + 1" + 2 = "name + 3"
 const plus = (name: string, k: bigint) => {
   if (!k) return name;
@@ -126,17 +108,10 @@ export function layout(d: Decoded, location: Location, filter: Filter = {},
     node: ValueNode; length: boolean }>>();
   const roots = filter.roots;
   const kept = (p: Path) => !roots || roots.some((r) => under(p, r));
-  // (a memory dump shows a storage slot the page reads, after its words)
-  const rowLoc = new Map<Hex, Location>();
-  const shown = (r: ResolvedRegion) => r.location === location ||
-    (location === "memory" && r.location === "storage");
   const visit = (n: ValueNode) => {
     if (kept(n.path)) {
       for (const r of n.regions) {
-        if (!shown(r)) continue;
-        if (r.location !== location) {
-          for (const [row] of regionBytes(r)) rowLoc.set(row, r.location);
-        }
+        if (r.location !== location) continue;
         // (a string's length parts are an owner of their own, as vanilla)
         const part = r.role === "length" && !n.children;
         const key = part ? `${n.path}#length` : n.path;
@@ -203,22 +178,21 @@ export function layout(d: Decoded, location: Location, filter: Filter = {},
     if (a && b) {
       for (let w = 0; w < Math.max(a.length, b.length); w += 32) {
         const x = a.slice(w, w + 32).join();
-        if (x !== b.slice(w, w + 32).join()) words.add(memWord(w));
+        if (x !== b.slice(w, w + 32).join()) words.add(hex4(w));
       }
     }
   }
-  const order = (a: Hex, b: Hex) => (rowLoc.has(a) ? 1 : 0) -
-    (rowLoc.has(b) ? 1 : 0) || (BigInt(a) < BigInt(b) ? -1
-      : BigInt(a) > BigInt(b) ? 1 : 0);
+  const order = (a: Hex, b: Hex) => BigInt(a) < BigInt(b) ? -1
+    : BigInt(a) > BigInt(b) ? 1 : 0;
   const addresses = [...new Set<Hex>([...first.keys(), ...own.keys(),
     ...extra.keys(), ...listed, ...words])].sort(order);
   const record = o.point?.record;
   const how = (a: Hex) => {
-    if (rowLoc.has(a)) {
-      return record?.slot === a
-        ? `keccak(msg.sender, slot ${record.base})` : `slot ${short(a)}`;
+    // (a slot the page reads by its own rule: named by it)
+    if (location === "storage" && record?.slot === a) {
+      return `keccak(msg.sender, slot ${record.base})`;
     }
-    if (location === "memory") return `word ${a}`;
+    if (location !== "storage") return `word ${a}`;
     const n = BigInt(a);
     return n < PLAIN ? `slot ${n}` : names.get(n) ?? extra.get(a) ??
       `slot ${short(a)}`;
@@ -244,14 +218,12 @@ export function layout(d: Decoded, location: Location, filter: Filter = {},
           : g.length || own ? `${named}.length` : named };
       });
     return { address, how: how(address), what,
-      ...(own.has(address) ? { role: "own-slot" as const } : {}),
-      ...(rowLoc.has(address) ? { location: rowLoc.get(address)! } : {}) };
+      ...(own.has(address) ? { role: "own-slot" as const } : {}) };
   });
   if (filter.maxRows !== undefined) rows = rows.slice(0, filter.maxRows);
-  const step = location === "memory" ? 32n : 1n;
   rows = rows.map((r, k) => ({ ...r, gapBefore: k === 0
-    ? BigInt(r.address) !== 0n : !!r.location !== !!rows[k - 1].location ||
-      BigInt(r.address) !== BigInt(rows[k - 1].address) + step }));
+    ? BigInt(r.address) !== 0n
+    : BigInt(r.address) !== nextRow(location, rows[k - 1].address) }));
   return { location, point: d.point, rows, cover, owned };
 }
 

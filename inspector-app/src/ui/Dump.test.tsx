@@ -39,8 +39,8 @@ it("one word per row, its owners' bytes marked", async () => {
     .toBe("28"), slow);
   const view = container.querySelector('.view[data-side="after"]')!;
   expect(view.hasAttribute("hidden")).toBe(false);
-  expect(container.querySelector('.view[data-side="before"]')!
-    .hasAttribute("hidden")).toBe(true);
+  // (one point: the pair's other side is not drawn)
+  expect(container.querySelector('.view[data-side="before"]')).toBe(null);
   const row = view.querySelector(`.rows .wrow[data-slot="${slot2}"]`)!;
   expect(row.getAttribute("data-slot")).toBe("0x" + "2".padStart(64, "0"));
   expect(row.getAttribute("data-name")).toBe("slot 2");
