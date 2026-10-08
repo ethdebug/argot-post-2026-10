@@ -13,7 +13,7 @@ it("each step: a short caption, at most one footnote, a spec page",
     const w = walkthrough({ d, c: await p.compilation(dc.compilation),
       snap: t.points[1].snapshot, keys: dc.keys }, "players")!;
     expect(w.steps.map((s) => shortCap(s, "players"))).toEqual([
-      "what we will find", "the keys", "`players`' own slot",
+      "what we're about to find", "the keys", "`players`' own slot",
       "a template's inputs", "the record's slot", "a template's inputs",
       "packed fields", "into a template", "a template's inputs", "a flag",
       "a branch", "the text", "the text"]);

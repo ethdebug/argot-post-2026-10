@@ -22,7 +22,7 @@ export const footOf = (st: Step) => st.constructs.find((c) => FOOT[c]);
 // The short caption of a step, for the bar over the dump
 export function shortCap(st: Step, variable: string): string {
   switch (st.phase) {
-    case "goal": return "what we will find";
+    case "goal": return "what we're about to find";
     case "declared": return `\`${variable}\`${variable.endsWith("s") ? "'"
       : "'s"} own slot`;
     case "input": return st.chip === "key" ? "the key" : "the keys";

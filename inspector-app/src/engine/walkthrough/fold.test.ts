@@ -18,6 +18,7 @@ const at = async (bm = "mid", side = "after") => {
 const plain = (s: string) => s.replace(/`/g, "");
 const toks = (ts: Tok[]) => ts.map((t) => typeof t === "string" ? t
   : "code" in t ? t.code : "gloss" in t ? t.gloss : "prose" in t ? t.prose
+    : "question" in t ? t.question
     : t.text).join("");
 const formText = (f: Form) => f.kind === "text" ? toks(f.toks)
   : f.kind === "table" ? f.rows.map((r) => `${toks(r.a)}→${toks(r.b)}`)
@@ -141,4 +142,18 @@ it("re-targeting keeps the step: same identity, or the nearest earlier",
     // (no match: the first step)
     const total = walkthrough(x, "total")!.steps;
     expect(retarget(carolName, 3, total)).toEqual({ at: 0, moved: true });
+  });
+
+it("step 0, as vanilla: the slots the steps touch, whole; the question",
+  async () => {
+    const w = walkthrough(await at(), "players")!;
+    const g = w.steps[0];
+    expect(plain(g.cap)).toBe("These 9 slots hold players, scattered " +
+      "across storage.");
+    expect(formText(g.form)).toBe("How do we find them, and what do they " +
+      "mean?");
+    expect(g.chip).toBe("");
+    // (bob's plays: one region in one slot: no step 0)
+    expect(walkthrough(await at(), `${B}.plays`)!.steps[0].goal)
+      .toBeUndefined();
   });

@@ -19,7 +19,7 @@ import { childColours } from "../light";
 import { pointerText } from "../pointer-text";
 
 export type Tok = string | { code: string } | { gloss: string } |
-  { prose: string } | { field: Path; text: string };
+  { prose: string } | { question: string } | { field: Path; text: string };
 export type Form =
   | { kind: "text"; toks: Tok[] }
   | { kind: "table"; rows: { a: Tok[]; b: Tok[]; k: Colour }[] }
@@ -669,26 +669,36 @@ export function walkthrough(x: WalkInput, path: Path, focus?: string):
     delete st._xs;
   }
 
-  // step 0: what we are about to find, when the selection spans more
-  // than one slot or region: every slot the steps touch, whole, in the
-  // selection's yellow, no labels, no band
-  const regions = node.path === variable && kindOf(varNode) !== "array"
-    ? leaves.flatMap((l) => l.regions)
-    : leaves.filter((l) => l.path.startsWith(node.path)).flatMap((l) =>
-      l.regions);
-  const selSlots = [...new Set(regions.flatMap(spanned))];
-  if (selSlots.length > 1 || regions.length > 1) {
+  // step 0, the goal (vanilla c62550a): when the selection takes more
+  // than one slot or region, every slot the walkthrough touches (but its
+  // inputs'), whole, in the selection's yellow, with no label: which
+  // bytes are what is what the steps find
+  const touched = new Set<Hex>();
+  for (const st of out.filter((y) => y.phase !== "input")) {
+    for (const p of st.parts) {
+      for (const r of p.regions) spanned(r).forEach((h) => touched.add(h));
+      for (const h of p.slots ?? []) touched.add(h);
+    }
+    for (const h of st.gutters) touched.add(h);
+  }
+  const ownR = leaves.filter((l) => l.path === path ||
+    l.path.startsWith(path + ".") || l.path.startsWith(path + "["))
+    .flatMap((l) => l.regions);
+  const ownS = new Set(ownR.flatMap(spanned));
+  if (ownS.size > 1 || ownR.length > 1) {
+    const allS = [...touched].sort((a, b) =>
+      toBig(a) < toBig(b) ? -1 : 1);
+    const apart = allS.some((h, k) => k > 0 &&
+      toBig(h) - toBig(allS[k - 1]) > 1n);
     out.unshift({ id: "goal", phase: "goal", goal: true,
-      cap: `What we are about to find: where \`${node.label === path
-        ? path : path.replace(/\[(0x[0-9a-fA-F]{16,})\]/g, (_, h) =>
-          `[${short(h)}]`)}\` is, in ${selSlots.length} ${selSlots.length
-        === 1 ? "slot" : "slots"}`,
-      form: text(`${selSlots.length} ${selSlots.length === 1 ? "slot"
-        : "slots"}, ${regions.length} ${regions.length === 1 ? "region"
-        : "regions"}`),
-      constructs: [], source: "", chip: "?", chipLabel: "goal",
-      parts: [{ regions: [], rows: [node.path], slots: selSlots }],
-      rows: [node.path], gutters: [], band: [] });
+      cap: `${allS.length === 1 ? "This slot holds" : `These ${allS.length
+        } slots hold`} \`${path.replace(/\[(0x[0-9a-fA-F]{16,})\]/g,
+        (_, h) => `[${short(h)}]`)}\`${apart
+        ? ", scattered across storage" : ""}.`,
+      form: text({ question: "How do we find them, and what do they mean?" }),
+      constructs: [], source: "", chip: "", chipLabel: "",
+      parts: [{ regions: [], rows: [path], slots: allS }],
+      rows: [path], gutters: [], band: [] });
   }
   return { target: path, steps: out, recs, focus: every ? "*" : f,
     variable };
