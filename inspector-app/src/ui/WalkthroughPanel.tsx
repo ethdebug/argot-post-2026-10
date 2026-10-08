@@ -170,6 +170,26 @@ function Contrast({ d, path, side, onPoint }: { d?: Decoded; path: string;
   </>;
 }
 
+// Scroll an element's nearest scroll container (the page's, if none)
+// so that the element is at its top, below the container's
+// scroll-padding-top and the element's scroll-margin-top: a host page
+// with a sticky header sets its height there
+function toTop(el: HTMLElement, instant: boolean) {
+  let box: Element | null = el.parentElement;
+  while (box && !(/auto|scroll/.test(getComputedStyle(box).overflowY) &&
+    box.scrollHeight > box.clientHeight)) box = box.parentElement;
+  const root = document.scrollingElement ?? document.documentElement;
+  const c = box ?? root;
+  const px = (v: string) => parseFloat(v) || 0;
+  const pad = px(getComputedStyle(c).scrollPaddingTop);
+  const margin = px(getComputedStyle(el).scrollMarginTop);
+  const at = c === root ? 0 : c.getBoundingClientRect().top + c.clientTop;
+  const top = c.scrollTop + el.getBoundingClientRect().top - at - pad -
+    margin;
+  c.scrollTo({ top: Math.max(0, top), behavior: instant ? "auto"
+    : "smooth" });
+}
+
 export function WalkthroughPanel(p: { id: ViewId; data: DataRef;
   link?: LinkId; domId?: string; compare?: DataRef;
   others?: { decoding: string; who?: string }[] }) {
@@ -245,21 +265,12 @@ export function WalkthroughPanel(p: { id: ViewId; data: DataRef;
       focus: undefined, n: w.steps.length } }));
   };
   // (once the details are drawn: unfold them, bring the bar to the top
-  // of the window, and the focus to ▶)
+  // of its scroll container, and the focus to ▶)
   useLayoutEffect(() => {
     if (!opening.current || !walk) return;
     opening.current = false;
     void fold(true);
-    // (the line before the bar in the page: its own sibling, or its
-    // place's, on the parity page)
-    const before = bar.current?.previousElementSibling ??
-      bar.current?.parentElement?.previousElementSibling;
-    if (before) {
-      const y = before.getBoundingClientRect().bottom + scrollY +
-        parseFloat(getComputedStyle(before).marginBottom || "0");
-      scrollTo({ top: Math.max(0, y), behavior: still() ? "auto"
-        : "smooth" });
-    }
+    if (bar.current) toTop(bar.current, still());
     (bar.current?.querySelector<HTMLElement>(
       'button[data-r="next"]:not([disabled])') ?? bar.current
       ?.querySelector<HTMLElement>("button:not([disabled])"))
