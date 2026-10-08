@@ -316,8 +316,9 @@ export function Lens(props: { spec: LensSpec; project: Project;
   const body = mount
     ? Object.entries(wrapped).map(([a, n]) => mount[a]
       ? createPortal(n, mount[a], a) : null)
-    : <div className="lens" style={{ display: "grid",
-      gridTemplateAreas: spec.grid }}>
+    : <div className={["lens", spec.layout].filter(Boolean).join(" ")}
+      style={spec.grid ? { display: "grid", gridTemplateAreas: spec.grid }
+        : undefined}>
       {Object.entries(wrapped).map(([a, n]) =>
         <div key={a} className={spec.areas?.[a]} data-area={a}
           data-link-scope={spec.scopes?.[a]}

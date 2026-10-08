@@ -47,6 +47,24 @@ export interface LensState {
   related?: { context: number };
 }
 
+// How a dump draws its rows: parameters of the one Dump, for any
+// location (none: a word a row, as ever)
+export interface Display {
+  // "strip": a tall, narrow column (a word's four groups of eight one
+  // under another; with `abbreviate`, a line a word)
+  shape?: "rows" | "strip";
+  // a word as its last `abbreviate` bytes after "0x…" (its leading zero
+  // bytes dropped; a word that short whole: 0x22)
+  abbreviate?: number;
+  // "flow": the rows' bytes as one run, `perLine` bytes a line (default
+  // 16), words going on one into the next: no gap rows, tighter type
+  density?: "rows" | "flow";
+  perLine?: number;
+  scale?: number;               // the type's size, times this
+  // the bytes only: no names, no tints, no popovers, no hover or click
+  bare?: boolean;
+}
+
 // a view's data: a decoding (or "$bm", the current bookmark's) at a
 // point (or a named point slot: "a", "b", or "$side", the shown one)
 export type DataRef = { decoding: DecodingId;
@@ -68,7 +86,8 @@ export type ViewSpec = { id: ViewId; area: string; link?: LinkId;
       others?: { decoding: DecodingId; who?: string }[];
       // (its points are paused steps of a trace, not a transaction's
       // before and after)
-      steps?: boolean }
+      steps?: boolean;
+      display?: Display }
     | { kind: "tree"; data: DataRef; filter?: Filter;
       variant?: "tree" | "table"; compare?: DataRef;
       // the dumps it lines up with (default: the lens's)
@@ -100,6 +119,8 @@ export interface LensSpec {     // a composition for one post section
   decodings: (DecodingId | Decoding)[];
   bookmarks?: string[];         // picker entries (Phase 1: the scenes)
   grid: string;                 // CSS grid-template-areas
+  // (or "", and a class whose CSS lays the areas out, at every width)
+  layout?: string;
   views: ViewSpec[];
   links: LinkId[];
   initial?: Partial<LensState>; // incl. a started walkthrough
