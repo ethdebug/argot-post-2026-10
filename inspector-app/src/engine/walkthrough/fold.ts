@@ -707,14 +707,7 @@ export function walkthrough(x: WalkInput, path: Path, focus?: string):
   // than one slot or region, every slot the walkthrough touches (but its
   // inputs'), whole, in the selection's yellow, with no label: which
   // bytes are what is what the steps find
-  const touched = new Set<Hex>();
-  for (const st of out.filter((y) => y.phase !== "input")) {
-    for (const p of st.parts) {
-      for (const r of p.regions) spanned(r).forEach((h) => touched.add(h));
-      for (const h of p.slots ?? []) touched.add(h);
-    }
-    for (const h of st.gutters) touched.add(h);
-  }
+  const touched = slotsOf(out.filter((y) => y.phase !== "input"));
   const ownR = leaves.filter((l) => l.path === path ||
     l.path.startsWith(path + ".") || l.path.startsWith(path + "["))
     .flatMap((l) => l.regions);
@@ -755,6 +748,20 @@ export function walkthrough(x: WalkInput, path: Path, focus?: string):
   }
   return { target: path, steps: out, recs, focus: every ? "*" : f,
     variable };
+}
+
+// The slots steps touch: their regions' (whole), their parts' slots,
+// their gutters
+export function slotsOf(steps: Step[]): Set<Hex> {
+  const out = new Set<Hex>();
+  for (const st of steps) {
+    for (const p of st.parts) {
+      for (const r of p.regions) spanned(r).forEach((h) => out.add(h));
+      for (const h of p.slots ?? []) out.add(h);
+    }
+    for (const h of st.gutters) out.add(h);
+  }
+  return out;
 }
 
 // the slots a region spans

@@ -1,6 +1,7 @@
 // A lens's view in the URL hash (vanilla panel.js setHash, main.js keep
 // and main): its bookmark, side, selection and "show other state", as
-// the legacy keys ex, mode, sel, insets (with the lens's prefix). Other
+// the legacy keys ex, mode, sel, insets (with the lens's prefix); and
+// the related view, rel (its context rows: "0", "1"; none: off). Other
 // keys (another lens's: mopt, mpt, mmode, msel) are not this lens's.
 import type { Bookmark, Path } from "./types";
 
@@ -14,12 +15,13 @@ export interface HashLens {
 export interface HashState {
   bookmark?: string; side: "before" | "after"; insets: boolean;
   selection: Path | null;   // the first link group's
+  related?: number;         // the related view's context (none: off)
 }
 
 const keys = (lens: HashLens) => {
   const p = lens.hash?.prefix ?? "";
   return { ex: `${p}ex`, mode: `${p}mode`, sel: `${p}sel`,
-    insets: `${p}insets` };
+    insets: `${p}insets`, rel: `${p}rel` };
 };
 
 // The keys to set (null: remove)
@@ -34,7 +36,8 @@ export function toHash(lens: HashLens, s: HashState,
     return { [`${p}opt`]: bm ? opt.slice(1) : null, [`${p}pt`]: pt ?? null,
       [k.mode]: single ? null : s.side,
       [k.sel]: s.selection === (bm?.select ?? null) ? null
-        : s.selection ?? "" };
+        : s.selection ?? "",
+      [k.rel]: s.related === undefined ? null : String(s.related) };
   }
   return {
     [k.ex]: bm ? bm.id : null,
@@ -42,6 +45,7 @@ export function toHash(lens: HashLens, s: HashState,
     // (a cleared default selection is kept as "sel=")
     [k.sel]: s.selection ?? (bm?.select ? "" : null),
     [k.insets]: s.insets || single ? null : "0",
+    [k.rel]: s.related === undefined ? null : String(s.related),
   };
 }
 
@@ -51,7 +55,11 @@ export function fromHash(lens: HashLens, h: URLSearchParams,
   bookmarks: Bookmark[]): HashState {
   const k = keys(lens);
   const ids = lens.bookmarks ?? [];
-  if (lens.hash?.levels) return levelsFrom(lens, h, bookmarks);
+  const rel = h.get(k.rel);
+  const related = rel === "0" || rel === "1" ? { related: +rel } : {};
+  if (lens.hash?.levels) {
+    return { ...levelsFrom(lens, h, bookmarks), ...related };
+  }
   const asked = ids.includes(h.get(k.ex) ?? "") ? h.get(k.ex)! : undefined;
   const bm = bookmarks.find((b) => b.id === (asked ?? ids[0]));
   const single = !bm || bm.points.length === 1;
@@ -64,6 +72,7 @@ export function fromHash(lens: HashLens, h: URLSearchParams,
     insets: h.get(k.insets) !== "0",
     selection: asked && h.has(k.sel) ? h.get(k.sel) || null
       : bm?.select ?? null,
+    ...related,
   };
 }
 

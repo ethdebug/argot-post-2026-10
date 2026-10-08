@@ -88,8 +88,21 @@ it("the memory section's keys: mopt, mpt, mmode, msel", async () => {
     .toMatchObject({ bookmark: "O0/roll", selection: "zzz" });
   expect(toHash(mem, { bookmark: "O2/mult", side: "before", insets: true,
     selection: "multiplied" }, p.bookmarks)).toEqual({ mopt: "2",
-    mpt: "mult", mmode: "before", msel: null });
+    mpt: "mult", mmode: "before", msel: null, mrel: null });
   expect(toHash(mem, { bookmark: "O0/roll", side: "after", insets: true,
     selection: null }, p.bookmarks)).toEqual({ mopt: "0", mpt: "roll",
-    mmode: null, msel: "" });
+    mmode: null, msel: "", mrel: null });
+});
+
+it("the related view: rel, its context rows (none: off)", async () => {
+  const p = await testProject();
+  const at = (h: string) => fromHash(lens, q(h), p.bookmarks).related;
+  expect([at("ex=mid"), at("ex=mid&rel=0"), at("ex=mid&rel=1"),
+    at("ex=mid&rel=x")]).toEqual([undefined, 0, 1, undefined]);
+  const s = { bookmark: "mid", side: "after" as const, insets: true,
+    selection: "total" };
+  expect(toHash(lens, s, p.bookmarks).rel).toBe(null);
+  expect(toHash(lens, { ...s, related: 1 }, p.bookmarks).rel).toBe("1");
+  expect(toHash(mem, { ...s, bookmark: "O0/roll", related: 0 },
+    p.bookmarks).mrel).toBe("0");
 });
