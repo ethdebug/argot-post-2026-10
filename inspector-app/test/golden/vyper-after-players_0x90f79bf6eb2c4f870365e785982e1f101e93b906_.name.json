@@ -1,0 +1,1241 @@
+{
+  "target": "players[0x90f79bf6eb2c4f870365e785982e1f101e93b906].name",
+  "steps": [
+    {
+      "id": "goal",
+      "phase": "goal",
+      "goal": true,
+      "cap": "These 3 slots hold `players[0x90f7…b906].name`, scattered across storage.",
+      "form": {
+        "kind": "text",
+        "toks": [
+          {
+            "question": "How do we find them, and what do they mean?"
+          }
+        ]
+      },
+      "constructs": [],
+      "source": "",
+      "chip": "",
+      "chipLabel": "",
+      "parts": [
+        {
+          "regions": [],
+          "rows": [
+            "players[0x90f79bf6eb2c4f870365e785982e1f101e93b906].name"
+          ],
+          "slots": [
+            "0x0000000000000000000000000000000000000000000000000000000000000003",
+            "0x53c8a5ff8e9eee17be03169c30dedc5882673fcdd4fbdb8a32244385ed269978",
+            "0x53c8a5ff8e9eee17be03169c30dedc5882673fcdd4fbdb8a32244385ed269979"
+          ]
+        }
+      ],
+      "rows": [
+        "players[0x90f79bf6eb2c4f870365e785982e1f101e93b906].name"
+      ],
+      "gutters": [],
+      "band": []
+    },
+    {
+      "cap": "key = \"\"'s address, from `the trace`",
+      "form": {
+        "kind": "text",
+        "toks": [
+          "0x90f7…b906",
+          " ",
+          {
+            "gloss": "\"\""
+          }
+        ]
+      },
+      "constructs": [],
+      "source": "the page reads the keys from the trace",
+      "chip": "key",
+      "chipLabel": "trace",
+      "parts": [
+        {
+          "regions": [],
+          "rows": [],
+          "colours": []
+        }
+      ],
+      "rows": [],
+      "gutters": [],
+      "band": [],
+      "phase": "input",
+      "id": "input",
+      "sourceTint": false
+    },
+    {
+      "cap": "`players` is declared at slot 3",
+      "form": {
+        "kind": "text",
+        "toks": [
+          "slot 3"
+        ]
+      },
+      "constructs": [
+        "pointer"
+      ],
+      "source": "from solc's pointer",
+      "chip": "slot 3",
+      "chipLabel": "mapping",
+      "parts": [
+        {
+          "regions": [],
+          "rows": [
+            "players"
+          ]
+        }
+      ],
+      "rows": [
+        "players"
+      ],
+      "gutters": [
+        "0x0000000000000000000000000000000000000000000000000000000000000003"
+      ],
+      "band": [
+        "~var"
+      ],
+      "phase": "declared",
+      "id": "declared|players"
+    },
+    {
+      "cap": "The template `mapping(address => Player)` takes slot = 3, key = \"\"'s address",
+      "form": {
+        "kind": "text",
+        "toks": [
+          "slot = 3, key = 0x90f7…b906"
+        ]
+      },
+      "constructs": [
+        "template"
+      ],
+      "source": "from solc's pointer",
+      "chip": "mapping(address => Player)",
+      "chipLabel": "template",
+      "parts": [
+        {
+          "regions": [],
+          "rows": [
+            "players[0x90f79bf6eb2c4f870365e785982e1f101e93b906]"
+          ],
+          "colours": [
+            [
+              "players",
+              0
+            ],
+            [
+              "players[0x70997970c51812dc3a010c7d01b50e0d17dc79c8]",
+              1
+            ],
+            [
+              "players[0x70997970c51812dc3a010c7d01b50e0d17dc79c8].score",
+              1
+            ],
+            [
+              "players[0x70997970c51812dc3a010c7d01b50e0d17dc79c8].combo",
+              1
+            ],
+            [
+              "players[0x70997970c51812dc3a010c7d01b50e0d17dc79c8].bestCombo",
+              1
+            ],
+            [
+              "players[0x70997970c51812dc3a010c7d01b50e0d17dc79c8].plays",
+              1
+            ],
+            [
+              "players[0x70997970c51812dc3a010c7d01b50e0d17dc79c8].hitCount",
+              1
+            ],
+            [
+              "players[0x70997970c51812dc3a010c7d01b50e0d17dc79c8].lastBlock",
+              1
+            ],
+            [
+              "players[0x70997970c51812dc3a010c7d01b50e0d17dc79c8].name",
+              1
+            ],
+            [
+              "players[0x3c44cdddb6a900fa2b585dd299e03d12fa4293bc]",
+              2
+            ],
+            [
+              "players[0x3c44cdddb6a900fa2b585dd299e03d12fa4293bc].score",
+              2
+            ],
+            [
+              "players[0x3c44cdddb6a900fa2b585dd299e03d12fa4293bc].combo",
+              2
+            ],
+            [
+              "players[0x3c44cdddb6a900fa2b585dd299e03d12fa4293bc].bestCombo",
+              2
+            ],
+            [
+              "players[0x3c44cdddb6a900fa2b585dd299e03d12fa4293bc].plays",
+              2
+            ],
+            [
+              "players[0x3c44cdddb6a900fa2b585dd299e03d12fa4293bc].hitCount",
+              2
+            ],
+            [
+              "players[0x3c44cdddb6a900fa2b585dd299e03d12fa4293bc].lastBlock",
+              2
+            ],
+            [
+              "players[0x3c44cdddb6a900fa2b585dd299e03d12fa4293bc].name",
+              2
+            ],
+            [
+              "players[0x90f79bf6eb2c4f870365e785982e1f101e93b906]",
+              3
+            ],
+            [
+              "players[0x90f79bf6eb2c4f870365e785982e1f101e93b906].score",
+              3
+            ],
+            [
+              "players[0x90f79bf6eb2c4f870365e785982e1f101e93b906].combo",
+              3
+            ],
+            [
+              "players[0x90f79bf6eb2c4f870365e785982e1f101e93b906].bestCombo",
+              3
+            ],
+            [
+              "players[0x90f79bf6eb2c4f870365e785982e1f101e93b906].plays",
+              3
+            ],
+            [
+              "players[0x90f79bf6eb2c4f870365e785982e1f101e93b906].hitCount",
+              3
+            ],
+            [
+              "players[0x90f79bf6eb2c4f870365e785982e1f101e93b906].lastBlock",
+              3
+            ],
+            [
+              "players[0x90f79bf6eb2c4f870365e785982e1f101e93b906].name",
+              3
+            ]
+          ]
+        }
+      ],
+      "rows": [
+        "players[0x90f79bf6eb2c4f870365e785982e1f101e93b906]"
+      ],
+      "gutters": [
+        "0x0000000000000000000000000000000000000000000000000000000000000003"
+      ],
+      "band": [
+        "=t_mapping$_t_address_$_t_struct$_Player_$16_storage_$|",
+        "=t_mapping$_t_address_$_t_struct$_Player_$16_storage_$|expect",
+        "=t_mapping$_t_address_$_t_struct$_Player_$16_storage_$|for"
+      ],
+      "phase": "template",
+      "tkind": "mapping",
+      "id": "template|t_mapping$_t_address_$_t_struct$_Player_$16_storage_$|"
+    },
+    {
+      "cap": "The record is at keccak(0x90f7…b906, 3) = …9978",
+      "form": {
+        "kind": "text",
+        "toks": [
+          "keccak(0x90f7…b906, 3) = …9978"
+        ]
+      },
+      "constructs": [
+        "define",
+        "$keccak256"
+      ],
+      "source": "from solc's pointer",
+      "chip": "keccak(key, 3)",
+      "chipLabel": "record",
+      "parts": [
+        {
+          "regions": [],
+          "rows": [
+            "players[0x90f79bf6eb2c4f870365e785982e1f101e93b906]"
+          ],
+          "colours": [
+            [
+              "players",
+              0
+            ],
+            [
+              "players[0x70997970c51812dc3a010c7d01b50e0d17dc79c8]",
+              1
+            ],
+            [
+              "players[0x70997970c51812dc3a010c7d01b50e0d17dc79c8].score",
+              1
+            ],
+            [
+              "players[0x70997970c51812dc3a010c7d01b50e0d17dc79c8].combo",
+              1
+            ],
+            [
+              "players[0x70997970c51812dc3a010c7d01b50e0d17dc79c8].bestCombo",
+              1
+            ],
+            [
+              "players[0x70997970c51812dc3a010c7d01b50e0d17dc79c8].plays",
+              1
+            ],
+            [
+              "players[0x70997970c51812dc3a010c7d01b50e0d17dc79c8].hitCount",
+              1
+            ],
+            [
+              "players[0x70997970c51812dc3a010c7d01b50e0d17dc79c8].lastBlock",
+              1
+            ],
+            [
+              "players[0x70997970c51812dc3a010c7d01b50e0d17dc79c8].name",
+              1
+            ],
+            [
+              "players[0x3c44cdddb6a900fa2b585dd299e03d12fa4293bc]",
+              2
+            ],
+            [
+              "players[0x3c44cdddb6a900fa2b585dd299e03d12fa4293bc].score",
+              2
+            ],
+            [
+              "players[0x3c44cdddb6a900fa2b585dd299e03d12fa4293bc].combo",
+              2
+            ],
+            [
+              "players[0x3c44cdddb6a900fa2b585dd299e03d12fa4293bc].bestCombo",
+              2
+            ],
+            [
+              "players[0x3c44cdddb6a900fa2b585dd299e03d12fa4293bc].plays",
+              2
+            ],
+            [
+              "players[0x3c44cdddb6a900fa2b585dd299e03d12fa4293bc].hitCount",
+              2
+            ],
+            [
+              "players[0x3c44cdddb6a900fa2b585dd299e03d12fa4293bc].lastBlock",
+              2
+            ],
+            [
+              "players[0x3c44cdddb6a900fa2b585dd299e03d12fa4293bc].name",
+              2
+            ],
+            [
+              "players[0x90f79bf6eb2c4f870365e785982e1f101e93b906]",
+              3
+            ],
+            [
+              "players[0x90f79bf6eb2c4f870365e785982e1f101e93b906].score",
+              3
+            ],
+            [
+              "players[0x90f79bf6eb2c4f870365e785982e1f101e93b906].combo",
+              3
+            ],
+            [
+              "players[0x90f79bf6eb2c4f870365e785982e1f101e93b906].bestCombo",
+              3
+            ],
+            [
+              "players[0x90f79bf6eb2c4f870365e785982e1f101e93b906].plays",
+              3
+            ],
+            [
+              "players[0x90f79bf6eb2c4f870365e785982e1f101e93b906].hitCount",
+              3
+            ],
+            [
+              "players[0x90f79bf6eb2c4f870365e785982e1f101e93b906].lastBlock",
+              3
+            ],
+            [
+              "players[0x90f79bf6eb2c4f870365e785982e1f101e93b906].name",
+              3
+            ]
+          ]
+        }
+      ],
+      "rows": [
+        "players[0x90f79bf6eb2c4f870365e785982e1f101e93b906]"
+      ],
+      "gutters": [
+        "0x53c8a5ff8e9eee17be03169c30dedc5882673fcdd4fbdb8a32244385ed269978"
+      ],
+      "band": [
+        "=t_mapping$_t_address_$_t_struct$_Player_$16_storage_$|for.define",
+        "t_mapping$_t_address_$_t_struct$_Player_$16_storage_$|for.define.slot",
+        "t_mapping$_t_address_$_t_struct$_Player_$16_storage_$|for.in"
+      ],
+      "phase": "handoff",
+      "tkind": "struct",
+      "id": "define|t_mapping$_t_address_$_t_struct$_Player_$16_storage_$|for.define.slot"
+    },
+    {
+      "cap": "The template `Player` takes slot = …9978",
+      "form": {
+        "kind": "text",
+        "toks": [
+          "slot = …9978"
+        ]
+      },
+      "constructs": [
+        "template"
+      ],
+      "source": "from solc's pointer",
+      "chip": "Player",
+      "chipLabel": "template",
+      "parts": [
+        {
+          "regions": [],
+          "rows": [
+            "players[0x90f79bf6eb2c4f870365e785982e1f101e93b906]"
+          ],
+          "colours": [
+            [
+              "players",
+              0
+            ],
+            [
+              "players[0x70997970c51812dc3a010c7d01b50e0d17dc79c8]",
+              1
+            ],
+            [
+              "players[0x70997970c51812dc3a010c7d01b50e0d17dc79c8].score",
+              1
+            ],
+            [
+              "players[0x70997970c51812dc3a010c7d01b50e0d17dc79c8].combo",
+              1
+            ],
+            [
+              "players[0x70997970c51812dc3a010c7d01b50e0d17dc79c8].bestCombo",
+              1
+            ],
+            [
+              "players[0x70997970c51812dc3a010c7d01b50e0d17dc79c8].plays",
+              1
+            ],
+            [
+              "players[0x70997970c51812dc3a010c7d01b50e0d17dc79c8].hitCount",
+              1
+            ],
+            [
+              "players[0x70997970c51812dc3a010c7d01b50e0d17dc79c8].lastBlock",
+              1
+            ],
+            [
+              "players[0x70997970c51812dc3a010c7d01b50e0d17dc79c8].name",
+              1
+            ],
+            [
+              "players[0x3c44cdddb6a900fa2b585dd299e03d12fa4293bc]",
+              2
+            ],
+            [
+              "players[0x3c44cdddb6a900fa2b585dd299e03d12fa4293bc].score",
+              2
+            ],
+            [
+              "players[0x3c44cdddb6a900fa2b585dd299e03d12fa4293bc].combo",
+              2
+            ],
+            [
+              "players[0x3c44cdddb6a900fa2b585dd299e03d12fa4293bc].bestCombo",
+              2
+            ],
+            [
+              "players[0x3c44cdddb6a900fa2b585dd299e03d12fa4293bc].plays",
+              2
+            ],
+            [
+              "players[0x3c44cdddb6a900fa2b585dd299e03d12fa4293bc].hitCount",
+              2
+            ],
+            [
+              "players[0x3c44cdddb6a900fa2b585dd299e03d12fa4293bc].lastBlock",
+              2
+            ],
+            [
+              "players[0x3c44cdddb6a900fa2b585dd299e03d12fa4293bc].name",
+              2
+            ],
+            [
+              "players[0x90f79bf6eb2c4f870365e785982e1f101e93b906]",
+              3
+            ],
+            [
+              "players[0x90f79bf6eb2c4f870365e785982e1f101e93b906].score",
+              3
+            ],
+            [
+              "players[0x90f79bf6eb2c4f870365e785982e1f101e93b906].combo",
+              3
+            ],
+            [
+              "players[0x90f79bf6eb2c4f870365e785982e1f101e93b906].bestCombo",
+              3
+            ],
+            [
+              "players[0x90f79bf6eb2c4f870365e785982e1f101e93b906].plays",
+              3
+            ],
+            [
+              "players[0x90f79bf6eb2c4f870365e785982e1f101e93b906].hitCount",
+              3
+            ],
+            [
+              "players[0x90f79bf6eb2c4f870365e785982e1f101e93b906].lastBlock",
+              3
+            ],
+            [
+              "players[0x90f79bf6eb2c4f870365e785982e1f101e93b906].name",
+              3
+            ]
+          ]
+        }
+      ],
+      "rows": [
+        "players[0x90f79bf6eb2c4f870365e785982e1f101e93b906]"
+      ],
+      "gutters": [
+        "0x53c8a5ff8e9eee17be03169c30dedc5882673fcdd4fbdb8a32244385ed269978"
+      ],
+      "band": [
+        "=t_struct$_Player_$16_storage|",
+        "=t_struct$_Player_$16_storage|expect",
+        "=t_struct$_Player_$16_storage|for"
+      ],
+      "phase": "template",
+      "tkind": "struct",
+      "id": "template|t_struct$_Player_$16_storage|"
+    },
+    {
+      "cap": "The next slot holds `name`, a string: …9978 + 1 = …9979",
+      "form": {
+        "kind": "text",
+        "toks": [
+          "…9978 + 1 = …9979"
+        ]
+      },
+      "constructs": [
+        "define",
+        "$sum"
+      ],
+      "source": "from solc's pointer",
+      "chip": "name",
+      "chipLabel": "string",
+      "parts": [
+        {
+          "regions": [],
+          "rows": [
+            "players[0x90f79bf6eb2c4f870365e785982e1f101e93b906].name"
+          ],
+          "colours": [
+            [
+              "players",
+              0
+            ],
+            [
+              "players[0x70997970c51812dc3a010c7d01b50e0d17dc79c8]",
+              1
+            ],
+            [
+              "players[0x70997970c51812dc3a010c7d01b50e0d17dc79c8].score",
+              1
+            ],
+            [
+              "players[0x70997970c51812dc3a010c7d01b50e0d17dc79c8].combo",
+              1
+            ],
+            [
+              "players[0x70997970c51812dc3a010c7d01b50e0d17dc79c8].bestCombo",
+              1
+            ],
+            [
+              "players[0x70997970c51812dc3a010c7d01b50e0d17dc79c8].plays",
+              1
+            ],
+            [
+              "players[0x70997970c51812dc3a010c7d01b50e0d17dc79c8].hitCount",
+              1
+            ],
+            [
+              "players[0x70997970c51812dc3a010c7d01b50e0d17dc79c8].lastBlock",
+              1
+            ],
+            [
+              "players[0x70997970c51812dc3a010c7d01b50e0d17dc79c8].name",
+              1
+            ],
+            [
+              "players[0x3c44cdddb6a900fa2b585dd299e03d12fa4293bc]",
+              2
+            ],
+            [
+              "players[0x3c44cdddb6a900fa2b585dd299e03d12fa4293bc].score",
+              2
+            ],
+            [
+              "players[0x3c44cdddb6a900fa2b585dd299e03d12fa4293bc].combo",
+              2
+            ],
+            [
+              "players[0x3c44cdddb6a900fa2b585dd299e03d12fa4293bc].bestCombo",
+              2
+            ],
+            [
+              "players[0x3c44cdddb6a900fa2b585dd299e03d12fa4293bc].plays",
+              2
+            ],
+            [
+              "players[0x3c44cdddb6a900fa2b585dd299e03d12fa4293bc].hitCount",
+              2
+            ],
+            [
+              "players[0x3c44cdddb6a900fa2b585dd299e03d12fa4293bc].lastBlock",
+              2
+            ],
+            [
+              "players[0x3c44cdddb6a900fa2b585dd299e03d12fa4293bc].name",
+              2
+            ],
+            [
+              "players[0x90f79bf6eb2c4f870365e785982e1f101e93b906]",
+              3
+            ],
+            [
+              "players[0x90f79bf6eb2c4f870365e785982e1f101e93b906].score",
+              3
+            ],
+            [
+              "players[0x90f79bf6eb2c4f870365e785982e1f101e93b906].combo",
+              3
+            ],
+            [
+              "players[0x90f79bf6eb2c4f870365e785982e1f101e93b906].bestCombo",
+              3
+            ],
+            [
+              "players[0x90f79bf6eb2c4f870365e785982e1f101e93b906].plays",
+              3
+            ],
+            [
+              "players[0x90f79bf6eb2c4f870365e785982e1f101e93b906].hitCount",
+              3
+            ],
+            [
+              "players[0x90f79bf6eb2c4f870365e785982e1f101e93b906].lastBlock",
+              3
+            ],
+            [
+              "players[0x90f79bf6eb2c4f870365e785982e1f101e93b906].name",
+              3
+            ]
+          ]
+        }
+      ],
+      "rows": [
+        "players[0x90f79bf6eb2c4f870365e785982e1f101e93b906].name"
+      ],
+      "gutters": [
+        "0x53c8a5ff8e9eee17be03169c30dedc5882673fcdd4fbdb8a32244385ed269979"
+      ],
+      "band": [
+        "=t_struct$_Player_$16_storage|for.group.6.define",
+        "t_struct$_Player_$16_storage|for.group.6.define.slot",
+        "t_struct$_Player_$16_storage|for.group.6.in"
+      ],
+      "phase": "handoff",
+      "tkind": "string",
+      "id": "define|t_struct$_Player_$16_storage|for.group.6.define.slot"
+    },
+    {
+      "cap": "The template `string` takes slot = …9979",
+      "form": {
+        "kind": "text",
+        "toks": [
+          "slot = …9979"
+        ]
+      },
+      "constructs": [
+        "template"
+      ],
+      "source": "from solc's pointer",
+      "chip": "string",
+      "chipLabel": "template",
+      "parts": [
+        {
+          "regions": [],
+          "rows": [
+            "players[0x90f79bf6eb2c4f870365e785982e1f101e93b906]"
+          ],
+          "colours": [
+            [
+              "players",
+              0
+            ],
+            [
+              "players[0x70997970c51812dc3a010c7d01b50e0d17dc79c8]",
+              1
+            ],
+            [
+              "players[0x70997970c51812dc3a010c7d01b50e0d17dc79c8].score",
+              1
+            ],
+            [
+              "players[0x70997970c51812dc3a010c7d01b50e0d17dc79c8].combo",
+              1
+            ],
+            [
+              "players[0x70997970c51812dc3a010c7d01b50e0d17dc79c8].bestCombo",
+              1
+            ],
+            [
+              "players[0x70997970c51812dc3a010c7d01b50e0d17dc79c8].plays",
+              1
+            ],
+            [
+              "players[0x70997970c51812dc3a010c7d01b50e0d17dc79c8].hitCount",
+              1
+            ],
+            [
+              "players[0x70997970c51812dc3a010c7d01b50e0d17dc79c8].lastBlock",
+              1
+            ],
+            [
+              "players[0x70997970c51812dc3a010c7d01b50e0d17dc79c8].name",
+              1
+            ],
+            [
+              "players[0x3c44cdddb6a900fa2b585dd299e03d12fa4293bc]",
+              2
+            ],
+            [
+              "players[0x3c44cdddb6a900fa2b585dd299e03d12fa4293bc].score",
+              2
+            ],
+            [
+              "players[0x3c44cdddb6a900fa2b585dd299e03d12fa4293bc].combo",
+              2
+            ],
+            [
+              "players[0x3c44cdddb6a900fa2b585dd299e03d12fa4293bc].bestCombo",
+              2
+            ],
+            [
+              "players[0x3c44cdddb6a900fa2b585dd299e03d12fa4293bc].plays",
+              2
+            ],
+            [
+              "players[0x3c44cdddb6a900fa2b585dd299e03d12fa4293bc].hitCount",
+              2
+            ],
+            [
+              "players[0x3c44cdddb6a900fa2b585dd299e03d12fa4293bc].lastBlock",
+              2
+            ],
+            [
+              "players[0x3c44cdddb6a900fa2b585dd299e03d12fa4293bc].name",
+              2
+            ],
+            [
+              "players[0x90f79bf6eb2c4f870365e785982e1f101e93b906]",
+              3
+            ],
+            [
+              "players[0x90f79bf6eb2c4f870365e785982e1f101e93b906].score",
+              3
+            ],
+            [
+              "players[0x90f79bf6eb2c4f870365e785982e1f101e93b906].combo",
+              3
+            ],
+            [
+              "players[0x90f79bf6eb2c4f870365e785982e1f101e93b906].bestCombo",
+              3
+            ],
+            [
+              "players[0x90f79bf6eb2c4f870365e785982e1f101e93b906].plays",
+              3
+            ],
+            [
+              "players[0x90f79bf6eb2c4f870365e785982e1f101e93b906].hitCount",
+              3
+            ],
+            [
+              "players[0x90f79bf6eb2c4f870365e785982e1f101e93b906].lastBlock",
+              3
+            ],
+            [
+              "players[0x90f79bf6eb2c4f870365e785982e1f101e93b906].name",
+              3
+            ]
+          ]
+        }
+      ],
+      "rows": [
+        "players[0x90f79bf6eb2c4f870365e785982e1f101e93b906]"
+      ],
+      "gutters": [
+        "0x53c8a5ff8e9eee17be03169c30dedc5882673fcdd4fbdb8a32244385ed269979"
+      ],
+      "band": [
+        "=t_string_storage|",
+        "=t_string_storage|expect",
+        "=t_string_storage|for"
+      ],
+      "phase": "template",
+      "tkind": "string",
+      "id": "template|t_string_storage|"
+    },
+    {
+      "cap": "The last byte is the length flag, 0x00",
+      "form": {
+        "kind": "text",
+        "toks": [
+          "length-flag = 0x00"
+        ]
+      },
+      "constructs": [
+        "region"
+      ],
+      "source": "read from storage",
+      "chip": "flag",
+      "chipLabel": "string",
+      "parts": [
+        {
+          "regions": [
+            {
+              "location": "storage",
+              "name": "value-name-length-flag",
+              "slot": "37896481523320133114576903120685649867757816322803923779714721678977845860729n",
+              "offset": 31,
+              "length": 1,
+              "role": "length",
+              "instance": "t_string_storage#/for/group/0@50"
+            }
+          ],
+          "rows": [
+            "players[0x90f79bf6eb2c4f870365e785982e1f101e93b906].name"
+          ],
+          "colours": [
+            [
+              "players",
+              0
+            ],
+            [
+              "players[0x70997970c51812dc3a010c7d01b50e0d17dc79c8]",
+              1
+            ],
+            [
+              "players[0x70997970c51812dc3a010c7d01b50e0d17dc79c8].score",
+              1
+            ],
+            [
+              "players[0x70997970c51812dc3a010c7d01b50e0d17dc79c8].combo",
+              1
+            ],
+            [
+              "players[0x70997970c51812dc3a010c7d01b50e0d17dc79c8].bestCombo",
+              1
+            ],
+            [
+              "players[0x70997970c51812dc3a010c7d01b50e0d17dc79c8].plays",
+              1
+            ],
+            [
+              "players[0x70997970c51812dc3a010c7d01b50e0d17dc79c8].hitCount",
+              1
+            ],
+            [
+              "players[0x70997970c51812dc3a010c7d01b50e0d17dc79c8].lastBlock",
+              1
+            ],
+            [
+              "players[0x70997970c51812dc3a010c7d01b50e0d17dc79c8].name",
+              1
+            ],
+            [
+              "players[0x3c44cdddb6a900fa2b585dd299e03d12fa4293bc]",
+              2
+            ],
+            [
+              "players[0x3c44cdddb6a900fa2b585dd299e03d12fa4293bc].score",
+              2
+            ],
+            [
+              "players[0x3c44cdddb6a900fa2b585dd299e03d12fa4293bc].combo",
+              2
+            ],
+            [
+              "players[0x3c44cdddb6a900fa2b585dd299e03d12fa4293bc].bestCombo",
+              2
+            ],
+            [
+              "players[0x3c44cdddb6a900fa2b585dd299e03d12fa4293bc].plays",
+              2
+            ],
+            [
+              "players[0x3c44cdddb6a900fa2b585dd299e03d12fa4293bc].hitCount",
+              2
+            ],
+            [
+              "players[0x3c44cdddb6a900fa2b585dd299e03d12fa4293bc].lastBlock",
+              2
+            ],
+            [
+              "players[0x3c44cdddb6a900fa2b585dd299e03d12fa4293bc].name",
+              2
+            ],
+            [
+              "players[0x90f79bf6eb2c4f870365e785982e1f101e93b906]",
+              3
+            ],
+            [
+              "players[0x90f79bf6eb2c4f870365e785982e1f101e93b906].score",
+              3
+            ],
+            [
+              "players[0x90f79bf6eb2c4f870365e785982e1f101e93b906].combo",
+              3
+            ],
+            [
+              "players[0x90f79bf6eb2c4f870365e785982e1f101e93b906].bestCombo",
+              3
+            ],
+            [
+              "players[0x90f79bf6eb2c4f870365e785982e1f101e93b906].plays",
+              3
+            ],
+            [
+              "players[0x90f79bf6eb2c4f870365e785982e1f101e93b906].hitCount",
+              3
+            ],
+            [
+              "players[0x90f79bf6eb2c4f870365e785982e1f101e93b906].lastBlock",
+              3
+            ],
+            [
+              "players[0x90f79bf6eb2c4f870365e785982e1f101e93b906].name",
+              3
+            ]
+          ]
+        }
+      ],
+      "rows": [
+        "players[0x90f79bf6eb2c4f870365e785982e1f101e93b906].name"
+      ],
+      "gutters": [],
+      "band": [
+        "t_string_storage|for.group.0"
+      ],
+      "phase": "read",
+      "rname": "length-flag",
+      "id": "region|t_string_storage|for.group.0"
+    },
+    {
+      "cap": "Even → short: the last byte holds 2 × length, so length = 0",
+      "form": {
+        "kind": "text",
+        "toks": [
+          "even: 0x00 → 0 bytes inline"
+        ]
+      },
+      "constructs": [
+        "if"
+      ],
+      "source": "read from storage",
+      "chip": "short",
+      "chipLabel": "branch",
+      "parts": [
+        {
+          "regions": [
+            {
+              "location": "storage",
+              "name": "value-name-length-flag",
+              "slot": "37896481523320133114576903120685649867757816322803923779714721678977845860729n",
+              "offset": 31,
+              "length": 1,
+              "role": "length",
+              "instance": "t_string_storage#/for/group/0@50"
+            }
+          ],
+          "rows": [
+            "players[0x90f79bf6eb2c4f870365e785982e1f101e93b906].name"
+          ],
+          "colours": [
+            [
+              "players",
+              0
+            ],
+            [
+              "players[0x70997970c51812dc3a010c7d01b50e0d17dc79c8]",
+              1
+            ],
+            [
+              "players[0x70997970c51812dc3a010c7d01b50e0d17dc79c8].score",
+              1
+            ],
+            [
+              "players[0x70997970c51812dc3a010c7d01b50e0d17dc79c8].combo",
+              1
+            ],
+            [
+              "players[0x70997970c51812dc3a010c7d01b50e0d17dc79c8].bestCombo",
+              1
+            ],
+            [
+              "players[0x70997970c51812dc3a010c7d01b50e0d17dc79c8].plays",
+              1
+            ],
+            [
+              "players[0x70997970c51812dc3a010c7d01b50e0d17dc79c8].hitCount",
+              1
+            ],
+            [
+              "players[0x70997970c51812dc3a010c7d01b50e0d17dc79c8].lastBlock",
+              1
+            ],
+            [
+              "players[0x70997970c51812dc3a010c7d01b50e0d17dc79c8].name",
+              1
+            ],
+            [
+              "players[0x3c44cdddb6a900fa2b585dd299e03d12fa4293bc]",
+              2
+            ],
+            [
+              "players[0x3c44cdddb6a900fa2b585dd299e03d12fa4293bc].score",
+              2
+            ],
+            [
+              "players[0x3c44cdddb6a900fa2b585dd299e03d12fa4293bc].combo",
+              2
+            ],
+            [
+              "players[0x3c44cdddb6a900fa2b585dd299e03d12fa4293bc].bestCombo",
+              2
+            ],
+            [
+              "players[0x3c44cdddb6a900fa2b585dd299e03d12fa4293bc].plays",
+              2
+            ],
+            [
+              "players[0x3c44cdddb6a900fa2b585dd299e03d12fa4293bc].hitCount",
+              2
+            ],
+            [
+              "players[0x3c44cdddb6a900fa2b585dd299e03d12fa4293bc].lastBlock",
+              2
+            ],
+            [
+              "players[0x3c44cdddb6a900fa2b585dd299e03d12fa4293bc].name",
+              2
+            ],
+            [
+              "players[0x90f79bf6eb2c4f870365e785982e1f101e93b906]",
+              3
+            ],
+            [
+              "players[0x90f79bf6eb2c4f870365e785982e1f101e93b906].score",
+              3
+            ],
+            [
+              "players[0x90f79bf6eb2c4f870365e785982e1f101e93b906].combo",
+              3
+            ],
+            [
+              "players[0x90f79bf6eb2c4f870365e785982e1f101e93b906].bestCombo",
+              3
+            ],
+            [
+              "players[0x90f79bf6eb2c4f870365e785982e1f101e93b906].plays",
+              3
+            ],
+            [
+              "players[0x90f79bf6eb2c4f870365e785982e1f101e93b906].hitCount",
+              3
+            ],
+            [
+              "players[0x90f79bf6eb2c4f870365e785982e1f101e93b906].lastBlock",
+              3
+            ],
+            [
+              "players[0x90f79bf6eb2c4f870365e785982e1f101e93b906].name",
+              3
+            ]
+          ]
+        }
+      ],
+      "rows": [
+        "players[0x90f79bf6eb2c4f870365e785982e1f101e93b906].name"
+      ],
+      "gutters": [],
+      "band": [
+        "t_string_storage|for.group.1.if",
+        "=t_string_storage|for.group.1.then",
+        "=t_string_storage|for.group.1.then.define",
+        "t_string_storage|for.group.1.then.define.length"
+      ],
+      "phase": "if",
+      "id": "if|t_string_storage|for.group.1.if"
+    },
+    {
+      "cap": "The text is in the slot itself: 0 bytes from the left",
+      "form": {
+        "kind": "text",
+        "toks": [
+          "\"\""
+        ]
+      },
+      "constructs": [
+        "region"
+      ],
+      "source": "from solc's pointer",
+      "chip": "inline",
+      "chipLabel": "text",
+      "parts": [
+        {
+          "regions": [
+            {
+              "location": "storage",
+              "name": "value-name-data",
+              "slot": "37896481523320133114576903120685649867757816322803923779714721678977845860729n",
+              "offset": 0,
+              "length": 0,
+              "role": "value",
+              "instance": "t_string_storage#/for/group/1/then/in@53"
+            }
+          ],
+          "rows": [
+            "players[0x90f79bf6eb2c4f870365e785982e1f101e93b906].name"
+          ],
+          "colours": [
+            [
+              "players",
+              0
+            ],
+            [
+              "players[0x70997970c51812dc3a010c7d01b50e0d17dc79c8]",
+              1
+            ],
+            [
+              "players[0x70997970c51812dc3a010c7d01b50e0d17dc79c8].score",
+              1
+            ],
+            [
+              "players[0x70997970c51812dc3a010c7d01b50e0d17dc79c8].combo",
+              1
+            ],
+            [
+              "players[0x70997970c51812dc3a010c7d01b50e0d17dc79c8].bestCombo",
+              1
+            ],
+            [
+              "players[0x70997970c51812dc3a010c7d01b50e0d17dc79c8].plays",
+              1
+            ],
+            [
+              "players[0x70997970c51812dc3a010c7d01b50e0d17dc79c8].hitCount",
+              1
+            ],
+            [
+              "players[0x70997970c51812dc3a010c7d01b50e0d17dc79c8].lastBlock",
+              1
+            ],
+            [
+              "players[0x70997970c51812dc3a010c7d01b50e0d17dc79c8].name",
+              1
+            ],
+            [
+              "players[0x3c44cdddb6a900fa2b585dd299e03d12fa4293bc]",
+              2
+            ],
+            [
+              "players[0x3c44cdddb6a900fa2b585dd299e03d12fa4293bc].score",
+              2
+            ],
+            [
+              "players[0x3c44cdddb6a900fa2b585dd299e03d12fa4293bc].combo",
+              2
+            ],
+            [
+              "players[0x3c44cdddb6a900fa2b585dd299e03d12fa4293bc].bestCombo",
+              2
+            ],
+            [
+              "players[0x3c44cdddb6a900fa2b585dd299e03d12fa4293bc].plays",
+              2
+            ],
+            [
+              "players[0x3c44cdddb6a900fa2b585dd299e03d12fa4293bc].hitCount",
+              2
+            ],
+            [
+              "players[0x3c44cdddb6a900fa2b585dd299e03d12fa4293bc].lastBlock",
+              2
+            ],
+            [
+              "players[0x3c44cdddb6a900fa2b585dd299e03d12fa4293bc].name",
+              2
+            ],
+            [
+              "players[0x90f79bf6eb2c4f870365e785982e1f101e93b906]",
+              3
+            ],
+            [
+              "players[0x90f79bf6eb2c4f870365e785982e1f101e93b906].score",
+              3
+            ],
+            [
+              "players[0x90f79bf6eb2c4f870365e785982e1f101e93b906].combo",
+              3
+            ],
+            [
+              "players[0x90f79bf6eb2c4f870365e785982e1f101e93b906].bestCombo",
+              3
+            ],
+            [
+              "players[0x90f79bf6eb2c4f870365e785982e1f101e93b906].plays",
+              3
+            ],
+            [
+              "players[0x90f79bf6eb2c4f870365e785982e1f101e93b906].hitCount",
+              3
+            ],
+            [
+              "players[0x90f79bf6eb2c4f870365e785982e1f101e93b906].lastBlock",
+              3
+            ],
+            [
+              "players[0x90f79bf6eb2c4f870365e785982e1f101e93b906].name",
+              3
+            ]
+          ]
+        }
+      ],
+      "rows": [
+        "players[0x90f79bf6eb2c4f870365e785982e1f101e93b906].name"
+      ],
+      "gutters": [],
+      "band": [
+        "t_string_storage|for.group.1.then.in"
+      ],
+      "phase": "data",
+      "id": "region|t_string_storage|for.group.1.then.in"
+    }
+  ],
+  "recs": null,
+  "focus": "players[0x90f79bf6eb2c4f870365e785982e1f101e93b906]",
+  "variable": "players"
+}

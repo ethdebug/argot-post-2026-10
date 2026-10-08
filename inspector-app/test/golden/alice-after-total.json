@@ -1,0 +1,49 @@
+{
+  "target": "total",
+  "steps": [
+    {
+      "cap": "`total` is at slot 2, 16 bytes from offset 16",
+      "form": {
+        "kind": "text",
+        "toks": [
+          "slot 2, bytes 16–31"
+        ]
+      },
+      "constructs": [
+        "pointer"
+      ],
+      "source": "from solc's pointer",
+      "chip": "slot 2",
+      "chipLabel": "value",
+      "parts": [
+        {
+          "regions": [
+            {
+              "location": "storage",
+              "slot": "2n",
+              "offset": 16,
+              "length": 16,
+              "role": "value",
+              "instance": "total#@0"
+            }
+          ],
+          "rows": [
+            "total"
+          ]
+        }
+      ],
+      "rows": [
+        "total"
+      ],
+      "gutters": [],
+      "band": [
+        "~var"
+      ],
+      "phase": "declared",
+      "id": "declared|total"
+    }
+  ],
+  "recs": null,
+  "focus": "total",
+  "variable": "total"
+}
