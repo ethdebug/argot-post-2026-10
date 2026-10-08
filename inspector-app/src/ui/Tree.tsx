@@ -341,12 +341,14 @@ export function Tree(p: { id: ViewId; data: DataRef; filter?: Filter;
       const d = dump?.querySelector(".rows > *");
       const t = tree.querySelector("li .row");
       if (!dump || !d || !t) return;
-      // (measured with the tree at no height: a tree beside stacked dumps
-      // would hold their grid rows open)
+      // (in a lens's grid, measured with the tree at no height: a tree
+      // beside stacked dumps would hold their grid rows open. On the
+      // page, its own column: as it is, the dump's column may be stuck
+      // to the top of the window)
       tree.style.paddingTop = "";
       const wide = innerWidth >= 1100;
       const scrolled = tree.scrollTop;
-      if (wide) tree.style.height = "0px";
+      if (wide && tree.closest(".lens")) tree.style.height = "0px";
       const col = (e: Element, c: string) => e.closest(c) ??
         e.closest("[data-area]") ?? document.body;
       const top = (e: Element, c: string) => e.getBoundingClientRect().top -
@@ -377,7 +379,7 @@ export function Tree(p: { id: ViewId; data: DataRef; filter?: Filter;
       removeEventListener("resize", align);
     };
     // (when the tree is drawn anew, as vanilla's renderTree, and on resize)
-  }, [d, side, lens.key, alignKey]);
+  }, [d, side, lens.key, alignKey, shows]);
 
   // lit rows out of the box's view: a yellow circle button on the edge
   // past which they are (an overlay; a click scrolls to the first)
