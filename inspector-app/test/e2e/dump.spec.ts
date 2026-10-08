@@ -194,3 +194,79 @@ test("motd After: its cleared data named as Before; one popover; no tray",
     await expect.poll(() => pops(page)).toContain(
       "keccak(slot 1), 2 slots · cleared (written to zero)");
   });
+
+test("popovers scale with the dump; the arrow's tip on its address",
+  async ({ page }) => {
+    const seen: { wd: number; ratio: number; gaps: number[] }[] = [];
+    for (const wd of [1280, 1440, 1920, 760, 390]) {
+      await page.setViewportSize({ width: wd, height: 900 });
+      await page.goto("./#ex=mid&sel=roster");
+      await page.waitForFunction(() =>
+        (window as unknown as W).results?.done);
+      await page.mouse.move(1, 1);
+      await expect(page.locator("#panel .view:not([hidden]) .pop").first())
+        .toBeAttached();
+      seen.push({ wd, ...await page.evaluate(() => {
+        const views = document.querySelector("#panel .views")!;
+        const pops = [...document.querySelectorAll<HTMLElement>(
+          "#panel .view:not([hidden]) .pop")];
+        const ratio = parseFloat(getComputedStyle(pops[0]).fontSize) /
+          parseFloat(getComputedStyle(views).fontSize);
+        // (the tip: the arrow's far corner, a square turned 45°)
+        const gaps = pops.map((p) => {
+          const a = p.parentElement!.getBoundingClientRect();
+          const bf = getComputedStyle(p.parentElement!, "::before");
+          const o = getComputedStyle(p, "::after");
+          const r = p.getBoundingClientRect();
+          const aw = parseFloat(o.width);
+          const under = p.classList.contains("under");
+          const tip = under ? r.top - aw * Math.SQRT1_2
+            : r.bottom + aw * Math.SQRT1_2;
+          const edge = under ? a.bottom - (parseFloat(bf.bottom) || 0)
+            : a.top + (parseFloat(bf.top) || 0);
+          return Math.round((under ? edge - tip : tip - edge) * 2) / 2;
+        });
+        return { ratio, gaps };
+      }) });
+    }
+    const r0 = seen[0].ratio;
+    for (const s of seen) {
+      expect(Math.abs(s.ratio / r0 - 1), `${s.wd}`).toBeLessThan(0.02);
+      for (const g of s.gaps) expect(Math.abs(g), `${s.wd}`).toBeLessThan(2);
+    }
+  });
+
+test("slot 0's popover: under row 0, inside the dump, never empty",
+  async ({ page }) => {
+    for (const wd of [1280, 390]) {
+      await page.setViewportSize({ width: wd, height: 900 });
+      await page.goto("./#ex=mid&sel=roster");
+      await page.waitForFunction(() =>
+        (window as unknown as W).results?.done);
+      await page.mouse.move(1, 1);
+      const x = await page.evaluate(() => {
+        const row = [...document.querySelectorAll<HTMLElement>(
+          "#panel .view:not([hidden]) .rows > .wrow")].find((r) =>
+          r.dataset.slot === "0x" + "0".repeat(64))!;
+        const pop = row.querySelector<HTMLElement>(".pop")!;
+        const p = pop.getBoundingClientRect();
+        const rows = row.closest(".rows")!.getBoundingClientRect();
+        return { under: pop.classList.contains("under"),
+          text: pop.textContent, inside: p.top >= rows.top - 1 &&
+            p.bottom <= rows.bottom + 1,
+          belowRow: p.top >= row.getBoundingClientRect().top };
+      });
+      expect(x, `${wd}`).toEqual({ under: true, text: "slot 0 : length",
+        inside: true, belowRow: true });
+    }
+    // (and nothing outside the dump box: no popover over the ruler)
+    const out = await page.evaluate(() => {
+      const box = document.querySelector("#dump")!.getBoundingClientRect();
+      return [...document.querySelectorAll("#panel .pop")].filter((p) => {
+        const r = p.getBoundingClientRect();
+        return r.top < box.top - 1 || r.bottom > box.bottom + 1 ||
+          !p.textContent?.trim();
+      }).length;
+    });
+    expect(out).toBe(0);
+  });
