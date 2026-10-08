@@ -1007,6 +1007,12 @@ main[data-single] > .cols :is(.chglegend, .legend .bchg, .intro .two) {
   .rbar .rctl .btn { padding: 1px 6px; }
   .rbar .rexit .btn { padding: 1px 4px; font-size: 0.8rem; }
   .rbar .rstart { font-size: 0.8rem; }
+  /* (at rest: no count or Exit yet, so the selection takes their room;
+     the button's label short, "▸ Show how", so both show whole; its
+     place kept with nothing selected: nothing moves on a selection) */
+  .rbar:not(.replaying) {
+    grid-template-columns: 0 minmax(0, 1fr) 5.8em 0 0; }
+  .rbar .rstart .rlong { display: none; }
 }
 /* under the bar, joined to it, during a replay only, at one size:
    the step (its caption, formula, constructs, footnote; then the chips,
