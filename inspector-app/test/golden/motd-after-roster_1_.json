@@ -12,7 +12,7 @@
       "constructs": [
         "pointer"
       ],
-      "source": "from solc's pointer",
+      "source": "ethdebug data from the compiler",
       "chip": "slot 0",
       "chipLabel": "array",
       "parts": [
@@ -46,7 +46,7 @@
       "constructs": [
         "template"
       ],
-      "source": "from solc's pointer",
+      "source": "ethdebug data from the compiler",
       "chip": "address[]",
       "chipLabel": "template",
       "parts": [
@@ -163,7 +163,7 @@
         "$keccak256",
         "list"
       ],
-      "source": "from solc's pointer",
+      "source": "ethdebug data from the compiler",
       "chip": "keccak(0)",
       "chipLabel": "items",
       "parts": [

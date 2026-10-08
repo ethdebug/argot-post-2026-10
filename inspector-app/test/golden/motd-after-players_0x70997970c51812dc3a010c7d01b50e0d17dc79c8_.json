@@ -97,7 +97,7 @@
       "constructs": [
         "pointer"
       ],
-      "source": "from solc's pointer",
+      "source": "ethdebug data from the compiler",
       "chip": "slot 3",
       "chipLabel": "mapping",
       "parts": [
@@ -131,7 +131,7 @@
       "constructs": [
         "template"
       ],
-      "source": "from solc's pointer",
+      "source": "ethdebug data from the compiler",
       "chip": "mapping(address => Player)",
       "chipLabel": "template",
       "parts": [
@@ -271,7 +271,7 @@
         "define",
         "$keccak256"
       ],
-      "source": "from solc's pointer",
+      "source": "ethdebug data from the compiler",
       "chip": "keccak(key, 3)",
       "chipLabel": "record",
       "parts": [
@@ -410,7 +410,7 @@
       "constructs": [
         "template"
       ],
-      "source": "from solc's pointer",
+      "source": "ethdebug data from the compiler",
       "chip": "Player",
       "chipLabel": "template",
       "parts": [
@@ -592,7 +592,7 @@
       "constructs": [
         "region"
       ],
-      "source": "from solc's pointer",
+      "source": "ethdebug data from the compiler",
       "chip": "6 fields",
       "chipLabel": "fields",
       "parts": [
@@ -768,7 +768,7 @@
         "define",
         "$sum"
       ],
-      "source": "from solc's pointer",
+      "source": "ethdebug data from the compiler",
       "chip": "name",
       "chipLabel": "string",
       "parts": [
@@ -907,7 +907,7 @@
       "constructs": [
         "template"
       ],
-      "source": "from solc's pointer",
+      "source": "ethdebug data from the compiler",
       "chip": "string",
       "chipLabel": "template",
       "parts": [
@@ -1338,7 +1338,7 @@
       "constructs": [
         "region"
       ],
-      "source": "from solc's pointer",
+      "source": "ethdebug data from the compiler",
       "chip": "inline",
       "chipLabel": "text",
       "parts": [

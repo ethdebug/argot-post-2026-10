@@ -12,7 +12,7 @@
       "constructs": [
         "pointer"
       ],
-      "source": "from solc's pointer",
+      "source": "ethdebug data from the compiler",
       "chip": "slot 2",
       "chipLabel": "value",
       "parts": [

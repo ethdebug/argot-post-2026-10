@@ -311,7 +311,7 @@ export function walkthrough(x: WalkInput, path: Path, focus?: string):
           `bytes from offset ${r.offset}`,
         form: text(`slot ${small(r.slot!)}, bytes ${r.offset}–${r.offset +
           r.length - 1}`),
-        constructs: ["pointer"], source: "from solc's pointer",
+        constructs: ["pointer"], source: "ethdebug data from the compiler",
         chip: `slot ${small(r.slot!)}`, chipLabel: "value",
         parts: [{ regions: [r], rows: [variable] }], rows: [variable] });
     } else {
@@ -322,7 +322,7 @@ export function walkthrough(x: WalkInput, path: Path, focus?: string):
             "that slot holds nothing"
           : `\`${variable}\` is declared at slot ${small(declared.slot)}`,
         form: text(`slot ${small(declared.slot)}`),
-        constructs: ["pointer"], source: "from solc's pointer",
+        constructs: ["pointer"], source: "ethdebug data from the compiler",
         chip: `slot ${small(declared.slot)}`, chipLabel: ["mapping",
           "string", "array", "struct"].includes(kind) ? kind === "struct"
           ? "record" : kind : "value",
@@ -383,7 +383,7 @@ export function walkthrough(x: WalkInput, path: Path, focus?: string):
         form: many ? table(xs.map((y) => [[who(y.inst)], [ks.map((k) =>
           `${k} ${inp(y, k)}`).join(", ")], kOf(y.inst)]))
           : text(ks.map((k) => `${k} = ${inp(xs[0], k)}`).join(", ")),
-        constructs: ["template"], source: "from solc's pointer",
+        constructs: ["template"], source: "ethdebug data from the compiler",
         chip: tn(nd.s.name), chipLabel: "template",
         gutters: [...new Set(xs.map((y) => y.s.inputs?.slot?.hex)
           .filter(Boolean).map((h) => w32(h)))],
@@ -429,7 +429,7 @@ export function walkthrough(x: WalkInput, path: Path, focus?: string):
           form: many ? table(xs.map((y) => [[who(y.inst)], [formula(y)],
             kOf(y.inst)])) : text(formula(xs[0])),
           constructs: ["define", ...(op ? [op] : [])],
-          source: "from solc's pointer",
+          source: "ethdebug data from the compiler",
           chip: isRecord ? `keccak(key, ${small(xs[0].s.args?.[1]?.value.hex
             ?? "0x0")})` : fname(xs[0]),
           chipLabel: isRecord ? "record" : tn(into.template),
@@ -529,7 +529,7 @@ export function walkthrough(x: WalkInput, path: Path, focus?: string):
         form: text(`keccak256(${small(base)}) = ${start ? tail(start) : "?"}${
           one ? `; item ${is[0]} at + ${is[0]}` : `; items ${is[0]}…${is.at(
             -1)} at + i`}`),
-        constructs: ["$keccak256", "list"], source: "from solc's pointer",
+        constructs: ["$keccak256", "list"], source: "ethdebug data from the compiler",
         chip: `keccak(${small(base)})`, chipLabel: "items",
         parts: [{ regions: regionsOf(nd), rows: instRows(nd), colours: ec }],
         rows: instRows(nd), band: bandR });
@@ -557,7 +557,7 @@ export function walkthrough(x: WalkInput, path: Path, focus?: string):
           } bytes at ${tail(y.regions[0].slot!)}`], kOf(y.inst)]))
           : text(xs[0].leaves.at(-1)!.value?.text ?? ""),
         constructs: long ? ["$keccak256", "region"] : ["region"],
-        source: "from solc's pointer", chip: long ? "keccak(slot)"
+        source: "ethdebug data from the compiler", chip: long ? "keccak(slot)"
           : "inline", chipLabel: "text",
         parts: [{ regions: regionsOf(nd), rows: [...new Set(instRows(nd))],
           colours: ec }],
@@ -572,7 +572,7 @@ export function walkthrough(x: WalkInput, path: Path, focus?: string):
       continue;
     }
     const st = step({ phase: "fields", id: `fields|${nd.block}|${parent}`,
-      band: bandR, constructs: ["region"], source: "from solc's pointer",
+      band: bandR, constructs: ["region"], source: "ethdebug data from the compiler",
       chipLabel: "fields" }) as Any;
     st._parent = `${nd.block}|${parent}`;
     st._nodes = [nd];
