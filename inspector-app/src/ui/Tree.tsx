@@ -189,7 +189,7 @@ export function Tree(p: { id: ViewId; data: DataRef; filter?: Filter;
   };
   const point = (e: PointerEvent | { target: EventTarget }) => {
     const at = rowOf(e.target);
-    const path = at && blockOf(at, link.selection);
+    const path = at && d && blockOf(at, link.selection, d.byPath);
     setLink((s) => s.hover?.path === path && !s.hover?.bytes &&
       (path || !s.hover) ? s : { ...s, hover: path ? { path } : null });
   };
@@ -253,7 +253,7 @@ export function Tree(p: { id: ViewId; data: DataRef; filter?: Filter;
   const act = (el: EventTarget, keys = false) => {
     const at = rowOf(el);
     if (!at) return false;
-    const path = keys ? at : blockOf(at, link.selection);
+    const path = keys || !d ? at : blockOf(at, link.selection, d.byPath);
     // (a click that clears: what is under the pointer gets its hover at
     // once, with no mouse move: vanilla rehover)
     setLink((s) => path === s.selection

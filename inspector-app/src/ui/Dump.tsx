@@ -213,7 +213,7 @@ export function Dump(p: { id: ViewId; location: Location; data: DataRef;
         const ids = new Set(Array.from({ length: 32 }, (_, i) =>
           l.cover.get(byteKey(p.location, h.row as Hex, i))?.[0])
           .filter((x): x is string => !!x)
-          .map((x) => blockOf(x.replace(/#length$/, ""), sel)));
+          .map((x) => blockOf(x.replace(/#length$/, ""), sel, d.byPath)));
         const [only] = ids;
         return ids.size === 1 && only !== sel
           ? { ...s, hover: null, selection: only } : s;
