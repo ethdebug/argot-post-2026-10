@@ -464,8 +464,10 @@ function annotate(root: El, v: El, compare: boolean, names: OverlayNames,
       ...(k === run.length - 1 ? ["grp-end"] : [])));
     if (!quiet) {
       const pop = popFor(root, run, 0);
-      // (a run a walkthrough found at an earlier step: a muted label)
-      if (run.every((r) => rowState(r).known)) pop.classList.add("kept");
+      // (a run a walkthrough found at an earlier step: a muted label;
+      // not the current step's gutters: those are its own)
+      if (run.every((r) => rowState(r).known && !data(r)?.light.gutters.has(
+        slotOf(r)))) pop.classList.add("kept");
       const ways = side === "before" ? ["over", "under"]
         : ["under", "over"];
       let placed = false;
