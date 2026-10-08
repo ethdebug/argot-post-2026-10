@@ -523,8 +523,8 @@ the tree. The buttons are overlays that fade in and out: no row moves.
 
 Where a step's formula is byte ranges within one slot (the packed
 fields, a string's flag byte, `total` or `rounds`), the details draw
-them as a dump row: a one-line strip of 32 cells in four groups of
-eight (a group's gap a third of a cell, as in the dump), each value a
+them as a one-line strip of 32 equal cells (no group gaps: those are
+the dump's), each value a
 span over its cells in its colour, named, the byte positions under it
 (two rows of 16 on a phone, as the phone's dump); a name too long for
 its span stands over it in a row kept for it, with a tick down to its
