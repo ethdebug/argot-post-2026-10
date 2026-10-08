@@ -83,6 +83,16 @@ export function regionBytes(r) {
     return Array.from({ length: n }, (_, k) =>
       [memWord(Math.floor((o + k) / 32) * 32), (o + k) % 32]);
   }
+  // (calldata: the selector's row, then rows of 32 from byte 4)
+  if (r.location === "calldata") {
+    const o = Number(num(r.offset));
+    const n = Number(num(r.length));
+    return Array.from({ length: n }, (_, k) => {
+      const i = o + k;
+      return i < 4 ? [memWord(0), i]
+        : [memWord(4 + Math.floor((i - 4) / 32) * 32), (i - 4) % 32];
+    });
+  }
   if (r.location !== "storage" || r.slot === undefined) return [];
   const slot = num(r.slot);
   const offset = Number(num(r.offset));

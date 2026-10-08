@@ -5,7 +5,9 @@
 // Walnut fork used here) gives no pointer for a function parameter at
 // any instruction, and no calldata type or template. So the steps below
 // are the ABI's, and this file computes them itself.
-import { octets, ruler, details } from "./panel.js";
+import {
+  details, paint as paintPanel, regionBytes, renderLocation, memWord,
+} from "./panel.js";
 
 const $ = (id) => document.getElementById(id);
 const esc = (s) =>
@@ -55,31 +57,34 @@ const ids = (k) => (k === "m" ? ["m-offset", "m-length", "m-data"]
   : k ? [k] : []);
 const partAt = (i) => cd.parts.find((p) => i >= p.from && i <= p.to);
 
-// One line of the dump: the selector's 4 bytes, or a word from `start`
-function line(start, n, zb) {
-  const cells = [];
-  for (let k = 0; k < 32; k++) {
-    const i = start + k;
-    if (k >= n) {
-      cells.push('<span class="b"></span>');
-      continue;
+// The calldata's model for the one location panel (panel.js
+// renderLocation, paint): each part an owner, by its tree path, with its
+// bytes as a calldata region
+// (by the parameter's name: `text.length`)
+const PATH = {};
+const paths = (param) => Object.assign(PATH, { selector: "selector",
+  m: param, "m-offset": `${param}.offset`, "m-length": `${param}.length`,
+  "m-data": `${param}.bytes` });
+function model() {
+  const owners = new Map();
+  const cover = { after: new Map() };
+  for (const p of cd.parts) {
+    const region = { location: "calldata", offset: p.from,
+      length: p.to - p.from + 1 };
+    const id = PATH[p.id];
+    owners.set(id, { id, row: id, label: p.label, text: { after: p.value },
+      regions: { after: [region] } });
+    for (const [w, i] of regionBytes(region)) {
+      if (!cover.after.has(w)) {
+        cover.after.set(w, Array.from({ length: 32 }, () => []));
+      }
+      cover.after.get(w)[i].push(id);
     }
-    const p = partAt(i);
-    const cls = ["b", p ? `t${cd.parts.indexOf(p)}` : "free"];
-    if (!p || p.from === i) cls.push("gs");
-    if (!p || p.to === i) cls.push("ge");
-    if (cd.bytes[i] === "00") cls.push("z");
-    cells.push(`<span class="${cls.join(" ")}" data-i="${i}"${p
-      ? ` data-part="${p.id}"${p.from === i ? ' tabindex="0" role="button"' +
-        ` aria-label="${esc(p.label)}"` : ""}` : ""}>${cd.bytes[i]}</span>`);
   }
-  return `<div class="wrow${zb ? " zb" : ""}" data-at="${start}">` +
-    `<span class="addr"><span class="a">${at(start)}</span></span>` +
-    `<div class="word"><div class="bytes">${octets(cells)}</div></div></div>`;
+  return { owners, cover };
 }
-
 function row(p, name, type) {
-  return `<li data-part="${p.id}"><div class="row" tabindex="0"
+  return `<li data-part="${p.id}" data-path="${PATH[p.id]}"><div class="row" tabindex="0"
     role="button" aria-pressed="false"><span class="name">${name}</span>
     <span class="type">${type}</span><span class="val"><span>${esc(
     p.value)}</span></span></div></li>`;
@@ -88,21 +93,32 @@ function row(p, name, type) {
 function render() {
   const [sel, off, len, data] = cd.parts;
   $("ctree").innerHTML = `<ul>${row(sel, "selector", "bytes4")
-    .replace("<li", '<li class="top"')}<li class="top" data-part="m">
+    .replace("<li", '<li class="top"')}<li class="top" data-part="m"
+    data-path="${esc(cd.param)}">
     <div class="row" tabindex="0" role="button" aria-pressed="false">
     <span class="name">${esc(cd.param)}</span><span class="type">string calldata</span>
     <span class="val"><span>${esc(data.value)}</span></span></div><ul>${
     row(off, "offset", "uint256")}${row(len, "length", "uint256")}${
     row(data, "bytes", "bytes")}</ul></li></ul>`;
-  const lines = [line(0, 4, false)];
-  for (let s = 4, k = 1; s < cd.bytes.length; s += 32, k++) {
-    lines.push(line(s, Math.min(32, cd.bytes.length - s), k % 2));
-  }
-  $("cpanel").innerHTML = `<div class="views"><div class="view"
-    data-side="after" role="group" aria-label="Calldata"><div
-    class="view-head"><span class="view-name">Calldata</span><div
-    class="wrow head"><span class="addr"></span>${ruler()}</div></div>
-    <div class="rows">${lines.join("")}</div></div></div>`;
+  // the selector's row, then rows of 32 bytes from byte 4
+  paths(cd.param);
+  cd.model = model();
+  const starts = [0];
+  for (let k = 4; k < cd.bytes.length; k += 32) starts.push(k);
+  const rows = starts.map((k, n) => {
+    const w = memWord(k);
+    const name = `calldata ${w}`;
+    return { w, name, gutter: w, what: `calldata from ${w}`, next: n > 0 };
+  });
+  $("cpanel").innerHTML = renderLocation(cd.model, { id: "calldata",
+    sides: ["after"], rows, top: true, end: false,
+    title: () => "Calldata", aria: () => "Calldata",
+    word: (w) => {
+      const k = parseInt(w, 16);
+      const n = k === 0 ? 4 : 32;
+      return Array.from({ length: 32 }, (_, i) => i < n
+        ? cd.bytes[k + i] : undefined);
+    } });
   const step = (p, k, html) => `<li data-part="${p.id}" tabindex="0">` +
     `<span class="k">${k}</span><div class="c">${html}</div></li>`;
   $("chow").innerHTML = `<p class="howside">By the ABI encoding of
@@ -124,21 +140,16 @@ function render() {
 function paint() {
   const k = hover ?? chosen;
   const lit = new Set(ids(k));
-  const root = $("cpanel");
-  for (const c of root.querySelectorAll(".b[data-i]")) {
-    c.classList.toggle("hl", lit.has(c.dataset.part));
-  }
-  for (const r of root.querySelectorAll(".wrow[data-at]")) {
-    r.classList.toggle("on", !!r.querySelector(".b.hl"));
-  }
-  root.classList.toggle("active", lit.size > 0);
-  $("ctree").classList.toggle("active", lit.size > 0);
+  // (the one panel's paint, as storage and memory: the part's bytes and
+  // rows lit, with their popovers)
+  const h = lit.size ? { bytes: new Set([...lit].flatMap((id) =>
+    regionBytes(cd.model.owners.get(PATH[id]).regions.after[0])
+      .map(([w, i]) => `after|${w}|${i}`))),
+  rows: new Set([...lit].map((id) => PATH[id]).concat(k === "m" ||
+    (k && k.startsWith("m-")) ? [PATH.m] : [])), label: "" } : null;
+  paintPanel($("cpanel"), $("ctree"), h, { cards: false, chosen: !!chosen });
   for (const li of $("ctree").querySelectorAll("li[data-part]")) {
-    const on = li.dataset.part === k || (k === "m" &&
-      ids("m").includes(li.dataset.part)) || (li.dataset.part === "m" &&
-      ids("m").includes(k));
     const r = li.querySelector(":scope > .row");
-    r.classList.toggle("hl", lit.size > 0 && on);
     r.classList.toggle("sel", li.dataset.part === chosen);
     r.setAttribute("aria-pressed", String(li.dataset.part === chosen));
   }
@@ -161,7 +172,12 @@ function paint() {
 
 // The part an element stands for: a byte, a tree row, a step
 function partOf(el) {
-  const c = el.closest?.("#cpanel .b[data-part], #chow li[data-part]");
+  const b = el.closest?.("#cpanel .b[data-owners]");
+  if (b) {
+    const id = b.dataset.owners.split("|")[0];
+    return Object.keys(PATH).find((k) => PATH[k] === id);
+  }
+  const c = el.closest?.("#chow li[data-part]");
   if (c) return c.dataset.part;
   const li = el.closest?.("#ctree li[data-part]");
   return li && el.closest(".row") ? li.dataset.part : null;

@@ -119,7 +119,9 @@ Each data location is its own panel, drawn by the one location panel
 the section shows a Memory panel and, at the last point, a Storage
 panel for alice's record slot, each with its own header and gutter,
 both lit by the same selection and walkthrough and painted the same
-way (`paint`, with its popovers and cards).
+way (`paint`, with its popovers and cards). The calldata of the motd scene is the
+same panel too: its parts are owners of calldata regions (the
+selector's row, then rows of 32 bytes from byte 4), painted by `paint`.
 
 BUG is ethdebug's teaching language, and bugc is ethdebug's reference
 compiler. Arcade has a BUG port, and the section shows alice's third
