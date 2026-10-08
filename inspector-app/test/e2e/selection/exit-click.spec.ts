@@ -3,6 +3,9 @@
 // it (its hover at once); a click on what it lights selects that. The
 // cursor says which: default, or pointer.
 import type { Page } from "@playwright/test";
+import { pick } from "../../pick";
+import { A } from "../../expect";
+import { slotHex } from "../../../src/engine/hex";
 import {
   test, expect, ready, select, row, selected, settle, V,
 } from "../../page";
@@ -110,3 +113,76 @@ test("the cursor: default on what a click only exits; pointer on what " +
   expect(await cursor(page, '#tree li[data-path="motd"] > .row'))
     .toBe("pointer");
 });
+
+test("from the keyboard: Enter on a byte or a row selects it",
+  async ({ page }) => {
+    await ready(page);
+    await select(page, "alice", null);
+    await page.locator(`#panel .view[data-side="after"] ` +
+      `.b[data-owners="${A}.plays"][tabindex]`).first().focus();
+    await page.keyboard.press("Enter");
+    expect(await selected(page)).toBe(`${A}.plays`);
+    await row(page, `${A}.score`).focus();
+    await page.keyboard.press("Enter");
+    expect(await selected(page)).toBe(`${A}.score`);
+  });
+
+test("with a selection, pointing elsewhere changes nothing shown",
+  async ({ page }) => {
+    await ready(page);
+    await select(page, "alice", `${A}.combo`);
+    const look = () => page.evaluate(() => JSON.stringify([
+      document.querySelectorAll("#panel .b.hl:not(.cmp *)").length,
+      [...document.querySelectorAll<HTMLElement>("#panel .pop")]
+        .map((p) => p.innerText),
+      document.querySelectorAll("#panel .cmp").length,
+      document.querySelector("#details")!.textContent]));
+    await page.mouse.move(1, 1);
+    const still = await look();
+    // (an unrelated byte; then one of its own)
+    for (const [f, i] of [["score", 30], ["combo", 23]] as const) {
+      await page.locator(`#panel .word[data-side="after"] ` +
+        `.b[data-owners="${A}.${f}"][data-i="${i}"]`).hover();
+      await settle(page);
+      expect(await look(), f).toBe(still);
+    }
+  });
+
+test("a click that clears shows the hover under the pointer at once: a "
+  + "row, a byte", async ({ page }) => {
+  await ready(page);
+  await select(page, "mid", null);
+  const now = () => page.evaluate(() => ({
+    row: document.querySelector('#tree li[data-path="totalScore"] > .row')!
+      .classList.contains("hl"),
+    bytes: document.querySelectorAll("#panel .view:not([hidden]) .b.hl")
+      .length, sel: !!document.querySelector("#tree .row.sel") }));
+  const want = { row: true, bytes: 16, sel: false };
+  await pick(row(page, "totalScore"));
+  await pick(row(page, "totalScore"));
+  expect(await now()).toEqual(want);
+  const cell = page.locator(`${V} .wrow[data-slot="${slotHex(2n)}"] ` +
+    '.b[data-i="31"]');
+  await cell.click();
+  await cell.click();
+  expect(await now()).toEqual(want);
+});
+
+test("a composite selected: a click on a grandchild selects its child",
+  async ({ page }) => {
+    await ready(page);
+    const sc = `${V} .b[data-owners="${A}.score"]`;
+    const gut = `${V} .wrow:has(.b[data-owners="${A}.score"]) > .addr`;
+    const after = async (sel: string | null, click: () => Promise<void>) => {
+      await select(page, "mid", sel);
+      await click();
+      return selected(page);
+    };
+    expect([
+      await after("players", () => pick(row(page, `${A}.score`))),
+      await after("players", () => page.locator(sc).first().click()),
+      await after("players", () => page.locator(gut).first().click()),
+      await after(A, () => pick(row(page, `${A}.score`))),
+      await after(null, () => pick(row(page, `${A}.score`))),
+    ]).toEqual([A, A, A, `${A}.score`, `${A}.score`]);
+  });
