@@ -229,3 +229,24 @@ test("quick chevron clicks during the animation end in the right state",
     await expect(page.locator('#tree li[data-path="players"]'))
       .not.toHaveClass(/\bcollapsed\b/);
   });
+
+test("a scrolled tree aligns as an unscrolled one (its padding stays)",
+  async ({ page }) => {
+    await page.setViewportSize({ width: 1400, height: 700 });
+    await ready(page);
+    const pad = () => page.evaluate(() =>
+      document.querySelector<HTMLElement>("#tree")!.style.paddingTop);
+    const before = await pad();
+    await page.evaluate(() => {
+      const t = document.querySelector<HTMLElement>("#tree")!;
+      t.scrollTop = t.scrollHeight;
+    });
+    expect(await page.evaluate(() =>
+      document.querySelector<HTMLElement>("#tree")!.scrollTop))
+      .toBeGreaterThan(50);
+    // (a re-align: the dump's column changes size)
+    await page.setViewportSize({ width: 1401, height: 700 });
+    await page.evaluate(() => new Promise((r) =>
+      requestAnimationFrame(() => requestAnimationFrame(r))));
+    expect(await pad()).toBe(before);
+  });
