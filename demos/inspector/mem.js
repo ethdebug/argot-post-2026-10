@@ -9,8 +9,8 @@
 // bugc's pointer for `players` gives only its base slot.
 import { decodeLocals, typeName } from "./decode.js";
 import {
-  octets, ruler, paint, initialHash, setHash, locked, details, keySection,
-  short,
+  paint, initialHash, setHash, locked, details, keySection, short,
+  regionBytes, renderLocation, childColor,
 } from "./panel.js";
 
 const $ = (id) => document.getElementById(id);
@@ -20,7 +20,6 @@ const esc = (s) =>
 const num = (h) => Number(BigInt(h === undefined || h === "0x" ? 0 : h));
 const hex = (n, w = 4) => "0x" + n.toString(16).padStart(w, "0");
 const code = (x) => `<code>${esc(x)}</code>`;
-const TINTS = 5;
 const GROUP = "multiplied";
 const RECORD = "players[msg.sender]";
 // the selection each point opens with
@@ -51,19 +50,6 @@ const stepOf = (side) => point().steps[two() && side === "before" ? 0
 const pairs = (m) => (m.slice(2).match(/../g) ?? []);
 
 // ------------------------------------------------------------- model
-
-// The bytes a region covers, as [word, byte index] pairs: a memory word
-// by its offset, or the record's storage slot
-function regionBytes(r) {
-  if (r.location === "storage") {
-    return Array.from({ length: r.length }, (_, k) => [r.slot, r.offset + k]);
-  }
-  if (r.location !== "memory") return [];
-  const o = num(r.offset);
-  const n = num(r.length ?? "0x20");
-  return Array.from({ length: n }, (_, k) =>
-    [hex(Math.floor((o + k) / 32) * 32), (o + k) % 32]);
-}
 
 // "0x00b8–0x00bf"
 const span = (r) => {
@@ -241,101 +227,38 @@ function wordAt(m, w, side) {
   return Array.from({ length: 32 }, (_, i) => m.bytes[side][at + i]);
 }
 
-// --------------------------------------------------------- the dumps
+// ----------------------------------------------- the location panels
 
-function groups(ids) {
-  const out = [];
-  ids.forEach((list, i) => {
-    const key = list.join("|");
-    const last = out[out.length - 1];
-    if (last && last.key === key) last.to = i;
-    else out.push({ key, owners: list, from: i, to: i });
-  });
-  return out;
-}
-
-function wordHtml(m, w, side, tint, name) {
-  const mine = wordAt(m, w, side);
-  const other = two() ? wordAt(m, w, side === "before" ? "after"
-    : "before") : mine;
-  const ids = m.cover[side].get(w) ?? Array.from({ length: 32 }, () => []);
-  const cells = [];
-  for (const g of groups(ids)) {
-    const label = g.owners.map((id) => m.owners.get(id).label).join(", ");
-    for (let i = g.from; i <= g.to; i++) {
-      const b = mine[i];
-      const cls = ["b"];
-      if (g.owners.length) cls.push(`t${tint.get(g.owners[0]) % TINTS}`);
-      else cls.push("free");
-      if (i === g.from) cls.push("gs");
-      if (i === g.to) cls.push("ge");
-      if (b === undefined) cls.push("past");
-      else if (b === "00") cls.push("z");
-      if (b !== undefined && b !== other[i]) cls.push("chg");
-      const first = i === g.from && g.owners.length;
-      const range = g.from === g.to ? `byte ${g.from}`
-        : `bytes ${g.from} to ${g.to}`;
-      cells.push(`<span class="${cls.join(" ")}" data-i="${i}"` +
-        ` data-g="${g.from}-${g.to}"${g.owners.length
-          ? ` data-owners="${esc(g.owners.join("|"))}"` : ""}` +
-        `${first ? ` tabindex="0" role="button" aria-label="${esc(
-          `${label}, ${range} of ${name}${two() ? `, ${side}` : ""}`)}"`
-          : ""}>${b ?? "··"}</span>`);
-    }
-  }
-  return `<div class="word" data-side="${side}" data-slot="${w}">` +
-    `<div class="bytes">${octets(cells)}</div></div>`;
-}
-
-function renderDumps(m) {
-  const rec = m.rec ? [m.rec.slot] : [];
-  const rows = [...m.order, ...rec].map((w) => {
-    const tint = new Map();
-    for (const side of m.sides) {
-      for (const ids of m.cover[side].get(w) ?? []) {
-        for (const id of ids) if (!tint.has(id)) tint.set(id, tint.size);
-      }
-    }
-    const store = rec.includes(w);
-    const facts = !two() ? "" : wordAt(m, w, "before").join("") ===
-      wordAt(m, w, "after").join("") ? "unchanged" : "changed";
-    const name = store ? `keccak(msg.sender, slot ${m.rec.base})`
-      : `word ${w}`;
-    return { w, n: store ? null : num(w), tint, facts, store, name,
-      same: facts === "unchanged" };
-  });
-  const gap = `<div class="gap" aria-hidden="true"><span>⋯</span></div>`;
-  const view = (side) => {
-    const lines = [];
-    rows.forEach((x, k) => {
-      const prev = rows[k - 1];
-      if (x.store) {
-        lines.push(`<div class="gap mstore" aria-hidden="true"><span>` +
-          "storage</span></div>");
-      } else if (k === 0 ? x.n !== 0 : x.n !== prev.n + 32) lines.push(gap);
-      const what = `${x.store ? `storage slot ${x.w}, ${x.name}`
-        : x.name}${x.facts ? `, ${x.facts}` : ""}`;
-      lines.push(`<div class="wrow${x.same ? " same" : ""}${k % 2
-        ? " zb" : ""}"` +
-        ` data-slot="${x.w}" data-name="${esc(x.name)}"` +
-        ` data-facts="${esc(x.facts)}">` +
-        `<span class="addr" tabindex="0" aria-label="${esc(what)}">` +
-        `<span class="a">${x.store ? `…${x.w.slice(-4)}` : x.w}</span>` +
-        "</span>" + wordHtml(m, x.w, side, x.tint, x.name) + "</div>");
-    });
-    if (!rows.at(-1)?.store) lines.push(gap);
-    const title = two() ? (side === "before" ? "Before" : "After")
-      : "Memory";
-    return `<div class="view" data-side="${side}" role="group"` +
-      ` aria-label="${esc(two() ? `Memory ${side} the step`
-        : "Memory at this point")}">` +
-      `<div class="view-head"><span class="view-name">${title}</span>` +
-      `<div class="wrow head"><span class="addr"></span>${ruler()}</div>` +
-      `</div><div class="rows">${lines.join("")}</div></div>`;
-  };
-  return `<p class="muted small swipe">Each word is one line of 32 bytes;
-    scroll sideways to see bytes 24 to 31.</p>` +
-    `<div class="views">${m.sides.map(view).join("")}</div>`;
+// Memory and storage, each its own panel, drawn by the one location
+// panel (panel.js renderLocation): memory by its words' offsets, and
+// alice's record slot (at the last point), by its slot
+function panels(m) {
+  const facts = (w) => !two() ? "" : wordAt(m, w, "before").join("") ===
+    wordAt(m, w, "after").join("") ? "unchanged" : "changed";
+  // (the panel's own header names the location: a view's name only
+  // tells Before from After)
+  const title = () => (side) => two() ? (side === "before"
+    ? "Before" : "After") : "";
+  const mem = renderLocation(m, { id: "memory", sides: m.sides,
+    top: m.order[0] !== undefined && num(m.order[0]) === 0,
+    title: title("Memory"), aria: (side) => two()
+      ? `Memory ${side} the step` : "Memory at this point",
+    word: (w, side) => wordAt(m, w, side),
+    rows: m.order.map((w, k) => ({ w, name: `word ${w}`, gutter: w,
+      what: `word ${w}${facts(w) ? `, ${facts(w)}` : ""}`, facts: facts(w),
+      same: facts(w) === "unchanged",
+      next: k > 0 && num(w) === num(m.order[k - 1]) + 32 })) });
+  const r = m.rec;
+  const store = r && renderLocation(m, { id: "storage", sides: m.sides,
+    title: title("Storage"), aria: (side) => two()
+      ? `Storage ${side} the step` : "Storage at this point",
+    word: (w, side) => wordAt(m, w, side),
+    rows: [{ w: r.slot, name: `keccak(msg.sender, slot ${r.base})`,
+      gutter: `…${r.slot.slice(-4)}`, facts: facts(r.slot),
+      same: facts(r.slot) === "unchanged",
+      what: `storage slot ${r.slot}, keccak(msg.sender, slot ${r.base})${
+        facts(r.slot) ? `, ${facts(r.slot)}` : ""}` }] });
+  return { mem, store };
 }
 
 // ------------------------------------------------------- the values
@@ -512,8 +435,8 @@ function renderHow() {
     .map(dual).join("")}</ol>` + (forked ? list(A, side, "mine") +
     list(B, other, "theirs") : "") +
     `<p class="muted small">The library's dereference() returned these
-    regions for bugc's pointer and read them. The steps above replay the
-    pointer with the library's evaluator; they agree.</p>`;
+    regions for bugc's pointer and read them. The steps above walk through
+    the pointer with the library's evaluator; they agree.</p>`;
 }
 
 // ------------------------------------------------------- highlight
@@ -544,7 +467,7 @@ function forValue(m, path) {
   const n = find(m.tree, path);
   const under = new Map([[path, 0]]); // tree path -> colour
   (n.children ?? []).forEach((c, k) => walk([c], (x) =>
-    under.set(x.path, 1 + (k % 8))));
+    under.set(x.path, childColor(k))));
   const ids = [...m.owners.keys()].filter((id) =>
     under.has(m.owners.get(id).row));
   const colors = n.children?.length ? new Map([...under,
@@ -628,9 +551,12 @@ const PROBE = "Point at a value or a byte for its details.";
 function show() {
   const sel = chosen ? forValue(model, chosen) : null;
   const h = hover ?? sel;
-  paint($("mpanel"), $("mtree"), h, two() ? { before: "before",
-    after: "after", dumps: { before: "Before", after: "After" } }
-    : { cards: false });
+  // (each location's panel, the same way)
+  for (const root of [$("mpanel"), $("mspanel")]) {
+    paint(root, $("mtree"), h, { ...(two() ? { before: "before",
+      after: "after", dumps: { before: "Before", after: "After" } }
+      : { cards: false }), chosen: !!chosen });
+  }
   for (const r of $("mtree").querySelectorAll("li[data-path] > .row")) {
     const on = r.parentElement.dataset.path === chosen;
     r.classList.toggle("sel", on);
@@ -709,9 +635,12 @@ function render() {
   if (chosen && !find(model.tree, chosen)) chosen = null;
   if (!two()) mode = "after";
   $("mtree").innerHTML = renderValues(model);
-  $("mpanel").innerHTML = renderDumps(model);
+  const { mem, store } = panels(model);
+  $("mpanel").innerHTML = mem;
+  $("mspanel").innerHTML = store ?? "";
+  $("mstore").hidden = !store;
   window.fitDumps?.();
-  for (const v of $("mpanel").querySelectorAll(".view")) {
+  for (const v of $("memory").querySelectorAll(".panel .view")) {
     v.hidden = v.dataset.side !== mode;
   }
   $("mmoderow").hidden = !two();
@@ -734,10 +663,10 @@ function render() {
 
 function target(el) {
   if (!model || !el?.closest) return null;
-  if (el.closest("#mpanel .tray")) return hover;
-  const cell = el.closest("#mpanel .b[data-g]");
+  if (el.closest("#mpanel .tray, #mspanel .tray")) return hover;
+  const cell = el.closest(":is(#mpanel, #mspanel) .b[data-g]");
   if (cell) return forBytes(model, cell);
-  const addr = el.closest("#mpanel .wrow[data-slot] .addr");
+  const addr = el.closest(":is(#mpanel, #mspanel) .wrow[data-slot] .addr");
   if (addr) return forWord(model, addr.parentElement.dataset.slot);
   const step = el.closest("#mhow li[data-region]");
   if (step) {
@@ -771,7 +700,7 @@ function onOver(e) {
 // or a byte no value owns, clears the selection
 function choose(el) {
   const row = el.closest("#mtree li[data-path]");
-  const cell = el.closest("#mpanel .b[data-g]");
+  const cell = el.closest(":is(#mpanel, #mspanel) .b[data-g]");
   const id = cell && (cell.dataset.owners ?? "").split("|")[0];
   const p = row ? row.dataset.path : id ? model.owners.get(id).row : null;
   chosen = row && p === chosen ? null : p;
@@ -809,7 +738,7 @@ function wire() {
       mode = m.dataset.mode;
       return render();
     }
-    if (e.target.closest("#mpanel .b[data-g], #mtree .row")) {
+    if (e.target.closest(":is(#mpanel, #mspanel) .b[data-g], #mtree .row")) {
       return choose(e.target);
     }
     // Empty space clears the selection; controls and text do not
@@ -823,7 +752,8 @@ function wire() {
   });
   sec.addEventListener("keydown", (e) => {
     if (e.key !== "Enter" && e.key !== " ") return;
-    const c = e.target.closest?.("#mpanel .b[tabindex], #mtree .row");
+    const c = e.target.closest?.(":is(#mpanel, #mspanel) .b[tabindex], " +
+      "#mtree .row");
     if (c) {
       e.preventDefault();
       choose(c);

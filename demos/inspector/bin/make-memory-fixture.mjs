@@ -117,7 +117,8 @@ function members(w) {
 async function story(c) {
   const { receipt } = await send({ data: c.bytecode });
   const address = receipt.contractAddress;
-  const base = BigInt(c.players.pointer.slot);
+  // (bugc from #369 on wraps players' region in its templates: `in`)
+  const base = BigInt((c.players.pointer.in ?? c.players.pointer).slot);
   const combo = async (who) => members(await rpc("eth_getStorageAt",
     [address, recordSlot(who, base), "latest"])).combo.value;
   for (const who of [ALICE, BOB, CAROL]) {

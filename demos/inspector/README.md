@@ -18,6 +18,146 @@ the pointer templates. This page does not use soldb.
 Serve the repo root over HTTP and open `demos/inspector/`. The page needs no
 node: everything comes from `fixtures/`.
 
+
+## About this demo
+
+This is the text the page used to carry; the page keeps one line a
+scene so the inspector is on the first screen, and links here.
+
+### What the page shows
+
+One contract, Arcade, in a few scenes. Click a byte in a word of
+storage, and the variable that owns it lights up; click a variable,
+and its bytes light up. "Show how it was found" walks from the
+variable to its bytes. Some scenes compare two points (Before | After)
+and mark what changed.
+
+Decoded by ethdebug's reference library from solc's ethdebug output (a
+preview build of Walnut's solc fork, walnuthq/solidity PR #10), with
+the optimizer off. Each variable's base slot, offset and type come
+from the program context; the rules for mappings, structs, arrays and
+strings come from the pointer templates in the resources.
+`@ethdebug/pointers` is from ethdebug/format main (see
+`vendor/pointers.js` below), pending release.
+
+### The contract
+
+Every scene shows one contract, Arcade: the scoreboard of a big
+multiplayer game. A player calls `join(name)` once, then `play()`,
+which rolls a hit or a miss. A hit adds 1 to the player's combo and
+scores 10 × combo (at most 5×); a miss sets the combo back to 0, and
+the score stays. Each player's `Player` in `players` is one full
+packed slot (score, combo, bestCombo, plays, hitCount, lastBlock) and
+a name in the next slot; `roster` lists who joined, since a mapping
+cannot list its keys; `total` and `rounds` count all points and hits;
+`setMotd` sets the message of the day. The story: deploy with a
+50-byte motd; alice, bob and carol join; alice hits twice, bob hits,
+carol misses (the middle of the game); alice hits a third time; then
+the motd becomes "gl hf". Each player is an anvil account.
+
+### The scenes
+
+- The middle of the game: alice, bob and carol have joined and played.
+  Each player's record is found by hashing the player's address with
+  the mapping's slot, keccak256(address . slot 3), so the three
+  records land far apart. Each is one word with six counters packed in
+  it. The name is in the next slot: alice's and bob's fit in it;
+  carol's is 34 bytes, so its bytes move to keccak256(that slot).
+  `roster` keeps its length in slot 0 and its items from
+  keccak256(slot 0); `motd` is slot 1; `total` and `rounds` share slot
+  2. alice's record is selected.
+- Alice plays: alice hits a third time: combo 3, so she scores
+  10 × 3 = 30. In her one slot, score goes from 30 to 60, combo,
+  bestCombo, plays and hitCount from 2 to 3, and lastBlock to this
+  block; `total` goes from 40 to 70 and `rounds` from 3 to 4. Before
+  is the middle of the game, After is after her hit. Beside the lit
+  word, a card shows it in the other state.
+- A string moves into its slot: Arcade was deployed with a 50-byte
+  message of the day. A string that long keeps only 2 × its length + 1
+  in its slot, slot 1, and its bytes at keccak256(slot 1) and the slot
+  after it. `setMotd("gl hf")` makes it 5 bytes: short enough that
+  Solidity stores it in slot 1 itself, its bytes from the high end and
+  2 × its length in the last byte. solc writes zeros to the two old
+  data slots; they are in the dump After. The walkthrough shows where
+  the two rules part. The call's calldata is under the storage.
+- Vyper reads it differently: the same three players, in the same game
+  compiled by Vyper 0.4.3 (`contracts/Arcade.vy`), at the same middle
+  of the game. The rule from the first scene, keccak256(address .
+  slot 3), is Solidity's; it finds nothing here: the tree shows each
+  player with zeros and no name, with no error. Vyper does not pack
+  and keeps its arrays inline, so its `players` is slot 108, not 3; it
+  hashes the slot first, keccak256(108 . address), and puts each
+  counter in its own slot, then the name's length and bytes. So the
+  real records sit elsewhere: those words are in the dump, and no
+  value shown owns them. Vyper emits no ethdebug, so the page has no
+  rule from Vyper; the walkthrough lists the selected player's Vyper
+  words for contrast.
+
+How to read the dump: one 32-byte word per row, byte 0 at the left;
+"⋯" skips addresses.
+
+### What is not done yet
+
+- Mapping keys. A mapping does not list its keys. The page shows only
+  keys read from the KECCAK256 inputs in a trace (the players'
+  addresses, from their `join` and `play` calls; `roster` lists them
+  too). Other entries may exist but are not shown.
+- Nested mappings. A mapping inside a struct or another mapping needs
+  one template applied after another, with a key for each level. The
+  page does not do that yet; Arcade has none.
+- Vyper. Vyper emits no ethdebug. Its scene applies solc's rule to
+  Vyper's storage, to show what a tool built on Solidity's rules reads;
+  Vyper's own slots come from its trace.
+- Names in the templates. Template and type names such as
+  `t_mapping$_t_address_$…` are solc's internal names. ethdebug does
+  not require them.
+
+### Inside one play (the memory section)
+
+Each data location is its own panel, drawn by the one location panel
+(`panel.js` `renderLocation`, with `regionBytes` for every location):
+the section shows a Memory panel and, at the last point, a Storage
+panel for alice's record slot, each with its own header and gutter,
+both lit by the same selection and walkthrough and painted the same
+way (`paint`, with its popovers and cards). The calldata of the motd scene is the
+same panel too: its parts are owners of calldata regions (the
+selector's row, then rows of 32 bytes from byte 4), painted by `paint`.
+
+BUG is ethdebug's teaching language, and bugc is ethdebug's reference
+compiler. Arcade has a BUG port, and the section shows alice's third
+hit again, paused at three points inside `play()`. At each point,
+bugc's debug data lists the local variables in scope, and gives most
+of them a pointer: bugc keeps them in memory. Compile it without
+optimization (O0) or with it (O2): at O0, `multiplied` is a real call,
+and its locals are in a frame whose address is in the word at 0x80; at
+O2 it is inlined, so its locals are at fixed offsets, with no frame. A
+local that bugc lists with its type only has no location at that
+point. The byte ranges come from ethdebug's reference library
+(@ethdebug/pointers), which follows bugc's pointers against the memory
+at each point. Only the decoding into numbers is the page's own. The
+program is compiled by bugc from ethdebug/format main (the commit is in
+`fixtures/memory.json`).
+
+The memory dump shows memory at the paused step, one 32-byte word to a
+line, by offset: the words a local lives in; "⋯" marks words left out.
+At the last point, alice's record slot in storage comes last. Point at
+a value, a byte or an address to light it up.
+
+- "no location at this point": bugc lists the local with its type and
+  no pointer. This happens with optimization (a value the optimizer
+  folded away) and without it (at O0, `hit` after its `if`).
+- Inside `multiplied`, `m = combo` moves `m`: after it, bugc points
+  `m` at a word that holds `combo`'s bytes too.
+- Alice's record slot is the page's own: bugc's pointer for `players`
+  gives only its base slot, so the slot (keccak256 of the key and 4)
+  and the packed members follow BUG's rules, which are Solidity's.
+
+### Credits and links
+
+Part of the ethdebug post appendix, with "ethdebug in depth"
+(`../../companion/`) and "Step through a transaction"
+(`../debugger/`).
+
 ## Scenes
 
 `fixtures/index.json` lists the scenes. Each has a title, a fixture,
@@ -104,10 +244,17 @@ and parameter in `fixtures/index.json` (`calldata`).
 - `calldata.js`: the calldata view of the setMotd scene.
 - `vendor/pointers.js`: `@ethdebug/pointers` bundled with esbuild from
   ethdebug/format `origin/main` at commit
-  `ec7a81386` (includes #317, the scoping fix, not yet released),
+  `d7cb421a3` (#323: expressions take `~`, not `$`; not yet released),
   minified. Rebuild with `bin/build-pointers.sh <checkout>` after
   `yarn install` and building `packages/format` and `packages/pointers`,
   then run `bin/sizes.mjs`.
+- The sigil: ethdebug/format writes a pointer expression's operator
+  with `~` (`~keccak256`), and the library takes no other; solc still
+  writes `$` (ethdebug/format#324). `decode.js` `solcTilde` rewrites
+  solc's pointers and templates as each storage fixture is read (the
+  page, and `bin/make-fixtures.mjs`); the YAML shows `~`, with a note.
+  bugc writes `~`: `fixtures/memory.json` was made with bugc at
+  `d7cb421a3`.
 - `vendor/shiki.js`: the contract source's colouring, as in the
   debugger demo (Shiki 3.13.0's core, its JavaScript regex engine, the
   Solidity grammar, github-light and github-dark), bundled and minified
@@ -268,7 +415,7 @@ offsets.
   a card, it may cover unlit rows (addresses included), never a lit
   row, a lit row's address or another annotation; nothing shows at
   rest. The name comes from
-  the `$keccak256` defines in the replayed steps, not from new hashing.
+  the `~keccak256` defines in the replayed steps, not from new hashing.
 - Bytes: each byte belongs to the value whose region covers it. Regions
   are the ones the library returned (`value.region`); for a string,
   also its `length-flag` and `long-length` regions (`value.parts`,
@@ -368,21 +515,36 @@ targets alice's entry; with alice selected, her members are the
 blocks. With nothing selected, the most specific value is the target.
 
 When lit tree rows are out of the tree box's view (it scrolls inside
-itself), a strip on the box's edge past which they are (bottom or top)
-shows their colours, one segment a colour in their order, with a
-chevron and no text (its aria-label gives the first row's path and how
-many more); a click scrolls the tree, inside itself, to the first of
-them. Hover alone never scrolls the tree. The strips are overlays that
-fade in and out: no row moves.
+itself), a yellow circle button, centred on the box's edge past which
+they are (bottom or top), shows an arrow and no text (its aria-label
+gives the first row's path and how many more); a click scrolls the
+tree, inside itself, to the first of them. Hover alone never scrolls
+the tree. The buttons are overlays that fade in and out: no row moves.
 
-A slot's label reads "how it is found : what it holds": the names of
-the values in that slot as the pointer names them, in byte order
-(`slot 2 : rounds · total`; an array's own word: `slot 0 : length`;
-the first three, then `+N`), or for a run of several slots, the path
-of the value they make up (`keccak(0x90f7…b906, slot 3) :
-players[0x90f7…b906], 2 slots`). Each name takes its bytes' colour
-when the colours tell values apart (a legend); else it is plain. One
-line, cut at its end where the box is narrow.
+Where a step's formula is byte ranges within one slot (the packed
+fields, a string's flag byte, `total` or `rounds`), the details draw
+them as a one-line strip of 32 equal cells (no group gaps: those are
+the dump's), each value a
+span over its cells in its colour, named, the byte positions under it
+(two rows of 16 on a phone, as the phone's dump); a name too long for
+its span stands over it in a row kept for it, with a tick down to its
+cells. Its aria-label gives the ranges in words.
+
+A slot's label (a black popover) reads "how it is found : what it
+holds": the names of the values in its slots as the pointer names
+them, in byte order, " · " within a slot and " / " between slots
+(`slot 2 : rounds · total`; `keccak(0x7099…79c8, slot 3) : lastBlock ·
+… · score / name · name.length, 2 slots`); a value's other regions by
+their role under its name (`name.length`; an array's own word alone,
+`length`); a run of several slots in one colour, by the path of the
+value they make up. A name lit now is a light badge in its colour's
+text tone (the selection's yellow too); the rest are plain. The label
+stays inside the dump's box; when it must be shorter, panel.js
+`fitWhat` drops plain names first, then badges from the middle (each
+slot keeping its first and last), then middle slots, then shortens the
+"how" part's addresses; "…" marks each cut, and CSS never cuts it. A
+selection inside a mapping or an array also tints the own slot of the
+variable it is in (its gutter and popover; its bytes stay plain).
 
 Nothing moves when a value is selected, pointed at or stepped through:
 emphasis is lighting and muting only. The bar (`#details`) is one line
@@ -392,8 +554,13 @@ controls (⏮ ◀ ▶ ⏭ and "n / m", or "Show how it was found" at rest),
 the step's short caption and ✕ Exit. During a replay the details
 (`#dpanel`) are joined under the bar, in its tint, as one panel with
 the bar as its header row. A click, focus or key anywhere in that
-panel stays in the replay; only ✕ Exit, Escape or a new selection in
-the tree or the dump leaves it. At entry the page scrolls the bar to
+panel stays in the walkthrough; only ✕ Exit or Escape leave it. A
+click in the tree or the dump re-targets it: each step has an identity
+(its pointer node and kind, whatever the instance), the old and new
+steps are aligned by their longest common subsequence, and the
+walkthrough stays on the matching step, or the nearest earlier one
+that matches, or the first; a short cue in the bar ("→ step 5") says
+when the place moved. At entry the page scrolls the bar to
 the top while the details unfold from under it (about 280 ms, the
 columns moving down with them); at exit they fold back. These are the
 only movements, instant with reduced motion; while they run, the
@@ -402,7 +569,8 @@ room: the step in full (caption, formula, the pointer constructs it
 uses with one footnote marker, where its input came from), the
 footnote (a link to the spec page of the step's construct), the focus
 picker (a mapping's replay only), the chips (one a rule, with its
-storage noun), and the pointer solc wrote, as YAML (keys in the spec's
+storage noun), and the ethdebug data from the compiler (the pointer),
+as YAML (keys in the spec's
 order: a conditional's if, then, else; a region's name, location,
 slot, offset, length; a line too long for the box in block style;
 template names shortened, solc's ids listed under it), Shiki-coloured,
@@ -413,50 +581,48 @@ same panel is compact (the caption, the formula, the picker, a few
 lines of the pointer). During a replay, the bytes of a lit slot that
 no value owns stay muted.
 
-The replay shows the rules the selection's pointers follow: the steps
-are rules, and each rule's instances appear together. The page walks
-the raw steps that `decode.js` `replay()` recorded for every value
-under the variable, in the state shown (nothing is computed by the
-page but a flag byte read from the state). For players:
+The walkthrough follows general rules, built from the raw steps that
+`decode.js` `replay()` records for every value under the selection (in
+the state shown), each with its place in the pointer (its block: the
+variable's pointer or a template; and its path of keys). Nothing is
+computed by the page but a flag byte read from the state.
 
-1. declared at slot 3, which holds nothing (its gutter is lit);
-2. each record at `keccak(key, 3)`: all three at once, with the
-   `roster` items their keys come from (decoded from storage, and
-   checked to equal the trace's keys), in the entries' colours, and a
-   table of key → slot;
-3. a record is two slots (a group; the name at `$sum(slot, 1)`);
-4. the stats packed in one slot, in colours of their own (never an
-   entry's), with the byte positions under the slot;
-5. the last byte decides the name's form: the `if`'s both branches at
-   once (alice and bob short, carol long).
+1. Inputs first: facts the page supplies, not ethdebug (a mapping's
+   keys, from `roster` or the trace), with no band; the source lights.
+2. Then the pointer's nodes in the YAML's document order: the band
+   only moves down.
+3. Every template entered is a step: its frame (name, `expect`,
+   `for:`) and the inputs it takes, the bound slot's gutter.
+4. The define that hands off into a nested template is a step of its
+   own (its define, `in:` and `template:` lines; the computed slot's
+   gutter).
+5. Every region read by an expression (an array's `length`, a
+   string's `length-flag`) and every `if` is a step; the `if` takes in
+   the reads and defines in its branch (`long-length`, `length`);
+   other defines and a list fold into the region that uses them.
+   Sibling regions in one group (a record's packed fields) are one
+   step.
+6. Several instances (a mapping's entries, an array's items) share
+   each step; where they take different branches, the `if` is one
+   fork step showing both, followed by each branch's steps.
 
-A mapping's, an array's or a string's own slot is first only named
-(its gutter lit, not its bytes); a region a later rule reads gets its
-own step or is lit in the step that reads it, so the YAML band and the
-lit bytes agree. Each template entered is a step of its own: its header
-and `expect` lines, the inputs it takes ("the template `address[]`
-takes slot = 0"), the bound slot's gutter (and, for a mapping's keys,
-the `roster` items they come from); no new bytes. roster: declared at
-slot 0 (gutter); the template `address[]` takes slot = 0; slot 0 holds
-the length, 3 (the length region); the items at keccak(0), one slot
-each, for `length` items (all three at once). motd: declared at slot
-1; the template `string` takes slot = 1; its flag and the branch taken
-(the length-flag region, the if, and then or else, with long-length
-lit for a long string). players: declared; the mapping template
-(slot = 3, key = each address in roster); each record at
-keccak(key, 3); the `Player` template (slot = each record's slot); a
-record's two slots; the packed stats; the `string` template (slot =
-each name slot); the name's form.
-players' 5 lights carol's long-length word likewise. total and rounds
-are one region each: one step.
+The last step, "found", shows the selection as it rests (its colours,
+rows and labels), with a plain caption ("That's `players`: 3 records,
+found."): with step 0, it bookends the walkthrough. It counts in
+`n / N` and has its own identity for re-targeting. One constant in
+`main.js`, `FOUND`, turns it off.
 
-In 3 and 4 the focus entry is at full strength and the others echo
-it, muted; the picker (alice, bob, carol) changes the focus and the
-formula's numbers, and moves nothing. A single value takes the rules
-on its path with its entry in focus (bob's plays: 1–4, only his plays
-at full strength in 4; carol's name: 1, 2, 3, 5). A row a step has
-derived keeps its label (a muted popover) at later steps; the current
-step's popovers are dark.
+Carol's record: the key from `roster[2]`; players declared at slot 3;
+the mapping template takes slot = 3 and her key; her record at
+keccak(key, 3) = …9978; the `Player` template; the six packed fields;
+the next slot holds `name`, a string (…9979); the `string` template;
+the length flag, 0x45; odd → long, length 34; the text at
+keccak(…9979). `players` as a whole: the same, for all three, with the
+fork (alice and bob short, carol long): 12 steps. `roster`: 4 steps;
+`motd`: 5; `total`: 1; bob's `plays`: 6. In the packed-fields step the
+focus entry is at full strength and the others echo it, muted; the
+picker (alice, bob, carol) changes the focus and moves nothing. A row a
+step has derived keeps its label (a muted popover) at later steps.
 
 ## Annotations in the dumps
 

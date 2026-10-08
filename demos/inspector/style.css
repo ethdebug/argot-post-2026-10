@@ -1,5 +1,9 @@
 /* Storage inspector. Tokens and shared components (header, code,
    picker, tags, notes) are in ../appendix.css. */
+/* (the page keeps one line a scene: its intro; this one is for the
+   checks and the loader) */
+#summary { display: none; }
+.about { margin: 32px 0 0; }
 .summary {
   font-family: ui-monospace, Menlo, monospace;
   font-size: 0.85rem;
@@ -430,32 +434,50 @@ li.same > .row .name, li.same > .row .type { opacity: 0.55; }
   border-radius: 50%;
   flex: none;
 }
-/* How a lit slot was found, over its address */
+/* How a lit slot was found, over its address: the "how", then the
+   "what" by name: a value lit now as a light badge in its colour's
+   text tone, the rest plain */
 .pop {
   position: absolute;
   left: 0;
-  bottom: calc(100% + 6px);
+  /* (its arrow's tip on the edge of its address's tint, which is 2px in
+     from the row: the card stands off by the arrow's reach, less that
+     and its 1px line) */
+  bottom: calc(100% - 3px + var(--aw) * 0.7071);
   z-index: 3;
-  padding: 1px 7px;
-  border-radius: 4px;
-  background: var(--fg);
+  /* (in ems of the dump's fitted font: the label scales with it) */
+  padding: 0 0.55em;
+  border-radius: 0.37em;
+  --pop-bg: var(--fg);
+  /* (its line: the fill's colour, unseen; a muted one's shows) */
+  --pop-line: var(--pop-bg);
+  --aw: 0.735em;
+  background: var(--pop-bg);
+  border: 1px solid var(--pop-line);
   color: var(--bg);
-  font-size: 0.68rem;
+  font-size: 0.85em;
   line-height: 1.5;
   pointer-events: none;
   box-shadow: 0 1px 3px rgb(0 0 0 / 0.2);
   width: max-content;
 }
-/* (one line; cut at its end where the box is narrower, as on a phone) */
-.pop .pop-how { display: block; white-space: nowrap; overflow: hidden;
-  text-overflow: ellipsis; }
-/* what a slot holds, by name; a name in its bytes' colour */
-.pop .pname { font: inherit; background: none; border: 0; padding: 0 2px;
-  color: inherit; border-radius: 3px; }
-.pop .pname:is(.pk1, .pk2, .pk3, .pk4, .pk5, .pk6, .pk7, .pk8, .pk9) {
-  background: var(--pk); color: var(--pk-fg); }
+/* (one line; its names cut to fit by panel.js fitWhat, never by CSS) */
+.pop, .pop .pop-how, .pop .pname { white-space: nowrap; }
+.pop { box-sizing: border-box; }
+.pop .pname { display: inline-block; }
+.pop .pop-how { display: block; }
+.pop .pname { font: inherit; background: none; border: 0; padding: 0 1px;
+  color: color-mix(in srgb, var(--bg) 70%, transparent); }
+.pop .pname.pbadge { padding: 0 0.37em; border-radius: 0.28em; font-weight: 700;
+  color: var(--pk-fg); background: color-mix(in srgb, var(--pk) 35%, #fff); }
+.pop .pname.pbadge.pk0 { --pk: var(--mark); --pk-fg: var(--chg-fg); }
+@media (prefers-color-scheme: dark) {
+  /* (the badge light, its text the colour's strong tone) */
+  .pop .pname.pbadge { color: var(--pk);
+    background: color-mix(in srgb, var(--pk-fg) 40%, #fff); }
+}
 .pop .pname.muted { filter: saturate(0.25); opacity: 0.7; }
-.pop .pmore { opacity: 0.75; }
+.pop .pcut { opacity: 0.7; }
 .pop .full {
   display: block;
   font-size: 0.9em;
@@ -464,15 +486,25 @@ li.same > .row .name, li.same > .row .type { opacity: 0.55; }
   overflow-wrap: anywhere;
   word-break: break-all;
 }
-/* its arrow, pointing down at the address */
+/* its arrow, pointing at the address: a square turned 45°, in the
+   card's fill and line (the line on its two outer sides only), cut to
+   its outer half: the line runs on from the card into the arrow, with
+   no seam (its centre on the line's inner edge, so the fill covers the
+   whole line at its base) */
 .pop::after {
   content: "";
   position: absolute;
-  top: 100%;
   left: var(--ax, 50%);
-  transform: translateX(-50%);
-  border: 5px solid transparent;
-  border-top-color: var(--fg);
+  top: calc(100% - var(--aw) / 2);
+  width: var(--aw);
+  height: var(--aw);
+  box-sizing: border-box;
+  background: var(--pop-bg);
+  border: 1px solid var(--pop-line);
+  border-top-color: transparent;
+  border-left-color: transparent;
+  transform: translateX(-50%) rotate(45deg);
+  clip-path: polygon(100% -1px, 100% 100%, -1px 100%);
 }
 .wrow:hover .addr, .wrow.on .addr { color: var(--fg); }
 .gap {
@@ -654,13 +686,15 @@ li.same > .row .name, li.same > .row .type { opacity: 0.55; }
 .addr.grp-end::before { bottom: 2px; border-bottom-left-radius: 6px;
   border-bottom-right-radius: 6px; }
 .cmp-photo .addr.grp::before { display: none; }
-.pop.under { bottom: auto; top: calc(100% + 6px); }
+.pop.under { bottom: auto; top: calc(100% - 3px + var(--aw) * 0.7071); }
 .pop.under::after {
-  top: auto;
-  bottom: 100%;
-  border-top-color: transparent;
-  border-bottom-color: var(--fg);
+  top: calc(0px - var(--aw) / 2);
+  border-color: var(--pop-line);
+  border-bottom-color: transparent;
+  border-right-color: transparent;
+  clip-path: polygon(0 0, calc(100% + 1px) 0, 0 calc(100% + 1px));
 }
+
 
 /* An annotation with no room beside its rows (it would cover lit
    bytes or the other annotation) waits, labeled, in a tray under the
@@ -760,7 +794,6 @@ li.same > .row .name, li.same > .row .type { opacity: 0.55; }
 .mknown { margin: 16px 0 0; padding-left: 20px; max-width: 80ch; }
 .mknown li { margin: 4px 0; }
 /* the record's storage slot after memory, and a local with no location */
-.gap.mstore span { font-size: 0.75rem; letter-spacing: 0.04em; }
 #mtree .noloc { color: var(--muted); }
 .mpickrow .label { min-width: 5.5em; }
 #mmoderow[hidden] { display: none; }
@@ -918,7 +951,7 @@ main[data-single] > .cols :is(.chglegend, .legend .bchg, .intro .two) {
 .rbar { display: grid; align-items: center; gap: 10px; height: 2.6em;
   line-height: 1.2;
   box-sizing: border-box; padding: 0 10px; margin: 0;
-  grid-template-columns: 4.6em minmax(0, 34ch) 15em 3.6em minmax(0, 1fr)
+  grid-template-columns: 7.4em minmax(0, 32ch) 15em 3.6em minmax(0, 1fr)
     6em;
   background: var(--panel); border: 1px solid var(--line);
   border-left: 3px solid var(--accent); border-radius: 6px;
@@ -945,6 +978,13 @@ main[data-single] > .cols :is(.chglegend, .legend .bchg, .intro .two) {
 .rmode { font-size: 0.72rem; font-weight: 700; text-transform: uppercase;
   letter-spacing: 0.06em; color: var(--accent); }
 .rbar .rcount { margin: 0; text-align: right; }
+/* a re-targeted walkthrough's cue: over the bar, taking no room */
+.rbar .rcue { position: absolute; right: 7em; top: 50%;
+  transform: translateY(-50%); padding: 1px 8px; border-radius: 999px;
+  background: var(--accent); color: #fff; font-size: 0.75rem;
+  font-weight: 600; pointer-events: none; transition: opacity 0.4s;
+  overflow: visible; }
+.rbar .rcue.gone { opacity: 0; }
 .rbar .rexit { display: flex; justify-content: flex-end; overflow: visible; }
 .rbar .rstart { width: 100%; padding: 1px 6px; overflow: hidden;
   text-overflow: ellipsis; }
@@ -969,6 +1009,9 @@ main[data-single] > .cols :is(.chglegend, .legend .bchg, .intro .two) {
   border: 1px solid var(--line); border-top: 0;
   border-left: 3px solid var(--accent); border-radius: 0 0 6px 6px; }
 .dpanel[hidden] { display: none; }
+/* (the pointer on the left, the explanation on the right; stacked on a
+   phone, the pointer first) */
+.dpanel .ptr { order: -1; }
 .dleft { display: grid; grid-template-rows: minmax(0, 1fr) 1.9em 3.4em;
   min-height: 0; gap: 6px; }
 /* the focus entry: one fixed row; empty but there when there is none */
@@ -976,7 +1019,7 @@ main[data-single] > .cols :is(.chglegend, .legend .bchg, .intro .two) {
   overflow: hidden; white-space: nowrap; }
 .dpick .plab { font-size: 0.72rem; font-weight: 700; text-transform:
   uppercase; letter-spacing: 0.06em; color: var(--muted); margin-right: 4px; }
-.dpick .btn { padding: 1px 10px; font-size: 0.85rem; }
+.dpick .btn { padding: 1px 10px; font-size: 0.85rem; white-space: nowrap; }
 /* (pressed: as the scene picker's choice, without bold: nothing moves) */
 .dpick .btn[aria-pressed="true"] { border-color: var(--accent);
   box-shadow: inset 0 0 0 1px var(--accent); }
@@ -996,8 +1039,72 @@ main[data-single] > .cols :is(.chglegend, .legend .bchg, .intro .two) {
 .ptr .pnote { font-weight: 400; text-transform: none; letter-spacing: 0; }
 /* the excerpt scrolls inside itself, inset under the header (a clear
    gap; no fade at its edges) */
-.ptrscroll { min-height: 0; overflow: auto; position: relative;
+/* (the line under the header on the box, not the scroller: the
+   scroller's edges fade) */
+.ptrbox { position: relative; min-height: 0; display: grid;
   margin: 6px 0 0; border-top: 1px solid var(--line); }
+.ptrscroll { min-height: 0; overflow: auto; position: relative;
+  scrollbar-width: none; }
+.ptrscroll::-webkit-scrollbar { display: none; }
+.ptrscroll:focus-visible { outline: 2px solid var(--accent);
+  outline-offset: 2px; }
+/* (at step 0, the goal, the pointer is not read yet: blurred) */
+/* where the pointer goes on past its box's edge: the content fades out
+   toward that edge (a mask on the box: whatever is behind shows through),
+   and a small label there, one click target, scrolls it (no colour:
+   yellow is the selection's) */
+.ptrscroll { --mu: 0px; --md: 0px;
+  -webkit-mask-image: linear-gradient(to bottom, transparent 0,
+    #000 var(--mu), #000 calc(100% - var(--md)), transparent 100%);
+  mask-image: linear-gradient(to bottom, transparent 0, #000 var(--mu),
+    #000 calc(100% - var(--md)), transparent 100%); }
+.ptrscroll.more-up { --mu: 22px; }
+.ptrscroll.more-down { --md: 22px; }
+.pedge { position: absolute; left: 0; right: 0; height: 16px; z-index: 2;
+  display: grid; place-items: center; pointer-events: none; opacity: 0;
+  transition: opacity 0.15s; }
+.pedge.up { top: 0; }
+.pedge.down { bottom: 0; }
+.pedge.on { opacity: 1; }
+.pedge button { pointer-events: auto; height: 16px; padding: 0 8px;
+  border: 0; border-radius: 3px; background: none; cursor: pointer;
+  font: inherit; font-size: 0.6rem; line-height: 16px; font-weight: 400;
+  letter-spacing: 0.03em; color: var(--muted);
+  display: inline-flex; align-items: center; gap: 4px; white-space: nowrap; }
+.pedge:not(.on) button { pointer-events: none; }
+.pedge button svg { width: 12px; height: 12px; }
+.pedge button:is(:hover, :focus-visible) {
+  color: color-mix(in srgb, var(--fg) 65%, transparent); }
+.pedge button:focus-visible { outline: 2px solid var(--accent);
+  outline-offset: 1px; }
+@media (prefers-reduced-motion: reduce) { .pedge { transition: none; } }
+.ptrscroll.goal .ptrlines { filter: blur(2.5px); opacity: 0.5; }
+/* (and still: a preview, not yet read; no band, no scrolling) */
+.ptrscroll.goal { overflow: hidden; }
+/* (the sentence a block, the glyph beside it, centred on it) */
+.pgo { position: absolute; left: 50%; top: 55%; z-index: 3; margin: 0;
+  transform: translate(-50%, -50%); width: max-content;
+  max-width: calc(100% - 48px); display: flex; align-items: center;
+  gap: 8px; color: var(--fg); font-size: 0.95rem; font-weight: 600;
+  line-height: 1.4; pointer-events: none; }
+.pgo .ptext { display: inline-block; text-align: left; max-width: 22em;
+  text-wrap: balance; }
+.pgo .pglyph { font-size: 1.4em; line-height: 1; font-weight: 400; }
+/* (on a phone, the pointer's box is a few lines: the sentence smaller,
+   inside it) */
+@media (max-width: 759px) {
+  .pgo { font-size: 0.72rem; line-height: 1.25; top: 50%; }
+  .pgo .ptext { max-width: none; }
+}
+.pgo[hidden] { display: none; }
+/* (▶'s halo at step 0, in the selection's yellow) */
+.pgo .pglyph { font-family: system-ui, -apple-system, "Segoe UI",
+  "Segoe UI Symbol", sans-serif; }
+.rbar .btn.halo { box-shadow: 0 0 0 3px color-mix(in srgb, var(--mark)
+  90%, transparent); animation: halo 1.4s ease-in-out 3; }
+@keyframes halo { 50% { box-shadow: 0 0 0 6px color-mix(in srgb,
+  var(--mark) 45%, transparent); } }
+@media (prefers-reduced-motion: reduce) { .rbar .btn.halo { animation: none; } }
 #ptr code { background: none; padding: 0; border: 0; font-size: inherit; }
 .ptrlines { margin: 0; padding: 0.9em 0; font-size: 0.72rem;
   display: block;
@@ -1025,7 +1132,7 @@ main[data-single] > .cols :is(.chglegend, .legend .bchg, .intro .two) {
    few lines of the pointer; the rest scrolls inside it) */
 @media (max-width: 759px) {
   .dpanel { grid-template-columns: minmax(0, 1fr);
-    grid-template-rows: auto 5.4em; height: 17.9em; gap: 4px;
+    grid-template-rows: 5.4em auto; height: 19.1em; gap: 4px;
     padding: 6px 10px; }
   .dleft { grid-template-rows: auto 1.9em; }
   .dpanel .chips, .dpanel .rsrc, .dpanel .fnotes, .ptr .plabel {
@@ -1037,6 +1144,47 @@ main[data-single] > .cols :is(.chglegend, .legend .bchg, .intro .two) {
 .rform { margin: 0; font-family: ui-monospace, Menlo, monospace;
   font-size: 0.85rem; line-height: 1.4; height: 4.2em; overflow: hidden;
   overflow-wrap: anywhere; }
+/* (step 0's question: its own paragraph, in the formula's room) */
+.rform .prose.rq { display: block; margin-top: 0.35em; font-size: 1rem;
+  color: var(--fg); }
+/* a step's bytes in one slot: 32 equal cells, each value a span over
+   its own; its byte positions under it */
+.bstrip { display: block; font-family: var(--mono); }
+.bs32, .bs16 { display: grid; gap: 2px; }
+.bs16 { display: none; }
+/* (32 equal cells, no gaps between groups: those are the dump's) */
+.bsrow { display: grid; grid-template-columns: repeat(32, 1fr); }
+.bs16 .bsrow { grid-template-columns: repeat(16, 1fr); }
+@media (max-width: 759px) {
+  .bs32 { display: none; }
+  .bs16 { display: grid; gap: 1px; }
+  /* (a row kept for names over their spans only where there is one) */
+  .bs16 .bscall:empty { display: none; }
+  .bs16 .bsv { height: 1.3em; line-height: 1.3em; }
+  .bs16 .bsbar { min-height: 1.3em; }
+}
+/* (a name standing over its span: a row kept for it, a tick down) */
+.bscall { height: 1.25em; }
+.bsbar { min-height: 1.5em; }
+.bsc { position: relative; min-width: 0; }
+.bsc::after { content: ""; position: absolute; left: 50%; bottom: -2px;
+  height: 4px; border-left: 1px solid var(--muted); }
+.bsl { position: absolute; bottom: 3px; left: 50%; transform:
+  translateX(-50%); white-space: nowrap; padding: 0 4px; border-radius: 3px;
+  font-size: 0.72em; line-height: 1.4; font-weight: 600;
+  background: var(--pk); color: var(--pk-fg); }
+.bsl.pk0 { --pk: var(--mark); --pk-fg: var(--chg-fg); }
+.bsc.lft .bsl { left: 0; transform: none; }
+.bsc.rgt .bsl { left: auto; right: 0; transform: none; }
+.bsv { height: 1.5em; line-height: 1.5em; border-radius: 3px; min-width: 0;
+  overflow: hidden; text-align: center; background: var(--pk);
+  color: var(--pk-fg); box-shadow: inset 0 0 0 1px color-mix(in srgb,
+  var(--fg) 12%, transparent); }
+.bsv.pk0 { --pk: var(--mark); --pk-fg: var(--chg-fg); }
+.bsn { display: block; padding: 0 2px; font-size: 0.82em; font-weight: 600;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.bsidx span { font-size: 0.6rem; line-height: 1; color: var(--muted);
+  text-align: center; }
 .rform .prose { font-family: system-ui, -apple-system, "Segoe UI",
   sans-serif; color: var(--muted); }
 .rwhere { font-family: inherit; height: auto; }
@@ -1044,7 +1192,7 @@ main[data-single] > .cols :is(.chglegend, .legend .bchg, .intro .two) {
   white-space: nowrap; }
 @media (max-width: 759px) {
   .rcap { height: 4.05em; font-size: 0.95rem; }
-  .rform { height: 5.6em; font-size: 0.8rem; }
+  .rform { height: 6.8em; font-size: 0.8rem; }
 }
 .rcount { margin-left: 6px; color: var(--muted); font-size: 0.85rem;
   font-variant-numeric: tabular-nums; }
@@ -1086,11 +1234,15 @@ sup.fn { font-size: 0.7em; color: var(--accent); margin-left: 1px; }
   background: var(--panel); border-radius: 3px; }
 .bruler .b { font-size: 0.6rem; color: var(--muted); text-align: center; }
 /* a label for a run found at an earlier step of a replay: muted */
-.pop.kept { background: var(--panel); color: var(--muted);
-  box-shadow: none; outline: 1px solid var(--line); }
-.pop.kept::after { border-top-color: var(--line); }
-.pop.kept.under::after { border-bottom-color: var(--line);
-  border-top-color: transparent; }
+/* (bolder and a step darker than muted text: it reads as clearly as a
+   black one, while its white fill and thin line keep it secondary; the
+   line a clear mid-grey, around its arrow too, which is a little wider) */
+.pop.kept { --pop-bg: var(--panel);
+  --pop-line: color-mix(in srgb, var(--fg) 45%, var(--panel));
+  --aw: 0.92em;
+  color: color-mix(in srgb, var(--fg) 75%, var(--muted)); font-weight: 600;
+  box-shadow: none; }
+.pop.kept .pname:not(.pbadge) { color: inherit; }
 #details:focus-visible { outline: 2px solid var(--accent);
   outline-offset: 2px; }
 /* the ninth child colour, and the tint of a step's input's source */
@@ -1137,20 +1289,22 @@ html { overflow-anchor: none; }
   Menlo, monospace; font-weight: 600; }
 .rcap code.id, .rshort code.id { background: none; padding: 0; border: 0;
   font-size: 0.95em; }
-/* the tree's box, and the strips on its edges (overlays: they push no
-   rows): the colours of the lit rows past that edge, a chevron, no
-   text; they fade in and out */
+/* the tree's box, and the circle buttons on its edges (overlays: they
+   push no rows): the selection yellow, an arrow, no text; they fade in
+   and out */
 .treebox { position: relative; }
-.tedge { position: absolute; left: -10px; right: -8px; height: 18px;
-  z-index: 3; display: grid; place-items: center; padding: 0; border: 0;
-  color: var(--fg); cursor: pointer; opacity: 0; pointer-events: none;
-  transition: opacity 0.15s; font-size: 14px; }
+.tedge { position: absolute; left: 50%; width: 30px; height: 30px;
+  margin-left: -15px; z-index: 3; display: grid; place-items: center;
+  padding: 0; border: 1px solid color-mix(in srgb, var(--fg) 25%,
+  transparent); border-radius: 50%; background: var(--mark);
+  color: var(--chg-fg); cursor: pointer; opacity: 0; pointer-events: none;
+  box-shadow: 0 2px 6px rgb(0 0 0 / 0.2); transition: opacity 0.15s; }
 .tedge.on { opacity: 1; pointer-events: auto; }
-.tedge svg { width: 14px; height: 14px; }
-.tedge.up { top: 0; border-radius: 6px 6px 0 0; }
-.tedge.down { bottom: 0; border-radius: 0 0 6px 6px; }
-.tedge:hover { filter: brightness(0.92) saturate(1.2); }
-.tedge:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+.tedge svg { width: 16px; height: 16px; }
+.tedge.up { top: 6px; }
+.tedge.down { bottom: 6px; }
+.tedge:hover { filter: brightness(0.92) saturate(1.3); }
+.tedge:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 @media (prefers-reduced-motion: reduce) { .tedge { transition: none; } }
 /* a group's chevron: plain at rest, at the right end of its row, its
    box's right edge on the values' right edge (inside their 8px padding
@@ -1199,3 +1353,6 @@ html { overflow-anchor: none; }
   dotted; text-underline-offset: 2px; color: var(--accent) !important;
   cursor: pointer; }
 #ptr .alias span { color: inherit !important; }
+
+/* (a location panel with one view: its header names it; no view name) */
+.view-name:empty { display: none; }
