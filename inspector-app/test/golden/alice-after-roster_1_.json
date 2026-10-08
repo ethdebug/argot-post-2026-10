@@ -1,0 +1,222 @@
+{
+  "target": "roster[1]",
+  "steps": [
+    {
+      "cap": "`roster` is declared at slot 0",
+      "form": {
+        "kind": "text",
+        "toks": [
+          "slot 0"
+        ]
+      },
+      "constructs": [
+        "pointer"
+      ],
+      "source": "from solc's pointer",
+      "chip": "slot 0",
+      "chipLabel": "array",
+      "parts": [
+        {
+          "regions": [],
+          "rows": [
+            "roster"
+          ]
+        }
+      ],
+      "rows": [
+        "roster"
+      ],
+      "gutters": [
+        "0x0000000000000000000000000000000000000000000000000000000000000000"
+      ],
+      "band": [
+        "~var"
+      ],
+      "phase": "declared",
+      "id": "declared|roster"
+    },
+    {
+      "cap": "The template `address[]` takes slot = 0",
+      "form": {
+        "kind": "text",
+        "toks": [
+          "slot = 0"
+        ]
+      },
+      "constructs": [
+        "template"
+      ],
+      "source": "from solc's pointer",
+      "chip": "address[]",
+      "chipLabel": "template",
+      "parts": [
+        {
+          "regions": [],
+          "rows": [
+            "roster[1]"
+          ],
+          "colours": [
+            [
+              "roster",
+              0
+            ],
+            [
+              "roster[0]",
+              1
+            ],
+            [
+              "roster[1]",
+              2
+            ],
+            [
+              "roster[2]",
+              3
+            ]
+          ]
+        }
+      ],
+      "rows": [
+        "roster[1]"
+      ],
+      "gutters": [
+        "0x0000000000000000000000000000000000000000000000000000000000000000"
+      ],
+      "band": [
+        "=t_array$_t_address_$dyn_storage|",
+        "=t_array$_t_address_$dyn_storage|expect",
+        "=t_array$_t_address_$dyn_storage|for"
+      ],
+      "phase": "template",
+      "tkind": "array",
+      "id": "template|t_array$_t_address_$dyn_storage|"
+    },
+    {
+      "cap": "slot 0 holds the length: 3",
+      "form": {
+        "kind": "text",
+        "toks": [
+          "length = 3"
+        ]
+      },
+      "constructs": [
+        "region"
+      ],
+      "source": "read from storage",
+      "chip": "length",
+      "chipLabel": "array",
+      "parts": [
+        {
+          "regions": [
+            {
+              "location": "storage",
+              "name": "length",
+              "slot": "0n",
+              "offset": 0,
+              "length": 32,
+              "role": "length",
+              "instance": "t_array$_t_address_$dyn_storage#/for/group/0@3"
+            }
+          ],
+          "rows": [
+            "roster"
+          ],
+          "colours": [
+            [
+              "roster",
+              0
+            ],
+            [
+              "roster[0]",
+              1
+            ],
+            [
+              "roster[1]",
+              2
+            ],
+            [
+              "roster[2]",
+              3
+            ]
+          ]
+        }
+      ],
+      "rows": [
+        "roster"
+      ],
+      "gutters": [],
+      "band": [
+        "t_array$_t_address_$dyn_storage|for.group.0"
+      ],
+      "phase": "read",
+      "rname": "length",
+      "id": "region|t_array$_t_address_$dyn_storage|for.group.0"
+    },
+    {
+      "cap": "The items start at keccak(0)",
+      "form": {
+        "kind": "text",
+        "toks": [
+          "keccak256(0) = …e563; item 1 at + 1"
+        ]
+      },
+      "constructs": [
+        "$keccak256",
+        "list"
+      ],
+      "source": "from solc's pointer",
+      "chip": "keccak(0)",
+      "chipLabel": "items",
+      "parts": [
+        {
+          "regions": [
+            {
+              "location": "storage",
+              "name": "item",
+              "slot": "18569430475105882587588266137607568536673111973893317399460219858819262702948n",
+              "offset": 12,
+              "length": 20,
+              "role": "value",
+              "instance": "t_array$_t_address_$dyn_storage#/for/group/1/in/list/is@7"
+            }
+          ],
+          "rows": [
+            "roster[1]"
+          ],
+          "colours": [
+            [
+              "roster",
+              0
+            ],
+            [
+              "roster[0]",
+              1
+            ],
+            [
+              "roster[1]",
+              2
+            ],
+            [
+              "roster[2]",
+              3
+            ]
+          ]
+        }
+      ],
+      "rows": [
+        "roster[1]"
+      ],
+      "gutters": [],
+      "band": [
+        "t_array$_t_address_$dyn_storage|for.group.1.in.list.is",
+        "=t_array$_t_address_$dyn_storage|for.group.1.define",
+        "t_array$_t_address_$dyn_storage|for.group.1.define.data",
+        "t_array$_t_address_$dyn_storage|for.group.1.in.list"
+      ],
+      "phase": "item",
+      "id": "region|t_array$_t_address_$dyn_storage|for.group.1.in.list.is"
+    }
+  ],
+  "recs": null,
+  "focus": "roster[1]",
+  "variable": "roster"
+}
