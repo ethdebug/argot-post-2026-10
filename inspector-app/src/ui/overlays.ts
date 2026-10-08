@@ -450,8 +450,6 @@ function annotate(root: El, v: El, compare: boolean, names: OverlayNames,
     taken.push(...rs);
     return true;
   };
-  const words = all(v, ".rows > .wrow > .word").map((e) =>
-    ({ row: e.closest<El>(".wrow")!, r: e.getBoundingClientRect() }));
   const labels = all(v, ".rows > .wrow > .addr").filter((e) => {
     const st = rowState(e.closest<El>(".wrow")!);
     return st.on || st.only || st.known;
@@ -487,9 +485,12 @@ function annotate(root: El, v: El, compare: boolean, names: OverlayNames,
           parseFloat(pop.style.maxWidth)) fitWhat(pop);
         place(pop, a);
         const r = pop.getBoundingClientRect();
-        const kept = pop.classList.contains("kept") && words.some((t) =>
-          !run.includes(t.row) && overlaps(t.r, r));
-        if (!kept && !labels.some((t) => !run.includes(t.row) &&
+        // (one rule for every label, muted or not; and never outside the
+        // rows' box: nothing is above the first row, nor below the last:
+        // vanilla 282d480)
+        const rows = v.querySelector(".rows")!.getBoundingClientRect();
+        const out = r.top < rows.top - 0.5 || r.bottom > rows.bottom + 0.5;
+        if (!out && !labels.some((t) => !run.includes(t.row) &&
           overlaps(t.r, r)) && fits(pop)) {
           placed = true;
           break;

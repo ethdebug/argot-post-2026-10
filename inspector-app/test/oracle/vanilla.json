@@ -1,5 +1,5 @@
 {
- "sha": "78bce6995ea8d9679c7f1a5b91c7ea7119bee1dd",
+ "sha": "5c1edfaef1d97358466059a394f7632933750f19",
  "walks": {
   "mid after players": [
    {
@@ -40,7 +40,7 @@
    {
     "count": "1 / 12",
     "cap": "The keys: the addresses in roster",
-    "form": "0x7099…79c8 alice→[0]0x3c44…93bc bob→[1]0x90f7…b906 carol→[2]",
+    "form": "0x7099…79c8 \"alice\"→[0]0x3c44…93bc \"bob\"→[1]0x90f7…b906 \"carol, the unstoppable combo queen\"→[2]",
     "short": "the keys",
     "src": "the page reads roster from storage",
     "foot": "",
@@ -89,7 +89,7 @@
    {
     "count": "3 / 12",
     "cap": "The template mapping(address => Player) takes slot = 3, key = each address in roster",
-    "form": "alice→slot 3, key 0x7099…79c8bob→slot 3, key 0x3c44…93bccarol→slot 3, key 0x90f7…b906",
+    "form": "\"alice\"→slot 3, key 0x7099…79c8\"bob\"→slot 3, key 0x3c44…93bc\"carol, the unstoppable combo queen\"→slot 3, key 0x90f7…b906",
     "short": "a template's inputs",
     "src": "template2 ethdebug data from the compiler",
     "foot": "https://ethdebug.github.io/format/spec/pointer/template/",
@@ -113,7 +113,7 @@
    {
     "count": "4 / 12",
     "cap": "Each record is at keccak(key, 3)",
-    "form": "alice→keccak(0x7099…79c8, 3) = …aa80bob→keccak(0x3c44…93bc, 3) = …7527carol→keccak(0x90f7…b906, 3) = …9978",
+    "form": "\"alice\"→keccak(0x7099…79c8, 3) = …aa80\"bob\"→keccak(0x3c44…93bc, 3) = …7527\"carol, the unstoppable combo queen\"→keccak(0x90f7…b906, 3) = …9978",
     "short": "the record's slot",
     "src": "define ~keccak2563 ethdebug data from the compiler",
     "foot": "https://ethdebug.github.io/format/spec/pointer/expression/#keccak256-hashes",
@@ -153,7 +153,7 @@
    {
     "count": "5 / 12",
     "cap": "The template Player takes slot = each record's slot",
-    "form": "alice→slot …aa80bob→slot …7527carol→slot …9978",
+    "form": "\"alice\"→slot …aa80\"bob\"→slot …7527\"carol, the unstoppable combo queen\"→slot …9978",
     "short": "a template's inputs",
     "src": "template2 ethdebug data from the compiler",
     "foot": "https://ethdebug.github.io/format/spec/pointer/template/",
@@ -182,7 +182,7 @@
    {
     "count": "6 / 12",
     "cap": "The first slot packs six fields, from the right",
-    "form": "lastBlock 0–7 · hitCount 8–11 · plays 12–15 · bestCombo 16–19 · combo 20–23 · score 24–31",
+    "form": "lastBlockhitCountplaysbestCombocomboscore012345678910111213141516171819202122232425262728293031",
     "short": "packed fields",
     "src": "region4 ethdebug data from the compiler",
     "foot": "https://ethdebug.github.io/format/spec/pointer/region/location/storage/",
@@ -229,16 +229,16 @@
     "pops": [
      "k:keccak(slot 0) : roster, 3 slots",
      "k:slot 3",
-     "keccak(0x3c44…93bc, slot 3) : lastBlock · hitCount · plays · … · combo · score",
-     "keccak(0x7099…79c8, slot 3) : lastBlock · hitCount · plays · … · combo · score",
-     "keccak(0x90f7…b906, slot 3) : lastBlock · hitCount · plays · … · combo · score"
+     "keccak(0x3c44…93bc, slot 3) : lastBlock · hitCount · plays · bestCombo · combo · score",
+     "keccak(0x7099…79c8, slot 3) : lastBlock · hitCount · plays · bestCombo · combo · score",
+     "keccak(0x90f7…b906, slot 3) : lastBlock · hitCount · plays · bestCombo · combo · score"
     ],
     "picker": ""
    },
    {
     "count": "7 / 12",
     "cap": "The next slot holds name, a string",
-    "form": "alice→…aa80 + 1 = …aa81bob→…7527 + 1 = …7528carol→…9978 + 1 = …9979",
+    "form": "\"alice\"→…aa80 + 1 = …aa81\"bob\"→…7527 + 1 = …7528\"carol, the unstoppable combo queen\"→…9978 + 1 = …9979",
     "short": "into a template",
     "src": "define ~sum ethdebug data from the compiler",
     "foot": "",
@@ -272,7 +272,7 @@
    {
     "count": "8 / 12",
     "cap": "The template string takes slot = each name slot",
-    "form": "alice→slot …aa81bob→slot …7528carol→slot …9979",
+    "form": "\"alice\"→slot …aa81\"bob\"→slot …7528\"carol, the unstoppable combo queen\"→slot …9979",
     "short": "a template's inputs",
     "src": "template2 ethdebug data from the compiler",
     "foot": "https://ethdebug.github.io/format/spec/pointer/template/",
@@ -301,7 +301,7 @@
    {
     "count": "9 / 12",
     "cap": "The last byte of each name slot is its length flag",
-    "form": "alice→0x0abob→0x06carol→0x45",
+    "form": "\"alice\"→0x0a\"bob\"→0x06\"carol, the unstoppable combo queen\"→0x45",
     "short": "a flag",
     "src": "region4 read from storage",
     "foot": "https://ethdebug.github.io/format/spec/pointer/region/location/storage/",
@@ -335,8 +335,8 @@
    },
    {
     "count": "10 / 12",
-    "cap": "The last byte decides the form: even → short (alice, bob), odd → long (carol)",
-    "form": "even: 0x0a → 5 bytes inline (alice)odd: 0x45 → 34 bytes at keccak(…9979) (carol)",
+    "cap": "The last byte decides the form: even → short (\"alice\", \"bob\"), odd → long (\"carol, the un…\")",
+    "form": "even: 0x0a → 5 bytes inline (\"alice\")odd: 0x45 → 34 bytes at keccak(…9979) (\"carol, the unstoppable combo queen\")",
     "short": "a branch",
     "src": "if5 read from storage",
     "foot": "https://ethdebug.github.io/format/spec/pointer/collection/conditional/",
@@ -377,7 +377,7 @@
    {
     "count": "11 / 12",
     "cap": "Each short text is in its slot, from the left",
-    "form": "alice→5 bytes at …aa81bob→3 bytes at …7528",
+    "form": "\"alice\"→5 bytes at …aa81\"bob\"→3 bytes at …7528",
     "short": "the text",
     "src": "region4 ethdebug data from the compiler",
     "foot": "https://ethdebug.github.io/format/spec/pointer/region/location/storage/",
@@ -515,7 +515,7 @@
    {
     "count": "3 / 4",
     "cap": "slot 0 holds the length: 3",
-    "form": "length = 3",
+    "form": "length = 3012345678910111213141516171819202122232425262728293031",
     "short": "the length",
     "src": "region3 read from storage",
     "foot": "https://ethdebug.github.io/format/spec/pointer/region/location/storage/",
@@ -650,7 +650,7 @@
    {
     "count": "3 / 5",
     "cap": "The last byte is the length flag, 0x65",
-    "form": "length-flag = 0x65",
+    "form": "length-flag = 0x65012345678910111213141516171819202122232425262728293031",
     "short": "a flag",
     "src": "region3 read from storage",
     "foot": "https://ethdebug.github.io/format/spec/pointer/region/location/storage/",
@@ -731,6 +731,7 @@
     },
     "gut": [],
     "pops": [
+     "k:slot 1 : motd.length",
      "keccak(slot 1) : motd, 2 slots"
     ],
     "picker": ""
@@ -740,7 +741,7 @@
    {
     "count": "1 / 1",
     "cap": "total is at slot 2, 16 bytes from offset 16",
-    "form": "slot 2, bytes 16–31",
+    "form": "total012345678910111213141516171819202122232425262728293031",
     "short": "total's own slot",
     "src": "pointer1 ethdebug data from the compiler",
     "foot": "https://ethdebug.github.io/format/spec/pointer/concepts/#a-pointer-is-a-region-or-a-collection-of-other-pointers",
@@ -769,7 +770,7 @@
    {
     "count": "1 / 1",
     "cap": "rounds is at slot 2, 8 bytes from offset 8",
-    "form": "slot 2, bytes 8–15",
+    "form": "rounds012345678910111213141516171819202122232425262728293031",
     "short": "rounds' own slot",
     "src": "pointer1 ethdebug data from the compiler",
     "foot": "https://ethdebug.github.io/format/spec/pointer/concepts/#a-pointer-is-a-region-or-a-collection-of-other-pointers",
@@ -820,8 +821,8 @@
    },
    {
     "count": "1 / 11",
-    "cap": "key = alice's address, from roster[0]",
-    "form": "0x7099…79c8 alice",
+    "cap": "key = the address of \"alice\", from roster[0]",
+    "form": "0x7099…79c8 \"alice\"",
     "short": "the key",
     "src": "the page reads roster from storage",
     "foot": "",
@@ -858,13 +859,14 @@
      "slot 3"
     ],
     "pops": [
+     "k:keccak(slot 0) : roster[0]",
      "slot 3"
     ],
     "picker": ""
    },
    {
     "count": "3 / 11",
-    "cap": "The template mapping(address => Player) takes slot = 3, key = alice's address",
+    "cap": "The template mapping(address => Player) takes slot = 3, key = the address of \"alice\"",
     "form": "slot = 3, key = 0x7099…79c8",
     "short": "a template's inputs",
     "src": "template2 ethdebug data from the compiler",
@@ -881,6 +883,7 @@
      "slot 3"
     ],
     "pops": [
+     "k:keccak(slot 0) : roster[0]",
      "slot 3"
     ],
     "picker": ""
@@ -915,6 +918,7 @@
      "keccak(0x7099…79c8, slot 3)"
     ],
     "pops": [
+     "k:keccak(slot 0) : roster[0]",
      "k:slot 3",
      "keccak(0x7099…79c8, slot 3) : lastBlock · hitCount · plays · bestCombo · combo · score"
     ],
@@ -939,6 +943,7 @@
      "keccak(0x7099…79c8, slot 3)"
     ],
     "pops": [
+     "k:keccak(slot 0) : roster[0]",
      "k:slot 3",
      "keccak(0x7099…79c8, slot 3) : lastBlock · hitCount · plays · bestCombo · combo · score"
     ],
@@ -947,7 +952,7 @@
    {
     "count": "6 / 11",
     "cap": "The first slot packs six fields, from the right",
-    "form": "lastBlock 0–7 · hitCount 8–11 · plays 12–15 · bestCombo 16–19 · combo 20–23 · score 24–31",
+    "form": "lastBlockhitCountplaysbestCombocomboscore012345678910111213141516171819202122232425262728293031",
     "short": "packed fields",
     "src": "region4 ethdebug data from the compiler",
     "foot": "https://ethdebug.github.io/format/spec/pointer/region/location/storage/",
@@ -988,8 +993,9 @@
     },
     "gut": [],
     "pops": [
+     "k:keccak(slot 0) : roster[0]",
      "k:slot 3",
-     "keccak(0x7099…79c8, slot 3) : lastBlock · hitCount · plays · … · combo · score"
+     "keccak(0x7099…79c8, slot 3) : lastBlock · hitCount · plays · bestCombo · combo · score"
     ],
     "picker": ""
    },
@@ -1017,6 +1023,7 @@
      "keccak(0x7099…79c8, slot 3) + 1"
     ],
     "pops": [
+     "k:keccak(slot 0) : roster[0]",
      "k:slot 3",
      "keccak(0x7099…79c8, slot 3) : players[0x7099…79c8], 2 slots"
     ],
@@ -1041,6 +1048,7 @@
      "keccak(0x7099…79c8, slot 3) + 1"
     ],
     "pops": [
+     "k:keccak(slot 0) : roster[0]",
      "k:slot 3",
      "keccak(0x7099…79c8, slot 3) : players[0x7099…79c8], 2 slots"
     ],
@@ -1049,7 +1057,7 @@
    {
     "count": "9 / 11",
     "cap": "The last byte is the length flag, 0x0a",
-    "form": "length-flag = 0x0a",
+    "form": "length-flag = 0x0a012345678910111213141516171819202122232425262728293031",
     "short": "a flag",
     "src": "region4 read from storage",
     "foot": "https://ethdebug.github.io/format/spec/pointer/region/location/storage/",
@@ -1069,6 +1077,7 @@
     },
     "gut": [],
     "pops": [
+     "k:keccak(slot 0) : roster[0]",
      "k:slot 3",
      "keccak(0x7099…79c8, slot 3) : name · name.length"
     ],
@@ -1096,6 +1105,7 @@
     },
     "gut": [],
     "pops": [
+     "k:keccak(slot 0) : roster[0]",
      "k:slot 3",
      "keccak(0x7099…79c8, slot 3) : name · name.length"
     ],
@@ -1120,6 +1130,7 @@
     },
     "gut": [],
     "pops": [
+     "k:keccak(slot 0) : roster[0]",
      "k:slot 3",
      "keccak(0x7099…79c8, slot 3) : name · name.length"
     ],
@@ -1152,8 +1163,8 @@
    },
    {
     "count": "1 / 11",
-    "cap": "key = bob's address, from roster[1]",
-    "form": "0x3c44…93bc bob",
+    "cap": "key = the address of \"bob\", from roster[1]",
+    "form": "0x3c44…93bc \"bob\"",
     "short": "the key",
     "src": "the page reads roster from storage",
     "foot": "",
@@ -1190,13 +1201,14 @@
      "slot 3"
     ],
     "pops": [
+     "k:keccak(slot 0) + 1 : roster[1]",
      "slot 3"
     ],
     "picker": ""
    },
    {
     "count": "3 / 11",
-    "cap": "The template mapping(address => Player) takes slot = 3, key = bob's address",
+    "cap": "The template mapping(address => Player) takes slot = 3, key = the address of \"bob\"",
     "form": "slot = 3, key = 0x3c44…93bc",
     "short": "a template's inputs",
     "src": "template2 ethdebug data from the compiler",
@@ -1213,6 +1225,7 @@
      "slot 3"
     ],
     "pops": [
+     "k:keccak(slot 0) + 1 : roster[1]",
      "slot 3"
     ],
     "picker": ""
@@ -1247,6 +1260,7 @@
      "keccak(0x3c44…93bc, slot 3)"
     ],
     "pops": [
+     "k:keccak(slot 0) + 1 : roster[1]",
      "k:slot 3",
      "keccak(0x3c44…93bc, slot 3) : lastBlock · hitCount · plays · bestCombo · combo · score"
     ],
@@ -1271,6 +1285,7 @@
      "keccak(0x3c44…93bc, slot 3)"
     ],
     "pops": [
+     "k:keccak(slot 0) + 1 : roster[1]",
      "k:slot 3",
      "keccak(0x3c44…93bc, slot 3) : lastBlock · hitCount · plays · bestCombo · combo · score"
     ],
@@ -1279,7 +1294,7 @@
    {
     "count": "6 / 11",
     "cap": "The first slot packs six fields, from the right",
-    "form": "lastBlock 0–7 · hitCount 8–11 · plays 12–15 · bestCombo 16–19 · combo 20–23 · score 24–31",
+    "form": "lastBlockhitCountplaysbestCombocomboscore012345678910111213141516171819202122232425262728293031",
     "short": "packed fields",
     "src": "region4 ethdebug data from the compiler",
     "foot": "https://ethdebug.github.io/format/spec/pointer/region/location/storage/",
@@ -1320,8 +1335,9 @@
     },
     "gut": [],
     "pops": [
+     "k:keccak(slot 0) + 1 : roster[1]",
      "k:slot 3",
-     "keccak(0x3c44…93bc, slot 3) : lastBlock · hitCount · plays · … · combo · score"
+     "keccak(0x3c44…93bc, slot 3) : lastBlock · hitCount · plays · bestCombo · combo · score"
     ],
     "picker": ""
    },
@@ -1349,6 +1365,7 @@
      "keccak(0x3c44…93bc, slot 3) + 1"
     ],
     "pops": [
+     "k:keccak(slot 0) + 1 : roster[1]",
      "k:slot 3",
      "keccak(0x3c44…93bc, slot 3) : players[0x3c44…93bc], 2 slots"
     ],
@@ -1373,6 +1390,7 @@
      "keccak(0x3c44…93bc, slot 3) + 1"
     ],
     "pops": [
+     "k:keccak(slot 0) + 1 : roster[1]",
      "k:slot 3",
      "keccak(0x3c44…93bc, slot 3) : players[0x3c44…93bc], 2 slots"
     ],
@@ -1381,7 +1399,7 @@
    {
     "count": "9 / 11",
     "cap": "The last byte is the length flag, 0x06",
-    "form": "length-flag = 0x06",
+    "form": "length-flag = 0x06012345678910111213141516171819202122232425262728293031",
     "short": "a flag",
     "src": "region4 read from storage",
     "foot": "https://ethdebug.github.io/format/spec/pointer/region/location/storage/",
@@ -1401,6 +1419,7 @@
     },
     "gut": [],
     "pops": [
+     "k:keccak(slot 0) + 1 : roster[1]",
      "k:slot 3",
      "keccak(0x3c44…93bc, slot 3) : name · name.length"
     ],
@@ -1428,6 +1447,7 @@
     },
     "gut": [],
     "pops": [
+     "k:keccak(slot 0) + 1 : roster[1]",
      "k:slot 3",
      "keccak(0x3c44…93bc, slot 3) : name · name.length"
     ],
@@ -1452,6 +1472,7 @@
     },
     "gut": [],
     "pops": [
+     "k:keccak(slot 0) + 1 : roster[1]",
      "k:slot 3",
      "keccak(0x3c44…93bc, slot 3) : name · name.length"
     ],
@@ -1488,8 +1509,8 @@
    },
    {
     "count": "1 / 11",
-    "cap": "key = carol's address, from roster[2]",
-    "form": "0x90f7…b906 carol",
+    "cap": "key = the address of \"carol, the unstoppable combo queen\", from roster[2]",
+    "form": "0x90f7…b906 \"carol, the unstoppable combo queen\"",
     "short": "the key",
     "src": "the page reads roster from storage",
     "foot": "",
@@ -1533,7 +1554,7 @@
    },
    {
     "count": "3 / 11",
-    "cap": "The template mapping(address => Player) takes slot = 3, key = carol's address",
+    "cap": "The template mapping(address => Player) takes slot = 3, key = the address of \"carol, the unstoppable combo queen\"",
     "form": "slot = 3, key = 0x90f7…b906",
     "short": "a template's inputs",
     "src": "template2 ethdebug data from the compiler",
@@ -1619,7 +1640,7 @@
    {
     "count": "6 / 11",
     "cap": "The first slot packs six fields, from the right",
-    "form": "lastBlock 0–7 · hitCount 8–11 · plays 12–15 · bestCombo 16–19 · combo 20–23 · score 24–31",
+    "form": "lastBlockhitCountplaysbestCombocomboscore012345678910111213141516171819202122232425262728293031",
     "short": "packed fields",
     "src": "region4 ethdebug data from the compiler",
     "foot": "https://ethdebug.github.io/format/spec/pointer/region/location/storage/",
@@ -1660,8 +1681,9 @@
     },
     "gut": [],
     "pops": [
+     "k:keccak(slot 0) + 2 : roster[2]",
      "k:slot 3",
-     "keccak(0x90f7…b906, slot 3) : lastBlock · hitCount · plays · … · combo · score"
+     "keccak(0x90f7…b906, slot 3) : lastBlock · hitCount · plays · bestCombo · combo · score"
     ],
     "picker": ""
    },
@@ -1723,7 +1745,7 @@
    {
     "count": "9 / 11",
     "cap": "The last byte is the length flag, 0x45",
-    "form": "length-flag = 0x45",
+    "form": "length-flag = 0x45012345678910111213141516171819202122232425262728293031",
     "short": "a flag",
     "src": "region4 read from storage",
     "foot": "https://ethdebug.github.io/format/spec/pointer/region/location/storage/",
@@ -1819,8 +1841,8 @@
   "mid after players[0x3c44cdddb6a900fa2b585dd299e03d12fa4293bc].plays": [
    {
     "count": "1 / 6",
-    "cap": "key = bob's address, from roster[1]",
-    "form": "0x3c44…93bc bob",
+    "cap": "key = the address of \"bob\", from roster[1]",
+    "form": "0x3c44…93bc \"bob\"",
     "short": "the key",
     "src": "the page reads roster from storage",
     "foot": "",
@@ -1857,13 +1879,14 @@
      "slot 3"
     ],
     "pops": [
+     "k:keccak(slot 0) + 1 : roster[1]",
      "slot 3"
     ],
     "picker": ""
    },
    {
     "count": "3 / 6",
-    "cap": "The template mapping(address => Player) takes slot = 3, key = bob's address",
+    "cap": "The template mapping(address => Player) takes slot = 3, key = the address of \"bob\"",
     "form": "slot = 3, key = 0x3c44…93bc",
     "short": "a template's inputs",
     "src": "template2 ethdebug data from the compiler",
@@ -1880,6 +1903,7 @@
      "slot 3"
     ],
     "pops": [
+     "k:keccak(slot 0) + 1 : roster[1]",
      "slot 3"
     ],
     "picker": ""
@@ -1914,6 +1938,7 @@
      "keccak(0x3c44…93bc, slot 3)"
     ],
     "pops": [
+     "k:keccak(slot 0) + 1 : roster[1]",
      "k:slot 3",
      "keccak(0x3c44…93bc, slot 3) : lastBlock · hitCount · plays · bestCombo · combo · score"
     ],
@@ -1938,6 +1963,7 @@
      "keccak(0x3c44…93bc, slot 3)"
     ],
     "pops": [
+     "k:keccak(slot 0) + 1 : roster[1]",
      "k:slot 3",
      "keccak(0x3c44…93bc, slot 3) : lastBlock · hitCount · plays · bestCombo · combo · score"
     ],
@@ -1946,7 +1972,7 @@
    {
     "count": "6 / 6",
     "cap": "plays is bytes 12–15 of the record's first slot",
-    "form": "plays 12–15",
+    "form": "plays012345678910111213141516171819202122232425262728293031",
     "short": "its field",
     "src": "region4 ethdebug data from the compiler",
     "foot": "https://ethdebug.github.io/format/spec/pointer/region/location/storage/",
@@ -1966,6 +1992,7 @@
     },
     "gut": [],
     "pops": [
+     "k:keccak(slot 0) + 1 : roster[1]",
      "k:slot 3",
      "keccak(0x3c44…93bc, slot 3) : lastBlock · hitCount · plays · bestCombo · combo · score"
     ],
@@ -2002,8 +2029,8 @@
    },
    {
     "count": "1 / 10",
-    "cap": "key = carol's address, from roster[2]",
-    "form": "0x90f7…b906 carol",
+    "cap": "key = the address of \"carol, the unstoppable combo queen\", from roster[2]",
+    "form": "0x90f7…b906 \"carol, the unstoppable combo queen\"",
     "short": "the key",
     "src": "the page reads roster from storage",
     "foot": "",
@@ -2047,7 +2074,7 @@
    },
    {
     "count": "3 / 10",
-    "cap": "The template mapping(address => Player) takes slot = 3, key = carol's address",
+    "cap": "The template mapping(address => Player) takes slot = 3, key = the address of \"carol, the unstoppable combo queen\"",
     "form": "slot = 3, key = 0x90f7…b906",
     "short": "a template's inputs",
     "src": "template2 ethdebug data from the compiler",
@@ -2188,7 +2215,7 @@
    {
     "count": "8 / 10",
     "cap": "The last byte is the length flag, 0x45",
-    "form": "length-flag = 0x45",
+    "form": "length-flag = 0x45012345678910111213141516171819202122232425262728293031",
     "short": "a flag",
     "src": "region4 read from storage",
     "foot": "https://ethdebug.github.io/format/spec/pointer/region/location/storage/",
@@ -2331,7 +2358,7 @@
    {
     "count": "3 / 4",
     "cap": "slot 0 holds the length: 3",
-    "form": "length = 3",
+    "form": "length = 3012345678910111213141516171819202122232425262728293031",
     "short": "the length",
     "src": "region3 read from storage",
     "foot": "https://ethdebug.github.io/format/spec/pointer/region/location/storage/",
@@ -2428,7 +2455,7 @@
    {
     "count": "1 / 12",
     "cap": "The keys: the addresses in roster",
-    "form": "0x7099…79c8 alice→[0]0x3c44…93bc bob→[1]0x90f7…b906 carol→[2]",
+    "form": "0x7099…79c8 \"alice\"→[0]0x3c44…93bc \"bob\"→[1]0x90f7…b906 \"carol, the unstoppable combo queen\"→[2]",
     "short": "the keys",
     "src": "the page reads roster from storage",
     "foot": "",
@@ -2477,7 +2504,7 @@
    {
     "count": "3 / 12",
     "cap": "The template mapping(address => Player) takes slot = 3, key = each address in roster",
-    "form": "alice→slot 3, key 0x7099…79c8bob→slot 3, key 0x3c44…93bccarol→slot 3, key 0x90f7…b906",
+    "form": "\"alice\"→slot 3, key 0x7099…79c8\"bob\"→slot 3, key 0x3c44…93bc\"carol, the unstoppable combo queen\"→slot 3, key 0x90f7…b906",
     "short": "a template's inputs",
     "src": "template2 ethdebug data from the compiler",
     "foot": "https://ethdebug.github.io/format/spec/pointer/template/",
@@ -2501,7 +2528,7 @@
    {
     "count": "4 / 12",
     "cap": "Each record is at keccak(key, 3)",
-    "form": "alice→keccak(0x7099…79c8, 3) = …aa80bob→keccak(0x3c44…93bc, 3) = …7527carol→keccak(0x90f7…b906, 3) = …9978",
+    "form": "\"alice\"→keccak(0x7099…79c8, 3) = …aa80\"bob\"→keccak(0x3c44…93bc, 3) = …7527\"carol, the unstoppable combo queen\"→keccak(0x90f7…b906, 3) = …9978",
     "short": "the record's slot",
     "src": "define ~keccak2563 ethdebug data from the compiler",
     "foot": "https://ethdebug.github.io/format/spec/pointer/expression/#keccak256-hashes",
@@ -2532,16 +2559,16 @@
     "pops": [
      "k:keccak(slot 0) : roster, 3 slots · not read or written",
      "k:slot 3 · not read or written",
-     "keccak(0x3c44…93bc, slot 3) : lastBlock · hitCount · plays · … · not read or written",
-     "keccak(0x7099…79c8, slot 3) : lastBlock · hitCount · plays · … · read, written",
-     "keccak(0x90f7…b906, slot 3) : lastBlock · hitCount · plays · … · not read or written"
+     "keccak(0x3c44…93bc, slot 3) : lastBlock · hitCount · plays · bestCombo · … · not read or written",
+     "keccak(0x7099…79c8, slot 3) : lastBlock · hitCount · plays · bestCombo · combo · … · read, written",
+     "keccak(0x90f7…b906, slot 3) : lastBlock · hitCount · plays · bestCombo · … · not read or written"
     ],
     "picker": ""
    },
    {
     "count": "5 / 12",
     "cap": "The template Player takes slot = each record's slot",
-    "form": "alice→slot …aa80bob→slot …7527carol→slot …9978",
+    "form": "\"alice\"→slot …aa80\"bob\"→slot …7527\"carol, the unstoppable combo queen\"→slot …9978",
     "short": "a template's inputs",
     "src": "template2 ethdebug data from the compiler",
     "foot": "https://ethdebug.github.io/format/spec/pointer/template/",
@@ -2561,16 +2588,16 @@
     "pops": [
      "k:keccak(slot 0) : roster, 3 slots · not read or written",
      "k:slot 3 · not read or written",
-     "keccak(0x3c44…93bc, slot 3) : lastBlock · hitCount · plays · … · not read or written",
-     "keccak(0x7099…79c8, slot 3) : lastBlock · hitCount · plays · … · read, written",
-     "keccak(0x90f7…b906, slot 3) : lastBlock · hitCount · plays · … · not read or written"
+     "keccak(0x3c44…93bc, slot 3) : lastBlock · hitCount · plays · bestCombo · … · not read or written",
+     "keccak(0x7099…79c8, slot 3) : lastBlock · hitCount · plays · bestCombo · combo · … · read, written",
+     "keccak(0x90f7…b906, slot 3) : lastBlock · hitCount · plays · bestCombo · … · not read or written"
     ],
     "picker": ""
    },
    {
     "count": "6 / 12",
     "cap": "The first slot packs six fields, from the right",
-    "form": "lastBlock 0–7 · hitCount 8–11 · plays 12–15 · bestCombo 16–19 · combo 20–23 · score 24–31",
+    "form": "lastBlockhitCountplaysbestCombocomboscore012345678910111213141516171819202122232425262728293031",
     "short": "packed fields",
     "src": "region4 ethdebug data from the compiler",
     "foot": "https://ethdebug.github.io/format/spec/pointer/region/location/storage/",
@@ -2617,16 +2644,16 @@
     "pops": [
      "k:keccak(slot 0) : roster, 3 slots · not read or written",
      "k:slot 3 · not read or written",
-     "keccak(0x3c44…93bc, slot 3) : lastBlock · hitCount · … · score · not read or written",
-     "keccak(0x7099…79c8, slot 3) : lastBlock · hitCount · … · score · read, written",
-     "keccak(0x90f7…b906, slot 3) : lastBlock · hitCount · … · score · not read or written"
+     "keccak(0x3c44…93bc, slot 3) : lastBlock · hitCount · … · combo · score · not read or written",
+     "keccak(0x7099…79c8, slot 3) : lastBlock · hitCount · plays · … · combo · score · read, written",
+     "keccak(0x90f7…b906, slot 3) : lastBlock · hitCount · … · combo · score · not read or written"
     ],
     "picker": ""
    },
    {
     "count": "7 / 12",
     "cap": "The next slot holds name, a string",
-    "form": "alice→…aa80 + 1 = …aa81bob→…7527 + 1 = …7528carol→…9978 + 1 = …9979",
+    "form": "\"alice\"→…aa80 + 1 = …aa81\"bob\"→…7527 + 1 = …7528\"carol, the unstoppable combo queen\"→…9978 + 1 = …9979",
     "short": "into a template",
     "src": "define ~sum ethdebug data from the compiler",
     "foot": "",
@@ -2660,7 +2687,7 @@
    {
     "count": "8 / 12",
     "cap": "The template string takes slot = each name slot",
-    "form": "alice→slot …aa81bob→slot …7528carol→slot …9979",
+    "form": "\"alice\"→slot …aa81\"bob\"→slot …7528\"carol, the unstoppable combo queen\"→slot …9979",
     "short": "a template's inputs",
     "src": "template2 ethdebug data from the compiler",
     "foot": "https://ethdebug.github.io/format/spec/pointer/template/",
@@ -2689,7 +2716,7 @@
    {
     "count": "9 / 12",
     "cap": "The last byte of each name slot is its length flag",
-    "form": "alice→0x0abob→0x06carol→0x45",
+    "form": "\"alice\"→0x0a\"bob\"→0x06\"carol, the unstoppable combo queen\"→0x45",
     "short": "a flag",
     "src": "region4 read from storage",
     "foot": "https://ethdebug.github.io/format/spec/pointer/region/location/storage/",
@@ -2723,8 +2750,8 @@
    },
    {
     "count": "10 / 12",
-    "cap": "The last byte decides the form: even → short (alice, bob), odd → long (carol)",
-    "form": "even: 0x0a → 5 bytes inline (alice)odd: 0x45 → 34 bytes at keccak(…9979) (carol)",
+    "cap": "The last byte decides the form: even → short (\"alice\", \"bob\"), odd → long (\"carol, the un…\")",
+    "form": "even: 0x0a → 5 bytes inline (\"alice\")odd: 0x45 → 34 bytes at keccak(…9979) (\"carol, the unstoppable combo queen\")",
     "short": "a branch",
     "src": "if5 read from storage",
     "foot": "https://ethdebug.github.io/format/spec/pointer/collection/conditional/",
@@ -2765,7 +2792,7 @@
    {
     "count": "11 / 12",
     "cap": "Each short text is in its slot, from the left",
-    "form": "alice→5 bytes at …aa81bob→3 bytes at …7528",
+    "form": "\"alice\"→5 bytes at …aa81\"bob\"→3 bytes at …7528",
     "short": "the text",
     "src": "region4 ethdebug data from the compiler",
     "foot": "https://ethdebug.github.io/format/spec/pointer/region/location/storage/",
@@ -2823,7 +2850,7 @@
      "k:keccak(0x90f7…b906, slot 3) : players[0x90f7…b906], 2 slots · not read or written",
      "k:keccak(slot 0) : roster, 3 slots · not read or written",
      "k:slot 3 · not read or written",
-     "keccak(keccak(…b906, slot 3) + 1) : …, 2 slots · not read or written"
+     "keccak(keccak(0x90f7…b906, slot 3) + 1) : players[0x90f7…b906].name, 2 slots · not read or written"
     ],
     "picker": ""
    }
@@ -2903,7 +2930,7 @@
    {
     "count": "3 / 4",
     "cap": "slot 0 holds the length: 3",
-    "form": "length = 3",
+    "form": "length = 3012345678910111213141516171819202122232425262728293031",
     "short": "the length",
     "src": "region3 read from storage",
     "foot": "https://ethdebug.github.io/format/spec/pointer/region/location/storage/",
@@ -3038,7 +3065,7 @@
    {
     "count": "3 / 5",
     "cap": "The last byte is the length flag, 0x65",
-    "form": "length-flag = 0x65",
+    "form": "length-flag = 0x65012345678910111213141516171819202122232425262728293031",
     "short": "a flag",
     "src": "region3 read from storage",
     "foot": "https://ethdebug.github.io/format/spec/pointer/region/location/storage/",
@@ -3119,6 +3146,7 @@
     },
     "gut": [],
     "pops": [
+     "k:slot 1 : motd.length · not read or written",
      "keccak(slot 1) : motd, 2 slots · not read or written"
     ],
     "picker": ""
@@ -3128,7 +3156,7 @@
    {
     "count": "1 / 1",
     "cap": "total is at slot 2, 16 bytes from offset 16",
-    "form": "slot 2, bytes 16–31",
+    "form": "total012345678910111213141516171819202122232425262728293031",
     "short": "total's own slot",
     "src": "pointer1 ethdebug data from the compiler",
     "foot": "https://ethdebug.github.io/format/spec/pointer/concepts/#a-pointer-is-a-region-or-a-collection-of-other-pointers",
@@ -3157,7 +3185,7 @@
    {
     "count": "1 / 1",
     "cap": "rounds is at slot 2, 8 bytes from offset 8",
-    "form": "slot 2, bytes 8–15",
+    "form": "rounds012345678910111213141516171819202122232425262728293031",
     "short": "rounds' own slot",
     "src": "pointer1 ethdebug data from the compiler",
     "foot": "https://ethdebug.github.io/format/spec/pointer/concepts/#a-pointer-is-a-region-or-a-collection-of-other-pointers",
@@ -3208,8 +3236,8 @@
    },
    {
     "count": "1 / 11",
-    "cap": "key = alice's address, from roster[0]",
-    "form": "0x7099…79c8 alice",
+    "cap": "key = the address of \"alice\", from roster[0]",
+    "form": "0x7099…79c8 \"alice\"",
     "short": "the key",
     "src": "the page reads roster from storage",
     "foot": "",
@@ -3253,7 +3281,7 @@
    },
    {
     "count": "3 / 11",
-    "cap": "The template mapping(address => Player) takes slot = 3, key = alice's address",
+    "cap": "The template mapping(address => Player) takes slot = 3, key = the address of \"alice\"",
     "form": "slot = 3, key = 0x7099…79c8",
     "short": "a template's inputs",
     "src": "template2 ethdebug data from the compiler",
@@ -3305,8 +3333,9 @@
      "keccak(0x7099…79c8, slot 3)"
     ],
     "pops": [
+     "k:keccak(slot 0) : roster[0] · not read or written",
      "k:slot 3 · not read or written",
-     "keccak(0x7099…79c8, slot 3) : lastBlock · hitCount · plays · … · read, written"
+     "keccak(0x7099…79c8, slot 3) : lastBlock · hitCount · plays · bestCombo · combo · … · read, written"
     ],
     "picker": ""
    },
@@ -3329,15 +3358,16 @@
      "keccak(0x7099…79c8, slot 3)"
     ],
     "pops": [
+     "k:keccak(slot 0) : roster[0] · not read or written",
      "k:slot 3 · not read or written",
-     "keccak(0x7099…79c8, slot 3) : lastBlock · hitCount · plays · … · read, written"
+     "keccak(0x7099…79c8, slot 3) : lastBlock · hitCount · plays · bestCombo · combo · … · read, written"
     ],
     "picker": ""
    },
    {
     "count": "6 / 11",
     "cap": "The first slot packs six fields, from the right",
-    "form": "lastBlock 0–7 · hitCount 8–11 · plays 12–15 · bestCombo 16–19 · combo 20–23 · score 24–31",
+    "form": "lastBlockhitCountplaysbestCombocomboscore012345678910111213141516171819202122232425262728293031",
     "short": "packed fields",
     "src": "region4 ethdebug data from the compiler",
     "foot": "https://ethdebug.github.io/format/spec/pointer/region/location/storage/",
@@ -3378,8 +3408,9 @@
     },
     "gut": [],
     "pops": [
+     "k:keccak(slot 0) : roster[0] · not read or written",
      "k:slot 3 · not read or written",
-     "keccak(0x7099…79c8, slot 3) : lastBlock · hitCount · … · score · read, written"
+     "keccak(0x7099…79c8, slot 3) : lastBlock · hitCount · plays · … · combo · score · read, written"
     ],
     "picker": ""
    },
@@ -3407,6 +3438,7 @@
      "keccak(0x7099…79c8, slot 3) + 1"
     ],
     "pops": [
+     "k:keccak(slot 0) : roster[0] · not read or written",
      "k:slot 3 · not read or written",
      "keccak(0x7099…79c8, slot 3) : players[0x7099…79c8], 2 slots · read, written / read only"
     ],
@@ -3431,6 +3463,7 @@
      "keccak(0x7099…79c8, slot 3) + 1"
     ],
     "pops": [
+     "k:keccak(slot 0) : roster[0] · not read or written",
      "k:slot 3 · not read or written",
      "keccak(0x7099…79c8, slot 3) : players[0x7099…79c8], 2 slots · read, written / read only"
     ],
@@ -3439,7 +3472,7 @@
    {
     "count": "9 / 11",
     "cap": "The last byte is the length flag, 0x0a",
-    "form": "length-flag = 0x0a",
+    "form": "length-flag = 0x0a012345678910111213141516171819202122232425262728293031",
     "short": "a flag",
     "src": "region4 read from storage",
     "foot": "https://ethdebug.github.io/format/spec/pointer/region/location/storage/",
@@ -3459,6 +3492,7 @@
     },
     "gut": [],
     "pops": [
+     "k:keccak(slot 0) : roster[0] · not read or written",
      "k:slot 3 · not read or written",
      "keccak(0x7099…79c8, slot 3) : name · name.length · read, written / read only"
     ],
@@ -3486,6 +3520,7 @@
     },
     "gut": [],
     "pops": [
+     "k:keccak(slot 0) : roster[0] · not read or written",
      "k:slot 3 · not read or written",
      "keccak(0x7099…79c8, slot 3) : name · name.length · read, written / read only"
     ],
@@ -3510,6 +3545,7 @@
     },
     "gut": [],
     "pops": [
+     "k:keccak(slot 0) : roster[0] · not read or written",
      "k:slot 3 · not read or written",
      "keccak(0x7099…79c8, slot 3) : name · name.length · read, written / read only"
     ],
@@ -3519,8 +3555,8 @@
   "alice before players[0x70997970c51812dc3a010c7d01b50e0d17dc79c8].combo": [
    {
     "count": "1 / 6",
-    "cap": "key = alice's address, from roster[0]",
-    "form": "0x7099…79c8 alice",
+    "cap": "key = the address of \"alice\", from roster[0]",
+    "form": "0x7099…79c8 \"alice\"",
     "short": "the key",
     "src": "the page reads roster from storage",
     "foot": "",
@@ -3564,7 +3600,7 @@
    },
    {
     "count": "3 / 6",
-    "cap": "The template mapping(address => Player) takes slot = 3, key = alice's address",
+    "cap": "The template mapping(address => Player) takes slot = 3, key = the address of \"alice\"",
     "form": "slot = 3, key = 0x7099…79c8",
     "short": "a template's inputs",
     "src": "template2 ethdebug data from the compiler",
@@ -3616,8 +3652,9 @@
      "keccak(0x7099…79c8, slot 3)"
     ],
     "pops": [
+     "k:keccak(slot 0) : roster[0] · not read or written",
      "k:slot 3 · not read or written",
-     "keccak(0x7099…79c8, slot 3) : lastBlock · hitCount · plays · … · read, written"
+     "keccak(0x7099…79c8, slot 3) : lastBlock · hitCount · plays · bestCombo · combo · … · read, written"
     ],
     "picker": ""
    },
@@ -3640,15 +3677,16 @@
      "keccak(0x7099…79c8, slot 3)"
     ],
     "pops": [
+     "k:keccak(slot 0) : roster[0] · not read or written",
      "k:slot 3 · not read or written",
-     "keccak(0x7099…79c8, slot 3) : lastBlock · hitCount · plays · … · read, written"
+     "keccak(0x7099…79c8, slot 3) : lastBlock · hitCount · plays · bestCombo · combo · … · read, written"
     ],
     "picker": ""
    },
    {
     "count": "6 / 6",
     "cap": "combo is bytes 20–23 of the record's first slot",
-    "form": "combo 20–23",
+    "form": "combo012345678910111213141516171819202122232425262728293031",
     "short": "its field",
     "src": "region4 ethdebug data from the compiler",
     "foot": "https://ethdebug.github.io/format/spec/pointer/region/location/storage/",
@@ -3668,8 +3706,9 @@
     },
     "gut": [],
     "pops": [
+     "k:keccak(slot 0) : roster[0] · not read or written",
      "k:slot 3 · not read or written",
-     "keccak(0x7099…79c8, slot 3) : … · plays · bestCombo · combo · score · read, written"
+     "keccak(0x7099…79c8, slot 3) : … · hitCount · plays · bestCombo · combo · score · read, written"
     ],
     "picker": ""
    }
@@ -3713,7 +3752,7 @@
    {
     "count": "1 / 12",
     "cap": "The keys: the addresses in roster",
-    "form": "0x7099…79c8 alice→[0]0x3c44…93bc bob→[1]0x90f7…b906 carol→[2]",
+    "form": "0x7099…79c8 \"alice\"→[0]0x3c44…93bc \"bob\"→[1]0x90f7…b906 \"carol, the unstoppable combo queen\"→[2]",
     "short": "the keys",
     "src": "the page reads roster from storage",
     "foot": "",
@@ -3762,7 +3801,7 @@
    {
     "count": "3 / 12",
     "cap": "The template mapping(address => Player) takes slot = 3, key = each address in roster",
-    "form": "alice→slot 3, key 0x7099…79c8bob→slot 3, key 0x3c44…93bccarol→slot 3, key 0x90f7…b906",
+    "form": "\"alice\"→slot 3, key 0x7099…79c8\"bob\"→slot 3, key 0x3c44…93bc\"carol, the unstoppable combo queen\"→slot 3, key 0x90f7…b906",
     "short": "a template's inputs",
     "src": "template2 ethdebug data from the compiler",
     "foot": "https://ethdebug.github.io/format/spec/pointer/template/",
@@ -3786,7 +3825,7 @@
    {
     "count": "4 / 12",
     "cap": "Each record is at keccak(key, 3)",
-    "form": "alice→keccak(0x7099…79c8, 3) = …aa80bob→keccak(0x3c44…93bc, 3) = …7527carol→keccak(0x90f7…b906, 3) = …9978",
+    "form": "\"alice\"→keccak(0x7099…79c8, 3) = …aa80\"bob\"→keccak(0x3c44…93bc, 3) = …7527\"carol, the unstoppable combo queen\"→keccak(0x90f7…b906, 3) = …9978",
     "short": "the record's slot",
     "src": "define ~keccak2563 ethdebug data from the compiler",
     "foot": "https://ethdebug.github.io/format/spec/pointer/expression/#keccak256-hashes",
@@ -3817,16 +3856,16 @@
     "pops": [
      "k:keccak(slot 0) : roster, 3 slots · not read or written",
      "k:slot 3 · not read or written",
-     "keccak(0x3c44…93bc, slot 3) : lastBlock · hitCount · plays · … · not read or written",
-     "keccak(0x7099…79c8, slot 3) : lastBlock · hitCount · plays · … · read, written",
-     "keccak(0x90f7…b906, slot 3) : lastBlock · hitCount · plays · … · not read or written"
+     "keccak(0x3c44…93bc, slot 3) : lastBlock · hitCount · plays · bestCombo · … · not read or written",
+     "keccak(0x7099…79c8, slot 3) : lastBlock · hitCount · plays · bestCombo · combo · … · read, written",
+     "keccak(0x90f7…b906, slot 3) : lastBlock · hitCount · plays · bestCombo · … · not read or written"
     ],
     "picker": ""
    },
    {
     "count": "5 / 12",
     "cap": "The template Player takes slot = each record's slot",
-    "form": "alice→slot …aa80bob→slot …7527carol→slot …9978",
+    "form": "\"alice\"→slot …aa80\"bob\"→slot …7527\"carol, the unstoppable combo queen\"→slot …9978",
     "short": "a template's inputs",
     "src": "template2 ethdebug data from the compiler",
     "foot": "https://ethdebug.github.io/format/spec/pointer/template/",
@@ -3846,16 +3885,16 @@
     "pops": [
      "k:keccak(slot 0) : roster, 3 slots · not read or written",
      "k:slot 3 · not read or written",
-     "keccak(0x3c44…93bc, slot 3) : lastBlock · hitCount · plays · … · not read or written",
-     "keccak(0x7099…79c8, slot 3) : lastBlock · hitCount · plays · … · read, written",
-     "keccak(0x90f7…b906, slot 3) : lastBlock · hitCount · plays · … · not read or written"
+     "keccak(0x3c44…93bc, slot 3) : lastBlock · hitCount · plays · bestCombo · … · not read or written",
+     "keccak(0x7099…79c8, slot 3) : lastBlock · hitCount · plays · bestCombo · combo · … · read, written",
+     "keccak(0x90f7…b906, slot 3) : lastBlock · hitCount · plays · bestCombo · … · not read or written"
     ],
     "picker": ""
    },
    {
     "count": "6 / 12",
     "cap": "The first slot packs six fields, from the right",
-    "form": "lastBlock 0–7 · hitCount 8–11 · plays 12–15 · bestCombo 16–19 · combo 20–23 · score 24–31",
+    "form": "lastBlockhitCountplaysbestCombocomboscore012345678910111213141516171819202122232425262728293031",
     "short": "packed fields",
     "src": "region4 ethdebug data from the compiler",
     "foot": "https://ethdebug.github.io/format/spec/pointer/region/location/storage/",
@@ -3902,16 +3941,16 @@
     "pops": [
      "k:keccak(slot 0) : roster, 3 slots · not read or written",
      "k:slot 3 · not read or written",
-     "keccak(0x3c44…93bc, slot 3) : lastBlock · hitCount · … · score · not read or written",
-     "keccak(0x7099…79c8, slot 3) : lastBlock · hitCount · … · score · read, written",
-     "keccak(0x90f7…b906, slot 3) : lastBlock · hitCount · … · score · not read or written"
+     "keccak(0x3c44…93bc, slot 3) : lastBlock · hitCount · … · combo · score · not read or written",
+     "keccak(0x7099…79c8, slot 3) : lastBlock · hitCount · plays · … · combo · score · read, written",
+     "keccak(0x90f7…b906, slot 3) : lastBlock · hitCount · … · combo · score · not read or written"
     ],
     "picker": ""
    },
    {
     "count": "7 / 12",
     "cap": "The next slot holds name, a string",
-    "form": "alice→…aa80 + 1 = …aa81bob→…7527 + 1 = …7528carol→…9978 + 1 = …9979",
+    "form": "\"alice\"→…aa80 + 1 = …aa81\"bob\"→…7527 + 1 = …7528\"carol, the unstoppable combo queen\"→…9978 + 1 = …9979",
     "short": "into a template",
     "src": "define ~sum ethdebug data from the compiler",
     "foot": "",
@@ -3945,7 +3984,7 @@
    {
     "count": "8 / 12",
     "cap": "The template string takes slot = each name slot",
-    "form": "alice→slot …aa81bob→slot …7528carol→slot …9979",
+    "form": "\"alice\"→slot …aa81\"bob\"→slot …7528\"carol, the unstoppable combo queen\"→slot …9979",
     "short": "a template's inputs",
     "src": "template2 ethdebug data from the compiler",
     "foot": "https://ethdebug.github.io/format/spec/pointer/template/",
@@ -3974,7 +4013,7 @@
    {
     "count": "9 / 12",
     "cap": "The last byte of each name slot is its length flag",
-    "form": "alice→0x0abob→0x06carol→0x45",
+    "form": "\"alice\"→0x0a\"bob\"→0x06\"carol, the unstoppable combo queen\"→0x45",
     "short": "a flag",
     "src": "region4 read from storage",
     "foot": "https://ethdebug.github.io/format/spec/pointer/region/location/storage/",
@@ -4008,8 +4047,8 @@
    },
    {
     "count": "10 / 12",
-    "cap": "The last byte decides the form: even → short (alice, bob), odd → long (carol)",
-    "form": "even: 0x0a → 5 bytes inline (alice)odd: 0x45 → 34 bytes at keccak(…9979) (carol)",
+    "cap": "The last byte decides the form: even → short (\"alice\", \"bob\"), odd → long (\"carol, the un…\")",
+    "form": "even: 0x0a → 5 bytes inline (\"alice\")odd: 0x45 → 34 bytes at keccak(…9979) (\"carol, the unstoppable combo queen\")",
     "short": "a branch",
     "src": "if5 read from storage",
     "foot": "https://ethdebug.github.io/format/spec/pointer/collection/conditional/",
@@ -4050,7 +4089,7 @@
    {
     "count": "11 / 12",
     "cap": "Each short text is in its slot, from the left",
-    "form": "alice→5 bytes at …aa81bob→3 bytes at …7528",
+    "form": "\"alice\"→5 bytes at …aa81\"bob\"→3 bytes at …7528",
     "short": "the text",
     "src": "region4 ethdebug data from the compiler",
     "foot": "https://ethdebug.github.io/format/spec/pointer/region/location/storage/",
@@ -4108,7 +4147,7 @@
      "k:keccak(0x90f7…b906, slot 3) : players[0x90f7…b906], 2 slots · not read or written",
      "k:keccak(slot 0) : roster, 3 slots · not read or written",
      "k:slot 3 · not read or written",
-     "keccak(keccak(…b906, slot 3) + 1) : …, 2 slots · not read or written"
+     "keccak(keccak(0x90f7…b906, slot 3) + 1) : players[0x90f7…b906].name, 2 slots · not read or written"
     ],
     "picker": ""
    }
@@ -4188,7 +4227,7 @@
    {
     "count": "3 / 4",
     "cap": "slot 0 holds the length: 3",
-    "form": "length = 3",
+    "form": "length = 3012345678910111213141516171819202122232425262728293031",
     "short": "the length",
     "src": "region3 read from storage",
     "foot": "https://ethdebug.github.io/format/spec/pointer/region/location/storage/",
@@ -4323,7 +4362,7 @@
    {
     "count": "3 / 5",
     "cap": "The last byte is the length flag, 0x65",
-    "form": "length-flag = 0x65",
+    "form": "length-flag = 0x65012345678910111213141516171819202122232425262728293031",
     "short": "a flag",
     "src": "region3 read from storage",
     "foot": "https://ethdebug.github.io/format/spec/pointer/region/location/storage/",
@@ -4404,6 +4443,7 @@
     },
     "gut": [],
     "pops": [
+     "k:slot 1 : motd.length · not read or written",
      "keccak(slot 1) : motd, 2 slots · not read or written"
     ],
     "picker": ""
@@ -4413,7 +4453,7 @@
    {
     "count": "1 / 1",
     "cap": "total is at slot 2, 16 bytes from offset 16",
-    "form": "slot 2, bytes 16–31",
+    "form": "total012345678910111213141516171819202122232425262728293031",
     "short": "total's own slot",
     "src": "pointer1 ethdebug data from the compiler",
     "foot": "https://ethdebug.github.io/format/spec/pointer/concepts/#a-pointer-is-a-region-or-a-collection-of-other-pointers",
@@ -4442,7 +4482,7 @@
    {
     "count": "1 / 1",
     "cap": "rounds is at slot 2, 8 bytes from offset 8",
-    "form": "slot 2, bytes 8–15",
+    "form": "rounds012345678910111213141516171819202122232425262728293031",
     "short": "rounds' own slot",
     "src": "pointer1 ethdebug data from the compiler",
     "foot": "https://ethdebug.github.io/format/spec/pointer/concepts/#a-pointer-is-a-region-or-a-collection-of-other-pointers",
@@ -4493,8 +4533,8 @@
    },
    {
     "count": "1 / 11",
-    "cap": "key = alice's address, from roster[0]",
-    "form": "0x7099…79c8 alice",
+    "cap": "key = the address of \"alice\", from roster[0]",
+    "form": "0x7099…79c8 \"alice\"",
     "short": "the key",
     "src": "the page reads roster from storage",
     "foot": "",
@@ -4531,13 +4571,14 @@
      "slot 3"
     ],
     "pops": [
+     "k:keccak(slot 0) : roster[0] · not read or written",
      "slot 3 · not read or written"
     ],
     "picker": ""
    },
    {
     "count": "3 / 11",
-    "cap": "The template mapping(address => Player) takes slot = 3, key = alice's address",
+    "cap": "The template mapping(address => Player) takes slot = 3, key = the address of \"alice\"",
     "form": "slot = 3, key = 0x7099…79c8",
     "short": "a template's inputs",
     "src": "template2 ethdebug data from the compiler",
@@ -4554,6 +4595,7 @@
      "slot 3"
     ],
     "pops": [
+     "k:keccak(slot 0) : roster[0] · not read or written",
      "slot 3 · not read or written"
     ],
     "picker": ""
@@ -4588,8 +4630,9 @@
      "keccak(0x7099…79c8, slot 3)"
     ],
     "pops": [
+     "k:keccak(slot 0) : roster[0] · not read or written",
      "k:slot 3 · not read or written",
-     "keccak(0x7099…79c8, slot 3) : lastBlock · hitCount · plays · … · read, written"
+     "keccak(0x7099…79c8, slot 3) : lastBlock · hitCount · plays · bestCombo · combo · … · read, written"
     ],
     "picker": ""
    },
@@ -4612,15 +4655,16 @@
      "keccak(0x7099…79c8, slot 3)"
     ],
     "pops": [
+     "k:keccak(slot 0) : roster[0] · not read or written",
      "k:slot 3 · not read or written",
-     "keccak(0x7099…79c8, slot 3) : lastBlock · hitCount · plays · … · read, written"
+     "keccak(0x7099…79c8, slot 3) : lastBlock · hitCount · plays · bestCombo · combo · … · read, written"
     ],
     "picker": ""
    },
    {
     "count": "6 / 11",
     "cap": "The first slot packs six fields, from the right",
-    "form": "lastBlock 0–7 · hitCount 8–11 · plays 12–15 · bestCombo 16–19 · combo 20–23 · score 24–31",
+    "form": "lastBlockhitCountplaysbestCombocomboscore012345678910111213141516171819202122232425262728293031",
     "short": "packed fields",
     "src": "region4 ethdebug data from the compiler",
     "foot": "https://ethdebug.github.io/format/spec/pointer/region/location/storage/",
@@ -4661,8 +4705,9 @@
     },
     "gut": [],
     "pops": [
+     "k:keccak(slot 0) : roster[0] · not read or written",
      "k:slot 3 · not read or written",
-     "keccak(0x7099…79c8, slot 3) : lastBlock · hitCount · … · score · read, written"
+     "keccak(0x7099…79c8, slot 3) : lastBlock · hitCount · plays · … · combo · score · read, written"
     ],
     "picker": ""
    },
@@ -4690,6 +4735,7 @@
      "keccak(0x7099…79c8, slot 3) + 1"
     ],
     "pops": [
+     "k:keccak(slot 0) : roster[0] · not read or written",
      "k:slot 3 · not read or written",
      "keccak(0x7099…79c8, slot 3) : players[0x7099…79c8], 2 slots · read, written / read only"
     ],
@@ -4714,6 +4760,7 @@
      "keccak(0x7099…79c8, slot 3) + 1"
     ],
     "pops": [
+     "k:keccak(slot 0) : roster[0] · not read or written",
      "k:slot 3 · not read or written",
      "keccak(0x7099…79c8, slot 3) : players[0x7099…79c8], 2 slots · read, written / read only"
     ],
@@ -4722,7 +4769,7 @@
    {
     "count": "9 / 11",
     "cap": "The last byte is the length flag, 0x0a",
-    "form": "length-flag = 0x0a",
+    "form": "length-flag = 0x0a012345678910111213141516171819202122232425262728293031",
     "short": "a flag",
     "src": "region4 read from storage",
     "foot": "https://ethdebug.github.io/format/spec/pointer/region/location/storage/",
@@ -4742,6 +4789,7 @@
     },
     "gut": [],
     "pops": [
+     "k:keccak(slot 0) : roster[0] · not read or written",
      "k:slot 3 · not read or written",
      "keccak(0x7099…79c8, slot 3) : name · name.length · read, written / read only"
     ],
@@ -4769,6 +4817,7 @@
     },
     "gut": [],
     "pops": [
+     "k:keccak(slot 0) : roster[0] · not read or written",
      "k:slot 3 · not read or written",
      "keccak(0x7099…79c8, slot 3) : name · name.length · read, written / read only"
     ],
@@ -4793,6 +4842,7 @@
     },
     "gut": [],
     "pops": [
+     "k:keccak(slot 0) : roster[0] · not read or written",
      "k:slot 3 · not read or written",
      "keccak(0x7099…79c8, slot 3) : name · name.length · read, written / read only"
     ],
@@ -4802,8 +4852,8 @@
   "alice after players[0x70997970c51812dc3a010c7d01b50e0d17dc79c8].combo": [
    {
     "count": "1 / 6",
-    "cap": "key = alice's address, from roster[0]",
-    "form": "0x7099…79c8 alice",
+    "cap": "key = the address of \"alice\", from roster[0]",
+    "form": "0x7099…79c8 \"alice\"",
     "short": "the key",
     "src": "the page reads roster from storage",
     "foot": "",
@@ -4840,13 +4890,14 @@
      "slot 3"
     ],
     "pops": [
+     "k:keccak(slot 0) : roster[0] · not read or written",
      "slot 3 · not read or written"
     ],
     "picker": ""
    },
    {
     "count": "3 / 6",
-    "cap": "The template mapping(address => Player) takes slot = 3, key = alice's address",
+    "cap": "The template mapping(address => Player) takes slot = 3, key = the address of \"alice\"",
     "form": "slot = 3, key = 0x7099…79c8",
     "short": "a template's inputs",
     "src": "template2 ethdebug data from the compiler",
@@ -4863,6 +4914,7 @@
      "slot 3"
     ],
     "pops": [
+     "k:keccak(slot 0) : roster[0] · not read or written",
      "slot 3 · not read or written"
     ],
     "picker": ""
@@ -4897,8 +4949,9 @@
      "keccak(0x7099…79c8, slot 3)"
     ],
     "pops": [
+     "k:keccak(slot 0) : roster[0] · not read or written",
      "k:slot 3 · not read or written",
-     "keccak(0x7099…79c8, slot 3) : lastBlock · hitCount · plays · … · read, written"
+     "keccak(0x7099…79c8, slot 3) : lastBlock · hitCount · plays · bestCombo · combo · … · read, written"
     ],
     "picker": ""
    },
@@ -4921,15 +4974,16 @@
      "keccak(0x7099…79c8, slot 3)"
     ],
     "pops": [
+     "k:keccak(slot 0) : roster[0] · not read or written",
      "k:slot 3 · not read or written",
-     "keccak(0x7099…79c8, slot 3) : lastBlock · hitCount · plays · … · read, written"
+     "keccak(0x7099…79c8, slot 3) : lastBlock · hitCount · plays · bestCombo · combo · … · read, written"
     ],
     "picker": ""
    },
    {
     "count": "6 / 6",
     "cap": "combo is bytes 20–23 of the record's first slot",
-    "form": "combo 20–23",
+    "form": "combo012345678910111213141516171819202122232425262728293031",
     "short": "its field",
     "src": "region4 ethdebug data from the compiler",
     "foot": "https://ethdebug.github.io/format/spec/pointer/region/location/storage/",
@@ -4949,8 +5003,9 @@
     },
     "gut": [],
     "pops": [
+     "k:keccak(slot 0) : roster[0] · not read or written",
      "k:slot 3 · not read or written",
-     "keccak(0x7099…79c8, slot 3) : … · plays · bestCombo · combo · score · read, written"
+     "keccak(0x7099…79c8, slot 3) : … · hitCount · plays · bestCombo · combo · score · read, written"
     ],
     "picker": ""
    }
@@ -5028,7 +5083,7 @@
    {
     "count": "3 / 5",
     "cap": "The last byte is the length flag, 0x65",
-    "form": "length-flag = 0x65",
+    "form": "length-flag = 0x65012345678910111213141516171819202122232425262728293031",
     "short": "a flag",
     "src": "region3 read from storage",
     "foot": "https://ethdebug.github.io/format/spec/pointer/region/location/storage/",
@@ -5109,6 +5164,7 @@
     },
     "gut": [],
     "pops": [
+     "k:slot 1 : motd.length · read, written",
      "keccak(slot 1) : motd, 2 slots · cleared (written to zero)"
     ],
     "picker": ""
@@ -5153,7 +5209,7 @@
    {
     "count": "1 / 12",
     "cap": "The keys: the addresses in roster",
-    "form": "0x7099…79c8 alice→[0]0x3c44…93bc bob→[1]0x90f7…b906 carol→[2]",
+    "form": "0x7099…79c8 \"alice\"→[0]0x3c44…93bc \"bob\"→[1]0x90f7…b906 \"carol, the unstoppable combo queen\"→[2]",
     "short": "the keys",
     "src": "the page reads roster from storage",
     "foot": "",
@@ -5202,7 +5258,7 @@
    {
     "count": "3 / 12",
     "cap": "The template mapping(address => Player) takes slot = 3, key = each address in roster",
-    "form": "alice→slot 3, key 0x7099…79c8bob→slot 3, key 0x3c44…93bccarol→slot 3, key 0x90f7…b906",
+    "form": "\"alice\"→slot 3, key 0x7099…79c8\"bob\"→slot 3, key 0x3c44…93bc\"carol, the unstoppable combo queen\"→slot 3, key 0x90f7…b906",
     "short": "a template's inputs",
     "src": "template2 ethdebug data from the compiler",
     "foot": "https://ethdebug.github.io/format/spec/pointer/template/",
@@ -5226,7 +5282,7 @@
    {
     "count": "4 / 12",
     "cap": "Each record is at keccak(key, 3)",
-    "form": "alice→keccak(0x7099…79c8, 3) = …aa80bob→keccak(0x3c44…93bc, 3) = …7527carol→keccak(0x90f7…b906, 3) = …9978",
+    "form": "\"alice\"→keccak(0x7099…79c8, 3) = …aa80\"bob\"→keccak(0x3c44…93bc, 3) = …7527\"carol, the unstoppable combo queen\"→keccak(0x90f7…b906, 3) = …9978",
     "short": "the record's slot",
     "src": "define ~keccak2563 ethdebug data from the compiler",
     "foot": "https://ethdebug.github.io/format/spec/pointer/expression/#keccak256-hashes",
@@ -5257,16 +5313,16 @@
     "pops": [
      "k:keccak(slot 0) : roster, 3 slots · not read or written",
      "k:slot 3 · not read or written",
-     "keccak(0x3c44…93bc, slot 3) : lastBlock · hitCount · plays · … · not read or written",
-     "keccak(0x7099…79c8, slot 3) : lastBlock · hitCount · plays · … · not read or written",
-     "keccak(0x90f7…b906, slot 3) : lastBlock · hitCount · plays · … · not read or written"
+     "keccak(0x3c44…93bc, slot 3) : lastBlock · hitCount · plays · bestCombo · … · not read or written",
+     "keccak(0x7099…79c8, slot 3) : lastBlock · hitCount · plays · bestCombo · … · not read or written",
+     "keccak(0x90f7…b906, slot 3) : lastBlock · hitCount · plays · bestCombo · … · not read or written"
     ],
     "picker": ""
    },
    {
     "count": "5 / 12",
     "cap": "The template Player takes slot = each record's slot",
-    "form": "alice→slot …aa80bob→slot …7527carol→slot …9978",
+    "form": "\"alice\"→slot …aa80\"bob\"→slot …7527\"carol, the unstoppable combo queen\"→slot …9978",
     "short": "a template's inputs",
     "src": "template2 ethdebug data from the compiler",
     "foot": "https://ethdebug.github.io/format/spec/pointer/template/",
@@ -5286,16 +5342,16 @@
     "pops": [
      "k:keccak(slot 0) : roster, 3 slots · not read or written",
      "k:slot 3 · not read or written",
-     "keccak(0x3c44…93bc, slot 3) : lastBlock · hitCount · plays · … · not read or written",
-     "keccak(0x7099…79c8, slot 3) : lastBlock · hitCount · plays · … · not read or written",
-     "keccak(0x90f7…b906, slot 3) : lastBlock · hitCount · plays · … · not read or written"
+     "keccak(0x3c44…93bc, slot 3) : lastBlock · hitCount · plays · bestCombo · … · not read or written",
+     "keccak(0x7099…79c8, slot 3) : lastBlock · hitCount · plays · bestCombo · … · not read or written",
+     "keccak(0x90f7…b906, slot 3) : lastBlock · hitCount · plays · bestCombo · … · not read or written"
     ],
     "picker": ""
    },
    {
     "count": "6 / 12",
     "cap": "The first slot packs six fields, from the right",
-    "form": "lastBlock 0–7 · hitCount 8–11 · plays 12–15 · bestCombo 16–19 · combo 20–23 · score 24–31",
+    "form": "lastBlockhitCountplaysbestCombocomboscore012345678910111213141516171819202122232425262728293031",
     "short": "packed fields",
     "src": "region4 ethdebug data from the compiler",
     "foot": "https://ethdebug.github.io/format/spec/pointer/region/location/storage/",
@@ -5342,16 +5398,16 @@
     "pops": [
      "k:keccak(slot 0) : roster, 3 slots · not read or written",
      "k:slot 3 · not read or written",
-     "keccak(0x3c44…93bc, slot 3) : lastBlock · hitCount · … · score · not read or written",
-     "keccak(0x7099…79c8, slot 3) : lastBlock · hitCount · … · score · not read or written",
-     "keccak(0x90f7…b906, slot 3) : lastBlock · hitCount · … · score · not read or written"
+     "keccak(0x3c44…93bc, slot 3) : lastBlock · hitCount · … · combo · score · not read or written",
+     "keccak(0x7099…79c8, slot 3) : lastBlock · hitCount · … · combo · score · not read or written",
+     "keccak(0x90f7…b906, slot 3) : lastBlock · hitCount · … · combo · score · not read or written"
     ],
     "picker": ""
    },
    {
     "count": "7 / 12",
     "cap": "The next slot holds name, a string",
-    "form": "alice→…aa80 + 1 = …aa81bob→…7527 + 1 = …7528carol→…9978 + 1 = …9979",
+    "form": "\"alice\"→…aa80 + 1 = …aa81\"bob\"→…7527 + 1 = …7528\"carol, the unstoppable combo queen\"→…9978 + 1 = …9979",
     "short": "into a template",
     "src": "define ~sum ethdebug data from the compiler",
     "foot": "",
@@ -5385,7 +5441,7 @@
    {
     "count": "8 / 12",
     "cap": "The template string takes slot = each name slot",
-    "form": "alice→slot …aa81bob→slot …7528carol→slot …9979",
+    "form": "\"alice\"→slot …aa81\"bob\"→slot …7528\"carol, the unstoppable combo queen\"→slot …9979",
     "short": "a template's inputs",
     "src": "template2 ethdebug data from the compiler",
     "foot": "https://ethdebug.github.io/format/spec/pointer/template/",
@@ -5414,7 +5470,7 @@
    {
     "count": "9 / 12",
     "cap": "The last byte of each name slot is its length flag",
-    "form": "alice→0x0abob→0x06carol→0x45",
+    "form": "\"alice\"→0x0a\"bob\"→0x06\"carol, the unstoppable combo queen\"→0x45",
     "short": "a flag",
     "src": "region4 read from storage",
     "foot": "https://ethdebug.github.io/format/spec/pointer/region/location/storage/",
@@ -5448,8 +5504,8 @@
    },
    {
     "count": "10 / 12",
-    "cap": "The last byte decides the form: even → short (alice, bob), odd → long (carol)",
-    "form": "even: 0x0a → 5 bytes inline (alice)odd: 0x45 → 34 bytes at keccak(…9979) (carol)",
+    "cap": "The last byte decides the form: even → short (\"alice\", \"bob\"), odd → long (\"carol, the un…\")",
+    "form": "even: 0x0a → 5 bytes inline (\"alice\")odd: 0x45 → 34 bytes at keccak(…9979) (\"carol, the unstoppable combo queen\")",
     "short": "a branch",
     "src": "if5 read from storage",
     "foot": "https://ethdebug.github.io/format/spec/pointer/collection/conditional/",
@@ -5490,7 +5546,7 @@
    {
     "count": "11 / 12",
     "cap": "Each short text is in its slot, from the left",
-    "form": "alice→5 bytes at …aa81bob→3 bytes at …7528",
+    "form": "\"alice\"→5 bytes at …aa81\"bob\"→3 bytes at …7528",
     "short": "the text",
     "src": "region4 ethdebug data from the compiler",
     "foot": "https://ethdebug.github.io/format/spec/pointer/region/location/storage/",
@@ -5548,7 +5604,7 @@
      "k:keccak(0x90f7…b906, slot 3) : players[0x90f7…b906], 2 slots · not read or written",
      "k:keccak(slot 0) : roster, 3 slots · not read or written",
      "k:slot 3 · not read or written",
-     "keccak(keccak(…b906, slot 3) + 1) : …, 2 slots · not read or written"
+     "keccak(keccak(0x90f7…b906, slot 3) + 1) : players[0x90f7…b906].name, 2 slots · not read or written"
     ],
     "picker": ""
    }
@@ -5622,7 +5678,7 @@
    {
     "count": "3 / 5",
     "cap": "The last byte is the length flag, 0x0a",
-    "form": "length-flag = 0x0a",
+    "form": "length-flag = 0x0a012345678910111213141516171819202122232425262728293031",
     "short": "a flag",
     "src": "region3 read from storage",
     "foot": "https://ethdebug.github.io/format/spec/pointer/region/location/storage/",
@@ -5735,7 +5791,7 @@
    {
     "count": "1 / 12",
     "cap": "The keys: the addresses in roster",
-    "form": "0x7099…79c8 alice→[0]0x3c44…93bc bob→[1]0x90f7…b906 carol→[2]",
+    "form": "0x7099…79c8 \"alice\"→[0]0x3c44…93bc \"bob\"→[1]0x90f7…b906 \"carol, the unstoppable combo queen\"→[2]",
     "short": "the keys",
     "src": "the page reads roster from storage",
     "foot": "",
@@ -5784,7 +5840,7 @@
    {
     "count": "3 / 12",
     "cap": "The template mapping(address => Player) takes slot = 3, key = each address in roster",
-    "form": "alice→slot 3, key 0x7099…79c8bob→slot 3, key 0x3c44…93bccarol→slot 3, key 0x90f7…b906",
+    "form": "\"alice\"→slot 3, key 0x7099…79c8\"bob\"→slot 3, key 0x3c44…93bc\"carol, the unstoppable combo queen\"→slot 3, key 0x90f7…b906",
     "short": "a template's inputs",
     "src": "template2 ethdebug data from the compiler",
     "foot": "https://ethdebug.github.io/format/spec/pointer/template/",
@@ -5808,7 +5864,7 @@
    {
     "count": "4 / 12",
     "cap": "Each record is at keccak(key, 3)",
-    "form": "alice→keccak(0x7099…79c8, 3) = …aa80bob→keccak(0x3c44…93bc, 3) = …7527carol→keccak(0x90f7…b906, 3) = …9978",
+    "form": "\"alice\"→keccak(0x7099…79c8, 3) = …aa80\"bob\"→keccak(0x3c44…93bc, 3) = …7527\"carol, the unstoppable combo queen\"→keccak(0x90f7…b906, 3) = …9978",
     "short": "the record's slot",
     "src": "define ~keccak2563 ethdebug data from the compiler",
     "foot": "https://ethdebug.github.io/format/spec/pointer/expression/#keccak256-hashes",
@@ -5839,16 +5895,16 @@
     "pops": [
      "k:keccak(slot 0) : roster, 3 slots · not read or written",
      "k:slot 3 · not read or written",
-     "keccak(0x3c44…93bc, slot 3) : lastBlock · hitCount · plays · … · not read or written",
-     "keccak(0x7099…79c8, slot 3) : lastBlock · hitCount · plays · … · not read or written",
-     "keccak(0x90f7…b906, slot 3) : lastBlock · hitCount · plays · … · not read or written"
+     "keccak(0x3c44…93bc, slot 3) : lastBlock · hitCount · plays · bestCombo · … · not read or written",
+     "keccak(0x7099…79c8, slot 3) : lastBlock · hitCount · plays · bestCombo · … · not read or written",
+     "keccak(0x90f7…b906, slot 3) : lastBlock · hitCount · plays · bestCombo · … · not read or written"
     ],
     "picker": ""
    },
    {
     "count": "5 / 12",
     "cap": "The template Player takes slot = each record's slot",
-    "form": "alice→slot …aa80bob→slot …7527carol→slot …9978",
+    "form": "\"alice\"→slot …aa80\"bob\"→slot …7527\"carol, the unstoppable combo queen\"→slot …9978",
     "short": "a template's inputs",
     "src": "template2 ethdebug data from the compiler",
     "foot": "https://ethdebug.github.io/format/spec/pointer/template/",
@@ -5868,16 +5924,16 @@
     "pops": [
      "k:keccak(slot 0) : roster, 3 slots · not read or written",
      "k:slot 3 · not read or written",
-     "keccak(0x3c44…93bc, slot 3) : lastBlock · hitCount · plays · … · not read or written",
-     "keccak(0x7099…79c8, slot 3) : lastBlock · hitCount · plays · … · not read or written",
-     "keccak(0x90f7…b906, slot 3) : lastBlock · hitCount · plays · … · not read or written"
+     "keccak(0x3c44…93bc, slot 3) : lastBlock · hitCount · plays · bestCombo · … · not read or written",
+     "keccak(0x7099…79c8, slot 3) : lastBlock · hitCount · plays · bestCombo · … · not read or written",
+     "keccak(0x90f7…b906, slot 3) : lastBlock · hitCount · plays · bestCombo · … · not read or written"
     ],
     "picker": ""
    },
    {
     "count": "6 / 12",
     "cap": "The first slot packs six fields, from the right",
-    "form": "lastBlock 0–7 · hitCount 8–11 · plays 12–15 · bestCombo 16–19 · combo 20–23 · score 24–31",
+    "form": "lastBlockhitCountplaysbestCombocomboscore012345678910111213141516171819202122232425262728293031",
     "short": "packed fields",
     "src": "region4 ethdebug data from the compiler",
     "foot": "https://ethdebug.github.io/format/spec/pointer/region/location/storage/",
@@ -5924,16 +5980,16 @@
     "pops": [
      "k:keccak(slot 0) : roster, 3 slots · not read or written",
      "k:slot 3 · not read or written",
-     "keccak(0x3c44…93bc, slot 3) : lastBlock · hitCount · … · score · not read or written",
-     "keccak(0x7099…79c8, slot 3) : lastBlock · hitCount · … · score · not read or written",
-     "keccak(0x90f7…b906, slot 3) : lastBlock · hitCount · … · score · not read or written"
+     "keccak(0x3c44…93bc, slot 3) : lastBlock · hitCount · … · combo · score · not read or written",
+     "keccak(0x7099…79c8, slot 3) : lastBlock · hitCount · … · combo · score · not read or written",
+     "keccak(0x90f7…b906, slot 3) : lastBlock · hitCount · … · combo · score · not read or written"
     ],
     "picker": ""
    },
    {
     "count": "7 / 12",
     "cap": "The next slot holds name, a string",
-    "form": "alice→…aa80 + 1 = …aa81bob→…7527 + 1 = …7528carol→…9978 + 1 = …9979",
+    "form": "\"alice\"→…aa80 + 1 = …aa81\"bob\"→…7527 + 1 = …7528\"carol, the unstoppable combo queen\"→…9978 + 1 = …9979",
     "short": "into a template",
     "src": "define ~sum ethdebug data from the compiler",
     "foot": "",
@@ -5967,7 +6023,7 @@
    {
     "count": "8 / 12",
     "cap": "The template string takes slot = each name slot",
-    "form": "alice→slot …aa81bob→slot …7528carol→slot …9979",
+    "form": "\"alice\"→slot …aa81\"bob\"→slot …7528\"carol, the unstoppable combo queen\"→slot …9979",
     "short": "a template's inputs",
     "src": "template2 ethdebug data from the compiler",
     "foot": "https://ethdebug.github.io/format/spec/pointer/template/",
@@ -5996,7 +6052,7 @@
    {
     "count": "9 / 12",
     "cap": "The last byte of each name slot is its length flag",
-    "form": "alice→0x0abob→0x06carol→0x45",
+    "form": "\"alice\"→0x0a\"bob\"→0x06\"carol, the unstoppable combo queen\"→0x45",
     "short": "a flag",
     "src": "region4 read from storage",
     "foot": "https://ethdebug.github.io/format/spec/pointer/region/location/storage/",
@@ -6030,8 +6086,8 @@
    },
    {
     "count": "10 / 12",
-    "cap": "The last byte decides the form: even → short (alice, bob), odd → long (carol)",
-    "form": "even: 0x0a → 5 bytes inline (alice)odd: 0x45 → 34 bytes at keccak(…9979) (carol)",
+    "cap": "The last byte decides the form: even → short (\"alice\", \"bob\"), odd → long (\"carol, the un…\")",
+    "form": "even: 0x0a → 5 bytes inline (\"alice\")odd: 0x45 → 34 bytes at keccak(…9979) (\"carol, the unstoppable combo queen\")",
     "short": "a branch",
     "src": "if5 read from storage",
     "foot": "https://ethdebug.github.io/format/spec/pointer/collection/conditional/",
@@ -6072,7 +6128,7 @@
    {
     "count": "11 / 12",
     "cap": "Each short text is in its slot, from the left",
-    "form": "alice→5 bytes at …aa81bob→3 bytes at …7528",
+    "form": "\"alice\"→5 bytes at …aa81\"bob\"→3 bytes at …7528",
     "short": "the text",
     "src": "region4 ethdebug data from the compiler",
     "foot": "https://ethdebug.github.io/format/spec/pointer/region/location/storage/",
@@ -6130,7 +6186,7 @@
      "k:keccak(0x90f7…b906, slot 3) : players[0x90f7…b906], 2 slots · not read or written",
      "k:keccak(slot 0) : roster, 3 slots · not read or written",
      "k:slot 3 · not read or written",
-     "keccak(keccak(…b906, slot 3) + 1) : …, 2 slots · not read or written"
+     "keccak(keccak(0x90f7…b906, slot 3) + 1) : players[0x90f7…b906].name, 2 slots · not read or written"
     ],
     "picker": ""
    }
@@ -6170,7 +6226,7 @@
    {
     "count": "1 / 11",
     "cap": "The keys: the addresses in the trace",
-    "form": "0x7099…79c8 alice→trace0x3c44…93bc bob→trace0x90f7…b906 carol→trace",
+    "form": "0x7099…79c8 \"\"→trace0x3c44…93bc \"\"→trace0x90f7…b906 \"\"→trace",
     "short": "the keys",
     "src": "the page reads the keys from the trace",
     "foot": "",
@@ -6208,7 +6264,7 @@
    {
     "count": "3 / 11",
     "cap": "The template mapping(address => Player) takes slot = 3, key = each address in the trace",
-    "form": "alice→slot 3, key 0x7099…79c8bob→slot 3, key 0x3c44…93bccarol→slot 3, key 0x90f7…b906",
+    "form": "\"\"→slot 3, key 0x7099…79c8\"\"→slot 3, key 0x3c44…93bc\"\"→slot 3, key 0x90f7…b906",
     "short": "a template's inputs",
     "src": "template2 ethdebug data from the compiler",
     "foot": "https://ethdebug.github.io/format/spec/pointer/template/",
@@ -6231,7 +6287,7 @@
    {
     "count": "4 / 11",
     "cap": "Each record is at keccak(key, 3)",
-    "form": "alice→keccak(0x7099…79c8, 3) = …aa80bob→keccak(0x3c44…93bc, 3) = …7527carol→keccak(0x90f7…b906, 3) = …9978",
+    "form": "\"\"→keccak(0x7099…79c8, 3) = …aa80\"\"→keccak(0x3c44…93bc, 3) = …7527\"\"→keccak(0x90f7…b906, 3) = …9978",
     "short": "the record's slot",
     "src": "define ~keccak2563 ethdebug data from the compiler",
     "foot": "https://ethdebug.github.io/format/spec/pointer/expression/#keccak256-hashes",
@@ -6270,7 +6326,7 @@
    {
     "count": "5 / 11",
     "cap": "The template Player takes slot = each record's slot",
-    "form": "alice→slot …aa80bob→slot …7527carol→slot …9978",
+    "form": "\"\"→slot …aa80\"\"→slot …7527\"\"→slot …9978",
     "short": "a template's inputs",
     "src": "template2 ethdebug data from the compiler",
     "foot": "https://ethdebug.github.io/format/spec/pointer/template/",
@@ -6298,7 +6354,7 @@
    {
     "count": "6 / 11",
     "cap": "The first slot packs six fields, from the right",
-    "form": "lastBlock 0–7 · hitCount 8–11 · plays 12–15 · bestCombo 16–19 · combo 20–23 · score 24–31",
+    "form": "lastBlockhitCountplaysbestCombocomboscore012345678910111213141516171819202122232425262728293031",
     "short": "packed fields",
     "src": "region4 ethdebug data from the compiler",
     "foot": "https://ethdebug.github.io/format/spec/pointer/region/location/storage/",
@@ -6344,16 +6400,16 @@
     "gut": [],
     "pops": [
      "k:slot 3",
-     "keccak(0x3c44…93bc, slot 3) : lastBlock · hitCount · plays · … · combo · score",
-     "keccak(0x7099…79c8, slot 3) : lastBlock · hitCount · plays · … · combo · score",
-     "keccak(0x90f7…b906, slot 3) : lastBlock · hitCount · plays · … · combo · score"
+     "keccak(0x3c44…93bc, slot 3) : lastBlock · hitCount · plays · bestCombo · combo · score",
+     "keccak(0x7099…79c8, slot 3) : lastBlock · hitCount · plays · bestCombo · combo · score",
+     "keccak(0x90f7…b906, slot 3) : lastBlock · hitCount · plays · bestCombo · combo · score"
     ],
     "picker": ""
    },
    {
     "count": "7 / 11",
     "cap": "The next slot holds name, a string",
-    "form": "alice→…aa80 + 1 = …aa81bob→…7527 + 1 = …7528carol→…9978 + 1 = …9979",
+    "form": "\"\"→…aa80 + 1 = …aa81\"\"→…7527 + 1 = …7528\"\"→…9978 + 1 = …9979",
     "short": "into a template",
     "src": "define ~sum ethdebug data from the compiler",
     "foot": "",
@@ -6386,7 +6442,7 @@
    {
     "count": "8 / 11",
     "cap": "The template string takes slot = each name slot",
-    "form": "alice→slot …aa81bob→slot …7528carol→slot …9979",
+    "form": "\"\"→slot …aa81\"\"→slot …7528\"\"→slot …9979",
     "short": "a template's inputs",
     "src": "template2 ethdebug data from the compiler",
     "foot": "https://ethdebug.github.io/format/spec/pointer/template/",
@@ -6414,7 +6470,7 @@
    {
     "count": "9 / 11",
     "cap": "The last byte of each name slot is its length flag",
-    "form": "alice→0x00bob→0x00carol→0x00",
+    "form": "\"\"→0x00\"\"→0x00\"\"→0x00",
     "short": "a flag",
     "src": "region4 read from storage",
     "foot": "https://ethdebug.github.io/format/spec/pointer/region/location/storage/",
@@ -6448,7 +6504,7 @@
    {
     "count": "10 / 11",
     "cap": "Even → short: the last byte holds 2 × length",
-    "form": "alice→even: 0x00 → 0 bytes inlinebob→even: 0x00 → 0 bytes inlinecarol→even: 0x00 → 0 bytes inline",
+    "form": "\"\"→even: 0x00 → 0 bytes inline\"\"→even: 0x00 → 0 bytes inline\"\"→even: 0x00 → 0 bytes inline",
     "short": "a branch",
     "src": "if5 read from storage",
     "foot": "https://ethdebug.github.io/format/spec/pointer/collection/conditional/",
@@ -6481,7 +6537,7 @@
    {
     "count": "11 / 11",
     "cap": "Each short text is in its slot, from the left",
-    "form": "alice→0 bytes at …aa81bob→0 bytes at …7528carol→0 bytes at …9979",
+    "form": "\"\"→0 bytes at …aa81\"\"→0 bytes at …7528\"\"→0 bytes at …9979",
     "short": "the text",
     "src": "region4 ethdebug data from the compiler",
     "foot": "https://ethdebug.github.io/format/spec/pointer/region/location/storage/",
@@ -6527,8 +6583,8 @@
    },
    {
     "count": "1 / 11",
-    "cap": "key = alice's address, from the trace",
-    "form": "0x7099…79c8 alice",
+    "cap": "key = the address of \"\", from the trace",
+    "form": "0x7099…79c8 \"\"",
     "short": "the key",
     "src": "the page reads the keys from the trace",
     "foot": "",
@@ -6565,7 +6621,7 @@
    },
    {
     "count": "3 / 11",
-    "cap": "The template mapping(address => Player) takes slot = 3, key = alice's address",
+    "cap": "The template mapping(address => Player) takes slot = 3, key = the address of \"\"",
     "form": "slot = 3, key = 0x7099…79c8",
     "short": "a template's inputs",
     "src": "template2 ethdebug data from the compiler",
@@ -6648,7 +6704,7 @@
    {
     "count": "6 / 11",
     "cap": "The first slot packs six fields, from the right",
-    "form": "lastBlock 0–7 · hitCount 8–11 · plays 12–15 · bestCombo 16–19 · combo 20–23 · score 24–31",
+    "form": "lastBlockhitCountplaysbestCombocomboscore012345678910111213141516171819202122232425262728293031",
     "short": "packed fields",
     "src": "region4 ethdebug data from the compiler",
     "foot": "https://ethdebug.github.io/format/spec/pointer/region/location/storage/",
@@ -6690,7 +6746,7 @@
     "gut": [],
     "pops": [
      "k:slot 3",
-     "keccak(0x7099…79c8, slot 3) : lastBlock · hitCount · plays · … · combo · score"
+     "keccak(0x7099…79c8, slot 3) : lastBlock · hitCount · plays · bestCombo · combo · score"
     ],
     "picker": ""
    },
@@ -6750,7 +6806,7 @@
    {
     "count": "9 / 11",
     "cap": "The last byte is the length flag, 0x00",
-    "form": "length-flag = 0x00",
+    "form": "length-flag = 0x00012345678910111213141516171819202122232425262728293031",
     "short": "a flag",
     "src": "region4 read from storage",
     "foot": "https://ethdebug.github.io/format/spec/pointer/region/location/storage/",
@@ -6849,8 +6905,8 @@
    },
    {
     "count": "1 / 10",
-    "cap": "key = alice's address, from the trace",
-    "form": "0x7099…79c8 alice",
+    "cap": "key = the address of \"\", from the trace",
+    "form": "0x7099…79c8 \"\"",
     "short": "the key",
     "src": "the page reads the keys from the trace",
     "foot": "",
@@ -6887,7 +6943,7 @@
    },
    {
     "count": "3 / 10",
-    "cap": "The template mapping(address => Player) takes slot = 3, key = alice's address",
+    "cap": "The template mapping(address => Player) takes slot = 3, key = the address of \"\"",
     "form": "slot = 3, key = 0x7099…79c8",
     "short": "a template's inputs",
     "src": "template2 ethdebug data from the compiler",
@@ -7023,7 +7079,7 @@
    {
     "count": "8 / 10",
     "cap": "The last byte is the length flag, 0x00",
-    "form": "length-flag = 0x00",
+    "form": "length-flag = 0x00012345678910111213141516171819202122232425262728293031",
     "short": "a flag",
     "src": "region4 read from storage",
     "foot": "https://ethdebug.github.io/format/spec/pointer/region/location/storage/",

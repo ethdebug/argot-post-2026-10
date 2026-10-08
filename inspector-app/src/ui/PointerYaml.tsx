@@ -172,6 +172,26 @@ export function PointerYaml({ domId, data, variable, band, before, goal,
     setAlias(`${a.textContent}\n${a.dataset.id}`);
   };
   const coloured = html?.text === text ? html.lines : null;
+  // the glyph: up and right when ▶ is right of it, else up and left
+  const pgo = useRef<HTMLParagraphElement>(null);
+  const [glyph, setGlyph] = useState("⤴");
+  useLayoutEffect(() => {
+    const aim = () => {
+      const g = pgo.current?.querySelector(".pglyph");
+      const next = pgo.current?.closest("[data-view]")?.querySelector(
+        'button[data-r="next"]');
+      if (!goal || !g || !next) return;
+      const gr = g.getBoundingClientRect();
+      const n = next.getBoundingClientRect();
+      setGlyph(n.left + n.width / 2 >= gr.left - 4 ? "⤴" : "↖");
+    };
+    const f = requestAnimationFrame(aim);
+    addEventListener("resize", aim);
+    return () => {
+      cancelAnimationFrame(f);
+      removeEventListener("resize", aim);
+    };
+  }, [goal]);
   return <div className="ptrbox"><div ref={box} id={domId} tabIndex={0}
     className={`ptrscroll${lit.size ? " lit" : ""}${goal ? " goal" : ""}${
       more.up ? " more-up" : ""}${more.down ? " more-down" : ""}`}
@@ -196,7 +216,14 @@ export function PointerYaml({ domId, data, variable, band, before, goal,
       {Object.keys(names).length > 0 && <p className="muted small pids">
         {alias ? <><code className="alias">{alias.split("\n")[0]}</code> =
           solc's <code>{alias.split("\n")[1]}</code></> : PIDS}</p>}</>}
-  </div>{edge("up")}{edge("down")}</div>;
+  </div>{edge("up")}{edge("down")}
+    {/* (at step 0, over the blurred pointer: the way on, with an arrow
+      glyph toward ▶: vanilla goGlyph) */}
+    <p ref={pgo} id={domId ? "pgo" : undefined} className="pgo"
+      hidden={!goal}><span className="ptext">Step through the pointer's
+      dereference to see how this compiler output finds these
+      bytes</span><span className="pglyph" aria-hidden="true">{glyph}
+      </span></p></div>;
 }
 
 // a range of a line's text, wrapped in a button for its template's id
