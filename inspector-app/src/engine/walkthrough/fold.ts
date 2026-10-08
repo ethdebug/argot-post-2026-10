@@ -22,15 +22,19 @@ export type Tok = string | { code: string } | { gloss: string } |
   { prose: string } | { question: string } | { field: Path; text: string };
 export type Form =
   | { kind: "text"; toks: Tok[] }
-  | { kind: "table"; rows: { a: Tok[]; b: Tok[]; k: Colour }[] }
+  | { kind: "table"; rows: { a: Tok[]; b: Tok[]; k: Colour;
+    dim?: boolean }[] }
   | { kind: "lines"; lines: Tok[][] }
   // byte ranges within one slot, drawn as a dump row is: 32 cells in
   // four groups of eight, each value a span over its cells, in its
   // colour, named; the byte positions under it (vanilla 5c1edfa)
   | { kind: "strip"; fields: { path?: Path; name: string; from: number;
     to: number; k: Colour }[] };
+// (`k`: its regions' bytes in that colour, whatever owns them;
+// `wholes`: slots computed here, outlined in `k`, their bytes not lit)
 export interface Part { regions: ResolvedRegion[]; rows: Path[];
-  colours?: ReadonlyMap<Path, Colour>; dim?: boolean; slots?: Hex[] }
+  colours?: ReadonlyMap<Path, Colour>; dim?: boolean; slots?: Hex[];
+  k?: Colour; wholes?: Hex[] }
 export interface Step {
   id: string;            // the step's identity: its node and kind, not
                          // its instances (re-targeting aligns on it)
@@ -40,14 +44,24 @@ export interface Step {
   ruler?: Hex; tkind?: string; rname?: string;
   goal?: boolean;        // step 0: what we are about to find
 }
+// (a rule's instances in a form's table: `k` its entry's colour; `dim`:
+// not the focus, an echo)
 export interface Walkthrough {
   target: Path; steps: Step[];
   // a mapping's entries, for the focus picker; "*": all at full strength
   recs: { path: Path; who: string; full?: string }[] | null; focus: string;
   variable: string;
+  // (the slots the walkthrough touches: its labels' runs; and who each
+  // key is, for the labels: "0x7099…79c8" → "alice")
+  span: Hex[]; names: Map<string, string>;
 }
 export interface WalkInput {
   d: Decoded; c: Compilation; snap?: Snapshot; keys: KeySource;
+  // (the point, as the scene names it, when it is one side of a pair)
+  when?: string;
+  // (another compiler's storage read by this rule: that compiler's own
+  // reading of it, for the contrast at the end)
+  contrast?: { d: Decoded; language: string };
 }
 
 type Any = any;
@@ -55,6 +69,12 @@ const PICKS = 10;
 // (the walkthrough's last step, "found": one switch, to try it; vanilla
 // 6b1df3a FOUND)
 export const FOUND = true;
+// (where a step's facts come from: one form for every step)
+const COMPILER = "from: the compiler (ethdebug)";
+const STORAGE = "from: storage (a value read)";
+const LANG = (l: string) => l[0].toUpperCase() + l.slice(1);
+// (solc's rule over another compiler's storage: the Vyper scene)
+const RULE = (_l: string) => "Solidity's rule";
 const nWord = (n: number) => ["no", "one", "two", "three", "four", "five",
   "six", "seven", "eight"][n] ?? String(n);
 
@@ -129,8 +149,24 @@ export function walkthrough(x: WalkInput, path: Path, focus?: string):
     return list?.children?.find((ch) => ch.value?.text?.toLowerCase()
       .endsWith(k)) ?? null;
   };
+  // The walkthrough's colours, each with one meaning from step 0 to
+  // found: within the selection, the colours its resting view gives
+  // (found is that view; its own bytes, the selection's yellow, 0); an
+  // entry outside it, its entry's colour; anything else lit, neutral
+  // ("nt"), never the selection's yellow
   const ec = childColours(d, variable, 9);
-  const kOf = (inst: string): Colour => ec.get(inst) ?? 0;
+  const rc = childColours(d, path, 9);
+  const inTarget = (q: string) => q === path || q.startsWith(path + ".") ||
+    q.startsWith(path + "[");
+  const M = new Map<Path, Colour>([...d.byPath.keys()].map((q) => {
+    const k = inTarget(q) ? rc.get(q) ?? 0 : ec.get(q);
+    return [q, k === undefined || (k === 0 && !inTarget(q)) ? "nt" : k];
+  }));
+  const kOf = (inst: string): Colour => M.get(inst) ?? "nt";
+  // (an input's source row: its entry's colour; the source tint for the
+  // selection's own entry, whose colour is the selection's)
+  const srcOf = (inst: string): Colour => kOf(inst) === 0 ? "src"
+    : kOf(inst);
 
   // the YAML's lines, for the document order of the nodes
   const { lines } = pointerText(c, variable);
@@ -262,18 +298,20 @@ export function walkthrough(x: WalkInput, path: Path, focus?: string):
     }
   }
   const keyOf = (i: string) => inputs.get(`${i}|mapping`)?.key?.hex;
-  // an instance by its on-chain name (quoted), else its key
-  // (an empty name, "", is none)
+  // an instance by its name in the scene's story (the fixture's), else
+  // its on-chain `name` (quoted; an empty one, "", is none), else its
+  // key: one name for each, everywhere; its address once, at the keys
   const named = (t?: string) => t && t !== '""' ? t : undefined;
-  const nameOf = (i: string) => named(d.byPath.get(`${i}.name`)?.value
-    ?.text);
+  const nameOfKey = (h: Hex) => x.keys.names?.[w32(h).slice(-40)];
+  const nameOf = (i: string) => (keyOf(i) && nameOfKey(keyOf(i)!)) ??
+    named(d.byPath.get(`${i}.name`)?.value?.text);
   const who = (i: string) => nameOf(i) ?? (keyOf(i) ? short(keyOf(i)!)
     : i.replace(/\[(0x[0-9a-fA-F]{16,})\]/g, (_, h) => `[${short(h)}]`));
-  const addr = (h: Hex): Tok[] => {
-    const nm = named(d.byPath.get(`${variable}[0x${w32(h).slice(-40)}]` +
-      ".name")?.value?.text);
-    return [short(h), ...(nm ? [" ", { gloss: nm }] : [])];
-  };
+  const whoAt = (i: string) => keyOf(i) && nameOf(i)
+    ? `${who(i)} (${short(keyOf(i)!)})` : who(i);
+  // (a path with its keys by name: players[carol].name)
+  const pathName = (p: string) => p.replace(/\[(0x[0-9a-fA-F]{16,})\]/g,
+    (_, h) => `[${nameOfKey(h as Hex) ?? short(h)}]`);
   const isRec = insts.some((i) => keyOf(i));
   // (shortened, within its quotes, for a narrow place: vanilla 0225d35)
   const clip = (t: string, n = 16) => t.length > n
@@ -318,18 +356,22 @@ export function walkthrough(x: WalkInput, path: Path, focus?: string):
     const items = keyed.map((i) => [i, keyItem(keyOf(i)!)] as const);
     const one = keyed.length === 1;
     const has = items.filter(([, it]) => it) as [string, ValueNode][];
+    // (a mapping does not store its keys: the page supplies them)
+    const from = (it: ValueNode | null) => it ? `\`${it.path}\``
+      : "the trace of the calls";
     step({ phase: "input", id: "input",
-      cap: one ? `key = the address of ${who(keyed[0])}, from \`${
-        items[0][1]?.path ?? "the trace"}\``
-        : `The keys: the addresses in \`${keyList ?? "the trace"}\``,
-      form: one ? text(...addr(keyOf(keyed[0])!)) : table(items.map(([i, it]) =>
-        [addr(keyOf(i)!), [it?.label ?? "trace"], kOf(i)])),
-      source: keyList ? `the page reads ${keyList} from storage`
-        : "the page reads the keys from the trace", sourceTint: !!keyList,
+      cap: one ? `The key: ${who(keyed[0])}'s address. A mapping does not ` +
+        `store its keys; the page takes it from ${from(items[0][1])}`
+        : "The keys: a mapping does not store its keys; the page takes " +
+          `them from ${keyList ? `\`${keyList}\`` : "the trace of the calls"}`,
+      form: one ? text(whoAt(keyed[0])) : table(items.map(([i, it]) =>
+        [[whoAt(i)], [it?.label ?? "trace"], srcOf(i)])),
+      source: keyList ? `from: the page (${keyList}, read from storage)`
+        : "from: the page (the trace)",
       chip: one ? "key" : "keys", chipLabel: keyList ?? "trace",
       parts: [{ regions: has.flatMap(([, it]) => it.regions),
         rows: has.map(([, it]) => it.path),
-        colours: new Map(has.map(([i, it]) => [it.path, kOf(i)])) }],
+        colours: new Map(has.map(([i, it]) => [it.path, srcOf(i)])) }],
       rows: has.map(([, it]) => it.path) });
   }
 
@@ -343,23 +385,29 @@ export function walkthrough(x: WalkInput, path: Path, focus?: string):
           `bytes from offset ${r.offset}`,
         form: strip([{ name: variable, from: r.offset, to: r.offset +
           r.length - 1, k: 0 }]),
-        constructs: ["pointer"], source: "ethdebug data from the compiler",
+        constructs: ["pointer"], source: COMPILER,
         chip: `slot ${small(r.slot!)}`, chipLabel: "value",
-        parts: [{ regions: [r], rows: [variable] }], rows: [variable] });
+        parts: [{ regions: [r], rows: [variable], colours: M }],
+        rows: [variable] });
     } else {
       const w = wordAt(declared.slot);
+      const at = `slot ${small(declared.slot)}`;
+      const empty = w !== undefined && !toBig(w);
       step({ phase: "declared", id: `declared|${variable}`, band: ["~var"],
-        cap: kind === "mapping" && w !== undefined && !toBig(w)
-          ? `\`${variable}\` is declared at slot ${small(declared.slot)}; ` +
-            "that slot holds nothing"
-          : `\`${variable}\` is declared at slot ${small(declared.slot)}`,
-        form: text(`slot ${small(declared.slot)}`),
-        constructs: ["pointer"], source: "ethdebug data from the compiler",
+        cap: x.contrast ? `${RULE(x.contrast.language)} says \`${variable
+          }\` is declared at ${at}${empty ? "; that slot holds nothing"
+          : `; in ${LANG(x.contrast.language)}'s storage, that slot holds ` +
+            "something else"}`
+          : kind === "mapping" && empty
+            ? `\`${variable}\` is declared at ${at}; that slot holds nothing`
+            : `\`${variable}\` is declared at ${at}`,
+        form: text(),
+        constructs: ["pointer"], source: COMPILER,
         chip: `slot ${small(declared.slot)}`, chipLabel: ["mapping",
           "string", "array", "struct"].includes(kind) ? kind === "struct"
           ? "record" : kind : "value",
         gutters: [w32(declared.slot)], parts: [{ regions: [],
-          rows: [variable] }], rows: [variable] });
+          rows: [variable], colours: M }], rows: [variable] });
     }
   }
 
@@ -372,14 +420,27 @@ export function walkthrough(x: WalkInput, path: Path, focus?: string):
     pos(nd.block, nd.at)];
   const instRows = (nd: Nd) => [...nd.by.values()].flatMap((xx) =>
     xx.leaves.map((l) => l.path));
+  // (an instance's own value's colour: the selection's yellow when it is
+  // the selection, else its entry's)
+  const kLeaf = (y: X): Colour => {
+    const l = y.leaves.find((v) => v.path !== y.inst) ?? y.leaves[0];
+    return (l && M.get(l.path)) ?? kOf(y.inst);
+  };
   const regionsOf = (nd: Nd) => [...nd.by.values()].flatMap((xx) =>
     xx.regions);
+  // a field's colour at the packed fields: its own in the walkthrough's
+  // colours where it has one (the selection is its record, or the field
+  // itself); else, with several entries shown, a colour no entry uses
   const fieldColours = () => {
-    const used = new Set(ec.values());
+    const used = new Set(insts.map(kOf));
     const free = [...Array(PICKS).keys()].slice(1).filter((k) =>
       !used.has(k as Colour)) as Colour[];
     const fc = childColours(d, f, 9);
     return (leafPath: string): Colour => {
+      const own = M.get(leafPath);
+      if (own !== undefined && own !== kOf(instOf({ path: leafPath }))) {
+        return own;
+      }
       const name = leafPath.slice(instOf({ path: leafPath }).length);
       const k = fc.get(`${f}${name}`);
       return typeof k === "number" && k ? free[(k - 1) % free.length] : 0;
@@ -390,40 +451,38 @@ export function walkthrough(x: WalkInput, path: Path, focus?: string):
     const xs = [...nd.by.values()];
     if (nd.kind === "template") {
       const t = types[nd.s.name];
+      const tband = [`=${nd.s.name}|`, exact(nd.s.name, ["expect"]),
+        exact(nd.s.name, ["for"])];
+      // (a template entered from a hand-off: one step with it, the
+      // define and the template it leads into, read as one)
+      const prev = out.at(-1);
+      if (prev?.phase === "handoff") {
+        prev.band.push(...tband);
+        prev.constructs.push("template");
+        continue;
+      }
       const ks = (nd.s.expect ?? []) as string[];
       const vals = (k: string) => [...new Set(xs.map((y) =>
         y.s.inputs?.[k]?.hex))];
+      const valOf = (y: X, k: string) => k === "key" ? who(y.inst)
+        : small(y.s.inputs[k].hex);
       const what = (k: string) => {
         const vs = vals(k);
         if (vs.length === 1 && vs[0] !== undefined) {
-          return k === "key" ? `key = the address of ${who(xs[0].inst)}`
-            : `${k} = ${small(vs[0])}`;
+          return `${k} = ${valOf(xs[0], k)}`;
         }
-        return k === "key" ? `key = each address in \`${keyList ??
-          "the trace"}\`` : `${k} = each ${t?.kind === "struct"
-          ? "record's slot" : t?.kind === "string" ? "name slot" : k}`;
+        return `${k} = ${xs.map((y) => valOf(y, k)).join(" · ")}`;
       };
-      // (one row an instance, where their inputs differ)
-      const many = new Set(xs.map((y) => JSON.stringify(y.s.inputs))).size
-        > 1;
-      const rowsT = insts.filter((i) => i !== variable);
-      const inp = (y: X, k: string) => k === "key"
-        ? short(y.s.inputs[k].hex) : small(y.s.inputs[k].hex);
       step({ phase: "template", tkind: t?.kind, id: nd.k,
-        cap: `The template \`${tn(nd.s.name)}\` takes ${ks.map(what)
-          .join(", ")}`,
-        form: many ? table(xs.map((y) => [[who(y.inst)], [ks.map((k) =>
-          `${k} ${inp(y, k)}`).join(", ")], kOf(y.inst)]))
-          : text(ks.map((k) => `${k} = ${inp(xs[0], k)}`).join(", ")),
-        constructs: ["template"], source: "ethdebug data from the compiler",
+        cap: `The template \`${tn(nd.s.name)}\` takes ${ks.map((k) =>
+          `\`${k}\``).join(" and ")}`,
+        form: text(ks.map(what).join("; ")),
+        constructs: ["template"], source: COMPILER,
         chip: tn(nd.s.name), chipLabel: "template",
         gutters: [...new Set(xs.map((y) => y.s.inputs?.slot?.hex)
           .filter(Boolean).map((h) => w32(h)))],
-        parts: [{ regions: [], rows: rowsT.length ? rowsT : [variable],
-          colours: ec }],
-        rows: rowsT.length ? rowsT : [variable],
-        band: [`=${nd.s.name}|`, exact(nd.s.name, ["expect"]),
-          exact(nd.s.name, ["for"])] });
+        parts: [{ regions: [], rows: [variable], colours: M }],
+        rows: [variable], band: tband });
       continue;
     }
     if (nd.kind === "define") {
@@ -432,11 +491,12 @@ export function walkthrough(x: WalkInput, path: Path, focus?: string):
         // the hand-off into a nested template
         const t = types[into.template];
         const op = opOf(nd.s.expr);
+        // (one spelling: keccak(alice, slot 3); slot + 1)
         const formula = (y: X) => {
           const v = y.s.value.hex as Hex;
           if (op === "~keccak256" && y.s.args?.length === 2) {
-            const [a, b] = y.s.args.map((z: Any) => z.value.hex);
-            return `keccak(${short(a)}, ${small(b)}) = ${tail(v)}`;
+            const [, b] = y.s.args.map((z: Any) => z.value.hex);
+            return `keccak(${who(y.inst)}, slot ${small(b)}) = ${tail(v)}`;
           }
           if (op === "~sum") {
             const base = inputs.get(`${y.inst}|${types[nd.block]?.kind}`)
@@ -452,24 +512,33 @@ export function walkthrough(x: WalkInput, path: Path, focus?: string):
           .replace(/^\./, "") || leafOf(y).label;
         const many = xs.length > 1;
         const isRecord = t?.kind === "struct";
+        const slotN = small(xs[0].s.args?.[1]?.value.hex ?? "0x0");
+        // (the first hash of the walkthrough says what it hashes)
+        const hashGloss = op === "~keccak256" && !out.some((y) =>
+          y.phase === "handoff" && y.constructs.includes("~keccak256"));
+        const into1 = `the template \`${tn(into.template)}\` takes it as ` +
+          "its `slot`";
+        const rows = isRecord ? xs.map((y) => y.inst)
+          : xs.map((y) => leafOf(y).path);
+        const fm: Form = many ? table(xs.map((y) => [[who(y.inst)],
+          [formula(y)], kOf(y.inst)])) : text(formula(xs[0]));
         step({ phase: "handoff", tkind: t?.kind, id: nd.k,
-          cap: isRecord ? many ? `Each record is at keccak(key, ${small(
-            xs[0].s.args?.[1]?.value.hex ?? "0x0")})`
-            : `The record is at ${formula(xs[0])}`
-            : `The next slot holds \`${fname(xs[0])}\`, a ${tn(
-              into.template)}${many ? "" : `: ${formula(xs[0])}`}`,
-          form: many ? table(xs.map((y) => [[who(y.inst)], [formula(y)],
-            kOf(y.inst)])) : text(formula(xs[0])),
+          cap: isRecord ? `${many ? "Each record is" : "The record is"} ` +
+            `at keccak(key, slot ${slotN}); ${into1}`
+            : `\`${fname(xs[0])}\` is in the next slot, slot + 1; ${into1}`,
+          form: hashGloss && fm.kind === "text" ? text(formula(xs[0]),
+            { prose: "  (keccak of two 32-byte words: the key, then the " +
+              "slot)" }) : fm,
           constructs: ["define", ...(op ? [op] : [])],
-          source: "ethdebug data from the compiler",
-          chip: isRecord ? `keccak(key, ${small(xs[0].s.args?.[1]?.value.hex
-            ?? "0x0")})` : fname(xs[0]),
+          source: COMPILER,
+          chip: isRecord ? `keccak(key, slot ${slotN})` : fname(xs[0]),
           chipLabel: isRecord ? "record" : tn(into.template),
-          gutters: xs.map((y) => w32(y.s.value.hex)),
-          parts: [{ regions: [], rows: isRecord ? xs.map((y) => y.inst)
-            : xs.map((y) => leafOf(y).path), colours: ec }],
-          rows: isRecord ? xs.map((y) => y.inst) : xs.map((y) =>
-            leafOf(y).path),
+          // (the computed slots, whole, outlined in their entries'
+          // colours: found, not read yet)
+          parts: xs.map((y) => ({ regions: [], rows: [isRecord ? y.inst
+            : leafOf(y).path], colours: M, k: kOf(y.inst),
+            wholes: [w32(y.s.value.hex)] })),
+          rows,
           band: [...defineBand(nd), pos(nd.block, [...nd.at.slice(0, -2),
             "in"])] });
         continue;
@@ -492,7 +561,7 @@ export function walkthrough(x: WalkInput, path: Path, focus?: string):
       openIf = { block: nd.block, branches: branches.map((b) => [...P, b]),
         absorbed: [], nd };
       openIf.st = step({ phase: "if", id: nd.k,
-        constructs: ["if"], source: "read from storage",
+        constructs: ["if"], source: STORAGE,
         chip: branches.length > 1 ? "short | long" : branches[0] === "then"
           ? "short" : "long", chipLabel: "branch",
         band: [pos(nd.block, nd.at), ...branches.map((b) =>
@@ -520,23 +589,25 @@ export function walkthrough(x: WalkInput, path: Path, focus?: string):
         return String(toBig(wv));
       };
       const many = xs.length > 1;
-      const lbl = name === "length-flag" ? "The last byte is the length flag"
-        : name === "length" ? `slot ${small(vals[0][1].slot!)} holds the ` +
-          "length" : `\`${name}\` is read`;
+      // (the rule in the caption, the value in the form)
+      // (a string by its own name: `name`, `motd`)
+      const sname = (xs[0].leaves[0]?.path ?? "").split(".").pop()!
+        .replace(/\[.*$/, "");
+      const lbl = name === "length-flag" ? `The last byte of \`${sname
+        }\`'s slot is its length flag` : name === "length" ? `Slot ${small(
+          vals[0][1].slot!)} holds the length` : `\`${name}\` is read`;
       step({ phase: "read", rname: name, id: nd.k,
-        cap: many ? `${name === "length-flag" ? "The last byte of each " +
-          "name slot is its length flag" : lbl}`
-          : `${lbl}${name === "length-flag" ? ", " : ": "}${byte(
-            vals[0][1])}`,
+        cap: many && name === "length-flag" ? "The last byte of each " +
+          `\`${sname}\` slot is its length flag` : lbl,
         form: many ? table(vals.map(([y, r]) => [[who(y.inst)], [byte(r)],
-          kOf(y.inst)])) : strip([{ name: `${name} = ${byte(vals[0][1])}`,
+          kLeaf(y)])) : strip([{ name: `${name} = ${byte(vals[0][1])}`,
           from: vals[0][1].offset, to: vals[0][1].offset +
-            vals[0][1].length - 1, k: kOf(vals[0][0].inst) }]),
-        constructs: ["region"], source: "read from storage",
+            vals[0][1].length - 1, k: kLeaf(vals[0][0]) }]),
+        constructs: ["region"], source: STORAGE,
         chip: name === "length-flag" ? "flag" : name,
         chipLabel: name === "length" ? "array" : "string",
         parts: [{ regions: regionsOf(nd), rows: [...new Set(instRows(nd))],
-          colours: ec }],
+          colours: M }],
         rows: [...new Set(instRows(nd))], band: [pos(nd.block, nd.at)] });
       continue;
     }
@@ -557,15 +628,15 @@ export function walkthrough(x: WalkInput, path: Path, focus?: string):
         .sort((a, b) => a - b) : [];
       const one = is.length === 1;
       step({ phase: "item", id: nd.k,
-        cap: one ? `The items start at keccak(${small(base)})`
-          : `The items start at keccak(${small(base)}), one slot each, ` +
+        cap: one ? `The items start at keccak(slot ${small(base)})`
+          : `The items start at keccak(slot ${small(base)}), one slot each, ` +
             "for `length` items",
-        form: text(`keccak256(${small(base)}) = ${start ? tail(start) : "?"}${
+        form: text(`keccak(slot ${small(base)}) = ${start ? tail(start) : "?"}${
           one ? `; item ${is[0]} at + ${is[0]}` : `; items ${is[0]}…${is.at(
             -1)} at + i`}`),
-        constructs: ["~keccak256", "list"], source: "ethdebug data from the compiler",
-        chip: `keccak(${small(base)})`, chipLabel: "items",
-        parts: [{ regions: regionsOf(nd), rows: instRows(nd), colours: ec }],
+        constructs: ["~keccak256", "list"], source: COMPILER,
+        chip: `keccak(slot ${small(base)})`, chipLabel: "items",
+        parts: [{ regions: regionsOf(nd), rows: instRows(nd), colours: M }],
         rows: instRows(nd), band: bandR });
       continue;
     }
@@ -582,19 +653,19 @@ export function walkthrough(x: WalkInput, path: Path, focus?: string):
       step({ phase: "data", id: nd.k,
         cap: many ? long ? "Each long text starts at keccak(its slot)"
           : "Each short text is in its slot, from the left"
-          : long ? `The text starts at keccak(${tail(startOf)}) = ${tail(
-            one.regions[0].slot!)}, ${lenOf(one)} bytes over ${slots(one)} ${
-            slots(one) === 1 ? "slot" : "slots"}`
+          : long ? `The text starts at keccak(slot ${tail(startOf)}) = ${
+            tail(one.regions[0].slot!)}: ${lenOf(one)} bytes over ${slots(one)
+            } ${slots(one) === 1 ? "slot" : "slots"}`
             : `The text is in the slot itself: ${lenOf(one)} bytes from ` +
               "the left",
         form: many ? table(xs.map((y) => [[who(y.inst)], [`${lenOf(y)
-          } bytes at ${tail(y.regions[0].slot!)}`], kOf(y.inst)]))
+          } bytes at ${tail(y.regions[0].slot!)}`], kLeaf(y)]))
           : text(xs[0].leaves.at(-1)!.value?.text ?? ""),
         constructs: long ? ["~keccak256", "region"] : ["region"],
-        source: "ethdebug data from the compiler", chip: long ? "keccak(slot)"
+        source: COMPILER, chip: long ? "keccak(slot …)"
           : "inline", chipLabel: "text",
         parts: [{ regions: regionsOf(nd), rows: [...new Set(instRows(nd))],
-          colours: ec }],
+          colours: M }],
         rows: [...new Set(instRows(nd))], band: bandR });
       continue;
     }
@@ -606,7 +677,7 @@ export function walkthrough(x: WalkInput, path: Path, focus?: string):
       continue;
     }
     const st = step({ phase: "fields", id: `fields|${nd.block}|${parent}`,
-      band: bandR, constructs: ["region"], source: "ethdebug data from the compiler",
+      band: bandR, constructs: ["region"], source: COMPILER,
       chipLabel: "fields" }) as Any;
     st._parent = `${nd.block}|${parent}`;
     st._nodes = [nd];
@@ -678,9 +749,8 @@ export function walkthrough(x: WalkInput, path: Path, focus?: string):
     const line = (y: X) => y.s.branch === "then"
       ? `even: 0x${flagOf(y.inst)?.slice(-2)} → ${lens(y.inst)} bytes inline`
       : `odd: 0x${flagOf(y.inst)?.slice(-2)} → ${lens(y.inst)} bytes at ` +
-        `keccak(${tail(regs(y.inst)[0]?.slot ?? 0n)})`;
-    const names = (list: X[]) => list.map((y) => whoShort(y.inst))
-      .join(", ");
+        `keccak(slot ${tail(regs(y.inst)[0]?.slot ?? 0n)})`;
+    const names = (list: X[]) => list.map((y) => who(y.inst)).join(", ");
     const fork = shorts.length && longs.length;
     Object.assign(st, {
       cap: fork ? `The last byte decides the form: even → short (${names(
@@ -695,9 +765,9 @@ export function walkthrough(x: WalkInput, path: Path, focus?: string):
       form: fork ? { kind: "lines", lines: [ex(shorts), ex(longs)].map((y) =>
         [line(y), " ", { prose: `(${who(y.inst)})` }]) } as Form
         : many ? table(sx.map((y) => [[who(y.inst)], [line(y)],
-          kOf(y.inst)])) : text(line(sx[0])),
+          kLeaf(y)])) : text(line(sx[0])),
       parts: [{ regions: sx.flatMap((y) => regs(y.inst)),
-        rows: sx.flatMap((y) => rowsOf(y.inst)), colours: ec }],
+        rows: sx.flatMap((y) => rowsOf(y.inst)), colours: M }],
       rows: sx.flatMap((y) => rowsOf(y.inst)) });
     delete st._node;
     delete st._xs;
@@ -708,46 +778,108 @@ export function walkthrough(x: WalkInput, path: Path, focus?: string):
   // inputs'), whole, in the selection's yellow, with no label: which
   // bytes are what is what the steps find
   const touched = slotsOf(out.filter((y) => y.phase !== "input"));
-  const ownR = leaves.filter((l) => l.path === path ||
-    l.path.startsWith(path + ".") || l.path.startsWith(path + "["))
+  const allS = [...touched].sort((a, b) => toBig(a) < toBig(b) ? -1 : 1);
+  const ownR = leaves.filter((l) => inTarget(l.path))
     .flatMap((l) => l.regions);
   const ownS = new Set(ownR.flatMap(spanned));
+  const sk = pathName(path);
+  const foreign = x.contrast;
   if (ownS.size > 1 || ownR.length > 1) {
-    const allS = [...touched].sort((a, b) =>
-      toBig(a) < toBig(b) ? -1 : 1);
-    const apart = allS.some((h, k) => k > 0 &&
-      toBig(h) - toBig(allS[k - 1]) > 1n);
+    // (scattered: the selection's own slots are not one run)
+    const own = [...ownS].sort((a, b) => toBig(a) < toBig(b) ? -1 : 1);
+    const apart = own.some((h, k) => k > 0 &&
+      toBig(h) - toBig(own[k - 1]) > 1n);
+    const none = allS.filter((h) => !ownS.has(h)).length;
+    const n = allS.length;
+    const when = x.when ? `${x.when[0].toUpperCase()}${x.when.slice(1)}: ` : "";
     out.unshift({ id: "goal", phase: "goal", goal: true,
-      cap: `${allS.length === 1 ? "This slot holds" : `These ${allS.length
-        } slots hold`} \`${path.replace(/\[(0x[0-9a-fA-F]{16,})\]/g,
-        (_, h) => `[${short(h)}]`)}\`${apart
-        ? ", scattered across storage" : ""}.`,
-      form: text({ question: "How do we find them, and what do they mean?" }),
+      cap: foreign ? `${when}These are the ${n === 1 ? "slot" : `${n} slots`
+        } ${RULE(foreign.language)} would read for \`${sk}\`.`
+        : `${when}${n === 1 ? "This slot holds" : `These ${n} slots belong to`
+          } \`${sk}\`${apart ? ", scattered across storage" : ""}${none
+          ? `; ${none === 1 ? "one of them holds" : `${nWord(none)} of them hold`
+          } none of its data` : ""}.`,
+      form: text({ question: n === 1 ? "Which rules find it, and what does " +
+        "it mean?" : "Which rules find them, and what do they mean?" }),
       constructs: [], source: "", chip: "", chipLabel: "",
       parts: [{ regions: [], rows: [path], slots: allS }],
       rows: [path], gutters: [], band: [] });
   }
   // the last step, "found": the selection as it rests, its colours and
-  // labels (light.ts: the resting view); the bookend to step 0
-  if (FOUND && out.length) {
+  // labels (light.ts: the resting view); the bookend to step 0. Not
+  // after a lone step: it would add a click and nothing else
+  const rules = out.filter((y) => !y.goal);
+  if (FOUND && rules.length > 1) {
     const t = types[node.type];
     const n = node.children?.length ?? 0;
     const vt = t?.kind === "mapping"
       ? types[t.contains?.value?.type?.id] : null;
+    const whoList = isRec && t?.kind === "mapping"
+      ? ` (${insts.map(who).join(", ")})` : "";
     const what = t?.kind === "mapping" ? `${n} ${vt?.kind === "struct"
-      ? n === 1 ? "record" : "records" : n === 1 ? "entry" : "entries"}`
+      ? n === 1 ? "record" : "records" : n === 1 ? "entry" : "entries"}${
+        whoList}`
       : t?.kind === "struct" ? `${n} ${n === 1 ? "field" : "fields"}`
         : t?.kind === "array" ? `${n} ${n === 1 ? "item" : "items"}`
           : node.value?.text ?? "";
-    const sk = path.replace(/\[(0x[0-9a-fA-F]{16,})\]/g,
-      (_, h) => `[${short(h)}]`);
     out.push({ id: "found", phase: "found",
-      cap: `That's \`${sk}\`${what ? `: ${what}` : ""}, found.`,
+      cap: foreign ? `That's what ${RULE(foreign.language)} reads for \`${
+        sk}\`${what ? `: ${what}` : ""}.`
+        : `That's \`${sk}\`${what ? `: ${what}` : ""}, found.`,
       form: text(), constructs: [], source: "", chip: "found",
       chipLabel: sk, parts: [], rows: [path], gutters: [], band: [] });
   }
+  // another compiler's storage: the walkthrough ends by naming the
+  // misread, with that compiler's own layout, hand-written for comparison
+  // (no ethdebug from it): its words for the selection, in a colour of
+  // their own
+  if (foreign && out.length) {
+    const cd = foreign.d;
+    const L = LANG(foreign.language);
+    const words: { slot: Hex; name: string; text: string;
+      r: ResolvedRegion }[] = [];
+    const visitC = (n: ValueNode) => {
+      for (const r of n.regions) {
+        if (r.slot === undefined) continue;
+        words.push({ slot: w32(r.slot), r, name: n.path.slice(
+          (entryPath(n.path) ?? "").length).replace(/^\./, "") || n.label,
+        text: r.role === "length" ? "length" : n.value?.text ?? "" });
+      }
+      (n.children ?? []).forEach(visitC);
+    };
+    const mine = cd.byPath.get(path);
+    if (mine) visitC(mine);
+    if (words.length) {
+      const read = node.value?.text;
+      const theirs = mine?.value?.text;
+      const one = words.length === 1;
+      // (what the slots Solidity's rule read hold in this storage)
+      const solS = [...ownS];
+      const blank = solS.every((h) => !toBig(wordAt(h) ?? "0x0"));
+      out.push({ id: "external", phase: "external",
+        cap: `The misread: ${L} keeps \`${sk}\` ${one ? `in slot ${tail(
+          words[0].slot)}` : "in other slots"}${theirs !== undefined
+          ? `, where it is ${theirs}` : ""}; ${RULE(foreign.language)} ${
+          read !== undefined ? `read ${read} ` : "read "}from ${solS.length
+          === 1 ? `slot ${tail(solS[0])}` : "slots"} where ${L} keeps ${
+          blank ? "nothing" : "other data"}. (${L}'s rule here is ` +
+          `hand-written for comparison: ${L} emits no ethdebug.)`,
+        form: table(words.map((w) => [[tail(w.slot)], [w.r.role === "length"
+          ? `${w.name} (length)` : `${w.name} = ${w.text}`], 9])),
+        constructs: [], source: `from: ${L}'s layout, hand-written (not ` +
+          "ethdebug)", chip: L, chipLabel: "hand-written",
+        parts: [{ regions: words.map((w) => w.r), rows: [], k: 9 },
+          { regions: ownR, rows: [path], colours: M }],
+        rows: [path], gutters: [], band: [] });
+    }
+  }
+  const names = new Map<string, string>();
+  for (const i of insts) {
+    const k = keyOf(i);
+    if (k && nameOf(i)) names.set(short(k), who(i));
+  }
   return { target: path, steps: out, recs, focus: every ? "*" : f,
-    variable };
+    variable, span: allS, names };
 }
 
 // The slots steps touch: their regions' (whole), their parts' slots,
@@ -758,6 +890,7 @@ export function slotsOf(steps: Step[]): Set<Hex> {
     for (const p of st.parts) {
       for (const r of p.regions) spanned(r).forEach((h) => out.add(h));
       for (const h of p.slots ?? []) out.add(h);
+      for (const h of p.wholes ?? []) out.add(h);
     }
     for (const h of st.gutters) out.add(h);
   }

@@ -24,6 +24,7 @@ export function shortCap(st: Step, variable: string): string {
   switch (st.phase) {
     case "goal": return "what we're about to find";
     case "found": return "found";
+    case "external": return "the misread";
     case "declared": return `\`${variable}\`${variable.endsWith("s") ? "'"
       : "'s"} own slot`;
     case "input": return st.chip === "key" ? "the key" : "the keys";
