@@ -7,7 +7,7 @@ const SPEC = "https://ethdebug.github.io/format/spec/pointer/";
 export const FOOT: Record<string, [string, string]> = {
   pointer: ["A pointer is a region or a collection of pointers",
     `${SPEC}concepts/#a-pointer-is-a-region-or-a-collection-of-other-pointers`],
-  $keccak256: ["Expressions: keccak256",
+  "~keccak256": ["Expressions: keccak256",
     `${SPEC}expression/#keccak256-hashes`],
   template: ["Pointer templates", `${SPEC}template/`],
   group: ["Group (a collection of pointers)", `${SPEC}collection/group/`],

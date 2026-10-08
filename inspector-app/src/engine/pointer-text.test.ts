@@ -15,7 +15,7 @@ it("players: its pointer, then its templates, names shortened", async () => {
   expect(text).toContain("  slot: 0x03");
   expect(text).toContain("mapping(address => Player):");
   expect(text).toContain("  expect: [slot, key]");
-  expect(text.some((l) => l.includes("$keccak256"))).toBe(true);
+  expect(text.some((l) => l.includes("~keccak256"))).toBe(true);
   expect(text.some((l) => l.trim() === "else:")).toBe(true);
   expect(names).toMatchObject({
     "t_struct$_Player_$16_storage": "Player",
@@ -39,7 +39,7 @@ it("one line each, none wider than 80, in flow or block style", async () => {
   const { lines } = await players();
   expect(lines.every((l) => l.text.length <= 80 + 20)).toBe(true);
   // (a long expression goes in block style: operator, then operands)
-  expect(lines.some((l) => l.text.trim() === "$keccak256:")).toBe(false);
+  expect(lines.some((l) => l.text.trim() === "~keccak256:")).toBe(false);
   const doc = parse(lines.map((l) => l.text).join("\n"));
   expect(doc.players).toEqual({ location: "storage", slot: 3 });
   expect(doc.Player.expect).toEqual(["slot"]);

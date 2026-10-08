@@ -26,14 +26,14 @@ const lengthy = /(^|-)(length|length-flag|long-length)$/;
 // The variables and regions an expression reads
 function reads(expr: unknown, vars: Set<string>, regions: Set<string>) {
   if (typeof expr === "string") {
-    if (!expr.startsWith("$") && !/^0x/i.test(expr) && !/^\d+$/.test(expr)) {
+    if (!expr.startsWith("~") && !/^0x/i.test(expr) && !/^\d+$/.test(expr)) {
       vars.add(expr);
     }
   } else if (Array.isArray(expr)) {
     expr.forEach((e) => reads(e, vars, regions));
   } else if (expr && typeof expr === "object") {
     for (const [op, arg] of Object.entries(expr)) {
-      if (op === "$read" || /^\.(slot|offset|length)$/.test(op)) {
+      if (op === "~read" || /^\.(slot|offset|length)$/.test(op)) {
         if (typeof arg === "string") regions.add(arg);
       } else reads(arg, vars, regions);
     }
