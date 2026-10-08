@@ -12,9 +12,12 @@ export const fullInspector: LensSpec = {
   decodings: ["sol:arcade-mid", "sol:arcade-alice", "sol:arcade-motd",
     "vyAsSol", "vyRule"],
   bookmarks: ["mid", "alice", "motd", "vyper"],
-  grid: '"pick pick" "mode mode" "bar bar" "dump tree" "cd tree"',
+  grid: '"contract contract" "pick pick" "mode mode" "bar bar" ' +
+    '"dump tree" "cd tree"',
   links: ["storage"],
   views: [
+    { id: "contract", kind: "contract", area: "contract", link: "storage",
+      domId: "contract-box", data: { decoding: "$bm", point: { slot: "b" } } },
     { id: "pick", kind: "picker", of: "bookmarks", area: "pick",
       domId: "picker" },
     { id: "mode", kind: "picker", of: "side", area: "mode", domId: "mode" },

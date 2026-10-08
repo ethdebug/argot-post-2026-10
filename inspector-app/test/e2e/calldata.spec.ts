@@ -55,15 +55,15 @@ test("setMotd's calldata: selector, a byte selects its part, details",
 test("under the storage dump, in its column; the motd scene only",
   async ({ page }) => {
     await ready(page, "#ex=motd");
-    const place = await page.evaluate(() => {
+    // (at rest: polled, the dump's font fitted)
+    await expect.poll(() => page.evaluate(() => {
       const r = (q: string) => document.querySelector(q)!
         .getBoundingClientRect();
       const [c, p, d] = [r("#calldata"), r("#panel"), r("#dump")];
       return { left: Math.abs(c.left - p.left) < 2,
         under: c.top >= d.bottom - 1 && c.top - d.bottom < 60,
         shown: c.height > 100 };
-    });
-    expect(place).toEqual({ left: true, under: true, shown: true });
+    })).toEqual({ left: true, under: true, shown: true });
     for (const id of ["mid", "alice", "vyper"]) {
       await page.evaluate((i) => (window as unknown as W).select(i), id);
       await expect(page.locator("#calldata")).toBeHidden();

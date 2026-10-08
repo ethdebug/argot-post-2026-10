@@ -8,7 +8,7 @@ import "../../../shared/appendix.css";
 import "../style.css";
 import "../ui/port.css";
 import { createRoot } from "react-dom/client";
-import { fetchIo } from "../engine/io";
+import { fetchIo, type Io } from "../engine/io";
 import { load } from "../engine/project";
 import { decode } from "../engine/decode";
 import type { Decoded } from "../engine/types";
@@ -16,6 +16,7 @@ import { fullInspector } from "../lenses/full-inspector";
 import { insideOnePlay } from "../lenses/inside-one-play";
 import type { ValueNode } from "../engine/types";
 import { Lens } from "../ui/Lens";
+import { ContractSource } from "../ui/ContractSource";
 import type { LensContextValue } from "../ui/hooks";
 
 type Results = { done: boolean; usable?: number; errors: string[];
@@ -34,14 +35,50 @@ declare global {
 }
 
 const $ = (id: string) => document.getElementById(id)!;
-document.documentElement.classList.add("styled");
+// (the built page shows itself once its stylesheets are in: index.html's
+// styled(); the dev server's are in once this runs)
+if (!document.querySelector("link[data-css]")) {
+  document.documentElement.classList.add("styled");
+}
+
+// The loader's (src/pages/loader.js, inlined in the page): the data with
+// progress, a failure with Retry
+interface Loading { load(url: string, o?: { label?: string;
+  quiet?: boolean }): Promise<unknown>; fail(e: unknown,
+  again: () => void): void; retry(): void; busy(): boolean }
+const loading = (window as unknown as { loading?: Loading }).loading;
+// a fixture's label: its scene's title, as the picker has it
+const labelOf = (p: string) => {
+  const b = document.querySelector<HTMLElement>(`#picker button[data-fixture="${
+    p.replace(/^fixtures\/|\.json$/g, "")}"]`);
+  return b ? `“${b.textContent!.replace(/\s+/g, " ").trim()}”` : undefined;
+};
+const io: Io = loading ? {
+  json: <T,>(p: string) => loading.load(p, { label: labelOf(p) }) as
+    Promise<T>,
+  text: (p) => fetchIo(import.meta.env.BASE_URL).text(p),
+  bytes: (p) => fetchIo(import.meta.env.BASE_URL).bytes(p),
+} : fetchIo(import.meta.env.BASE_URL);
+// After the page is usable, the other scenes' data, one at a time, while
+// the browser is idle and nothing else is loading (vanilla prefetch)
+function prefetch(files: string[]) {
+  const idle = (f: () => void) => (window.requestIdleCallback ??
+    ((g: () => void) => setTimeout(g, 200)))(f);
+  const next = () => idle(() => {
+    if (!files.length || !loading) return;
+    if (loading.busy()) return void setTimeout(next, 500);
+    loading.load(`fixtures/${files.shift()}.json`, { quiet: true })
+      .catch(() => {}).then(next);
+  });
+  next();
+}
+// a load that failed: the loader's bar, with Retry
+const onFail = (e: unknown, again: () => void) => loading
+  ? loading.fail(e, again) : console.error(e);
 // (bin/run.mjs: fit the dumps' fonts again, after a layout change; each
 // dump fits on resize)
 (window as unknown as { fitDumps(): void }).fitDumps = () =>
   dispatchEvent(new Event("resize"));
-// the contract's line count (the source box's summary)
-$("contract-box").querySelector(".srclines")!.textContent = String(
-  $("contract-src").textContent!.replace(/\n$/, "").split("\n").length);
 window.results = { done: false, errors: [], decoded: {} };
 window.memResults = { done: false, errors: [], decoded: {} };
 
@@ -69,10 +106,14 @@ function record(id: string, [before, after]: Decoded[]) {
 }
 
 try {
-  const project = await load(fetchIo(import.meta.env.BASE_URL));
+  const project = await load(io);
+  // (the contract at the top: the page's own, shown as it is)
+  const contract = { file: $("contract-box").querySelector(".srcfile")
+    ?.textContent ?? undefined, text: $("contract-src").textContent! };
   const mount = { pick: place($("picker")), mode: place($("mode")),
     dump: place($("panel")), tree: place($("tree")),
-    bar: place($("details")), cd: place($("calldata")) };
+    bar: place($("details")), cd: place($("calldata")),
+    contract: place($("contract-box")) };
   // (the walkthrough panel draws the details under its bar)
   $("dwrap").remove();
   // (the tree view draws its own edge buttons)
@@ -109,9 +150,12 @@ try {
     if (!recording.has(id)) {
       const bm = project.bookmarks.find((b) => b.id === id)!;
       const d = project.decodings[bm.decoding];
-      recording.set(id, Promise.all(bm.points.map((p) =>
+      const r = Promise.all(bm.points.map((p) =>
         decode(project, d, p))).then((at) =>
-        record(id, [at[0], at[at.length - 1]])));
+        record(id, [at[0], at[at.length - 1]]));
+      // (a failed load: recorded again once it loads)
+      r.catch(() => recording.get(id) === r && recording.delete(id));
+      recording.set(id, r);
     }
     return recording.get(id)!;
   };
@@ -159,30 +203,56 @@ try {
     lens.store.subscribe(() => {
       scene(lens);
       const id = lens.store.get().bookmark;
-      if (id) void recorded(id);
+      if (id && !lens.store.get().error) recorded(id).catch(() => {});
     });
     window.select = async (id, view) => {
       const ok = await lens.show(id, view);
       if (ok) await recorded(id);
+      // (once the views have drawn it: as vanilla's, which draws at once)
+      await new Promise((r) => requestAnimationFrame(() => r(null)));
       return ok;
     };
-    // (the view the hash asks for, or the first scene: the lens shows it)
-    shown.then(() => recorded(lens.store.get().bookmark!)).then(() => {
-      $("loadbar").hidden = true;
-      window.results.usable = performance.now();
-      window.results.done = true;
-    });
+    // (the view the hash asks for, or the first scene: the lens shows
+    // it; usable once one is shown, after a failure once Retry or a pick
+    // shows one)
+    const usable = () => {
+      const id = lens.store.get().bookmark;
+      if (!id || lens.store.get().error || window.results.done) return;
+      recorded(id).then(() => {
+        if (window.results.done) return;
+        off();
+        window.results.usable = performance.now();
+        window.results.done = true;
+        const bm = project.bookmarks.find((b) => b.id === id)!;
+        prefetch([...new Set(project.bookmarks.filter((b) =>
+          !b.decoding.startsWith("mem:")).map((b) => b.timeline))]
+          .filter((t) => t !== bm.timeline));
+      }, () => {});
+    };
+    const off = lens.store.subscribe(usable);
+    void shown.then((ok) => ok && usable());
   };
 
+  // (each section's part of the page: its Escape and its clicks; vanilla
+  // main.js and mem.js keySection)
+  const memoryPart = (el: Element) => !!el.closest?.("#memory");
+  const storagePart = (el: Element) => !el.closest?.("#memory, #calldata");
   const host = document.createElement("div");
   document.body.append(host);
   createRoot(host).render(<>
     <Lens spec={fullInspector} project={project} mount={mount}
-      onReady={ready} hash />
+      onReady={ready} onFail={onFail} hash within={storagePart}
+      kinds={{ contract: (q: Parameters<typeof ContractSource>[0]) =>
+        <ContractSource {...q} {...contract} /> }} />
     <Lens spec={insideOnePlay} project={project} mount={memMount}
-      onReady={memReady} hash /></>);
+      onReady={memReady} hash within={memoryPart} /></>);
 } catch (e) {
-  console.error(e);
-  window.results.errors.push(String((e as Error)?.message ?? e));
-  window.results.done = true;
+  // (the index or the memory section's data did not load: Retry loads
+  // the page again)
+  if (loading) loading.fail(e, () => location.reload());
+  else {
+    console.error(e);
+    window.results.errors.push(String((e as Error)?.message ?? e));
+    window.results.done = true;
+  }
 }
