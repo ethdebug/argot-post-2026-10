@@ -1,3 +1,4 @@
+import { pick } from "../pick";
 import { test, expect, type Page } from "@playwright/test";
 
 const lit = (page: Page) => page.locator(
@@ -7,7 +8,7 @@ const lit = (page: Page) => page.locator(
 
 test("total's row lights bytes 16-31 of slot 2", async ({ page }) => {
   await page.goto("./shell.html#lens=inspector");
-  await page.locator('#tree li[data-path="total"] > .row').click();
+  await pick(page.locator('#tree li[data-path="total"] > .row'));
   expect(await lit(page)).toEqual(Array.from({ length: 16 },
     (_, i) => `02:${16 + i}`));
   await expect(page.locator('#tree li[data-path="total"] > .row'))
@@ -16,8 +17,8 @@ test("total's row lights bytes 16-31 of slot 2", async ({ page }) => {
 
 test("byte 31 of slot 2 selects total", async ({ page }) => {
   await page.goto("./shell.html#lens=inspector");
-  await page.locator(
-    '.view:not([hidden]) .b[data-owners="total"][data-i="31"]').click();
+  await pick(page.locator(
+    '.view:not([hidden]) .b[data-owners="total"][data-i="31"]'));
   await expect(page.locator("#tree .row.sel")).toHaveText(/total/);
   expect(await lit(page)).toEqual(Array.from({ length: 16 },
     (_, i) => `02:${16 + i}`));
