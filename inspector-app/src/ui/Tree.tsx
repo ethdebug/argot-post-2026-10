@@ -302,7 +302,7 @@ export function Tree(p: { id: ViewId; data: DataRef; filter?: Filter;
     ul.animate([{ height: "0px" }, { height: `${h}px` }],
       { duration: 180, easing: "ease-out" }).finished.then(() => {
       ul.style.overflow = "";
-    });
+    }, () => {});
   }, [view.collapsed, view.open]);
   // a row selects its value (its block, by pointer), or, when it is the
   // selected one, clears
