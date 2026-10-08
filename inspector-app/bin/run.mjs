@@ -2622,8 +2622,9 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
         "").split(" : ")[1]?.split(" / ") ?? [];
       const stats = segs[0]?.split(" · ").filter((y) => y !== "…") ?? [];
       if (ps[0] !== "[lastBlock]" || ps.at(-1) !== "[name.length]" ||
-        segs.length !== 2 || segs[1] !== "name · name.length" ||
-        stats.at(-1) !== "score" || stats.length < (wd === 1280 ? 2 : 3) ||
+        // (the name's unmapped run cut: its "…")
+        segs.length !== 2 || segs[1] !== "name · … · name.length" ||
+        stats.at(-1) !== "score" || stats.length < 2 ||
         ps.some((y, i) => i && y === ps[i - 1] && y !== "…") ||
         t.some((y) => y.over || y.out || y.css === "ellipsis") ||
         !t.some((y) => y.text.endsWith(", 2 slots")) ||
