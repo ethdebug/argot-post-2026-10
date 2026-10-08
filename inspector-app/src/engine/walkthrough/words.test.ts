@@ -16,7 +16,7 @@ it("each step: a short caption, at most one footnote, a spec page",
       "what we're about to find", "the keys", "`players`' own slot",
       "a template's inputs", "the record's slot", "a template's inputs",
       "packed fields", "into a template", "a template's inputs", "a flag",
-      "a branch", "the text", "the text"]);
+      "a branch", "the text", "the text", "found"]);
     const notes = w.steps.map(footOf);
     expect(notes.filter(Boolean).every((n) => FOOT[n!][1].startsWith(
       "https://ethdebug.github.io/format/spec/pointer/"))).toBe(true);

@@ -23,7 +23,9 @@ export function useFitDump(me: RefObject<HTMLElement | null>,
     let live = true;
     document.fonts?.ready.then(() => {
       const d = me.current?.closest<HTMLElement>(".dump");
-      if (!live || !d) return;
+      // (only a shown view measures again: a hidden one's would clear
+      // the box's measure and take none)
+      if (!live || !d || !shown) return;
       d.style.removeProperty("--k32");
       d.style.removeProperty("--k16");
       fit();

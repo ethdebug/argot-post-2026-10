@@ -23,6 +23,7 @@ export const footOf = (st: Step) => st.constructs.find((c) => FOOT[c]);
 export function shortCap(st: Step, variable: string): string {
   switch (st.phase) {
     case "goal": return "what we're about to find";
+    case "found": return "found";
     case "declared": return `\`${variable}\`${variable.endsWith("s") ? "'"
       : "'s"} own slot`;
     case "input": return st.chip === "key" ? "the key" : "the keys";
