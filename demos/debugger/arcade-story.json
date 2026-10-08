@@ -10,6 +10,10 @@
     { "from": 1, "call": "play()", "args": [], "hit": true },
     { "from": 1, "call": "play()", "args": [], "hit": true },
     { "from": 2, "call": "play()", "args": [], "hit": true },
+    { "from": 3, "call": "play()", "args": [], "hit": true },
+    { "from": 3, "call": "play()", "args": [], "hit": true },
+    { "from": 3, "call": "play()", "args": [], "hit": true },
+    { "from": 3, "call": "play()", "args": [], "hit": true },
     { "from": 3, "call": "play()", "args": [], "hit": false }
   ],
   "tx": { "from": 1, "call": "play()", "args": [], "hit": true }

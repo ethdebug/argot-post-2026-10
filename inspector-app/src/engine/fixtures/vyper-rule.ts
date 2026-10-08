@@ -14,7 +14,7 @@ const member = (name: string, k: number, size: number) => ({
     : "slot" });
 const MEMBERS: [string, string, number][] = [["score", "vy_uint64", 8],
   ["combo", "vy_uint32", 4], ["bestCombo", "vy_uint32", 4],
-  ["plays", "vy_uint32", 4], ["hitCount", "vy_uint32", 4],
+  ["plays", "vy_uint32", 4], ["hits", "vy_uint32", 4],
   ["lastBlock", "vy_uint64", 8]];
 const yields = (prefix: string, names: string[]) =>
   Object.fromEntries(names.map((n) => [n, `${prefix}-${n}`]));

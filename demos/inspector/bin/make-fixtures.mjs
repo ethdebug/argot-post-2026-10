@@ -251,8 +251,10 @@ if (MOTD[0].length <= 31 || MOTD[1].length > 31 ||
   NAMES[CAROL].length <= 31) {
   throw new Error("the motds must be long, then short; carol's name long");
 }
-// the plays up to the middle of the game, then alice's third hit
-const STORY = [[ALICE, true], [ALICE, true], [BOB, true], [CAROL, false]];
+// the plays up to the middle of the game, then alice's third hit:
+// carol hits four times (best combo 4), then misses (combo 0)
+const STORY = [[ALICE, true], [ALICE, true], [BOB, true], [CAROL, true],
+  [CAROL, true], [CAROL, true], [CAROL, true], [CAROL, false]];
 const ctor = (m) => cast("abi-encode", "f(string)", m);
 const joinAll = async (address) => {
   const txs = [];
@@ -303,7 +305,8 @@ const SOL_SLOT = BigInt(baseSlot(arcade.variables.find((v) =>
   v.identifier === "players")));
 {
   const address = await deploy(arcade, ctor(MOTD[0]));
-  // combo: bytes 8-11 of the player's slot (byte 0 most significant)
+  // combo: bytes 20-23 of the player's slot, counted from the most
+  // significant byte (bytes 8-11 from the low end)
   const combo = async (who) => field(await word(address,
     keccak(who, SOL_SLOT)),
     20, 4);
@@ -311,10 +314,10 @@ const SOL_SLOT = BigInt(baseSlot(arcade.variables.find((v) =>
   const plays = [];
   for (const [who, hit] of STORY) plays.push(await play(address, who, hit, combo));
   const keys = await keysOf([...joins, ...plays]);
-  // the page takes players' keys from roster (decoded from storage);
+  // the page takes players' keys from playerList (decoded from storage);
   // the trace's keys are kept to check that they agree
   const extra = { keysFrom: "the traces of the joins and plays",
-    keysIn: { players: "roster" }, players: PLAYERS };
+    keysIn: { players: "playerList" }, players: PLAYERS };
   // the middle of the game: after carol's miss
   await fixture({
     id: "arcade-mid", contract: arcade, address, tx: plays.at(-1), keys,
@@ -357,10 +360,10 @@ const SOL_SLOT = BigInt(baseSlot(arcade.variables.find((v) =>
   // Solidity's rule: keccak256(key . slot); Vyper's: keccak256(slot . key),
   // the struct unpacked: six counters in s … s+5, the name's length at
   // s+6 and its bytes from s+7. For each player (score, combo, bestCombo,
-  // plays, hitCount):
+  // plays, hits):
   const want = { [ALICE]: [30n, 2n, 2n, 2n, 2n], [BOB]: [10n, 1n, 1n, 1n, 1n],
-    [CAROL]: [0n, 0n, 0n, 1n, 0n] };
-  const FIELDS = ["score", "combo", "bestCombo", "plays", "hitCount",
+    [CAROL]: [100n, 0n, 4n, 5n, 4n] };
+  const FIELDS = ["score", "combo", "bestCombo", "plays", "hits",
     "lastBlock"];
   const entries = [];
   for (const [who, w] of Object.entries(want)) {

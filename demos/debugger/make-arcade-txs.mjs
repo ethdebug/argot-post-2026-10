@@ -13,11 +13,11 @@
 // the same calldata as the others. Its create block sets motd, so it
 // gets no constructor arguments.
 //
-// The roll depends on the block (prevrandao; block.number in BUG), and
+// The roll depends on the block (prevrandao, in every build), and
 // anvil cannot set prevrandao. So each call with `hit` runs inside an
 // evm_snapshot: if it does not roll the outcome the story needs, the
 // script reverts, mines one empty block and sends it again. A hit
-// changes `total` (its slot, per build, below); a miss does not.
+// changes `totalScore` (its slot, per build, below); a miss does not.
 // The node: PORT (default 8556) on localhost.
 // Usage: node make-arcade-txs.mjs > txs.json
 import fs from "fs";
@@ -66,7 +66,7 @@ const play = async (to, c, totalSlot) => {
 };
 
 const hex = (f) => fs.readFileSync(f, "utf8").trim().replace(/^0x/, "");
-// total's slot: Solidity packs it with rounds in slot 2; Fe's store
+// totalScore's slot: Solidity packs it with totalHits in slot 2; Fe's store
 // puts it in slot 12; BUG declares it at slot 2.
 const targets = {
   sol: { create: hex("sol/ethdebug/Arcade.bin") + ctorArgs, total: 2 },
