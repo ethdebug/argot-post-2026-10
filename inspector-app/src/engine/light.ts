@@ -135,7 +135,8 @@ export function forBytes(d: Decoded, l: Layout,
 // forStep): its parts' regions and whole slots lit, in their colours,
 // the echoes muted; its gutters; the rows the steps so far found
 export function forStep(d: Decoded, l: Layout, steps: Step[],
-  i: number): Light {
+  i: number, w?: { span: Hex[]; names: ReadonlyMap<string, string> }):
+  Light {
   const st = steps[i];
   if (!st) return noLight;
   const loc = l.location;
@@ -156,11 +157,17 @@ export function forStep(d: Decoded, l: Layout, steps: Step[],
   const rows = new Set<Path>();
   const dimRows = new Set<Path>();
   const colours = new Map<Path, Colour>();
+  // (bytes in a part's own colour, whatever owns them; whole slots
+  // outlined: computed, not read)
+  const byteColours = new Map<ByteKey, Colour>();
+  const wholes = new Map<Hex, Colour>();
   for (const p of st.parts) {
     for (const k of partBytes(p)) {
       bytes.add(k);
       if (p.dim) dim.add(k);
+      if (p.k !== undefined) byteColours.set(k, p.k);
     }
+    for (const h of p.wholes ?? []) wholes.set(h, p.k ?? "nt");
     for (const r of p.rows) {
       rows.add(r);
       if (p.dim) dimRows.add(r);
@@ -175,10 +182,13 @@ export function forStep(d: Decoded, l: Layout, steps: Step[],
     for (const g of x.gutters) known.add(g);
     for (const p of x.parts) {
       for (const k of partBytes(p)) known.add(k.split("|")[1] as Hex);
+      for (const h of p.wholes ?? []) known.add(h);
     }
   }
   return { ...noLight, bytes, rows, colours, dim, dimRows, known,
-    gutters: new Set(st.gutters), muted: true, cap: new Set(),
+    gutters: new Set(st.gutters), muted: true, cap: new Set(), walk: true,
+    byteColours, wholes, span: new Set(w?.span ?? []),
+    names: w?.names ?? new Map(),
     ...(st.ruler ? { ruler: st.ruler } : {}),
     ...(st.goal ? { quiet: true } : {}) };
 }

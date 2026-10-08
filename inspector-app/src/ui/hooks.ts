@@ -222,22 +222,33 @@ export function useRelatedRoots(id: string): string[] | undefined {
 // What a walkthrough is computed from, for a view's data (state
 // variables only: no walkthrough of locals; the memory section shows
 // its steps)
+// (another compiler's storage read by this rule: that compiler's own
+// reading of it, for the contrast; one side of a pair: the point's name)
 function useWalkInput(data: DataRef | undefined): WalkInput | undefined {
   const lens = useLens();
   const d = useDecoded(data);
   const point = usePoint(data);
   const c = useCompilation(data);
+  const foreign = d && decodingOf(lens, d.decoding)?.foreign;
+  const cd = useDecoded(foreign && d ? { decoding: foreign.rule,
+    point: d.point } : undefined);
+  const pair = useLensState((s) => s.points.a !== s.points.b);
   return useMemo(() => {
     const dc = d && decodingOf(lens, d.decoding);
-    return d && point && c && dc && dc.variables === "state"
-      ? { d, c, snap: point.snapshot, keys: dc.keys } : undefined;
-  }, [d, point, c, lens]);
+    if (!d || !point || !c || !dc || dc.variables !== "state") return;
+    if (dc.foreign && !cd) return;
+    return { d, c, snap: point.snapshot, keys: dc.keys,
+      ...(pair ? { when: point.label } : {}),
+      ...(dc.foreign && cd ? { contrast: { d: cd,
+        language: dc.foreign.language } } : {}) };
+  }, [d, point, c, lens, cd, pair]);
 }
 
 // A walkthrough, memoised per decoding, point, path and focus
 function walkOf(project: Project, x: WalkInput, sel: string,
   focus?: string): Walkthrough | null {
-  const k = `walk|${x.d.decoding}|${x.d.point}|${sel}|${focus ?? ""}`;
+  const k = `walk|${x.d.decoding}|${x.d.point}|${sel}|${focus ?? ""}|${
+    x.when ?? ""}|${x.contrast ? "c" : ""}`;
   const memo = project.memo as Map<string, unknown>;
   if (!memo.has(k)) memo.set(k, walkthrough(x, sel, focus));
   return memo.get(k) as Walkthrough | null;
@@ -297,7 +308,7 @@ export function useLight(id: string, filter?: Filter, at?: DataRef,
       cap: new Set([selection]), rest: true };
     }
     if (link.walk && w) return forStep(d, l, w.steps, Math.min(link.walk.step,
-      w.steps.length - 1));
+      w.steps.length - 1), w);
     const sel = selection && d.byPath.has(selection) ? selection : null;
     // (a derivation's region step, pointed at: its bytes alone, over the
     // selection: vanilla mem.js forRegion)

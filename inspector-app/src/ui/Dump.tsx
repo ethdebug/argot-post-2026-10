@@ -20,7 +20,8 @@ import type {
   KeyboardEvent, MouseEvent, PointerEvent, ReactElement,
 } from "react";
 import type {
-  Filter, Hex, Layout, Light, Location, Row, Target, TimelinePoint,
+  ByteKey, Colour, Filter, Hex, Layout, Light, Location, Row, Target,
+  TimelinePoint,
 } from "../engine/types";
 import { byteKey, short } from "../engine/hex";
 import {
@@ -78,10 +79,14 @@ const ownerLabel = (id: string, composite: boolean) =>
   id.endsWith("#length") || composite
     ? `${shortKeys(id.replace(/#[a-z]+$/, ""))} (length)` : shortKeys(id);
 // a lit byte's colour class, from its first owner with one
-const pick = (light: Light, ids: string[]) => {
-  const k = ids.map((id) => light.colours.get(id.replace(/#[a-z]+$/, "")))
+// (or the byte's own colour, a walkthrough's: another rule's words)
+export const pkClass = (k: Colour | undefined) => k === undefined || k === 0
+  ? "" : `pk${k}`;
+const pick = (light: Light, ids: string[], key?: ByteKey) => {
+  const k = (key ? light.byteColours?.get(key) : undefined) ?? ids.map((id) =>
+    light.colours.get(id.replace(/#[a-z]+$/, "")))
     .find((x) => x !== undefined);
-  return { k, cls: k === "src" ? "pksrc" : k ? `pk${k}` : "" };
+  return { k, cls: pkClass(k) };
 };
 
 // The owners' tints of a dump: in byte order, row by row, each owner
@@ -140,7 +145,7 @@ function Word({ l, ls, loc, row, mine, theirs, side, name, light,
       else if (mine[i] === "00") cls.push("z");
       if (mine[i] !== undefined && mine[i] !== theirs[i]) cls.push("chg");
       if (hl) {
-        const { k, cls: c } = pick(light, g.owners);
+        const { k, cls: c } = pick(light, g.owners, byteKey(loc, row, i));
         cls.push("hl");
         if (c) cls.push(c);
         // (the selection's own colour, 0, never mutes; a walkthrough's
@@ -404,8 +409,11 @@ export function Dump(p: { id: ViewId; location: Location; data: DataRef;
     const what = `${name}${name.startsWith("slot") || !slots ? ""
       : ` (slot ${short(r.address)})`}${facts ? `; ${facts}` : ""}`;
     // (lit, or pointed at: a gutter address)
-    const on = light.at?.row === r.address || [...Array(32).keys()].some(
-      (i) => light.bytes.has(byteKey(loc, r.address, i)));
+    // (or a whole slot a walkthrough's step outlines: computed, not read)
+    const whole = light.wholes?.get(r.address);
+    const on = light.at?.row === r.address || whole !== undefined ||
+      [...Array(32).keys()].some((i) => light.bytes.has(byteKey(loc,
+        r.address, i)));
     const only = !on && !!p.compare && [...there.bytes].some((b) =>
       b.split("|")[1] === r.address);
     const gut = !on && !only && light.gutters.has(r.address);
@@ -415,7 +423,8 @@ export function Dump(p: { id: ViewId; location: Location; data: DataRef;
     const rel = !on && !only && !!light.related?.has(r.address);
     const cls = ["wrow", same ? "same" : "", k % 2 ? "zb" : "",
       on ? "on" : "", only ? "only" : "", known ? "known" : "",
-      gut ? "gut" : "", rel ? "rel" : ""]
+      gut ? "gut" : "", rel ? "rel" : "",
+      whole !== undefined ? `whole ${pkClass(whole)}` : ""]
       .filter(Boolean).join(" ");
     lines.push(<div key={r.address} className={cls} data-slot={r.address}
       data-name={name} data-facts={facts}
@@ -443,7 +452,8 @@ export function Dump(p: { id: ViewId; location: Location; data: DataRef;
     aria-label={p.when ? `${label} ${p.when}` : label} hidden={p.hidden}
     // (lit: the rest steps back; a selection or a step: brown caps)
     className={["view", light.muted ? "active" : "",
-      link.selection || link.walk ? "chosen" : ""].filter(Boolean).join(" ")}
+      link.selection || link.walk ? "chosen" : "",
+      light.walk ? "walking" : ""].filter(Boolean).join(" ")}
     data-view={`${lens.key}:${p.id}`} data-point={l?.point}
     data-exits={exiting(link) || undefined}
     onPointerOver={point} onPointerMove={point} onFocus={point}

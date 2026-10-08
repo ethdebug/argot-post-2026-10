@@ -182,7 +182,8 @@ test("every popover lists a row's unmapped run: the selection's",
       .getAttribute("class")).toBe("pname pfree");
   });
 
-test("every popover lists a row's unmapped run: a walkthrough step's",
+// (not in a walkthrough, which is about where bytes are: the review's W7)
+test("a walkthrough step's popovers list no unmapped run",
   async ({ page }) => {
     await ready(page);
     await page.setViewportSize({ width: 1600, height: 900 });
@@ -190,12 +191,13 @@ test("every popover lists a row's unmapped run: a walkthrough step's",
     await page.mouse.move(1, 1);
     await page.locator('#details button[data-r="start"]').click();
     const seen: string[] = [];
+    // (all but the last step, found: the resting view, which has them)
     for (let k = 0; k < 20; k++) {
-      seen.push(...await pops(page));
       const next = page.locator('#details button[data-r="next"]');
       if (await next.isDisabled()) break;
+      seen.push(...await pops(page));
       await next.click();
     }
-    expect(seen.some((t) => t.includes("name · (unmapped) · name.length")))
-      .toBe(true);
+    expect(seen.length).toBeGreaterThan(0);
+    expect(seen.some((t) => t.includes("(unmapped)"))).toBe(false);
   });

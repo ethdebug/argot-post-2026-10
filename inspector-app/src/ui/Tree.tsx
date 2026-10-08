@@ -30,8 +30,8 @@ const ARROW = (d: string) => <svg viewBox="0 0 16 16" aria-hidden="true">
 
 // a path in a quoted attribute selector
 const esc = (p: string) => p.replace(/["\\]/g, "\\$&");
-const pk = (k: Colour | undefined) => k === "src" ? "pksrc"
-  : k ? `pk${k}` : "";
+const pk = (k: Colour | undefined) => k === undefined || k === 0 ? ""
+  : `pk${k}`;
 
 interface Ctx { light: Light; selection: string | null;
   collapsed: ReadonlySet<string>; pair?: [Decoded, Decoded];

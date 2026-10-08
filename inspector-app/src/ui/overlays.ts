@@ -16,8 +16,8 @@ const data = (e: Element | null): ViewData | undefined =>
   (e?.closest(".view") as (El & { _data?: ViewData }) | null)?._data;
 const slotOf = (r: El) => r.dataset.slot as Hex;
 const rowLit = (x: ViewData | undefined, l: Light | undefined, r: El) =>
-  !!x && !!l && Array.from({ length: 32 }, (_, i) =>
-    l.bytes.has(byteKey(x.l.location, slotOf(r), i))).some(Boolean);
+  !!x && !!l && (l.wholes?.has(slotOf(r)) || Array.from({ length: 32 },
+    (_, i) => l.bytes.has(byteKey(x.l.location, slotOf(r), i))).some(Boolean));
 // a row's state: lit, lit in the other point only, found by an earlier
 // walkthrough step, a gutter
 function rowState(r: El) {
@@ -43,8 +43,9 @@ function byteLight(c: El) {
   // (a consulted value's byte: its related classes)
   const rel = !hl && x.light.relBytes?.has(key)
     ? relClass(x.light, ids) : null;
-  const k = hl ? ids.map((id) => x.light.colours.get(id.replace(/#[a-z]+$/,
-    ""))).find((y) => y !== undefined) : undefined;
+  const k = !hl ? undefined : x.light.byteColours?.get(key) ?? ids.map((id) =>
+    x.light.colours.get(id.replace(/#[a-z]+$/, ""))).find((y) =>
+    y !== undefined);
   const muted = hl && ((x.light.focus !== undefined && !!k &&
     k !== x.light.focus) || !!x.light.dim?.has(key));
   return { hl, k: !hl ? null : typeof k === "number" && k ? `pk${k}` : "pk0",
@@ -110,12 +111,18 @@ function place(pop: El, a: El, beside = false) {
 // The lit rows of a dump, as runs: rows next to each other in the dump
 // (consecutive addresses; a gap line ends a run). A row the value uses
 // only in the other state counts too.
+// In a walkthrough, a run takes in the slots next to it that the
+// walkthrough touches (a record's two slots): its label stays in one
+// place, under the whole block, from step to step, over no slot of it.
 function runs(view: El): El[][] {
   const out: El[][] = [];
   let run: El[] | null = null;
+  const span = data(view.querySelector(".wrow"))?.light.span;
+  const lit = (st: ReturnType<typeof rowState>) =>
+    st.on || st.only || st.known || st.gut;
   for (const el of [...view.querySelector(".rows")!.children] as El[]) {
     const st = el.classList.contains("wrow") ? rowState(el) : null;
-    if (st && (st.on || st.only || st.known || st.gut || st.rel)) {
+    if (st && (lit(st) || st.rel || span?.has(slotOf(el)))) {
       // (a consulted row and a lit one: runs of their own)
       if (run && consulted(run[0]) !== consulted(el)) run = null;
       if (!run) out.push(run = []);
@@ -124,7 +131,10 @@ function runs(view: El): El[][] {
       run = null;
     }
   }
-  return out;
+  return out.filter((r) => r.some((e) => {
+    const st = rowState(e);
+    return lit(st) || st.rel;
+  }));
 }
 
 // One name for a run of slots: "slot 0", "slots 0–2",
@@ -153,7 +163,14 @@ function whatIn(root: El, rowsIn: El[]): Item[] {
   // (the lit rows of a run, if some are: a run may take in rows an
   // earlier step found)
   const lit = rowsIn.filter((r) => rowState(r).on);
-  const rows = lit.length ? lit : rowsIn;
+  // (in a walkthrough: only what the steps so far have read, the rows
+  // whose bytes are lit; a slot only computed yet names nothing)
+  const x0 = data(rowsIn[0]);
+  const walk = !!x0?.light.walk;
+  const read = rowsIn.filter((r) => rowLit(x0, { ...x0!.light,
+    wholes: undefined } as Light, r));
+  if (walk && !read.length) return [];
+  const rows = walk ? read : lit.length ? lit : rowsIn;
   // each row's owners, in byte order, and its runs of bytes no value
   // owns (`free`: one item a run, "(unmapped)")
   const perRow = rows.map((r) => {
@@ -229,6 +246,8 @@ function whatIn(root: El, rowsIn: El[]): Item[] {
   perRow.forEach((os, r) => {
     os.forEach((o, n) => {
       const sep = n === 0 && r ? " / " : " · ";
+      // (no "(unmapped)" in a walkthrough: it is about where bytes are)
+      if (o.free && walk) return;
       const x = o.free ? { text: "(unmapped)", sep, muted: false,
         free: true, k: o.cells.some((c) => c.classList.contains("fl"))
           ? "pnone" : null } : item(o.cells, label(o, owners.length === 1), sep);
@@ -365,23 +384,37 @@ function fitWhat(pop: Pop) {
 // The slot popover for a run: how its slots were found ("how : what",
 // ", n slots" for several), and what the transaction did to them
 function popFor(root: El, rows: El[], more: number): Pop {
-  const facts = [...new Set(rows.map((r) => r.dataset.facts))]
-    .filter(Boolean);
+  // (in a walkthrough: no facts of the transaction, which is not what it
+  // is about; the keys by the names its steps use)
+  const light = data(rows[0])?.light;
+  const facts = light?.walk ? [] : [...new Set(rows.map((r) =>
+    r.dataset.facts))].filter(Boolean);
   const pop = document.createElement("span") as Pop;
   pop.className = "pop";
   pop.setAttribute("role", "status");
   const what = whatIn(root, rows);
+  const named = (t: string) => light?.names?.size ? t.replace(
+    /0x[0-9a-f]{4}…[0-9a-f]{4}/g, (h) => light.names!.get(h) ?? h) : t;
+  for (const w of what) w.text = named(w.text);
   pop._what = what;
   // (a run with one lit row names that row's values: "how : what")
   const one = rows.filter((r) => rowState(r).on).length === 1 &&
     rows.length > 1;
-  const [, how, n] = runName(rows).match(/^(.*?)(, \d+ slots)?$/)!;
+  // (in a walkthrough, a run with nothing read yet: the slots it has
+  // computed, by their names; not the whole block it stands for)
+  // (and a run with something read: the slots read, not the block)
+  const onRows = rows.filter((r) => rowState(r).on);
+  const readRows = rows.filter((r) => rowLit(data(r), { ...light!,
+    wholes: undefined } as Light, r));
+  const shown = !light?.walk ? rows : readRows.length ? readRows
+    : onRows.length ? onRows : rows;
+  const [, how, n] = named(runName(shown)).match(/^(.*?)(, \d+ slots)?$/)!;
   const count = one ? "" : n;
   // (a variable's empty own slot the selection consulted: its anchor)
   const anchor = rows.length === 1 && !what.length
     ? data(rows[0])?.light.anchors?.get(slotOf(rows[0])) : undefined;
   pop.innerHTML = `<span class="pop-how"><span class="phow">${esc(
-    what.length ? how : runName(rows))}</span>${what.length
+    what.length ? how : named(runName(shown)))}</span>${what.length
     ? ` : <span class="pwhat">${whatHtml(what, what.map((_, i) => i))
     }</span>${count ?? ""}` : anchor ? ` : <span class="pwhat">${esc(
       shortKeys(anchor))} (anchor)</span>` : ""}${facts.length
@@ -609,6 +642,11 @@ export function drawOverlays(root: El, o: { cards: boolean;
   const tray = document.createElement("div");
   tray.className = "tray";
   const taken = lit();
+  const room = bounds(root);
+  (root.querySelector(".views") ?? root).append(tray);
+  for (const v of views) {
+    annotate(root, v, compare, names, tray, taken, room, force);
+  }
   // a walkthrough step about bytes in a slot: their positions, 0 to 31,
   // over that slot (an overlay, like a popover)
   for (const v of views) {
@@ -629,13 +667,16 @@ export function drawOverlays(root: El, o: { cards: boolean;
         { length: 8 }, (_, i) => `<span class="b">${k + i}</span>`).join("")
       }</span>`).join("")}</div>`;
     row.append(el);
-    taken.push(el.getBoundingClientRect());
+    // (only where it covers no row's bytes and no label: a step's form
+    // gives the positions too)
+    const r = el.getBoundingClientRect();
+    const rows = all(v, ".rows > .wrow > .word").map((x) =>
+      x.getBoundingClientRect() as Rect);
+    if (taken.some((t) => overlaps(r, t)) || rows.some((t) =>
+      overlaps(r, t))) el.remove();
+    else taken.push(r);
   }
-  const room = bounds(root);
-  (root.querySelector(".views") ?? root).append(tray);
-  for (const v of views) {
-    annotate(root, v, compare, names, tray, taken, room, force);
-  }
+
   if (!tray.childElementCount) tray.remove();
   else {
     // over the dumps' columns, at the bottom of the window
