@@ -58,3 +58,59 @@ test("players-walk: opens at step 0 of players, and walks", async ({ page }) => 
   await expect(count).toHaveText("1 / 12");
   await expect(page.locator(".dtext .rcap")).toContainText("The keys");
 });
+
+// Each dump fits its own box; each tree lines up with its own dumps
+// (its first row level with their first line; on a wide page, down to
+// the last one's bottom); nothing scrolls sideways
+const fit = (page: Page) => page.evaluate(() => {
+  const r = (e: Element) => e.getBoundingClientRect();
+  const wide = document.documentElement.scrollWidth >
+    document.documentElement.clientWidth + 1;
+  const views = [...document.querySelectorAll<HTMLElement>(
+    ".view:not([hidden])")].filter((v) => v.querySelector(".rows .wrow"));
+  const over = views.filter((v) => {
+    const row = v.querySelector(".rows .wrow")!;
+    return r(row).right > r(v.closest(".dump") ?? v).right + 1;
+  }).length;
+  const trees = [...document.querySelectorAll<HTMLElement>(".tree")]
+    .filter((t) => t.offsetHeight);
+  const gaps = trees.map((t) => {
+    const mine = (t.dataset.align ?? "").split(" ").map((id) =>
+      document.querySelector(`[data-view$=":${id}"]`)!).filter(Boolean);
+    const boxes = mine.map((m) => r(m.closest(".dump") ?? m));
+    return Math.round(Math.max(...boxes.map((b) => b.bottom)) -
+      r(t).bottom);
+  });
+  return { wide, over, gaps };
+});
+
+for (const lens of ["alice-plays", "vyper", "players-walk"]) {
+  for (const width of [1280, 1440]) {
+    test(`${lens} at ${width}: each dump fits its box; each tree as tall `
+      + "as its dumps; no sideways scroll", async ({ page }) => {
+      await page.setViewportSize({ width, height: 900 });
+      await open(page, lens);
+      await page.waitForTimeout(200);
+      const f = await fit(page);
+      expect(f.wide).toBe(false);
+      expect(f.over).toBe(0);
+      // (players-walk has no tree)
+      expect(f.gaps.length).toBe(lens === "players-walk" ? 0
+        : lens === "vyper" ? 2 : 1);
+      for (const g of f.gaps) expect(Math.abs(g)).toBeLessThanOrEqual(2);
+    });
+  }
+}
+
+test("the parity page opened at the Vyper scene: the tree as tall as the "
+  + "dump", async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 900 });
+  await page.goto("./#ex=vyper");
+  await page.waitForFunction(() =>
+    (window as unknown as { results?: { done: boolean } }).results?.done);
+  await page.waitForTimeout(200);
+  const g = await page.evaluate(() =>
+    document.querySelector("#dump")!.getBoundingClientRect().bottom -
+    document.querySelector("#tree")!.getBoundingClientRect().bottom);
+  expect(Math.abs(g)).toBeLessThanOrEqual(2);
+});

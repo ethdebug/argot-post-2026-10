@@ -67,7 +67,15 @@
    its box; a popover's size, padding, arrow and offsets are in em of it,
    as vanilla's px and rem at its 1280px size, 11.28px: 0.68rem = 0.965em,
    8px = 0.71em) */
-.views .pop { font-size: 0.965em; padding: 0 0.55em; border-radius: 0.37em;
+.view .pop { font-size: 0.965em; padding: 0 0.55em; border-radius: 0.37em;
   --aw: 0.735em; }
-.views .pop.kept { --aw: 0.92em; }
-.views .pop .pname.pbadge { padding: 0 0.37em; border-radius: 0.28em; }
+.view .pop.kept { --aw: 0.92em; }
+.view .pop .pname.pbadge { padding: 0 0.37em; border-radius: 0.28em; }
+/* (each dump's view fits its own box, the .dump container: the same rule
+   as .views, on the view, so a lens with no .views wrapper fits too) */
+.dump .view { font-family: var(--mono); font-variant-numeric: tabular-nums;
+  font-size: clamp(10px, calc((100cqi - 12px) / var(--k32, 56)), 20px); }
+@container (max-width: 559.98px) {
+  .dump .view { font-size: clamp(10px,
+    calc((100cqi - 12px) / var(--k16, 30)), 20px); }
+}

@@ -13,11 +13,13 @@ export const vyper: LensSpec = {
   links: ["v"],
   views: [
     { id: "t1", kind: "tree", area: "t1", link: "v", filter: players,
+      align: ["d1"],
       data: { decoding: "vyAsSol", point: POINT } },
     { id: "d1", kind: "dump", area: "d1", link: "v", location: "storage",
       filter: players, title: "Solidity's rule",
       data: { decoding: "vyAsSol", point: POINT } },
     { id: "t2", kind: "tree", area: "t2", link: "v", filter: players,
+      align: ["d2"],
       data: { decoding: "vyRule", point: POINT } },
     { id: "d2", kind: "dump", area: "d2", link: "v", location: "storage",
       filter: players, title: "Vyper's layout",

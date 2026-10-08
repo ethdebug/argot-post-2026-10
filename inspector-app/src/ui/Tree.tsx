@@ -145,7 +145,7 @@ function treeCard(path: string | null, pair: [Decoded, Decoded],
 
 export function Tree(p: { id: ViewId; data: DataRef; filter?: Filter;
   link?: LinkId; domId?: string; variant?: "tree" | "table";
-  compare?: DataRef }) {
+  compare?: DataRef; align?: ViewId[] }) {
   const d = useDecoded(p.data);
   const o = useDecoded(p.compare);
   const light = useLight(p.id);
@@ -303,20 +303,32 @@ export function Tree(p: { id: ViewId; data: DataRef; filter?: Filter;
     }
   }, [sel, d]);
 
-  // The tree's box and the dump start at one height: its first row at
-  // the height of the dump's first line (the dump has its byte ruler
-  // above); on a wide page, as tall as the dump, scrolling inside itself
-  // (vanilla main.js alignColumns)
+  // The tree's box and its dumps start at one height: its first row at
+  // the height of their first line (a dump has its byte ruler above); on
+  // a wide page, down to the last one's bottom, scrolling inside itself
+  // (vanilla main.js alignColumns). Its dumps: `align` (the view's), else
+  // every dump of the lens; aligned again when they change size.
+  const mine = p.align ?? lens.spec.views.filter((v) => v.kind === "dump")
+    .map((v) => v.id);
+  const alignKey = mine.join(" ");
   useLayoutEffect(() => {
     const tree = box.current;
     if (!tree) return;
+    const dumps = () => alignKey.split(" ").flatMap((id) => [
+      ...document.querySelectorAll<HTMLElement>(
+        `[data-view="${lens.key}:${id}"]:not([hidden])`)]);
     const align = () => {
-      const dump = [...document.querySelectorAll<HTMLElement>(
-        `.view[data-view^="${lens.key}:"]:not([hidden])`)][0];
+      const all = dumps();
+      const dump = all[0];
       const d = dump?.querySelector(".rows > *");
       const t = tree.querySelector("li .row");
       if (!dump || !d || !t) return;
+      // (measured with the tree at no height: a tree beside stacked dumps
+      // would hold their grid rows open)
       tree.style.paddingTop = "";
+      const wide = innerWidth >= 1100;
+      const scrolled = tree.scrollTop;
+      if (wide) tree.style.height = "0px";
       const col = (e: Element, c: string) => e.closest(c) ??
         e.closest("[data-area]") ?? document.body;
       const top = (e: Element, c: string) => e.getBoundingClientRect().top -
@@ -324,13 +336,15 @@ export function Tree(p: { id: ViewId; data: DataRef; filter?: Filter;
       const now = parseFloat(getComputedStyle(tree).paddingTop) || 0;
       const delta = top(d, ".words") - top(t, ".storage");
       tree.style.paddingTop = `${Math.max(0, now + delta)}px`;
-      const box2 = dump.closest(".dump") ?? dump;
-      const db = box2.getBoundingClientRect();
+      const bottom = Math.max(...all.map((x) =>
+        (x.closest(".dump") ?? x).getBoundingClientRect().bottom));
       const tb = tree.getBoundingClientRect();
-      tree.style.height = innerWidth >= 1100
-        ? `${Math.max(100, db.bottom - tb.top)}px` : "";
+      tree.style.height = wide ? `${Math.max(100, bottom - tb.top)}px` : "";
+      tree.scrollTop = scrolled;
     };
     align();
+    const seen = new ResizeObserver(() => align());
+    for (const x of dumps()) seen.observe(x.closest(".dump") ?? x);
     // (again once the dump's rows and the page's fonts are in)
     const later = requestAnimationFrame(align);
     let live = true;
@@ -339,10 +353,11 @@ export function Tree(p: { id: ViewId; data: DataRef; filter?: Filter;
     return () => {
       live = false;
       cancelAnimationFrame(later);
+      seen.disconnect();
       removeEventListener("resize", align);
     };
     // (when the tree is drawn anew, as vanilla's renderTree, and on resize)
-  }, [d, side, lens.key]);
+  }, [d, side, lens.key, alignKey]);
 
   // lit rows out of the box's view: a yellow circle button on the edge
   // past which they are (an overlay; a click scrolls to the first)
@@ -400,7 +415,7 @@ export function Tree(p: { id: ViewId; data: DataRef; filter?: Filter;
   return <>
     <div ref={box} id={p.domId}
       className={`tree${light.muted ? " active" : ""}`}
-      data-view={`${lens.key}:${p.id}`}
+      data-view={`${lens.key}:${p.id}`} data-align={alignKey}
       onPointerOver={point} onFocus={point}
       onClick={onClick} onKeyDown={onKey}>
       {comp?.provenance === "hand-written" && <p className="handmade">
