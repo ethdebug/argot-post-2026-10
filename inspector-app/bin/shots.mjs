@@ -110,7 +110,9 @@ async function capture(ctx, s) {
   }
 }
 
-const browser = await chromium.launch();
+// (scrollbars hidden: the system's setting, overlay or classic, can
+// change between two captures and would move the tree's contents)
+const browser = await chromium.launch({ args: ["--hide-scrollbars"] });
 const contexts = new Map();
 const contextFor = async (s) => {
   const k = `${s.device} ${s.scheme}`;
