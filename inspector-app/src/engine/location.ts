@@ -62,10 +62,13 @@ export function near(all: Hex[], rows: Iterable<Hex>, context: number,
   return keep;
 }
 
-// a row's name, for a location whose rows are not found by a rule: by
-// offset ("word 0x0080", "calldata 0x0024")
-export const rowName = (l: Location, row: Hex) =>
-  `${l === "calldata" ? "calldata" : "word"} ${row}`;
+// a row's name, for a location whose rows are not found by a rule: the
+// location and its offset ("memory 0x0080", "calldata 0x0020")
+export const rowName = (l: Location, row: Hex) => `${l} ${row}`;
+// an offset-addressed range of bytes, first to last, the one way every
+// place names it ("calldata 0x0004–0x0023"; one byte: "memory 0x00df")
+export const rangeText = (l: Location, a: number, b: number) =>
+  `${l} ${hex4(a)}${b > a ? `–${hex4(b)}` : ""}`;
 
 // whether rows may follow the last one shown (a gap line after it):
 // calldata ends where the call's input does

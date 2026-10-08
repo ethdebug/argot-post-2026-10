@@ -12,6 +12,7 @@ import {
   usePoint,
 } from "./hooks";
 import type { DataRef, ViewId } from "./types";
+import { rangeText } from "../engine/location";
 
 const hex4 = (n: number) => "0x" + n.toString(16).padStart(4, "0");
 const C = ({ children }: { children: ReactNode }) => <code>{children}</code>;
@@ -74,8 +75,8 @@ export function LocalsDetails(p: { id: ViewId; data: DataRef;
     const range = from === to ? `byte ${from}` : `bytes ${from}–${to}`;
     const where = location === "storage"
       ? `${range} of storage slot ${short(row)}`
-      : `${range} of word ${row} (${hex4(Number(BigInt(row)) + from)}–${
-        hex4(Number(BigInt(row)) + to)})`;
+      : rangeText(location, Number(BigInt(row)) + from,
+        Number(BigInt(row)) + to);
     info = [ids.length ? ["Values", <C>{ids.join(", ")}</C>]
       : ["Value", "none shown owns these bytes"], ["Bytes", where],
     ...(!single ? [["Before", <C>{h(pa)}</C>], ["After", <C>{h(pb)}</C>]]
@@ -85,7 +86,7 @@ export function LocalsDetails(p: { id: ViewId; data: DataRef;
     const store = t.row.length > 10;
     const w = Number(BigInt(t.row));
     info = [[store ? "Slot" : "Word", <C>{store ? t.row
-      : `word ${t.row} (${hex4(w)}–${hex4(w + 31)})`}</C>]];
+      : `memory ${t.row} (${hex4(w)}–${hex4(w + 31)})`}</C>]];
   } else if (t?.region) {
     info = [["Region", <C>{t.region.name}</C>],
       ["Where", span(t.region)]];

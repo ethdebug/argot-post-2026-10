@@ -4,10 +4,10 @@
 // view lights (its Light and Layout, which the Dump puts on its element:
 // `ViewData`); the DOM gives only geometry and the cards' pictures. They
 // are overlays: nothing in the dumps moves for them.
-import type { Hex, Layout, Light } from "../engine/types";
+import type { Hex, Layout, Light, Location } from "../engine/types";
 import { byteKey } from "../engine/hex";
 import { relClass } from "../engine/related";
-import { addressing, hex4 } from "../engine/location";
+import { addressing, rangeText } from "../engine/location";
 
 type El = HTMLElement;
 // what a dump view lights: its own Light, the compared point's (a slot
@@ -147,7 +147,7 @@ function runName(rows: El[]): string {
   if (loc && addressing(loc) === "offset") return rangeName(rows, loc);
   const names = rows.map((r) => r.dataset.name!);
   if (names.length === 1) return names[0];
-  const plain = names.map((n) => n.match(/^(slot|word) (\S+)$/));
+  const plain = names.map((n) => n.match(/^(slot) (\S+)$/));
   if (plain.every(Boolean)) {
     return `${plain[0]![1]}s ${plain[0]![2]}–${plain.at(-1)![2]}`;
   }
@@ -174,7 +174,7 @@ function rangeName(rows: El[], loc: string): string {
   if (rows.length === 1 && a % 32 === 0 && b - a === 31) {
     return rows[0].dataset.name!;
   }
-  return `${loc} ${hex4(a)}${b > a ? `–${hex4(b)}` : ""}`;
+  return rangeText(loc as Location, a, b);
 }
 
 // What a run of slots holds, as the pointer names it: each slot's
