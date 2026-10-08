@@ -1,6 +1,7 @@
 // A dump of one location at one timeline point (vanilla panel.js
 // renderPanel, wordHtml, paint): one word a row, in address order, each
 // byte linked to the value that owns it
+import { useFitDump } from "./fit";
 import { useEffect, useLayoutEffect, useRef } from "react";
 import { drawOverlays, type ViewData } from "./overlays";
 
@@ -233,41 +234,9 @@ export function Dump(p: { id: ViewId; location: Location; data: DataRef;
     }
   };
 
-  // The dump's font: the largest at which its row fits the box (CSS,
-  // .views); a row's width in em, in this font, measured once for each
-  // layout (32 bytes a line, or 16 on a narrow box) (vanilla fitDumps)
   const me = useRef<HTMLDivElement>(null);
   const rows = l?.rows ?? [];
-  const shownHere = !p.hidden;
-  useLayoutEffect(() => {
-    const fit = () => {
-      const d = me.current?.closest<HTMLElement>(".dump");
-      const row = me.current?.querySelector(".rows > .wrow");
-      if (!d || !row || !shownHere || !d.clientWidth) return;
-      const key = d.clientWidth < 560 ? "--k16" : "--k32";
-      if (d.style.getPropertyValue(key)) return;
-      const fs = parseFloat(getComputedStyle(row).fontSize);
-      const w = row.querySelector(".word")!.getBoundingClientRect().right -
-        row.getBoundingClientRect().left;
-      if (w > 0) d.style.setProperty(key, (w / fs).toFixed(4));
-    };
-    fit();
-    // (once the page's fonts are in: measured again, in them; vanilla
-    // 00cd9a0)
-    let live = true;
-    document.fonts?.ready.then(() => {
-      const d = me.current?.closest<HTMLElement>(".dump");
-      if (!live || !d) return;
-      d.style.removeProperty("--k32");
-      d.style.removeProperty("--k16");
-      fit();
-    });
-    addEventListener("resize", fit);
-    return () => {
-      live = false;
-      removeEventListener("resize", fit);
-    };
-  }, [rows.length, shownHere]);
+  useFitDump(me, !p.hidden, rows.length);
 
   // the overlays (popovers, cards, the tray), over the dumps' box, once
   // per render of any of its dumps; again on resize and once the fonts

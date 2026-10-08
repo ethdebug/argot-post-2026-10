@@ -187,7 +187,9 @@ export function Lens(props: { spec: LensSpec; project: Project;
       const f = document.activeElement;
       const here = !f || f === document.body ? pressed : mine(f);
       if (!here) return;
-      if (e.key === "Escape") return clear();
+      // (a view with a selection of its own keeps its Escape)
+      if (e.key === "Escape" && !(e.target as Element).closest?.(
+        "[data-scoped]")) return clear();
       // in a walkthrough: ← → Home End step, from anywhere in the lens
       // but a text field
       const moves: Record<string, (k: number, n: number) => number> = {
@@ -205,7 +207,8 @@ export function Lens(props: { spec: LensSpec; project: Project;
     };
     const click = (e: MouseEvent) => {
       const t = e.target as Element;
-      if ((e as MouseEvent & { acted?: boolean }).acted || other(t)) return;
+      if ((e as MouseEvent & { acted?: boolean }).acted || other(t) ||
+        t.closest?.("[data-scoped]")) return;
       if (t.closest?.("#picker, #details, #dwrap, .addr, .tray, a, " +
         "button, summary, details, input, label, .shellbar")) return;
       if (String(window.getSelection?.() ?? "")) return;

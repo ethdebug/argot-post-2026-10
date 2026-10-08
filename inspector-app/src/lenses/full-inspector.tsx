@@ -27,7 +27,7 @@ export const fullInspector: LensSpec = {
   decodings: ["sol:arcade-mid", "sol:arcade-alice", "sol:arcade-motd",
     "vyAsSol", "vyRule"],
   bookmarks: ["mid", "alice", "motd", "vyper"],
-  grid: '"pick pick" "mode mode" "bar bar" "dump tree"',
+  grid: '"pick pick" "mode mode" "bar bar" "dump tree" "cd tree"',
   links: ["storage"],
   views: [
     { id: "pick", kind: "picker", of: "bookmarks", area: "pick",
@@ -42,6 +42,8 @@ export const fullInspector: LensSpec = {
     { id: "after", kind: "dump", area: "dump", location: "storage",
       link: "storage", data: { decoding: "$bm", point: { slot: "b" } },
       side: "after", others: VYPER },
+    { id: "cd", kind: "calldata", area: "cd",
+      data: { decoding: "$bm", point: { slot: "b" } } },
     { id: "tree", kind: "tree", area: "tree", link: "storage",
       domId: "tree", data: { decoding: "$bm", point: { slot: "$side" } } },
   ],
