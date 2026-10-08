@@ -553,9 +553,9 @@ function show() {
   const h = hover ?? sel;
   // (each location's panel, the same way)
   for (const root of [$("mpanel"), $("mspanel")]) {
-    paint(root, $("mtree"), h, two() ? { before: "before",
+    paint(root, $("mtree"), h, { ...(two() ? { before: "before",
       after: "after", dumps: { before: "Before", after: "After" } }
-      : { cards: false });
+      : { cards: false }), chosen: !!chosen });
   }
   for (const r of $("mtree").querySelectorAll("li[data-path] > .row")) {
     const on = r.parentElement.dataset.path === chosen;
