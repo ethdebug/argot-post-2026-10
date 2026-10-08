@@ -394,11 +394,26 @@ const shortVal = (h) => {
 };
 // "…7527": the end of a slot's address, as the gutter shows it
 const tailOf = (h) => `…${word(num(h)).slice(-4)}`;
-// a mapping key, by the player's name when it is one
-const keyName = (h) => {
+// a mapping key, by what its entry holds: the `name` the record keeps
+// on chain (as the tree shows it, a string in quotes), in the state
+// shown; else the short address. (The fixture's own labels stay
+// internal.) `clip`: shortened, within its quotes, for a narrow place.
+const keyName = (h, clip) => {
   const k = word(num(h)).slice(-40);
-  return Object.entries(current.f.players ?? {}).find(([a]) =>
-    a.toLowerCase().endsWith(k))?.[1] ?? short(h);
+  let text = null;
+  const visit = (n) => {
+    if (text) return;
+    if (n.path.toLowerCase().endsWith(`[0x${k}]`)) {
+      const nm = n.children?.find((c) => c.label === "name");
+      text = (nm?.[mode] ?? nm?.after ?? nm?.before)?.text ?? null;
+      return;
+    }
+    (n.children ?? []).forEach(visit);
+  };
+  (current.tree ?? []).forEach(visit);
+  if (!text) return short(h);
+  return clip && text.length > clip
+    ? `${text.slice(0, clip - 2)}…${text.endsWith('"') ? '"' : ""}` : text;
 };
 
 // The raw steps of a value's evaluation, as decode.js replay() recorded
@@ -538,9 +553,11 @@ function replaySteps(path, side, focus) {
   }
   const keyOf = (i) => inputs.get(`${i}|mapping`)?.key?.hex;
   const who = (i) => keyOf(i) ? keyName(keyOf(i)) : shortKeys(i);
+  const whoShort = (i) => keyOf(i) ? keyName(keyOf(i), 16) : shortKeys(i);
   const isRec = insts.some((i) => keyOf(i));
   const recs = isRec && insts.length > 1
-    ? insts.map((i) => ({ path: i, who: who(i) })) : null;
+    ? insts.map((i) => ({ path: i, who: whoShort(i), full: who(i) }))
+    : null;
   // the focus: one instance at full strength, the others echoing it;
   // or "*", all of them at full strength (by default for a composite
   // with several; one entry or a value in it: that entry)
@@ -570,7 +587,7 @@ function replaySteps(path, side, focus) {
     const items = keyed.map((i) => [i, keyItem(keyOf(i))]);
     const one = keyed.length === 1;
     step({ phase: "input", id: "input",
-      cap: one ? `key = ${who(keyed[0])}'s address, from \`${
+      cap: one ? `key = the address of ${who(keyed[0])}, from \`${
         items[0][1]?.path ?? "the trace"}\`` : `The keys: the addresses in \`${
         keyList ?? "the trace"}\``,
       form: one ? addr(keyOf(keyed[0])) : table(items.map(([i, it]) =>
@@ -645,7 +662,7 @@ function replaySteps(path, side, focus) {
       const what = (k) => {
         const vs = vals(k);
         if (vs.length === 1 && vs[0] !== undefined) {
-          return k === "key" ? `key = ${who(xs[0].inst)}'s address`
+          return k === "key" ? `key = the address of ${who(xs[0].inst)}`
             : `${k} = ${small(vs[0])}`;
         }
         return k === "key" ? `key = each address in \`${keyList ?? "the trace"
@@ -920,7 +937,7 @@ function replaySteps(path, side, focus) {
       ? `even: 0x${flag(x.inst)?.slice(-2)} → ${lens(x.inst)} bytes inline`
       : `odd: 0x${flag(x.inst)?.slice(-2)} → ${lens(x.inst)} bytes at ` +
         `keccak(${tail(regs(x.inst)[0]?.slot ?? "0x0")})`;
-    const names = (list) => list.map((x) => who(x.inst)).join(", ");
+    const names = (list) => list.map((x) => whoShort(x.inst)).join(", ");
     const fork = shorts.length && longs.length;
     Object.assign(st, {
       cap: fork ? `The last byte decides the form: even → short (${names(
@@ -1413,7 +1430,8 @@ function renderBox() {
   $("dpick").innerHTML = rec ? `<span class="plab">Focus</span>${
     [{ path: "*", who: "all" }, ...rec.recs].map((r) => `<button ` +
       `type="button" class="btn" data-focus="${esc(r.path)}" aria-pressed="${
-        r.path === replay.focus}">${esc(r.who)}</button>`).join("")}` : "";
+        r.path === replay.focus}" aria-label="Focus: ${esc(r.full ?? r.who)
+      }">${esc(r.who)}</button>`).join("")}` : "";
   if (hadPick) {
     $("dpick").querySelector(`[data-focus="${CSS.escape(hadPick)}"]`)
       ?.focus({ preventScroll: true });
