@@ -8,7 +8,8 @@ import type {
   Path, ResolvedRegion, Row, TimelinePoint, ValueNode,
 } from "./types";
 import { byteKey, short, slotHex, toBig } from "./hex";
-import { hex4, near, nextRow, regionBytes, rowName } from "./location";
+import { hex4, near, nextRow, regionBytes, rowName, segmentRows }
+  from "./location";
 
 const PLAIN = 1n << 32n; // below this, a slot is a plain number
 
@@ -188,7 +189,8 @@ export function layout(d: Decoded, location: Location, filter: Filter = {},
   const order = (a: Hex, b: Hex) => BigInt(a) < BigInt(b) ? -1
     : BigInt(a) > BigInt(b) ? 1 : 0;
   const addresses = [...new Set<Hex>([...first.keys(), ...own.keys(),
-    ...extra.keys(), ...listed, ...words])].sort(order);
+    ...extra.keys(), ...listed, ...words,
+    ...segmentRows(o.point?.snapshot, location)])].sort(order);
   const record = o.point?.record;
   const how = (a: Hex) => {
     // (a slot the page reads by its own rule: named by it)
