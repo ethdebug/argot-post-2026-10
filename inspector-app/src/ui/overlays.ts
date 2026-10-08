@@ -6,6 +6,7 @@
 // are overlays: nothing in the dumps moves for them.
 import type { Hex, Layout, Light } from "../engine/types";
 import { byteKey } from "../engine/hex";
+import { relClass } from "../engine/related";
 
 type El = HTMLElement;
 // what a dump view lights: its own Light, the compared point's (a slot
@@ -24,23 +25,33 @@ function rowState(r: El) {
   const on = rowLit(x, x?.light, r) || x?.light.at?.row === slotOf(r);
   const only = !on && rowLit(x, x?.there, r);
   return { on, only, known: !on && !only && !!x?.light.known?.has(slotOf(r)),
-    gut: !on && !only && !!x?.light.gutters.has(slotOf(r)) };
+    gut: !on && !only && !!x?.light.gutters.has(slotOf(r)),
+    // (consulted by the selection: the related treatment)
+    rel: !on && !only && !!x?.light.related?.has(slotOf(r)) };
 }
 // a byte's lighting, from its view's Light
 function byteLight(c: El) {
   const x = data(c);
   const w = c.closest<El>(".word");
-  if (!x || !w) return { hl: false, k: null as string | null, muted: false };
+  if (!x || !w) {
+    return { hl: false, k: null as string | null, muted: false,
+      rel: null as string | null };
+  }
   const key = byteKey(x.l.location, w.dataset.slot as Hex, +c.dataset.i!);
   const hl = x.light.bytes.has(key);
   const ids = (c.dataset.owners ?? "").split("|").filter(Boolean);
+  // (a consulted value's byte: its related classes)
+  const rel = !hl && x.light.relBytes?.has(key)
+    ? relClass(x.light, ids) : null;
   const k = hl ? ids.map((id) => x.light.colours.get(id.replace(/#[a-z]+$/,
     ""))).find((y) => y !== undefined) : undefined;
   const muted = hl && ((x.light.focus !== undefined && !!k &&
     k !== x.light.focus) || !!x.light.dim?.has(key));
   return { hl, k: !hl ? null : typeof k === "number" && k ? `pk${k}` : "pk0",
-    muted };
+    muted, rel };
 }
+// a row the selection consulted, not lit (the related treatment)
+const consulted = (r: El) => rowState(r).rel;
 type Rect = { top: number; left: number; bottom: number; right: number };
 interface Item { text: string; k: string | null; muted: boolean;
   sep: string; seg?: number; id?: string; free?: boolean }
@@ -104,7 +115,9 @@ function runs(view: El): El[][] {
   let run: El[] | null = null;
   for (const el of [...view.querySelector(".rows")!.children] as El[]) {
     const st = el.classList.contains("wrow") ? rowState(el) : null;
-    if (st && (st.on || st.only || st.known || st.gut)) {
+    if (st && (st.on || st.only || st.known || st.gut || st.rel)) {
+      // (a consulted row and a lit one: runs of their own)
+      if (run && consulted(run[0]) !== consulted(el)) run = null;
       if (!run) out.push(run = []);
       run.push(el);
     } else if (!el.classList.contains("cmp")) {
@@ -166,10 +179,12 @@ function whatIn(root: El, rowsIn: El[]): Item[] {
   const ids = all(root, ".b[data-owners]")
     .flatMap((c) => c.dataset.owners!.split("|")).map(path);
   // a name's colour: its bytes' now (the selection's yellow, pk0, for a
-  // lit byte with no child colour); none where they are not lit
+  // lit byte with no child colour; a consulted value's, its related
+  // classes); none where they are not lit
   const colour = (cells: El[]) => {
-    const on = cells.map(byteLight).filter((b) => b.hl);
-    return on.length ? on[0].k : null;
+    const bs = cells.map(byteLight);
+    const on = bs.filter((b) => b.hl);
+    return on.length ? on[0].k : bs.find((b) => b.rel)?.rel ?? null;
   };
   // (muted where its bytes are: an echo)
   const muted = (cells: El[]) => {
@@ -362,11 +377,16 @@ function popFor(root: El, rows: El[], more: number): Pop {
     rows.length > 1;
   const [, how, n] = runName(rows).match(/^(.*?)(, \d+ slots)?$/)!;
   const count = one ? "" : n;
+  // (a variable's empty own slot the selection consulted: its anchor)
+  const anchor = rows.length === 1 && !what.length
+    ? data(rows[0])?.light.anchors?.get(slotOf(rows[0])) : undefined;
   pop.innerHTML = `<span class="pop-how"><span class="phow">${esc(
     what.length ? how : runName(rows))}</span>${what.length
     ? ` : <span class="pwhat">${whatHtml(what, what.map((_, i) => i))
-    }</span>${count ?? ""}` : ""}${facts.length ? ` · ${esc(facts.join(
-    " / "))}` : ""}${more ? ` · +${more} more` : ""}</span>`;
+    }</span>${count ?? ""}` : anchor ? ` : <span class="pwhat">${esc(
+      shortKeys(anchor))} (anchor)</span>` : ""}${facts.length
+    ? ` · ${esc(facts.join(" / "))}` : ""}${more ? ` · +${more} more`
+    : ""}</span>`;
   return pop;
 }
 
@@ -490,6 +510,8 @@ function annotate(root: El, v: El, compare: boolean, names: OverlayNames,
       // not the current step's gutters: those are its own)
       if (run.every((r) => rowState(r).known && !data(r)?.light.gutters.has(
         slotOf(r)))) pop.classList.add("kept");
+      // (a run the selection only consulted: the same light label)
+      if (consulted(run[0])) pop.classList.add("kept", "related");
       const ways = side === "before" ? ["over", "under"]
         : ["under", "over"];
       let placed = false;

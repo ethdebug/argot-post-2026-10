@@ -94,3 +94,29 @@ test("a walkthrough in the related view: step 0 to found, the same rows",
     }
     await expect(page.locator("#details .rshort")).toHaveText(/found/);
   });
+
+test("what a selection consulted: tinted in its record's colour, a light "
+  + "popover; the anchor", async ({ page }) => {
+  // (the same in All and in Related)
+  for (const rel of ["", "&rel=0"]) {
+    await open(page, `ex=mid&sel=players${rel}`);
+    const roster = page.locator(
+      '#panel .view:not([hidden]) .wrow[data-name^="keccak(slot 0)"]');
+    await expect(roster).toHaveCount(3);
+    await expect(roster.first()).toHaveClass(/\brel\b/);
+    // (alice's address, her record's colour, desaturated: blue)
+    await expect(roster.first().locator(".b.rel.pk1").first()).toBeVisible();
+    await expect(page.locator(
+      '#tree li[data-path="roster[1]"] > .row')).toHaveClass(/rel pk2/);
+    const pop = page.locator(".pop.kept.related");
+    await expect(pop.filter({ hasText: "keccak(slot 0)" })).toHaveCount(1);
+    await expect(pop.filter({ hasText: "slot 3 : players (anchor)" }))
+      .toHaveCount(1);
+    // (the selection's own: as before, lit, a black popover)
+    await expect(page.locator(".pop:not(.kept)").filter({
+      hasText: "keccak(0x7099…79c8, slot 3)" })).toHaveCount(1);
+  }
+  // (a walkthrough: its steps light, no related treatment)
+  await page.locator('#details button[data-r="start"]').click();
+  await expect(page.locator("#panel .b.rel")).toHaveCount(0);
+});

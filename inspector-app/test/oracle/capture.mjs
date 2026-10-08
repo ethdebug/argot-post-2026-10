@@ -55,7 +55,10 @@ const stepNow = (page) => page.evaluate(() => {
     gut: [...document.querySelectorAll(`${v} .wrow.gut`)].map((r) =>
       nm[r.dataset.slot] ?? r.dataset.slot).sort(),
     pops: [...document.querySelectorAll("#panel .pop")].filter((p) =>
-      p.offsetParent).map((p) => (p.classList.contains("kept") ? "k:" : "")
+      // (the related treatment's labels: r:, a gutter row's g:)
+      p.offsetParent).map((p) => (p.classList.contains("related")
+        ? p.closest(".wrow.gut") ? "g:" : "r:"
+        : p.classList.contains("kept") ? "k:" : "")
       + p.textContent.replace(/\s+/g, " ").trim()).sort(),
     picker: [...document.querySelectorAll("#details .rfocus button, " +
       "#details [data-focus]")].map((b) => b.textContent.trim() +

@@ -11,10 +11,18 @@ type Step = Record<string, unknown>;
 
 // Every field of every step equal, as captured (the decided differences
 // of earlier syncs are vanilla's too now), but for what the port added
-// since the oracle froze: the popovers' "(unmapped)" items.
+// since the oracle froze: the popovers' "(unmapped)" items, and at the
+// resting view (found) the labels of what the selection consulted (r:,
+// the related treatment); a gutter row's (g:) was vanilla's plain
+// label, with no "(anchor)".
 const vanilla1 = (_w: string, _f: string, v: unknown) => JSON.stringify(v);
-const port1 = (w: string, f: string, v: unknown) => vanilla1(w, f, v)
-  .replace(/ · \(unmapped\)|\(unmapped\) · /g, "");
+const unrelated = (f: string, v: unknown) => f !== "pops" ||
+  !Array.isArray(v) ? v : v.flatMap((x: string) => x.startsWith("r:") ? []
+    : x.startsWith("g:") ? [x.slice(2).replace(/ : [^·]* \(anchor\)/, "")]
+      : [x]).sort();
+const port1 = (w: string, f: string, v: unknown) =>
+  vanilla1(w, f, unrelated(f, v))
+    .replace(/ · \(unmapped\)|\(unmapped\) · /g, "");
 const same = (_f: string, a: string, b: string) => a === b;
 
 test("every walkthrough step equals the oracle's", async ({ page,

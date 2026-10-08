@@ -1292,6 +1292,23 @@ sup.fn { font-size: 0.7em; color: var(--accent); margin-left: 1px; }
 :root[data-theme="dark"] { --pk9: #5a4a2a; --pk9-fg: #f3e3c4;
   --pksrc: #34404f; --pksrc-fg: #d9e2ee; }
 .pk9 { --pk: var(--pk9); --pk-fg: var(--pk9-fg); }
+/* The related treatment: what a selection consulted (a key's slot, its
+   tree row; their popover badges), in a desaturated version of the
+   colour of what it leads to (a record's), else (pkn) a neutral one.
+   One token, --rel, from the palette entry: weaker than any lit colour. */
+:root { --rel-grey: color-mix(in srgb, var(--muted) 22%, var(--panel)); }
+.pkn { --pk: var(--rel-grey); --pk-fg: var(--fg); }
+.rel { --rel: color-mix(in srgb, var(--pk) 42%, var(--rel-grey)); }
+.b.rel:not(.hl), .active .b.rel:not(.hl):not(.at) {
+  background: var(--rel); opacity: 1; filter: none; }
+.row.rel:not(.hl) { background: var(--rel); border-radius: 4px;
+  box-shadow: -4px 0 0 var(--rel), 4px 0 0 var(--rel); }
+.tree.active .row.rel:not(.hl) { opacity: 0.9; }
+.pop .pname.pbadge.rel, .pop.kept .pname.pbadge.rel {
+  background: var(--rel); color: var(--fg); font-weight: 600; }
+/* (a consulted run's addresses: a neutral group tint; a gutter row,
+   the variable's own slot, keeps its own) */
+.wrow.rel:not(.gut) .addr.grp::before { background: var(--rel-grey); }
 .pksrc { --pk: var(--pksrc); --pk-fg: var(--pksrc-fg); }
 .b.hl:is(.pk9, .pksrc) { background: var(--pk); color: var(--pk-fg); }
 .row.hl:is(.pk9, .pksrc) { background: var(--pk); color: var(--pk-fg);
