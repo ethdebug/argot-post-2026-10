@@ -113,8 +113,10 @@ function Word({ l, row, word, other, side, name, light, groupsOf }: {
         const { k, cls: c } = pick(light, g.owners);
         cls.push("hl");
         if (c) cls.push(c);
-        // (the selection's own colour, 0, never mutes)
-        if (light.focus !== undefined && k && k !== light.focus) {
+        // (the selection's own colour, 0, never mutes; a walkthrough's
+        // echo of its focus does)
+        if ((light.focus !== undefined && k && k !== light.focus) ||
+          light.dim?.has(byteKey(loc, row, i))) {
           cls.push("muted");
         }
       }
@@ -249,7 +251,7 @@ export function Dump(p: { id: ViewId; location: Location; data: DataRef;
   // the overlays (popovers, cards, the tray), over the dumps' box, once
   // per render of any of its dumps; again on resize and once the fonts
   // are in (the labels are fitted in them)
-  const cards = !!p.cards;
+  const cards = !!p.cards && !link.walk;
   useLayoutEffect(() => {
     const v = me.current;
     const root = v?.closest<HTMLElement>(".panel") ?? v?.parentElement;
@@ -298,8 +300,11 @@ export function Dump(p: { id: ViewId; location: Location; data: DataRef;
     const only = !on && !!p.compare && [...there.bytes].some((b) =>
       b.split("|")[1] === r.address);
     const gut = !on && !only && light.gutters.has(r.address);
+    // (a row a walkthrough has found by now keeps its label)
+    const known = !on && !only && !!light.known?.has(r.address);
     const cls = ["wrow", same ? "same" : "", k % 2 ? "zb" : "",
-      on ? "on" : "", only ? "only" : "", gut ? "gut" : ""]
+      on ? "on" : "", only ? "only" : "", known ? "known" : "",
+      gut ? "gut" : ""]
       .filter(Boolean).join(" ");
     lines.push(<div key={r.address} className={cls} data-slot={r.address}
       data-name={name} data-facts={facts}
@@ -320,6 +325,8 @@ export function Dump(p: { id: ViewId; location: Location; data: DataRef;
 
   return <div ref={me} className="view" data-side={side} role="group"
     aria-label={p.when ? `${label} ${p.when}` : label} hidden={p.hidden}
+    data-quiet={light.quiet ? "" : undefined}
+    data-ruler={light.ruler}
     data-view={`${lens.key}:${p.id}`}
     onPointerOver={point} onFocus={point}
     onClick={(e: MouseEvent) => {

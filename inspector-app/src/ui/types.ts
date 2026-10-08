@@ -10,7 +10,9 @@ export type ViewId = string;
 export interface LinkState {    // shared by the views of one link group
   selection: Path | null;
   hover: Target | null;
-  walk: { step: number; focus?: `0x${string}` } | null;  // null = not walking
+  // a walkthrough (null: none): the step shown, the instance in focus
+  // ("*": all; a path: one entry), and how many steps it has
+  walk: { step: number; focus?: string; n?: number } | null;
 }
 export interface ViewState {    // one view instance's own state
   collapsed: ReadonlySet<Path>; // Tree only; default empty (expanded)
