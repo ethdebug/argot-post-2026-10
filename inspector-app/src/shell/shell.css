@@ -1,0 +1,29 @@
+/* The shell's bar: fixed at the top, over the lens; the page below it */
+.shellbar { position: fixed; z-index: 40; top: 0; left: 0; right: 0;
+  display: flex; align-items: center; gap: 16px; padding: 6px 16px;
+  font: 13px/1.4 system-ui, sans-serif; background: var(--panel);
+  border-bottom: 1px solid var(--line); color: var(--fg); }
+.shellpage { padding: 48px 16px 16px; }
+.shellpick { position: relative; }
+.shellbar button { font: inherit; color: inherit; cursor: pointer;
+  background: none; border: 1px solid var(--line); border-radius: 6px;
+  padding: 2px 10px; }
+.shellbar button:hover { border-color: var(--accent); }
+.shellk { color: var(--muted); text-transform: uppercase;
+  font-size: 0.75rem; letter-spacing: 0.06em; }
+.shellcount, .shellkeys { color: var(--muted); }
+.shellkeys { margin-left: auto; }
+.shellkeys kbd { font-family: var(--mono); font-size: 0.85em;
+  border: 1px solid var(--line); border-radius: 3px; padding: 0 4px; }
+.shelllist { position: absolute; top: calc(100% + 4px); left: 0;
+  margin: 0; padding: 4px; list-style: none; min-width: 16em;
+  background: var(--panel); border: 1px solid var(--line);
+  border-radius: 6px; box-shadow: 0 2px 8px rgb(0 0 0 / 0.12); }
+.shelllist[hidden] { display: none; }
+.shelllist button { display: block; width: 100%; text-align: left;
+  border-color: transparent; }
+.shelllist button[aria-current="page"] { border-color: var(--accent);
+  font-weight: 600; }
+/* a lens's grid: its columns share the width */
+.shellpage .lens { grid-auto-columns: minmax(0, 1fr); gap: 0 28px;
+  align-items: start; }
