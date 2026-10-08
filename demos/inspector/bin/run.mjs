@@ -2444,12 +2444,14 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
         await page.locator(`#panel .view:not([hidden]) .b[data-owners="${to
           }"]`).first().click();
       }
+      // (the cue, exactly when the step number shown changes)
+      const cue = await page.locator("#details .rcue").count();
       await page.mouse.move(1, 1);
       const x = await stepNow();
       const sel = (await selected()).join();
       const on = await page.locator("#details.replaying").count();
       await page.keyboard.press("Escape");
-      return { cap: x.cap, count: x.count, sel, on };
+      return { cap: x.cap, count: x.count, sel, on, cue };
     };
     const r1 = await at(`${C}.name`, 6, `${B}.name`);
     const r2 = await at(C, 5, `${C}.name`);
@@ -2457,7 +2459,8 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
     if (!r1.on || r1.sel !== `${B}.name` || r1.count !== "7 / 10" ||
       !r1.cap.startsWith("The template string") ||
       !r2.on || !r2.cap.startsWith("The template Player") ||
-      !r3.on || r3.sel !== "total" || r3.count !== "1 / 1") {
+      !r3.on || r3.sel !== "total" || r3.count !== "1 / 1" || r1.cue ||
+      !r2.cue || !r3.cue) {
       problems.push(`re-target: ${JSON.stringify([r1, r2, r3])}`);
     }
     await page.evaluate((x) => window.select("mid", { sel: x }), `${B}.plays`);
@@ -3637,6 +3640,16 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
     .includes(vslot.slice(0, 6))) {
     problems.push(`vyper pops: ${vp}`);
   }
+  // (Vyper's records hold no name: the walkthrough names them by their
+  // short addresses)
+  {
+    const vn = await page.evaluate(() => [...document.querySelectorAll(
+      "#dtext .rform, #dtext .rcap, #dpick button")].map((e) =>
+      e.textContent).join(" "));
+    if (vn.includes('""') || !vn.includes("0x7099…79c8")) {
+      problems.push(`vyper names: ${vn.slice(0, 200)}`);
+    }
+  }
   // carol, selected (a click re-targets the walkthrough): her Vyper
   // words, her long name over two words
   await page.locator(`#tree li[data-path="${C}.score"] > .row`).click();
@@ -3846,6 +3859,14 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
       !both[0] || !both[1]) {
       problems.push(`memory panels: ${JSON.stringify({ pan, both })}`);
     }
+  }
+  // (one palette, of 9 child colours, for every location: memory's
+  // record members use the storage scenes' classes)
+  {
+    const ks = await page.evaluate(() => [...new Set([...document
+      .querySelectorAll("#mtree .row.hl, #panel .b.hl")].flatMap((e) =>
+      [...e.classList].filter((c) => /^pk\d+$/.test(c))))]);
+    if (ks.some((k) => +k.slice(2) > 9)) problems.push(`palette: ${ks}`);
   }
   // a click on the score's bytes selects the score
   await page.locator('#mspanel .b[data-owners="players[msg.sender].score"]')

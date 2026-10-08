@@ -411,7 +411,8 @@ const keyName = (h, clip) => {
     (n.children ?? []).forEach(visit);
   };
   (current.tree ?? []).forEach(visit);
-  if (!text) return short(h);
+  // (an empty or missing name: the short address)
+  if (!text || text === '""') return short(h);
   return clip && text.length > clip
     ? `${text.slice(0, clip - 2)}…${text.endsWith('"') ? '"' : ""}` : text;
 };
@@ -1683,7 +1684,8 @@ function retarget(path) {
       break;
     }
   }
-  const moved = k - ob !== replay.i - oa;
+  // (the step number shown: its index + 1; the goal's is 0)
+  const moved = k - ob !== replay.i;
   replay = { path, side: replay.side, steps, goal: steps.goal, i: k - ob,
     focus: steps.find((x) => x.recs)?.focus };
   renderBox();
