@@ -277,46 +277,15 @@ const typeName = (t) => {
 // regions bugc names `<name>-length` and `<name>-element` (memory) or
 // `array-length` and `element` (storage); a struct,
 // from one region per member; else the region named `name`, or the
-// last region. A mapping's pointer names only its base slot, so the
-// page shows no entries.
-// A string in storage. bugc's pointer names only its slot, so the page
-// reads it by Solidity's rule (part of the decoding stand-in): a short
-// string (under 32 bytes) sits in the slot with 2 * length in its last
-// byte; a long one stores 2 * length + 1 there, and its bytes from
-// keccak256(slot) on. The words are read through pointers built by that
-// rule.
-async function stringAt(state, slot) {
-  const word = async (p) => {
-    const c = await dereference(p, { state });
-    const v = await c.view(state);
-    return v.read(v.regions.at(-1));
-  };
-  const head = await word({ location: "storage", slot });
-  const n = head.asUint();
-  let bytes;
-  if (n % 2n === 0n) {
-    bytes = head.slice(0, Number(head.at(-1)) / 2);
-  } else {
-    const len = Number((n - 1n) / 2n);
-    const parts = [];
-    for (let k = 0; k * 32 < len; k++) {
-      parts.push(...await word({ location: "storage",
-        slot: { $sum: [{ $keccak256: [{ $wordsized: slot }] }, k] } }));
-    }
-    bytes = Uint8Array.from(parts.slice(0, len));
-  }
-  return JSON.stringify(new TextDecoder().decode(bytes));
-}
-
+// last region. A mapping's pointer is an entry template at its base slot;
+// the page shows no entries.
 async function valueAt(ds, i, pointer, name, type) {
   if (type?.kind === "mapping") {
-    return `<mapping at slot ${pointer.slot ?? "?"}>`;
+    // bugc's pointer is a template for an entry, applied at the base
+    // slot: `{ templates, in: { slot } }`.
+    return `<mapping at slot ${(pointer.in ?? pointer).slot ?? "?"}>`;
   }
   const state = machineState(ds, i);
-  if (type?.kind === "string" && pointer.location === "storage"
-    && typeof pointer.slot === "number") {
-    return stringAt(state, pointer.slot);
-  }
   const cursor = await dereference(pointer, { state });
   const view = await cursor.view(state);
   const read = async (r, t) => decode(await view.read(r), t);
@@ -339,6 +308,14 @@ async function valueAt(ds, i, pointer, name, type) {
       if (r) fields.push(`${m.name}: ${await read(r, m.type)}`);
     }
     if (fields.length) return `{ ${fields.join(", ")} }`;
+  }
+  if (type?.kind === "string") {
+    // bugc's pointer reads the length flag, then names the `data`.
+    const data = view.regions.named("data")?.at(-1);
+    if (data) {
+      return JSON.stringify(new TextDecoder().decode(
+        await view.read(data)));
+    }
   }
   const region = view.regions.named(name)?.at(-1)
     ?? view.regions.at(-1);
