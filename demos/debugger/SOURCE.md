@@ -60,11 +60,12 @@ fresh `anvil --steps-tracing --port 8556` (anvil 1.2.3):
 - The transactions (`make-arcade-txs.mjs`, from `arcade-story.json`):
   each build is deployed (a long motd: "season 2 starts friday, see you
   on the leaderboard", 50 bytes), then gets the story: alice,
-  bob and carol join; alice hits twice, bob hits, carol misses; then
+  bob and carol join; alice hits twice, bob hits, carol hits four times,
+  then misses; then
   the traced call, alice's third `play()`, a hit. The roll depends on
   the block, and anvil cannot set prevrandao, so each `play()` runs
   inside an `evm_snapshot`: if it does not roll the story's outcome
-  (a hit changes `total`, a miss does not), the script reverts, mines
+  (a hit changes `totalScore`, a miss does not), the script reverts, mines
   one empty block and sends it again. The script saves the node's
   responses (`fe/`, `bug/arcade-O*/`: with each step's memory, and the
   storage before, for the pointers) and the old way's trace
@@ -100,7 +101,8 @@ changes; `run.mjs` checks that it matches.
 ## The BUG tab: ethdebug's reference implementation
 
 `vendor/ethdebug-ref.js` bundles, from ethdebug/format at commit
-`1d45fea4c49b849c10399f55436843f33fdad4f0` (main): `@ethdebug/pointers`
+`d7cb421a36a3b4cef1a9d954da8316cf6e43424e` (main, #323: pointer
+expressions take `~`): `@ethdebug/pointers`
 (`dereference`, `Data`), `@ethdebug/evm`'s Machine.State adapter
 (`createMachineState`, without its executor) and the trace
 reconstruction utilities of `@ethdebug/programs-react` (no React; with
@@ -110,7 +112,8 @@ is made by `make-ref-vendor.sh <checkout>` after `yarn install` in that
 checkout. `ref-worker.js` uses it.
 
 The BUG data comes from bugc built from ethdebug/format main at
-`1d45fea4c` (`make-arcade.sh`, above), which has #368: strings in
+`d7cb421a3` (`make-arcade.sh`, above; #323: it writes `~`), which has
+#368: strings in
 storage, `push`, `block.prevrandao`, `keccak256` over several words and
 `!`. `bug/arcade.bug` is a copy of the Arcade BUG port. The details'
 soldb check uses `bug/tally.bug` and its saved transaction

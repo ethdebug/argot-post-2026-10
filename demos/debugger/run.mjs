@@ -611,34 +611,35 @@ const layoutFails = [];
 // sources (sol/Arcade.sol, bug/arcade.bug) and the story
 // (arcade-story.json): deploy with a 50-byte motd; alice, bob and carol
 // join (accounts 1, 2, 3); alice hits twice (+10, +20), bob hits (+10),
-// carol misses; then the traced call, alice's third play, a hit. Before
-// it: alice's combo 2; total 40, rounds 3. In it: hit = true; combo = 2
-// + 1 = 3; multiplied(10, 3): m = 5, then 3 (3 < 5), so gained = 10 * 3
-// = 30; then total = 40 + 30 = 70, rounds = 4. roster: the three
+// carol hits four times (+10, +20, +30, +40), then misses; then the
+// traced call, alice's third play, a hit. Before it: alice's combo 2;
+// totalScore 140, totalHits 7. In it: hit = true; combo = 2 + 1 = 3;
+// _applyCombo(10, 3): mult = 5, then 3 (3 < 5), so gained = 10 * 3 = 30;
+// then totalScore = 140 + 30 = 170, totalHits = 8. playerList: the three
 // players, in the order they joined. players' pointer names only its
 // base slot. <no location>: a local listed by type only.
 const NONE = "<no location>";
 const MOTD = "season 2 starts friday, see you on the leaderboard";
-const ROSTER = ["0x70997970c51812dc3a010c7d01b50e0d17dc79c8",
+const PLAYER_LIST = ["0x70997970c51812dc3a010c7d01b50e0d17dc79c8",
   "0x3c44cdddb6a900fa2b585dd299e03d12fa4293bc",
   "0x90f79bf6eb2c4f870365e785982e1f101e93b906"];
 const EXPECT = {
-  values: { points: ["10"], combo: ["3"], m: ["5", "3"], gained: ["30"],
-    hit: ["true"], total: ["40", "70"], rounds: ["3", "4"],
-    motd: [JSON.stringify(MOTD)],
-    roster: [`length 3: [${ROSTER.join(", ")}]`],
+  values: { points: ["10"], combo: ["3"], mult: ["5", "3"],
+    gained: ["30"], hit: ["true"], totalScore: ["140", "170"],
+    totalHits: ["7", "8"], motd: [JSON.stringify(MOTD)],
+    playerList: [`length 3: [${PLAYER_LIST.join(", ")}]`],
     players: ["<mapping at slot 4>"] },
   last: { players: "<mapping at slot 4>",
-    roster: `length 3: [${ROSTER.join(", ")}]`,
-    motd: JSON.stringify(MOTD), total: "70", rounds: "4" },
-  storage: ["roster", "motd", "total", "rounds", "players"],
+    playerList: `length 3: [${PLAYER_LIST.join(", ")}]`,
+    motd: JSON.stringify(MOTD), totalScore: "170", totalHits: "8" },
+  storage: ["playerList", "motd", "totalScore", "totalHits", "players"],
   // The names as joined (story): each stored by Solidity's string rule.
   names: ["alice", "bob", "carol, the unstoppable combo queen"],
   // soldb's state at the Solidity tab's last step (play never reads
-  // roster or motd, so the trace has no value for them).
-  sol: { total: "70", rounds: "4", roster: "<unknown>" },
+  // playerList or motd, so the trace has no value for them).
+  sol: { totalScore: "170", totalHits: "8", playerList: "<unknown>" },
   // The real call at -O0, as the call stack lists it.
-  call: "multiplied(points: 10, combo: 3)",
+  call: "_applyCombo(points: 10, combo: 3)",
 };
 const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
 const rd = (f) => JSON.parse(fs.readFileSync(new URL(f, import.meta.url),
@@ -681,7 +682,7 @@ const bugFacts = (lvl) => {
   // instruction through the step of its inlined return, or, if the run
   // ends before a return, to the step after its last. (A run without an
   // invoke, such as a hoisted msg.sender, opens no body. At -O2, bugc
-  // leaves the transform off part of multiplied's body, so its frame
+  // leaves the transform off part of _applyCombo's body, so its frame
   // closes early; a known bugc gap.)
   const spans = {};
   let run = null;
@@ -875,8 +876,8 @@ for (const [name, b] of Object.entries(all)) {
       && u.bug.O2.inline.noteVisible === "visible"
       && u.bug.O2.inline.site > 0);
     // The old way. (1) Most steps map to the whole contract. (3) No
-    // inlined helper gets a frame: rolledHit and
-    // multiplied run, with no frame named for any of the three
+    // inlined helper gets a frame: _rolledHit and
+    // _applyCombo run, with no frame named for any of the three
     // helpers; instead, five jumps marked i open frames with no
     // function in the AST, three of them on `+= 1` statements.
     const old = u.old, rec = old.steps;
@@ -886,9 +887,10 @@ for (const [name, b] of Object.entries(all)) {
       && rec.every((x) => / source map -?\d+:-?\d+:-?\d+:[io-]$/
         .test(x.where)));
     // (2) The roll's `% 3`: its constant 3, pushed just before the roll
-    // starts and used by the roll's MOD (hand-checked: pc 1986 PUSH1 03,
-    // the operand of the MOD at pc 2023), maps to `players` on line 26.
-    // So the step before rolledHit (line 40) shows line 26.
+    // starts and used by the roll's MOD (hand-checked, and again after
+    // the renames: pc 1986 PUSH1 03, the operand of the MOD at pc 2023),
+    // maps to `players` on line 26.
+    // So the step before _rolledHit (line 40) shows line 26.
     const mod = rec.findIndex((x) => / MOD,/.test(x.where));
     const k = rec.findLastIndex((x, i) => i < mod
       && /Arcade\.sol:26,/.test(x.where) && x.hl === "players");
@@ -897,9 +899,9 @@ for (const [name, b] of Object.entries(all)) {
       && mod > 0 && k > 0 && / pc 1986 PUSH1,/.test(rec[k].where)
       && /Arcade\.sol:40,/.test(rec.slice(k + 1).find((x) => x.hl)?.where)
       && /the whole contract/.test(rec[mod].note));
-    const helpers = ["rolledHit", "multiplied", "resetCombo"];
+    const helpers = ["_rolledHit", "_applyCombo", "_resetCombo"];
     check(name, "old: no frame for an inlined helper",
-      ["rolledHit", "multiplied"].every((fn) => rec.some((x) =>
+      ["_rolledHit", "_applyCombo"].every((fn) => rec.some((x) =>
         new RegExp(`, function ${fn},`).test(x.where)))
       && rec.every((x) => !x.stack.some((f) =>
         helpers.some((h) => f.startsWith(h)))));
