@@ -49,7 +49,9 @@ export type ViewSpec = { id: ViewId; area: string; link?: LinkId;
       // by none here, named "<who> keccak(…)" (Phase 1: Vyper's)
       others?: { decoding: DecodingId; who?: string }[] }
     | { kind: "tree"; data: DataRef; filter?: Filter;
-      variant?: "tree" | "table"; compare?: DataRef }
+      variant?: "tree" | "table"; compare?: DataRef;
+      // the dumps it lines up with (default: the lens's)
+      align?: ViewId[] }
     | { kind: "picker"; of: "bookmarks" | "points" | "side" | "level" }
     // the bookmark's call's calldata, by the ABI (its own selection)
     | { kind: "calldata"; data: DataRef }
