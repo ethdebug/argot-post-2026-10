@@ -38,6 +38,13 @@ export async function load(io: Io, manifest = "fixtures/index.json"):
       keys: { from: "trace" } };   // (until its fixture says: below)
   }
   Object.assign(decodings, mem.decodings);
+  // a call's calldata, by the ABI (a bookmark that names its function)
+  for (const b of bookmarks) {
+    if (!b.calldata) continue;
+    decodings[`abi:${b.id}`] = { id: `abi:${b.id}`,
+      compilation: solOf(b.timeline), timeline: b.timeline,
+      variables: "abi", keys: { from: "trace" }, abi: b.calldata };
+  }
   // Vyper's own layout, over the same storage (hand-written)
   if (decodings.vyAsSol) {
     decodings.vyRule = { id: "vyRule", compilation: VY_RULE,

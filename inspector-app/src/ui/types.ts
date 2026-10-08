@@ -56,7 +56,9 @@ export type ViewSpec = { id: ViewId; area: string; link?: LinkId;
     | { kind: "tree"; data: DataRef; filter?: Filter;
       variant?: "tree" | "table"; compare?: DataRef;
       // the dumps it lines up with (default: the lens's)
-      align?: ViewId[]; plain?: boolean }
+      align?: ViewId[]; plain?: boolean;
+      // (its rows also carry data-part: the calldata section's contract)
+      partAttr?: boolean }
     | { kind: "picker"; of: "bookmarks" | "points" | "side" | "level";
       // (a side picker in a row of its own, hidden at one point)
       row?: string }
@@ -66,8 +68,8 @@ export type ViewSpec = { id: ViewId; area: string; link?: LinkId;
     // the contract's source, its selection's declaration marked
     | { kind: "contract"; data: DataRef }
     | { kind: "note"; data: DataRef; part: "note" | "viewing" | "meta" }
-    // the bookmark's call's calldata, by the ABI (its own selection)
-    | { kind: "calldata"; data: DataRef }
+    // the calldata section's: what a part is, how the ABI finds it
+    | { kind: "abi"; data: DataRef; part: "details" | "how" }
     | { kind: "walkthrough"; data: DataRef; compare?: DataRef;
       others?: { decoding: DecodingId; who?: string }[] });
 export type ViewKind = ViewSpec["kind"];
@@ -87,4 +89,7 @@ export interface LensSpec {     // a composition for one post section
   // run.mjs contract), and its grid cell's class (vanilla's box)
   wrap?: Record<string, ComponentType<{ children: ReactNode }>>;
   areas?: Record<string, string>;
+  // a link group whose selection is its own part of the page: its
+  // areas (Escape and a click on empty space there are its alone)
+  scopes?: Record<string, LinkId>;
 }
