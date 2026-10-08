@@ -98,12 +98,12 @@ function Present({ v, View }: { v: ViewSpec; View: ComponentType<any> }) {
   }
   if (v.kind !== "dump") return <View {...v} />;
   const side = v.side;
-  // (memory at one point: one dump, as vanilla mem.js)
-  if (single && side === "before" && v.location === "memory") return null;
+  // (one point: one dump; the pair's other side is not drawn)
+  if (single && side === "before") return null;
   const title = !side || single ? v.title ?? "Storage"
     : side === "before" ? "Before" : "After";
-  // (memory: a paused step's, "Memory before the step")
-  const when = !side ? undefined : v.location !== "memory" ? WHEN[side]
+  // (a lens of paused steps: "Memory before the step")
+  const when = !side ? undefined : !v.steps ? WHEN[side]
     : single ? "at this point" : `${side} the step`;
   return <View {...v} hidden={!!side && shown !== side} title={title}
     when={when}

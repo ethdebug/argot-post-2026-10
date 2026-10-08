@@ -49,7 +49,10 @@ export type ViewSpec = { id: ViewId; area: string; link?: LinkId;
       compare?: DataRef;
       // other decodings of the same point whose words it shows, owned
       // by none here, named "<who> keccak(…)" (Phase 1: Vyper's)
-      others?: { decoding: DecodingId; who?: string }[] }
+      others?: { decoding: DecodingId; who?: string }[];
+      // (its points are paused steps of a trace, not a transaction's
+      // before and after)
+      steps?: boolean }
     | { kind: "tree"; data: DataRef; filter?: Filter;
       variant?: "tree" | "table"; compare?: DataRef;
       // the dumps it lines up with (default: the lens's)

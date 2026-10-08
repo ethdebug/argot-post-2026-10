@@ -81,7 +81,8 @@ export function LocalsDetails(p: { id: ViewId; data: DataRef;
     ...(!single ? [["Before", <C>{h(pa)}</C>], ["After", <C>{h(pb)}</C>]]
       : [["Hex", <C>{h(pb)}</C>]]) as [string, ReactNode][]];
   } else if (t?.row) {
-    const store = l?.rows.find((r) => r.address === t.row)?.location;
+    // (a storage slot's address is a whole word)
+    const store = t.row.length > 10;
     const w = Number(BigInt(t.row));
     info = [[store ? "Slot" : "Word", <C>{store ? t.row
       : `word ${t.row} (${hex4(w)}–${hex4(w + 31)})`}</C>]];

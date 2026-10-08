@@ -43,15 +43,15 @@ it("O2 inside multiplied: no frame word", async () => {
   expect(l.rows.some((r) => r.address === "0x0080")).toBe(false);
 });
 
-it("before the writes: gained's word, then alice's record slot in "
-  + "storage, named by BUG's rule", async () => {
+it("before the writes: gained's word in memory; alice's record slot, in "
+  + "storage, its own dump's, named by BUG's rule", async () => {
   const x = await pair("O0", "writes", 0);
   const l = layout(x.d, "memory", {}, { point: x.point });
-  const last = l.rows.at(-1)!;
-  expect(last).toMatchObject({ location: "storage",
-    address: x.point.record!.slot, how: "keccak(msg.sender, slot 4)" });
-  expect(l.rows.slice(0, -1).every((r) => !r.location)).toBe(true);
-  expect(l.cover.get(byteKey("storage", last.address, 24)))
+  expect(l.rows.map((r) => r.how)).toEqual(["word 0x00a0"]);
+  const s = layout(x.d, "storage", {}, { point: x.point });
+  expect(s.rows).toEqual([expect.objectContaining({
+    address: x.point.record!.slot, how: "keccak(msg.sender, slot 4)" })]);
+  expect(s.cover.get(byteKey("storage", s.rows[0].address, 24)))
     .toEqual(["players[msg.sender].score"]);
 });
 
@@ -59,7 +59,7 @@ it("the record selected: its six members in six child colours; "
   + "multiplied: its frame word in the selection's own", async () => {
   const { forPath } = await import("./light");
   const x = await pair("O0", "writes", 0);
-  const l = layout(x.d, "memory", {}, { point: x.point });
+  const l = layout(x.d, "storage", {}, { point: x.point });
   const g = forPath(x.d, l, "players[msg.sender]", { selection: true });
   const ks = x.d.byPath.get("players[msg.sender]")!.children!.map((c) =>
     g.colours.get(c.path));

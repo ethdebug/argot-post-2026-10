@@ -73,8 +73,9 @@ export function forPath(d: Decoded, l: Layout, path: Path,
   const below = [...d.byPath.keys()].filter((q) =>
     within(d.byPath, q, path));
   let rows = [path, ...owners.map(ownerPath), ...below];
-  let colours = childColours(d, path, l.location === "memory" ? 8 : 9) as
-    Map<Path, Colour>;
+  // (one rule for every location: 9 child colours; vanilla's memory
+  // section used 8)
+  let colours = childColours(d, path, 9) as Map<Path, Colour>;
   if (o.collapsed?.size) {
     const c = o.collapsed;
     rows = rows.flatMap((p) => [p, shownAs(d.byPath, p, c)]);

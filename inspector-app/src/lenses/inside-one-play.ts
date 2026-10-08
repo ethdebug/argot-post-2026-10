@@ -31,10 +31,20 @@ export const insideOnePlay: LensSpec = {
       domId: "mviewing", link: "mem", data: at("b") },
     { id: "note", kind: "note", part: "note", area: "note", domId: "mnote",
       data: at("b") },
+    // (one panel a location: memory's words, and the storage slot the
+    // page reads, alice's record, at the last pause)
     { id: "before", kind: "dump", area: "dump", location: "memory",
-      link: "mem", data: at("a"), side: "before", title: "Memory" },
+      link: "mem", data: at("a"), side: "before", title: "Memory",
+      steps: true },
     { id: "after", kind: "dump", area: "dump", location: "memory",
-      link: "mem", data: at("b"), side: "after", title: "Memory" },
+      link: "mem", data: at("b"), side: "after", title: "Memory",
+      steps: true },
+    { id: "sbefore", kind: "dump", area: "dump", location: "storage",
+      link: "mem", data: at("a"), side: "before", title: "Storage",
+      steps: true },
+    { id: "safter", kind: "dump", area: "dump", location: "storage",
+      link: "mem", data: at("b"), side: "after", title: "Storage",
+      steps: true },
     // (not lined up with the words: vanilla's memory section)
     { id: "tree", kind: "tree", area: "tree", link: "mem", domId: "mtree",
       data: at("$side"), align: [], plain: true },

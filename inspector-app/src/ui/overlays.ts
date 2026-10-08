@@ -4,7 +4,7 @@
 // view lights (its Light and Layout, which the Dump puts on its element:
 // `ViewData`); the DOM gives only geometry and the cards' pictures. They
 // are overlays: nothing in the dumps moves for them.
-import type { Hex, Layout, Light, Location } from "../engine/types";
+import type { Hex, Layout, Light } from "../engine/types";
 import { byteKey } from "../engine/hex";
 
 type El = HTMLElement;
@@ -14,12 +14,9 @@ export interface ViewData { light: Light; there?: Light; l: Layout }
 const data = (e: Element | null): ViewData | undefined =>
   (e?.closest(".view") as (El & { _data?: ViewData }) | null)?._data;
 const slotOf = (r: El) => r.dataset.slot as Hex;
-// (a row's own location: a memory dump's storage slot)
-const locOf = (x: ViewData, r: El) =>
-  (r.closest<El>(".wrow")?.dataset.loc ?? x.l.location) as Location;
 const rowLit = (x: ViewData | undefined, l: Light | undefined, r: El) =>
   !!x && !!l && Array.from({ length: 32 }, (_, i) =>
-    l.bytes.has(byteKey(locOf(x, r), slotOf(r), i))).some(Boolean);
+    l.bytes.has(byteKey(x.l.location, slotOf(r), i))).some(Boolean);
 // a row's state: lit, lit in the other point only, found by an earlier
 // walkthrough step, a gutter
 function rowState(r: El) {
@@ -34,7 +31,7 @@ function byteLight(c: El) {
   const x = data(c);
   const w = c.closest<El>(".word");
   if (!x || !w) return { hl: false, k: null as string | null, muted: false };
-  const key = byteKey(locOf(x, w), w.dataset.slot as Hex, +c.dataset.i!);
+  const key = byteKey(x.l.location, w.dataset.slot as Hex, +c.dataset.i!);
   const hl = x.light.bytes.has(key);
   const ids = (c.dataset.owners ?? "").split("|").filter(Boolean);
   const k = hl ? ids.map((id) => x.light.colours.get(id.replace(/#length$/,
