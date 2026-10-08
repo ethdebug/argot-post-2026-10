@@ -327,6 +327,7 @@ export function Tree(p: { id: ViewId; data: DataRef; filter?: Filter;
   // (not on a walkthrough's start: vanilla startReplay leaves the tree;
   // each step after it, stepTo, brings its row)
   const walking = useRef(false);
+  const pending = useRef<(() => void) | null>(null);
   useLayoutEffect(() => {
     const started = !!link.walk && !walking.current;
     walking.current = !!link.walk;
@@ -343,14 +344,8 @@ export function Tree(p: { id: ViewId; data: DataRef; filter?: Filter;
       }
     };
     bring();
-    let f2 = 0;
-    const f1 = requestAnimationFrame(() => {
-      f2 = requestAnimationFrame(bring);
-    });
-    return () => {
-      cancelAnimationFrame(f1);
-      cancelAnimationFrame(f2);
-    };
+    // (once more after the box is lined up, if that moved it: align)
+    pending.current = bring;
   }, [to, d]);
 
   // The tree's box and its dumps start at one height: its first row at
@@ -389,17 +384,29 @@ export function Tree(p: { id: ViewId; data: DataRef; filter?: Filter;
       const top = (e: Element, c: string) => e.getBoundingClientRect().top -
         col(e, c).getBoundingClientRect().top;
       const now = parseFloat(getComputedStyle(tree).paddingTop) || 0;
-      const delta = top(d, ".words") - top(t, ".storage");
+      // (the first row where it is with the tree at its top: a scrolled
+      // tree's first row is above its box)
+      const delta = top(d, ".words") - (top(t, ".storage") +
+        tree.scrollTop);
       const pad = `${Math.max(0, now + delta)}px`;
+      let moved = false;
       if (Math.abs(delta) > 0.5 && tree.style.paddingTop !== pad) {
         tree.style.paddingTop = pad;
+        moved = true;
       }
       const bottom = Math.max(...all.map((x) =>
         (x.closest(".dump") ?? x).getBoundingClientRect().bottom));
       const tb = tree.getBoundingClientRect();
       const h = wide ? `${Math.max(100, bottom - tb.top)}px` : "";
-      if (tree.style.height !== h || was !== h) tree.style.height = h;
+      if (tree.style.height !== h || was !== h) {
+        moved ||= was !== h;
+        tree.style.height = h;
+      }
       if (tree.scrollTop !== scrolled) tree.scrollTop = scrolled;
+      // (the row to bring into view, again, once lined up)
+      const b = pending.current;
+      pending.current = null;
+      if (moved && b) b();
     };
     align();
     // (none in jsdom)
