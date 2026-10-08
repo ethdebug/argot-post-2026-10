@@ -1218,6 +1218,13 @@ sup.fn { font-size: 0.7em; color: var(--accent); margin-left: 1px; }
 /* (a consulted run's addresses: a neutral group tint; a gutter row,
    the variable's own slot, keeps its own) */
 .wrow.rel:not(.gut) .addr.grp::before { background: var(--rel-grey); }
+/* A change of the related view's rows (ui/transition.ts): the rows that
+   stay move, the others fade; the popovers and the tree's edge buttons
+   wait until it is done */
+::view-transition-group(*), ::view-transition-old(*),
+::view-transition-new(*) { animation-duration: 220ms;
+  animation-timing-function: ease-out; }
+.vt-run :is(.pop, .cmp, .tray, .tedge, .bruler) { visibility: hidden; }
 .pksrc { --pk: var(--pksrc); --pk-fg: var(--pksrc-fg); }
 .b.hl:is(.pk9, .pksrc) { background: var(--pk); color: var(--pk-fg); }
 .row.hl:is(.pk9, .pksrc) { background: var(--pk); color: var(--pk-fg);

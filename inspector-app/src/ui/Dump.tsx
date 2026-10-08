@@ -31,6 +31,7 @@ import {
 import { blockOf, resolveTarget } from "../engine/target";
 import { noLight } from "../engine/light";
 import { relClass } from "../engine/related";
+import { vtName } from "./transition";
 import { readWritten } from "../engine/timeline";
 import {
   addressText, addressing, goesOn, hex4, rowBytes,
@@ -428,17 +429,19 @@ export function Dump(p: { id: ViewId; location: Location; data: DataRef;
   // (storage's rows are named by how they are found: a hashed one gets
   // a line of room above it)
   const slots = loc === "storage";
+  // (a row's name in a view transition: transition.ts)
+  const vt = (...x: string[]) => vtName(lens.key, p.id, ...x);
   rows.forEach((r, k) => {
     const n = BigInt(r.address);
     const name = r.how;
     if (k === 0 && n === 0n) {
       // row 0 at the top: no line before it
     } else if (r.gapBefore) {
-      lines.push(<div key={`g${k}`} className="gap" aria-hidden="true">
-        <span>⋯</span></div>);
+      lines.push(<div key={`g${k}`} className="gap" aria-hidden="true"
+        data-vt={vt("gap", r.address)}><span>⋯</span></div>);
     } else if (slots && !bare && !/^slot \d+$|\+ \d+$/.test(name)) {
       lines.push(<div key={`r${k}`} className="gap room"
-        aria-hidden="true" />);
+        aria-hidden="true" data-vt={vt("room", r.address)} />);
     }
     // what the transaction did to the slot (a pair only)
     // (the earlier point is before the transaction between them)
@@ -470,7 +473,7 @@ export function Dump(p: { id: ViewId; location: Location; data: DataRef;
       gut ? "gut" : "", rel ? "rel" : ""]
       .filter(Boolean).join(" ");
     lines.push(<div key={r.address} className={cls} data-slot={r.address}
-      data-name={name} data-facts={facts}
+      data-name={name} data-facts={facts} data-vt={vt(r.address)}
       {...(name === slotRef(r.address) || !slots ? {}
         : { "data-full": `= ${r.address}` })}>
       <span className="addr" tabIndex={bare ? undefined : 0}
@@ -486,8 +489,8 @@ export function Dump(p: { id: ViewId; location: Location; data: DataRef;
     </div>);
   });
   if (goesOn(loc) && !flow) {
-    lines.push(<div key="end" className="gap" aria-hidden="true">
-      <span>⋯</span></div>);
+    lines.push(<div key="end" className="gap" aria-hidden="true"
+      data-vt={vt("end")}><span>⋯</span></div>);
   }
 
   // (nothing of this location to show here: no dump)
