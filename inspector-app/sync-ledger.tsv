@@ -21,3 +21,5 @@ c62550a	Inspector: a walkthrough's step 0, the goal: when the selection takes se
 9f5b574	Inspector: step 0's arrow glyph about 1.4x the text, regular, centred on the sentence	b15dd41 (S5)
 47f2c14	Inspector: step 0's halo on ▶ in the selection yellow	b15dd41 (S5)
 5c1edfa	Inspector: byte ranges within a slot drawn as a strip shaped like a dump row (packed fields, a flag byte, total and rounds); step 0's sentence fits a phone's pointer box	b15dd41 (S5)
+ab53776	Inspector: the page decluttered to put the inspector on the first screen (one line a scene, a short contract intro, a short memory lede); the removed prose moved to the README's About this demo, linked at the bottom	41b2290 (S6)
+5ec2f00	Inspector: the byte strip names a narrow span over it with a tick, and wraps to two rows of 16 on a phone	41b2290 (S6)
