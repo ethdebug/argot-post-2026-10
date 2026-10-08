@@ -64,6 +64,17 @@ export async function walk(pointer: Format.Pointer, o: {
     const regions: Record<string, unknown> = Object.create(null);
     const saved: Record<string, InstanceId> = Object.create(null);
     const renames: Record<string, string>[] = [];
+    // the instances the walk is inside (templates, defines, lists,
+    // conditionals: not groups), outermost first
+    const chain: InstanceId[] = [];
+    const inside = async <T>(i: Instance, f: () => Promise<T>) => {
+      chain.push(i.id);
+      try {
+        return await f();
+      } finally {
+        chain.pop();
+      }
+    };
     const ev = (expr: unknown, variables: Record<string, Value>) =>
       evaluate(expr as never, { state: o.state, regions: { ...regions } as
         never, variables: variables as never }) as Promise<Value>;
@@ -88,7 +99,8 @@ export async function walk(pointer: Format.Pointer, o: {
         if (saved[r] && !uses.includes(saved[r])) uses.push(saved[r]);
       }
       const i: Instance = { id: `${n.id}@${seq++}`, node: n.id,
-        ...(entry ? { entry } : {}), bindings, uses, inputs };
+        ...(entry ? { entry } : {}), bindings, uses, inputs,
+        within: [...chain] };
       n.instances.push(i);
       return i;
     };
@@ -141,13 +153,15 @@ export async function walk(pointer: Format.Pointer, o: {
         const n = node(id, "list", p, tpl, parent);
         const c = await ev(count, vals);
         const i = instance(n, scope, vals, [count]);
-        for (let k = 0n; k < asInt(c); k++) {
-          const v: Value = { sort: "integer", value: k };
-          // (the item's `each` is bound by the list's instance)
-          await go(is, { ...vals, [each]: v },
-            { ...scope, [each]: { instance: i.id } }, block,
-            `${at}/list/is`, id);
-        }
+        await inside(i, async () => {
+          for (let k = 0n; k < asInt(c); k++) {
+            const v: Value = { sort: "integer", value: k };
+            // (the item's `each` is bound by the list's instance)
+            await go(is, { ...vals, [each]: v },
+              { ...scope, [each]: { instance: i.id } }, block,
+              `${at}/list/is`, id);
+          }
+        });
         return;
       }
       if ("if" in p) {
@@ -157,12 +171,14 @@ export async function walk(pointer: Format.Pointer, o: {
         const i = instance(n, scope, vals, [p.if]);
         i.branch = branch;
         if (p[branch] === undefined) return;
-        await go(p[branch], vals, scope, block, `${at}/${branch}`, id);
+        await inside(i, () => go(p[branch], vals, scope, block,
+          `${at}/${branch}`, id));
         return;
       }
       if ("define" in p) {
         const v2 = { ...vals };
         const s2 = { ...scope };
+        const defs: Instance[] = [];
         for (const [name, expr] of Object.entries(p.define as object)) {
           const did = `${id}/define/${name}`;
           const kind = block === o.root && parent === undefined
@@ -173,18 +189,25 @@ export async function walk(pointer: Format.Pointer, o: {
           i.value = hexOf(value);
           v2[name] = value;
           s2[name] = { instance: i.id };
+          defs.push(i);
+          chain.push(i.id);
         }
-        await go(p.in, v2, s2, block, `${at}/in`, id);
+        try {
+          await go(p.in, v2, s2, block, `${at}/in`, id);
+        } finally {
+          chain.splice(chain.length - defs.length, defs.length);
+        }
         return;
       }
       if ("template" in p) {
         const t = templates[p.template];
         if (!t) throw new Error(`no template ${p.template}`);
         const n = node(`${p.template}#`, "template", p, p.template, id);
-        instance(n, scope, vals, t.expect ?? []);
+        const ti = instance(n, scope, vals, t.expect ?? []);
         const yields: Record<string, string> = p.yields ?? {};
         renames.push(yields);
-        await go(t.for, vals, scope, p.template, "/for", n.id);
+        await inside(ti, () => go(t.for, vals, scope, p.template, "/for",
+          n.id));
         renames.pop();
         for (const [from, to] of Object.entries(yields)) {
           if (from in regions && to !== from) {
