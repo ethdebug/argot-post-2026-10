@@ -44,7 +44,8 @@ test("the bar at rest: the selection, and the way in", async ({ page }) => {
     "bytes.");
   await page.locator(`#tree li[data-path="${A}.combo"] > .row`).click();
   const box = await page.locator("#details").innerText();
-  expect(box).toContain("players[0x7099…79c8].combo uint32 = 2");
+  // (the keys by name, as the walkthrough names them)
+  expect(box).toContain("players[alice].combo uint32 = 2");
   expect(box).not.toMatch(/\((before|after)/);
   expect(box).toContain("▶ How it was found");
   await expect(page.locator('#details button[data-r="start"]'))

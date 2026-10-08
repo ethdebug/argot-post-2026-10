@@ -531,7 +531,7 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
   // the details of the selected value, under the dump
   const fd = (await page.locator("#details").innerText())
     .replace(/\s+/g, " ");
-  if (!fd.includes("players[0x7099…79c8].plays uint32 = 3 (after)")) {
+  if (!fd.includes("players[alice].plays uint32 = 3 (after)")) {
     problems.push(`details plays: ${fd}`);
   }
   await pickByte(`${A}.combo`, 22);
@@ -709,7 +709,7 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
   }
   await pick(page.locator(`#tree li[data-path="${A}.combo"] > .row`));
   const box1 = await page.locator("#details").innerText();
-  if (!box1.includes("players[0x7099…79c8].combo uint32 = 2") ||
+  if (!box1.includes("players[alice].combo uint32 = 2") ||
     /\((before|after)/.test(box1) || !box1.includes("▶ How it was found")) {
     problems.push(`one point: box ${box1}`);
   }
