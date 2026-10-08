@@ -15,6 +15,7 @@ import { execFileSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import {
   storageState, mappingKeys, touchedSlots, decodeStorage, baseSlot,
+  solcTilde,
 } from "../decode.js";
 
 const root = path.dirname(path.dirname(fileURLToPath(import.meta.url)));
@@ -171,9 +172,12 @@ async function fixture({ id, summary, contract, address, tx, keys, keep,
   }
   const before = new Map();
   const after = new Map();
-  await decodeStorage(contract, recordingState(address, block - 1n, before),
+  // (solc writes "$"; the library takes "~": decode.js solcTilde)
+  await decodeStorage(solcTilde(contract), recordingState(address,
+    block - 1n, before),
     keys).catch((e) => console.error(`${id} (before): ${e.message}`));
-  await decodeStorage(contract, recordingState(address, block, after), keys)
+  await decodeStorage(solcTilde(contract), recordingState(address, block,
+    after), keys)
     .catch((e) => console.error(`${id} (after): ${e.message}`));
   // also record every slot the trace touched, and check the trace agrees
   // with the node

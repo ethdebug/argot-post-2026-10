@@ -12,7 +12,7 @@ const word = (n) => "0x" + n.toString(16).padStart(64, "0");
 import { baseSlot, typeName } from "./decode.js";
 
 const SIDES = ["before", "after"];
-const TINTS = 5;
+export const TINTS = 5;
 
 // ------------------------------------------------------- the URL hash
 
@@ -73,7 +73,26 @@ export function short(h, keep = 4) {
 // The storage bytes a region covers, as [slot word, byte index] pairs.
 // Offsets count from the most significant byte; a region longer than the
 // rest of its word goes on into the next slots.
+// A memory word's key: its offset, as "0x0080"
+export const memWord = (n) => "0x" + n.toString(16).padStart(4, "0");
 export function regionBytes(r) {
+  // (memory: by its words' offsets)
+  if (r.location === "memory") {
+    const o = Number(num(r.offset));
+    const n = r.length === undefined ? 32 : Number(num(r.length));
+    return Array.from({ length: n }, (_, k) =>
+      [memWord(Math.floor((o + k) / 32) * 32), (o + k) % 32]);
+  }
+  // (calldata: the selector's row, then rows of 32 from byte 4)
+  if (r.location === "calldata") {
+    const o = Number(num(r.offset));
+    const n = Number(num(r.length));
+    return Array.from({ length: n }, (_, k) => {
+      const i = o + k;
+      return i < 4 ? [memWord(0), i]
+        : [memWord(4 + Math.floor((i - 4) / 32) * 32), (i - 4) % 32];
+    });
+  }
   if (r.location !== "storage" || r.slot === undefined) return [];
   const slot = num(r.slot);
   const offset = Number(num(r.offset));
@@ -127,9 +146,9 @@ export function buildPanel(f, tree, { single = false, when, names } = {}) {
   };
   const learn = (how) => {
     for (const s of how?.steps ?? []) {
-      if (s.kind !== "define" || !s.expr?.$keccak256 || !s.args) continue;
+      if (s.kind !== "define" || !s.expr?.["~keccak256"] || !s.args) continue;
       hashes.set(num(s.value.hex), s.args.map((a) => ({
-        name: a.expr?.$wordsized ?? JSON.stringify(a.expr),
+        name: a.expr?.["~wordsized"] ?? JSON.stringify(a.expr),
         value: num(a.value.hex),
       })));
     }
@@ -271,22 +290,33 @@ export const octets = (cells) =>
 const empty = () => Array.from({ length: 32 }, () => []);
 
 // One slot's word in one view, all 32 bytes on one line
-function wordHtml(m, s, side, tint, name) {
-  const { before, after } = m.f.slots[s];
-  const mine = pairs(side === "before" ? before : after);
-  const other = pairs(side === "before" ? after : before);
-  const ids = m.cover[side].get(s) ?? empty();
+// One location's panel (storage, memory, calldata, …): the same rows,
+// gutter, gap lines, cells and hooks for every location; only `loc`
+// differs. `loc`: { id, sides, title(side), aria(side), word(w, side) →
+// 32 hex pairs (undefined: none there), rows: [{ w, name, gutter, what,
+// facts, same, ring, full, next }] in address order (`next`: whether the
+// row follows the one before it with no gap; "room": with a line of
+// room for a popover), top (no line before the first row), end (a gap
+// line after the last) }. Its owners and their bytes come from
+// m.owners and m.cover[side] (by row key and byte index).
+function wordHtml(m, loc, w, side, tint, name) {
+  const mine = loc.word(w, side);
+  const other = loc.sides.length === 2 ? loc.word(w, side === "before"
+    ? "after" : "before") : mine;
+  const ids = m.cover[side].get(w) ?? empty();
   const cells = [];
   for (const g of groups(ids)) {
     const label = g.owners.map((id) => m.owners.get(id).label).join(", ");
     for (let i = g.from; i <= g.to; i++) {
+      const b = mine[i];
       const cls = ["b"];
       if (g.owners.length) cls.push(`t${tint.get(g.owners[0]) % TINTS}`);
       else cls.push("free");
       if (i === g.from) cls.push("gs");
       if (i === g.to) cls.push("ge");
-      if (mine[i] === "00") cls.push("z");
-      if (mine[i] !== other[i]) cls.push("chg");
+      if (b === undefined) cls.push("past");
+      else if (b === "00") cls.push("z");
+      if (b !== undefined && b !== other[i]) cls.push("chg");
       const first = i === g.from && g.owners.length;
       const range = g.from === g.to ? `byte ${g.from}`
         : `bytes ${g.from} to ${g.to}`;
@@ -294,35 +324,66 @@ function wordHtml(m, s, side, tint, name) {
         ` data-g="${g.from}-${g.to}"${g.owners.length
           ? ` data-owners="${esc(g.owners.join("|"))}"` : ""}` +
         `${first ? ` tabindex="0" role="button" aria-label="${esc(
-          `${label}, ${range} of ${name}, ${side}`)}"` : ""}` +
-        `>${mine[i]}</span>`);
+          `${label}, ${range} of ${name}${loc.sides.length === 2
+            ? `, ${side}` : ""}`)}"` : ""}` +
+        `>${b ?? "··"}</span>`);
     }
   }
-  return `<div class="word" data-side="${side}" data-slot="${s}">` +
+  return `<div class="word" data-side="${side}" data-slot="${w}">` +
     `<div class="bytes">${octets(cells)}</div></div>`;
 }
-
-// "…0002": the end of a slot's address, as a dump shows it
-const tail = (s) => `…${s.slice(-4)}`;
-
-// Two dumps of storage, stacked: before the transaction, then after.
-// Each is one column of words in address order, one word to a line,
-// with the address in a narrow gutter and a gap line where the
-// addresses jump. Names stay out of the dump: the tree and the line
-// above relate to it by highlighting.
-export function renderPanel(m) {
-  const rows = m.order.map((s) => {
-    const name = slotName(m, s);
-    const n = num(s);
-    // Owners in byte order, each with its tint, the same in both views
+export function renderLocation(m, loc) {
+  const rows = loc.rows.map((x) => {
+    // owners in byte order, each with its tint, the same in every view
     const tint = new Map();
-    for (const side of SIDES) {
-      for (const ids of m.cover[side].get(s) ?? []) {
+    for (const side of loc.sides) {
+      for (const ids of m.cover[side].get(x.w) ?? []) {
         for (const id of ids) if (!tint.has(id)) tint.set(id, tint.size);
       }
     }
+    return { ...x, tint };
+  });
+  const gap = `<div class="gap" aria-hidden="true"><span>⋯</span></div>`;
+  const room = `<div class="gap room" aria-hidden="true"></div>`;
+  const view = (side) => {
+    const lines = [];
+    rows.forEach((x, k) => {
+      // a gap line where the addresses jump (none before a first row at
+      // the very start); room for a popover where a row asks for it
+      if (k === 0 ? !loc.top : !x.next) lines.push(gap);
+      else if (x.next === "room") lines.push(room);
+      lines.push(`<div class="wrow${x.same ? " same" : ""}${k % 2
+        ? " zb" : ""}"` +
+        ` data-slot="${x.w}" data-name="${esc(x.name)}"` +
+        ` data-facts="${esc(x.facts ?? "")}"${x.full
+          ? ` data-full="${esc(x.full)}"` : ""}>` +
+        `<span class="addr" tabindex="0"` +
+        ` aria-label="${esc(x.what)}">${x.ring
+          ? `<span class="ring"` +
+          ` aria-label="written, same value"></span>` : ""}<span class="a">${
+          esc(x.gutter)}</span></span>` +
+        wordHtml(m, loc, x.w, side, x.tint, x.name) + `</div>`);
+    });
+    if (loc.end !== false) lines.push(gap);
+    return `<div class="view" data-side="${side}" role="group"` +
+      ` aria-label="${esc(loc.aria(side))}">` +
+      `<div class="view-head"><span class="view-name">${esc(loc.title(side))
+      }</span><div class="wrow head"><span class="addr"></span>${ruler()
+      }</div></div><div class="rows">${lines.join("")}</div></div>`;
+  };
+  return `<p class="muted small swipe">Each word is one line of 32 bytes;
+    scroll sideways to see bytes 24 to 31.</p>` +
+    `<div class="views" data-loc="${loc.id}">${loc.sides.map(view)
+      .join("")}</div>`;
+}
+const tail = (s) => `…${s.slice(-4)}`;
+// Storage, in a scene: its slots by number
+export function renderPanel(m) {
+  const zero = (w) => !w || /^0x0*$/.test(w);
+  const rows = m.order.map((s, k) => {
+    const name = slotName(m, s);
+    const n = num(s);
     const { before, after } = m.f.slots[s];
-    const zero = (w) => !w || /^0x0*$/.test(w);
     const same = !m.single && before === after;
     const rd = m.read.has(s);
     const wr = m.written.has(s);
@@ -332,51 +393,23 @@ export function renderPanel(m) {
       : "not read or written")
       : zero(after) && !zero(before) ? "cleared (written to zero)"
         : same ? "written, same value" : rd ? "read, written" : "written";
-    // the one mark at rest: written without a change, which nothing
-    // else would show
-    const ring = !m.single && wr && same;
-    return { s, n, name, tint, same, facts, ring };
+    const what = `${name}${name.startsWith("slot") ? "" : ` (slot ${
+      short(s)})`}${facts ? `; ${facts}` : ""}`;
+    // (room for a popover before a hashed slot that starts a value right
+    // after another slot)
+    const prev = m.order[k - 1];
+    const next = prev !== undefined && n === num(prev) + 1n
+      ? /^slot \d+$|\+ \d+$/.test(name) ? true : "room" : false;
+    return { w: s, name, gutter: tail(s), what: `${s}; ${what}`, facts,
+      same, ring: !m.single && wr && same, next,
+      full: name === slotRef(s) ? null : `= ${s}` };
   });
-  const gap = `<div class="gap" aria-hidden="true"><span>⋯</span></div>`;
-  const room = `<div class="gap room" aria-hidden="true"></div>`;
-  const view = (side) => {
-    const title = m.single ? "Storage" : side === "before" ? "Before"
-      : "After";
-    const lines = [];
-    rows.forEach((x, k) => {
-      const prev = rows[k - 1];
-      // a gap line where the addresses jump; and room for a popover
-      // before a hashed slot that starts a value right after another
-      // slot (a "room" line, with no "⋯")
-      // (nothing comes before slot 0: no line at all)
-      if (k === 0 && x.n === 0n) {
-        // slot 0 at the top
-      } else if (k === 0 || x.n !== prev.n + 1n) lines.push(gap);
-      else if (!/^slot \d+$|\+ \d+$/.test(x.name)) lines.push(room);
-      const what = `${x.name}${x.name.startsWith("slot") ? "" : ` (slot ${
-        short(x.s)})`}${x.facts ? `; ${x.facts}` : ""}`;
-      lines.push(`<div class="wrow${x.same ? " same" : ""}${k % 2
-        ? " zb" : ""}"` +
-        ` data-slot="${x.s}" data-name="${esc(x.name)}"` +
-        ` data-facts="${esc(x.facts)}"${x.name === slotRef(x.s) ? ""
-          : ` data-full="= ${x.s}"`}>` +
-        `<span class="addr" tabindex="0"` +
-        ` aria-label="${esc(`${x.s}; ${what}`)}">${x.ring
-          ? `<span class="ring"` +
-          ` aria-label="written, same value"></span>` : ""}<span class="a">${
-          tail(x.s)}</span></span>` +
-        wordHtml(m, x.s, side, x.tint, x.name) + `</div>`);
-    });
-    lines.push(gap);
-    return `<div class="view" data-side="${side}" role="group"` +
-      ` aria-label="Storage ${esc(m.when[side])}">` +
-      `<div class="view-head"><span class="view-name">${title}</span>` +
-      `<div class="wrow head"><span class="addr"></span>${ruler()}</div>` +
-      `</div><div class="rows">${lines.join("")}</div></div>`;
-  };
-  return `<p class="muted small swipe">Each word is one line of 32 bytes;
-    scroll sideways to see bytes 24 to 31.</p>` +
-    `<div class="views">${view("before")}${view("after")}</div>`;
+  return renderLocation(m, { id: "storage", sides: SIDES, rows,
+    top: num(m.order[0] ?? "0x1") === 0n,
+    title: (side) => m.single ? "Storage" : side === "before" ? "Before"
+      : "After",
+    aria: (side) => `Storage ${m.when[side]}`,
+    word: (s, side) => pairs(m.f.slots[s][side]) });
 }
 
 // --------------------------------------------------------- highlight
@@ -506,7 +539,7 @@ export function forOwner(m, id) {
 }
 
 // A tree row, and everything under it
-export function forRow(m, path) {
+export function forRow(m, path, { roots = false } = {}) {
   const ids = [...m.owners.values()]
     .filter((o) => o.row === path || o.row.startsWith(path + ".") ||
       o.row.startsWith(path + "["))
@@ -537,9 +570,17 @@ export function forRow(m, path) {
   // a variable whose own slot holds no data (a mapping's): that slot's
   // gutter shows its role, with its label; its bytes stay plain
   const gutters = new Set();
+  // (and, for a selection (`roots`), the own slot of every variable it is
+  // inside, needed to find it: a mapping's, an array's length word)
   for (const [slot, vars] of m.bases ?? []) {
-    if (!vars.includes(path)) continue;
     const s = word(slot);
+    const inside = vars.some((v) => path.startsWith(v + "[") ||
+      path.startsWith(v + "."));
+    if (inside) {
+      if (roots) gutters.add(s);
+      continue;
+    }
+    if (!vars.includes(path)) continue;
     const cov = m.cover.after.get(s) ?? m.cover.before.get(s);
     if (!cov?.some((ids) => ids.length)) gutters.add(s);
   }
@@ -566,7 +607,9 @@ export function baseOf(m, s) {
 // string's length word), never a child's. A leaf has no children: none
 // (one colour, as before).
 // Returns Map(tree path -> colour) or null.
+// the child colours, pk1 … pk9: one palette for every location
 export const PICKS = 10;
+export const childColor = (k) => 1 + k % (PICKS - 1);
 function childColors(m, path, ids) {
   const child = (row) => row.slice(path.length)
     .match(/^(\.[^.[]+|\[[^\]]*\])/)?.[0];
@@ -576,7 +619,7 @@ function childColors(m, path, ids) {
   const colors = new Map([[path, 0]]);
   for (const r of rows) {
     const c = child(r);
-    colors.set(r, c ? 1 + kids.indexOf(c) % (PICKS - 1) : 0);
+    colors.set(r, c ? childColor(kids.indexOf(c)) : 0);
   }
   return colors;
 }
@@ -675,6 +718,13 @@ export function forRegion(m, r, side, name) {
 // page), shift the body and keep the arrow where it is.
 function place(pop, a, beside = false) {
   let clip = { left: 0, right: document.documentElement.clientWidth };
+  // (inside the dump's box, short of its right edge)
+  const dump = pop.closest(".dump")?.getBoundingClientRect();
+  if (dump) {
+    // (its left edge may stand a little out, as the gutter's cards do)
+    clip = { left: Math.max(0, dump.left - 12), right: Math.min(clip.right,
+      dump.right - 12) };
+  }
   for (let e = pop.parentElement.parentElement; e; e = e.parentElement) {
     const cs = getComputedStyle(e);
     if (cs.overflowX !== "visible" || cs.overflowY !== "visible") {
@@ -746,68 +796,196 @@ function whatIn(all) {
   // earlier step found)
   const lit = all.filter((r) => r.classList.contains("on"));
   const rows = lit.length ? lit : all;
-  const owners = [];
-  for (const r of rows) {
+  // each row's owners, in byte order
+  const perRow = rows.map((r) => {
+    const os = [];
     for (const c of r.querySelectorAll(":scope > .word .b[data-owners]")) {
       for (const id of c.dataset.owners.split("|")) {
-        if (!owners.some((o) => o.id === id)) owners.push({ id, cells: [] });
-        owners.find((o) => o.id === id).cells.push(c);
+        if (!os.some((o) => o.id === id)) os.push({ id, cells: [] });
+        os.find((o) => o.id === id).cells.push(c);
       }
     }
-  }
-  if (!owners.length) return "";
+    return os;
+  });
+  const owners = perRow.flat();
+  if (!owners.length) return [];
   const path = (id) => id.replace(/#length$/, "");
   const ids = [...document.querySelectorAll(".b[data-owners]")]
     .flatMap((c) => c.dataset.owners.split("|")).map(path);
+  // a name's colour: its bytes' now (the selection's yellow, pk0, for a
+  // lit byte with no child colour); none where they are not lit
   const colour = (cells) => {
-    const ks = new Set(cells.filter((c) => c.classList.contains("hl"))
-      .map((c) => [...c.classList].find((x) => /^pk\d$/.test(x)) ?? ""));
-    return ks.size === 1 ? [...ks][0] : "";
+    const on = cells.filter((c) => c.classList.contains("hl"));
+    if (!on.length) return null;
+    return [...on[0].classList].find((x) => /^pk\d$/.test(x)) ?? "pk0";
   };
   // (muted where its bytes are: an echo)
   const muted = (cells) => cells.some((c) => c.classList.contains("hl")) &&
     cells.filter((c) => c.classList.contains("hl")).every((c) =>
       c.classList.contains("muted"));
-  const name = (o, text) => {
-    const k = colour(o.cells);
-    return `<code class="pname${k ? ` ${k}` : ""}${k && muted(o.cells)
-      ? " muted" : ""}">${esc(text)}</code>`;
+  const item = (cells, text, sep = " · ") => ({ text, k: colour(cells),
+    muted: muted(cells), sep });
+  // (several slots in one colour: the value they make up, by its path)
+  const ks = new Set(owners.map((o) => colour(o.cells)));
+  const ps = [...new Set(owners.map((o) => path(o.id)))];
+  let common = ps[0];
+  while (common && !ps.every((p) => p === common ||
+    p.startsWith(common + ".") || p.startsWith(common + "["))) {
+    common = common.replace(/(\.[^.[\]]+|\[[^\]]*\])$/, "");
+    if (!/[.[]/.test(common) && !ps.every((p) => p.startsWith(common))) {
+      common = "";
+    }
+  }
+  if (rows.length > 1 && ks.size <= 1) {
+    return [item(owners.flatMap((o) => o.cells), common ? shortKeys(common)
+      : ps.map(shortKeys).join(" · "))];
+  }
+  // (each slot's values left to right; " / " between slots; a value's
+  // other regions by their role: its length)
+  const parent = (p) => p.match(/^(.*)(\.[^.[\]]+|\[[^\]]*\])$/)?.[1] ??
+    "";
+  const base = rows.length > 1 ? common : null;
+  const named = (p, one) => {
+    if (base && p.startsWith(base) && p !== base) {
+      return p.slice(base.length).replace(/^\./, "");
+    }
+    return one || parent(p) === "" ? shortKeys(p) : p.slice(
+      parent(p).length).replace(/^\./, "");
   };
-  let names;
-  if (rows.length > 1) {
-    // (the deepest path all of them are under)
-    const ps = owners.map((o) => path(o.id));
-    let common = ps[0];
-    while (common && !ps.every((p) => p === common ||
-      p.startsWith(common + ".") || p.startsWith(common + "["))) {
-      common = common.replace(/(\.[^.[\]]+|\[[^\]]*\])$/, "");
-      if (!/[.[]/.test(common) && !ps.every((p) => p.startsWith(common))) {
-        common = "";
+  // (a value's other region, by its role, under the value's name: an
+  // array's own word, alone in its slot, is just its length)
+  const label = (o, one) => {
+    const p = path(o.id);
+    const own = ids.some((q) => q.startsWith(p + "["));
+    if (one && own) return "length";
+    if (o.id.endsWith("#length") || own) return `${named(p, one)}.length`;
+    return named(p, one);
+  };
+  const out = [];
+  perRow.forEach((os, r) => {
+    os.forEach((o, n) => {
+      const x = item(o.cells, label(o, owners.length === 1), n === 0 && r
+        ? " / " : " · ");
+      x.seg = r;
+      // (a value running on into the next slot: named once)
+      const prev = out.at(-1);
+      if (prev && prev.id === o.id) return;
+      x.id = o.id;
+      out.push(x);
+    });
+  });
+  // (a name is a badge only where its own bytes are lit now)
+  return out;
+}
+// The names a popover shows, `keep` of them (indices), in byte order,
+// slot by slot (" / " between slots): a coloured one as a badge in its
+// bytes' colour, the rest plain; "…" where names or slots were cut
+function whatHtml(items, keep) {
+  const kept = new Set(keep);
+  const segs = [...new Set(items.map((x) => x.seg ?? 0))];
+  const cut = '<span class="pcut">…</span>';
+  const parts = [];
+  for (const g of segs) {
+    const idx = items.map((x, i) => [x, i]).filter(([x]) => (x.seg ?? 0) ===
+      g).map(([, i]) => i);
+    const on = idx.filter((i) => kept.has(i));
+    if (!on.length) {
+      if (parts.at(-1) !== cut) parts.push(cut);
+      continue;
+    }
+    let seg = "";
+    let last = idx[0] - 1;
+    for (const i of on) {
+      if (i !== last + 1) seg += `${seg ? " · " : ""}${cut}`;
+      const x = items[i];
+      seg += `${seg ? " · " : ""}<code class="pname${x.k ? ` pbadge ${x.k}`
+        : ""}${x.k && x.muted ? " muted" : ""}">${esc(x.text)}</code>`;
+      last = i;
+    }
+    if (last !== idx.at(-1)) seg += ` · ${cut}`;
+    parts.push(seg);
+  }
+  return parts.join(" / ");
+}
+// Fit a popover's names to its room. One slot: drop plain names first,
+// farthest from the coloured ones; never a coloured one, unless all that
+// is left is coloured: then from the middle, keeping the first and last.
+// Several slots: plain names first (never a slot's first or last), then
+// each slot down to its first and last, then the middle slots (never the
+// first or last slot). Then the "how" part's addresses, shorter.
+function fitWhat(pop) {
+  const items = pop._what;
+  const what = pop.querySelector(".pwhat");
+  if (!items?.length || !what) return;
+  // (the whole label, on one line, its suffix too, against the room the
+  // popover may take)
+  const room = parseFloat(pop.style.maxWidth) || Infinity;
+  const line = pop.querySelector(".pop-how");
+  const over = () => line.scrollWidth + 16 > room;
+  let keep = items.map((_, i) => i);
+  const segs = [...new Set(items.map((x) => x.seg ?? 0))];
+  const segOf = (i) => items[i].seg ?? 0;
+  // (a slot's first or last name)
+  const ends = (i) => !(items.some((x, j) => segOf(j) === segOf(i) &&
+    j < i) && items.some((x, j) => segOf(j) === segOf(i) && j > i));
+  const C = keep.filter((i) => items[i].k);
+  const near = (i) => C.length ? Math.min(...C.map((c) => Math.abs(c - i)))
+    : i;
+  const render = () => {
+    what.innerHTML = whatHtml(items, keep);
+  };
+  const many = segs.length > 1;
+  while (over()) {
+    const plain = keep.filter((i) => !items[i].k && (!many || !ends(i)));
+    if (plain.length) {
+      // (the farthest from a coloured name; the later one on a tie)
+      const far = plain.reduce((a, b) => near(b) >= near(a) ? b : a);
+      keep = keep.filter((i) => i !== far);
+    } else if (!many) {
+      if (keep.length <= 2) break;
+      keep.splice(Math.floor(keep.length / 2), 1);
+    } else {
+      // (the fullest slot, down by its middle name)
+      const inner = segs.map((g) => keep.filter((i) => segOf(i) === g))
+        .filter((l) => l.length > 2).sort((a, b) => b.length - a.length)[0];
+      if (inner) {
+        const m = inner[Math.floor(inner.length / 2)];
+        keep = keep.filter((i) => i !== m);
+      } else {
+        // (a middle slot, whole)
+        const mid = segs.slice(1, -1).filter((g) => keep.some((i) =>
+          segOf(i) === g));
+        if (!mid.length) break;
+        const g = mid[Math.floor(mid.length / 2)];
+        keep = keep.filter((i) => segOf(i) !== g);
       }
     }
-    names = [name({ cells: owners.flatMap((o) => o.cells) },
-      common ? shortKeys(common) : ps.map(shortKeys).join(" · "))];
-  } else {
-    // (one slot: its values left to right)
-    const one = owners.length === 1;
-    const parent = (p) => p.match(/^(.*)(\.[^.[\]]+|\[[^\]]*\])$/)?.[1] ??
-      "";
-    const label = (o) => {
-      const p = path(o.id);
-      // (a composite's own word: an array's length)
-      if (!o.id.endsWith("#length") && ids.some((q) =>
-        q.startsWith(p + "["))) return "length";
-      return one || parent(p) === "" ? shortKeys(p) : p.slice(
-        parent(p).length).replace(/^\./, "");
-    };
-    const shown = owners.slice(0, 3).map((o) => name(o, label(o)));
-    names = [shown.join(" · ") + (owners.length > 3
-      ? ` <span class="pmore">+${owners.length - 3}</span>` : "")];
-    // (one colour for all of them: plain; the order carries the link)
-    const ks = new Set(owners.map((o) => colour(o.cells)));
-    if (ks.size === 1) names = names.map((n) => n.replace(/ pk\d/g, ""));
+    render();
   }
-  return names.join("");
+  // (still too wide: the "how" part's addresses shorter; never the
+  // suffix)
+  const how = pop.querySelector(".phow");
+  if (over() && how) {
+    how.textContent = how.textContent.replace(/0x[0-9a-f]+…([0-9a-f]{4})/g,
+      "…$1");
+  }
+  // (then the names from the middle, the first and last longest; then
+  // none but "…")
+  while (over() && keep.length > 2) {
+    keep.splice(Math.floor(keep.length / 2), 1);
+    render();
+  }
+  if (over() && keep.length) {
+    keep = [];
+    render();
+  }
+  // (and if a badge alone is too long, its own addresses shorter)
+  if (over()) {
+    for (const c of pop.querySelectorAll(".pname")) {
+      c.textContent = c.textContent.replace(
+        /0x([0-9a-f]{3})[0-9a-f]*…[0-9a-f]*([0-9a-f]{3})/g, "0x$1…$2");
+    }
+  }
 }
 function popFor(rows, more) {
   const facts = [...new Set(rows.map((r) => r.dataset.facts))]
@@ -816,15 +994,18 @@ function popFor(rows, more) {
   pop.className = "pop";
   pop.setAttribute("role", "status");
   const what = whatIn(rows);
+  pop._what = what;
   // (several slots: "how : what, n slots"; a run with one lit row names
   // that row's values: "how : what")
   const one = rows.filter((r) => r.classList.contains("on")).length === 1 &&
     rows.length > 1;
   const [, how, n] = runName(rows).match(/^(.*?)(, \d+ slots)?$/);
   const count = one ? "" : n;
-  pop.innerHTML = `<span class="pop-how">${esc(what ? how : runName(rows))}${
-    what ? ` : ${what}${count ?? ""}` : ""}${facts.length ? ` · ${esc(facts.join(" / "))}`
-    : ""}${more ? ` · +${more} more` : ""}</span>`;
+  pop.innerHTML = `<span class="pop-how"><span class="phow">${esc(
+    what.length ? how : runName(rows))}</span>${what.length
+    ? ` : <span class="pwhat">${whatHtml(what, what.map((_, i) => i))
+    }</span>${count ?? ""}` : ""}${facts.length ? ` · ${esc(facts.join(
+    " / "))}` : ""}${more ? ` · +${more} more` : ""}</span>`;
   return pop;
 }
 
@@ -1101,8 +1282,10 @@ export function paint(root, tree, h, opts = {}) {
   }
   const room = bounds(root);
   root.querySelector(".views")?.append(tray);
+  // (no labels at a walkthrough's goal: which bytes are what is what
+  // its steps find)
   for (const v of views) {
-    annotate(root, v, compare, names, tray, taken, room, force);
+    if (!h?.bare) annotate(root, v, compare, names, tray, taken, room, force);
   }
   if (!tray.childElementCount) tray.remove();
   else {
@@ -1136,8 +1319,6 @@ function annotate(root, v, compare, names, tray, taken, room, force) {
   };
   // the address labels of the lit rows, which no popover may cover (an
   // unlit row's may be covered, as by a card)
-  const words = [...v.querySelectorAll(".rows > .wrow > .word")]
-    .map((e) => ({ row: e.closest(".wrow"), r: e.getBoundingClientRect() }));
   const labels = [...v.querySelectorAll(
     ".rows > .wrow:is(.on, .only, .known) > .addr")]
     .map((e) => ({ row: e.closest(".wrow"), r: e.getBoundingClientRect() }));
@@ -1174,12 +1355,18 @@ function annotate(root, v, compare, names, tray, taken, room, force) {
         addr.append(pop);
         addr.classList.add("popped");
         place(pop, prow.querySelector(".a"), beside);
+        // (its names, cut to its room; then placed again, at its width)
+        if (pop.querySelector(".pop-how").scrollWidth + 16 >
+          parseFloat(pop.style.maxWidth)) {
+          fitWhat(pop);
+        }
+        place(pop, prow.querySelector(".a"), beside);
         const r = pop.getBoundingClientRect();
-        // (a muted label, for a run found at an earlier step, covers no
-        // other row's bytes either: it would hide data)
-        const kept = pop.classList.contains("kept") && words.some((t) =>
-          !run.includes(t.row) && overlaps(t.r, r));
-        if (!kept && !labels.some((t) => !run.includes(t.row) &&
+        // (one rule for every label, muted or not; and never outside the
+        // rows' box: nothing is above the first row, nor below the last)
+        const rows = v.querySelector(".rows").getBoundingClientRect();
+        const out = r.top < rows.top - 0.5 || r.bottom > rows.bottom + 0.5;
+        if (!out && !labels.some((t) => !run.includes(t.row) &&
           overlaps(t.r, r)) && fits(pop)) {
           placed = true;
           break;
