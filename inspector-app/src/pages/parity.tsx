@@ -8,6 +8,7 @@ import "../../../shared/appendix.css";
 import "../style.css";
 import "../ui/port.css";
 import { createRoot } from "react-dom/client";
+import { useLayoutEffect } from "react";
 import { fetchIo, type Io } from "../engine/io";
 import { load } from "../engine/project";
 import { decode } from "../engine/decode";
@@ -82,11 +83,22 @@ const onFail = (e: unknown, again: () => void) => loading
 window.results = { done: false, errors: [], decoded: {} };
 window.memResults = { done: false, errors: [], decoded: {} };
 
+function Drawn() {
+  useLayoutEffect(() => {
+    for (const el of statics.splice(0)) el.remove();
+  }, []);
+  return null;
+}
+
 // a static element's place, for a view (no box of its own)
+// (the static element stays until the views first draw, then goes in
+// the same frame: nothing moves)
+const statics: Element[] = [];
 const place = (el: Element) => {
   const host = document.createElement("div");
   host.style.display = "contents";
-  el.replaceWith(host);
+  el.before(host);
+  statics.push(el);
   return host;
 };
 
@@ -117,10 +129,9 @@ try {
     chow: place($("chow")),
     contract: place($("contract-box")) };
   // (the walkthrough panel draws the details under its bar)
-  $("dwrap").remove();
+  statics.push($("dwrap"));
   // (the tree view draws its own edge buttons)
-  $("edge-up").remove();
-  $("edge-down").remove();
+  statics.push($("edge-up"), $("edge-down"));
 
   // the scene's intro and summary, and no Before | After at one point
   // (the calldata section: its own link group's part of the page)
@@ -271,7 +282,7 @@ try {
   const storagePart = (el: Element) => !el.closest?.("#memory");
   const host = document.createElement("div");
   document.body.append(host);
-  createRoot(host).render(<>
+  createRoot(host).render(<><Drawn />
     <Lens spec={fullInspector} project={project} mount={mount}
       onReady={ready} onFail={onFail} hash within={storagePart}
       kinds={{ contract: (q: Parameters<typeof ContractSource>[0]) =>

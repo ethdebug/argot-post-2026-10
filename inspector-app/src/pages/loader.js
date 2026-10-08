@@ -132,6 +132,15 @@
     const ex = new URLSearchParams(location.hash.slice(1)).get("ex");
     const buttons = [...document.querySelectorAll("#picker button")];
     const first = buttons.find((b) => b.dataset.id === ex) ?? buttons[0];
+    for (const b of buttons) {
+      b.setAttribute("aria-checked", String(b === first));
+    }
+    // its intro, and no Before | After for a scene with one point
+    for (const p of document.querySelectorAll("#intros [data-scene]")) {
+      p.hidden = p.dataset.scene !== first?.dataset.id;
+    }
+    document.querySelector("main")?.toggleAttribute("data-single",
+      !!first?.hasAttribute("data-single"));
     const label = "the decoder and the data";
     for (const f of ["fixtures/index.json",
       `fixtures/${first?.dataset.fixture}.json`, "fixtures/memory.json"]) {
