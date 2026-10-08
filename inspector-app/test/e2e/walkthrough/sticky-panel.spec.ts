@@ -121,3 +121,26 @@ test("Start scrolls first, then unfolds; Exit goes back to where the " +
     await expect.poll(async () => Math.round(await page.evaluate(() =>
       scrollY))).toBe(120);
   });
+
+// (a bug report: one ✕ Exit click sometimes left the walkthrough on for
+// the next selection. An Exit while the details unfold was dropped; now
+// it waits for them, then exits)
+test("one ✕ Exit, even while the details unfold, ends the walkthrough",
+  async ({ page }) => {
+    await page.emulateMedia({ reducedMotion: "no-preference" });
+    await ready(page);
+    for (const wait of [0, 150, 400, 1500]) {
+      await select(page, "mid", "players");
+      await page.evaluate(() => scrollTo(0, 0));
+      await page.locator('#details button[data-r="start"]').click();
+      await page.waitForTimeout(wait);
+      await page.locator('#details button[data-r="exit"]').click();
+      await page.waitForTimeout(1500);
+      await page.locator('#tree li[data-path="totalScore"] > .row')
+        .dispatchEvent("click");
+      await page.waitForTimeout(100);
+      expect(await page.locator("#details.replaying").count(), `${wait}`)
+        .toBe(0);
+      await page.keyboard.press("Escape");
+    }
+  });
