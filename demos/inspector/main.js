@@ -265,7 +265,18 @@ addEventListener("resize", () => {
 });
 // (the popovers' labels are fitted in the page's fonts: again once they
 // are in)
-document.fonts?.ready.then(() => current && show());
+// (and the dumps' rows measured again, in them)
+document.fonts?.ready.then(() => {
+  for (const d of document.querySelectorAll(".dump")) {
+    d.style.removeProperty("--k32");
+    d.style.removeProperty("--k16");
+  }
+  fitDumps();
+  if (current) {
+    alignColumns();
+    show();
+  }
+});
 document.addEventListener("scroll", (e) => {
   if (e.target.id === "tree") edges();
 }, true);

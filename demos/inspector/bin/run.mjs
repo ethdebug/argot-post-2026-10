@@ -1802,11 +1802,17 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
       const ar = a.getBoundingClientRect();
       const pr = p.getBoundingClientRect();
       const bf = getComputedStyle(a, "::before");
-      const arrow = getComputedStyle(p, "::after");
-      const ah = parseFloat(arrow.borderTopWidth) +
-        parseFloat(arrow.borderBottomWidth);
+      const tipOf = (p) => {
+        const o = getComputedStyle(p, "::after");
+        const r = p.getBoundingClientRect();
+        const bt = parseFloat(getComputedStyle(p).borderTopWidth);
+        const c = r.top + bt + parseFloat(o.top) + parseFloat(o.height) / 2;
+        const d = parseFloat(o.height) / Math.SQRT2;
+        return p.classList.contains("under") ? c - d : c + d;
+      };
       const under = p.classList.contains("under");
-      const tip = under ? pr.top - ah : pr.bottom + ah;
+      const tip = tipOf(p);
+      void pr;
       return [p.textContent.slice(0, 12), Math.round(under
         ? tip - (ar.bottom - (parseFloat(bf.bottom) || 0))
         : ar.top + (parseFloat(bf.top) || 0) - tip)];
@@ -2467,16 +2473,24 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
       "#panel .view:not([hidden]) .pop")].map((p) => {
       const kept = p.classList.contains("kept");
       const under = p.classList.contains("under");
-      const o = getComputedStyle(p, kept ? "::before" : "::after");
-      const r = p.getBoundingClientRect();
+      const o = getComputedStyle(p, "::after");
       const a = p.parentElement.getBoundingClientRect();
       const bf = getComputedStyle(p.parentElement, "::before");
-      const h = parseFloat(under ? o.borderBottomWidth : o.borderTopWidth);
-      const t = under ? r.bottom - parseFloat(o.bottom) - h
-        : r.top + parseFloat(o.top) + h;
+      const h = parseFloat(o.height);
+      const tipOf = (p) => {
+        const o = getComputedStyle(p, "::after");
+        const r = p.getBoundingClientRect();
+        const bt = parseFloat(getComputedStyle(p).borderTopWidth);
+        const c = r.top + bt + parseFloat(o.top) + parseFloat(o.height) / 2;
+        const d = parseFloat(o.height) / Math.SQRT2;
+        return p.classList.contains("under") ? c - d : c + d;
+      };
+      const t = tipOf(p);
       const edge = under ? a.bottom - (parseFloat(bf.bottom) || 0)
         : a.top + (parseFloat(bf.top) || 0);
-      const colour = under ? o.borderBottomColor : o.borderTopColor;
+      // (the arrow's outer edge: a muted one's line, a black one's fill)
+      const colour = kept ? under ? o.borderLeftColor : o.borderRightColor
+        : o.backgroundColor;
       const behind = getComputedStyle(p.closest(".rows")).backgroundColor;
       return { text: p.textContent.slice(0, 14), kept, shown:
         o.display !== "none" && h > 0, colour, behind,
@@ -2495,8 +2509,7 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
     const gaps = seen.map((x) => x.gap);
     if (!seen.some((x) => x.kept) || seen.some((x) => !x.shown ||
       x.colour === x.behind || x.colour === "rgba(0, 0, 0, 0)") ||
-      Math.max(...gaps) - Math.min(...gaps) > 2 ||
-      gaps.some((g) => Math.abs(g) > 3)) {
+      gaps.some((g) => Math.abs(g) > 1)) {
       problems.push(`popover arrows: ${JSON.stringify(seen)}`);
     }
     await page.evaluate((x) => window.select("mid", { sel: x }), `${B}.plays`);
