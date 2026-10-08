@@ -90,7 +90,17 @@ async function walk(page: Page, path: string) {
   }
   await page.locator('#details button[data-r="exit"]').click();
   ctl.add((await stepNow(page)).ctl);
-  return { steps: out, goal, ctl: ctl.size };
+  // (the last step, "found", kept aside; the counts here are the rule
+  // steps': without it, as vanilla 6b1df3a's run.mjs)
+  let found: St | undefined;
+  if (out.at(-1)?.cap?.startsWith("That's ")) {
+    found = out.pop();
+    for (const x of out) {
+      x.count = x.count?.replace(/(\d+) \/ (\d+)/, (_, a, b) =>
+        `${a} / ${+b - 1}`);
+    }
+  }
+  return { steps: out, goal, ctl: ctl.size, found };
 }
 const down = (ws: St[]) => ws.map((x) => x.band0).filter((b) => b >= 0)
   .every((b, i, a) => !i || b >= a[i - 1]);
@@ -153,11 +163,12 @@ test("players: step 0 and twelve steps, their light, bands and chips",
         expect(x.ptr.some((l) => l.includes(ptr)), `${k + 1}: ${x.ptr}`)
           .toBe(true);
       } else expect(x.ptr).toEqual([]);
-      expect(x.chips).toBe(want.map((_, j) => j < k ? "done" : j === k
-        ? "cur" : "later").join());
+      // (and the found step's chip, last)
+      expect(x.chips).toBe([...want, null].map((_, j) => j < k ? "done"
+        : j === k ? "cur" : "later").join());
     });
     // step 0: every slot touched, whole, yellow; no labels, no band
-    expect(goal?.count).toBe(`0 / ${N}`);
+    expect(goal?.count).toBe(`0 / ${N + 1}`);
     expect(Object.values(goal!.litN).every((v) => v === "all")).toBe(true);
     expect(Object.keys(goal!.litN).length).toBeGreaterThanOrEqual(9);
     // a template step's band is its frame; the next starts inside it
@@ -186,12 +197,13 @@ test("step 0: no labels, no band; ⏮ and ◀ reach it; a re-target keeps it",
       .toEqual({ pops: 0, hues: 0, band: 0, cur: 0 });
     await page.locator('#details button[data-r="next"]').click();
     await page.locator('#details button[data-r="prev"]').click();
-    expect((await stepNow(page)).count).toBe("0 / 12");
+    // (the bar counts the found step too)
+    expect((await stepNow(page)).count).toBe("0 / 13");
     await page.locator('#details button[data-r="last"]').click();
     await page.locator('#details button[data-r="first"]').click();
-    expect((await stepNow(page)).count).toBe("0 / 12");
+    expect((await stepNow(page)).count).toBe("0 / 13");
     await row(page, C).click();
-    expect((await stepNow(page)).count).toBe("0 / 11");
+    expect((await stepNow(page)).count).toBe("0 / 12");
     await page.keyboard.press("Escape");
     await select(page, null);
     const t = await walk(page, "total");
@@ -271,31 +283,31 @@ test("the bar: entry, tint, the controls at the ends, keys, Exit, chips",
     await page.locator('#details button[data-r="start"]').dblclick();
     bs = await barNow();
     expect(bs).toMatchObject({ tint: true, mode: "Walkthrough",
-      count: "1 / 6", off: "first,prev", exit: true });
+      count: "1 / 7", off: "first,prev", exit: true });
     await page.locator('#details button[data-r="last"]').click();
-    expect((await barNow()).count).toBe("6 / 6");
+    expect((await barNow()).count).toBe("7 / 7");
     expect((await barNow()).off).toBe("next,last");
     await page.keyboard.press("ArrowRight");
-    expect((await barNow()).count).toBe("6 / 6");
+    expect((await barNow()).count).toBe("7 / 7");
     await page.locator('#details button[data-r="first"]').click();
-    expect((await barNow()).count).toBe("1 / 6");
+    expect((await barNow()).count).toBe("1 / 7");
     await page.locator('#details button[data-r="next"]').click();
     await page.keyboard.press("ArrowRight");
-    expect((await barNow()).count).toBe("3 / 6");
+    expect((await barNow()).count).toBe("3 / 7");
     await page.evaluate(() => (document.activeElement as HTMLElement)
       ?.blur());
     await page.keyboard.press("Home");
-    expect((await barNow()).count).toBe("1 / 6");
+    expect((await barNow()).count).toBe("1 / 7");
     await page.keyboard.press("End");
-    expect((await barNow()).count).toBe("6 / 6");
+    expect((await barNow()).count).toBe("7 / 7");
     await page.locator('#details button[data-r="exit"]').click();
     expect((await barNow()).tint).toBe(false);
     await page.locator('#details button[data-r="start"]').click();
     await page.locator('#chips .chip[data-k="1"]').click();
-    expect((await stepNow(page)).count).toBe("2 / 6");
+    expect((await stepNow(page)).count).toBe("2 / 7");
     await page.locator("#details").focus();
     await page.keyboard.press("ArrowLeft");
-    expect((await stepNow(page)).count).toBe("1 / 6");
+    expect((await stepNow(page)).count).toBe("1 / 7");
     await page.keyboard.press("Escape");
     const st = await stepNow(page);
     expect(st.resolved).toBe(true);
@@ -640,4 +652,39 @@ test("step 0: the way on, its glyph toward ▶, and ▶'s halo",
   await page.locator('#details button[data-r="next"]').click();
   await expect(page.locator(".rcount")).toHaveText(/^1 \//);
   expect(await go()).toEqual({ label: false, arrow: false, halo: false });
+});
+
+// (vanilla 6b1df3a run.mjs: the last step, "found", is the resting view:
+// the same lit bytes, colours, rows and labels; a re-target there stays
+// on found)
+test("the last step, found: the selection's resting view",
+  async ({ page }) => {
+  await ready(page);
+  const view = () => page.evaluate(() => JSON.stringify({
+    b: [...document.querySelectorAll<HTMLElement>(
+      "#panel .view:not([hidden]) .b.hl")].map((c) =>
+      `${c.closest<HTMLElement>(".wrow")!.dataset.slot!.slice(-4)} ${
+        c.dataset.i} ${c.className.match(/pk\d/)?.[0] ?? ""}`),
+    r: [...document.querySelectorAll<HTMLElement>("#tree .row.hl")]
+      .map((r) => `${(r.parentElement as HTMLElement).dataset.path} ${
+        r.className.match(/pk\d/)?.[0] ?? ""}`),
+    p: [...document.querySelectorAll("#panel .view:not([hidden]) .pop")]
+      .map((p) => p.textContent) }));
+  for (const x of ["players", C, "total"]) {
+    await select(page, x);
+    await page.mouse.move(1, 1);
+    const rest = await view();
+    await page.locator('#details button[data-r="start"]').click();
+    await page.locator('#details button[data-r="last"]').click();
+    await page.mouse.move(1, 1);
+    expect(await view(), x).toBe(rest);
+    expect((await stepNow(page)).cap, x).toMatch(/^That's /);
+    if (x === C) {
+      await row(page, `${C}.name`).click();
+      const r = await stepNow(page);
+      expect(r.cap).toMatch(/^That's /);
+      expect(r.count).toMatch(/^(\d+) \/ \1$/);
+    }
+    await page.keyboard.press("Escape");
+  }
 });
