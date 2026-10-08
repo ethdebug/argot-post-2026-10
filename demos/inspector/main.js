@@ -4,6 +4,7 @@
 // contract's storage (decode.js), and draws it.
 import {
   storageState, mappingKeys, decodeStorage, typeName, commit, baseSlot,
+  solcTilde,
 } from "./decode.js";
 import {
   buildPanel, renderPanel, forRow, baseOf, forBytes, forRegion, forSlot,
@@ -462,8 +463,8 @@ function replaySteps(path, side, focus) {
   const getAt = (block, at) => at.reduce((o, k) => o?.[k],
     block ? pointers[block] : null);
   const reads = (block, name) => JSON.stringify(pointers[block] ?? {})
-    .includes(`"$read":"${name}"`);
-  const hasRead = (e) => JSON.stringify(e ?? null).includes('"$read"');
+    .includes(`"~read":"${name}"`);
+  const hasRead = (e) => JSON.stringify(e ?? null).includes('"~read"');
   const opOf = (e) => e && typeof e === "object" ? Object.keys(e)[0] : null;
   // the keys: from the contract's own list of them (roster, decoded from
   // storage), or the trace
@@ -681,11 +682,11 @@ function replaySteps(path, side, focus) {
         const op = opOf(nd.s.expr);
         const formula = (x) => {
           const v = x.s.value.hex;
-          if (op === "$keccak256" && x.s.args?.length === 2) {
+          if (op === "~keccak256" && x.s.args?.length === 2) {
             const [a, b] = x.s.args.map((y) => y.value.hex);
             return `keccak(${short(a)}, ${small(b)}) = ${tail(v)}`;
           }
-          if (op === "$sum") {
+          if (op === "~sum") {
             const base = inputs.get(`${x.inst}|${types[nd.block]?.kind}`)
               ?.slot?.hex;
             const d = base ? num(v) - num(base) : null;
@@ -805,7 +806,7 @@ function replaySteps(path, side, focus) {
         form: esc(`keccak256(${small(base)}) = ${start ? tail(start) : "?"}${
           one ? `; item ${is[0]} at + ${is[0]}` : `; items ${is[0]}…${is.at(-1)
           } at + i`}`),
-        constructs: ["$keccak256", "list"], source: "ethdebug data from the compiler",
+        constructs: ["~keccak256", "list"], source: "ethdebug data from the compiler",
         chip: `keccak(${small(base)})`, chipLabel: "items",
         parts: [{ regions: regionsOf(nd), rows: instRows(nd), colors: ec }],
         rows: instRows(nd), band });
@@ -832,7 +833,7 @@ function replaySteps(path, side, focus) {
         form: many ? table(xs.map((x) => [esc(who(x.inst)), esc(`${lenOf(x)
           } bytes at ${tail(x.regions[0].slot)}`), kOf(x.inst)]))
           : esc(xs[0].leaves.at(-1)[side].text),
-        constructs: long ? ["$keccak256", "region"] : ["region"],
+        constructs: long ? ["~keccak256", "region"] : ["region"],
         source: "ethdebug data from the compiler", chip: long ? "keccak(slot)" : "inline",
         chipLabel: "text",
         parts: [{ regions: regionsOf(nd), rows: [...new Set(instRows(nd))],
@@ -994,7 +995,7 @@ const SPEC = "https://ethdebug.github.io/format/spec/pointer/";
 const FOOT = {
   pointer: ["A pointer is a region or a collection of pointers",
     `${SPEC}concepts/#a-pointer-is-a-region-or-a-collection-of-other-pointers`],
-  $keccak256: ["Expressions: keccak256",
+  "~keccak256": ["Expressions: keccak256",
     `${SPEC}expression/#keccak256-hashes`],
   template: ["Pointer templates", `${SPEC}template/`],
   group: ["Group (a collection of pointers)", `${SPEC}collection/group/`],
@@ -1012,7 +1013,7 @@ const footOf = (st) => st.constructs.find((c) => FOOT[c]);
 // regions and expressions in flow style. Each line keeps tags for what
 // it is part of, so a step can light the lines it uses.
 const isExpr = (v) => v && typeof v === "object" && !Array.isArray(v) &&
-  Object.keys(v).length === 1 && Object.keys(v)[0].startsWith("$");
+  Object.keys(v).length === 1 && Object.keys(v)[0].startsWith("~");
 const isRegion = (v) => v && typeof v === "object" && "location" in v;
 const allScalar = (v) => v && typeof v === "object" && !Array.isArray(v) &&
   Object.values(v).every((x) => typeof x !== "object");
@@ -2305,6 +2306,8 @@ window.select = async (id, view) => {
       }
       return false;
     }
+    // (solc's pointers, in the format's vocabulary: decode.js solcTilde)
+    f = { ...f, contract: solcTilde(f.contract) };
     const single = scene.points.length === 1;
     if (single) f = atPoint(f, scene.points[0]);
     const tree = await decode(f);

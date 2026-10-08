@@ -104,10 +104,17 @@ and parameter in `fixtures/index.json` (`calldata`).
 - `calldata.js`: the calldata view of the setMotd scene.
 - `vendor/pointers.js`: `@ethdebug/pointers` bundled with esbuild from
   ethdebug/format `origin/main` at commit
-  `ec7a81386` (includes #317, the scoping fix, not yet released),
+  `d7cb421a3` (#323: expressions take `~`, not `$`; not yet released),
   minified. Rebuild with `bin/build-pointers.sh <checkout>` after
   `yarn install` and building `packages/format` and `packages/pointers`,
   then run `bin/sizes.mjs`.
+- The sigil: ethdebug/format writes a pointer expression's operator
+  with `~` (`~keccak256`), and the library takes no other; solc still
+  writes `$` (ethdebug/format#324). `decode.js` `solcTilde` rewrites
+  solc's pointers and templates as each storage fixture is read (the
+  page, and `bin/make-fixtures.mjs`); the YAML shows `~`, with a note.
+  bugc writes `~`: `fixtures/memory.json` was made with bugc at
+  `d7cb421a3`.
 - `vendor/shiki.js`: the contract source's colouring, as in the
   debugger demo (Shiki 3.13.0's core, its JavaScript regex engine, the
   Solidity grammar, github-light and github-dark), bundled and minified
@@ -268,7 +275,7 @@ offsets.
   a card, it may cover unlit rows (addresses included), never a lit
   row, a lit row's address or another annotation; nothing shows at
   rest. The name comes from
-  the `$keccak256` defines in the replayed steps, not from new hashing.
+  the `~keccak256` defines in the replayed steps, not from new hashing.
 - Bytes: each byte belongs to the value whose region covers it. Regions
   are the ones the library returned (`value.region`); for a string,
   also its `length-flag` and `long-length` regions (`value.parts`,

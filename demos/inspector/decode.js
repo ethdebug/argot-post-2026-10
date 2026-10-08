@@ -179,6 +179,23 @@ export function typeName(type, types) {
   }
 }
 
+// ----------------------------------------------------------- the sigil
+
+// ethdebug/format writes a pointer expression's operator with "~"
+// (`~keccak256`, `~wordsize`; #323), and the library takes no other.
+// solc still writes "$" (ethdebug/format#324): its pointers and
+// templates are rewritten here, where its output is read, and nowhere
+// else. bugc writes "~".
+export function solcTilde(contract) {
+  const re = (v) => Array.isArray(v) ? v.map(re) : v && typeof v ===
+    "object" ? Object.fromEntries(Object.entries(v).map(([k, x]) =>
+      [k.startsWith("$") ? `~${k.slice(1)}` : k, re(x)]))
+    : typeof v === "string" && /^\$[a-z]/.test(v) ? `~${v.slice(1)}` : v;
+  return { ...contract, pointers: re(contract.pointers ?? {}),
+    variables: (contract.variables ?? []).map((x) => x.pointer
+      ? { ...x, pointer: re(x.pointer) } : x) };
+}
+
 // -------------------------------------------------------------- replay
 
 const isRegion = (p) => typeof p === "object" && "location" in p;
@@ -210,7 +227,7 @@ export async function replay(pointer, { state, templates }) {
     if (expr && typeof expr === "object") {
       const [op] = Object.keys(expr);
       const args = Array.isArray(expr[op]) ? expr[op] : [expr[op]];
-      if (op !== "$read" && args.some((a) => typeof a === "object")) {
+      if (op !== "~read" && args.some((a) => typeof a === "object")) {
         step.args = [];
         for (const a of args) {
           step.args.push({ expr: a, value: showValue(await ev(a, variables)) });
