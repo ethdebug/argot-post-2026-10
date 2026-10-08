@@ -81,15 +81,19 @@ const pick = (light: Light, ids: string[]) => {
   return { k, cls: k === "src" ? "pksrc" : k ? `pk${k}` : "" };
 };
 
-function Word({ l, loc, row, mine, theirs, side, name, light, groupsOf }: {
-  l: Layout; loc: Location; row: Hex; mine: (string | undefined)[];
-  theirs: (string | undefined)[]; side?: string; name: string;
-  light: Light; groupsOf: (id: string) => boolean }) {
-  const owners = Array.from({ length: 32 }, (_, i) =>
-    l.cover.get(byteKey(loc, row, i)) ?? []);
-  // owners in byte order, each with its tint
+function Word({ l, ls, loc, row, mine, theirs, side, name, light,
+  groupsOf }: {
+  l: Layout; ls: Layout[]; loc: Location; row: Hex;
+  mine: (string | undefined)[]; theirs: (string | undefined)[];
+  side?: string; name: string; light: Light;
+  groupsOf: (id: string) => boolean }) {
+  const ownersIn = (x: Layout) => Array.from({ length: 32 }, (_, i) =>
+    x.cover.get(byteKey(loc, row, i)) ?? []);
+  const owners = ownersIn(l);
+  // owners in byte order, each with its tint, the same in every view of
+  // a pair (the earlier point's first: vanilla renderLocation)
   const tint = new Map<string, number>();
-  for (const ids of owners) for (const id of ids) {
+  for (const x of ls) for (const ids of ownersIn(x)) for (const id of ids) {
     if (!tint.has(id)) tint.set(id, tint.size);
   }
   const at = light.at?.row === row ? light.at : undefined;
@@ -147,6 +151,8 @@ export function Dump(p: { id: ViewId; location: Location; data: DataRef;
   side?: "before" | "after"; hidden?: boolean; title?: string;
   when?: string; compare?: DataRef; cards?: boolean }) {
   const { l } = useLayout(p.id, p.filter, undefined, p.compare);
+  const { l: lThere0 } = useLayout(p.id, p.filter, p.compare, p.data);
+  const lThere = p.compare ? lThere0 : undefined;
   const hereAt = usePointAt(p.data);
   const thereAt = usePointAt(p.compare);
   const here = hereAt?.p;
@@ -263,6 +269,9 @@ export function Dump(p: { id: ViewId; location: Location; data: DataRef;
     };
   }, [cards]);
   const lines: ReactElement[] = [];
+  // (the pair's layouts, the earlier point's first, for the tints)
+  const tintOrder = !l ? [] : !lThere ? [l]
+    : (hereAt?.i ?? 0) < (thereAt?.i ?? 0) ? [l, lThere] : [lThere, l];
   const loc = p.location;
   // (storage's rows are named by how they are found: a hashed one gets
   // a line of room above it)
@@ -314,7 +323,7 @@ export function Dump(p: { id: ViewId; location: Location; data: DataRef;
         aria-label={`${r.address}; ${what}`}>
         {ring && <span className="ring" aria-label="written, same value" />}
         <span className="a">{addressText(loc, r.address)}</span></span>
-      {l && <Word l={l} loc={loc} row={r.address}
+      {l && <Word l={l} ls={tintOrder} loc={loc} row={r.address}
         mine={rowBytes(snap, loc, r.address)}
         theirs={rowBytes((p.compare ? otherPoint : here)?.snapshot, loc,
           r.address)}
