@@ -28,3 +28,5 @@ ab53776	Inspector: the page decluttered to put the inspector on the first screen
 6767a25	Inspector: the byte strip's 32 cells evenly spaced, with no group gaps	f660ad3 (S8)
 86cffd0	Inspector: an empty on-chain name falls back to the short address; the re-target cue shows exactly when the step number changes; one child palette (9 colours) for every location	f522c80 (S9; 86cffd0's three already so)
 6b1df3a	Inspector: a last walkthrough step, found: the selection's resting view, behind one constant (FOUND)	f522c80 (S9; 86cffd0's three already so)
+970d902	Inspector: memory's panels draw the selection's caps, as storage's	e1c3e21 (S10; the port already so)
+9975a1f	Inspector: calldata's text lights its parts in child colours, as any composite in the shared panel	e1c3e21 (S10; the port already so)
