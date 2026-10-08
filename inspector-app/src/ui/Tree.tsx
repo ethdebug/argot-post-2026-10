@@ -380,7 +380,9 @@ export function Tree(p: { id: ViewId; data: DataRef; filter?: Filter;
       // to the top of the window. Each style written only when it
       // changes: a re-align moves nothing that is in place, and keeps
       // the tree's scroll)
-      const wide = innerWidth >= 1100;
+      // (two columns: style.css's one breakpoint says so)
+      const wide = getComputedStyle(document.documentElement)
+        .getPropertyValue("--two-cols").trim() === "1";
       const scrolled = tree.scrollTop;
       const was = tree.style.height;
       if (wide && tree.closest(".lens")) tree.style.height = "0px";
