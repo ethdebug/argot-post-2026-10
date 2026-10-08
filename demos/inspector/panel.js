@@ -1247,8 +1247,10 @@ export function paint(root, tree, h, opts = {}) {
   }
   const room = bounds(root);
   root.querySelector(".views")?.append(tray);
+  // (no labels at a walkthrough's goal: which bytes are what is what
+  // its steps find)
   for (const v of views) {
-    annotate(root, v, compare, names, tray, taken, room, force);
+    if (!h?.bare) annotate(root, v, compare, names, tray, taken, room, force);
   }
   if (!tray.childElementCount) tray.remove();
   else {

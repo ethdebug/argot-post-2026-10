@@ -7,7 +7,7 @@ import {
 } from "./decode.js";
 import {
   buildPanel, renderPanel, forRow, baseOf, forBytes, forRegion, forSlot,
-  paint,
+  paint, regionBytes,
   shortKeys, steady, initialHash, setHash, locked, keySection, forStep,
   PICKS,
   short,
@@ -944,6 +944,46 @@ function replaySteps(path, side, focus) {
     delete st.nodes;
     delete st.parent;
   }
+  // step 0, the goal: when the selection takes more than one slot or
+  // region, every slot the walkthrough touches (but its inputs'), whole,
+  // in the selection's yellow, with no label: which bytes are what is
+  // what the steps find
+  const slots = new Set();
+  const regions = new Set();
+  for (const st of out.filter((x) => x.phase !== "input")) {
+    for (const p of st.parts ?? []) {
+      for (const r of p.regions ?? []) {
+        regions.add(JSON.stringify(r));
+        for (const [sl] of regionBytes(r)) slots.add(sl);
+      }
+      for (const sl of p.slots ?? []) slots.add(sl);
+    }
+    for (const sl of st.gutters ?? []) slots.add(sl);
+  }
+  // (the selection's own: its values' regions, and the slots they take)
+  const ownR = new Set();
+  const ownS = new Set();
+  for (const l of leaves.filter((x) => x.path === path ||
+    x.path.startsWith(path + ".") || x.path.startsWith(path + "["))) {
+    const v = l[side];
+    for (const r of [v.region, ...(v.parts ?? []).map((q) => q.region)]) {
+      if (!r) continue;
+      ownR.add(JSON.stringify(r));
+      for (const [sl] of regionBytes(r)) ownS.add(sl);
+    }
+  }
+  if (ownS.size > 1 || ownR.size > 1) {
+    const all = [...slots].sort((a, b) => (num(a) < num(b) ? -1 : 1));
+    const apart = all.some((sl, i) => i && num(sl) - num(all[i - 1]) > 1n);
+    out.goal = { phase: "goal", id: "goal", constructs: [], band: [],
+      cap: `${all.length === 1 ? "This slot holds" : `These ${all.length
+        } slots hold`} \`${shortKeys(path)}\`${apart
+        ? ", scattered across storage" : ""}. Which bytes are what, and ` +
+        "how do we know?", form: "", source: "",
+      chip: "", chipLabel: "", bare: true, rows: [path],
+      parts: [{ regions: all.map((sl) => ({ location: "storage", slot: sl,
+        offset: "0x0", length: "0x20" })), rows: [path] }] };
+  }
   return out;
 }
 
@@ -1175,6 +1215,7 @@ function stepLight(st) {
       ? free[(k - 1) % free.length] : 0]));
     h.ruler = st.ruler;
   }
+  if (st.bare) h.bare = true;
   if (st.parts) {
     h.colors = st.parts.reduce((m, p) => new Map([...m, ...(p.colors ?? [])]),
       new Map());
@@ -1224,6 +1265,7 @@ function shortCap(st) {
     case "declared": return `\`${st.var}\`${st.var.endsWith("s") ? "'"
       : "'s"} own slot`;
     case "entries": return "every record, from its key";
+    case "goal": return "what we're about to find";
     case "input": return st.chip === "key" ? "the key" : "the keys";
     case "handoff": return st.tkind === "struct" ? "the record's slot"
       : "into a template";
@@ -1298,15 +1340,16 @@ function renderBox() {
   let count = "";
   if (replay) {
     const { i } = replay;
-    const st = steps[i];
+    const st = curStep();
     const last = i === steps.length - 1;
+    const lo = i === firstStep();
     // ⏮ ◀ ▶ ⏭, each disabled at its end (no wrap; none of them exits)
     const b = (r, label, glyph, off) => `<button type="button" class="btn"` +
       ` data-r="${r}" aria-label="${label}"${off ? " disabled" : ""}>${
         glyph}</button>`;
-    ctl = b("first", "First step", "⏮", !i) + b("prev", "Previous step", "◀",
-      !i) + b("next", "Next step", "▶", last) + b("last", "Last step", "⏭",
-      last);
+    ctl = b("first", "First step", "⏮", lo) + b("prev", "Previous step",
+      "◀", lo) + b("next", "Next step", "▶", last) + b("last", "Last step",
+      "⏭", last);
     count = `${i + 1} / ${steps.length}`;
     short = capHtml(shortCap(st));
     const fc = footOf(st);
@@ -1356,7 +1399,7 @@ function renderBox() {
     esc(FOOT[c][0])}</a></span>`;
   // (at rest: what the steps are, in one line)
   text.innerHTML = full + `<p class="fnotes">${replay
-    ? [footOf(steps[replay.i])].filter(Boolean).map(fnote).join(" ")
+    ? [footOf(curStep())].filter(Boolean).map(fnote).join(" ")
     : `<span class="muted">Each step is one part of the pointer solc ` +
       `wrote for ${esc(chosen.split(/[.[]/)[0])}.</span>`}</p>`;
   // the focus entry, in a mapping's replay: which one the layout steps
@@ -1393,8 +1436,8 @@ function renderBox() {
   const { lines, names } = pointerYaml(variable);
   const yamlText = lines.map((l) => l.text).join("\n");
   const html = colourYaml(variable, yamlText);
-  const lit = replay ? new Set(activeLines(lines, steps[replay.i])) : null;
-  const fc = replay && footOf(steps[replay.i]);
+  const lit = replay ? new Set(activeLines(lines, curStep())) : null;
+  const fc = replay && footOf(curStep());
   const ids = Object.entries(names).map(([id, n]) => `${n} = ${id}`);
   void fc;
   $("ptr").classList.toggle("lit", !!lit?.size);
@@ -1489,6 +1532,10 @@ document.addEventListener("keydown", (e) => {
 // Start, step or leave the replay. Stepping stops at the ends; only
 // Exit (or Escape, or a new selection or scene) leaves it.
 let started = 0; // when the replay started (a second click is ignored)
+// the step shown (-1: the goal, step 0, where there is one), and the
+// first index the walkthrough has
+const curStep = () => replay.i < 0 ? replay.goal : replay.steps[replay.i];
+const firstStep = () => replay.goal ? -1 : 0;
 // the details unfold under the bar at entry and fold into it at exit
 // (the one movement); meanwhile, the replay takes no input
 let unfolding = false;
@@ -1530,8 +1577,11 @@ function setFocus(path) {
 function retarget(path) {
   const steps = replaySteps(path, replay.side);
   if (!steps.length) return false;
-  const a = replay.steps.map((x) => x.id);
-  const b = steps.map((x) => x.id);
+  // (the goal, step 0, is a step with its own identity)
+  const oa = replay.goal ? 1 : 0;
+  const ob = steps.goal ? 1 : 0;
+  const a = [...(oa ? ["goal"] : []), ...replay.steps.map((x) => x.id)];
+  const b = [...(ob ? ["goal"] : []), ...steps.map((x) => x.id)];
   const L = Array.from({ length: a.length + 1 }, () =>
     new Array(b.length + 1).fill(0));
   for (let i = a.length - 1; i >= 0; i--) {
@@ -1546,19 +1596,20 @@ function retarget(path) {
     else if (L[i + 1][j] >= L[i][j + 1]) i++;
     else j++;
   }
-  let k = 0;
-  for (let i = replay.i; i >= 0; i--) {
+  const at = replay.i + oa;
+  let k = ob;
+  for (let i = at; i >= 0; i--) {
     if (match.has(i)) {
       k = match.get(i);
       break;
     }
   }
-  const moved = !(match.has(replay.i) && match.get(replay.i) === replay.i);
-  replay = { path, side: replay.side, steps, i: k,
+  const moved = k - ob !== replay.i - oa;
+  replay = { path, side: replay.side, steps, goal: steps.goal, i: k - ob,
     focus: steps.find((x) => x.recs)?.focus };
   renderBox();
   show();
-  if (moved) cue(`→ step ${k + 1}`);
+  if (moved) cue(`→ step ${k - ob + 1}`);
   return true;
 }
 // a short note in the bar, over it (it takes no room), fading out
@@ -1575,18 +1626,19 @@ function cue(text) {
 }
 function stepTo(i) {
   if (!replay || unfolding) return;
-  const k = Math.max(0, Math.min(replay.steps.length - 1, i));
+  const k = Math.max(firstStep(), Math.min(replay.steps.length - 1, i));
   if (k === replay.i) return;
   replay.i = k;
   renderBox();
   show();
-  treeTo(replay.steps[k].rows?.[0]);
+  treeTo(curStep().rows?.[0]);
 }
-function startReplay(at = 0) {
+function startReplay(at) {
   if (!chosen) return;
   const steps = replaySteps(chosen, mode);
   if (!steps.length) return;
-  replay = { path: chosen, side: mode, steps, i: at,
+  replay = { path: chosen, side: mode, steps, goal: steps.goal,
+    i: at ?? (steps.goal ? -1 : 0),
     focus: steps.find((x) => x.recs)?.focus };
   started = performance.now();
   renderBox();
@@ -1710,7 +1762,7 @@ function show() {
   const sel = chosen ? forRow(current.panel, chosen, { roots: true })
     : null;
   // a replay shows its step, whatever the pointer is on
-  const h = legend(replay ? stepLight(replay.steps[replay.i])
+  const h = legend(replay ? stepLight(curStep())
     : hover ?? sel);
   // (the selected row first: paint's merged blocks depend on it)
   for (const r of $("tree").querySelectorAll("li[data-path] > .row")) {
@@ -2031,7 +2083,7 @@ document.addEventListener("click", (e) => {
     if (unfolding) return;
     if (k === "start") startReplay();
     else if (k === "exit") endReplay();
-    else if (k === "first") stepTo(0);
+    else if (k === "first") stepTo(-Infinity);
     else if (k === "last") stepTo(Infinity);
     else stepTo(replay.i + (k === "next" ? 1 : -1));
     return;
@@ -2062,7 +2114,7 @@ document.addEventListener("keydown", (e) => {
     ["ArrowLeft", "ArrowRight", "Home", "End"].includes(e.key)) {
     e.preventDefault();
     return stepTo({ ArrowLeft: replay.i - 1, ArrowRight: replay.i + 1,
-      Home: 0, End: Infinity }[e.key]);
+      Home: -Infinity, End: Infinity }[e.key]);
   }
   if (e.key !== "Enter" && e.key !== " ") return;
   const h = e.target.closest?.(".hex.short");

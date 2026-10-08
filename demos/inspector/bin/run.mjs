@@ -1239,6 +1239,13 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
     await page.locator('#details button[data-r="start"]').click();
     const out = [];
     const ctl = new Set();
+    // (step 0, the goal, where there is one: kept aside)
+    const g = await stepNow();
+    if (g.count?.startsWith("0 /")) {
+      out.goal = { ...g, lit: litNamed(g, nm) };
+      ctl.add(g.ctl);
+      await page.locator('#details button[data-r="next"]').click();
+    }
     // (▶ stops at the last step; ✕ Exit leaves)
     for (let k = 0; k < 20; k++) {
       const x = await stepNow();
@@ -1312,6 +1319,45 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
   const N = wantPlayers.length;
   if (w.length !== N || w.ctl !== 1) {
     problems.push(`replay players: ${w.length} steps, controls at ${w.ctl}`);
+  }
+  // step 0, the goal: players' slots, whole, in the selection's yellow,
+  // with no label and no band; total has none; ⏮ and ◀ reach it; a
+  // re-target from it stays on it
+  {
+    const g = w.goal;
+    const all = g && Object.values(g.lit).every((v) => v === "all");
+    const labels = await (async () => {
+      await page.evaluate(() => window.select("mid", { sel: "players" }));
+      await page.locator('#details button[data-r="start"]').click();
+      await page.mouse.move(1, 1);
+      const x = await page.evaluate(() => ({
+        pops: document.querySelectorAll("#panel .view:not([hidden]) .pop")
+          .length,
+        hues: [...document.querySelectorAll(
+          "#panel .view:not([hidden]) .b.hl")].filter((b) =>
+          /\bpk\d/.test(b.className)).length,
+        band: document.querySelectorAll("#ptr .line.on").length,
+        cur: document.querySelectorAll("#chips .chip.cur").length }));
+      await page.locator('#details button[data-r="next"]').click();
+      await page.locator('#details button[data-r="prev"]').click();
+      x.prev = (await stepNow()).count;
+      await page.locator('#details button[data-r="last"]').click();
+      await page.locator('#details button[data-r="first"]').click();
+      x.first = (await stepNow()).count;
+      // (re-targeted at step 0: to carol's record, step 0 too)
+      await row(C).click();
+      x.re = (await stepNow()).count;
+      await page.keyboard.press("Escape");
+      return x;
+    })();
+    const tw = await walk("total");
+    if (g?.count !== `0 / ${N}` || !all || Object.keys(g.lit).length < 9 ||
+      labels.pops || labels.hues || labels.band || labels.cur ||
+      labels.prev !== `0 / ${N}` || labels.first !== `0 / ${N}` ||
+      labels.re !== "0 / 11" || tw.goal || tw[0].count !== "1 / 1") {
+      problems.push(`step 0: ${JSON.stringify({ g: g?.count, lit: g?.lit,
+        labels, total: tw.goal ?? tw[0]?.count })}`);
+    }
   }
   // (after the inputs, the band only moves down)
   const down = (ws) => ws.map((x) => x.band0).filter((b) => b >= 0)
@@ -2456,7 +2502,9 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
           return out.filter((r) => !r.some((e) => e.querySelector(".pop")))
             .map((r) => r[0].dataset.slot.slice(-4));
         });
-        if (miss.length) bare.push(`${x.slice(0, 12)} ${k}: ${miss}`);
+        // (not at step 0, the goal: it has no labels)
+        const g0 = (await stepNow()).count?.startsWith("0 /");
+        if (miss.length && !g0) bare.push(`${x.slice(0, 12)} ${k}: ${miss}`);
         const n = page.locator('#details button[data-r="next"]:not([disabled])');
         if (!(await n.count())) break;
         await n.click();
@@ -2813,7 +2861,7 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
     const a3 = await full();
     await page.emulateMedia({ reducedMotion: "reduce" });
     if (!r0.panel || r0.wrap !== r0.panel || r1.wrap || r1.replaying ||
-      a0.wrap >= a0.panel || a0.count !== "1 / 12" ||
+      a0.wrap >= a0.panel || a0.count !== "0 / 12" ||
       a1.wrap !== a1.panel || !a1.panel || !a2.replaying ||
       a3.wrap || a3.replaying) {
       problems.push(`unfold: ${JSON.stringify([r0, r1, a0, a1, a2, a3])}`);
