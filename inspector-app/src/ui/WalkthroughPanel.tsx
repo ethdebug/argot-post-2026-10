@@ -23,6 +23,7 @@ import {
 import { infoOf, whereOf, type Info, type Part, type Sides } from "./info";
 import { PointerYaml } from "./PointerYaml";
 import type { DataRef, LinkId, ViewId } from "./types";
+import { toTop } from "./scroll";
 
 const PROBE = "Point at a value or a byte for its details.";
 const short = (h: string, keep = 4) => {
@@ -168,26 +169,6 @@ function Contrast({ d, path, side, onPoint }: { d?: Decoded; path: string;
           first.slice(-12)}</span>: </>}<code>{w.name}</code> = <b>{w.text}
         </b></div></li>)}</ol>
   </>;
-}
-
-// Scroll an element's nearest scroll container (the page's, if none)
-// so that the element is at its top, below the container's
-// scroll-padding-top and the element's scroll-margin-top: a host page
-// with a sticky header sets its height there
-function toTop(el: HTMLElement, instant: boolean) {
-  let box: Element | null = el.parentElement;
-  while (box && !(/auto|scroll/.test(getComputedStyle(box).overflowY) &&
-    box.scrollHeight > box.clientHeight)) box = box.parentElement;
-  const root = document.scrollingElement ?? document.documentElement;
-  const c = box ?? root;
-  const px = (v: string) => parseFloat(v) || 0;
-  const pad = px(getComputedStyle(c).scrollPaddingTop);
-  const margin = px(getComputedStyle(el).scrollMarginTop);
-  const at = c === root ? 0 : c.getBoundingClientRect().top + c.clientTop;
-  const top = c.scrollTop + el.getBoundingClientRect().top - at - pad -
-    margin;
-  c.scrollTo({ top: Math.max(0, top), behavior: instant ? "auto"
-    : "smooth" });
 }
 
 export function WalkthroughPanel(p: { id: ViewId; data: DataRef;
