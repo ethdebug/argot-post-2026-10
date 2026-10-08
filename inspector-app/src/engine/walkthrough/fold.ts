@@ -809,11 +809,14 @@ export function walkthrough(x: WalkInput, path: Path, focus?: string):
       toBig(h) - toBig(own[k - 1]) > 1n);
     const none = allS.filter((h) => !ownS.has(h)).length;
     const n = allS.length;
-    const when = x.when ? `${x.when[0].toUpperCase()}${x.when.slice(1)}: ` : "";
+    // (one side of a pair: "After setMotd, this slot holds `motd`.")
+    const when = x.when ? `${x.when[0].toUpperCase()}${x.when.slice(1)}, `
+      : "";
+    const up = (t: string) => when ? t : t[0].toUpperCase() + t.slice(1);
     out.unshift({ id: "goal", phase: "goal", goal: true,
-      cap: foreign ? `${when}These are the ${n === 1 ? "slot" : `${n} slots`
-        } ${RULE(foreign.language)} would read for \`${sk}\`.`
-        : `${when}${n === 1 ? "This slot holds" : `These ${n} slots belong to`
+      cap: foreign ? `${when}${up("these")} are the ${n === 1 ? "slot"
+        : `${n} slots`} ${RULE(foreign.language)} would read for \`${sk}\`.`
+        : `${when}${up(n === 1 ? "this slot holds" : `these ${n} slots belong to`)
           } \`${sk}\`${apart ? ", scattered across storage" : ""}${none
           ? `; ${none === 1 ? "one of them holds" : `${nWord(none)} of them hold`
           } none of its data` : ""}.`,
