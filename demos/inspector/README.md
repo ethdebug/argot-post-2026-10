@@ -265,6 +265,14 @@ behaviour is the same, the file names are the app's now.
   `bug/arcade.bug` is a copy of `private/arcade/arcade.bug`.
 - `contracts/`: `Arcade.sol` and `Arcade.vy`, copied from the post's
   shared example (`private/arcade/`).
+- The walkthrough oracle is retired (2026-10-08). It was
+  `inspector-app/test/oracle/vanilla.json`, the vanilla page's
+  walkthroughs captured step by step, compared by
+  `test/e2e/oracle.spec.ts`. The Arcade renames (`roster` →
+  `playerList`, `total` → `totalScore`, `rounds` → `totalHits`,
+  `hitCount` → `hits`) change its captions, and the vanilla page is
+  deleted, so it cannot be captured again. `bin/run.mjs` and
+  `test/e2e/` check the walkthroughs.
 
 ## How the fixtures were made
 
