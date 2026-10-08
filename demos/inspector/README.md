@@ -516,8 +516,10 @@ Where a step's formula is byte ranges within one slot (the packed
 fields, a string's flag byte, `total` or `rounds`), the details draw
 them as a dump row: a one-line strip of 32 cells in four groups of
 eight (a group's gap a third of a cell, as in the dump), each value a
-span over its cells in its colour, named, the byte positions under it;
-its aria-label gives the ranges in words.
+span over its cells in its colour, named, the byte positions under it
+(two rows of 16 on a phone, as the phone's dump); a name too long for
+its span stands over it in a row kept for it, with a tick down to its
+cells. Its aria-label gives the ranges in words.
 
 A slot's label (a black popover) reads "how it is found : what it
 holds": the names of the values in its slots as the pointer names

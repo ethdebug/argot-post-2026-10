@@ -1424,7 +1424,7 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
       await page.locator('#details button[data-r="start"]').click();
       await page.locator(`#chips .chip[data-k="${P.fields}"]`).click();
       const x = await page.evaluate(() => {
-        const s = document.querySelector("#dtext .bstrip");
+        const s = document.querySelector("#dtext .bstrip .bs32");
         if (!s) return null;
         const idx = [...s.querySelectorAll(".bsidx span")].map((e) =>
           e.getBoundingClientRect());
@@ -1455,6 +1455,27 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
         "plays 12-15", "bestCombo 16-19", "combo 20-23", "score 24-31"]
           .join()) bad.push(`${wd} ${JSON.stringify(x)}`);
     }
+    // (a name too long for its span stands over it, whole, with a tick;
+    // never cut to a letter: carol's one-byte length flag)
+    await page.evaluate((x) => window.select("mid", { sel: x }), C);
+    await page.locator('#details button[data-r="start"]').click();
+    await page.locator('#chips .chip[data-k="8"]').click();
+    const call = await page.evaluate(() => {
+      const s = document.querySelector("#dtext .bstrip .bs32");
+      const l = s.querySelector(".bsl");
+      const v = s.querySelector(".bsv");
+      const lr = l?.getBoundingClientRect();
+      const vr = v?.getBoundingClientRect();
+      return { text: l?.textContent, inside: !v?.textContent,
+        over: lr && vr && lr.bottom <= vr.top && lr.right >= vr.left &&
+          lr.left <= vr.right,
+        cut: [...s.querySelectorAll(".bsn")].some((n) =>
+          n.scrollWidth > n.clientWidth + 1) };
+    });
+    await page.keyboard.press("Escape");
+    if (call.text !== "length-flag = 0x45" || !call.inside || !call.over ||
+      call.cut) bad.push(`callout ${JSON.stringify(call)}`);
+    await page.evaluate((x) => window.select("mid", { sel: x }), `${B}.plays`);
     await page.setViewportSize({ width: 1280, height: 900 });
     if (bad.length) problems.push(`byte strip: ${bad}`);
   }
@@ -4055,6 +4076,31 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
     problems.push("phone: no replay button");
   }
   await still(pp, "390");
+  // (the byte strip in two rows of 16, as the phone's dump)
+  {
+    await pp.evaluate(() => window.select("mid", { sel: "players" }));
+    await pp.evaluate(() => document.querySelector(
+      '#details button[data-r="start"]').click());
+    await pp.evaluate((k) => document.querySelector(
+      `#chips .chip[data-k="${k}"]`).click(), P.fields);
+    const rows = await pp.evaluate(() => {
+      const s = document.querySelector("#dtext .bs16");
+      const idx = [...s.querySelectorAll(".bsidx")].map((r) =>
+        [...r.children].map((c) => c.textContent).join());
+      const box = document.querySelector("#dtext .rform")
+        .getBoundingClientRect();
+      const last = s.querySelectorAll(".bsidx")[1]?.getBoundingClientRect();
+      return { shown: getComputedStyle(s).display !== "none" &&
+        getComputedStyle(document.querySelector("#dtext .bs32")).display ===
+        "none", idx, fits: !!last && last.bottom <= box.bottom + 0.5 };
+    });
+    await pp.keyboard.press("Escape");
+    if (!rows.shown || !rows.fits || rows.idx.join("|") !== [
+      [...Array(16).keys()].join(), [...Array(16).keys()].map((i) => i + 16)
+        .join()].join("|")) {
+      problems.push(`phone strip: ${JSON.stringify(rows)}`);
+    }
+  }
   // (16 bytes a line, filling the box)
   {
     const bad = (await fill(pp)).filter((x) => x.r < 0.98 || x.r > 1.001 ||
