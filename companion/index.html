@@ -110,7 +110,7 @@ buttons to step.</p>
       alt="soldb in the browser, highlighting the source span of one step in a Solidity contract" loading="lazy">
   </picture>
   <figcaption>soldb highlights the source span of one step of a real
-  Solidity transaction (2,233 steps).</figcaption>
+  Solidity transaction (2,228 steps).</figcaption>
 </figure>
 <figure>
   <picture>
@@ -964,19 +964,19 @@ medians, with no console errors.</p>
 
 <h3>soldb in the browser</h3>
 <p>The lean build steps a saved trace: <code>Arcade</code>'s
-<code>play()</code> transaction, 2,233 steps, a 1.5 MB trace (32 KB
+<code>play()</code> transaction, 2,228 steps, a 1.5 MB trace (32 KB
 gzipped). The saved
 trace leaves out the flat copies of each step's state, which soldb
 drops when it reads the trace
 (<a href="../demos/debugger/SOURCE.md#the-saved-trace-one-change">SOURCE.md</a>).
-soldb maps all 2,233 steps to a line in Arcade.sol; 1,870 of them map
+soldb maps all 2,228 steps to a line in Arcade.sol; 1,865 of them map
 to the whole contract (compiler-generated code).</p>
 <div class="table-wrap"><table>
 <tr><th>Stage</th><th>Chromium</th><th>Firefox</th></tr>
 <tr><td>Fetch everything, compile the WebAssembly</td><td>7.8 ms</td><td>16 ms</td></tr>
 <tr><td>Parse the trace</td><td>15 ms</td><td>15 ms</td></tr>
 <tr><td>Read the ethdebug program</td><td>29 ms</td><td>26 ms</td></tr>
-<tr><td>Map all 2,233 steps</td><td>24 ms</td><td>30 ms</td></tr>
+<tr><td>Map all 2,228 steps</td><td>24 ms</td><td>30 ms</td></tr>
 <tr><td>Solidity tab usable, from navigation start</td><td>122 ms</td><td>171 ms</td></tr>
 <tr><td>Whole page (all tabs, both builds)</td><td>354 ms</td><td>466 ms</td></tr>
 </table></div>

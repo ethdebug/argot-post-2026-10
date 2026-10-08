@@ -251,7 +251,7 @@ export function sourceMapEngine() {
     variables: "No variables: a source map has none. solc writes no " +
       "output that says where a local variable is at a step.",
     inline: "No inlining: a source map has no inline marker. Here " +
-      "solc inlined rolledHit, resetCombo and multiplied; their steps " +
+      "solc inlined _rolledHit, _resetCombo and _applyCombo; their steps " +
       "carry only their own ranges.",
     library: { text: "Library code: none in this contract" },
   };
