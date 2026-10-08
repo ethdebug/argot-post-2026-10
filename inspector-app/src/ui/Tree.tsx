@@ -343,8 +343,10 @@ export function Tree(p: { id: ViewId; data: DataRef; filter?: Filter;
       tree.scrollTop = scrolled;
     };
     align();
-    const seen = new ResizeObserver(() => align());
-    for (const x of dumps()) seen.observe(x.closest(".dump") ?? x);
+    // (none in jsdom)
+    const seen = typeof ResizeObserver === "undefined" ? null
+      : new ResizeObserver(() => align());
+    for (const x of dumps()) seen?.observe(x.closest(".dump") ?? x);
     // (again once the dump's rows and the page's fonts are in)
     const later = requestAnimationFrame(align);
     let live = true;
@@ -353,7 +355,7 @@ export function Tree(p: { id: ViewId; data: DataRef; filter?: Filter;
     return () => {
       live = false;
       cancelAnimationFrame(later);
-      seen.disconnect();
+      seen?.disconnect();
       removeEventListener("resize", align);
     };
     // (when the tree is drawn anew, as vanilla's renderTree, and on resize)
