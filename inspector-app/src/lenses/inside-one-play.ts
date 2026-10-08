@@ -15,7 +15,8 @@ export const insideOnePlay: LensSpec = {
   bookmarks: ["O0/roll", "O0/mult", "O0/writes", "O2/roll", "O2/mult",
     "O2/writes"],
   grid: '"meta meta" "level level" "point point" "mode mode" ' +
-    '"viewing viewing" "note note" "dump tree" "sdump tree" ' +
+    '"viewing viewing" "note note" "rows tree" "dump tree" ' +
+    '"sdump tree" ' +
     '"details how" ' +
     '"legend src" ". src"',
   links: ["mem"],
@@ -46,6 +47,10 @@ export const insideOnePlay: LensSpec = {
     { id: "safter", kind: "dump", area: "sdump", location: "storage",
       link: "mem", data: at("b"), side: "after", title: "Storage",
       steps: true },
+    // All | Related (the storage section's, for this section's own
+    // selection)
+    { id: "rows", kind: "picker", of: "related", area: "rows",
+      link: "mem", domId: "mrelated" },
     // (not lined up with the words: vanilla's memory section)
     { id: "tree", kind: "tree", area: "tree", link: "mem", domId: "mtree",
       data: at("$side"), align: [], plain: true },

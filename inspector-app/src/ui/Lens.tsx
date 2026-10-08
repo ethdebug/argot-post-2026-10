@@ -168,7 +168,11 @@ export function Lens(props: { spec: LensSpec; project: Project;
     const { store: st, show } = value;
     const want = props.hash ? fromHash(spec, readHash(), project.bookmarks)
       : undefined;
-    if (want) st.set((s) => ({ ...s, insets: want.insets }));
+    if (want) {
+      st.set((s) => ({ ...s, insets: want.insets,
+        related: want.related === undefined ? undefined
+          : { context: want.related } }));
+    }
     const id = want?.bookmark ?? st.get().bookmark;
     const ready = id ? show(id, want && { mode: want.side,
       sel: want.selection }) : Promise.resolve(true);
@@ -181,7 +185,8 @@ export function Lens(props: { spec: LensSpec; project: Project;
           const s = st.get();
           writeHash(toHash(spec, { bookmark: s.bookmark,
             side: s.side ?? "after", insets: s.insets,
-            selection: s.links[spec.links[0]]?.selection ?? null },
+            selection: s.links[spec.links[0]]?.selection ?? null,
+            related: s.related?.context },
           project.bookmarks), pending);
         };
         write();

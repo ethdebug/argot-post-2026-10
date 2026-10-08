@@ -197,8 +197,9 @@ test("the tree box: as tall as the dump, its first row level with the "
     const row = document.querySelector<HTMLElement>("#tree li .row")!;
     const top = (e: Element, c: string) => e.getBoundingClientRect().top -
       e.closest(c)!.getBoundingClientRect().top;
+    // (|| 0: a difference of float noise below zero rounds to -0)
     return { bottom: Math.round(t.getBoundingClientRect().bottom -
-      d.getBoundingClientRect().bottom),
+      d.getBoundingClientRect().bottom) || 0,
     scrolls: t.scrollHeight > t.clientHeight + 1,
     level: Math.round(top(line, ".words") - top(row, ".storage")) };
   });

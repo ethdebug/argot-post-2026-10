@@ -1,14 +1,16 @@
 // A picker (vanilla #picker, #mode): the lens's bookmarks (scenes), or
 // the side of a pair shown (Before | After). Radio buttons; the one
-// shown is aria-checked.
-import { useLens, useLensState } from "./hooks";
+// shown is aria-checked. Or the rows shown: All | Related (the related
+// view, LensState.related), and how many rows around each related one.
+import { useLens, useLensState, useLink } from "./hooks";
 import type { ViewId } from "./types";
 
 export function Picker(p: { id: ViewId;
-  of: "bookmarks" | "points" | "side" | "level"; domId?: string;
-  row?: string; link?: string }) {
+  of: "bookmarks" | "points" | "side" | "level" | "related";
+  domId?: string; row?: string; link?: string }) {
   const lens = useLens();
   const { spec, project, store } = lens;
+  if (p.of === "related") return <Related {...p} />;
   const current = useLensState((s) => s.bookmark);
   const side = useLensState((s) => s.side ?? "after");
   const single = useLensState((s) => s.points.a === s.points.b);
@@ -67,4 +69,37 @@ export function Picker(p: { id: ViewId;
     </div> : picker;
   }
   return null;
+}
+
+// All | Related, and "± 1 row" (a related row's neighbours too). Every
+// part keeps its place: the context box is there, muted, with All; the
+// hint is there, hidden, while something is selected.
+function Related(p: { id: ViewId; domId?: string; link?: string }) {
+  const lens = useLens();
+  const { store } = lens;
+  const related = useLensState((s) => s.related);
+  const [link] = useLink(p.link);
+  const set = (r: { context: number } | undefined) => store.set((s) =>
+    s.related?.context === r?.context ? s : { ...s, related: r });
+  const on = related !== undefined;
+  return <div id={p.domId} className="moderow relrow"
+    data-view={`${lens.key}:${p.id}`}>
+    <span className="modelabel" id={`${p.domId ?? p.id}-l`}>Rows</span>
+    <div className="picker mode" role="radiogroup"
+      aria-labelledby={`${p.domId ?? p.id}-l`}>
+      {([["all", "All"], ["related", "Related"]] as const).map(([k, t]) =>
+        <button key={k} role="radio" data-rows={k}
+          aria-checked={(k === "related") === on ? "true" : "false"}
+          onClick={() => set(k === "all" ? undefined
+            : { context: related?.context ?? 0 })}>{t}</button>)}
+    </div>
+    <label className={`chipcheck${on ? "" : " off"}`}>
+      <input type="checkbox" data-context checked={!!related?.context}
+        disabled={!on}
+        onChange={(e) => set({ context: e.target.checked ? 1 : 0 })} />
+      ± 1 row</label>
+    <span className="muted small relhint" aria-live="polite"
+      style={{ visibility: on && !link.selection ? "visible" : "hidden" }}>
+      select a value</span>
+  </div>;
 }

@@ -243,5 +243,8 @@ export interface Filter {               // truncation, per view
   // dump rows: the values' (and own slots); also the slots the point's
   // transaction read or wrote; or the values' and these
   rows?: "values" | "touched" | Hex[];
+  // only these rows, and `context` adjacent rows on each side of each
+  // (the "Related" view: a selection's related rows, engine/related.ts)
+  only?: { rows: Hex[]; context?: number };
   maxRows?: number;
 }
