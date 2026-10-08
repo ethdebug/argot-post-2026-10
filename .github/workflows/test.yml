@@ -1,0 +1,67 @@
+name: test
+on:
+  push: { branches: [main] }
+  pull_request:
+  workflow_dispatch:
+permissions: { contents: read }
+concurrency:
+  group: test-${{ github.ref }}
+  cancel-in-progress: true
+defaults:
+  run: { working-directory: inspector-app }
+# The inspector app's whole gate (npm run test:full), split so its parts
+# run side by side: the units; the e2e, one job a browser; the built
+# site's smoke (npm run check)
+jobs:
+  units:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: inspector-app/package-lock.json
+      - run: npm ci
+      - run: npm test
+  browsers:
+    strategy:
+      fail-fast: false
+      matrix:
+        browser: [chromium, firefox, webkit, check]
+    name: ${{ matrix.browser == 'check' && 'check' || format('e2e ({0})', matrix.browser) }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      # (check opens all three)
+      BROWSERS: ${{ matrix.browser == 'check' && 'chromium firefox webkit' || matrix.browser }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: inspector-app/package-lock.json
+      - run: npm ci
+      - id: pw
+        run: echo "version=$(node -p 'require("playwright/package.json").version')" >> "$GITHUB_OUTPUT"
+      - uses: actions/cache@v4
+        id: cache
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ steps.pw.outputs.version }}-${{ env.BROWSERS }}
+      - if: steps.cache.outputs.cache-hit != 'true'
+        run: npx playwright install --with-deps $BROWSERS
+      - if: steps.cache.outputs.cache-hit == 'true'
+        run: npx playwright install-deps $BROWSERS
+      - if: matrix.browser != 'check'
+        run: npx playwright test --project=${{ matrix.browser }}
+      - if: matrix.browser == 'check'
+        run: npm run check
+      - if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results-${{ matrix.browser }}
+          path: inspector-app/test-results/
+          retention-days: 7
