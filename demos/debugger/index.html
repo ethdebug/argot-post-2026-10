@@ -342,10 +342,10 @@ names its engine. The page only shows what the engine reports.</p>
 <code>play()</code>, and a roll from the block gives a hit or a miss. A
 hit raises the player's combo by one and scores 10 &times; combo (up to
 5&times;); a miss resets the combo. The story: alice, bob and carol
-join; alice hits twice, bob hits, carol misses. The transaction is
-alice's third <code>play()</code>, a hit at combo 3:
-<code>multiplied(10, 3)</code> is 30, and <code>total</code> goes from 40
-to 70. Each call ran on a local anvil node. anvil cannot set the
+join; alice hits twice, bob hits, carol hits four times, then
+misses. The transaction is alice's third <code>play()</code>, a hit at combo 3:
+<code>_applyCombo(10, 3)</code> is 30, and <code>totalScore</code> goes
+from 140 to 170. Each call ran on a local anvil node. anvil cannot set the
 block's randomness, so the script replays a <code>play()</code> from a
 snapshot until it rolls the story's outcome.</p>
 
@@ -358,7 +358,7 @@ ethdebug.</strong></p>
 <code>c434b2ea</code>), with ethdebug output. Its pointers let soldb
 read the contract's state. solc writes ethdebug only with the optimizer
 off, so this build is via-IR without the optimizer. The trace is soldb's
-saved trace of the transaction (1.5 MB, 2,233 EVM steps). soldb parses
+saved trace of the transaction (1.5 MB, 2,228 EVM steps). soldb parses
 the trace (<code>Trace.fromJson</code>) and reads the ethdebug
 (<code>attachEthdebug</code>). Then it maps each step to its source
 (<code>step(i)</code>) and reads the contract's state
@@ -393,19 +393,19 @@ in three ways: BUG has one entry point, so <code>join</code> and
 <code>setMotd</code> are dispatched by hand; BUG has no
 <code>require</code>, so <code>join</code> and <code>play</code> check
 nothing; and the reset is written inline. The roll is the same as in
-Solidity. Look for: <code>roster</code> (the three players),
-<code>motd</code> (a 50-byte string), <code>total</code> going from 40
-to 70; at -O0, the calls to <code>rolledHit</code> and
-<code>multiplied(points: 10, combo: 3)</code> in the call stack; at
--O2, the inlined <code>multiplied</code>, with its local <code>m</code>
+Solidity. Look for: <code>playerList</code> (the three players),
+<code>motd</code> (a 50-byte string), <code>totalScore</code> going from
+140 to 170; at -O0, the calls to <code>_rolledHit</code> and
+<code>_applyCombo(points: 10, combo: 3)</code> in the call stack; at
+-O2, the inlined <code>_applyCombo</code>, with its local <code>mult</code>
 going from 5 to 3, then <code>gained</code> (30). The tab has the same
 program at two optimization levels.</p>
 <p class="muted">At both levels, bugc gives a local variable a pointer
 where its value is in memory. Where a local has no location (its value
 is not stored yet, or the optimizer folded it), bugc lists it by type
 only: the format cannot yet say "the value is this expression"
-(ethdebug/format#291). At -O2, bugc inlines <code>rolledHit</code> and
-<code>multiplied</code>. The inlined instructions carry
+(ethdebug/format#291). At -O2, bugc inlines <code>_rolledHit</code> and
+<code>_applyCombo</code>. The inlined instructions carry
 <code>transform: ["inline"]</code> and keep the source range of the
 call. The locals of an inlined function are marked "inline". They are
 listed from the step after the inlined call starts to the step of the
@@ -430,13 +430,13 @@ page highlights each step's range and shows its entry. It builds the
 call stack as older debuggers did, from the <code>i</code> and
 <code>o</code> jumps, and names a frame by the AST function that holds
 the jump's target.</p>
-<p>The transaction: 486 steps; 327 map to the whole contract, 95 to no
-source and 64 to a smaller range. solc inlined <code>rolledHit</code>,
-<code>multiplied</code> and <code>resetCombo</code> into the functions
+<p>The transaction: 484 steps; 325 map to the whole contract, 95 to no
+source and 64 to a smaller range. solc inlined <code>_rolledHit</code>,
+<code>_applyCombo</code> and <code>_resetCombo</code> into the functions
 that call them. Look for: the step just before the roll (line 40),
 which pushes the <code>3</code> of <code>% 3</code> and shows
 <code>players</code> on line 26; and the call stack while
-<code>rolledHit</code> and <code>multiplied</code> run.</p>
+<code>_rolledHit</code> and <code>_applyCombo</code> run.</p>
 </div>
 
 <p class="muted" data-about="bug old" hidden>"over" and "out"
