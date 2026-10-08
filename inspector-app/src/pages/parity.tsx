@@ -184,10 +184,22 @@ try {
   // elements; every pause decoded once for the checks (vanilla mem.js)
   const memMount = Object.fromEntries(Object.entries({ meta: "mmeta",
     level: "mlevel", point: "mpoint", mode: "mmoderow", viewing: "mviewing",
-    note: "mnote", dump: "mpanel", tree: "mtree", details: "mdetails",
+    note: "mnote", dump: "mpanel", sdump: "mspanel", tree: "mtree",
+    details: "mdetails",
     how: "mhow", legend: "msrclegend", src: "msrc" })
     .map(([a, id]) => [a, place($(id)!)]));
-  const memReady = (_: LensContextValue, shown: Promise<boolean>) => {
+  const memReady = (lens: LensContextValue, shown: Promise<boolean>) => {
+    // (the storage panel's box: shown at a pause that reads a slot)
+    const box = async () => {
+      const bm = project.bookmarks.find((b) =>
+        b.id === lens.store.get().bookmark);
+      if (!bm) return;
+      const t = await project.timeline(bm.timeline);
+      $("mstore").hidden = !t.points.some((p) =>
+        bm.points.includes(p.id) && p.record);
+    };
+    lens.store.subscribe(() => void box());
+    void shown.then(box);
     const flat = (ns: ValueNode[]): ValueNode[] => ns.flatMap((n) =>
       n.kind === "group" ? flat(n.children ?? []) : n.kind ? [] : [n]);
     void shown.then(async () => {
