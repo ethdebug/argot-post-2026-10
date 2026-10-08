@@ -794,7 +794,6 @@ li.same > .row .name, li.same > .row .type { opacity: 0.55; }
 .mknown { margin: 16px 0 0; padding-left: 20px; max-width: 80ch; }
 .mknown li { margin: 4px 0; }
 /* the record's storage slot after memory, and a local with no location */
-.gap.mstore span { font-size: 0.75rem; letter-spacing: 0.04em; }
 #mtree .noloc { color: var(--muted); }
 .mpickrow .label { min-width: 5.5em; }
 #mmoderow[hidden] { display: none; }
@@ -1355,3 +1354,6 @@ html { overflow-anchor: none; }
   dotted; text-underline-offset: 2px; color: var(--accent) !important;
   cursor: pointer; }
 #ptr .alias span { color: inherit !important; }
+
+/* (a location panel with one view: its header names it; no view name) */
+.view-name:empty { display: none; }
