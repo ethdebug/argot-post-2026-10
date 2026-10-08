@@ -273,3 +273,21 @@ test("the lens alone in the shell", async ({ page }) => {
     .toBeAttached();
   await expect(page.locator(".view .b.hl").first()).toBeAttached();
 });
+
+test("the program line is hidden, as the storage section's",
+  async ({ page }) => {
+  await ready(page);
+  await expect(page.locator("#mmeta")).toBeHidden();
+  await expect(page.locator("#mmeta")).toContainText("bug/arcade.bug");
+});
+
+// (vanilla mem.js forRegion: a derivation's region step lights its
+// region's bytes alone, over the selection; the frame word is named by
+// its part, "multiplied#frame")
+test("a derivation step lights its region alone", async ({ page }) => {
+  await ready(page, "#mopt=0&mpt=mult&msel=combo");
+  await page.locator("#mhow li[data-region]").first().focus();
+  await expect.poll(() => mlit(page)).toEqual({ "after 0x0080": "all" });
+  await expect(page.locator("#mpanel .view:not([hidden]) .pop"))
+    .toHaveText(["word 0x0080 : multiplied#frame · unchanged"]);
+});

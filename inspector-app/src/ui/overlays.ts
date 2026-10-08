@@ -34,7 +34,7 @@ function byteLight(c: El) {
   const key = byteKey(x.l.location, w.dataset.slot as Hex, +c.dataset.i!);
   const hl = x.light.bytes.has(key);
   const ids = (c.dataset.owners ?? "").split("|").filter(Boolean);
-  const k = hl ? ids.map((id) => x.light.colours.get(id.replace(/#length$/,
+  const k = hl ? ids.map((id) => x.light.colours.get(id.replace(/#[a-z]+$/,
     ""))).find((y) => y !== undefined) : undefined;
   const muted = hl && ((x.light.focus !== undefined && !!k &&
     k !== x.light.focus) || !!x.light.dim?.has(key));
@@ -154,6 +154,7 @@ function whatIn(root: El, rowsIn: El[]): Item[] {
   });
   const owners = perRow.flat();
   if (!owners.length) return [];
+  // (a length part names its value; another part, as vanilla, by its id)
   const path = (id: string) => id.replace(/#length$/, "");
   const ids = all(root, ".b[data-owners]")
     .flatMap((c) => c.dataset.owners!.split("|")).map(path);

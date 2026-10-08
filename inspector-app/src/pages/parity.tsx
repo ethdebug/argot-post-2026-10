@@ -155,12 +155,15 @@ try {
     if (abi) {
       void decode(project, abi, bm.points[bm.points.length - 1])
         .then((d) => {
+          // (by the parts' ABI ids, as vanilla's)
+          const part = (p?: string | null) => p ? d.byPath.get(p)?.part ??
+            null : null;
           const k = cl?.hover?.path ?? cl?.selection ?? null;
           const n = k ? d.byPath.get(k) : undefined;
           (window as unknown as { calldataResults: unknown })
-            .calldataResults = { chosen: cl?.selection ?? null,
-              lit: !n ? [] : n.children ? n.children.map((x) => x.path)
-                : [n.path] };
+            .calldataResults = { chosen: part(cl?.selection),
+              lit: !n ? [] : n.children ? n.children.map((x) => x.part)
+                : [n.part] };
         }, () => {});
     }
     // the locked state: what the view is on, and the way out (it keeps

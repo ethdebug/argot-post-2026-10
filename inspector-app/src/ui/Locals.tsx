@@ -106,11 +106,11 @@ const Steps = ({ xs }: { xs: [string, ReactNode][] }) =>
 const ex = (e: unknown) => <C>{JSON.stringify(e)}</C>;
 
 function itemOf(x: Item, path: string, side: string, two: boolean,
-  hover: (r: Item) => void, evals?: ReactNode) {
+  hover: (r: Item, side: string) => void, evals?: ReactNode) {
   const at = x.kind === "start" ? {} : { "data-region": JSON.stringify(
     x.region, (_, v) => typeof v === "bigint" ? String(v) : v),
-  "data-side": side, tabIndex: 0, onPointerOver: () => hover(x),
-  onFocus: () => hover(x) };
+  "data-side": side, tabIndex: 0, onPointerOver: () => hover(x, side),
+  onFocus: () => hover(x, side) };
   if (x.kind === "start") {
     return <li key="start"><span className="k">Start</span><div className="c">
       <C>{path}</C> is a local in memory here <span className="tag">from
@@ -157,8 +157,9 @@ export function Derivation(p: { id: ViewId; data: DataRef;
   }
   const head = <p className="howhead"><C>{n.path}</C>{" "}
     <span className="type">{n.typeText}</span></p>;
-  const hover = (x: Item) => x.kind !== "start" &&
-    setLink((s) => ({ ...s, hover: { region: x.region } }));
+  const hover = (x: Item, sd: string) => x.kind !== "start" &&
+    setLink((s) => ({ ...s, hover: { region: x.region,
+      side: sd as "before" | "after" } }));
   if (n.kind === "group") {
     const frame = n.regions[0];
     return box(<>{head}{!frame ? <Steps xs={[["Inlined", <>At -O{opt},
@@ -304,7 +305,8 @@ export function Note(p: { id: ViewId; data: DataRef; domId?: string;
   }
   if (p.part === "meta") {
     const m = c?.compiler.match(/\(ethdebug\/format (\S+), (\w+)\)/);
-    return <p className="meta" id={p.domId}>Program{" "}
+    // (kept, hidden, as vanilla's since ab53776: the About page says it)
+    return <p className="meta" id={p.domId} hidden>Program{" "}
       <code>{c?.sources[0]?.path}</code>, alice's third hit, compiled by
       bugc from ethdebug/format {m?.[1] === "main" ? "main"
         : <>branch <code>{m?.[1]}</code></>} (commit <code>{m?.[2]}</code>).

@@ -48,20 +48,22 @@ export function abiParts(input: Hex, param = "m"): Calldata {
 
 // The calldata as values (the dump's and the tree's): the selector, and
 // the parameter with its parts, each owning its bytes (location
-// calldata). Paths are vanilla's part ids.
+// calldata). Paths by the parameter's name ("text.length"); each node
+// keeps its part's ABI id.
 export function abiTree(calldata: Uint8Array, param: string): ValueNode[] {
   const cd = abiParts(toHex(calldata), param);
   const [sel, off, len, data] = cd.parts;
   const node = (p: typeof sel, label: string, typeText: string,
-    root: string): ValueNode => ({ path: p.id, label, root, type: "",
-    typeText, value: { text: p.value, hex: "0x" }, regions: [{
-      location: "calldata", offset: p.from, length: p.to - p.from + 1,
-      role: "value", instance: "" }] });
+    root: string): ValueNode => ({
+    path: root === "selector" ? "selector" : `${param}.${label}`, part: p.id,
+    label, root, type: "", typeText, value: { text: p.value, hex: "0x" },
+    regions: [{ location: "calldata", offset: p.from,
+      length: p.to - p.from + 1, role: "value", instance: "" }] });
   return [node(sel, "selector", "bytes4", "selector"),
-    { path: "m", label: param, root: "m", type: "",
+    { path: param, part: "m", label: param, root: param, type: "",
       typeText: "string calldata", regions: [],
       value: { text: data.value, hex: "0x" },
-      children: [node(off, "offset", "uint256", "m"),
-        node(len, "length", "uint256", "m"),
-        node(data, "bytes", "bytes", "m")] }];
+      children: [node(off, "offset", "uint256", param),
+        node(len, "length", "uint256", param),
+        node(data, "bytes", "bytes", param)] }];
 }

@@ -236,6 +236,16 @@ export function useLight(id: string, filter?: Filter, at?: DataRef,
     if (link.walk && w) return forStep(d, l, w.steps, Math.min(link.walk.step,
       w.steps.length - 1));
     const sel = selection && d.byPath.has(selection) ? selection : null;
+    // (a derivation's region step, pointed at: its bytes alone, over the
+    // selection: vanilla mem.js forRegion)
+    if (hover?.region) {
+      const other = v.kind === "dump" && hover.side && v.side &&
+        v.side !== hover.side;
+      const bytes = new Set(regionBytes(hover.region).filter(() => !other &&
+        hover.region!.location === l.location).map(([row, b]) =>
+        byteKey(l.location, row, b)));
+      return { ...noLight, bytes, muted: true };
+    }
     if (sel) {
       const base = forPath(d, l, sel, { ...o, selection: true });
       const lk = locked(hover, sel, d.byPath);
@@ -248,17 +258,12 @@ export function useLight(id: string, filter?: Filter, at?: DataRef,
       // (a run of the value's own bytes: those bytes' owners only)
       const leaf = hover.bytes && l.cover.get(byteKey(hover.bytes.location,
         hover.bytes.row, hover.bytes.from))?.some((x) =>
-        x.replace(/#length$/, "") === hover.path);
+        x.replace(/#[a-z]+$/, "") === hover.path);
       return leaf ? forBytes(d, l, hover.bytes!, o)
         : { ...forPath(d, l, hover.path, o),
           ...(hover.bytes ? { at: hover.bytes } : {}) };
     }
     if (hover?.bytes) return forBytes(d, l, hover.bytes, o);
-    if (hover?.region) {
-      const bytes = new Set(regionBytes(hover.region).map(([row, b]) =>
-        byteKey(l.location, row, b)));
-      return { ...noLight, bytes, muted: true };
-    }
     if (hover?.row) return forRow(d, l, hover.row as Hex);
     if (hover) return { ...noLight, muted: true };
     return noLight;
