@@ -11,6 +11,7 @@ import { decode } from "../engine/decode";
 import { fromHash, toHash } from "../engine/hash";
 import { readHash, writeHash, type Pending } from "./hash";
 import { createStore, type Store } from "./store";
+import { animated } from "./transition";
 import {
   decodingOf, LensContext, useLensState, type LensContextValue,
   hush, pointer,
@@ -131,7 +132,9 @@ export function Lens(props: { spec: LensSpec; project: Project;
   // empty space there, are its own; default: its views)
   within?: (el: Element) => boolean }) {
   const { spec, project, mount, onReady } = props;
-  const [store] = useState(() => createStore(initialState(spec, project)));
+  // (a change of the related view's rows animates: transition.ts)
+  const [store] = useState(() => animated(createStore(initialState(spec,
+    project))));
   const key = useId();
   const value = useMemo(() => ({ spec, project, store, key,
     show: shower(store, spec, project, props.onFail) }),
