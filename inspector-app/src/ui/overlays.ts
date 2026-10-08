@@ -17,8 +17,8 @@ const data = (e: Element | null): ViewData | undefined =>
   (e?.closest(".view") as (El & { _data?: ViewData }) | null)?._data;
 const slotOf = (r: El) => r.dataset.slot as Hex;
 const rowLit = (x: ViewData | undefined, l: Light | undefined, r: El) =>
-  !!x && !!l && (l.wholes?.has(slotOf(r)) || Array.from({ length: 32 },
-    (_, i) => l.bytes.has(byteKey(x.l.location, slotOf(r), i))).some(Boolean));
+  !!x && !!l && Array.from({ length: 32 }, (_, i) =>
+    l.bytes.has(byteKey(x.l.location, slotOf(r), i))).some(Boolean);
 // a row's state: lit, lit in the other point only, found by an earlier
 // walkthrough step, a gutter
 function rowState(r: El) {
@@ -190,8 +190,8 @@ function whatIn(root: El, rowsIn: El[]): Item[] {
   // whose bytes are lit; a slot only computed yet names nothing)
   const x0 = data(rowsIn[0]);
   const walk = !!x0?.light.walk;
-  const read = rowsIn.filter((r) => rowLit(x0, { ...x0!.light,
-    wholes: undefined } as Light, r));
+  const read = rowsIn.filter((r) => rowLit(x0, x0?.light, r) &&
+    !x0?.light.wholes?.has(slotOf(r)));
   if (walk && !read.length) return [];
   const rows = walk ? read : lit.length ? lit : rowsIn;
   // each row's owners, in byte order, and its runs of bytes no value
@@ -427,8 +427,8 @@ function popFor(root: El, rows: El[], more: number): Pop {
   // computed, by their names; not the whole block it stands for)
   // (and a run with something read: the slots read, not the block)
   const onRows = rows.filter((r) => rowState(r).on);
-  const readRows = rows.filter((r) => rowLit(data(r), { ...light!,
-    wholes: undefined } as Light, r));
+  const readRows = rows.filter((r) => rowLit(data(r), light, r) &&
+    !light?.wholes?.has(slotOf(r)));
   const shown = !light?.walk ? rows : readRows.length ? readRows
     : onRows.length ? onRows : rows;
   const [, how, n] = named(runName(shown)).match(/^(.*?)(, \d+ slots)?$/)!;

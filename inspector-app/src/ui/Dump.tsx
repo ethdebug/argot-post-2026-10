@@ -456,11 +456,8 @@ export function Dump(p: { id: ViewId; location: Location; data: DataRef;
     const what = `${name}${name.startsWith("slot") || !slots ? ""
       : ` (slot ${short(r.address)})`}${facts ? `; ${facts}` : ""}`;
     // (lit, or pointed at: a gutter address)
-    // (or a whole slot a walkthrough's step outlines: computed, not read)
-    const whole = light.wholes?.get(r.address);
-    const on = light.at?.row === r.address || whole !== undefined ||
-      [...Array(32).keys()].some((i) => light.bytes.has(byteKey(loc,
-        r.address, i)));
+    const on = light.at?.row === r.address || [...Array(32).keys()].some(
+      (i) => light.bytes.has(byteKey(loc, r.address, i)));
     const only = !on && !!p.compare && [...there.bytes].some((b) =>
       b.split("|")[1] === r.address);
     const gut = !on && !only && light.gutters.has(r.address);
@@ -470,8 +467,7 @@ export function Dump(p: { id: ViewId; location: Location; data: DataRef;
     const rel = !on && !only && !!light.related?.has(r.address);
     const cls = ["wrow", same ? "same" : "", k % 2 ? "zb" : "",
       on ? "on" : "", only ? "only" : "", known ? "known" : "",
-      gut ? "gut" : "", rel ? "rel" : "",
-      whole !== undefined ? `whole ${pkClass(whole)}` : ""]
+      gut ? "gut" : "", rel ? "rel" : ""]
       .filter(Boolean).join(" ");
     lines.push(<div key={r.address} className={cls} data-slot={r.address}
       data-name={name} data-facts={facts}

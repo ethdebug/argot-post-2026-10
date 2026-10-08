@@ -31,7 +31,7 @@ export type Form =
   | { kind: "strip"; fields: { path?: Path; name: string; from: number;
     to: number; k: Colour }[] };
 // (`k`: its regions' bytes in that colour, whatever owns them;
-// `wholes`: slots computed here, outlined in `k`, their bytes not lit)
+// `wholes`: slots computed here, lit whole in `k`, their bytes not read)
 export interface Part { regions: ResolvedRegion[]; rows: Path[];
   colours?: ReadonlyMap<Path, Colour>; dim?: boolean; slots?: Hex[];
   k?: Colour; wholes?: Hex[] }
@@ -535,10 +535,12 @@ export function walkthrough(x: WalkInput, path: Path, focus?: string):
           source: COMPILER,
           chip: isRecord ? `keccak(key, slot ${slotN})` : fname(xs[0]),
           chipLabel: isRecord ? "record" : tn(into.template),
-          // (the computed slots, whole, outlined in their entries'
-          // colours: found, not read yet)
+          // (the computed slots, lit whole, as a region is: in each
+          // entry's colour; one entry alone, the selection's yellow;
+          // with one entry in focus, the others echo)
           parts: xs.map((y) => ({ regions: [], rows: [isRecord ? y.inst
-            : leafOf(y).path], colours: M, k: kOf(y.inst),
+            : leafOf(y).path], colours: M, k: xs.length === 1 ? 0
+            : kOf(y.inst), dim: !every && y.inst !== f,
             wholes: [w32(y.s.value.hex)] })),
           rows,
           band: [...defineBand(nd), pos(nd.block, [...nd.at.slice(0, -2),

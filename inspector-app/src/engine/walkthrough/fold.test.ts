@@ -225,13 +225,16 @@ it("the last step, found: the selection, what it is; a re-target there "
   expect(retarget(a, a.length - 1, b).at).toBe(b.length - 1);
 });
 
-it("a hand-off lights the slots it computes, whole, outlined in each "
-  + "entry's colour", async () => {
+it("a hand-off lights the slots it computes, whole, in each entry's "
+  + "colour; one entry alone in the selection's yellow", async () => {
   const w = walkthrough(await at(), "players")!;
   const rec = w.steps.find((s) => s.chipLabel === "record")!;
   expect(rec.parts.map((p) => [p.k, p.wholes?.[0].slice(-4)])).toEqual([
     [1, "aa80"], [2, "7527"], [3, "9978"]]);
   expect(rec.rows).toEqual([A, B, C]);
+  const one = walkthrough(await at(), `${C}.name`)!.steps.filter((s) =>
+    s.phase === "handoff");
+  expect(one.map((s) => s.parts.map((p) => p.k))).toEqual([[0], [0]]);
 });
 
 it("colours keep one meaning, step 0 to found: yellow is the selection's "
