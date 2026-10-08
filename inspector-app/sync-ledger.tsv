@@ -24,3 +24,5 @@ c62550a	Inspector: a walkthrough's step 0, the goal: when the selection takes se
 ab53776	Inspector: the page decluttered to put the inspector on the first screen (one line a scene, a short contract intro, a short memory lede); the removed prose moved to the README's About this demo, linked at the bottom	41b2290 (S6)
 5ec2f00	Inspector: the byte strip names a narrow span over it with a tick, and wraps to two rows of 16 on a phone	41b2290 (S6)
 3c6d9b6	Inspector: one location panel for every location (panel.js renderLocation): the memory section shows a Memory panel and a Storage panel of its own, instead of a storage row inside memory	e681cdb (S7; with 034d585, the location panels, and e0a5b5b, calldata as the same Dump)
+4c6de15	Inspector: the calldata view drawn and lit by the one location panel (calldata regions, panel.js paint), its own painting removed	f660ad3 (S8)
+6767a25	Inspector: the byte strip's 32 cells evenly spaced, with no group gaps	f660ad3 (S8)
