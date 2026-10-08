@@ -116,15 +116,29 @@ export async function walk(pointer: Format.Pointer, o: {
         const n = node(id, kind, p, tpl, parent);
         const region: Record<string, unknown> = { ...p };
         const exprs: unknown[] = [];
-        for (const k of ["slot", "offset", "length"]) {
+        // (each field's expression and value, and an operation's operands
+        // that are expressions themselves: vanilla replay's explain)
+        const fields: NonNullable<Instance["fields"]> = [];
+        for (const k of ["slot", "offset", "length"] as const) {
           if (!(k in p)) continue;
-          region[k] = toData(await ev(p[k], vals));
+          const v = await ev(p[k], vals);
+          region[k] = toData(v);
           exprs.push(p[k]);
+          const e = p[k];
+          const op = e && typeof e === "object" ? Object.keys(e)[0] : "";
+          const xs: unknown[] = op ? [e[op]].flat() : [];
+          const args = op && op !== "~read" &&
+            xs.some((a) => a && typeof a === "object")
+            ? await Promise.all(xs.map(async (a) =>
+              ({ expr: a, value: hexOf(await ev(a, vals)) }))) : undefined;
+          fields.push({ field: k, expr: e, value: hexOf(v),
+            ...(args ? { args } : {}) });
         }
         const name = renames.reduceRight(
           (x, m) => (x !== undefined && hasOwn(m, x) ? m[x] : x),
           p.name as string | undefined);
         const i = instance(n, scope, vals, exprs);
+        i.fields = fields;
         const r = region as { slot?: Data; offset?: Data; length?: Data };
         i.region = {
           location: p.location, ...(name !== undefined ? { name } : {}),

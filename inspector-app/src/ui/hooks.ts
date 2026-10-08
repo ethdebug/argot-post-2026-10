@@ -185,7 +185,8 @@ export function useWalkthrough(id: string, at?: DataRef):
   return useMemo(() => {
     if (!d || !point || !c || !sel || !d.byPath.has(sel)) return null;
     const dc = decodingOf(lens, d.decoding);
-    if (!dc) return null;
+    // (no walkthrough of locals: the memory section shows its steps)
+    if (!dc || dc.variables !== "state") return null;
     const k = `walk|${d.decoding}|${d.point}|${sel}|${focus ?? ""}`;
     const memo = lens.project.memo as Map<string, unknown>;
     if (!memo.has(k)) {

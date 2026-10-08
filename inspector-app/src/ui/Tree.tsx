@@ -31,7 +31,8 @@ const pk = (k: Colour | undefined) => k === "src" ? "pksrc"
 
 interface Ctx { light: Light; selection: string | null;
   collapsed: ReadonlySet<string>; pair?: [Decoded, Decoded];
-  card?: { path: string; side: string; node: ReactNode } }
+  card?: { path: string; side: string; node: ReactNode };
+  plain?: boolean }
 
 // a row's colour when lit (0: the selection's yellow)
 const colourOf = (c: Ctx, n: ValueNode) => c.light.colours.get(n.path) ?? 0;
@@ -72,6 +73,7 @@ function Row({ n, top, c, inBlk }: { n: ValueNode; top?: boolean; c: Ctx;
   const valueChg = pair && pair[0].byPath.get(n.path)?.value?.text !==
     pair[1].byPath.get(n.path)?.value?.text;
   const li = [pair ? (chg ? "chg" : "same") : "", top ? "top" : "",
+    n.none ? "none" : "",
     shut ? "collapsed" : "", blk ? "blk" : "", blk ? pk(blkK) : "",
     blk && mutedRow(c, n) ? "muted" : ""].filter(Boolean).join(" ");
   // (the other state's card: under the row and its members in Before,
@@ -82,14 +84,18 @@ function Row({ n, top, c, inBlk }: { n: ValueNode; top?: boolean; c: Ctx;
       aria-pressed={sel ? "true" : "false"}>
       <span className="name">{n.label}</span>
       <span className="type">{n.typeText}</span>
-      {n.value || own ? <span className={`val${!pair ? ""
+      {n.none ? <span className={`val${!pair ? "" : chg ? " chg"
+        : " same"}`}><span><i className="noloc">no location at this
+        point</i></span></span>
+        : n.value || own ? <span className={`val${!pair ? ""
         : valueChg || (own && chg) ? " chg" : " same"}`}>
         <span>{n.value?.text ?? n.summary}</span></span>
         : group ? <span className="val sum">{n.summary}</span>
           : n.note ? <span className="muted">{n.note}</span> : null}
       {card?.side === "after" && card.node}
     </div>
-    {group && <button type="button" className="chev" tabIndex={0}
+    {group && !c.plain && <button type="button" className="chev"
+      tabIndex={0}
       aria-expanded={shut ? "false" : "true"}
       aria-label={`${shut ? "Expand" : "Collapse"} ${n.label}`}>
       {CHEV}</button>}
@@ -145,7 +151,9 @@ function treeCard(path: string | null, pair: [Decoded, Decoded],
 
 export function Tree(p: { id: ViewId; data: DataRef; filter?: Filter;
   link?: LinkId; domId?: string; variant?: "tree" | "table";
-  compare?: DataRef; align?: ViewId[] }) {
+  compare?: DataRef; align?: ViewId[];
+  // (no cards of the other state, no collapsing: the memory section's)
+  plain?: boolean }) {
   const d = useDecoded(p.data);
   const o = useDecoded(p.compare);
   const light = useLight(p.id);
@@ -166,7 +174,9 @@ export function Tree(p: { id: ViewId; data: DataRef; filter?: Filter;
     ? link.selection : link.hover?.path ?? [...light.rows][0] ?? null;
   const c: Ctx = { light, selection: link.selection, pair,
     collapsed: new Set([...view.collapsed].filter((q) => !closing.has(q))),
-    card: pair && insets && light.muted ? treeCard(lit, pair, side)
+    plain: p.plain,
+    card: pair && insets && light.muted && !p.plain
+      ? treeCard(lit, pair, side)
       : undefined };
   // only the filter's roots, and the groups that hold them
   const roots = p.filter?.roots;
@@ -427,6 +437,6 @@ export function Tree(p: { id: ViewId; data: DataRef; filter?: Filter;
       </ul> : <div className="skel" aria-hidden="true">
         {Array.from({ length: 8 }, (_, i) => <i key={i} />)}</div>}
     </div>
-    {edge("up")}{edge("down")}
+    {!p.plain && <>{edge("up")}{edge("down")}</>}
   </>;
 }

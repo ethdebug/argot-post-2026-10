@@ -66,3 +66,30 @@ it("Review Focus 3: a stale or foreign hash gives the first bookmark's "
   expect(fromHash(lens, q("ex=alice&mode=compare"), p.bookmarks).side)
     .toBe("after");
 });
+
+// the memory section's lens: its level and pause apart (mopt, mpt), its
+// mode, its selection (absent: the pause's default; empty: none), no
+// insets (vanilla mem.js keep, main)
+const mem: HashLens = { links: ["mem"],
+  bookmarks: ["O0/roll", "O0/mult", "O0/writes", "O2/roll", "O2/mult",
+    "O2/writes"], hash: { prefix: "m", levels: true } };
+
+it("the memory section's keys: mopt, mpt, mmode, msel", async () => {
+  const p = await testProject();
+  expect(fromHash(mem, q("ex=motd&mode=before&sel=roster&mopt=2&mpt=mult"
+    + "&mmode=before&msel=m&insets=0"), p.bookmarks)).toEqual({
+    bookmark: "O2/mult", side: "before", insets: true, selection: "m" });
+  expect(fromHash(mem, q("mopt=2"), p.bookmarks)).toMatchObject({
+    bookmark: "O2/roll", selection: "hit" });
+  expect(fromHash(mem, q("mpt=writes&msel="), p.bookmarks)).toMatchObject({
+    bookmark: "O0/writes", selection: null });
+  // (stale: the defaults)
+  expect(fromHash(mem, q("mopt=7&mpt=x&msel=zzz"), p.bookmarks))
+    .toMatchObject({ bookmark: "O0/roll", selection: "zzz" });
+  expect(toHash(mem, { bookmark: "O2/mult", side: "before", insets: true,
+    selection: "multiplied" }, p.bookmarks)).toEqual({ mopt: "2",
+    mpt: "mult", mmode: "before", msel: null });
+  expect(toHash(mem, { bookmark: "O0/roll", side: "after", insets: true,
+    selection: null }, p.bookmarks)).toEqual({ mopt: "0", mpt: "roll",
+    mmode: null, msel: "" });
+});

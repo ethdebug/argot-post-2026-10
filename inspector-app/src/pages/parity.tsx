@@ -13,6 +13,8 @@ import { load } from "../engine/project";
 import { decode } from "../engine/decode";
 import type { Decoded } from "../engine/types";
 import { fullInspector } from "../lenses/full-inspector";
+import { insideOnePlay } from "../lenses/inside-one-play";
+import type { ValueNode } from "../engine/types";
 import { Lens } from "../ui/Lens";
 import type { LensContextValue } from "../ui/hooks";
 
@@ -22,6 +24,10 @@ type Results = { done: boolean; usable?: number; errors: string[];
 declare global {
   interface Window {
     results: Results;
+    // the memory section's: every pause's locals, decoded (run.mjs)
+    memResults: { done: boolean; errors: string[];
+      decoded: Record<string, Record<string, { values: Record<string,
+        string>; none: string[] }[]>> };
     select(id: string, view?: { mode?: "before" | "after";
       sel?: string | null }): Promise<boolean>;
   }
@@ -37,6 +43,7 @@ document.documentElement.classList.add("styled");
 $("contract-box").querySelector(".srclines")!.textContent = String(
   $("contract-src").textContent!.replace(/\n$/, "").split("\n").length);
 window.results = { done: false, errors: [], decoded: {} };
+window.memResults = { done: false, errors: [], decoded: {} };
 
 // a static element's place, for a view (no box of its own)
 const place = (el: Element) => {
@@ -109,6 +116,40 @@ try {
     return recording.get(id)!;
   };
 
+  // The memory section, "Inside one play": its own lens in its own
+  // elements; every pause decoded once for the checks (vanilla mem.js)
+  const memMount = Object.fromEntries(Object.entries({ meta: "mmeta",
+    level: "mlevel", point: "mpoint", mode: "mmoderow", viewing: "mviewing",
+    note: "mnote", dump: "mpanel", tree: "mtree", details: "mdetails",
+    how: "mhow", legend: "msrclegend", src: "msrc" })
+    .map(([a, id]) => [a, place($(id)!)]));
+  const memReady = (_: LensContextValue, shown: Promise<boolean>) => {
+    const flat = (ns: ValueNode[]): ValueNode[] => ns.flatMap((n) =>
+      n.kind === "group" ? flat(n.children ?? []) : n.kind ? [] : [n]);
+    void shown.then(async () => {
+      for (const id of ["mem:O0", "mem:O2"]) {
+        const d = project.decodings[id];
+        const out: typeof window.memResults.decoded[string] = {};
+        for (const b of project.bookmarks.filter((x) =>
+          x.decoding === id)) {
+          out[b.id.split("/")[1]] = await Promise.all(b.points.map(
+            async (pt) => {
+              const ns = flat((await decode(project, d, pt)).tree);
+              return { values: Object.fromEntries(ns.filter((n) => !n.none)
+                .map((n) => [n.path, n.value?.text ?? ""])),
+              none: ns.filter((n) => n.none).map((n) => n.path) };
+            }));
+        }
+        window.memResults.decoded[id.slice(5)] = out;
+      }
+    }).catch((e) => {
+      console.error(e);
+      window.memResults.errors.push(String((e as Error)?.message ?? e));
+    }).finally(() => {
+      window.memResults.done = true;
+    });
+  };
+
   const ready = (lens: LensContextValue, shown: Promise<boolean>) => {
     // "show other state": the cards in the dump and by the tree's rows
     const box = $("insets") as HTMLInputElement;
@@ -135,8 +176,11 @@ try {
 
   const host = document.createElement("div");
   document.body.append(host);
-  createRoot(host).render(<Lens spec={fullInspector} project={project}
-    mount={mount} onReady={ready} hash />);
+  createRoot(host).render(<>
+    <Lens spec={fullInspector} project={project} mount={mount}
+      onReady={ready} hash />
+    <Lens spec={insideOnePlay} project={project} mount={memMount}
+      onReady={memReady} hash /></>);
 } catch (e) {
   console.error(e);
   window.results.errors.push(String((e as Error)?.message ?? e));

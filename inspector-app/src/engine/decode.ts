@@ -141,6 +141,8 @@ async function localsAt(c: Compilation, at: TimelinePoint, state: State,
       reads: all.flatMap((r, i) => i === k ? [] : [resolved(r, "value",
         ids[i])]) });
   }
+  // (those with no location after those with one: vanilla mem.js localsAt)
+  out.sort((a, b) => Number(!!a.none) - Number(!!b.none));
   let tree = out;
   if (at.scope) {
     const frame = out.flatMap((n) => n.reads ?? [])
