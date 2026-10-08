@@ -143,9 +143,11 @@ export function pointerText(c: Compilation, variable: string):
 }
 
 // The lines of a band: places in the pointer ("=" for that line alone,
-// else the line and everything under it)
+// "~" for the lines with that tag, else the line and everything under
+// it)
 export function band(lines: PointerLine[], places: string[]): number[] {
   const on = (l: PointerLine) => places.some((p) => p.startsWith("=")
-    ? l.pos === p.slice(1) : l.pos === p || l.pos.startsWith(p + "."));
+    ? l.pos === p.slice(1) : p.startsWith("~") ? l.tags.includes(p.slice(1))
+      : l.pos === p || l.pos.startsWith(p + "."));
   return lines.map((l, i) => on(l) ? i : -1).filter((i) => i >= 0);
 }

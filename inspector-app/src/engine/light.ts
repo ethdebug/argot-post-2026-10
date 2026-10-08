@@ -156,7 +156,8 @@ export function forStep(d: Decoded, l: Layout, steps: Step[],
   for (const r of st.rows) rows.add(r);
   // the rows the steps so far have found keep their labels
   const known = new Set<Hex>();
-  for (const x of steps.slice(0, i + 1)) {
+  // (step 0, the goal, finds nothing: it shows what the others will)
+  for (const x of steps.slice(0, i + 1).filter((y) => !y.goal)) {
     for (const g of x.gutters) known.add(g);
     for (const p of x.parts) {
       for (const k of partBytes(p)) known.add(k.split("|")[1] as Hex);

@@ -1,0 +1,427 @@
+// Mirrors bin/run.mjs's walkthrough checks (vanilla 8d2d944), with the
+// decided rule its run.mjs does not have yet: instances named by their
+// on-chain `name` values, quoted
+import { test, expect, type Page } from "@playwright/test";
+import { A, B, C, NAME_C } from "../expect";
+
+type W = { select(id: string, view?: { sel?: string | null;
+  mode?: string }): Promise<boolean>; results: { done: boolean } };
+const CAROL = `"${NAME_C}"`;
+const range = (a: number, b: number) =>
+  Array.from({ length: b - a + 1 }, (_, i) => a + i).join();
+const ready = async (page: Page) => {
+  await page.goto("./");
+  await page.waitForFunction(() => (window as unknown as W).results?.done);
+};
+const select = (page: Page, sel: string | null) => page.evaluate((x) =>
+  (window as unknown as W).select("mid", { sel: x }), sel);
+const row = (page: Page, p: string) =>
+  page.locator(`#tree li[data-path="${p}"] > .row`);
+const stepNow = (page: Page) => page.evaluate(() => {
+  const box = (q: string) => {
+    const r = document.querySelector(q)?.getBoundingClientRect();
+    return r && [r.left, r.top, r.width, r.height].map(Math.round).join();
+  };
+  return {
+    cap: document.querySelector("#details .rcount")?.textContent
+      ? document.querySelector("#dtext .rcap")?.textContent!.trim() : null,
+    form: document.querySelector("#dtext .rform")?.textContent!.trim(),
+    short: document.querySelector("#details .rshort")?.textContent,
+    count: document.querySelector("#details .rcount")?.textContent ||
+      undefined,
+    resolved: !!document.querySelector('#details button[data-r="start"]'),
+    ctl: box("#details .rctl"),
+    chips: [...document.querySelectorAll("#chips .chip")].map((c) =>
+      c.className.replace("chip ", "")).join(),
+    ptr: [...document.querySelectorAll("#ptr .line.on")].map((l) =>
+      l.textContent!.trim()),
+    band0: [...document.querySelectorAll("#ptr .line")].findIndex((l) =>
+      l.classList.contains("on")),
+    lit: [...document.querySelectorAll<HTMLElement>(
+      "#panel .view:not([hidden]) .rows .word .b.hl")].map((c) =>
+      `${(c.closest(".wrow") as HTMLElement).dataset.slot} ${c.dataset.i}`),
+    full: [...document.querySelectorAll<HTMLElement>(
+      "#panel .view:not([hidden]) .rows .word .b.hl:not(.muted)")].map((c) =>
+      `${(c.closest(".wrow") as HTMLElement).dataset.slot} ${c.dataset.i}`),
+    gut: [...document.querySelectorAll<HTMLElement>(
+      "#panel .view:not([hidden]) .wrow.gut")].map((r) => r.dataset.slot!),
+    dim: document.querySelector("#panel")!.classList.contains("active"),
+  };
+});
+type St = Awaited<ReturnType<typeof stepNow>>;
+const names = (page: Page) => page.locator(
+  '#panel .view[data-side="after"] .wrow[data-name]').evaluateAll((rs) =>
+  Object.fromEntries(rs.map((r) => [(r as HTMLElement).dataset.slot,
+    (r as HTMLElement).dataset.name])));
+const litNamed = (xs: string[], nm: Record<string, string>) => {
+  const by: Record<string, number[]> = {};
+  for (const x of xs) {
+    const [sl, i] = x.split(" ");
+    (by[nm[sl] ?? sl] ??= []).push(+i);
+  }
+  return Object.fromEntries(Object.entries(by).map(([k, v]) =>
+    [k, v.length === 32 ? "all" : v.join()]));
+};
+// walk a walkthrough: step 0 kept aside, each step, the controls
+async function walk(page: Page, path: string) {
+  const nm = await names(page);
+  await row(page, path).click();
+  await page.mouse.move(1, 1);
+  await page.locator('#details button[data-r="start"]').click();
+  const out: (St & { litN: Record<string, string>;
+    fullN: Record<string, string>; gutN: string[] })[] = [];
+  const ctl = new Set<string | undefined>();
+  let goal: (St & { litN: Record<string, string> }) | undefined;
+  const g = await stepNow(page);
+  if (g.count?.startsWith("0 /")) {
+    goal = { ...g, litN: litNamed(g.lit, nm) };
+    ctl.add(g.ctl);
+    await page.locator('#details button[data-r="next"]').click();
+  }
+  for (let k = 0; k < 20; k++) {
+    const x = await stepNow(page);
+    ctl.add(x.ctl);
+    out.push({ ...x, litN: litNamed(x.lit, nm),
+      fullN: litNamed(x.full, nm), gutN: x.gut.map((sl) => nm[sl] ?? sl) });
+    if (await page.locator('#details button[data-r="next"]').isDisabled()) {
+      break;
+    }
+    await page.locator('#details button[data-r="next"]').click();
+  }
+  await page.locator('#details button[data-r="exit"]').click();
+  ctl.add((await stepNow(page)).ctl);
+  return { steps: out, goal, ctl: ctl.size };
+}
+const down = (ws: St[]) => ws.map((x) => x.band0).filter((b) => b >= 0)
+  .every((b, i, a) => !i || b >= a[i - 1]);
+const al = "keccak(0x7099…79c8, slot 3)";
+const rec = "keccak(0x3c44…93bc, slot 3)";
+const cl0 = "keccak(0x90f7…b906, slot 3)";
+const cdata = `keccak(${cl0} + 1)`;
+
+test("players: step 0 and twelve steps, their light, bands and chips",
+  async ({ page }) => {
+    await ready(page);
+    await select(page, null);
+    const { steps: w, goal, ctl } = await walk(page, "players");
+    const roster = { "keccak(slot 0)": range(12, 31),
+      "keccak(slot 0) + 1": range(12, 31),
+      "keccak(slot 0) + 2": range(12, 31) };
+    const rows3 = [al, rec, cl0];
+    const want: [string, Record<string, string>, string | null,
+      string[]][] = [
+      ["The keys: the addresses in roster", roster, null, []],
+      ["players is declared at slot 3; that slot holds nothing", {},
+        "slot: 0x03", ["slot 3"]],
+      ["The template mapping(address => Player) takes slot = 3, key = each "
+        + "address in roster", {}, "expect: [slot, key]", ["slot 3"]],
+      ["Each record is at keccak(key, 3)", {}, "$keccak256", rows3],
+      ["The template Player takes slot = each record's slot", {},
+        "expect: [slot]", rows3],
+      ["The first slot packs six fields, from the right",
+        { [al]: "all", [rec]: "all", [cl0]: "all" }, "name: score", []],
+      ["The next slot holds name, a string", {}, "$sum: [slot, 0x01]",
+        rows3.map((x) => `${x} + 1`)],
+      ["The template string takes slot = each name slot", {},
+        "expect: [slot]", rows3.map((x) => `${x} + 1`)],
+      ["The last byte of each name slot is its length flag",
+        { [`${al} + 1`]: "31", [`${rec} + 1`]: "31", [`${cl0} + 1`]: "31" },
+        "name: length-flag", []],
+      ['The last byte decides the form: even → short ("alice", "bob"), '
+        + `odd → long (${CAROL})`, { [`${al} + 1`]: "31",
+        [`${rec} + 1`]: "31", [`${cl0} + 1`]: "all" }, "else:", []],
+      ["Each short text is in its slot, from the left", {
+        [`${al} + 1`]: "0,1,2,3,4", [`${rec} + 1`]: "0,1,2" },
+        "in: { name: data", []],
+      ["The text starts at keccak(…9979) = …c248, 34 bytes over 2 slots",
+        { [cdata]: "all", [`${cdata} + 1`]: "0,1" }, "start: { $keccak256",
+        []],
+    ];
+    const N = want.length;
+    expect([w.length, ctl]).toEqual([N, 1]);
+    expect(down(w)).toBe(true);
+    want.forEach(([cap, lit, ptr, gut], k) => {
+      const x = w[k];
+      expect(x.cap!.startsWith(cap), `${k + 1}: ${x.cap}`).toBe(true);
+      expect(x.litN, `${k + 1} lit`).toEqual(lit);
+      expect(x.fullN, `${k + 1} full`).toEqual(lit);
+      expect(x.dim).toBe(true);
+      expect(x.count).toBe(`${k + 1} / ${N}`);
+      expect(x.short).toBeTruthy();
+      expect([...x.gutN].sort(), `${k + 1} gut`).toEqual([...gut].sort());
+      if (ptr) {
+        expect(x.ptr.some((l) => l.includes(ptr)), `${k + 1}: ${x.ptr}`)
+          .toBe(true);
+      } else expect(x.ptr).toEqual([]);
+      expect(x.chips).toBe(want.map((_, j) => j < k ? "done" : j === k
+        ? "cur" : "later").join());
+    });
+    // step 0: every slot touched, whole, yellow; no labels, no band
+    expect(goal?.count).toBe(`0 / ${N}`);
+    expect(Object.values(goal!.litN).every((v) => v === "all")).toBe(true);
+    expect(Object.keys(goal!.litN).length).toBeGreaterThanOrEqual(9);
+    // a template step's band is its frame; the next starts inside it
+    expect(w[4].ptr.join("|")).toBe("Player:|expect: [slot]|for:");
+    expect(w[5].ptr[0].startsWith("- name: score")).toBe(true);
+    for (const x of ['0x7099…79c8 "alice"→[0]', '0x3c44…93bc "bob"→[1]',
+      `0x90f7…b906 ${CAROL}→[2]`]) expect(w[0].form).toContain(x);
+    expect(w[9].form).toContain("even: 0x0a → 5 bytes inline");
+    expect(w[9].form).toContain("odd: 0x45 → 34 bytes at keccak(…9979)");
+  });
+
+test("step 0: no labels, no band; ⏮ and ◀ reach it; a re-target keeps it",
+  async ({ page }) => {
+    await ready(page);
+    await select(page, "players");
+    await page.locator('#details button[data-r="start"]').click();
+    await page.mouse.move(1, 1);
+    expect(await page.evaluate(() => ({
+      pops: document.querySelectorAll("#panel .view:not([hidden]) .pop")
+        .length,
+      hues: [...document.querySelectorAll(
+        "#panel .view:not([hidden]) .b.hl")].filter((b) =>
+        /\bpk\d/.test(b.className)).length,
+      band: document.querySelectorAll("#ptr .line.on").length,
+      cur: document.querySelectorAll("#chips .chip.cur").length })))
+      .toEqual({ pops: 0, hues: 0, band: 0, cur: 0 });
+    await page.locator('#details button[data-r="next"]').click();
+    await page.locator('#details button[data-r="prev"]').click();
+    expect((await stepNow(page)).count).toBe("0 / 12");
+    await page.locator('#details button[data-r="last"]').click();
+    await page.locator('#details button[data-r="first"]').click();
+    expect((await stepNow(page)).count).toBe("0 / 12");
+    await row(page, C).click();
+    expect((await stepNow(page)).count).toBe("0 / 11");
+    await page.keyboard.press("Escape");
+    await select(page, null);
+    const t = await walk(page, "total");
+    expect([t.goal, t.steps[0].count]).toEqual([undefined, "1 / 1"]);
+  });
+
+test("carol's record: eleven steps; bob's plays and carol's name",
+  async ({ page }) => {
+    await ready(page);
+    await select(page, null);
+    const cw = (await walk(page, C)).steps;
+    const cwant: [string, Record<string, string>, string[], string][] = [
+      [`key = ${CAROL}'s address, from roster[2]`,
+        { "keccak(slot 0) + 2": range(12, 31) }, [], ""],
+      ["players is declared at slot 3", {}, ["slot 3"], "slot: 0x03"],
+      ["The template mapping(address => Player) takes slot = 3, key = " +
+        `${CAROL}'s address`, {}, ["slot 3"], "expect: [slot, key]"],
+      ["The record is at keccak(0x90f7…b906, 3) = …9978", {}, [cl0],
+        "$keccak256"],
+      ["The template Player takes slot = …9978", {}, [cl0], "Player:"],
+      ["The first slot packs six fields", { [cl0]: "all" }, [],
+        "name: lastBlock"],
+      ["The next slot holds name, a string: …9978 + 1 = …9979", {},
+        [`${cl0} + 1`], "template: string"],
+      ["The template string takes slot = …9979", {}, [`${cl0} + 1`],
+        "string:"],
+      ["The last byte is the length flag, 0x45", { [`${cl0} + 1`]: "31" },
+        [], "name: length-flag"],
+      ["Odd → long: the slot holds 2 × length + 1, so length = 34",
+        { [`${cl0} + 1`]: "all" }, [], "long-length"],
+      ["The text starts at keccak(…9979) = …c248, 34 bytes over 2 slots",
+        { [cdata]: "all", [`${cdata} + 1`]: "0,1" }, [], "name: data"]];
+    expect(cw.length).toBe(11);
+    expect(down(cw)).toBe(true);
+    cwant.forEach(([cap, lit, gut, band], k) => {
+      expect(cw[k].cap!.startsWith(cap), `${k + 1}: ${cw[k].cap}`)
+        .toBe(true);
+      expect(cw[k].litN, `${k + 1}`).toEqual(lit);
+      expect(cw[k].gutN.join(), `${k + 1}`).toBe(gut.join());
+      if (band) expect(cw[k].ptr.some((l) => l.includes(band))).toBe(true);
+      else expect(cw[k].ptr).toEqual([]);
+    });
+    await select(page, null);
+    const bw = await walk(page, `${B}.plays`);
+    expect(bw.steps.map((x) => x.cap!.split(" ")[1]).join())
+      .toBe("=,is,template,record,template,is");
+    expect(bw.steps[2].form).toContain("0x3c44…93bc");
+    expect(bw.steps[5].litN).toEqual({ [rec]: range(12, 15) });
+    expect(bw.ctl).toBe(1);
+    const st = await stepNow(page);
+    expect(st.resolved).toBe(true);
+    await select(page, null);
+    const nw = await walk(page, `${C}.name`);
+    expect(nw.steps.map((x) => x.cap!.split(" ")[1]).join())
+      .toBe("=,is,template,record,template,next,template,last,→,text");
+  });
+
+test("the bar: entry, tint, the controls at the ends, keys, Exit, chips",
+  async ({ page }) => {
+    await ready(page);
+    await select(page, null);
+    await row(page, `${B}.plays`).click();
+    const barNow = () => page.evaluate(() => {
+      const b = document.querySelector("#details")!;
+      const dis = (r: string) => b.querySelector<HTMLButtonElement>(
+        `button[data-r="${r}"]`)?.disabled;
+      return { tint: b.classList.contains("replaying"),
+        mode: b.querySelector(".rmode")!.textContent,
+        count: b.querySelector(".rcount")!.textContent,
+        off: ["first", "prev", "next", "last"].filter(dis).join(),
+        exit: !!b.querySelector('button[data-r="exit"]'),
+        start: b.querySelector('button[data-r="start"]')?.textContent };
+    });
+    let bs = await barNow();
+    expect(bs).toMatchObject({ tint: false, mode: "", exit: false,
+      start: "▸ Show how it was found" });
+    await page.locator('#details button[data-r="start"]').dblclick();
+    bs = await barNow();
+    expect(bs).toMatchObject({ tint: true, mode: "Walkthrough",
+      count: "1 / 6", off: "first,prev", exit: true });
+    await page.locator('#details button[data-r="last"]').click();
+    expect((await barNow()).count).toBe("6 / 6");
+    expect((await barNow()).off).toBe("next,last");
+    await page.keyboard.press("ArrowRight");
+    expect((await barNow()).count).toBe("6 / 6");
+    await page.locator('#details button[data-r="first"]').click();
+    expect((await barNow()).count).toBe("1 / 6");
+    await page.locator('#details button[data-r="next"]').click();
+    await page.keyboard.press("ArrowRight");
+    expect((await barNow()).count).toBe("3 / 6");
+    await page.evaluate(() => (document.activeElement as HTMLElement)
+      ?.blur());
+    await page.keyboard.press("Home");
+    expect((await barNow()).count).toBe("1 / 6");
+    await page.keyboard.press("End");
+    expect((await barNow()).count).toBe("6 / 6");
+    await page.locator('#details button[data-r="exit"]').click();
+    expect((await barNow()).tint).toBe(false);
+    await page.locator('#details button[data-r="start"]').click();
+    await page.locator('#chips .chip[data-k="1"]').click();
+    expect((await stepNow(page)).count).toBe("2 / 6");
+    await page.locator("#details").focus();
+    await page.keyboard.press("ArrowLeft");
+    expect((await stepNow(page)).count).toBe("1 / 6");
+    await page.keyboard.press("Escape");
+    const st = await stepNow(page);
+    expect(st.resolved).toBe(true);
+    await expect(page.locator("#tree .row.sel")).toHaveCount(1);
+  });
+
+test("the focus: all by default for players; one entry echoes",
+  async ({ page }) => {
+    await ready(page);
+    await select(page, "players");
+    await page.locator('#details button[data-r="start"]').click();
+    const btns = await page.locator("#dpick button").evaluateAll((bs) =>
+      bs.map((b) => `${b.textContent}${b.getAttribute("aria-pressed") ===
+        "true" ? "*" : ""}`).join("|"));
+    expect(btns).toBe(`all*|"alice"|"bob"|${CAROL}`);
+    const muted = [];
+    for (let k = 0; k < 12; k++) {
+      await page.locator(`#chips .chip[data-k="${k}"]`).click();
+      muted.push(await page.locator(
+        "#panel .view:not([hidden]) .b.hl.muted").count());
+    }
+    expect(muted.some(Boolean)).toBe(false);
+    await page.locator('#chips .chip[data-k="5"]').click();
+    const boxes = () => page.evaluate(() => JSON.stringify([
+      ...document.querySelectorAll("#details, #dpanel, #dpick button, " +
+        "#chips .chip, #panel .view:not([hidden]) .wrow, #tree")].map((e) => {
+      const r = e.getBoundingClientRect();
+      return [r.left, r.top, r.width, r.height].map(Math.round);
+    })));
+    await page.mouse.move(1, 1);
+    const b0 = await boxes();
+    await page.locator("#dpick button", { hasText: '"bob"' }).click();
+    await page.mouse.move(1, 1);
+    expect(await boxes()).toBe(b0);
+    expect(await page.locator("#panel .view:not([hidden]) .b.hl.muted")
+      .count()).toBeGreaterThan(0);
+    const x = await stepNow(page);
+    expect(litNamed(x.full, await names(page))).toEqual({ [rec]: "all" });
+    await page.keyboard.press("Escape");
+  });
+
+test("entries and fields never share a colour; found rows keep labels",
+  async ({ page }) => {
+    await ready(page);
+    await select(page, "players");
+    const huesAt = async (k: number) => {
+      await page.locator('#details button[data-r="start"]').click();
+      await page.locator(`#chips .chip[data-k="${k}"]`).click();
+      await page.mouse.move(1, 1);
+      const hs = await page.evaluate(() => [...new Set([...document
+        .querySelectorAll("#panel .view:not([hidden]) .rows .b.hl:not(" +
+          ".pksrc)")].map((c) => getComputedStyle(c).backgroundColor))]);
+      await page.keyboard.press("Escape");
+      return hs;
+    };
+    const entryHues = await huesAt(0);
+    const fieldHues = await huesAt(5);
+    expect(entryHues.length).toBe(3);
+    expect(fieldHues.length).toBe(6);
+    expect(fieldHues.some((x) => entryHues.includes(x))).toBe(false);
+    // (the input step: roster's items in their entries' colours)
+    await page.locator('#details button[data-r="start"]').click();
+    await page.locator('#chips .chip[data-k="0"]').click();
+    const col = (ps: string[]) => page.evaluate((x) => x.map((p) =>
+      document.querySelector(`#tree li[data-path="${p}"] > .row`)
+        ?.className.match(/pk\d/)?.[0]), ps);
+    const ks = await col(["roster[0]", "roster[1]", "roster[2]"]);
+    await page.locator('#chips .chip[data-k="3"]').click();
+    const es = await col([A, B, C]);
+    expect(ks.every((k, i) => k && k === es[i])).toBe(true);
+    // (carol's data rows keep their labels only from her text's step)
+    const labelled = () => page.evaluate(() => Object.fromEntries([
+      ...document.querySelectorAll<HTMLElement>(
+        "#panel .view:not([hidden]) .wrow[data-name]")].map((r) =>
+      [r.dataset.name, r.querySelector(":scope > .addr")!.classList
+        .contains("grp")])));
+    await page.locator('#chips .chip[data-k="10"]').click();
+    await page.mouse.move(1, 1);
+    expect((await labelled())[cdata]).toBeFalsy();
+    await page.locator('#chips .chip[data-k="11"]').click();
+    await page.mouse.move(1, 1);
+    expect((await labelled())[cdata]).toBe(true);
+    await expect(page.locator("#panel .pop.kept")).not.toHaveCount(0);
+    await page.locator('#details button[data-r="prev"]').click();
+    await page.mouse.move(1, 1);
+    expect((await labelled())[cdata]).toBeFalsy();
+    await page.keyboard.press("Escape");
+  });
+
+test("footnotes link to the spec; the pointer as YAML, coloured",
+  async ({ page }) => {
+    await ready(page);
+    await select(page, "players");
+    await page.locator('#details button[data-r="start"]').click();
+    const hrefs: string[] = [];
+    for (let k = 0; k < 12; k++) {
+      await page.locator(`#chips .chip[data-k="${k}"]`).click();
+      hrefs.push(...await page.locator("#dpanel .fnotes a").evaluateAll(
+        (as) => as.map((a) => (a as HTMLAnchorElement).href)));
+    }
+    expect(hrefs.length).toBeGreaterThan(0);
+    expect(hrefs.every((h) => h.startsWith(
+      "https://ethdebug.github.io/format/spec/pointer/"))).toBe(true);
+    await expect(page.locator("#ptr .line span[style]").first())
+      .toBeAttached();
+    const y = await page.evaluate(() => ({
+      clipped: document.querySelector("#ptr")!.scrollWidth >
+        document.querySelector("#ptr")!.clientWidth + 1,
+      ids: document.querySelector("#ptr .pids")?.textContent ?? "" }));
+    expect(y.clipped).toBe(false);
+    expect(y.ids).toContain("t_array$");
+    await page.keyboard.press("Escape");
+  });
+
+test("Vyper: its own words listed, each lighting its word", async ({ page }) => {
+  await ready(page);
+  await page.evaluate(() => (window as unknown as W).select("vyper"));
+  await page.locator('#details button[data-r="start"]').click();
+  const text = (await page.locator("#dpanel").innerText())
+    .replace(/\s+/g, " ");
+  expect(text).toContain("Vyper's rule");
+  expect(text).toMatch(/score = 30[\s\S]*combo = 2[\s\S]*name \(length\) = 5[\s\S]*name \(bytes\) = "alice"/);
+  expect(await page.locator("#ptr ol.vyper li").first().innerText())
+    .toContain("0xb306");
+  await row(page, `${C}.score`).click();
+  const t2 = (await page.locator("#dpanel").innerText()).replace(/\s+/g, " ");
+  expect(t2).toMatch(/plays = 1[\s\S]*name \(length\) = 34[\s\S]*"carol, the unstoppable combo que"[\s\S]*"en"/);
+  await page.keyboard.press("Escape");
+});

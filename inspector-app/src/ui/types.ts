@@ -48,7 +48,8 @@ export type ViewSpec = { id: ViewId; area: string; link?: LinkId;
     | { kind: "tree"; data: DataRef; filter?: Filter;
       variant?: "tree" | "table"; compare?: DataRef }
     | { kind: "picker"; of: "bookmarks" | "points" | "side" | "level" }
-    | { kind: "walkthrough"; data: DataRef; compare?: DataRef });
+    | { kind: "walkthrough"; data: DataRef; compare?: DataRef;
+      others?: { decoding: DecodingId; who?: string }[] });
 export type ViewKind = ViewSpec["kind"];
 
 export interface LensSpec {     // a composition for one post section

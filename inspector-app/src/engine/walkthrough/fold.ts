@@ -306,7 +306,7 @@ export function walkthrough(x: WalkInput, path: Path, focus?: string):
     const kind = kindOf(varNode) ?? "value";
     if (declared.context) {
       const r = declared.context as ResolvedRegion;
-      step({ phase: "declared", id: `declared|${variable}`,
+      step({ phase: "declared", id: `declared|${variable}`, band: ["~var"],
         cap: `\`${variable}\` is at slot ${small(r.slot!)}, ${r.length} ` +
           `bytes from offset ${r.offset}`,
         form: text(`slot ${small(r.slot!)}, bytes ${r.offset}–${r.offset +
@@ -316,7 +316,7 @@ export function walkthrough(x: WalkInput, path: Path, focus?: string):
         parts: [{ regions: [r], rows: [variable] }], rows: [variable] });
     } else {
       const w = wordAt(declared.slot);
-      step({ phase: "declared", id: `declared|${variable}`,
+      step({ phase: "declared", id: `declared|${variable}`, band: ["~var"],
         cap: kind === "mapping" && w !== undefined && !toBig(w)
           ? `\`${variable}\` is declared at slot ${small(declared.slot)}; ` +
             "that slot holds nothing"
