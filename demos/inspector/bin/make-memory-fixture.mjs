@@ -6,9 +6,9 @@
 // The points are picked by how many locals have a location there (bugc
 // gives them a pointer), not by line:
 //   - "roll": after the roll, the first step where `hit` has one;
-//   - "mult": inside multiplied, two steps with all of points, combo and
-//     m located: the last with m = 5 and the first with m = 3 (the
-//     assignment `m = combo`);
+//   - "mult": inside _applyCombo, two steps with all of points, combo
+//     and mult located: the last with mult = 5 and the first with
+//     mult = 3 (the assignment `mult = combo`);
 //   - "writes": just before the storage writes, the last step before
 //     the first SSTORE after `gained` has a location, with alice's
 //     record slot as it is then (from the trace's SSTOREs).
@@ -52,7 +52,8 @@ const source = fs.readFileSync(file, "utf8");
 const git = (...a) =>
   execFileSync("git", ["-C", BUGC, ...a], { encoding: "utf8" }).trim();
 const commit = git("rev-parse", "HEAD");
-const STORAGE = new Set(["roster", "motd", "total", "rounds", "players"]);
+const STORAGE = new Set(["playerList", "motd", "totalScore", "totalHits",
+  "players"]);
 
 function compile(opt) {
   // bugc names the source by its full path; keep the relative one
@@ -98,7 +99,7 @@ async function send(tx) {
 const recordSlot = (who, base) =>
   cast("keccak", cast("abi-encode", "f(address,uint256)", who, base));
 const MEMBERS = [["score", 8], ["combo", 4], ["bestCombo", 4],
-  ["plays", 4], ["hitCount", 4], ["lastBlock", 8]];
+  ["plays", 4], ["hits", 4], ["lastBlock", 8]];
 function members(w) {
   const out = {};
   let low = 0;
@@ -137,13 +138,15 @@ async function story(c) {
     }
     throw new Error("no roll gave the outcome");
   }
+  // carol hits four times (best combo 4), then misses
   for (const [who, hit] of [[ALICE, true], [ALICE, true], [BOB, true],
+    [CAROL, true], [CAROL, true], [CAROL, true], [CAROL, true],
     [CAROL, false]]) await play(who, hit);
   const tx = await play(ALICE, true);
-  // the roster has its three players, by push
+  // playerList has its three players, by push
   const len = BigInt(await rpc("eth_getStorageAt", [address, "0x0",
     "latest"]));
-  if (len !== 3n) throw new Error(`roster length ${len}`);
+  if (len !== 3n) throw new Error(`playerList length ${len}`);
   return { address, base, tx };
 }
 
@@ -178,12 +181,12 @@ async function level(opt) {
   const has = (s, ...ns) => ns.every((n) => n in s.value);
 
   const roll = best((s) => has(s, "hit"));
-  const inMult = (s) => has(s, "points", "combo", "m");
+  const inMult = (s) => has(s, "points", "combo", "mult");
   const most = Math.max(...steps.filter(inMult).map((s) => s.live));
   const m5 = steps.filter((s) => inMult(s) && s.live === most &&
-    s.value.m === "5").at(-1);
+    s.value.mult === "5").at(-1);
   const m3 = steps.find((s) => inMult(s) && s.live === most &&
-    s.value.m === "3");
+    s.value.mult === "3");
   // the last step before the first SSTORE after gained has a location,
   // of those with the most locals located
   const g = steps.find((s) => has(s, "gained"));
@@ -209,19 +212,19 @@ async function level(opt) {
   }
 
   // What the source computes, by hand: alice's third hit, so combo 3,
-  // and multiplied(10, 3): m = 5, then m = combo = 3; gained = 30.
+  // and _applyCombo(10, 3): mult = 5, then mult = combo = 3; gained = 30.
   // Before the writes her record has every counter but score updated:
-  // score 30, combo 3, bestCombo 3, plays 3, hitCount 3, lastBlock this
+  // score 30, combo 3, bestCombo 3, plays 3, hits 3, lastBlock this
   // block.
   const want = {
     roll: [{ hit: "true" }],
-    mult: [{ points: "10", combo: "3", m: "5" },
-      { points: "10", combo: "3", m: "3" }],
+    mult: [{ points: "10", combo: "3", mult: "5" },
+      { points: "10", combo: "3", mult: "3" }],
     writes: [{ gained: "30" }],
   };
   const fields = members(record);
   const wantRecord = { score: 30n, combo: 3n, bestCombo: 3n, plays: 3n,
-    hitCount: 3n, lastBlock: BigInt(block) };
+    hits: 3n, lastBlock: BigInt(block) };
   for (const [k, v] of Object.entries(wantRecord)) {
     if (fields[k].value !== v) {
       throw new Error(`-O ${opt}: record ${k} = ${fields[k].value}`);
@@ -237,7 +240,7 @@ async function level(opt) {
     Object.entries(o).sort()));
   const points = [
     { id: "roll", title: "After the roll", steps: [roll] },
-    { id: "mult", title: "Inside multiplied", steps: [m5, m3] },
+    { id: "mult", title: "Inside _applyCombo", steps: [m5, m3] },
     { id: "writes", title: "Before the writes", steps: [writes] },
   ].map((p) => {
     p.steps.forEach((s, k) => {
