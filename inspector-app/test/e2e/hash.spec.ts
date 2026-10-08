@@ -6,7 +6,10 @@ type W = { results: { done: boolean } };
 const go = async (page: Page, hash: string) => {
   await page.goto("about:blank");
   await page.goto(`./#${hash}`);
-  await page.waitForFunction(() => (window as unknown as W).results?.done);
+  // (both sections ready: each has shown its view, and written its keys)
+  await page.waitForFunction(() => (window as unknown as W).results?.done &&
+    (window as unknown as { memResults?: { done: boolean } }).memResults
+      ?.done);
 };
 const view = (page: Page) => page.evaluate(() => ({
   ex: document.querySelector<HTMLElement>(
@@ -25,12 +28,8 @@ test("the hash restores the view, and keeps the memory keys",
     const hs = await view(page);
     expect(hs).toMatchObject({ ex: "motd", mode: "before", sel: "roster",
       insets: false });
-    // (each section writes its own keys, once it shows its view)
     for (const k of ["ex=motd", "sel=roster", "mopt=2", "mpt=mult",
-      "mmode=before", "msel=m"]) {
-      await expect.poll(() => page.evaluate(() => location.hash))
-        .toContain(k);
-    }
+      "mmode=before", "msel=m"]) expect(hs.hash).toContain(k);
     await page.locator('#mode button[data-mode="after"]').click();
     await page.locator('#tree li[data-path="total"] > .row').click();
     await expect.poll(() => page.evaluate(() => location.hash))
