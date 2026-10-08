@@ -440,21 +440,44 @@ const posOf = (r) => {
   return [o, Math.min(31, o + n - 1)];
 };
 function byteStrip(items) {
-  const col = (i) => i + Math.floor(i / 8) + 1;
-  const spans = items.map(({ name, region, k }) => {
-    const [a, b] = posOf(region);
-    return `<span class="bsv pk${k || 0}" style="grid-column: ${col(a)} / ${
-      col(b) + 1}"><span class="bsn">${esc(name)}</span></span>`;
-  }).join("");
-  const idx = Array.from({ length: 32 }, (_, i) => `<span style=` +
-    `"grid-column: ${col(i)}">${i}</span>`).join("");
+  // (a name too long for its span stands over it, in a row kept for it,
+  // with a tick down to its cells; never cut to a letter)
+  const fits = (name, a, b) => name.length <= (b - a + 1) * 2.6;
+  const row = (lo, hi) => {
+    const col = (i) => (i - lo) + Math.floor((i - lo) / 8) + 1;
+    const vs = [];
+    const cs = [];
+    for (const { name, region, k } of items) {
+      let [a, b] = posOf(region);
+      if (b < lo || a > hi) continue;
+      const out = !fits(name, a, b);
+      [a, b] = [Math.max(a, lo), Math.min(b, hi)];
+      const at = `grid-column: ${col(a)} / ${col(b) + 1}`;
+      vs.push(`<span class="bsv pk${k || 0}" style="${at}">${out ? ""
+        : `<span class="bsn">${esc(name)}</span>`}</span>`);
+      if (out) {
+        const side = a - lo <= 2 ? " lft" : hi - b <= 2 ? " rgt" : "";
+        cs.push(`<span class="bsc${side}" style="${at}"><span class=` +
+          `"bsl pk${k || 0}">${esc(name)}</span></span>`);
+      }
+    }
+    const idx = [];
+    for (let i = lo; i <= hi; i++) {
+      idx.push(`<span style="grid-column: ${col(i)}">${i}</span>`);
+    }
+    return `<span class="bsrow bscall">${cs.join("")}</span>` +
+      `<span class="bsrow bsbar">${vs.join("")}</span>` +
+      `<span class="bsrow bsidx" ` +
+      `aria-hidden="true">${idx.join("")}</span>`;
+  };
   const label = items.map(({ name, region }) => {
     const [a, b] = posOf(region);
     return `${name}: ${a === b ? `byte ${a}` : `bytes ${a} to ${b}`}`;
   }).join("; ");
+  // (on a wide page one row of 32; on a phone two of 16, as the dump)
   return `<span class="bstrip" role="img" aria-label="${esc(label)}">` +
-    `<span class="bsrow">${spans}</span><span class="bsrow bsidx" ` +
-    `aria-hidden="true">${idx}</span></span>`;
+    `<span class="bs32">${row(0, 31)}</span><span class="bs16">${
+      row(0, 15)}${row(16, 31)}</span></span>`;
 }
 
 // bytes a–b of a region, or the slots it spans
