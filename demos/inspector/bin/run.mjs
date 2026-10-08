@@ -1303,8 +1303,9 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
       { [`${al} + 1`]: "31", [`${rec} + 1`]: "31", [`${cl0} + 1`]: "31" },
       null, "name: length-flag", []],
     // (one fork: both branches)
-    ["The last byte decides the form: even → short (alice, bob), odd → " +
-      "long (carol)", { [`${al} + 1`]: "31", [`${rec} + 1`]: "31",
+    // (the instances by their names on chain: carol's, cut in a caption)
+    ["The last byte decides the form: even → short (\"alice\", \"bob\"), " +
+      "odd → long (\"carol, the un…\")", { [`${al} + 1`]: "31", [`${rec} + 1`]: "31",
       [`${cl0} + 1`]: "all" }, null, "else:", []],
     ["Each short text is in its slot, from the left", {
       [`${al} + 1`]: "0,1,2,3,4", [`${rec} + 1`]: "0,1,2" }, null,
@@ -1439,8 +1440,8 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
     problems.push(`template frame: ${w[P.player]?.ptr} | ${w[P.fields]
       ?.ptr.slice(0, 2)}`);
   }
-  if (!["0x7099…79c8 alice→[0]", "0x3c44…93bc bob→[1]",
-    "0x90f7…b906 carol→[2]"].every((x) => w[P.input]?.form.includes(x)) ||
+  if (!["0x7099…79c8 \"alice\"→[0]", "0x3c44…93bc \"bob\"→[1]",
+    "0x90f7…b906 \"carol, the unstoppable combo queen\"→[2]"].every((x) => w[P.input]?.form.includes(x)) ||
     !w[P.name]?.form.includes("even: 0x0a → 5 bytes inline") ||
     !w[P.name]?.form.includes("odd: 0x45 → 34 bytes at keccak(…9979)")) {
     problems.push(`players forms: ${w[P.input]?.form} | ${w[P.name]
@@ -1450,11 +1451,13 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
   {
     const cw = await walk(C);
     const cwant = [
-      ["key = carol's address, from roster[2]",
+      ["key = the address of \"carol, the unstoppable combo queen\", from " +
+        "roster[2]",
         { "keccak(slot 0) + 2": range(12, 31).join() }, [], null],
       ["players is declared at slot 3", {}, ["slot 3"], "slot: 0x03"],
       ["The template mapping(address => Player) takes slot = 3, key = " +
-        "carol's address", {}, ["slot 3"], "expect: [slot, key]"],
+        "the address of \"carol, the unstoppable combo queen\"", {},
+        ["slot 3"], "expect: [slot, key]"],
       ["The record is at keccak(0x90f7…b906, 3) = …9978", {}, [cl0],
         "~keccak256"],
       ["The template Player takes slot = …9978", {}, [cl0], "Player:"],
@@ -1507,7 +1510,7 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
         "#panel .view:not([hidden]) .b.hl.muted").count());
     }
     await page.locator(`#chips .chip[data-k="${P.fields}"]`).click();
-    await page.locator("#dpick button", { hasText: "alice" }).click();
+    await page.locator("#dpick button", { hasText: '"alice"' }).click();
     const echo = await page.locator(
       "#panel .view:not([hidden]) .b.hl.muted").count();
     await page.keyboard.press("Escape");
@@ -1520,7 +1523,8 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
         .count();
     }
     await page.keyboard.press("Escape");
-    if (btns !== "all*,alice,bob,carol" || muted.some(Boolean) || !echo ||
+    if (btns !== 'all*,"alice","bob","carol, the un…"' ||
+      muted.some(Boolean) || !echo ||
       cm) {
       problems.push(`focus all: ${JSON.stringify({ btns, muted, echo, cm })}`);
     }
@@ -1539,13 +1543,13 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
       return [r.left, r.top, r.width, r.height].map(Math.round);
     })));
     const b0 = await boxes();
-    await page.locator('#dpick button', { hasText: "bob" }).click();
+    await page.locator('#dpick button', { hasText: '"bob"' }).click();
     await page.mouse.move(1, 1);
     const x = await stepNow();
     const b1 = await boxes();
     const pressed = await page.locator('#dpick button[aria-pressed="true"]')
       .innerText();
-    if (b0 !== b1 || pressed !== "bob" || x.count !== `${P.fields + 1} / ${N}` ||
+    if (b0 !== b1 || pressed !== '"bob"' || x.count !== `${P.fields + 1} / ${N}` ||
       !same(litNamed({ lit: x.full }), { [rec]: stats })) {
       problems.push(`focus picker: ${b0 !== b1 ? "moved " : ""}${pressed} ${
         x.count} ${JSON.stringify(litNamed({ lit: x.full }))}`);
