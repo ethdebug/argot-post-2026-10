@@ -3916,6 +3916,13 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
       [...e.classList].filter((c) => /^pk\d+$/.test(c))))]);
     if (ks.some((k) => +k.slice(2) > 9)) problems.push(`palette: ${ks}`);
   }
+  // (the selection's brown caps, in memory's panels as in storage's)
+  {
+    const capped = await page.evaluate(() => [...document.querySelectorAll(
+      "#mspanel .view:not([hidden]) .b.hl")].filter((b) =>
+      getComputedStyle(b).boxShadow !== "none").length);
+    if (!capped) problems.push("memory: no caps on the selection");
+  }
   // a click on the score's bytes selects the score
   await page.locator('#mspanel .b[data-owners="players[msg.sender].score"]')
     .first().click();
