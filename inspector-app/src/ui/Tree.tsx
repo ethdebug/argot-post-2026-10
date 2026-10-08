@@ -181,13 +181,22 @@ export function Tree(p: { id: ViewId; data: DataRef; filter?: Filter;
   const pair: [Decoded, Decoded] | undefined = p.compare && d && o
     ? (side === "before" ? [d, o] : [o, d]) : undefined;
   const insets = useLensState((s) => s.insets);
-  const lit = link.selection && d?.byPath.has(link.selection)
-    ? link.selection : link.hover?.path ?? [...light.rows][0] ?? null;
+  // (the selection's row in view; in a walkthrough, the step's first
+  // row: vanilla treeTo, on a selection and on each step)
+  const walkOf = useWalkthrough(p.id);
+  const stepNo = link.walk?.step;
+  const to = link.walk && walkOf && stepNo !== undefined
+    ? walkOf.steps[Math.min(stepNo, walkOf.steps.length - 1)]?.rows[0]
+    : link.selection;
+  // (the card's row: in a walkthrough, the step's first row; else the
+  // selection, or what is pointed at: vanilla treeCard)
+  const lit = link.walk ? to ?? null
+    : link.selection && d?.byPath.has(link.selection)
+      ? link.selection : link.hover?.path ?? [...light.rows][0] ?? null;
   const c: Ctx = { light, selection: link.selection, pair,
     collapsed: new Set([...view.collapsed].filter((q) => !closing.has(q))),
     plain: p.plain, partAttr: p.partAttr,
-    // (none in a walkthrough, as the dump's cards: vanilla)
-    card: pair && insets && light.muted && !p.plain && !link.walk
+    card: pair && insets && light.muted && !p.plain
       ? treeCard(lit, pair, side)
       : undefined };
   // only the filter's roots, and the groups that hold them
@@ -313,22 +322,35 @@ export function Tree(p: { id: ViewId; data: DataRef; filter?: Filter;
         .filter((q) => !shut.includes(q))) };
     });
   }, [sel, setView]);
-  // (the selection's row in view; in a walkthrough, the step's first
-  // row: vanilla treeTo, on a selection and on each step)
-  const walkOf = useWalkthrough(p.id);
-  const stepNo = link.walk?.step;
-  const to = link.walk && walkOf && stepNo !== undefined
-    ? walkOf.steps[Math.min(stepNo, walkOf.steps.length - 1)]?.rows[0] : sel;
+  // (after the box is lined up with its dumps, which may change its
+  // height: vanilla's render, alignColumns, then treeTo)
+  // (not on a walkthrough's start: vanilla startReplay leaves the tree;
+  // each step after it, stepTo, brings its row)
+  const walking = useRef(false);
   useLayoutEffect(() => {
-    const tree = box.current;
-    const row = to && tree?.querySelector(`li[data-path="${
-      esc(to)}"] > .row`);
-    if (!tree || !row || tree.scrollHeight <= tree.clientHeight) return;
-    const r = row.getBoundingClientRect();
-    const b = tree.getBoundingClientRect();
-    if (r.top < b.top || r.bottom > b.bottom) {
-      tree.scrollTop += r.top - b.top - (b.height - r.height) / 2;
-    }
+    const started = !!link.walk && !walking.current;
+    walking.current = !!link.walk;
+    if (started) return;
+    const bring = () => {
+      const tree = box.current;
+      const row = to && tree?.querySelector(`li[data-path="${
+        esc(to)}"] > .row`);
+      if (!tree || !row || tree.scrollHeight <= tree.clientHeight) return;
+      const r = row.getBoundingClientRect();
+      const b = tree.getBoundingClientRect();
+      if (r.top < b.top || r.bottom > b.bottom) {
+        tree.scrollTop += r.top - b.top - (b.height - r.height) / 2;
+      }
+    };
+    bring();
+    let f2 = 0;
+    const f1 = requestAnimationFrame(() => {
+      f2 = requestAnimationFrame(bring);
+    });
+    return () => {
+      cancelAnimationFrame(f1);
+      cancelAnimationFrame(f2);
+    };
   }, [to, d]);
 
   // The tree's box and its dumps start at one height: its first row at
@@ -418,9 +440,17 @@ export function Tree(p: { id: ViewId; data: DataRef; filter?: Filter;
         x.down.join() === down.join() ? x : { up, down });
     };
     measure();
+    // (and once the box is lined up and its row brought into view, which
+    // may move the rows with no scroll of their own)
+    let f2 = 0;
+    const f1 = requestAnimationFrame(() => {
+      f2 = requestAnimationFrame(() => requestAnimationFrame(measure));
+    });
     tree.addEventListener("scroll", measure);
     addEventListener("resize", measure);
     return () => {
+      cancelAnimationFrame(f1);
+      cancelAnimationFrame(f2);
       tree.removeEventListener("scroll", measure);
       removeEventListener("resize", measure);
     };

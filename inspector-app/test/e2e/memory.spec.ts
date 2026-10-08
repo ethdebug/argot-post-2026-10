@@ -80,8 +80,8 @@ test("one point: one dump, Memory; the roll: hit, its last byte",
     const v = await page.evaluate(() => [
       (document.querySelector("#mmoderow") as HTMLElement).hidden,
       getComputedStyle(document.querySelector("#mmoderow")!).display,
-      [...document.querySelectorAll("#mpanel .view-name")].filter((x) =>
-        (x as HTMLElement).offsetParent).map((x) => x.textContent).join(),
+      // (the panel's own header names it: "Memory"; vanilla 3c6d9b6)
+      document.querySelector("#mwords-h")!.firstChild!.textContent!.trim(),
       document.querySelectorAll("#mpanel .cmp, #mpanel .b.chg").length,
       document.querySelector("#msrclegend")!.textContent!.trim()]);
     expect(v).toEqual([true, "none", "Memory", 0, "paused here"]);
