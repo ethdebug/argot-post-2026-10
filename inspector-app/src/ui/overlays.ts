@@ -7,6 +7,7 @@
 import type { Hex, Layout, Light } from "../engine/types";
 import { byteKey } from "../engine/hex";
 import { relClass } from "../engine/related";
+import { addressing, hex4 } from "../engine/location";
 
 type El = HTMLElement;
 // what a dump view lights: its own Light, the compared point's (a slot
@@ -140,6 +141,10 @@ function runs(view: El): El[][] {
 // One name for a run of slots: "slot 0", "slots 0–2",
 // "keccak(slot 0), 2 slots", or the names in turn
 function runName(rows: El[]): string {
+  // (an offset-addressed segment: its rows are only layout; the run is
+  // the bytes it stands for, by their offsets)
+  const loc = data(rows[0])?.l.location;
+  if (loc && addressing(loc) === "offset") return rangeName(rows, loc);
   const names = rows.map((r) => r.dataset.name!);
   if (names.length === 1) return names[0];
   const plain = names.map((n) => n.match(/^(slot|word) (\S+)$/));
@@ -152,6 +157,24 @@ function runName(rows: El[]): string {
     return `${ps[0][1]}${k[0] ? ` + ${k[0]}` : ""}, ${names.length} slots`;
   }
   return names.join(" · ");
+}
+
+// A run of an offset-addressed segment's rows, by the bytes it stands
+// for: the lit ones (else the one pointed at, else the rows), first to
+// last ("calldata 0x0024–0x0043"; one byte: "memory 0x00df"); one whole
+// row: its name
+function rangeName(rows: El[], loc: string): string {
+  const cells = rows.flatMap((r) => all(r, ":scope > .word .b[data-i]"));
+  const pick = (f: (c: El) => boolean) => cells.filter(f);
+  const on = pick((c) => byteLight(c).hl);
+  const at = on.length ? on : pick((c) => c.classList.contains("at"));
+  const xs = (at.length ? at : cells).map((c) =>
+    Number(BigInt(c.closest<El>(".word")!.dataset.slot!)) + +c.dataset.i!);
+  const [a, b] = [Math.min(...xs), Math.max(...xs)];
+  if (rows.length === 1 && a % 32 === 0 && b - a === 31) {
+    return rows[0].dataset.name!;
+  }
+  return `${loc} ${hex4(a)}${b > a ? `–${hex4(b)}` : ""}`;
 }
 
 // What a run of slots holds, as the pointer names it: each slot's
