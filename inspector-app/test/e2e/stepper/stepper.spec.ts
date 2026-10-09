@@ -2,14 +2,14 @@
 // reference, lights the call's bytes, NAME_C, in the calldata dump
 import { test, expect } from "../../page";
 import { pick } from "../../pick";
-import { NAME_C } from "../../expect";
+import { NAME_C, STEPPER } from "../../expect";
 
-for (const o of ["0", "2"]) {
-  test(`stepper-O${o}: the name, sliced from the call, lights its bytes ` +
+for (const id of Object.values(STEPPER)) {
+  test(`${id}: the name, sliced from the call, lights its bytes ` +
     "in calldata; its walkthrough reads the reference's word",
   async ({ page }) => {
     await page.setViewportSize({ width: 1440, height: 1000 });
-    await page.goto(`./embed.html#scene=stepper-O${o}`);
+    await page.goto(`./embed.html#scene=${id}`);
     await expect(page.locator(".tbar .tmark.cur")).toHaveAttribute(
       "data-k", "0");
     await page.locator('.tbar [data-t="next"]').click();

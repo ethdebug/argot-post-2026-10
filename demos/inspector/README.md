@@ -122,7 +122,7 @@ How to read the dump: one 32-byte word per row, byte 0 at the left;
 
 BUG is ethdebug's teaching language, and bugc is ethdebug's reference
 compiler. Arcade has a BUG port (`bug/arcade.bug`), and the stepper
-scenes (`stepper-O0`, `stepper-O2`) step through carol's join at four
+scenes (`stepper-O0`, `optimized-locals`) step through carol's join at four
 moments, compiled without optimization (O0) and with it (O2). At each,
 the code panel marks the moment's source range, and the variables in
 scope are the storage variables and the locals bugc lists there, each

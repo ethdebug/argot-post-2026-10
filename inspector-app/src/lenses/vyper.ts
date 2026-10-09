@@ -9,7 +9,7 @@ const players = { roots: ["players"], rows: "values" as const };
 
 export const vyper: LensSpec = {
   id: "vyper", title: "Vyper vs Solidity",
-  timelines: [], decodings: [], initial: { scene: "vyper-rules" },
+  timelines: [], decodings: [], initial: { scene: "pitfall-compiler" },
   // (the two answers side by side, each over its own storage)
   grid: '"t1 t2" "d1 d2"', columns: 2,
   links: ["v"],

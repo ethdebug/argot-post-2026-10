@@ -5,7 +5,7 @@ import { runs } from "./run";
 import { sceneSnapshot } from "../src/engine/snapshots";
 import { snapshotJson } from "../src/engine/source";
 import type { Decoding } from "../src/engine/types";
-import { PAUSE_STEPS, PAUSE_TX } from "./expect";
+import { PAUSE_STEPS, PAUSE_TX, STEPPER } from "./expect";
 
 // The project, its scenes from their runs (authoring)
 export const testProject = (): Promise<Project> =>
@@ -33,10 +33,10 @@ export async function readerProject(): Promise<Project> {
 
 // A pause of alice's third hit (test/expect.ts PAUSE_STEPS) in a bug
 // build's run: the debugger's decoding there, everything in scope (the
-// stepper scene's run, "run:stepper-O0")
+// stepper scene's run, "run:stepper-O0", "run:optimized-locals")
 export async function pauseOf(p: Project, o: "O0" | "O2", k: number):
   Promise<{ decoding: Decoding; point: string }> {
-  const run = `run:stepper-${o}`;
+  const run = `run:${STEPPER[o]}`;
   const src = await p.source(run);
   const i = src.moments.findIndex((m) => m.tx === PAUSE_TX &&
     m.step === PAUSE_STEPS[o][k]);

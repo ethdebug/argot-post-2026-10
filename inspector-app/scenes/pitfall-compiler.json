@@ -1,5 +1,5 @@
 {
-  "id": "vyper-rules",
+  "id": "pitfall-compiler",
   "title": "Vyper vs Solidity",
   "run": {
     "scenario": "arcade",

@@ -7,7 +7,7 @@ import type { Page } from "@playwright/test";
 import fs from "node:fs";
 import { test, expect, ready } from "../../page";
 import { pick } from "../../pick";
-import { PAUSE_STEPS, pauses } from "../../expect";
+import { PAUSE_STEPS, STEPPER, pauses } from "../../expect";
 
 // (the "mult" pause's two trace steps, either side of `mult = combo`)
 const first = { step: PAUSE_STEPS.O0[1], range: pauses[1].range };
@@ -119,7 +119,7 @@ test("a move mid-walkthrough re-targets it, at the same step",
 for (const o of ["O0", "O2"] as const) {
   test(`bug-${o}: player after the roll: its fields, its memory bytes, ` +
     "how it was found", async ({ page }) => {
-    await open(page, `stepper-${o}`, `12:${PAUSE_STEPS[o][0]}`);
+    await open(page, STEPPER[o], `12:${PAUSE_STEPS[o][0]}`);
     const row = (p: string) => page.locator(`${D} li[data-path="${p}"] > .row`);
     await expect(row("player.name").locator(".val")).toHaveText('"alice"');
     await expect(row("player.plays").locator(".val")).toHaveText("3");

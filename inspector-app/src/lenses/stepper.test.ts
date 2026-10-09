@@ -7,7 +7,7 @@ import { NAME_C } from "../../test/expect";
 
 const NAME_HEX = `0x${Buffer.from(NAME_C, "utf8").toString("hex")}`;
 
-describe.each(["stepper-O0", "stepper-O2"])("%s", (scene) => {
+describe.each(["stepper-O0", "optimized-locals"])("%s", (scene) => {
   it("everything in scope; the name, sliced from the call, is its " +
     "calldata bytes, NAME_C", async () => {
     const p = await testProject();
