@@ -1,13 +1,14 @@
-// The scene "mid" in the shell: drawn by its lens from its snapshot,
-// test/expect.ts's values; tree and dump linked
+// The scene "mid": drawn by its lens from its snapshot (the reader: the
+// embed), test/expect.ts's values; tree and dump linked (the shell, from
+// its run)
 import { test, expect } from "../../page";
 import { pick } from "../../pick";
 import { expected } from "../../expect";
 
 test("mid: the snapshot's values, as test/expect.ts has them",
   async ({ page }) => {
-    await page.goto("./shell.html#scene=mid");
-    await expect(page.locator(".shellpage [data-scene=mid]"))
+    await page.goto("./embed.html#scene=mid");
+    await expect(page.locator("[data-scene=mid][data-mode=reader]"))
       .toBeAttached();
     for (const [path, , value] of expected.mid) {
       await expect(page.locator(`#tree li[data-path="${path}"] > .row .val`),
