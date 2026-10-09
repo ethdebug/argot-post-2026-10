@@ -5,6 +5,19 @@
 html, body { margin: 0; overflow: hidden; background: transparent; }
 /* (the page's own colour stays the ink of what is drawn on dark, the
    popovers; only the boxes go translucent) */
+/* (room at the sides for what reaches out of a column: a tree's box
+   reaches 10px left and 8px right of its column for the selection's bar
+   and the rows' fills: BLEED, in main.tsx's width too) */
+#embed { padding: 0 10px; box-sizing: border-box; }
+/* (a group's row on one line, never a line for its type and summary:
+   the type takes what the name leaves, cut, or gone; the name wraps; the
+   summary stays whole) */
+#embed .tree li:has(> .chev) > .row { flex-wrap: nowrap; }
+#embed .tree li:has(> .chev) > .row .name { flex: 0 1 auto; min-width: 0; }
+#embed .tree li:has(> .chev) > .row .type { flex: 1 1 0; min-width: 0;
+  overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+#embed .tree li:has(> .chev) > .row .val.sum { flex: 0 0 auto;
+  white-space: nowrap; }
 #embed {
   --panel: rgb(255 255 255 / 0.55);
   --line: rgb(31 35 40 / 0.14);
