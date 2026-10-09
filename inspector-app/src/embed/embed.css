@@ -31,6 +31,19 @@ html, body { margin: 0; overflow: hidden; background: transparent; }
 /* (a lens's grid: its columns share the width) */
 #embed .lens { grid-auto-columns: minmax(0, 1fr); gap: 0 28px;
   align-items: start; }
+/* (the storage inspector in a figure: its dump a word a row, 32 bytes,
+   one row a slot. Side by side where the dump keeps 580px and the tree
+   at most 380px (a record is short); narrower, the tree over the dump,
+   each the frame's width; a phone: one column, as every lens) */
+@media (min-width: 910px) {
+  #embed .lens.inspector { grid-template-columns: minmax(580px, 1fr)
+    minmax(0, 380px) !important; }
+}
+@media (min-width: 660px) and (max-width: 909.98px) {
+  #embed .lens.inspector { grid-template-columns: minmax(0, 1fr) !important;
+    grid-template-areas: "contract" "pick" "time" "bar" "rows" "tree"
+      "dump" !important; }
+}
 /* (a composition narrower than its frame, the raw lens's: centred) */
 #embed .lens.raw { justify-content: center; }
 #embed .lens.raw { padding: 0; max-width: none; }
