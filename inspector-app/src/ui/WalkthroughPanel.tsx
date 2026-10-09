@@ -634,7 +634,7 @@ export function PanelView({ model: m, act, domId }: { model: PanelModel;
             shortened, yields folded)</span></span>
             {/* (where the piece shown is: the variable and the templates
               entered to reach it) */}
-            <span className="pchain" title={m.yaml.chain.join(" › ")}>{
+            <span className="pchain">{
               m.yaml.chain.join(" › ")}</span></p>
           <PointerYaml domId={idOf("ptr")} text={m.yaml.text}
             band={m.yaml.band} goal={m.yaml.goal} shown={walk}

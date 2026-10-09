@@ -72,10 +72,12 @@ async ({ page, baseURL }) => {
   // (at rest: the selection and the way in, in each panel)
   await expect(pa.locator('#details button[data-r="start"]')).toBeEnabled();
   await expect(pb.locator('#details button[data-r="start"]')).toBeEnabled();
-  // (each frame posts its height; the figure draws no panel of its own)
+  // (each frame posts its height; the figure draws no panel of its own.
+  // A figure posts once it is drawn, its dumps filled and its height
+  // still: under load, some seconds)
   await expect.poll(() => page.evaluate(() => new Set((window as unknown as
-    { heights: string[][] }).heights.map((h) => `${h[0]} ${h[1]}`)).size))
-    .toBe(4);
+    { heights: string[][] }).heights.map((h) => `${h[0]} ${h[1]}`)).size),
+  { timeout: 30_000 }).toBe(4);
   await expect(page.frameLocator("#a .figure").locator(".wpanel"))
     .toHaveCount(0);
   // (the figure's top in view: the panel in its place, not stuck)
