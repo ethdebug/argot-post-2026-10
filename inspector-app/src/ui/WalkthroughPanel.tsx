@@ -165,8 +165,12 @@ export interface PanelModel {
       foot?: [string, string] };
     focus?: { recs: Rec[]; focus: string } };
   // the selection's pointer, its band, its notes
+  // (`piece`: the part of it the step is in, a template's name, or ""
+  // for the variable's own pointer; `chain`: where that is, the
+  // variable and the templates entered: players › mapping › Player)
   yaml: { text: YamlText | null; band?: string[]; goal: boolean;
-    notes?: { block: string; values: Record<string, string> } };
+    notes?: { block: string; values: Record<string, string> };
+    piece: string; chain: string[] };
   exit?: boolean;                       // an exit asked for
 }
 // What the reader does, for the controller to act on
@@ -358,7 +362,8 @@ export function useWalkModel(p: { id: ViewId; data: DataRef;
   }
   const model: PanelModel = { key, walking: !!walk, rest, walk: wm,
     yaml: { text: yaml, band: st?.band, goal: !!st?.goal,
-      ...st?.notes ? { notes: st.notes } : {} },
+      ...st?.notes ? { notes: st.notes } : {}, piece: st?.piece ?? "",
+      chain: variable ? [variable, ...st?.chain ?? []] : [] },
     ...walk?.exit ? { exit: true } : {} };
   return { model, act };
 }
@@ -624,12 +629,16 @@ export function PanelView({ model: m, act, domId }: { model: PanelModel;
       <div ref={panel} id={idOf("dpanel")}
         className="dpanel" hidden={!walk}>
         <div className="ptr" aria-label="Ethdebug data from the compiler">
-          <p className="plabel">Ethdebug data from the compiler <span
-            className="pnote">(as YAML; template names shortened, yields
-            folded)</span></p>
+          <p className="plabel"><span className="ptitle">Ethdebug data from
+            the compiler <span className="pnote">(as YAML; template names
+            shortened, yields folded)</span></span>
+            {/* (where the piece shown is: the variable and the templates
+              entered to reach it) */}
+            <span className="pchain" title={m.yaml.chain.join(" › ")}>{
+              m.yaml.chain.join(" › ")}</span></p>
           <PointerYaml domId={idOf("ptr")} text={m.yaml.text}
             band={m.yaml.band} goal={m.yaml.goal} shown={walk}
-            notes={m.yaml.notes} />
+            notes={m.yaml.notes} piece={m.yaml.piece} />
           {KIND_UNDER_YAML && construct}
         </div>
       </div>

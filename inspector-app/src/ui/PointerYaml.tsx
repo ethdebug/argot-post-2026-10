@@ -37,11 +37,16 @@ export interface YamlText { lines: PointerLine[];
 
 // `text`: the selection's variable's pointer (none: nothing selected);
 // `goal`: a walkthrough's step 0 (the pointer blurred and still);
-// `shown`: the details are open (the edges' buttons only then)
+// `shown`: the details are open (the edges' buttons only then);
+// `piece`: the part of the pointer shown, the step's (a template's
+// name; "" or none: the variable's own pointer); a new piece fades in,
+// in the box's own room
 export function PointerYaml({ domId, text: yaml, band, before, goal,
-  shown, notes }: { domId?: string; text: YamlText | null;
-  band?: string[]; before?: ReactNode; goal?: boolean; shown?: boolean;
-  notes?: { block: string; values: Record<string, string> } }) {
+  shown, notes, piece = "" }: { domId?: string;
+  text: YamlText | null; band?: string[]; before?: ReactNode;
+  goal?: boolean; shown?: boolean;
+  notes?: { block: string; values: Record<string, string> };
+  piece?: string }) {
   // (its parts' ids, after its own: "ptr" → "pgo"; "mptr" → "mpgo")
   const pre = domId?.replace(/ptr$/, "") ?? "";
   const variable = !!yaml;
@@ -209,7 +214,12 @@ export function PointerYaml({ domId, text: yaml, band, before, goal,
     {!variable ? <p className="muted small">Select a value to see the part
       of the ethdebug data from the compiler that finds it.</p> : <>
       {before}
-      <pre className="ptrlines"><code>{lines.map((l, k) => {
+      <pre key={piece} className="ptrlines"><code>{lines.map((l, k) => {
+        // (the piece's lines only: its head, then its own; the blank line
+        // between pieces, none)
+        if (l.pos.split("|")[0] !== piece || l.pos.endsWith("|-")) {
+          return null;
+        }
         const on = lit.has(k);
         const cls = `line${on ? ` on${lit.has(k - 1) ? "" : " on-top"}${
           lit.has(k + 1) ? "" : " on-end"}` : ""}`;
