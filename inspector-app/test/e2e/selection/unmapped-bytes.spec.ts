@@ -202,7 +202,8 @@ test("a row no value owns is one unmapped run: its gutter, gaps or bytes "
   await ready(page, { memory: true, hash: "msel=" });
   // (a memory word no local owns at this pause)
   const slot = await page.evaluate(() => [...document.querySelectorAll<
-    HTMLElement>("#mpanel .view[data-side=after] .rows > .wrow[data-slot]")]
+    HTMLElement>("#mpanel .view[data-side=after] .rows > .run > " +
+    ".wrow[data-slot]")]
     .find((r) => !r.querySelector(".b[data-owners]"))?.dataset.slot);
   expect(slot).toBeTruthy();
   const R = `#mpanel .view[data-side=after] .wrow[data-slot="${slot}"]`;

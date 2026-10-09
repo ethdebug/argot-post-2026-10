@@ -29,7 +29,9 @@ test("every scene: the same slots at both moments, in order, gaps marked",
       });
       want.push("gap");
       expect(await page.locator('#panel .view[data-side=after] .rows')
-        .evaluate((r) => [...r.children].filter((c) =>
+        // (its lines, through its groups: the runs between gap lines)
+        .evaluate((r) => [...r.querySelectorAll(
+          ":scope > :not(.run), :scope > .run > *")].filter((c) =>
           !c.classList.contains("room")).map((c) =>
           c.classList.contains("gap") ? "gap"
             : (c as HTMLElement).dataset.slot)), id).toEqual(want);
