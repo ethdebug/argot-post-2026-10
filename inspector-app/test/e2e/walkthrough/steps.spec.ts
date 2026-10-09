@@ -135,8 +135,8 @@ test("players: step 0 and ten steps, their light, bands and chips",
       ["The last byte of each name slot is its length flag",
         { [`${al} + 1`]: "31", [`${rec} + 1`]: "31", [`${cl0} + 1`]: "31" },
         "name: length-flag", [], []],
-      ["The last byte decides the form: even → short (alice, bob), odd → "
-        + "long (carol)", { [`${al} + 1`]: "31",
+      ['The last byte decides the form: even → short ("alice", "bob"), odd → '
+        + `long (${CAROL})`, { [`${al} + 1`]: "31",
         [`${rec} + 1`]: "31", [`${cl0} + 1`]: "all" }, "else:", [], []],
       ["Each short text is in its slot, from the left", {
         [`${al} + 1`]: "0,1,2,3,4", [`${rec} + 1`]: "0,1,2" },
@@ -175,9 +175,9 @@ test("players: step 0 and ten steps, their light, bands and chips",
     // frame ends the band; the next starts inside that template
     expect(w[3].ptr.slice(-3).join("|")).toBe("Player:|expect: [slot]|for:");
     expect(w[4].ptr[0].startsWith("- name: score")).toBe(true);
-    for (const x of ["alice (0x7099…79c8)→[0]", "bob (0x3c44…93bc)→[1]",
-      "carol (0x90f7…b906)→[2]"]) expect(w[0].form).toContain(x);
-    expect(w[3].form).toContain("keccak(alice, slot 3) = …aa80");
+    for (const x of ['"alice" (0x7099…79c8)→[0]', '"bob" (0x3c44…93bc)→[1]',
+      `${CAROL} (0x90f7…b906)→[2]`]) expect(w[0].form).toContain(x);
+    expect(w[3].form).toContain('keccak("alice", slot 3) = …aa80');
     expect(w[7].form).toContain("even: 0x0a → 5 bytes inline");
     expect(w[7].form).toContain("odd: 0x45 → 34 bytes at keccak(slot …9979)");
   });
@@ -220,7 +220,7 @@ test("carol's record: eleven steps; bob's plays and carol's name",
     const cw = (await walk(page, C)).steps;
     const cwant: [string, Record<string, string>, string[], string,
       string[]][] = [
-      ["The key: carol's address. A mapping does not store its keys; the " +
+      [`The key: the address of ${CAROL}. A mapping does not store its keys; the ` +
         "page takes it from playerList[2]",
         { "keccak(slot 0) + 2": range(12, 31) }, [], "", []],
       ["players is declared at slot 3", {}, ["slot 3"], "slot: 0x03", []],
@@ -253,7 +253,7 @@ test("carol's record: eleven steps; bob's plays and carol's name",
     const bw = await walk(page, `${B}.plays`);
     expect(bw.steps.map((x) => x.cap!.split(" ")[1]).join())
       .toBe("key:,is,template,record,is");
-    expect(bw.steps[0].form).toContain("bob (0x3c44…93bc)");
+    expect(bw.steps[0].form).toContain('"bob" (0x3c44…93bc)');
     expect(bw.steps[4].litN).toEqual({ [rec]: range(12, 15) });
     expect(bw.ctl).toBe(1);
     const st = await stepNow(page);
@@ -290,7 +290,7 @@ test("the bar: entry, title, ◀ ▶ at the ends, the place, dots, keys, Exit",
     bs = await barNow();
     // (the title names the key by name, not by address)
     expect(bs).toMatchObject({ tint: true,
-      title: "How the pointer finds players[bob].plays", count: "1 / 5",
+      title: 'How the pointer finds players["bob"].plays', count: "1 / 5",
       off: "prev", dots: 6, exit: true });
     await page.locator("#dots .dot:last-child").click();
     expect(await barNow()).toMatchObject({ count: "done", off: "next" });
@@ -344,7 +344,7 @@ test("the focus: all by default for players; one entry echoes",
     }
     expect(shown.filter((k) => k >= 0)).toEqual([4]);
     await page.locator('#dots .dot[data-n="4"]').dispatchEvent("click");
-    expect(await btns()).toBe("all*|alice|bob|carol");
+    expect(await btns()).toBe('all*|"alice"|"bob"|"carol, the un…"');
     expect(muted.some(Boolean)).toBe(false);
     await page.locator('#dots .dot[data-n="4"]').dispatchEvent("click");
     const boxes = () => page.evaluate(() => JSON.stringify([
@@ -454,7 +454,7 @@ test("Vyper: Solidity's rule, then the misread: Vyper's own layout, "
     await page.mouse.move(1, 1);
     const cap = (await page.locator("#details .rcap").innerText())
       .replace(/\s+/g, " ");
-    expect(cap).toContain("The misread: Vyper keeps players[alice].score " +
+    expect(cap).toContain("The misread: Vyper keeps players[0x7099…79c8].score " +
       "in slot …0446, where it is 30");
     expect(await page.locator("#details .rsrc").innerText()).toContain(
       "from: Vyper's layout, hand-written for comparison (Vyper emits no " +
@@ -724,7 +724,7 @@ test("the last step, found: the selection's resting view",
     if (x === C) {
       await row(page, `${C}.name`).click();
       const r = await stepNow(page);
-      expect(r.cap).toBe("players[carol].name = \"carol, the unstoppable " +
+      expect(r.cap).toBe("players[\"carol, the un…\"].name = \"carol, the unstoppable " +
         "combo queen\".");
       expect(r.count).toBe("done");
     }
@@ -796,9 +796,9 @@ test("a click mid-walk re-targets it, at the same step where the steps "
   // carol's name: the record's step; a name → totalScore: its one step)
   expect(await retarget(`${C}.name`, 4, `${B}.name`)).toEqual({
     count: "5 / 8", sel: `${B}.name`, on: 1,
-    cue: "now: players[bob].name, 5 / 8" });
+    cue: 'now: players["bob"].name, 5 / 8' });
   expect(await retarget(C, 4, `${C}.name`)).toMatchObject({
-    sel: `${C}.name`, on: 1, cue: "now: players[carol].name, 4 / 8" });
+    sel: `${C}.name`, on: 1, cue: 'now: players["carol, the un…"].name, 4 / 8' });
   expect(await retarget(`${C}.name`, 4, "totalScore", "byte")).toEqual({
     count: "1 / 1", sel: "totalScore", on: 1,
     cue: "now: totalScore, 1 / 1" });

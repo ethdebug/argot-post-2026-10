@@ -304,24 +304,27 @@ export function walkthrough(x: WalkInput, path: Path, focus?: string):
     }
   }
   const keyOf = (i: string) => inputs.get(`${i}|mapping`)?.key?.hex;
-  // an instance by its name in the scene's story (the fixture's), else
-  // its on-chain `name` (quoted; an empty one, "", is none), else its
-  // key: one name for each, everywhere; its address once, at the keys
+  // an instance by its on-chain `name` value, quoted (an empty one, "",
+  // is none), else its key: one name for each, everywhere; its address
+  // once, at the keys
   const named = (t?: string) => t && t !== '""' ? t : undefined;
-  const nameOfKey = (h: Hex) => x.keys.names?.[w32(h).slice(-40)];
-  const nameOf = (i: string) => (keyOf(i) && nameOfKey(keyOf(i)!)) ??
-    named(d.byPath.get(`${i}.name`)?.value?.text);
+  const nameOf = (i: string) => named(d.byPath.get(`${i}.name`)?.value
+    ?.text);
   const who = (i: string) => nameOf(i) ?? (keyOf(i) ? short(keyOf(i)!)
     : i.replace(/\[(0x[0-9a-fA-F]{16,})\]/g, (_, h) => `[${short(h)}]`));
   const whoAt = (i: string) => keyOf(i) && nameOf(i)
     ? `${who(i)} (${short(keyOf(i)!)})` : who(i);
-  // (a path with its keys by name: players[carol].name)
-  const pathName = (p: string) => p.replace(/\[(0x[0-9a-fA-F]{16,})\]/g,
-    (_, h) => `[${nameOfKey(h as Hex) ?? short(h)}]`);
-  const isRec = insts.some((i) => keyOf(i));
   // (shortened, within its quotes, for a narrow place: vanilla 0225d35)
   const clip = (t: string, n = 16) => t.length > n
     ? `${t.slice(0, n - 2)}…${t.endsWith('"') ? '"' : ""}` : t;
+  // (a path with its keys by name, shortened: players["carol, the un…"])
+  const pathName = (p: string) => p.replace(/\[(0x[0-9a-fA-F]{16,})\]/g,
+    (m, h, at) => {
+      const nm = named(d.byPath.get(`${p.slice(0, at)}${m}.name`)?.value
+        ?.text);
+      return `[${nm ? clip(nm) : short(h)}]`;
+    });
+  const isRec = insts.some((i) => keyOf(i));
   const whoShort = (i: string) => clip(who(i));
   const recs = isRec && insts.length > 1
     ? insts.map((i) => ({ path: i, who: whoShort(i), full: who(i) }))
@@ -366,7 +369,7 @@ export function walkthrough(x: WalkInput, path: Path, focus?: string):
     const from = (it: ValueNode | null) => it ? `\`${it.path}\``
       : "the trace of the calls";
     step({ phase: "input", id: "input",
-      cap: one ? `The key: ${who(keyed[0])}'s address. A mapping does not ` +
+      cap: one ? `The key: the address of ${who(keyed[0])}. A mapping does not ` +
         `store its keys; the page takes it from ${from(items[0][1])}`
         : "The keys: a mapping does not store its keys; the page takes " +
           `them from ${keyList ? `\`${keyList}\`` : "the trace of the calls"}`,
@@ -900,7 +903,7 @@ export function walkthrough(x: WalkInput, path: Path, focus?: string):
   const names = new Map<string, string>();
   for (const i of insts) {
     const k = keyOf(i);
-    if (k && nameOf(i)) names.set(short(k), who(i));
+    if (k && nameOf(i)) names.set(short(k), whoShort(i));
   }
   return { target: path, steps: out, recs, focus: every ? "*" : f,
     variable, span: allS, names, name: sk };
