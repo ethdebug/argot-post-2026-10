@@ -52,9 +52,19 @@ export function decode(p: Project, d: Decoding, point: PointId):
 }
 
 // The base slot of a state variable: its region's, or its template's
+// (a pointer that brings its own templates, bugc's: its `in` region's)
 const baseSlot = (v: Variable): Hex => {
-  const p = v.pointer as { slot?: string; define?: { slot?: string } };
-  return slotHex(toBig(String(p.slot ?? p.define?.slot)));
+  const p = v.pointer as { slot?: string; define?: { slot?: string };
+    in?: { slot?: string } };
+  return slotHex(toBig(String(p.slot ?? p.define?.slot ?? p.in?.slot)));
+};
+// A variable's own pointer to its value (bugc's: a collection, its
+// templates in it), or none: solc's, a region or a reference, its type's
+// template from its base slot
+const ownPointer = (v: Variable) => {
+  const p = v.pointer as unknown as Record<string, unknown>;
+  return ["templates", "group", "list", "if"].some((k) => k in p)
+    ? v.pointer : undefined;
 };
 
 async function decodeAt(p: Project, d: Decoding, point: PointId):
@@ -71,7 +81,8 @@ async function decodeAt(p: Project, d: Decoding, point: PointId):
   }
   const vars = c.stateVariables.filter((v) => {
     const q = v.pointer as { location?: string; define?: object };
-    return q.location === "storage" || q.define !== undefined;
+    return q.location === "storage" || q.define !== undefined ||
+      JSON.stringify(q).includes('"storage"');
   });
   // mappings last: their keys may come from a list decoded first
   const done = new Map<Variable, ValueNode>();
@@ -249,17 +260,24 @@ async function variable(c: Compilation, v: Variable, state: State,
   if (isValueType(type, c.types)) {
     return contextValue(node, v, type, c.types, state, graphs);
   }
-  const base = baseSlot(v);
-  const root = { define: { slot: base }, in: { template: typeId } } as
-    unknown as Pointer;
+  // (bugc's: its pointer as it is; a mapping's, its entries by its own
+  // template, from its base slot)
+  const own = ownPointer(v) as { templates?: Record<string, unknown> } |
+    undefined;
+  const entry = own?.templates && Object.keys(own.templates)[0];
+  const base = own && !entry ? "0x" as Hex : baseSlot(v);
+  const at = (d: Record<string, unknown>) => (own && !entry ? own
+    : own ? { templates: own.templates, in: { define: d,
+      in: { template: entry } } }
+      : { define: d, in: { template: typeId } }) as unknown as Pointer;
+  const root = at({ slot: base });
   if (as(type).kind === "mapping") {
     const ks = keys?.values.map((x) => x.value) ?? [];
     const ids = await graphOf(c, id, root, state, keys ? [keys] : [],
       graphs, async () => {
         const out: unknown[] = [];
         for (const key of ks) {
-          const view = await viewOf({ define: { slot: base, key },
-            in: { template: typeId } } as unknown as Pointer, state, c);
+          const view = await viewOf(at({ slot: base, key }), state, c);
           out.push(...view.regions);
         }
         return out;
@@ -274,9 +292,8 @@ async function variable(c: Compilation, v: Variable, state: State,
         : Data.fromHex(key).resizeTo(32);
       const keyText = decodeValue(keyType, k, c.types).text;
       const path = `${id}[${keyText}]`;
-      const scope = await instantiate({ define: { slot: base, key },
-        in: { template: typeId } } as unknown as Pointer, state, c,
-      ids.slice(from));
+      const scope = await instantiate(at({ slot: base, key }), state, c,
+        ids.slice(from));
       from += scope.count;
       children.push(await walk(c, scope, valueId, "value",
         { ...node, path, label: `[${keyText}]`, type: valueId,
@@ -318,6 +335,7 @@ async function contextValue(node: ValueNode, v: Variable,
 // The regions of one dereference, taken by name in order
 interface Scope {
   count: number;
+  has(name: string): boolean;
   take(name: string): Promise<{ bytes: Uint8Array; index: number;
     region: ResolvedRegion }>;
   lengthParts(prefix: string, index: number): ResolvedRegion[];
@@ -339,6 +357,7 @@ async function instantiate(pointer: Pointer, state: State, c: Compilation,
     resolved(all[i], role, ids[i]);
   return {
     count: all.length,
+    has: (name) => view.regions.named(name).length > 0,
     async take(name) {
       const list = view.regions.named(name);
       const i = used.get(name) ?? 0;
@@ -398,13 +417,18 @@ async function walk(c: Compilation, scope: Scope, typeId: string,
     const regions: ResolvedRegion[] = [];
     if (t.count !== undefined) count = Number(t.count);
     else {
-      const r = await scope.take(join(prefix, "length"));
+      // (solc's "length"; bugc's "array-length")
+      const r = await scope.take(scope.has(join(prefix, "length"))
+        ? join(prefix, "length") : join(prefix, "array-length"));
       count = Number(toBig(toHex(r.bytes)));
       regions.push({ ...r.region, role: "length" });
     }
     const children: ValueNode[] = [];
+    // (solc's "item"; bugc's "element")
+    const item = scope.has(join(prefix, "item")) || !count
+      ? join(prefix, "item") : join(prefix, "element");
     for (let i = 0; i < count; i++) {
-      children.push(await walk(c, scope, elem, join(prefix, "item"),
+      children.push(await walk(c, scope, elem, item,
         { ...node, path: `${node.path}[${i}]`, label: `[${i}]`,
           type: elem, typeText: typeName(types[elem], types),
           regions: [] }));
