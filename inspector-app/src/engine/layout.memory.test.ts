@@ -33,7 +33,7 @@ it("O0 inside _applyCombo: the frame pointer's word, and the locals' "
     (_, k) => `0x${(k * 32).toString(16).padStart(4, "0")}`));
   expect(l.rows.every((r) => !r.gapBefore)).toBe(true);
   expect(l.more).toBe(false);
-  for (const a of ["0x0080", "0x06c0", "0x06e0", "0x0720"]) {
+  for (const a of ["0x0080", "0x09a0", "0x09c0", "0x0a00"]) {
     expect(l.rows.find((r) => r.address === a)!.how).toBe(`memory ${a}`);
   }
   // (vanilla's label: the frame pointer's owner id)
@@ -41,12 +41,12 @@ it("O0 inside _applyCombo: the frame pointer's word, and the locals' "
     .toBe("memory 0x0080 : _applyCombo#frame");
   // (the related view: the selection's words and near ones, gaps between)
   const only = layout(x.d, "memory", { only: { rows: ["0x0080",
-    "0x0720"] } }, { compare: x.other, point: x.point,
+    "0x0a00"] } }, { compare: x.other, point: x.point,
     comparePoint: x.otherPoint });
-  expect(only.rows.map((r) => r.address)).toEqual(["0x0080", "0x0720"]);
+  expect(only.rows.map((r) => r.address)).toEqual(["0x0080", "0x0a00"]);
   expect(only.rows.map((r) => !!r.gapBefore)).toEqual([true, true]);
   // (after mult = combo, mult's last 4 bytes are combo's: two owners)
-  expect([...l.cover.get(byteKey("memory", "0x0720", 31))!].sort())
+  expect([...l.cover.get(byteKey("memory", "0x0a00", 31))!].sort())
     .toEqual(["combo", "mult"]);
 });
 

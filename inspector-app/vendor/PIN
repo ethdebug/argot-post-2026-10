@@ -10,6 +10,11 @@ programs-react takes React 19 and shiki 3); from a detached worktree
 (yarn install --frozen-lockfile builds them). Earlier pins: 7a1f5531d
 (#375's branch), d7cb421a3, ec7a81386.
 
+bugc (bin/build-arcade.sh's BUGC, the bug-O0 and bug-O2 builds):
+commit a08698683 (ethdebug/format main: #377, struct and string copies
+between storage and memory, pointers for struct locals). The four packed
+packages do not change from ba31f0a81 to it, so the tarballs stay.
+
 sha256:
 9ff7600cd25af38325b8cd86108097169219914d4f627a1f6bf8c5dec15aafc4  ethdebug-evm-0.1.0-preview.2.tgz
 cd943343e5a7a9a825880a5972fdcf61af7b20230d843e3df2563cb5a4f7ee03  ethdebug-format-0.1.0-draft.2.tgz

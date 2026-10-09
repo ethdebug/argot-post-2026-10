@@ -24,8 +24,9 @@ const locals = (ns: ValueNode[]) => ns.flatMap((n) =>
   n.kind === "group" ? n.children ?? [] : n.kind ? [] : [n]);
 
 for (const o of ["O0", "O2"]) {
-  it(`${o}: hit after the roll, its only local`, async () => {
-    expect(values((await at(o, "roll")).tree)).toEqual({ hit: "true" });
+  it(`${o}: hit after the roll; player listed`, async () => {
+    expect(values((await at(o, "roll")).tree)).toEqual({ hit: "true",
+      player: "none" });
   });
   it(`${o}: inside _applyCombo: points 10, combo 3; mult 5, then 3`,
     async () => {
@@ -37,17 +38,18 @@ for (const o of ["O0", "O2"]) {
       expect(values(locals(b.tree))).toEqual({ points: "10", combo: "3",
         mult: "3" });
     });
-  it(`${o}: before the writes: gained 30; hit listed, no location; `
-    + "alice's record, in storage", async () => {
+  it(`${o}: before the writes: gained 30; player and hit listed, no `
+    + "location; alice's record, in storage", async () => {
     const d = await at(o, "writes");
-    expect(d.tree.map((n) => n.path)).toEqual(["gained", "hit"]);
-    expect(values(d.tree)).toEqual({ hit: "none", gained: "30" });
-    // (her record as the trace has it then: every counter but score
-    // already written)
+    expect(d.tree.map((n) => n.path)).toEqual(["gained", "player", "hit"]);
+    expect(values(d.tree)).toEqual({ player: "none", hit: "none",
+      gained: "30" });
+    // (her record as the trace has it then: as her second hit left it;
+    // play() writes its copy, player, back next)
     const r = d.byPath.get(A)!;
     expect(r.children!.map((c) => [c.label, c.value?.text]).slice(0, 5))
-      .toEqual([["score", "30"], ["combo", "3"], ["bestCombo", "3"],
-        ["plays", "3"], ["hits", "3"]]);
+      .toEqual([["score", "30"], ["combo", "2"], ["bestCombo", "2"],
+        ["plays", "2"], ["hits", "2"]]);
     // (score: the low 8 bytes of the slot)
     expect(d.byPath.get(`${A}.score`)!.regions).toEqual([
       expect.objectContaining({ location: "storage", offset: 24,
@@ -74,7 +76,7 @@ it("O2: inlined: no frame; the locals at fixed offsets", async () => {
   const d = await at("O2", "mult:0");
   expect(d.byPath.get("_applyCombo")!.value?.text).toBe("inlined: no frame");
   expect(d.byPath.get("_applyCombo")!.regions).toEqual([]);
-  expect(d.byPath.get("points")!.regions[0]).toMatchObject({ offset: 280,
+  expect(d.byPath.get("points")!.regions[0]).toMatchObject({ offset: 344,
     length: 8 });
   expect(d.byPath.get("points")!.reads).toEqual([]);
 });
