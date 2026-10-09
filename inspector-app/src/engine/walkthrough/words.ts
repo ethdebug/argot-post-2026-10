@@ -15,6 +15,11 @@ export const FOOT: Record<string, [string, string]> = {
     `${SPEC}region/location/storage/`],
   if: ["Conditional (if, then, else)", `${SPEC}collection/conditional/`],
   list: ["List (a collection of pointers)", `${SPEC}collection/list/`],
+  // (a region in another location: its own page)
+  ...Object.fromEntries(["memory", "stack", "calldata", "returndata",
+    "transient", "code"].map((l) => [`region:${l}`, [`${l[0]
+      .toUpperCase()}${l.slice(1)} regions`,
+    `${SPEC}region/location/${l}/`]])),
 };
 // the one construct of a step that gets a spec link
 export const footOf = (st: Step) => st.constructs.find((c) => FOOT[c]);
@@ -24,7 +29,7 @@ export const footOf = (st: Step) => st.constructs.find((c) => FOOT[c]);
 const CONSTRUCT: Record<string, string> = {
   input: "input", declared: "declared", template: "template",
   handoff: "define", fields: "region", read: "region", data: "region",
-  item: "list", if: "if",
+  item: "list", if: "if", value: "region",
 };
 export const constructOf = (st: Step) => CONSTRUCT[st.phase] ?? "";
 

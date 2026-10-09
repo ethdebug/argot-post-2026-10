@@ -14,7 +14,8 @@ export const hex4 = (n: number): Hex =>
   `0x${n.toString(16).padStart(4, "0")}`;
 // how a location's bytes are found: by slot, or by offset in a segment
 export const addressing = (l: Location): "slot" | "offset" =>
-  l === "storage" || l === "stack" ? "slot" : "offset";
+  l === "storage" || l === "stack" || l === "transient" ? "slot"
+    : "offset";
 const byOffset = (l: Location) => addressing(l) === "offset";
 // (an offset-addressed segment: its rows, of a word each)
 const ROW = 32;
@@ -106,7 +107,29 @@ export function rowBytes(s: Snapshot | undefined, l: Location,
   }
   const st = s?.stack;
   const w = (l === "stack" ? st?.[st.length - 1 - Number(BigInt(row))]
-    : s?.storage.get(row) ?? "0x")?.slice(2).padStart(64, "0") ?? "";
+    : (l === "transient" ? s?.transient : s?.storage)?.get(row) ?? "0x")
+    ?.slice(2).padStart(64, "0") ?? "";
   if (!w) return Array.from({ length: ROW }, () => undefined);
   return w.match(/../g)!;
 }
+
+// a region's bytes at a point, as hex (undefined: some of them are not
+// part of the point's state)
+export function regionHex(s: Snapshot | undefined, r: ResolvedRegion):
+  Hex | undefined {
+  const rows = new Map<Hex, (string | undefined)[]>();
+  const out: string[] = [];
+  for (const [row, i] of regionBytes(r)) {
+    if (!rows.has(row)) rows.set(row, rowBytes(s, r.location, row));
+    const b = rows.get(row)![i];
+    if (b === undefined) return undefined;
+    out.push(b);
+  }
+  return `0x${out.join("")}`;
+}
+
+// "memory 0x00b8–0x00bf" (rangeText); a storage region: "bytes 24–31
+// of the slot"
+export const spanText = (r: ResolvedRegion) => r.location === "storage"
+  ? `bytes ${r.offset}–${r.offset + r.length - 1} of the slot`
+  : rangeText(r.location, r.offset, r.offset + r.length - 1);

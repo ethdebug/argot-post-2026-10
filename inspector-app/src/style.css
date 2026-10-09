@@ -15,9 +15,9 @@
 /* A wider frame than the other appendix pages: the words want room */
 main { max-width: 1440px; }
 
-/* Narrow: tree, "How this was found", words, source, one under the
-   other. Wide: the words (the raw bytes) on the left, held in view; the
-   tree, the derivation and the source beside them, on the right. */
+/* Narrow: tree, words, source, one under the other. Wide: the words
+   (the raw bytes) on the left, held in view; the tree and the source
+   beside them, on the right. */
 .cols { display: grid; grid-template-columns: minmax(0, 1fr); gap: 0 28px; }
 /* THE breakpoint, its one definition: two columns from here; scripts
    read --two-cols (Tree.tsx), never the width */
@@ -26,14 +26,13 @@ main { max-width: 1440px; }
   :root { --two-cols: 1; }
   .cols {
     grid-template-columns: minmax(0, 7fr) minmax(0, 5fr);
-    grid-template-rows: auto auto 1fr;
+    grid-template-rows: auto 1fr;
   }
   .storage { grid-column: 2; grid-row: 1; font-size: 1.05rem; }
-  .howbox { grid-column: 2; grid-row: 2; }
-  .source { grid-column: 2; grid-row: 3; }
+  .source { grid-column: 2; grid-row: 2; }
   .words {
     grid-column: 1;
-    grid-row: 1 / span 3;
+    grid-row: 1 / span 2;
     position: sticky;
     top: 0;
     align-self: start;
@@ -124,50 +123,8 @@ li.same > .row .name, li.same > .row .type { opacity: 0.55; }
   font-weight: 700;
 }
 .steps .final { font-weight: 400; }
-.args { color: var(--muted); font-size: 0.85rem; margin-left: 1em; }
-/* "How this was found": the selected variable's derivation */
-.howbox .how { margin-top: 0; }
-.howrest { margin: 0; }
-.howhead { margin: 0 0 4px; display: flex; flex-wrap: wrap; gap: 4px 10px;
-  align-items: baseline; }
-.howhead code { font-weight: 700; background: none; padding: 0; }
 .howside { margin: 0 0 8px; color: var(--muted); }
 .howside b { color: var(--fg); font-weight: 600; }
-/* Where the two states' derivations differ: a step's two evaluations,
-   and after the fork, one list per branch (this state's first; the
-   other muted, like the cards) */
-.evals {
-  margin: 4px 0 0;
-  font-size: 0.85rem;
-  display: grid;
-  gap: 1px;
-}
-.ev-tag {
-  display: inline-block;
-  min-width: 3.6em;
-  padding: 0 6px;
-  border-radius: 5px;
-  font: 600 0.62rem/1.6 system-ui, -apple-system, "Segoe UI", sans-serif;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-  text-align: center;
-  color: var(--panel);
-  background: var(--accent);
-}
-.branch { margin: 6px 0 0; }
-.branch-head { margin: 0 0 2px; }
-.branch-head .ev-tag { min-width: 0; }
-.branch-head { padding-left: 2em; }
-.branch.theirs {
-  padding: 4px 0 2px;
-  border-radius: 6px;
-  background: color-mix(in srgb, var(--accent) 7%, var(--panel));
-  opacity: 0.75;
-}
-.branch.theirs .ev-tag {
-  color: var(--accent);
-  background: color-mix(in srgb, var(--accent) 16%, var(--panel));
-}
 .mode button { font-size: 0.85rem; padding: 3px 12px; }
 .mode button:not(:first-child) {
   border-top-left-radius: 0; border-bottom-left-radius: 0;
@@ -640,11 +597,6 @@ li.same > .row .name, li.same > .row .type { opacity: 0.55; }
 .row.sel { box-shadow: -7px 0 0 var(--accent); }
 .row.hl.sel { box-shadow: -4px 0 0 var(--mark), 4px 0 0 var(--mark),
   -7px 0 0 var(--accent); }
-.how li[data-region] { cursor: default; border-radius: 4px; }
-.how li[data-region]:hover, .how li[data-region]:focus-visible {
-  background: var(--code-bg);
-}
-.how li[data-region]:focus-visible { outline: 2px solid var(--accent); }
 
 /* Compare: beside each run of lit words, a picture of the same words
    in the other dump (cloned rows, drawn as there), muted a little, in a

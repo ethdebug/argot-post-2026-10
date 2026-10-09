@@ -44,14 +44,22 @@ const mcol = (page: Page) => page.evaluate(() => {
   return { rows, bytes: Object.fromEntries(Object.entries(bytes)
     .map(([w, s]) => [w, [...s].sort().join()])) };
 });
-const dl = (page: Page, q: string) => page.evaluate((q) => {
-  const out: Record<string, string> = {};
-  for (const dt of document.querySelectorAll(`${q} dt`)) {
-    out[dt.textContent!.trim()] =
-      (dt.nextElementSibling as HTMLElement).innerText.trim();
+// the walkthrough (the storage section's, as #mdetails): its steps'
+// worked values, Start to the last step, then out
+const walk = async (page: Page) => {
+  const bar = page.locator("#mdetails");
+  await bar.locator('button[data-r="start"]').click();
+  const forms: string[] = [];
+  for (let k = 0; k < 12; k++) {
+    forms.push((await page.locator("#mdtext").innerText()).trim());
+    const next = bar.locator('button[data-r="next"]');
+    if (await next.isDisabled()) break;
+    await next.click();
   }
-  return out;
-}, q);
+  await bar.locator('button[data-r="exit"]').click();
+  await expect(page.locator("#mdetails.replaying")).toHaveCount(0);
+  return forms;
+};
 
 test("every pause's locals, decoded, at O0 and O2", async ({ page }) => {
   await at(page);
@@ -119,16 +127,21 @@ test("inside _applyCombo: O0 a call with a frame; colours; Before | After; "
     .first().click();
   expect(await msel(page)).toBe("points");
   await pick(mrow(page, "mult"));
-  // (the details of the selection: the pointer off the rows, which the
-  // exit may have moved under it)
+  // (the selection, each side: its walkthrough adds its own offset to
+  // the frame's)
   await page.locator("h1").hover();
-  const dd = await dl(page, "#mdetails");
-  const [a, b] = [dd.Before, dd.After].map((x) =>
-    x?.match(/^memory 0x([0-9a-f]+)–0x([0-9a-f]+) = (\d)$/));
-  const frame = parseInt((await mrow(page, "_applyCombo").locator(".val")
-    .textContent())!.trim().slice(9), 16);
-  expect([parseInt(a![1], 16) - frame, a![3], parseInt(b![1], 16) - frame,
-    b![3]]).toEqual([88, "5", 184, "3"]);
+  const frame = (await mrow(page, "_applyCombo").locator(".val")
+    .textContent())!.trim().slice(9);
+  const sides: string[][] = [];
+  for (const m of ["before", "after"]) {
+    await page.locator(`#mmode button[data-mode="${m}"]`).click();
+    sides.push((await walk(page)).filter((f) => f.startsWith("offset")));
+  }
+  expect(sides).toEqual([
+    [`offset = read(-frame) + 88 = ${frame} + 88 = 0x${(parseInt(frame, 16)
+      + 88).toString(16).padStart(4, "0")}\nmult = 5`],
+    [`offset = read(-frame) + 184 = ${frame} + 184 = 0x${(parseInt(frame,
+      16) + 184).toString(16).padStart(4, "0")}\nmult = 3`]]);
   await mopt(page, "2");
   await pick(mrow(page, "_applyCombo"));
   await expect(mrow(page, "_applyCombo").locator(".val"))
@@ -175,7 +188,7 @@ test("before the writes: gained, hit with no location, alice's record",
     expect(await msel(page)).toBe("players[msg.sender].score");
   });
 
-test("click again clears; Enter selects; a step lights its region; Escape",
+test("click again clears; Enter selects; its step lights its byte; Escape",
   async ({ page }) => {
     await at(page);
     const storageLit = await page.locator("#panel .b.hl:not(.cmp *)")
@@ -187,9 +200,11 @@ test("click again clears; Enter selects; a step lights its region; Escape",
     await page.keyboard.press("Enter");
     await page.locator("h1").hover();
     expect(await msel(page)).toBe("hit");
-    await page.locator("#mhow li[data-region]").first().hover();
-    expect(await mlit(page)).toEqual({ "after 0x0120": "31" });
-    await page.locator("h1").hover();
+    await page.locator('#mdetails button[data-r="start"]').click();
+    await page.mouse.move(1, 1);
+    await expect.poll(() => mlit(page)).toEqual({ "after 0x0120": "31" });
+    await page.keyboard.press("Escape");
+    await expect(page.locator("#mdetails.replaying")).toHaveCount(0);
     await page.keyboard.press("Escape");
     expect(await msel(page)).toBe(null);
     expect(await page.locator("#panel .b.hl:not(.cmp *)").count())
@@ -282,25 +297,17 @@ test("the program line is hidden, as the storage section's",
   await expect(page.locator("#mmeta")).toContainText("bug/arcade.bug");
 });
 
-// (vanilla mem.js forRegion: a derivation's region step lights its
-// region's bytes alone, over the selection; the frame word is named by
-// its part, "_applyCombo#frame")
-test("a derivation step lights its region alone", async ({ page }) => {
-  await at(page, "#mopt=0&mpt=mult&msel=combo");
-  await page.locator("#mhow li[data-region]").first().focus();
-  await expect.poll(() => mlit(page)).toEqual({ "after 0x0080": "all" });
-  await expect(page.locator("#mpanel .view:not([hidden]) .pop"))
-    .toHaveText(["memory 0x0080 : _applyCombo#frame · unchanged"]);
-});
-
-// (a step of the other side's derivation marks its word "only" in the
-// side shown, as vanilla's)
-test("the other side's region step: its word marked in the side shown",
+// (the frame pointer's step: the word read, lit alone; the frame word
+// named by its part, "_applyCombo#frame")
+test("a walkthrough's read step lights the word it reads",
   async ({ page }) => {
-    await at(page, "#mopt=2&mpt=mult&mmode=before&msel=mult");
-    await page.locator('#mhow li[data-region][data-side="after"]').first()
-      .focus();
-    await expect(page.locator(
-      '#mpanel .view[data-side="before"] .wrow[data-slot="0x0380"]'))
-      .toHaveClass(/\bonly\b/);
+    await at(page, "#mopt=0&mpt=mult&msel=combo");
+    await page.locator('#mdetails button[data-r="start"]').click();
+    await page.locator('#mdetails button[data-r="next"]').click();
+    await page.mouse.move(1, 1);
+    await expect(page.locator("#mdetails .rcap"))
+      .toHaveText("-frame is read: memory 0x0080–0x009f");
+    await expect.poll(() => mlit(page)).toEqual({ "after 0x0080": "all" });
+    await expect(page.locator("#mpanel .view:not([hidden]) .pop"))
+      .toHaveText(["memory 0x0080 : _applyCombo#frame"]);
   });

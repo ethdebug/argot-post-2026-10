@@ -274,7 +274,7 @@ export function Lens(props: { spec: LensSpec; project: Project;
         (props.within && !props.within(t))) {
         return;
       }
-      if (t.closest?.("#picker, #details, #dwrap, .addr, .tray, a, " +
+      if (t.closest?.("#picker, .rbar, .dwrap, .addr, .tray, a, " +
         "button, summary, details, input, label, .shellbar, .how, " +
         ".details")) return;
       if (String(window.getSelection?.() ?? "")) return;

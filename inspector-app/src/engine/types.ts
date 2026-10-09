@@ -149,7 +149,7 @@ export interface ValueNode {
   note?: string;                // "no ethdebug type …"
 }
 export type Location = "storage" | "memory" | "stack" | "calldata"
-  | "transient";
+  | "transient" | "returndata" | "code";
 export interface ResolvedRegion {       // a Cursor.Region, plain
   location: Location; name?: string;
   slot?: bigint; offset: number; length: number;
@@ -187,6 +187,7 @@ export type NodeKind = "declared" | "template" | "define" | "region"
 
 export interface DerefGraph {
   root: string;                         // variable identifier
+  pointer?: Format.Pointer;             // the pointer walked
   nodes: ReadonlyMap<NodeId, RuleNode>; // deduped by AST node
   inputs: InputNode[];
   order: NodeId[];                      // AST pre-order = library order

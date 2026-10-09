@@ -238,8 +238,8 @@ try {
   const memMount = Object.fromEntries(Object.entries({ meta: "mmeta",
     level: "mlevel", point: "mpoint", mode: "mmoderow", viewing: "mviewing",
     note: "mnote", dump: "mpanel", sdump: "mspanel", tree: "mtree",
-    details: "mdetails", rows: "mrelated",
-    how: "mhow", legend: "msrclegend", src: "msrc" })
+    bar: "mdetails", rows: "mrelated", legend: "msrclegend",
+    src: "msrc" })
     .map(([a, id]) => [a, place($(id)!)]));
   const memReady = (lens: LensContextValue, shown: Promise<boolean>) => {
     // (the storage panel's box: shown at a pause that reads a slot)

@@ -6,3 +6,6 @@ export type { Machine } from "@ethdebug/pointers";
 // the library's own expression evaluator (not in its public exports)
 export { evaluate } from "@ethdebug/pointers/dist/src/evaluate.js";
 export type { Pointer, Program, Type } from "@ethdebug/format";
+// (the format's schemas, their examples among them: the walkthrough's
+// coverage is checked against every pointer example)
+export { schemas } from "@ethdebug/format";

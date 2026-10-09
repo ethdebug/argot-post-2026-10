@@ -297,19 +297,18 @@ contract Arcade {
       <p id="mnote" class="summary"></p>
     </div>
 
+    <!-- (as the storage section's: the bar over both columns, the
+    selection and "How it was found"; its walkthrough's panel sticks to
+    the top of the view while the section is in view) -->
+    <div class="walkzone">
+    <div id="mdetails" class="rbar" aria-live="polite" tabindex="0"
+      aria-label="The selected value; how it was found"></div>
     <div class="cols">
       <section aria-label="Values" class="storage">
         <h2 class="label">Local variables</h2>
         <div id="mtree" class="tree">
         <div class="skel" aria-hidden="true"><i></i><i></i><i></i><i></i>
         <i></i><i></i><i></i><i></i></div></div>
-      </section>
-
-      <section aria-labelledby="mhow-h" class="howbox">
-        <h2 class="label" id="mhow-h">How it was found</h2>
-        <p class="muted small hownote">Listed, not stepped: point at a part
-        of bugc's pointer to light its bytes.</p>
-        <div id="mhow" class="how" aria-live="polite"></div>
       </section>
 
       <section aria-labelledby="mwords-h" class="words">
@@ -330,7 +329,6 @@ contract Arcade {
           <h2 class="label" id="mstore-h">Storage</h2>
           <div class="dump"><div id="mspanel" class="panel"></div></div>
         </div>
-        <div id="mdetails" class="details" aria-live="polite"></div>
       </section>
 
       <section aria-label="BUG source" class="source">
@@ -339,6 +337,7 @@ contract Arcade {
           here</mark></span></h2>
         <pre id="msrc" class="src"></pre>
       </section>
+    </div>
     </div>
 
   </section>

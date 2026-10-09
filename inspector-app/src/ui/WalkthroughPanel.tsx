@@ -138,6 +138,10 @@ export function WalkthroughPanel(p: { id: ViewId; data: DataRef;
   link?: LinkId; domId?: string; compare?: DataRef;
   others?: { decoding: string; who?: string }[] }) {
   const { d, l } = useLayout(p.id);
+  // (its parts' ids, after its own: "details" → "dtext"; "mdetails" →
+  // "mdtext", for a second panel on the page)
+  const idOf = (k: string) => p.domId ? `${p.domId.replace(/details$/,
+    "")}${k}` : undefined;
   const o = useDecoded(p.compare);
   const here = usePoint(p.data);
   const there = usePoint(p.compare);
@@ -391,7 +395,7 @@ export function WalkthroughPanel(p: { id: ViewId; data: DataRef;
           : ""}`} data-r="next" aria-label="Next step"
           disabled={lastStep}>▶</button></span>
         <span className="rcount">{placeOf(steps, i)}</span>
-        <span id={p.domId ? "dots" : undefined} className="rdots">
+        <span id={idOf("dots")} className="rdots">
           {steps.map((s, k) => <button key={k} type="button"
             className={`dot ${k < i ? "done" : k === i ? "cur" : "later"}`}
             data-k={k} data-n={s.goal ? undefined : k - goal}
@@ -441,9 +445,9 @@ export function WalkthroughPanel(p: { id: ViewId; data: DataRef;
         reading order under its caption, in room kept for the tallest:
         stepping moves nothing) */}
       <div className="rdetail" hidden={!walk}>
-        <div id={p.domId ? "dtext" : undefined} className="dtext">{text}
+        <div id={idOf("dtext")} className="dtext">{text}
         </div>
-        <div id={p.domId ? "dpick" : undefined} className="dpick">
+        <div id={idOf("dpick")} className="dpick">
           {focusing && <><span className="plab">Focus</span>
             {[{ path: "*", who: "all", full: "all" }, ...w!.recs!].map((r) =>
               <button key={r.path} type="button" className="btn"
@@ -452,15 +456,15 @@ export function WalkthroughPanel(p: { id: ViewId; data: DataRef;
                 aria-label={`Focus: ${r.full ?? r.who}`}>
                 {r.who}</button>)}</>}</div>
       </div></div>
-    <div ref={wrap} id={p.domId ? "dwrap" : undefined} className="dwrap"
+    <div ref={wrap} id={idOf("dwrap")} className="dwrap"
       data-view={`${lens.key}:${p.id}`}>
-      <div ref={panel} id={p.domId ? "dpanel" : undefined}
+      <div ref={panel} id={idOf("dpanel")}
         className="dpanel" hidden={!walk}>
         <div className="ptr" aria-label="Ethdebug data from the compiler">
           <p className="plabel">Ethdebug data from the compiler <span
             className="pnote">(as YAML; template names shortened, yields
             folded)</span></p>
-          <PointerYaml domId={p.domId ? "ptr" : undefined} data={p.data}
+          <PointerYaml domId={idOf("ptr")} data={p.data}
             variable={sel?.split(/[.[]/)[0]} band={st?.band}
             goal={!!st?.goal} shown={!!walk} notes={st?.notes} />
           {KIND_UNDER_YAML && construct}
