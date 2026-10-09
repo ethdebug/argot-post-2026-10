@@ -41,4 +41,5 @@ in each location its pointer's regions are in.
 - pointer/identifier #1 (identifier): an identifier, not a pointer
 - pointer/identifier #2 (identifier): an identifier, not a pointer
 - pointer/identifier #3 (identifier): an identifier, not a pointer
+- pointer/identifier #4 (identifier): an identifier, not a pointer
 - pointer/region/base #0 (base): the base every region extends: no location's own fields (the library takes no region without them)
