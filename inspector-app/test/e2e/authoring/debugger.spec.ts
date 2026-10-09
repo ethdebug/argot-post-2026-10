@@ -199,8 +199,9 @@ for (const w of [1440, 1024]) {
       const rows = [...v.querySelectorAll(".wrow:not(.head)")];
       const b = v.querySelector(".word .b")!;
       const at = (e: Element | null) => e!.getBoundingClientRect();
-      // (to a hundredth of a pixel: Firefox's layout differs below it)
-      const r = (x: number) => Math.round(x * 100) / 100;
+      // (to the device pixel: Firefox's layout differs below it)
+      const r = (x: number) => Math.round(x * devicePixelRatio) /
+        devicePixelRatio;
       return { w: r(at(v).width), fs: getComputedStyle(v).fontSize,
         rowH: r(at(rows[0]).height), cell: r(at(b.nextElementSibling).left -
           at(b).left), gutter: r(at(v.querySelector(".addr")).width),
