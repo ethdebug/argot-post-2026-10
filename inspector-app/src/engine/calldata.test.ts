@@ -1,9 +1,8 @@
 import { it, expect } from "vitest";
-import fs from "node:fs";
+import { fixture } from "../../test/io";
 import { abiParts } from "./calldata";
 
-const motd = JSON.parse(fs.readFileSync("../demos/inspector/fixtures/arcade-motd.json",
-  "utf8"));
+const motd = fixture("arcade-motd");
 
 it("setMotd(string)'s calldata, by the ABI: selector, head, length, "
   + "bytes", () => {

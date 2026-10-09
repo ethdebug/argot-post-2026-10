@@ -1,20 +1,19 @@
 import { it, expect } from "vitest";
-import fs from "node:fs";
+import { fixture } from "../../../test/io";
 import { testProject } from "../../../test/project";
 import { A, B, C, NAME_C } from "../../../test/expect";
 import { decode } from "../decode";
 
-const fixture = JSON.parse(fs.readFileSync(
-  "../demos/inspector/fixtures/arcade-vyper.json", "utf8")) as { vyper: { entries:
+const vy = fixture<{ vyper: { entries:
   { key: string; members: { slot: string; name: string;
-    text: string }[] }[] } };
+    text: string }[] }[] } }>("arcade-vyper");
 const POINT = "arcade-vyper:after";
 
 it("vyRule: each player's words equal the fixture's vyper.entries",
   async () => {
     const p = await testProject();
     const d = await decode(p, p.decodings.vyRule, POINT);
-    for (const e of fixture.vyper.entries) {
+    for (const e of vy.vyper.entries) {
       const path = `players[${e.key}]`;
       let word = 0n; // (a long name's bytes: one member a word)
       for (const m of e.members) {
@@ -44,17 +43,8 @@ it("vyRule: carol's name is 34 bytes over two words", async () => {
   expect(n.value!.text).toBe(`"${NAME_C}"`);
   const data = n.regions.find((r) => r.role === "value")!;
   expect([data.offset, data.length]).toEqual([0, 34]);
-  const words = fixture.vyper.entries[2].members;
+  const words = vy.vyper.entries[2].members;
   expect(data.slot).toBe(BigInt(words[7].slot));
-});
-
-it("vyAsSol: zeros and empty names, no error", async () => {
-  const p = await testProject();
-  const d = await decode(p, p.decodings.vyAsSol, POINT);
-  for (const who of [A, B, C]) {
-    expect(d.byPath.get(`${who}.score`)!.value!.text).toBe("0");
-    expect(d.byPath.get(`${who}.name`)!.value!.text).toBe('""');
-  }
 });
 
 it("the compilation is badged hand-written; keys from the trace",

@@ -1,14 +1,13 @@
 // fixtures/raw.json: the raw lens's one moment, loaded as a timeline
 // of one point; its stack, top first, as a dump's rows
 import { it, expect } from "vitest";
-import fs from "node:fs";
+import { fixture } from "../../../test/io";
 import { testProject } from "../../../test/project";
 import { decode } from "../decode";
 import { layout } from "../layout";
 import { allRows, rowBytes } from "../location";
 
-const json = JSON.parse(fs.readFileSync(new URL(
-  "../../../../demos/inspector/fixtures/raw.json", import.meta.url), "utf8"));
+const json = fixture("raw");
 
 it("raw.json: one point inside carol's join, its state whole", async () => {
   const p = await testProject();
