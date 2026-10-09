@@ -40,6 +40,12 @@ const checks: Record<string, (page: Page) => Promise<void>> = {
   "raw-hero": async (page) => {
     await expect(page.locator(".moment")).toContainText("combo resets");
   },
+  // (the shared moment, annotated: carol's record, labelled)
+  "raw-annotated": async (page) => {
+    await expect(page.locator(".moment")).toContainText("carol plays");
+    await expect(page.locator(".alabel").filter({ hasText:
+      /^players\[carol\]: score 100/ })).toHaveCount(1);
+  },
   "players-walk": async (page) => {
     await expect(page.locator(".rbar.replaying")).toHaveCount(1);
   },
