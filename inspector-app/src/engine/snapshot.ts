@@ -1,13 +1,35 @@
 // A Machine.State over a snapshot (vanilla decode.js storageState,
-// memoryState): the storage words it knows, and its memory (bytes past
-// the end read as zero, as in the EVM); any other part throws when read
+// memoryState): the storage words it knows, its memory and calldata
+// (bytes past the end read as zero, as in the EVM), its stack (none:
+// empty); any other part throws when read
 import { Data, type Machine } from "./lib";
 import type { Hex, Snapshot } from "./types";
 import { slotHex } from "./hex";
 
+// a word's bytes, or a slice of them
+const sliced = (word: Data, slice?: { offset: bigint; length: bigint }) =>
+  !slice ? word : Data.fromBytes(word.slice(Number(slice.offset),
+    Number(slice.offset + slice.length)));
+
 export function machineState(s: Snapshot): Machine.State {
   const none = (what: string): never => {
     throw new Error(`${what} is not part of this state`);
+  };
+  // a segment of bytes (memory, calldata)
+  const bytes = (what: string, b?: Uint8Array) => {
+    if (!b) return none(what);
+    return {
+      get length() {
+        return Promise.resolve(BigInt(b.length));
+      },
+      async read({ slice }: { slice: { offset: bigint;
+        length: bigint } }) {
+        const o = Number(slice.offset);
+        const out = new Uint8Array(Number(slice.length));
+        out.set(b.slice(o, Math.min(o + out.length, b.length)));
+        return Data.fromBytes(out);
+      },
+    } as unknown as Machine.State["memory"];
   };
   return {
     storage: {
@@ -15,36 +37,23 @@ export function machineState(s: Snapshot): Machine.State {
         const at = slotHex(slot.asUint());
         const w = s.storage.get(at);
         if (w === undefined) throw new Error(`slot ${at} is not known`);
-        const word = Data.fromHex(w as Hex).resizeTo(32);
-        if (!slice) return word;
-        const o = Number(slice.offset);
-        return Data.fromBytes(word.slice(o, o + Number(slice.length)));
+        return sliced(Data.fromHex(w as Hex).resizeTo(32), slice);
       },
     },
-    // dereference() reads the stack length up front, even for storage
+    // (dereference() reads the stack length up front, even for storage)
     stack: {
       get length() {
-        return Promise.resolve(0n);
+        return Promise.resolve(BigInt(s.stack?.length ?? 0));
       },
-      peek: () => none("stack"),
+      async peek({ depth, slice }) {
+        const st = s.stack ?? [];
+        const w = st[st.length - 1 - Number(depth)];
+        if (w === undefined) throw new Error(`no stack item ${depth}`);
+        return sliced(Data.fromHex(w).resizeTo(32), slice);
+      },
     },
-    get memory() {
-      const mem = s.memory;
-      if (!mem) return none("memory");
-      return {
-        get length() {
-          return Promise.resolve(BigInt(mem.length));
-        },
-        async read({ slice }: { slice: { offset: bigint;
-          length: bigint } }) {
-          const o = Number(slice.offset);
-          const out = new Uint8Array(Number(slice.length));
-          out.set(mem.slice(o, Math.min(o + out.length, mem.length)));
-          return Data.fromBytes(out);
-        },
-      } as unknown as Machine.State["memory"];
-    },
-    get calldata() { return none("calldata"); },
+    get memory() { return bytes("memory", s.memory); },
+    get calldata() { return bytes("calldata", s.calldata); },
     get returndata() { return none("returndata"); },
     get transient() { return none("transient"); },
     get code() { return none("code"); },
