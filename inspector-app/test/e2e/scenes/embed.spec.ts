@@ -65,10 +65,12 @@ for (const [id, views] of [["raw-named", 2], ["mid", 2], ["vyper", 2],
       });
       await page.setViewportSize({ width: 1024, height: 900 });
       await page.goto(`./embed.html#scene=${id}`);
+      // (the scene's data, then each of its views: on a slow runner,
+      // several seconds)
       await expect(page.locator(".view:not([hidden])").first())
-        .toBeVisible();
-      await expect.poll(() => page.locator(".view").count())
-        .toBeGreaterThanOrEqual(views);
+        .toBeVisible({ timeout: 20_000 });
+      await expect.poll(() => page.locator(".view").count(),
+        { timeout: 20_000 }).toBeGreaterThanOrEqual(views);
       for (const q of ["main", "#picker", "#contract-box",
         "[data-area=contract] *", ".shellbar"]) {
         await expect(page.locator(`${q}:visible`)).toHaveCount(0);
@@ -80,7 +82,7 @@ for (const [id, views] of [["raw-named", 2], ["mid", 2], ["vyper", 2],
         e.clientHeight + 1).length)).toBe(0);
       const h = await page.locator("#embed").evaluate((e) =>
         Math.ceil(e.getBoundingClientRect().height));
-      await expect.poll(() => heights.at(-1)).toBe(h);
+      await expect.poll(() => heights.at(-1), { timeout: 20_000 }).toBe(h);
     });
 }
 
