@@ -105,7 +105,9 @@ function Flow({ rows, loc, snap, per, annot }: { rows: Row[];
   const an = (j: number) => {
     const x = at0[j];
     if (!x.c) return "";
-    const same = (k: number) => at0[k]?.c?.unit === x.c!.unit;
+    // (a region's bytes one run, its own caps: the inspector's per leaf)
+    const same = (k: number) => at0[k]?.c?.unit === x.c!.unit &&
+      at0[k]?.c?.g === x.c!.g && at0[k]?.row === x.row;
     return ` hl pk${x.c.k}${!same(j - 1) ? " gs" : ""}${
       !same(j + 1) ? " ge" : ""}${x.hover !== null && x.hover !== x.c.unit
       ? " muted" : ""}`;
@@ -174,7 +176,9 @@ const half = (mine: (string | undefined)[]) =>
 // (each byte of a row, in the annotated layer: its unit, its child
 // colour, its fade's delay; `on`: revealed, lit; `muted`: another unit
 // is hovered)
-type Cell = { unit: number; k: number; r: number; o: number };
+// (`g`: its region, the value's leaf (or part) that owns it: its own run
+// of caps, as a lit selection's leaves have)
+type Cell = { unit: number; k: number; r: number; o: number; g: string };
 type Annot = { on: boolean; hover: number | null; cells: (Cell | null)[] };
 // (a byte's reveal: its value's place in the sequence, `r` (ui/reveal.ts
 // writes its --tf, the value's progress); `o`, its place in its value, 0
@@ -195,7 +199,8 @@ function Word({ l, ls, loc, row, mine, theirs, side, pair, name, light,
   const an = (i: number) => {
     const c = annot?.cells[i];
     if (!c) return "";
-    const same = (j: number) => annot!.cells[j]?.unit === c.unit;
+    const same = (j: number) => annot!.cells[j]?.unit === c.unit &&
+      annot!.cells[j]?.g === c.g;
     return ` hl pk${c.k}${!same(i - 1) ? " gs" : ""}${
       !same(i + 1) ? " ge" : ""}${annot!.hover !== null &&
       annot!.hover !== c.unit ? " muted" : ""}`;
@@ -539,7 +544,8 @@ export function Dump(p: { id: ViewId; location: Location; data: DataRef;
     hover, cells: cellsOf(layer.units, l, row).map((u, i) => u === null
       ? null : { unit: u, k: layer.units[u].k as number,
         r: layer.rank[u], o: layer.seen[u] > 1 ? (layer.ord.get(row)?.[i]
-          ?? 0) / (layer.seen[u] - 1) : 0 }) })
+          ?? 0) / (layer.seen[u] - 1) : 0,
+        g: (l.cover.get(byteKey(l.location, row, i)) ?? []).join("|") }) })
     : undefined;
   // (every value active, lit with its caps, as a selection's children
   // are, as far as the reveal has come (raw.css); Display annotateFill

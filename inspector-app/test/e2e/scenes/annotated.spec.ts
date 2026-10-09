@@ -105,6 +105,16 @@ for (const width of [1360, 1024, 390]) {
       expect(u, String(text)).toBeDefined();
       expect(a, String(text)).toBe(b);
     }
+    // caps per region, as a lit selection's leaves: carol's packed slot
+    // six (its six fields), slot 2 two (totalHits, totalScore), each
+    // stack item one; a region's run never past its own bytes
+    const segs = (q: string) => page.locator(q).evaluateAll((es) =>
+      es.filter((e) => e.classList.contains("gs")).length);
+    expect(await segs('.view[data-location=storage] .word[data-slot$="9978"]' +
+      " .b.hl")).toBe(6);
+    expect(await segs(`.view[data-location=storage] .word[data-slot="0x${
+      "2".padStart(64, "0")}"] .b.hl`)).toBe(2);
+    expect(await segs(".view[data-location=stack] .ab.hl")).toBe(4);
     // (written by hand: the caption says so; no ink in the figure)
     await expect(page.locator(".view .handmade")).toHaveCount(0);
     // every card inside its figure, and its storage cards inside storage
