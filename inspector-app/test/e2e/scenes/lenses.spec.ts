@@ -27,7 +27,10 @@ for (const lens of ["alice-plays", "vyper"]) {
     async ({ page }) => {
       await open(page, lens);
       // (vyper's scene opens with alice's score selected: cleared first)
-      await page.locator(".tree").first().click({ position: { x: 1, y: 1 } });
+      // (empty space at the tree's corner: in WebKit, with the tree's
+      // type at the cell size, the lens's own, under its negative margin)
+      await page.locator(".tree").first().click({ position: { x: 1, y: 1 },
+        force: true });
       await page.keyboard.press("Escape");
       await expect(page.locator(".view .b.on, .tree .row.on")).toHaveCount(0);
       await page.locator(`.tree li[data-path="${A}.score"] > .row`).first()
