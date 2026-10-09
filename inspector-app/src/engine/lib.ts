@@ -1,5 +1,5 @@
 // The only import site of @ethdebug/pointers and @ethdebug/format,
-// pinned at ethdebug/format ec7a81386 (vendor/PIN)
+// pinned by vendor/PIN (with @ethdebug/evm, which only the runner uses)
 export { dereference, Data } from "@ethdebug/pointers";
 export type { Cursor } from "@ethdebug/pointers";
 export type { Machine } from "@ethdebug/pointers";
