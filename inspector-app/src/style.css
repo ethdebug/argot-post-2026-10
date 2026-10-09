@@ -417,15 +417,18 @@ li.same > .row .name, li.same > .row .type { opacity: 0.55; }
 .pop .pop-how { display: block; }
 .pop .pname { font: inherit; background: none; border: 0; padding: 0 1px;
   color: color-mix(in srgb, var(--bg) 70%, transparent); }
-.pop .pname.pbadge { padding: 0 0.37em; border-radius: 0.28em; font-weight: 700;
+/* (a hash's argument, howHtml: a badge as a name's is) */
+.pop .parg { display: inline-block; font: inherit; }
+.pop :is(.pname.pbadge, .parg) { padding: 0 0.37em; border-radius: 0.28em; font-weight: 700;
   color: var(--pk-fg); background: color-mix(in srgb, var(--pk) 35%, #fff); }
 .pop .pname.pbadge.pk0 { --pk: var(--mark); --pk-fg: var(--chg-fg); }
 /* (dark: the badge light, its text the colour's strong tone) */
 @media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]) .pop .pname.pbadge { color: var(--pk);
+  :root:not([data-theme="light"]) .pop :is(.pname.pbadge, .parg) {
+    color: var(--pk);
     background: color-mix(in srgb, var(--pk-fg) 40%, #fff); }
 }
-:root[data-theme="dark"] .pop .pname.pbadge { color: var(--pk);
+:root[data-theme="dark"] .pop :is(.pname.pbadge, .parg) { color: var(--pk);
   background: color-mix(in srgb, var(--pk-fg) 40%, #fff); }
 .pop .pname.muted { filter: saturate(0.25); opacity: 0.7; }
 /* Bytes no value owns: "(unmapped)", italic, muted; pointed at, a

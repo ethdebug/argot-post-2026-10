@@ -331,6 +331,48 @@ const noteHtml = (note: Note) => note.map((p) => typeof p === "string"
   ? `<span class="pprose">${esc(p)}</span>`
   : `<span class="pnm">${esc(p.name)}</span>`).join("");
 
+// A slot's "how", its keccaks' arguments as badges: a key in one colour,
+// a slot number ("slot 3") in another, the same in every popover, so two
+// rules' hashes side by side show their order and their slots at a
+// glance ("keccak(0x7099…79c8, slot 3)" beside "keccak(slot 108,
+// 0x7099…79c8)"); a nested keccak, or a sum, as text around its own
+const ARG = { slot: "pk6", key: "pk3" };
+export function howHtml(how: string): string {
+  const out: string[] = [];
+  let i = 0;
+  while (i < how.length) {
+    const at = how.indexOf("keccak(", i);
+    if (at < 0) {
+      out.push(esc(how.slice(i)));
+      break;
+    }
+    out.push(esc(how.slice(i, at + 7)));
+    // (its arguments, split at its own commas; its closing paren)
+    let depth = 0, from = at + 7, j = from;
+    const args: string[] = [];
+    for (; j < how.length; j++) {
+      const c = how[j];
+      if (c === "(") depth++;
+      else if (c === ")" && depth-- === 0) break;
+      else if (c === "," && depth === 0) {
+        args.push(how.slice(from, j));
+        from = j + 1;
+      }
+    }
+    args.push(how.slice(from, j));
+    out.push(args.map((a) => {
+      const t = a.trim();
+      const pad = a.slice(0, a.length - a.trimStart().length);
+      if (/keccak\(|\+/.test(t)) return pad + howHtml(t);
+      const k = /^slot \S+$/.test(t) ? ARG.slot : ARG.key;
+      return `${pad}<span class="parg ${k}">${esc(t)}</span>`;
+    }).join(","));
+    out.push(esc(how.slice(j, j + 1)));
+    i = j + 1;
+  }
+  return out.join("");
+}
+
 // The names a popover shows, `keep` of them (indices), in byte order,
 // slot by slot (" / " between slots): a coloured one as a badge, the
 // rest plain; "…" where names or slots were cut
@@ -433,8 +475,12 @@ export function fitWhat(pop: Pop) {
   }
   const how = pop.querySelector(".phow");
   if (over() && how) {
-    how.textContent = how.textContent!.replace(
-      /0x[0-9a-f]+…([0-9a-f]{4})/g, "…$1");
+    // (its text only: its badges stay)
+    const walker = document.createTreeWalker(how, NodeFilter.SHOW_TEXT);
+    for (let t = walker.nextNode(); t; t = walker.nextNode()) {
+      t.textContent = t.textContent!.replace(
+        /0x[0-9a-f]+…([0-9a-f]{4})/g, "…$1");
+    }
   }
   while (over() && keep.length > 2) {
     keep.splice(Math.floor(keep.length / 2), 1);
@@ -481,10 +527,15 @@ function popFor(root: El, rows: El[], more: number): Pop {
     : onRows.length ? onRows : rows;
   const [, how, n] = named(runName(shown)).match(/^(.*?)(, \d+ slots)?$/)!;
   const count = one ? "" : n;
-  pop.innerHTML = `<span class="pop-how"><span class="phow">${esc(
+  // (a rule over another compiler's storage, reading slots that hold
+  // nothing, every byte zero: said so, as a note; it reads zeros)
+  const empty = shown.every((r) => r.dataset.empty !== undefined)
+    ? ' · <code class="pname pfree"><span class="pprose">(empty: all ' +
+      "zeros)</span></code>" : "";
+  pop.innerHTML = `<span class="pop-how"><span class="phow">${howHtml(
     what.length ? how : named(runName(shown)))}</span>${what.length
     ? ` : <span class="pwhat">${whatHtml(what, what.map((_, i) => i))
-    }</span>${count ?? ""}` : ""}${facts.length
+    }</span>${count ?? ""}` : ""}${empty}${facts.length
     ? ` · ${esc(facts.join(" / "))}` : ""}${more ? ` · +${more} more`
     : ""}</span>`;
   return pop;

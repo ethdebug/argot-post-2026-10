@@ -313,6 +313,7 @@ export function Dump(p: { id: ViewId; location: Location; data: DataRef;
   const [link, setLink] = useLink(p.link);
   const d = useDecoded(p.data);
   const lens = useLens();
+  const foreign = !!d && !!decodingOf(lens, d.decoding)?.foreign;
   const groupsOf = (id: string) => !!d?.byPath.get(id)?.children;
   const title = p.title ?? "Storage";
   const label = p.location[0].toUpperCase() + p.location.slice(1);
@@ -677,6 +678,11 @@ export function Dump(p: { id: ViewId; location: Location; data: DataRef;
       .filter(Boolean).join(" ");
     lines.push(<div key={r.address} className={cls} data-slot={r.address}
       data-name={name} data-facts={facts} data-vt-in={vt(r.address)}
+      // (a rule read over another compiler's storage: a slot it reads
+      // that holds nothing, every byte zero; the misread's cause)
+      data-empty={slots && foreign && snap && rowBytes(snap, loc,
+        r.address).every((b) => b === undefined || b === "00") ? ""
+        : undefined}
       {...(name === slotRef(r.address) || !slots ? {}
         : { "data-full": `= ${r.address}` })}>
       <span className="addr" tabIndex={bare ? undefined : 0}
