@@ -80,6 +80,11 @@ function shower(store: Store<LensState>, spec: LensSpec, project: Project,
     const apply = () => store.set((s) => ({ ...s, scene: id, moment,
       error: undefined, from: step ? s.moment : undefined,
       shows: (s.shows ?? 0) + (step ? 0 : 1),
+      // (a scene that shuts groups first: its trees' collapsed, anew)
+      ...bm.collapse && !view ? { views: { ...s.views, ...Object.fromEntries(
+        spec.views.filter((v) => v.kind === "tree").map((v) => [v.id,
+          { ...s.views[v.id], collapsed: new Set(bm.collapse) }])) } }
+        : {},
       // (a link group of its own section starts with nothing selected:
       // the scene's selection is the others')
       links: Object.fromEntries(spec.links.map((l) => [l,

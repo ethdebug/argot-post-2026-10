@@ -68,6 +68,7 @@ const bookmarkOf = (s: Scene, page?: PageScene): ProjectBookmark => ({
     [string] | [string, string],
   ...(s.initial?.select ? { select: s.initial.select } : {}),
   ...(s.initial?.walk ? { walk: { step: s.initial.walk.step } } : {}),
+  ...(s.initial?.collapse ? { collapse: s.initial.collapse } : {}),
   ...(s.timeline.length === 2 ? { side: s.initial?.moment === 0 ? "before"
     : "after" } : {}),
   ...(page?.calldata ? { calldata: page.calldata } : {}),

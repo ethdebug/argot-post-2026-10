@@ -22,7 +22,10 @@ export interface Scene {
   timeline: Timeline;              // 1 moment = a static figure
   controls: "none" | "prev-next" | "scrub";   // reader mode (§3)
   initial?: { moment?: number; select?: Path;
-              walk?: { step: number; focus?: Hex } };
+              walk?: { step: number; focus?: Hex };
+              // (its trees' groups shut when it opens: the values it is
+              // not about)
+              collapse?: Path[] };
   // (its storage dumps' rows: "touched" adds the slots the moment's
   // transaction read or wrote, owned by a value or not: unmapped rows)
   rows?: "touched";
