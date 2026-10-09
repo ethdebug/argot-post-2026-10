@@ -53,33 +53,42 @@ export function useFitDump(me: RefObject<HTMLElement | null>,
       while (c && !vs.every((x) => c!.contains(x))) c = c.parentElement;
       return c ? [c] : [];
     };
+    // the cell size, the smallest of the lens's fitted dumps' fonts:
+    // `now`, at once (the first, in this layout effect: the first paint
+    // has it, nothing shifts after); else after this layout, by a timer
+    // (a frame out of view gets no animation frames): no resize loop; a
+    // change under 0.05px ends it, as the columns settle
+    const publish = (now: boolean) => {
+      const v = me.current;
+      if (!v || !v.isConnected || !key || !d0 || !shown) return;
+      sizes.set(v, parseFloat(getComputedStyle(v).fontSize));
+      const all = views().filter((x) => x.closest(".dump") &&
+        x.classList.contains("view")).map((x) => sizes.get(x))
+        .filter((x): x is number => !!x);
+      if (!all.length) return;
+      const f = Math.min(...all);
+      // (and a line's height: a word's line, on one line or two)
+      const b = v.querySelector(".word .bytes");
+      const lh = b ? `${getComputedStyle(b).lineHeight}` : "";
+      const rs = roots();
+      if (rs.every((r) => Math.abs(f - parseFloat(r.style
+        .getPropertyValue("--cell-fs"))) < 0.05 &&
+        r.style.getPropertyValue("--cell-lh") === lh)) return;
+      const set = () => {
+        for (const r of roots()) {
+          r.style.setProperty("--cell-fs", `${f}px`);
+          if (lh) r.style.setProperty("--cell-lh", lh);
+        }
+      };
+      if (now) set();
+      else setTimeout(set);
+    };
+    // (the first: at once, if none is set yet)
+    if (!roots().some((r) => r.style.getPropertyValue("--cell-fs"))) {
+      publish(true);
+    }
     const seen = !key || !d0 || typeof ResizeObserver === "undefined" ||
-      !shown ? null : new ResizeObserver(() => {
-        const v = me.current;
-        if (!v || !v.isConnected) return;
-        sizes.set(v, parseFloat(getComputedStyle(v).fontSize));
-        const all = views().filter((x) => x.closest(".dump") &&
-          x.classList.contains("view")).map((x) => sizes.get(x))
-          .filter((x): x is number => !!x);
-        if (!all.length) return;
-        // (set after this layout, by a timer (a frame out of view gets
-        // no animation frames): no resize loop; a change under
-        // 0.05px ends it, as the columns settle)
-        const f = Math.min(...all);
-        // (and a line's height: a word's line, on one line or two)
-        const b = v.querySelector(".word .bytes");
-        const lh = b ? `${getComputedStyle(b).lineHeight}` : "";
-        const rs = roots();
-        if (rs.every((r) => Math.abs(f - parseFloat(r.style
-          .getPropertyValue("--cell-fs"))) < 0.05 &&
-          r.style.getPropertyValue("--cell-lh") === lh)) return;
-        setTimeout(() => {
-          for (const r of roots()) {
-            r.style.setProperty("--cell-fs", `${f}px`);
-            if (lh) r.style.setProperty("--cell-lh", lh);
-          }
-        });
-      });
+      !shown ? null : new ResizeObserver(() => publish(false));
     if (d0) seen?.observe(d0);
     return () => {
       live = false;
