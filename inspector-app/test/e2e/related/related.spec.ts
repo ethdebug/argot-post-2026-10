@@ -197,4 +197,58 @@ test.describe("view transitions", () => {
       expect(await n()).toBe(4);
       await expect(page.locator(".vt-run")).toHaveCount(0);
     });
+
+  test("each one captures its new rows, runs to its end, and rapid "
+    + "clicks are never lost", async ({ page }) => {
+    await open(page, `ex=mid&sel=${A}.score`);
+    const has = await page.evaluate(() => "startViewTransition" in document);
+    test.skip(!has, "no View Transitions here");
+    // (each: the rows in its new state, and whether it ran its course)
+    await page.evaluate(() => {
+      const w = window as unknown as { vt: { inside?: number;
+        ms?: number }[] };
+      w.vt = [];
+      const rows = () => document.querySelectorAll(
+        "#panel .view:not([hidden]) .wrow[data-slot]").length;
+      type Start = (f: () => Promise<void>) => { finished: Promise<void> };
+      const d = document as unknown as { startViewTransition: Start };
+      const s = d.startViewTransition.bind(d);
+      d.startViewTransition = (f) => {
+        const e: { inside?: number; ms?: number } = {};
+        const t0 = performance.now();
+        w.vt.push(e);
+        const t = s(async () => {
+          await f();
+          e.inside = rows();
+        });
+        t.finished.then(() => { e.ms = performance.now() - t0; });
+        return t;
+      };
+    });
+    const log = () => page.evaluate(() =>
+      (window as unknown as { vt: { inside?: number; ms?: number }[] }).vt);
+    const rel = (k: string) => page.locator(
+      `#related button[data-rows="${k}"]`).click();
+    // (the toggle and a selection from none: their rows are drawn in
+    // the commit the transition captures, not a load later)
+    await rel("related");
+    await still(page);
+    await page.keyboard.press("Escape");
+    await still(page);
+    await page.locator('#tree li[data-path="players"] > .row').click();
+    await still(page);
+    const [on, , sel] = await log();
+    expect(on.inside).toBe(3);
+    expect(sel.inside).toBe((await rows(page)).length);
+    // (none cut short: each runs about its 400 ms)
+    expect(on.ms).toBeGreaterThan(350);
+    expect(sel.ms).toBeGreaterThan(350);
+    // (four clicks in a row: each one lands; the last one wins)
+    for (const k of ["all", "related", "all", "related"]) await rel(k);
+    await still(page);
+    expect((await log()).length).toBe(7);
+    await expect(page.locator('#related button[data-rows="related"]'))
+      .toHaveAttribute("aria-checked", "true");
+    expect((await rows(page)).length).toBe(sel.inside);
+  });
 });
