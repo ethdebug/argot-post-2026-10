@@ -212,6 +212,19 @@ for (const [w, h] of [[1440, 900], [390, 844]]) {
   });
 }
 
+// (a toggle's buttons receive a click where they are: the topmost
+// element at each one's middle is the button. Where it stands, as it
+// is: a trial click would first scroll it into view, which a stuck
+// element in WebKit never settles)
+const hit = (page: Page, q: string) => page.evaluate((q) =>
+  [...document.querySelectorAll<HTMLElement>(`${q} button[role="radio"]`)]
+    .every((b) => {
+      const r = b.getBoundingClientRect();
+      const at = document.elementFromPoint(r.left + r.width / 2,
+        r.top + r.height / 2);
+      return !!at && b.contains(at);
+    }), q);
+
 // (the dump's header and its Rows toggle stick under the panel: never
 // under it, at any step or scroll while the dump shows, and still
 // clickable; they leave with the dump, at the section's end)
@@ -235,8 +248,8 @@ for (const [w, h] of [[1440, 900], [390, 844]]) {
         expect(r.top, `${what}: under the panel`)
           .toBeGreaterThanOrEqual(p.bottom - 0.5);
         expect(r.bottom, `${what}: in view`).toBeLessThan(h);
-        await page.locator('#related button[role="radio"]').last()
-          .click({ trial: true });
+        expect(await hit(page, "#related"), `${what}: clickable`)
+          .toBe(true);
       };
       for (let k = 0; k < 20; k++) {
         await clear(`step ${k}`);
@@ -272,8 +285,8 @@ test("memory: the Rows toggle stays clear of the panel and clickable",
         return { top: b.top, bottom: b.bottom };
       }));
       expect(r.top, `step ${k}`).toBeGreaterThanOrEqual(p.bottom - 0.5);
-      await page.locator('#mrelated button[role="radio"]').last()
-        .click({ trial: true });
+      expect(await hit(page, "#mrelated"), `step ${k}: clickable`)
+        .toBe(true);
       const n = page.locator('#mdetails button[data-r="next"]');
       if (await n.isDisabled()) break;
       await n.click();
