@@ -86,7 +86,8 @@ export function forPath(d: Decoded, l: Layout, path: Path,
   }
   const gutters = new Set<Hex>();
   const root = d.byPath.get(path)?.root ?? path.split(/[.[]/)[0];
-  if (path !== root && o.selection) {
+  // (a variable's own slot: storage's)
+  if (path !== root && o.selection && l.location === "storage") {
     const s = baseSlotOf(d, root);
     if (s) gutters.add(s);
   }
@@ -140,6 +141,9 @@ export function forStep(d: Decoded, l: Layout, steps: Step[],
   const st = steps[i];
   if (!st) return noLight;
   const loc = l.location;
+  // (a walkthrough's slots, gutters, rows lit whole and ruler: storage's;
+  // another location's view takes its regions only)
+  const store = loc === "storage";
   const partBytes = (p: Part) => {
     const out: ByteKey[] = [];
     for (const r of p.regions) {
@@ -169,7 +173,7 @@ export function forStep(d: Decoded, l: Layout, steps: Step[],
       if (p.dim) dim.add(k);
       if (p.k !== undefined) byteColours.set(k, p.k);
     }
-    for (const h of p.wholes ?? []) {
+    for (const h of store ? p.wholes ?? [] : []) {
       wholes.set(h, p.k ?? "nt");
       for (let b = 0; b < 32; b++) {
         const k = byteKey(loc, h, b);
@@ -189,16 +193,17 @@ export function forStep(d: Decoded, l: Layout, steps: Step[],
   const known = new Set<Hex>();
   // (step 0, the goal, finds nothing: it shows what the others will)
   for (const x of steps.slice(0, i + 1).filter((y) => !y.goal)) {
-    for (const g of x.gutters) known.add(g);
+    for (const g of store ? x.gutters : []) known.add(g);
     for (const p of x.parts) {
       for (const k of partBytes(p)) known.add(k.split("|")[1] as Hex);
-      for (const h of p.wholes ?? []) known.add(h);
+      for (const h of store ? p.wholes ?? [] : []) known.add(h);
     }
   }
   return { ...noLight, bytes, rows, colours, dim, dimRows, known,
-    gutters: new Set(st.gutters), muted: true, cap: new Set(), walk: true,
-    byteColours, wholes, span: new Set(w?.span ?? []),
+    gutters: new Set(store ? st.gutters : []), muted: true, cap: new Set(),
+    walk: true, byteColours, wholes,
+    span: new Set(store ? w?.span ?? [] : []),
     names: w?.names ?? new Map(),
-    ...(st.ruler ? { ruler: st.ruler } : {}),
+    ...(st.ruler && store ? { ruler: st.ruler } : {}),
     ...(st.goal ? { quiet: true } : {}) };
 }

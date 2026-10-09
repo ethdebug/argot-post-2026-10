@@ -233,6 +233,9 @@ export interface Target {               // what the pointer (or finger) is on
   path?: Path;
   bytes?: { row: Hex; from: number; to: number; location: Location };
   row?: Hex;                            // a gutter address
+  // (the row's location: a row is a location's row; storage slot 3 is
+  // not the stack's row 3)
+  location?: Location;
   // (the port's: a region named elsewhere, e.g. Vyper's word in the
   // walkthrough's contrast list: its bytes, owned or not)
   region?: ResolvedRegion;

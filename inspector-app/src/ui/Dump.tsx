@@ -173,7 +173,8 @@ function Word({ l, ls, loc, row, mine, theirs, side, pair, name, light,
   // each owner's tint: one per owner, wherever its bytes fall (a region
   // that crosses rows keeps it), the same in every view of a pair
   const tint = tintsOf(ls, loc);
-  const at = light.at?.row === row ? light.at : undefined;
+  const at = light.at?.row === row && light.at.location === loc
+    ? light.at : undefined;
   const cells: ReactElement[] = [];
   for (const g of groups(owners)) {
     const label = g.owners.map((id) => ownerLabel(id, groupsOf(id)))
@@ -279,7 +280,10 @@ export function Dump(p: { id: ViewId; location: Location; data: DataRef;
         location: p.location } };
     }
     const a = e.closest?.(".wrow[data-slot] > .addr");
-    if (a) return { row: (a.parentElement as HTMLElement).dataset.slot as Hex };
+    if (a) {
+      return { row: (a.parentElement as HTMLElement).dataset.slot as Hex,
+        location: p.location };
+    }
     return null;
   };
   // What a point stands for (the one resolver for the hover, a click and
@@ -334,7 +338,8 @@ export function Dump(p: { id: ViewId; location: Location; data: DataRef;
     const at = spot(e.target, ...xy(e));
     const r = (e.target as Element).closest?.(".wrow[data-slot]") as
       HTMLElement | null;
-    const h = at === "row" ? { row: r!.dataset.slot as Hex }
+    const h = at === "row" ? { row: r!.dataset.slot as Hex,
+      location: p.location }
       : at ? hit(at) : null;
     return h && d && l ? resolveTarget(unowned(h), sel, d.byPath, l)
       : null;
@@ -480,7 +485,7 @@ export function Dump(p: { id: ViewId; location: Location; data: DataRef;
   // a line of room above it)
   const slots = loc === "storage";
   // (a row's name in a view transition: transition.ts)
-  const vt = (...x: string[]) => vtName(lens.key, p.id, ...x);
+  const vt = (...x: string[]) => vtName(lens.key, p.id, p.location, ...x);
   rows.forEach((r, k) => {
     const n = BigInt(r.address);
     const name = r.how;
@@ -509,7 +514,8 @@ export function Dump(p: { id: ViewId; location: Location; data: DataRef;
     const what = `${name}${name.startsWith("slot") || !slots ? ""
       : ` (slot ${short(r.address)})`}${facts ? `; ${facts}` : ""}`;
     // (lit, or pointed at: a gutter address)
-    const on = light.at?.row === r.address || [...Array(32).keys()].some(
+    const on = (light.at?.row === r.address && light.at.location === loc)
+      || [...Array(32).keys()].some(
       (i) => light.bytes.has(byteKey(loc, r.address, i)));
     const only = !on && !!p.compare && [...there.bytes].some((b) =>
       b.split("|")[1] === r.address);

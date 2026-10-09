@@ -33,7 +33,10 @@ export function resolveTarget(hit: Target, selection: Path | null,
   const row = hit.row ?? hit.bytes?.row;
   const own = row !== undefined ? ownOf(l, row) : undefined;
   if (own) return { path: own };
-  if (hit.row !== undefined) return { row: hit.row };
+  if (hit.row !== undefined) {
+    return { row: hit.row, ...hit.location ? { location: hit.location }
+      : {} };
+  }
   if (hit.bytes) {
     const b = hit.bytes;
     const id = l.cover.get(byteKey(b.location, b.row, b.from))?.[0];

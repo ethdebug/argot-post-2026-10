@@ -367,8 +367,16 @@ export function useLight(id: string, filter?: Filter, at?: DataRef,
         : { ...forPath(d, l, hover.path, o),
           ...(hover.bytes ? { at: hover.bytes } : {}) };
     }
-    if (hover?.bytes) return forBytes(d, l, hover.bytes, o);
-    if (hover?.row) return forRow(d, l, hover.row as Hex);
+    // (bytes or a row of another location: nothing here; the rest
+    // steps back)
+    if (hover?.bytes) {
+      return hover.bytes.location === l.location
+        ? forBytes(d, l, hover.bytes, o) : { ...noLight, muted: true };
+    }
+    if (hover?.row) {
+      return (hover.location ?? l.location) === l.location
+        ? forRow(d, l, hover.row as Hex) : { ...noLight, muted: true };
+    }
     if (hover) return { ...noLight, muted: true };
     return noLight;
   }, [d, l, link, collapsed, w, v, at]);
