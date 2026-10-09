@@ -151,20 +151,31 @@ test("the raw storage dump: a word a row, beside the right column or " +
 
 // In a 1024px frame (the post's figure at 1440×900), the figure (and the
 // annotated one, its composition) is at most 720px tall: a host can pin
-// it on a laptop's screen
+// it on a laptop's screen. (In a host's frame, as the host gets it: its
+// height message; the annotated figure's Raw | Annotated toggle is for
+// a page that stands alone, not a frame)
 for (const id of ["raw-hero", "raw-annotated"]) {
-  test(`${id} in a 1024px frame: at most 720px tall`, async ({ page }) => {
-    for (const width of [1024]) {
-      await page.setViewportSize({ width, height: 900 });
-      await page.goto(`./embed.html?w=${width}#scene=${id}`);
-      await expect(page.locator('.view[data-view$=":memory"] .wrow')
-        .first()).toBeVisible({ timeout: 20_000 });
-      await settle(page);
-      expect(await page.locator("#embed").evaluate((e) =>
-        e.getBoundingClientRect().height), `${width}`)
-        .toBeLessThanOrEqual(720);
-    }
-  });
+  test(`${id} in a 1024px frame: at most 720px tall`,
+    async ({ page, baseURL }) => {
+      for (const width of [1024]) {
+        await page.setViewportSize({ width, height: 900 });
+        await page.goto("./embed.html");
+        await page.setContent(`<body style="margin:0">
+          <iframe id="f" src="${baseURL}embed.html?w=${width}#scene=${id}"
+            style="border:0;width:${width}px;height:50px"></iframe>
+          <script>addEventListener("message", (e) => {
+            if (e.data?.type === "ethdebug:height" && e.data.ready) {
+              window.h = e.data.height;
+            }
+          });</script></body>`);
+        await expect.poll(() => page.evaluate(() =>
+          (window as unknown as { h?: number }).h), { timeout: 20_000 })
+          .toBeGreaterThan(0);
+        expect(await page.evaluate(() =>
+          (window as unknown as { h: number }).h), `${width}`)
+          .toBeLessThanOrEqual(720);
+      }
+    });
 }
 
 // The figure's storage folds its all-zero rows into its gaps; the stack
