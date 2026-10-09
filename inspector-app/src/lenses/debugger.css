@@ -71,3 +71,36 @@
 .pinbar .pinrow { display: flex; flex-wrap: wrap; gap: 6px; margin: 0 0 6px;
   align-items: center; }
 .pinbar input, .pinbar select { font: inherit; }
+
+/* The real debugger (figures/RealDebugger.tsx): the language and the
+   moves over both columns; the code panel; beside it, soldb's rows. Its
+   box keeps its size from the first paint, whatever the language or
+   the step: the code panel's fixed height (code.css) sets the row's;
+   soldb's rows take that height (sized by it, not by them: contain),
+   and scroll; on a phone, under the code, a fixed height. */
+.lens.soldb { display: grid; gap: 14px 28px; align-items: start;
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-areas: "bar" "code" "side"; }
+@media (min-width: 760px) {
+  .lens.soldb { grid-template-columns: minmax(0, 3fr) minmax(0, 2fr);
+    grid-template-areas: "bar bar" "code side"; }
+}
+.lens.soldb .sbar { grid-area: bar; display: flex; flex-wrap: wrap;
+  align-items: center; gap: 8px 18px; }
+.lens.soldb .code { grid-area: code; }
+.lens.soldb .sside { grid-area: side; display: flex;
+  flex-direction: column; gap: 12px; min-width: 0; height: 22em;
+  overflow: auto; }
+@media (min-width: 760px) {
+  .lens.soldb .sside { height: auto; align-self: stretch; contain: size; }
+}
+.lens.soldb .sside section { min-width: 0; }
+.lens.soldb .sside .view-name { margin: 0 0 4px; }
+.lens.soldb .srows { list-style: none; margin: 0; padding: 0; }
+.lens.soldb .srows .row { display: grid;
+  grid-template-columns: max-content max-content minmax(0, 1fr);
+  gap: 0 0.6em; align-items: baseline; }
+.lens.soldb .srows .val { text-align: right; overflow-wrap: anywhere; }
+
+.lens.soldb .sside p { margin: 0; }
+.lens.soldb .mat .error { color: var(--old); }

@@ -75,6 +75,12 @@ test("embed.html#scene=bug-O2: the stepper at -O2", async ({ page }) => {
   await checks["optimized-locals"](page);
 });
 
+// (the real debugger, soldb's own: its first step drawn, soldb loaded)
+checks["real-debugger"] = async (page) => {
+  await expect(page.locator("[data-figure=real-debugger][data-ready]"))
+    .toHaveCount(1, { timeout: 90_000 });
+};
+
 test("every scene has its check", () => {
   expect(Object.keys(checks).sort()).toEqual([...ids].sort());
 });

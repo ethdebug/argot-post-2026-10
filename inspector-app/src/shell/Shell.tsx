@@ -8,6 +8,7 @@
 import { useEffect, useLayoutEffect, useState } from "react";
 import type { Project } from "../engine/project";
 import type { Scene } from "../engine/scene";
+import type { Figure } from "../scenes";
 import { Lens } from "../ui/Lens";
 import { SceneHost } from "../ui/SceneHost";
 import type { LensSpec } from "../ui/types";
@@ -22,14 +23,19 @@ interface Item { id: string; key: "scene" | "lens"; title: string;
   dev: boolean; scene?: Scene; lens: LensSpec }
 const keyOf = (x: Item) => `${x.key}=${x.id}`;
 
-export function Shell({ project, lenses: every, scenes = [] }:
-  { project: Project; lenses: LensSpec[]; scenes?: Scene[] }) {
+export function Shell({ project, lenses: every, scenes = [],
+  figures = [] }: { project: Project; lenses: LensSpec[];
+  scenes?: Scene[]; figures?: Figure[] }) {
   const lensOf = (id: string) => every.find((l) => l.id === id);
   const all: Item[] = [
     ...scenes.filter((s) => lensOf(s.lens)).map((s): Item => ({ id: s.id,
       key: "scene", title: s.title, dev: !!lensOf(s.lens)!.dev, scene: s,
       lens: lensOf(s.lens)! })),
-    ...every.filter((l) => !scenes.some((s) => s.lens === l.id))
+    // (a figure: its lens's own page)
+    ...figures.filter((f) => lensOf(f.lens)).map((f): Item => ({ id: f.id,
+      key: "scene", title: f.title, dev: false, lens: lensOf(f.lens)! })),
+    ...every.filter((l) => !scenes.some((s) => s.lens === l.id) &&
+      !figures.some((f) => f.lens === l.id))
       .map((l): Item => ({ id: l.id, key: "lens", title: l.title,
         dev: !!l.dev, lens: l }))];
   // the hash's item: a scene, a lens with no scene, or a lens's first
