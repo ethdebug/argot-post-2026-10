@@ -50,16 +50,18 @@ export const rawHero = rawLens();
 // `annotate`); the stack's and memory's from the scene's hand-written
 // pointers ("$hand"), said so. Its stack column keeps room on its right
 // for the stack's labels (raw.css): no layout change when they appear.
+// (raw-hero's composition, whatever it holds: each dump annotated, the
+// stack's and memory's by the hand-written pointers; the moment by the
+// scene's own words; the toggle under it)
 const hand = { decoding: "$hand", moment: "current" } as const;
-const handDump = (location: Location, title: string, display: Display) =>
-  ({ ...dump2(location, title, display), data: hand }) as ViewSpec;
-export const rawAnnotated: LensSpec = { ...base, id: "raw-annotated",
-  title: "Raw bytes, annotated", layout: "raw raw-hero raw-annotated",
-  columns: 2, initial: { scene: "raw-annotated" },
-  views: [dump2("storage", "Storage", { foldZero: true, annotate: true }),
-    handDump("stack", "Stack", { abbreviate: 2, annotate: true }),
-    handDump("memory", "Memory", { annotate: true }),
-    { id: "moment", kind: "moment", area: "moment", data },
-    { id: "reveal", kind: "reveal", area: "moment" }] };
+export const annotated = (l: LensSpec): LensSpec => ({ ...l,
+  id: "raw-annotated", title: "Raw bytes, annotated",
+  layout: `${l.layout} raw-annotated`, initial: { scene: "raw-annotated" },
+  views: [...l.views.map((v): ViewSpec => v.kind === "dump"
+    ? { ...v, display: { ...v.display, annotate: true },
+      ...v.location === "storage" ? {} : { data: hand } }
+    : v.kind === "moment" ? { ...v, text: undefined } : v),
+  { id: "reveal", kind: "reveal", area: "moment" }] });
+export const rawAnnotated = annotated(rawHero);
 
 export const rawLenses = [rawHero];
