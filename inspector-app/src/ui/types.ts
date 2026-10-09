@@ -1,5 +1,6 @@
 // UI state and lens configuration (timeline-inspector spec §1.6-1.7)
 import type { ComponentType, ReactNode } from "react";
+import type { Project } from "../engine/project";
 import type {
   Decoding, DecodingId, Filter, Location, Path, PointId, Target, TimelineId,
 } from "../engine/types";
@@ -110,6 +111,10 @@ export type ViewSpec = { id: ViewId; area: string; link?: LinkId;
     | { kind: "source"; data: DataRef; part?: "legend" }
     // the contract's source, its selection's declaration marked
     | { kind: "contract"; data: DataRef }
+    // a moment's source, its range marked; the locals in scope there
+    // (Code.tsx, Variables.tsx: addendum §6)
+    | { kind: "code"; data: DataRef }
+    | { kind: "variables"; data: DataRef }
     | { kind: "note"; data: DataRef; part: "note" | "viewing" | "meta" }
     // the moment a point is, in a line: what it is inside, and its step
     | { kind: "moment"; data: DataRef }
@@ -123,6 +128,9 @@ export interface LensSpec {     // a composition for one post section
   id: string; title: string;
   // (a lens for the developers only: the shell lists it in "dev")
   dev?: boolean;
+  // (a dev lens that makes its own data: the shell draws this in place
+  // of a Lens of the spec, on the shell's project)
+  page?: ComponentType<{ spec: LensSpec; project: Project }>;
   timelines: TimelineId[];
   // its decodings: the Project's (by id), or its own
   decodings: (DecodingId | Decoding)[];

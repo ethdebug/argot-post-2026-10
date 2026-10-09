@@ -9,10 +9,13 @@ import { AbiView } from "./Calldata";
 import { Derivation, LocalsDetails, Note, Source } from "./Locals";
 import { ContractSource } from "./ContractSource";
 import { Moment } from "./Moment";
+import { Code } from "./Code";
+import { Variables } from "./Variables";
 
 export const viewKinds: Partial<Record<ViewKind, ComponentType<any>>> = {
   dump: Dump, tree: Tree, picker: Picker, walkthrough: WalkthroughPanel,
   abi: AbiView,
   details: LocalsDetails, derivation: Derivation, source: Source,
-  note: Note, contract: ContractSource, moment: Moment,
+  note: Note, contract: ContractSource, moment: Moment, code: Code,
+  variables: Variables,
 };

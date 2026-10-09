@@ -86,7 +86,8 @@ export function Shell({ project, lenses: every }: { project: Project;
         onClick={copy}>{copied ? "copied" : "copy link"}</button>
     </nav>
     <div className="shellpage">
-      <Lens key={spec.id} spec={spec} project={project} hash />
+      {spec.page ? <spec.page key={spec.id} spec={spec} project={project} />
+        : <Lens key={spec.id} spec={spec} project={project} hash />}
     </div>
   </>;
 }
