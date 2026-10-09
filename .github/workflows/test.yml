@@ -33,12 +33,13 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        # (WebKit, the slowest on these runners, in two halves)
+        # (WebKit, the slowest on these runners, in three parts)
         include:
           - { browser: chromium, shard: 1/1 }
           - { browser: firefox, shard: 1/1 }
-          - { browser: webkit, shard: 1/2 }
-          - { browser: webkit, shard: 2/2 }
+          - { browser: webkit, shard: 1/3 }
+          - { browser: webkit, shard: 2/3 }
+          - { browser: webkit, shard: 3/3 }
           - { browser: check }
     name: >-
       ${{ matrix.browser == 'check' && 'check'
