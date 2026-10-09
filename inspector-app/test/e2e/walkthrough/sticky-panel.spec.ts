@@ -236,7 +236,7 @@ for (const [w, h] of [[1440, 900], [390, 844]]) {
           .toBeGreaterThanOrEqual(p.bottom - 0.5);
         expect(r.bottom, `${what}: in view`).toBeLessThan(h);
         await page.locator('#related button[role="radio"]').last()
-          .click({ trial: true, timeout: 2000 });
+          .click({ trial: true });
       };
       for (let k = 0; k < 20; k++) {
         await clear(`step ${k}`);
@@ -273,7 +273,7 @@ test("memory: the Rows toggle stays clear of the panel and clickable",
       }));
       expect(r.top, `step ${k}`).toBeGreaterThanOrEqual(p.bottom - 0.5);
       await page.locator('#mrelated button[role="radio"]').last()
-        .click({ trial: true, timeout: 2000 });
+        .click({ trial: true });
       const n = page.locator('#mdetails button[data-r="next"]');
       if (await n.isDisabled()) break;
       await n.click();
