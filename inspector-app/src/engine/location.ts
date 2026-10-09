@@ -73,10 +73,6 @@ export const rowName = (l: Location, row: Hex) =>
 export const rangeText = (l: Location, a: number, b: number) =>
   `${l} ${hex4(a)}${b > a ? `–${hex4(b)}` : ""}`;
 
-// whether rows may follow the last one shown (a gap line after it):
-// calldata ends where the call's input does; the stack at its depth
-export const goesOn = (l: Location) => l !== "calldata" && l !== "stack";
-
 // a row's address in the gutter: a slot's last digits; an offset whole;
 // a stack item's position from the top
 export const addressText = (l: Location, row: Hex) =>
@@ -87,10 +83,6 @@ export const addressText = (l: Location, row: Hex) =>
 export const segmentOf = (s: Snapshot | undefined, l: Location) =>
   (l === "memory" ? s?.memory : l === "calldata" ? s?.calldata
     : undefined) ?? new Uint8Array();
-// the rows of a whole segment (one that does not go on): every row of
-// its bytes, its padding too
-export const segmentRows = (s: Snapshot | undefined, l: Location): Hex[] =>
-  goesOn(l) ? [] : allRows(s, l);
 // every row a point has of a location: storage's slots it knows, every
 // word of a segment, every stack item (the top first)
 export function allRows(s: Snapshot | undefined, l: Location): Hex[] {

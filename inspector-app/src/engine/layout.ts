@@ -9,7 +9,7 @@ import type {
 } from "./types";
 import { byteKey, short, slotHex, toBig } from "./hex";
 import {
-  allRows, hex4, near, nextRow, regionBytes, rowName, segmentRows,
+  addressing, allRows, hex4, near, nextRow, regionBytes, rowName,
 } from "./location";
 
 const PLAIN = 1n << 32n; // below this, a slot is a plain number
@@ -192,7 +192,11 @@ export function layout(d: Decoded, location: Location, filter: Filter = {},
     : BigInt(a) > BigInt(b) ? 1 : 0;
   const addresses = [...new Set<Hex>([...first.keys(), ...own.keys(),
     ...extra.keys(), ...listed, ...words,
-    ...segmentRows(o.point?.snapshot, location)])].sort(order);
+    // (an offset-addressed segment: whole, every row from 0 to its end,
+    // as the stack, every item; the related view elides it to what is
+    // near the selection. Storage's slots are sparse: its values' only)
+    ...addressing(location) === "offset" || location === "stack"
+      ? allRows(o.point?.snapshot, location) : []])].sort(order);
   const record = o.point?.record;
   const how = (a: Hex) => {
     // (a slot the page reads by its own rule: named by it)
@@ -235,7 +239,13 @@ export function layout(d: Decoded, location: Location, filter: Filter = {},
   rows = rows.map((r, k) => ({ ...r, gapBefore: k === 0
     ? BigInt(r.address) !== 0n
     : BigInt(r.address) !== nextRow(location, rows[k - 1].address) }));
-  return { location, point: d.point, rows, cover, owned };
+  // (rows past the last one shown: storage's slots always; a segment's,
+  // when it was cut short)
+  const end = allRows(o.point?.snapshot, location).at(-1);
+  const more = location === "storage" || (addressing(location) ===
+    "offset" && !!rows.length && !!end &&
+    BigInt(rows.at(-1)!.address) < BigInt(end));
+  return { location, point: d.point, rows, cover, owned, more };
 }
 
 // A row's label, "how : what" (all the names, in byte order; the
