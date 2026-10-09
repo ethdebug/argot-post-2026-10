@@ -37,12 +37,13 @@ export const pathName = (p: Path, names: ReadonlyMap<string, string>) =>
     `[${names.get(h.toLowerCase()) ?? short(h)}]`);
 
 // A value, short: an address by its on-chain name (else 0x90f7…b906); a
-// string quoted, cut to `text` characters; fixed bytes as the stack's
-// words are, padded to 32 bytes, 0x0000…1420 (hex.ts wordShort); a
-// number as it is; an array as its items, the first
+// string quoted, cut to `text` characters; fixed bytes with their leading
+// zero bytes dropped (0xe0; long ones 0xe94e…3a62), or, a stack item's
+// (`word`), padded to 32 bytes as the stack shows it, 0x0000…1420 (hex.ts
+// wordShort); a number as it is; an array as its items, the first
 // three; a record as its first fields
 export function shortValue(n: ValueNode, names: ReadonlyMap<string, string>,
-  o: { text?: number; fields?: number } = {}): string {
+  o: { text?: number; fields?: number; word?: boolean } = {}): string {
   const v = n.value?.text;
   if (n.children) {
     const kids = n.children;
@@ -62,7 +63,9 @@ export function shortValue(n: ValueNode, names: ReadonlyMap<string, string>,
     return s.length > k ? `"${s.slice(0, k - 1)}…"` : v;
   }
   if (/^bytes\d+$/.test(n.typeText) || /^0x[0-9a-f]+$/i.test(v)) {
-    return wordShort(v);
+    if (o.word) return wordShort(v);
+    const h = v.replace(/^0x(00)*/, "") || "00";
+    return h.length > 10 ? `0x${h.slice(0, 4)}…${h.slice(-4)}` : `0x${h}`;
   }
   return v;
 }
@@ -155,6 +158,8 @@ export function notesOf(d: Decoded, l: Layout, units: Unit[],
   const node = (u: Unit) => d.byPath.get(u.path)!;
   const rows = units.map((u) => rowsOf(l, u.path));
   if (o.perRun) {
+    // (a stack item's value as the stack shows it: 0x0000…1420)
+    const word = l.location === "stack";
     const all = new Set(rows.flatMap((r) => [...r]));
     return runsOf(all).map((run) => {
       const us = units.map((_, i) => i).filter((i) =>
@@ -176,13 +181,14 @@ export function notesOf(d: Decoded, l: Layout, units: Unit[],
               const head = { seg, line: line++, unit: i, text: name };
               const kids = n.children.map((c, k) => ({ seg,
                 line: line + Math.floor(k / 2),
-                text: `${c.label} ${shortValue(c, o.names, { text: 16 })}` }));
+                text: `${c.label} ${shortValue(c, o.names, { text: 16,
+                  word })}` }));
               line += Math.ceil(n.children.length / 2);
               return [head, ...kids];
             }
             return [{ seg, line: line++, unit: i, text: `${name}${
               o.values === false ? "" : ` ${shortValue(n, o.names,
-                { text: 16 })}`}` }];
+                { text: 16, word })}`}` }];
           });
         })() };
     });

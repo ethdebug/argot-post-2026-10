@@ -54,8 +54,7 @@
    cell size's 1.85, rounded (so rows, their tints and the gaps between
    them meet on device pixels, with no seams), and each row's 1px above
    and below its bytes; a gap row whole pixels too. One header for every
-   panel: its title on one line of whole pixels (a hand-written note, if
-   any, on that line, cut to fit), nothing drawn under it. No 8-byte
+   panel: its title on one line of whole pixels, nothing drawn under it. No 8-byte
    groups: a word's 32 bytes one run, as memory's 16 are. */
 .lens.raw { --raw-lh: round(calc(var(--cell-fs, 14px) * 1.85), 1px); }
 .lens.raw .view :is(.word .bytes, .word .ab, .addr .a) {
@@ -69,8 +68,6 @@
   box-sizing: border-box;
   margin-bottom: 2px; }
 .lens.raw .view .view-name { line-height: 16px; margin: 0; flex: none; }
-.lens.raw .view .view-head .handmade { min-width: 0; overflow: hidden;
-  text-overflow: ellipsis; }
 /* the moment, under the stack: in the panels' header style, quiet,
    within the stack column's width */
 .lens.raw .moment { margin: 0; max-width: 0; min-width: 100%;
