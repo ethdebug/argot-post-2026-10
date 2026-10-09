@@ -31,6 +31,9 @@ export interface ViewState {    // one view instance's own state
   // the others are shut there)
   open?: ReadonlySet<Path>;
 }
+// The related view's context: one row either side of each related row,
+// always (not a reader's choice)
+export const RELATED_CONTEXT = 1;
 export interface LensState {
   scene?: string;               // the scene shown (a bookmark: its id)
   moment: number;               // its moment shown: an index of its points
