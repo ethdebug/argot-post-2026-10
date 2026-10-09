@@ -654,6 +654,7 @@ export function Dump(p: { id: ViewId; location: Location; data: DataRef;
       bare ? "bare" : "", annot ? "annot" : "", annot && revealed
         ? "revealed" : "", hand ? "hand" : ""].filter(Boolean).join(" ")}
     data-view={`${lens.key}:${p.id}`} data-point={l?.point}
+    data-location={p.location}
     data-exits={exiting(link) || undefined} {...handlers}>
     <div className="view-head"><span className="view-name">{title}</span>
       {/* (pointers written by hand, not the compiler's: said so) */}
