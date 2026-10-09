@@ -28,5 +28,33 @@
       "label": "Before the writes"
     }
   ],
-  "controls": "prev-next"
+  "controls": "prev-next",
+  "groups": [
+    {
+      "id": "O2/roll",
+      "title": "After the roll",
+      "moments": [
+        0
+      ],
+      "select": "hit"
+    },
+    {
+      "id": "O2/mult",
+      "title": "Inside _applyCombo",
+      "moments": [
+        1,
+        2
+      ],
+      "select": "_applyCombo",
+      "scope": "_applyCombo"
+    },
+    {
+      "id": "O2/writes",
+      "title": "Before the writes",
+      "moments": [
+        3
+      ],
+      "select": "gained"
+    }
+  ]
 }

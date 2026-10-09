@@ -1,6 +1,7 @@
 // The memory section, "Inside one play" (vanilla mem.js): Arcade's BUG
-// port, compiled by bugc at O0 and O2, paused at three points; the
-// locals bugc lists there, in memory (and alice's record slot); a level
+// port, compiled by bugc at O0 and O2, paused at three points (the
+// bug-O0 and bug-O2 scenes' groups); everything in scope there, the
+// storage variables and the locals, a dump of memory and storage; a level
 // and a pause picker; at a two-step pause, both steps' words; the
 // values, how one was found (the storage section's walkthrough, over
 // bugc's pointers), the source. Its own link group and keys
@@ -13,7 +14,8 @@ const BEFORE = { decoding: "$scene", moment: "previous" } as const;
 
 export const insideOnePlay: LensSpec = {
   id: "inside-one-play", title: "Inside one play (locals in memory)",
-  timelines: ["mem-O0", "mem-O2"], decodings: ["mem:O0", "mem:O2"],
+  timelines: ["scene:bug-O0", "scene:bug-O2"],
+  decodings: ["bug-O0/scope", "bug-O2/scope"],
   bookmarks: ["O0/roll", "O0/mult", "O0/writes", "O2/roll", "O2/mult",
     "O2/writes"],
   grid: '"meta meta" "level level" "point point" ' +
@@ -32,8 +34,7 @@ export const insideOnePlay: LensSpec = {
       domId: "mviewing", link: "mem", data: NOW },
     { id: "note", kind: "note", part: "note", area: "note", domId: "mnote",
       data: NOW },
-    // (one panel a location: memory's words, and the storage slot the
-    // page reads, alice's record, at the last pause)
+    // (one panel a location: memory's words, and storage's)
     { id: "before", kind: "dump", area: "dump", location: "memory",
       link: "mem", data: BEFORE, compare: NOW, idle: "hidden",
       title2: "Before" },
