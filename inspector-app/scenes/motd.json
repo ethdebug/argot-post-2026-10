@@ -1,0 +1,27 @@
+{
+  "id": "motd",
+  "title": "A string moves into its slot",
+  "caption": "setMotd(\"gl hf\"), after the 50-byte motd it was deployed with",
+  "run": {
+    "scenario": "arcade",
+    "build": "sol"
+  },
+  "lens": "inspector",
+  "timeline": [
+    {
+      "tx": 12,
+      "step": "end",
+      "label": "before setMotd"
+    },
+    {
+      "tx": 13,
+      "step": "end",
+      "label": "after setMotd"
+    }
+  ],
+  "controls": "prev-next",
+  "initial": {
+    "moment": 1,
+    "select": "motd"
+  }
+}

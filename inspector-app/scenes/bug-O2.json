@@ -1,0 +1,32 @@
+{
+  "id": "bug-O2",
+  "title": "Inside one play, bugc -O 2",
+  "run": {
+    "scenario": "arcade",
+    "build": "bug-O2"
+  },
+  "lens": "inside-one-play",
+  "timeline": [
+    {
+      "tx": 12,
+      "step": 222,
+      "label": "After the roll"
+    },
+    {
+      "tx": 12,
+      "step": 437,
+      "label": "Inside _applyCombo (1 of 2)"
+    },
+    {
+      "tx": 12,
+      "step": 438,
+      "label": "Inside _applyCombo (2 of 2)"
+    },
+    {
+      "tx": 12,
+      "step": 499,
+      "label": "Before the writes"
+    }
+  ],
+  "controls": "prev-next"
+}
