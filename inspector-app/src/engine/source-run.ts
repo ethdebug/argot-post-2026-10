@@ -21,18 +21,29 @@ class RunStorage extends Map<Hex, Hex> {
 }
 
 // (the KECCAK256 inputs of more than one word, each once: mapping keys
-// hashed with their slots, up to the transaction)
-function keccaks(run: Run, tx: number): Hex[][] {
+// hashed with their slots, up to the moment: the transactions before it
+// whole, and its own up to its step; one per KECCAK256 step, in order)
+const KECCAK256 = 0x20;
+function keccaks(run: Run, m: Moment): Hex[][] {
   const seen = new Set<string>();
-  return run.txs.slice(0, tx + 1).flatMap((t) => t.keccakInputs)
+  const upTo = (k: number) => {
+    const t = run.txs[k];
+    if (k < m.tx || m.step === "end") return t.keccakInputs;
+    let n = 0;
+    for (let i = 0; i < m.step && i < t.steps; i++) {
+      if (t.op[i] === KECCAK256) n++;
+    }
+    return t.keccakInputs.slice(0, n);
+  };
+  return run.txs.slice(0, m.tx + 1).flatMap((_, k) => upTo(k))
     .filter((ws) => ws.length > 1 && !seen.has(ws.join()) &&
       !!seen.add(ws.join()));
 }
 
 // The facts of a moment's transaction (its reads and writes), with the
 // mapping keys the run hashed up to it (keys from the trace)
-const factsAt = (run: Run, tx: number): TxFacts =>
-  ({ ...factsOf(run, tx), keccakInputs: keccaks(run, tx) });
+const factsAt = (run: Run, m: Moment): TxFacts =>
+  ({ ...factsOf(run, m.tx), keccakInputs: keccaks(run, m) });
 
 // `t`: a scene's timeline (annotated here), or "all": every trace step
 // of every transaction and each one's end (bare: annotated as they are
@@ -49,7 +60,7 @@ export function fromRun(run: Run, build: Build, t: Timeline | "all"):
       const s = run.stateAt(moments[i]);
       return { ...s, storage: new RunStorage(s.storage) };
     },
-    facts: (i) => factsAt(run, moments[i].tx),
+    facts: (i) => factsAt(run, moments[i]),
     digest: () => digest(run),
   };
 }
