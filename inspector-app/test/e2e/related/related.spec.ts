@@ -251,6 +251,42 @@ test.describe("view transitions", () => {
       await page.keyboard.press("Escape");
     }],
   ];
+  // (every host draws its lens the same way: the page, the shell's
+  // scene, an embed; a selection from none in Related animates in each,
+  // and runs its course: in Firefox too, which ends a transition whose
+  // page is redrawn under it)
+  for (const [host, url] of [["the page", "./#ex=mid&sel=&rel=1"],
+    ["the shell", "./shell.html#scene=mid&ex=mid&sel=&rel=1"],
+    ["an embed", "./embed.html#scene=mid"]]) {
+    test(`${host}: a selection from none in Related animates, its course `
+      + "run", async ({ page }) => {
+      await page.goto(url);
+      const pl = page.locator('li[data-path="playerList"] > .row').first();
+      await pl.waitFor();
+      const has = await page.evaluate(() =>
+        "startViewTransition" in document);
+      test.skip(!has, "no View Transitions here");
+      // (an embed's hash says nothing of Related: on, and nothing
+      // selected)
+      const rel = page.locator('button[data-rows="related"]').first();
+      if (await rel.getAttribute("aria-checked") === "false") {
+        await rel.click();
+        await still(page);
+      }
+      if (await page.locator(".row.sel").count()) {
+        await page.locator(".row.sel").first().click();
+        await still(page);
+      }
+      await spy(page);
+      await pl.click();
+      await expect.poll(async () => (await last(page))?.ms, { timeout:
+        5000 }).toBeGreaterThan(0);
+      const e = await last(page);
+      expect(e.inside, "a change of rows").not.toBe(e.before);
+      expect(e.ms, "its course run").toBeGreaterThan(350);
+    });
+  }
+
   for (const [name, hash, act] of paths) {
     test(`${name}: captured, moving, its course run (cold)`,
       async ({ page, browserName }) => {

@@ -55,13 +55,12 @@ function byteLight(c: El) {
 // a row the selection consulted, not lit (the related treatment)
 const consulted = (r: El) => rowState(r).rel;
 type Rect = { top: number; left: number; bottom: number; right: number };
-// (WebKit on Linux, WPE/GTK: a view-transition-name nested in a named
-// element crashes it. Its user agent says macOS, for sites' sake; its
-// platform does not)
+// (WebKit, Safari's engine: a view-transition-name nested in a named
+// element that stays through the animation crashes its renderer, on
+// Linux and on macOS)
 const nestedNamesCrash = typeof navigator !== "undefined" &&
   /AppleWebKit/.test(navigator.userAgent) &&
-  !/Chrome|Chromium|Edg/.test(navigator.userAgent) &&
-  /Linux/.test(`${navigator.platform} ${navigator.userAgent}`);
+  !/Chrome|Chromium|Edg|Firefox/.test(navigator.userAgent);
 interface Item { text: string; k: string | null; muted: boolean;
   sep: string; seg?: number; id?: string; free?: boolean;
   // (a note about the bytes, not a value: "(unmapped)", "(anchor slot
@@ -557,8 +556,8 @@ function annotate(root: El, v: El, taken: Rect[], room: Rect[]) {
         addr.classList.add("popped");
         // (in a view transition: it moves with its row, over the rows:
         // transition.ts)
-        // (not in WebKit on Linux: a name inside a named row crashes its
-        // renderer, CI's; there the popovers fade with the page)
+        // (not in WebKit: a name inside a named row crashes its
+        // renderer; there the popovers fade with the page)
         if (prow.dataset.vt && !nestedNamesCrash) {
           pop.dataset.vt = `${prow.dataset.vt}-pop`;
           pop.dataset.vtTop = "";
