@@ -1,6 +1,6 @@
 // The page on a phone: concrete defects, fixed one by one
 import type { Page } from "@playwright/test";
-import { test, expect, ready, select, type Win } from "../../page";
+import { test, expect, ready, select, still, type Win } from "../../page";
 
 const SIZES = [[390, 844], [375, 667]] as const;
 const at = (page: Page, width: number, height: number) =>
@@ -38,7 +38,7 @@ for (const [w, h] of SIZES) {
         await page.locator(`#picker button[data-fixture="${s}"]`).click();
         await page.waitForFunction(() => (window as Win).results
           ?.done);
-        await page.evaluate(() => new Promise((r) => setTimeout(r, 300)));
+        await still(page);
         expect(await page.evaluate(() => [document.documentElement
           .scrollWidth, ...[...document.querySelectorAll(".pop")]
           .filter((p) => p.scrollWidth > p.clientWidth + 1)
