@@ -20,7 +20,9 @@ async function loads(page: Page) {
   const errors: string[] = [];
   page.on("console", (m) => m.type() === "error" && errors.push(m.text()));
   page.on("pageerror", (e) => errors.push(String(e)));
-  await page.goto(URL);
+  // (the page writes its hash as it loads: a navigation of its own,
+  // before the load event; waiting for the commit only)
+  await page.goto(URL, { waitUntil: "commit" });
   await page.waitForFunction(() =>
     (window as unknown as { results?: { done: boolean } }).results?.done);
   const r = await page.evaluate(() => (window as unknown as
@@ -46,6 +48,9 @@ test("a re-pin restarts the dev server; the page loads clean after",
     try {
       await expect.poll(() => log, { timeout: 30_000 }).toContain("ready");
       await loads(page);
+      // (off the page first: its Vite client reloads it when the server
+      // restarts, a navigation racing the next one)
+      await page.goto("about:blank");
       fs.appendFileSync(pin, "\n");
       await expect.poll(() => log, { timeout: 30_000 })
         .toContain("server restarted");
