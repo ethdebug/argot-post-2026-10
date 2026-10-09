@@ -81,8 +81,8 @@ async ({ page }) => {
 
 // (the one engine path: the panel the sections use, over the variable's
 // own pointer against the state at the debugger's moment)
-test("a variable selected: how it was found, the sections' walkthrough; " +
-  "a move re-targets it, at the same step", async ({ page }) => {
+test("a variable selected: how it was found, the sections' walkthrough",
+  async ({ page }) => {
   await open(page, "bug-O0", `12:${mult.step}`);
   const bar = page.locator(`${D} .rbar`);
   const A = "players[0x70997970c51812dc3a010c7d01b50e0d17dc79c8]";
@@ -98,8 +98,16 @@ test("a variable selected: how it was found, the sections' walkthrough; " +
     await bar.locator('button[data-r="exit"]').click();
     await expect(bar).not.toHaveClass(/replaying/);
   }
-  // (a move mid-walk: the same selection's walkthrough at the new
-  // moment, at the same step)
+});
+
+// (a move mid-walk: the same selection's walkthrough at the new moment,
+// at the same step; a test of its own: on CI's WebKit each of the
+// walkthroughs above takes some twenty seconds, and the whole overran
+// the time bound)
+test("a move mid-walkthrough re-targets it, at the same step",
+  async ({ page }) => {
+  await open(page, "bug-O0", `12:${mult.step}`);
+  const bar = page.locator(`${D} .rbar`);
   await pick(page.locator(`${D} li[data-path="mult"] > .row`));
   await bar.locator('button[data-r="start"]').click();
   await bar.locator('button[data-r="next"]').click();
