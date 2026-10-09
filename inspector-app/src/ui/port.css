@@ -74,3 +74,11 @@
 .view.flow .addr .a { line-height: 1.45; }
 .view.bare .b.z { color: var(--muted); }
 .view.bare .addr { cursor: default; }
+
+/* A lens grid below the one breakpoint (style.css, 660px): one column,
+   its areas one under another (ui/narrow.ts: dumps before trees) */
+@media (max-width: 659.98px) {
+  .lens[style*="grid-template-areas"] {
+    grid-template-areas: var(--narrow-areas) !important;
+    grid-template-columns: minmax(0, 1fr) !important; }
+}
