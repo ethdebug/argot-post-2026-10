@@ -18,9 +18,10 @@ import {
 import type { BuildId, Run, Scenario, ScenarioId } from "./run/types";
 
 // The runs, in this process (authoring; Node: the tests, the snapshot
-// build): a scenario with its builds, and a build's run of it
+// build; the browser: run/client.ts): a scenario with its builds (at
+// least those named), and a build's run of it
 export interface Runs {
-  scenario(id: ScenarioId): Promise<Scenario>;
+  scenario(id: ScenarioId, builds: BuildId[]): Promise<Scenario>;
   run(s: Scenario, build: BuildId): Promise<Run>;
 }
 
@@ -124,7 +125,11 @@ export async function load(io: Io, o: { scenes: Scene[];
       return { src: fromSnapshot(file),
         compilations: file.build.compilations };
     }
-    const scenario = await o.runs.scenario(s.run.scenario);
+    // (its build, and for one with no ethdebug, solc's: its rule)
+    const info = o.builds[s.run.scenario];
+    const need = [s.run.build, ...info[s.run.build].ethdebug ? []
+      : Object.keys(info).filter((b) => info[b].language === "solidity")];
+    const scenario = await o.runs.scenario(s.run.scenario, need);
     const run = await o.runs.run(scenario, s.run.build);
     // (the run's code: never on the reader's path)
     const { fromRun } = await import("./source-run");

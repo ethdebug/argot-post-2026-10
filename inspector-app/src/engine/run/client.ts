@@ -2,6 +2,8 @@
 // worker (tests; a browser without workers), each (scenario, build) run
 // once per runner
 import type { BuildId, Run, Scenario } from "./types";
+import type { Runs } from "../project";
+import { scenarioOf } from "./scenario";
 import { runOf, runScenario, type RunData } from "./run";
 
 export function runner(worker: Worker | null):
@@ -33,3 +35,44 @@ export function runner(worker: Worker | null):
     return runs.get(key)!;
   };
 }
+
+// ------------------------------------------------- in the browser
+
+// The scenarios and their builds, as the app's files (one chunk each,
+// fetched when a run needs it: the builds are big)
+type Files = Record<string, () => Promise<unknown>>;
+const scenarioFiles: Files = import.meta.glob(
+  "../../../scenarios/*/scenario.json", { import: "default" });
+const buildFiles: Files = import.meta.glob(
+  "../../../scenarios/*/builds/*/build.json", { import: "default" });
+
+// The runs a page makes (authoring, the companion): its scenarios from
+// the app's files, each build's run in a worker (none: in the page), once
+export function browserRuns(worker: Worker | null): Runs {
+  const runIn = runner(worker);
+  const file = (files: Files, path: string) => {
+    const f = Object.entries(files).find(([k]) => k.endsWith(path))?.[1];
+    if (!f) throw new Error(`no file ${path}`);
+    return f();
+  };
+  const scenarios = new Map<string, Promise<Scenario>>();
+  return {
+    scenario: (id, builds) => {
+      const k = `${id}|${[...builds].sort().join()}`;
+      if (!scenarios.has(k)) {
+        scenarios.set(k, (async () => scenarioOf({
+          ...await file(scenarioFiles, `/${id}/scenario.json`) as object,
+          builds: Object.fromEntries(await Promise.all(builds.map(
+            async (b) => [b, await file(buildFiles,
+              `/${id}/builds/${b}/build.json`)]))) }))());
+      }
+      return scenarios.get(k)!;
+    },
+    run: (s, b) => runIn(s, b),
+  };
+}
+
+// The run's worker (none where workers cannot run)
+export const runWorker = (): Worker | null => typeof Worker === "undefined"
+  ? null : new Worker(new URL("./worker.ts", import.meta.url),
+    { type: "module" });
