@@ -28,7 +28,11 @@ const geometry = (page: Page) => page.evaluate(() => {
     .map((c) => ({ ...box(c), unit: c.dataset.unit!,
       zero: c.classList.contains("z"),
       view: c.closest<HTMLElement>(".view")!.dataset.view! }));
-  const rows = [...document.querySelectorAll(".wrow[data-slot]")].map(box);
+  // (to a tenth of a pixel: a scroll's float noise is no move)
+  const tenth = (r: R) => Object.fromEntries(Object.entries(r).map(
+    ([k, v]) => [k, Math.round(v * 10) / 10]));
+  const rows = [...document.querySelectorAll(".wrow[data-slot]")]
+    .map((e) => tenth(box(e)));
   return { labels, cells, rows, width: document.documentElement.scrollWidth,
     height: document.documentElement.scrollHeight };
 });
