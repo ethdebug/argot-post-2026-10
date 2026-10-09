@@ -1,11 +1,11 @@
 {
-  "id": "raw-hero",
-  "title": "Raw bytes",
+  "id": "raw-named",
+  "title": "The same bytes, named",
   "run": {
     "scenario": "arcade",
     "build": "sol"
   },
-  "lens": "raw-hero",
+  "lens": "inspector",
   "timeline": [
     {
       "tx": 3,
