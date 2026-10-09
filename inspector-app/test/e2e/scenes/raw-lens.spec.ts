@@ -1,5 +1,6 @@
-// The raw lens in a real browser: four bare dumps on one grid, at the
-// page's width, the blog figure's (1024px) and a phone's. One cell size
+// The raw lens in a real browser: storage, the stack and memory, bare,
+// on one grid, at the page's width, the blog figure's (1024px) and a
+// phone's. One cell size
 // (one font, one row height, one width for every panel), edges aligned,
 // boxes that hug their rows; bare bytes, which a hover leaves as they are
 import type { Page } from "@playwright/test";
@@ -12,21 +13,22 @@ const panels = (page: Page, q: string) => page.evaluate((q) =>
   Object.fromEntries([...document.querySelectorAll<HTMLElement>(
     `${q} .view`)].map((v) => {
     const r = v.querySelector(".rows")!.getBoundingClientRect();
-    const w = v.querySelector(".wrow[data-slot] .word > *")!
-      .getBoundingClientRect();
-    const b = v.querySelector(".wrow[data-slot] .b, .wrow .ab")!;
+    // (memory's flow lines have no slot: its lines are its rows)
+    const w = v.querySelector(".wrow .word > *")!.getBoundingClientRect();
+    const b = v.querySelector(".wrow .b, .wrow .ab")!;
     const line = parseFloat(getComputedStyle(v.querySelector(
-      ".wrow[data-slot] .word .bytes, .wrow .ab")!).lineHeight);
+      ".wrow .word .bytes, .wrow .ab")!).lineHeight);
     return [v.dataset.view!.split(":")[1], { l: r.left, r: r.right,
       t: r.top, b: r.bottom, wordR: w.right,
       font: getComputedStyle(b).fontSize, line,
-      row: v.querySelector(".wrow[data-slot]")!.getBoundingClientRect()
-        .height }];
+      row: v.querySelector(".wrow")!.getBoundingClientRect().height }];
   })), q);
 
-// One cell size (one font, one line height), one grid (shared edges, the stack beside on a wide page, its
-// tops level with storage's), boxes that hug their rows, the
-// composition centred
+// One cell size (one font, one line height), one grid (shared edges:
+// on a wide page the stack and memory a column beside storage, its top
+// level with storage's; narrower, the stack and memory side by side under
+// storage, memory's right edge storage's; a phone, one column), boxes
+// that hug their rows, the composition centred
 const rules = async (page: Page, q: string, width: number) => {
   // (the stack takes the dumps' font once they have fitted it: the same
   // to a twentieth of a pixel)
@@ -37,14 +39,13 @@ const rules = async (page: Page, q: string, width: number) => {
   };
   await expect.poll(spread).toBeLessThan(0.06);
   const p = await panels(page, q);
-  // (no memory: storage and the stack)
-  expect(Object.keys(p).sort()).toEqual(["stack", "storage"]);
+  expect(Object.keys(p).sort()).toEqual(["memory", "stack", "storage"]);
   const all = Object.values(p);
   const close = (xs: number[], d: number) =>
     expect(Math.max(...xs) - Math.min(...xs)).toBeLessThan(d);
   close(all.map((x) => x.line), 0.5);
   expect(new Set(all.map((x) => Math.round(x.l))).size)
-    .toBe(width >= 860 ? 2 : 1);
+    .toBe(width >= 560 ? 2 : 1);
   for (const x of all) expect(x.r - x.wordR).toBeLessThan(24);
   for (const x of all) {
     expect(x.l).toBeGreaterThanOrEqual(0);
@@ -52,14 +53,22 @@ const rules = async (page: Page, q: string, width: number) => {
   }
   expect(await page.evaluate(() => document.documentElement.scrollWidth))
     .toBe(width);
-  if (width >= 860) {
-    // (the stack: narrow, beside; storage and the stack centred)
-    const mid = (p.storage.l + p.stack.r) / 2;
+  // (memory under the stack, or beside it under storage)
+  expect(p.memory.t).toBeGreaterThanOrEqual(p.stack.t);
+  if (width >= 1130) {
+    // (the stack and memory a column beside storage; all centred)
+    const mid = (p.storage.l + Math.max(p.stack.r, p.memory.r)) / 2;
     expect(Math.abs(mid - width / 2)).toBeLessThan(2);
     expect(Math.abs(p.storage.t - p.stack.t)).toBeLessThan(1);
     expect(p.stack.l).toBeGreaterThan(p.storage.r);
-    expect(p.stack.r - p.stack.l).toBeLessThan((p.storage.r - p.storage.l)
-      / 3);
+    expect(Math.abs(p.memory.l - p.stack.l)).toBeLessThan(1);
+    expect(p.memory.b).toBeLessThanOrEqual(p.storage.b + 1);
+  } else if (width >= 560) {
+    // (under storage: the stack at its left, memory at its right)
+    expect(p.stack.t).toBeGreaterThan(p.storage.b);
+    expect(Math.abs(p.stack.l - p.storage.l)).toBeLessThan(1);
+    expect(Math.abs(p.memory.r - p.storage.r)).toBeLessThan(1);
+    expect(Math.abs(p.memory.t - p.stack.t)).toBeLessThan(1);
   }
 };
 
