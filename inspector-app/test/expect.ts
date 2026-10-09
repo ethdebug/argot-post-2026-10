@@ -60,3 +60,9 @@ export const defaults: Record<string, [string, string]> = {
   motd: ["after", "motd"],
   vyper: ["after", `${A}.score`],
 };
+// players' lastBlock in the arcade scenario's runs (genesis block 0, one
+// transaction a block: transaction k in block k + 1): alice, bob and
+// carol in the middle of the game (their last plays: transactions 5, 6
+// and 11), and alice after her third hit (transaction 12). (The anvil
+// fixtures had 7, 8, 21 and 25: anvil mined a block for each roll.)
+export const lastBlock = { mid: ["6", "7", "12"], alice: "13" };
