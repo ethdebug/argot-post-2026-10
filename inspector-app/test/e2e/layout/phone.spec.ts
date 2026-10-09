@@ -1,6 +1,17 @@
 // The page on a phone: concrete defects, fixed one by one
 import type { Page } from "@playwright/test";
 import { test, expect, ready, select, still, type Win } from "../../page";
+import { A } from "../../expect";
+
+// (as a phone is: a touch screen, at 3 device pixels a CSS pixel, the
+// page's meta viewport honoured; Firefox has no mobile mode, so there
+// only the size)
+test.use({
+  isMobile: async ({ browserName }, use) => use(browserName !== "firefox"),
+  hasTouch: async ({ browserName }, use) => use(browserName !== "firefox"),
+  deviceScaleFactor: async ({ browserName }, use) =>
+    use(browserName === "firefox" ? 1 : 3),
+});
 
 const SIZES = [[390, 844], [375, 667]] as const;
 const at = (page: Page, width: number, height: number) =>
@@ -11,9 +22,12 @@ const cut = (page: Page, sel: string) => page.locator(sel).evaluate((e) =>
 
 for (const [w, h] of SIZES) {
   test(`${w}px: the bar shows the selection and its button whole`,
-    async ({ page }) => {
+    async ({ page, browserName }) => {
       await at(page, w, h);
-      await select(page, "mid", "players[0x70997970c51812dc3a010c7d01b50e0d17dc79c8]");
+      // (the phone's: a coarse pointer, as test.use above asks)
+      expect(await page.evaluate(() => matchMedia("(pointer: coarse)")
+        .matches)).toBe(browserName !== "firefox");
+      await select(page, "mid", A);
       const bar = page.locator("#details");
       expect(await cut(page, "#details .rsel")).toBe(false);
       expect(await cut(page, "#details .rstart")).toBe(false);
