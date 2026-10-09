@@ -456,7 +456,12 @@ export function WalkthroughPanel(p: { id: ViewId; data: DataRef;
                 data-focus={r.path} aria-pressed={r.path === w!.focus
                   ? "true" : "false"} onClick={() => setFocus(r.path)}
                 aria-label={`Focus: ${r.full ?? r.who}`}>
-                {r.who}</button>)}</>}</div>
+                {r.who}</button>)}</>}
+          {/* (or, in its room, the pointer's formulas under a step's own
+            words, quietly: never at the step the picker is) */}
+          {!focusing && st?.formula && <span className="rformula"
+            title={st.formula.join("\n")}>{st.formula.join("  ·  ")}
+          </span>}</div>
       </div></div>
     <div ref={wrap} id={idOf("dwrap")} className="dwrap"
       data-view={`${lens.key}:${p.id}`}>
