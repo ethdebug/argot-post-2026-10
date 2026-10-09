@@ -89,7 +89,8 @@ function Row({ n, top, c, inBlk }: { n: ValueNode; top?: boolean; c: Ctx;
     shut ? "collapsed" : "", blk ? "blk" : "", blk ? pk(blkK) : "",
     blk && mutedRow(c, n) ? "muted" : ""].filter(Boolean).join(" ");
   return <li className={li || undefined} data-path={n.path}
-    data-part={c.partAttr ? n.part ?? n.path : undefined}>
+    data-part={c.partAttr ? n.part ?? n.path : undefined}
+    data-vt={top ? c.vt?.(`tree ${n.path}`) : undefined}>
     <div className={cls} tabIndex={0} role="button"
       data-vt={c.vt?.(n.path)}
       aria-pressed={sel ? "true" : "false"}>

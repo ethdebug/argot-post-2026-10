@@ -55,12 +55,12 @@ function byteLight(c: El) {
 // a row the selection consulted, not lit (the related treatment)
 const consulted = (r: El) => rowState(r).rel;
 type Rect = { top: number; left: number; bottom: number; right: number };
-// (WebKit, Safari's engine: a view-transition-name nested in a named
-// element that stays through the animation crashes its renderer, on
-// Linux and on macOS)
-const nestedNamesCrash = typeof navigator !== "undefined" &&
-  /AppleWebKit/.test(navigator.userAgent) &&
-  !/Chrome|Chromium|Edg|Firefox/.test(navigator.userAgent);
+// A dump's lines, in order: its rows and "⋯" lines, through its groups
+// (.run: a run of rows between two "⋯" lines)
+export const lines = (view: ParentNode): El[] => [...view.querySelectorAll<El>(
+  ".rows > :not(.run), .rows > .run > *")];
+// A dump's rows (not the pictures of rows in the cards)
+const ROWS = ".rows > .run > .wrow";
 interface Item { text: string; k: string | null; muted: boolean;
   sep: string; seg?: number; id?: string; free?: boolean;
   // (a note about the bytes, not a value: "(unmapped)", "(anchor slot
@@ -136,7 +136,7 @@ function runs(view: El): El[][] {
   const span = data(view.querySelector(".wrow"))?.light.span;
   const lit = (st: ReturnType<typeof rowState>) =>
     st.on || st.only || st.known || st.gut;
-  for (const el of [...view.querySelector(".rows")!.children] as El[]) {
+  for (const el of lines(view)) {
     const st = el.classList.contains("wrow") ? rowState(el) : null;
     if (st && (lit(st) || st.rel || span?.has(slotOf(el)))) {
       // (a consulted row and a lit one: runs of their own)
@@ -525,7 +525,7 @@ function annotate(root: El, v: El, taken: Rect[], room: Rect[]) {
     taken.push(...rs);
     return true;
   };
-  const labels = all(v, ".rows > .wrow > .addr").filter((e) => {
+  const labels = all(v, `${ROWS} > .addr`).filter((e) => {
     const st = rowState(e.closest<El>(".wrow")!);
     return st.on || st.only || st.known;
   }).map((e) => ({ row: e.closest<El>(".wrow")!,
@@ -556,12 +556,6 @@ function annotate(root: El, v: El, taken: Rect[], room: Rect[]) {
         addr.classList.add("popped");
         // (in a view transition: it moves with its row, over the rows:
         // transition.ts)
-        // (not in WebKit: a name inside a named row crashes its
-        // renderer; there the popovers fade with the page)
-        if (prow.dataset.vt && !nestedNamesCrash) {
-          pop.dataset.vt = `${prow.dataset.vt}-pop`;
-          pop.dataset.vtTop = "";
-        }
         const a = prow.querySelector<El>(".a")!;
         place(pop, a);
         // (its names, cut to its room; then placed again, at its width)
@@ -619,7 +613,9 @@ export function drawOverlays(root: El) {
     el.setAttribute("aria-hidden", "true");
     el.style.left = `${w.offsetLeft}px`;
     // (above the slot, over the "⋯" line before it, when there is one)
-    if (row.previousElementSibling?.classList.contains("gap")) {
+    // (a run's first row: the line before its run)
+    if ((row.previousElementSibling ?? row.parentElement
+      ?.previousElementSibling)?.classList.contains("gap")) {
       el.classList.add("above");
     }
     el.innerHTML = `<span class="blabel">byte</span><div class="bytes">${
@@ -630,7 +626,7 @@ export function drawOverlays(root: El) {
     // (only where it covers no row's bytes and no label: a step's form
     // gives the positions too)
     const r = el.getBoundingClientRect();
-    const rows = all(v, ".rows > .wrow > .word").map((x) =>
+    const rows = all(v, `${ROWS} > .word`).map((x) =>
       x.getBoundingClientRect() as Rect);
     if (taken.some((t) => overlaps(r, t)) || rows.some((t) =>
       overlaps(r, t))) el.remove();

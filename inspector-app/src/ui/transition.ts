@@ -1,16 +1,20 @@
-// A change of which rows exist, animated (the related view: its toggle,
-// and a deliberate selection that changes its rows), with the browser's
-// View Transitions: the rows that stay move to their new places, the
-// others fade, about 220 ms. No API, or reduced motion: at once.
-// Hover and a walkthrough's steps never change the rows, so never
-// animate. The rows carry their names as data-vt (`vtName`); they are
-// set as view-transition-name only during a transition (a name makes
-// its element a stacking context, which the popovers must not meet),
-// and only on rows wholly inside what clips them (a row half out of the
-// tree's box would show past it). The popovers move with their rows
-// (named after them, drawn over the rows: data-vt-top), placed for the
-// new rows before the new state is captured; the cards and the tray
-// hide meanwhile.
+// A change of which groups of rows exist, animated, as one motion (the
+// one helper for every deliberate change of what the views show: the
+// related view's toggle, a selection there, and a timeline's moments:
+// `transition(change)`), with the browser's View Transitions. The unit
+// is a GROUP: in a dump, a run of adjacent rows between two "⋯" lines
+// (a .run, named by its first row); in a tree, a variable's subtree (its
+// li). A group that stays glides to its new place, its content cross-
+// fading inside its box (never stretched); one that leaves folds away;
+// one that enters unfolds; the "⋯" lines move with them. A subtree's
+// rows are named too (they move inside it as its members are filtered:
+// a cross-fade would show both layouts). The popovers are part of their
+// row's group, so they travel with it. One duration, one easing for
+// all. No API, or reduced motion: at once. Hover and a walkthrough's
+// steps never change the groups, so never animate. Names are kept as
+// data-vt (`vtName`), set as view-transition-name only during a
+// transition, and only on what is wholly inside what clips it; a dump's
+// run that is not gives its rows (data-vt-in) their own names instead.
 import { flushSync } from "react-dom";
 import type { Store } from "./store";
 import type { LensState } from "./types";
@@ -43,36 +47,51 @@ function inView(el: HTMLElement): boolean {
   return true;
 }
 
-// (the names over the others, in the old state or the new one: their
-// groups' z-index, while it runs)
-const topNames = new Set<string>();
-let topStyle: HTMLStyleElement | null = null;
+// A group's members' ids (its rows', in a dump's run)
+const members = (el: HTMLElement) => new Set([...el.querySelectorAll<
+  HTMLElement>("[data-vt-in]")].map((m) => m.dataset.vtIn!));
+// (the old state's groups: their names, by their members)
+let before = new Map<string, Set<string>>();
 
-function names(on: boolean) {
+// Set the names: `old`, the state about to be captured as old; `new`,
+// the one captured as new (a group that holds a row of an old one takes
+// that one's name: a run that gained or lost rows at its top is the
+// same run); `off`, none
+function names(phase: "old" | "new" | "off") {
+  const on = phase !== "off";
   const seen = new Set<string>();
-  for (const el of document.querySelectorAll<HTMLElement>("[data-vt]")) {
-    const n = el.dataset.vt!;
-    const ok = on && !seen.has(n) && inView(el);
-    if (ok) seen.add(n);
-    if (ok && el.dataset.vtTop !== undefined) topNames.add(n);
-    el.style.viewTransitionName = ok ? n : "";
+  const named = new Set<Element>();
+  const name = (el: HTMLElement, n: string | undefined) => {
+    const ok = !!n && on && !seen.has(n) && inView(el);
+    if (ok) {
+      seen.add(n!);
+      named.add(el);
+    }
+    el.style.viewTransitionName = ok ? n! : "";
+  };
+  const groups = [...document.querySelectorAll<HTMLElement>("[data-vt]")];
+  const own = new Set(groups.map((g) => g.dataset.vt!));
+  const claimed = new Set<string>();
+  const now = new Map<string, Set<string>>();
+  for (const el of groups) {
+    let n = el.dataset.vt!;
+    const m = members(el);
+    if (phase === "new" && !before.has(n) && m.size) {
+      const was = [...before].find(([k, ms]) => !own.has(k) &&
+        !claimed.has(k) && [...m].some((x) => ms.has(x)))?.[0];
+      if (was) n = was;
+    }
+    claimed.add(n);
+    if (m.size) now.set(n, m);
+    name(el, n);
   }
-  if (!on) topNames.clear();
-  if (!topNames.size) return topStyle?.remove();
-  topStyle ??= document.createElement("style");
-  // (a popover moves, over the rows, and is never stretched: its old
-  // and new pictures keep their size, at the box's top left, and cross-
-  // fade; a balloon of one into the other's size is too much)
-  const each = (pseudo: string) => [...topNames].map((n) =>
-    `::view-transition-${pseudo}(${n})`).join(", ");
-  topStyle.textContent = `${each("group")} { z-index: 10; }\n` +
-    `${each("old")}, ${each("new")} { height: 100%; width: auto; ` +
-    "object-fit: none; object-position: left top; }\n" +
-    `${each("old")} { animation-name: vt-out; animation-duration: ` +
-    "200ms; }\n" +
-    `${each("new")} { animation-name: vt-in; animation-duration: 200ms; ` +
-    "animation-delay: 120ms; animation-fill-mode: both; }";
-  if (!topStyle.isConnected) document.head.append(topStyle);
+  if (phase === "old") before = now;
+  if (phase === "off") before = new Map();
+  // (a group not named: its members, each its own)
+  for (const el of document.querySelectorAll<HTMLElement>("[data-vt-in]")) {
+    const g = el.parentElement?.closest<HTMLElement>("[data-vt]");
+    name(el, g && !named.has(g) ? el.dataset.vtIn : undefined);
+  }
 }
 
 // Run `change` (a state change React draws) as a view transition. A
@@ -97,18 +116,18 @@ export function transition(change: () => void): void {
   const mine = ++running;
   const done = () => {
     if (mine !== running) return;
-    names(false);
+    names("off");
     root.classList.remove("vt-run");
   };
   root.classList.add("vt-run");
-  names(true);
+  names("old");
   try {
     // (after the commit, the overlays drawn for it, a microtask later:
     // Dump.tsx schedule; then the new state is captured)
     const t = doc.startViewTransition(async () => {
       flushSync(change);
       await new Promise<void>((r) => queueMicrotask(r));
-      names(true);
+      names("new");
     });
     // (from its capture to its end: the page under it is its new state,
     // live; nothing redraws it meanwhile, as Firefox ends a transition

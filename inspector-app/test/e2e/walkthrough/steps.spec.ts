@@ -582,7 +582,8 @@ test("every lit run has its popover at every step (not step 0, which has "
         const out: HTMLElement[][] = [];
         let run: HTMLElement[] | null = null;
         for (const el of [...document.querySelector(
-          "#panel .view[data-side=after] .rows")!.children] as HTMLElement[]) {
+          "#panel .view[data-side=after] .rows")!.querySelectorAll(
+            ":scope > :not(.run), :scope > .run > *")] as HTMLElement[]) {
           if (el.classList.contains("wrow")) {
             if (!run) out.push(run = []);
             run.push(el);
@@ -649,7 +650,8 @@ test("a step's own gutter rows keep a dark label (not muted, not dropped)",
           const runs: HTMLElement[][] = [];
           let run: HTMLElement[] | null = null;
           for (const el of [...document.querySelector(
-            "#panel .view[data-side=after] .rows")!.children] as HTMLElement[]) {
+            "#panel .view[data-side=after] .rows")!.querySelectorAll(
+            ":scope > :not(.run), :scope > .run > *")] as HTMLElement[]) {
             // (but a row only consulted, found's resting view: its light
             // label, as at rest: the anchor)
             if (el.classList.contains("gut") &&

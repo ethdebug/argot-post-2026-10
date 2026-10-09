@@ -13,7 +13,7 @@ export function useFitDump(me: RefObject<HTMLElement | null>,
   useLayoutEffect(() => {
     const fit = () => {
       const d = me.current?.closest<HTMLElement>(".dump");
-      const row = me.current?.querySelector(".rows > .wrow");
+      const row = me.current?.querySelector(".rows > .run > .wrow");
       if (!d || !row || !shown || !d.clientWidth) return;
       const key = d.clientWidth < 560 ? "--k16" : "--k32";
       if (d.style.getPropertyValue(key)) return;

@@ -1002,8 +1002,10 @@ sup.fn { font-size: 0.7em; color: var(--accent); margin-left: 1px; }
 /* (bolder and a step darker than muted text: it reads as clearly as a
    black one, while its white fill and thin line keep it secondary; the
    line a clear mid-grey, around its arrow too, which is a little wider) */
-.pop.kept { --pop-bg: var(--panel);
-  --pop-line: color-mix(in srgb, var(--fg) 45%, var(--panel));
+/* (opaque, over the rows, on any host: the page's own colour, not a
+   panel's, which an embed makes translucent) */
+.pop.kept { --pop-bg: var(--bg);
+  --pop-line: color-mix(in srgb, var(--fg) 45%, var(--bg));
   --aw: 0.92em;
   color: color-mix(in srgb, var(--fg) 75%, var(--muted)); font-weight: 600;
   box-shadow: none; }
@@ -1023,18 +1025,22 @@ sup.fn { font-size: 0.7em; color: var(--accent); margin-left: 1px; }
 /* The related treatment: what a selection consulted (a key's slot, its
    tree row; their popover badges), in a desaturated version of the
    colour of what it leads to (a record's), else (pkn) a neutral one.
-   One token, --rel, from the palette entry: weaker than any lit colour. */
+   One token, --rel, from the palette entry: weaker than any lit colour.
+   Translucent, ink over whatever is behind (a host's warm page too):
+   the neutral, the page's ink at 11%; a hue, --rel-alpha of it mixed
+   into the neutral (premultiplied: its alpha rises with the hue's). */
 /* (about a third of the active colour's OKLCH chroma or less, nearer
    the panel: lighter in light mode, darker in dark mode) */
-:root { --rel-grey: color-mix(in srgb, var(--muted) 18%, var(--panel));
-  --rel-mix: 28%; }
+:root { --rel-grey: color-mix(in oklab, var(--fg) 11%, transparent);
+  --rel-alpha: 30%; }
 @media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]) { --rel-mix: 24%; }
+  :root:not([data-theme="light"]) { --rel-alpha: 26%; }
 }
-:root[data-theme="dark"] { --rel-mix: 24%; }
-.pkn { --pk: var(--rel-grey); --pk-fg: var(--fg); }
-.rel { --rel: color-mix(in oklch, var(--pk) var(--rel-mix),
+:root[data-theme="dark"] { --rel-alpha: 26%; }
+.pkn { --pk: var(--fg); --pk-fg: var(--fg); }
+.rel { --rel: color-mix(in oklab, var(--pk) var(--rel-alpha),
   var(--rel-grey)); }
+.rel.pkn { --rel: var(--rel-grey); }
 .b.rel:not(.hl), .active .b.rel:not(.hl):not(.at) {
   background: var(--rel); opacity: 1; filter: none; }
 .row.rel:not(.hl) { background: var(--rel); border-radius: 4px;
@@ -1061,9 +1067,17 @@ sup.fn { font-size: 0.7em; color: var(--accent); margin-left: 1px; }
   animation-name: vt-unfold; transform-origin: top; }
 @keyframes vt-fold { to { opacity: 0; transform: scaleY(0.4); } }
 @keyframes vt-unfold { from { opacity: 0; transform: scaleY(0.4); } }
-/* (a popover's: a cross-fade, no change of size: ui/transition.ts) */
-@keyframes vt-out { to { opacity: 0; } }
-@keyframes vt-in { from { opacity: 0; } }
+/* (a group that stays: its old and new pictures keep their size, at
+   its box's top left, inside its box as it grows or shrinks, and cross-
+   fade: never stretched, a balloon) */
+::view-transition-group(*) { overflow: clip; }
+::view-transition-old(*):not(:only-child),
+::view-transition-new(*):not(:only-child) { height: auto; width: 100%;
+  object-fit: none; object-position: left top; }
+/* (but the page itself, the root: as the browser draws it) */
+::view-transition-group(root) { overflow: visible; }
+::view-transition-old(root), ::view-transition-new(root) {
+  height: 100%; width: 100%; object-fit: fill; }
 /* (a click meanwhile reaches the page under it: it is never lost) */
 ::view-transition { pointer-events: none; }
 .vt-run :is(.tedge, .bruler) { visibility: hidden; }
