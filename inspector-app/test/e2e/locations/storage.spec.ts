@@ -1,4 +1,4 @@
-// The storage dump's rows: both moments (a scene of two) list the same
+// The storage dump's rows: every moment (a scene of two) lists the same
 // slots, ascending,
 // with a gap line before the first (unless it is slot 0), wherever the
 // addresses jump, and at the end
@@ -13,8 +13,13 @@ test("every scene: the same slots at both moments, in order, gaps marked",
         `#panel .view[data-side="${side}"] .word`).evaluateAll((ws) =>
         ws.map((w) => (w as HTMLElement).dataset.slot!));
       const b = await order("after");
-      // (a scene of two moments: the earlier's dump, the same slots)
+      // (a scene of two moments: the earlier's, the same slots)
       if (["alice", "motd"].includes(id)) {
+        await page.locator('#timeline [data-t="prev"]').click();
+        await expect.poll(() => page.locator("#timeline .tmark.cur")
+          .getAttribute("data-k"), id).toBe("0");
+        // (the earlier moment, stepped back to: its own dump, the
+        // step's changes marked as the earlier side's)
         expect(await order("before"), id).toEqual(b);
       }
       const n = b.map(BigInt);
@@ -28,7 +33,7 @@ test("every scene: the same slots at both moments, in order, gaps marked",
         want.push(b[k]);
       });
       want.push("gap");
-      expect(await page.locator('#panel .view[data-side=after] .rows')
+      expect(await page.locator("#panel .view .rows")
         // (its lines, through its groups: the runs between gap lines)
         .evaluate((r) => [...r.querySelectorAll(
           ":scope > :not(.run), :scope > .run > *")].filter((c) =>

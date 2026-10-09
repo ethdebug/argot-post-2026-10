@@ -70,7 +70,7 @@ const litBySide = (page: Page) => page.evaluate(() => {
 const range = (a: number, b: number) =>
   Array.from({ length: b - a + 1 }, (_, i) => a + i);
 
-test("a packed field's row lights its bytes, in both views",
+test("a packed field's row lights its bytes",
   async ({ page }) => {
   await ready(page);
   await select(page, "alice", null);
@@ -80,7 +80,7 @@ test("a packed field's row lights its bytes, in both views",
     await row(page, `${A}.${f}`).hover();
     const lit = await litBySide(page);
     expect(Object.keys(lit).map((k) => k.split(" ")[0]).sort(), f)
-      .toEqual(["after", "before"]);
+      .toEqual(["after"]);
     for (const bytes of Object.values(lit)) expect(bytes, f)
       .toEqual(range(a, b));
     await expect(row(page, `${A}.${f}`)).toHaveClass(/\bhl\b/);

@@ -24,8 +24,11 @@ export interface SceneSnapshot {  // snapshots/<scene>.json
   build: BuildSlice;
   states: Snapshot[];             // one per moment, same order
   facts: (TxFacts | null)[];      // per moment
+  // (the run's transactions: the timeline bar's track)
+  txs: TxBrief[];
   digest: string;                 // the run's (run.ts digest)
 }
+export interface TxBrief { label: string; steps: number }
 export interface MomentSource {
   moments: Moment[];
   // a moment, annotated (a run's "all": as it is visited), and the last
@@ -34,6 +37,8 @@ export interface MomentSource {
   last(i: number): SourceRange | undefined;
   state(i: number): Promise<Snapshot>;
   facts(i: number): TxFacts | null;
+  // the run's transactions, each its label and trace step count
+  txs: TxBrief[];
   // (a run's: the stack's greatest depth over the moment's transaction;
   // the debugger reserves it)
   peak?(i: number): number;
@@ -49,6 +54,7 @@ export function fromSnapshot(file: SceneSnapshot): MomentSource {
     last: (i) => file.scene.timeline[i]?.range,
     state: async (i) => file.states[i],
     facts: (i) => file.facts[i],
+    txs: file.txs,
     digest: async () => file.digest,
   };
 }
@@ -134,6 +140,7 @@ export function snapshotOf(json: unknown): SceneSnapshot {
     })),
     facts: j.facts.map((x: Json | null) => x && { ...x,
       reads: new Set(x.reads), writes: new Set(x.writes) }),
+    txs: Array.isArray(j.txs) ? j.txs : [],
     digest: j.digest,
   };
 }

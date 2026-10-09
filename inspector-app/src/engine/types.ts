@@ -148,6 +148,9 @@ export interface ValueNode {
   // the value, e.g. a frame pointer; what the node is, if not a value of
   // a variable: a function's locals, a slot read by the page's own rule)
   none?: true;
+  // (not in this moment's tree, but in another moment's of its scene:
+  // its row kept, muted, "not yet": engine/union.ts)
+  absent?: true;
   reads?: ResolvedRegion[];
   kind?: "group" | "record";
   // (a calldata part's ABI id: "m-length", vanilla's data-part)

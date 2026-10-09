@@ -25,7 +25,7 @@ test("each scene's values, via window.select", async ({ page }) => {
     .toEqual([]);
 });
 
-test("intro and summary follow the scene; one moment: one dump",
+test("intro and summary follow the scene; one dump, the moment's",
   async ({ page }) => {
     await page.goto("./");
     await usable(page);
@@ -39,7 +39,7 @@ test("intro and summary follow the scene; one moment: one dump",
         .toHaveCount(1);
       await expect(page.locator("#summary")).toHaveText(s.summary);
       const single = s.points.length === 1;
-      await expect(page.locator("#panel .view")).toHaveCount(single ? 1 : 2);
+      await expect(page.locator("#panel .view")).toHaveCount(1);
       if (single) {
         await expect(page.locator("main")).toHaveAttribute("data-single",
           "");
@@ -58,8 +58,8 @@ test("intro and summary follow the scene; one moment: one dump",
     }
   });
 
-test("a scene of two moments: the earlier's dump above the later's, " +
-  "each titled by its moment; the tree at the later, its changes marked",
+test("a scene of two moments: the later's dump and tree, its changes " +
+  "marked; the timeline steps back to the earlier, in place",
 async ({ page }) => {
   await page.goto("./");
   await usable(page);
@@ -68,23 +68,21 @@ async ({ page }) => {
     '#tree li[data-path$="c8].score"] > .row .val');
   await expect(score).toHaveText("60");
   await expect(score).toHaveClass(/\bchg\b/);
-  const [before, after] = ["before", "after"].map((x) =>
-    page.locator(`#panel .view[data-side=${x}]`));
-  await expect(before).toBeVisible();
-  await expect(after).toBeVisible();
-  await expect(before.locator(".view-name")).toBeVisible();
-  await expect(before.locator(".view-name"))
-    .toHaveText("Storage in the middle of the game");
-  await expect(after.locator(".view-name"))
-    .toHaveText("Storage after alice's third hit");
-  expect((await before.boundingBox())!.y)
-    .toBeLessThan((await after.boundingBox())!.y);
+  const view = page.locator("#panel .view");
+  await expect(view).toHaveCount(1);
+  await expect(page.locator("#timeline .tline"))
+    .toHaveText("after alice's third hit");
   // (totalScore, slot 2's last bytes: 140, then 170, the later's marked)
-  const last = (v: typeof before) => v.locator(
-    '.wrow[data-slot$="0002"] .b[data-i="31"]');
-  await expect(last(before)).toHaveText("8c");
-  await expect(last(after)).toHaveText("aa");
-  await expect(last(after)).toHaveClass(/\bchg\b/);
+  const last = view.locator('.wrow[data-slot$="0002"] .b[data-i="31"]');
+  await expect(last).toHaveText("aa");
+  await expect(last).toHaveClass(/\bchg\b/);
+  const y = (await view.boundingBox())!.y;
+  await page.locator('#timeline [data-t="prev"]').click();
+  await expect(page.locator("#timeline .tline"))
+    .toHaveText("in the middle of the game");
+  await expect(last).toHaveText("8c");
+  await expect(score).toHaveText("30");
+  expect((await view.boundingBox())!.y).toBe(y);
 });
 
 test("the Vyper scene shows Vyper's words, owned by nobody",
