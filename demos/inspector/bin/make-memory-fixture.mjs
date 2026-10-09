@@ -26,6 +26,7 @@ import path from "node:path";
 import { execFileSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import { decodeLocals } from "../decode.js";
+import { bug } from "../../../inspector-app/bin/compile.mjs";
 
 const root = path.dirname(path.dirname(fileURLToPath(import.meta.url)));
 const RPC = process.env.RPC_URL ?? "http://127.0.0.1:8558";
@@ -49,29 +50,20 @@ const word = (n) => "0x" + BigInt(n).toString(16).padStart(64, "0");
 const rel = "bug/arcade.bug";
 const file = path.join(root, rel);
 const source = fs.readFileSync(file, "utf8");
-const git = (...a) =>
-  execFileSync("git", ["-C", BUGC, ...a], { encoding: "utf8" }).trim();
-const commit = git("rev-parse", "HEAD");
 const STORAGE = new Set(["playerList", "motd", "totalScore", "totalHits",
   "players"]);
 
-function compile(opt) {
-  // bugc names the source by its full path; keep the relative one
-  const out = JSON.parse(execFileSync("node",
-    [path.join(BUGC, "dist", "bin", "bugc.js"), "-O", String(opt), "-f",
-      "json", file], { encoding: "utf8", maxBuffer: 1 << 30 })
-    .split(JSON.stringify(file).slice(1, -1)).join(rel));
-  // Instructions by byte offset: one byte each, plus immediates
-  const byPc = new Map();
-  let pc = 0;
-  for (const ins of out.runtime.instructions) {
-    byPc.set(pc, ins);
-    pc += 1 + (ins.immediates?.length ?? 0);
-  }
-  const players = out.runtime.instructions.flatMap((i) =>
-    i.debug?.context?.variables ?? []).find((v) =>
-    v.identifier === "players");
-  return { bytecode: out.create.bytecode, byPc, players };
+// (bugc: inspector-app/bin/compile.mjs, shared with the scenario's
+// builds; its programs' instructions by byte offset)
+let commit;
+async function compile(opt) {
+  const b = await bug({ bugc: BUGC, file, rel, level: opt });
+  commit = b.commit;
+  const ins = b.programs.runtime.instructions;
+  const byPc = new Map(ins.map((i) => [i.offset, i]));
+  const players = ins.flatMap((i) => i.context?.variables ?? [])
+    .find((v) => v.identifier === "players");
+  return { bytecode: b.create, byPc, players };
 }
 
 // -------------------------------------------------------------- chain
@@ -153,7 +145,7 @@ async function story(c) {
 // ------------------------------------------------------------ a level
 
 async function level(opt) {
-  const c = compile(opt);
+  const c = await compile(opt);
   const { address, base, tx } = await story(c);
   const block = Number(tx.receipt.blockNumber);
   const trace = await rpc("debug_traceTransaction",
@@ -166,7 +158,7 @@ async function level(opt) {
     .map((w) => w.replace(/^0x/, "")).join("");
   const steps = [];
   for (let i = 0; i < logs.length - 1; i++) {
-    const context = c.byPc.get(logs[i].pc)?.debug?.context ?? {};
+    const context = c.byPc.get(logs[i].pc)?.context ?? {};
     const locals = (context.variables ?? [])
       .filter((v) => !STORAGE.has(v.identifier));
     const decoded = await decodeLocals(locals, memoryAfter(i));
