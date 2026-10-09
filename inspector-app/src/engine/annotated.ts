@@ -169,7 +169,8 @@ export function notesOf(d: Decoded, l: Layout, units: Unit[],
           let line = 0;
           return us.flatMap((i): Item[] => {
             const n = node(units[i]);
-            const seg = run.indexOf([...rows[i]][0]);
+            // (one slot's items, " · " between them all, as one value's)
+            const seg = 0;
             const name = pathName(n.path, o.names);
             if (n.children?.length && o.values !== false) {
               const head = { seg, line: line++, unit: i, text: name };

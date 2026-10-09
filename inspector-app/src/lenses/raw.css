@@ -79,10 +79,9 @@
   color: var(--muted); overflow-wrap: break-word; }
 
 /* The same figure, annotated in place (lenses/raw.ts rawAnnotated):
-   the stack keeps room under its rows for its popover (its words are
-   abbreviated: the popover goes under them), so revealing it moves
-   nothing; laid out as the raw figure is */
-.lens.raw-annotated .view.annot.abbr { padding-bottom: round(2.4em, 1px); }
+   each value keeps room under one of its runs for its popover
+   (ui/notes.ts, in both states), so revealing it moves nothing; laid
+   out as the raw figure is */
 .lens.raw .reveal { display: flex; gap: 0; margin: 0; }
 .lens.raw .reveal button { font-size: 0.75rem; }
 
@@ -120,7 +119,8 @@
   opacity: calc(1 - 0.7 * var(--dim, 0));
   filter: saturate(calc(1 - 0.8 * var(--dim, 0))); transition: none; }
 /* (a popover rises from its arrow) */
-.view.annot .pop.note { opacity: var(--tp, 0);
+.view.annot .pop.note { opacity: var(--tp, 0); font-size: var(--fs-meta);
+  max-width: none;
   transform: translateY(calc((1 - var(--tp, 0)) * 6px))
     scale(calc(0.94 + 0.06 * var(--tp, 0)));
   transform-origin: var(--ax, 50%) 0;
@@ -129,9 +129,6 @@
 .view.annot .pop.note:not(.under) { transform-origin: var(--ax, 50%) 100%;
   transform: translateY(calc((var(--tp, 0) - 1) * 6px))
     scale(calc(0.94 + 0.06 * var(--tp, 0))); }
-/* (written by hand: the hand-written compilation's badge, port.css) */
-.view.annot .view-head .handmade { margin: 0 0 0 6px; padding: 0 6px;
-  font-size: inherit; line-height: inherit; opacity: var(--dim, 0); }
 @media (prefers-reduced-motion: reduce) {
   .view.annot :is(.b, .ab, .pop.note) { transition: none; }
 }
