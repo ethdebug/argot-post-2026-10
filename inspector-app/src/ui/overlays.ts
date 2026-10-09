@@ -23,7 +23,8 @@ const rowLit = (x: ViewData | undefined, l: Light | undefined, r: El) =>
 // walkthrough step, a gutter
 function rowState(r: El) {
   const x = data(r);
-  const on = rowLit(x, x?.light, r) || x?.light.at?.row === slotOf(r);
+  const on = rowLit(x, x?.light, r) || (x?.light.at?.row === slotOf(r) &&
+    x.light.at.location === x.l.location);
   const only = !on && rowLit(x, x?.there, r);
   return { on, only, known: !on && !only && !!x?.light.known?.has(slotOf(r)),
     gut: !on && !only && !!x?.light.gutters.has(slotOf(r)),

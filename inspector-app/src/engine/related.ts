@@ -199,8 +199,8 @@ export function pointConsulted(light: Light, d: Decoded, l: Layout,
   const at = hover.path && rc.has(hover.path) ? hover.path
     : hover.bytes ? owner(byteKey(hover.bytes.location, hover.bytes.row,
       hover.bytes.from)) : undefined;
-  const row = !at && hover.row && light.related?.has(hover.row)
-    ? hover.row : undefined;
+  const row = !at && hover.row && (hover.location ?? l.location) ===
+    l.location && light.related?.has(hover.row) ? hover.row : undefined;
   if (!at && !row) return light;
   const keep = (q: Path) => !!at && within(d.byPath, q, at);
   const relColours = new Map([...rc].filter(([q]) => keep(q)));
