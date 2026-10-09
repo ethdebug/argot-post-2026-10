@@ -90,9 +90,16 @@ export function useFitDump(me: RefObject<HTMLElement | null>,
     const seen = !key || !d0 || typeof ResizeObserver === "undefined" ||
       !shown ? null : new ResizeObserver(() => publish(false));
     if (d0) seen?.observe(d0);
+    // (the embed, before its first height: the cell size at once, as
+    // the figure is now; a frame out of view gets no observer rounds,
+    // so the observer's publish would come only once it is scrolled to,
+    // a height change under the reader)
+    const settle = () => publish(true);
+    addEventListener("ethdebug:redraw", settle);
     return () => {
       live = false;
       removeEventListener("resize", fit);
+      removeEventListener("ethdebug:redraw", settle);
       seen?.disconnect();
     };
   }, [me, shown, rows]);
