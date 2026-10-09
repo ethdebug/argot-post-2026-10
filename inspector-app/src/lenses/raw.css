@@ -129,3 +129,12 @@
 @media (prefers-reduced-motion: reduce) {
   .view.annot :is(.b, .ab, .pop.note) { transition: none; }
 }
+
+/* (the annotated figure's disclaimer, where the moment was: the
+   hand-written badge as a tree's heading has it (port.css .handmade,
+   in the panels' title type), shown with the stack's values: --hand) */
+.lens.raw .moment-note { margin: 0; }
+.lens.raw .moment-note .handmade { margin: 0;
+  font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+  font-size: var(--fs-label); font-weight: 700; text-transform: uppercase;
+  letter-spacing: 0.06em; opacity: var(--hand, 0); }

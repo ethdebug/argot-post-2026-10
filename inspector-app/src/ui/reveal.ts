@@ -104,6 +104,11 @@ export function paintView(v: HTMLElement, force = false) {
   const was = force ? undefined : last.get(v);
   const now = { f: [] as string[], p: [] as string[],
     dim: stage(0, k, p, a, w).f.toFixed(3) };
+  // (the stack's first value: the figure's disclaimer comes with it)
+  if (v.dataset.location === "stack") {
+    (v.closest<HTMLElement>(".lens") ?? v).style.setProperty("--hand",
+      now.dim);
+  }
   if (now.dim !== was?.dim) {
     v.style.setProperty("--dim", now.dim);
     v.style.setProperty("--a-smooth", `${REVEAL.smoothMs}ms`);
