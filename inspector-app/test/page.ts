@@ -25,9 +25,11 @@ export const test = base.extend<{ quiet: boolean }>({
       problems.push(`console: ${m.text()}`));
     page.on("pageerror", (e) => {
       // (WebKit reports a fetch that a navigation cut off, as the idle
-      // prefetch's can be, as a page error; the page catches the fetch)
-      if (!/^Fetch API cannot load .* due to access control checks/
-        .test(e.message)) problems.push(`pageerror: ${e}`);
+      // prefetch's can be, as a page error; the page catches the fetch.
+      // Matched on the error's text too: on CI's Linux WebKit the message
+      // alone missed it, shown as "Fetch API cannot load http: /…")
+      if (!/Fetch API cannot load \S.* due to access control checks/
+        .test(`${e.message} ${e}`)) problems.push(`pageerror: ${e}`);
     });
     await use(page);
     if (quiet) expect(problems).toEqual([]);
