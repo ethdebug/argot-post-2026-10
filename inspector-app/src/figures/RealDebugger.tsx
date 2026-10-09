@@ -20,6 +20,14 @@ import {
 
 const LANGS = [["sol", "Solidity"], ["fe", "Fe"]] as const;
 type Lang = typeof LANGS[number][0];
+// The step each language opens at: inside play(), on a statement, where
+// soldb's view says the most. Solidity: `totalHits += 1`, the step
+// where soldb has read totalScore (170) and totalHits (7), the state
+// it knows (the transaction never reads playerList or motd, and soldb
+// lists a mapping without its entries). Fe: the score's write,
+// `store.scores.set(…)` (its export has no state: nothing to wait for).
+// (test/e2e/figures/real-debugger.spec.ts checks both.)
+const OPEN: Record<Lang, number> = { sol: 2025, fe: 4249 };
 // (the grammar each source is coloured with: Fe's is not loaded, plain)
 const GRAMMAR: Record<Lang, string> = { sol: "solidity", fe: "" };
 
@@ -81,7 +89,7 @@ export function RealDebugger() {
   const [error, setError] = useState<string>();
   const [why, setWhy] = useState<Engine["whyNot"]>({});
   const d = data[lang];
-  const i = at[lang] ?? (d ? moveOf(d, 0, "first") : 0);
+  const i = at[lang] ?? (d ? Math.min(OPEN[lang], d.steps.n - 1) : 0);
 
   // soldb's data set for the language shown, once
   useEffect(() => {
@@ -157,8 +165,10 @@ export function RealDebugger() {
   const vars = state?.vars ?? [];
   const w = why[lang] ?? {};
   const s = d?.steps;
+  // (a value on one line, cut short; pointed at or focused, whole, over
+  // the rows below: nothing moves)
   const row = (name: string, value: string, type = "") =>
-    <li key={name} data-path={name}><div className="row">
+    <li key={name} data-path={name}><div className="row" tabIndex={0}>
       <span className="name">{name}</span>
       <span className="type">{type}</span>
       <span className="val"><span>{value}</span></span></div></li>;
