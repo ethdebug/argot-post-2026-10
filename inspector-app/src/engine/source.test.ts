@@ -33,7 +33,7 @@ describe.each(scenes.map((s) => [s.id, s] as const))("%s", (_, scene) => {
   it("decodes the same from its snapshot as from its run", async () => {
     const [p, q] = [await authoring, await reader];
     const ds = Object.values(p.decodings).filter((d) =>
-      d.timeline === timelineOf(scene.id) && d.variables !== "abi");
+      d.timeline === timelineOf(scene.id));
     expect(ds.length).toBeGreaterThan(0);
     for (const d of ds) {
       for (const [i] of scene.timeline.entries()) {

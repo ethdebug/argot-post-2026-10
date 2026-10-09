@@ -34,11 +34,7 @@ test("the pointer's edge labels cover none of its lines", async ({ page }) => {
 });
 
 test("one name for the feature: \"How it was found\"", async ({ page }) => {
-  await ready(page, { memory: true });
-  await expect(page.locator("#chow-h")).toHaveText("How it was found");
-  await expect(page.locator(".hownote")).toHaveCount(1);
-  // (the memory section's: the storage section's walkthrough)
-  await page.locator("#memory").scrollIntoViewIfNeeded();
-  await expect(page.locator('#mdetails button[data-r="start"]'))
+  await ready(page);
+  await expect(page.locator('#details button[data-r="start"]'))
     .toHaveText(/How it was found/);
 });

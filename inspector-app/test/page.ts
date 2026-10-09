@@ -1,5 +1,5 @@
 // The parity page, as the e2e specs drive it: its ready signals
-// (window.results, window.memResults: src/pages/parity.tsx) and its
+// (window.results: src/pages/parity.tsx) and its
 // hooks (window.select), in one place
 import { test as base, expect, type Page } from "@playwright/test";
 
@@ -33,7 +33,6 @@ export const test = base.extend<{ quiet: boolean }>({
 export { expect };
 
 export type Win = Window & typeof globalThis & {
-  calldataResults: { lit: string[]; chosen: string | null };
   fitDumps(): void;
 };
 
@@ -41,19 +40,17 @@ export type Win = Window & typeof globalThis & {
 export const V = '#panel .view[data-side=after]';
 
 // Opens the page (with `hash`, at `width` x `height`) and waits until
-// its first scene is usable; with `memory`, the memory section too
-export async function ready(page: Page, { hash = "", width, height = 900,
-  memory = false }: { hash?: string; width?: number; height?: number;
-  memory?: boolean } = {}) {
+// its first scene is usable
+export async function ready(page: Page, { hash = "", width, height = 900 }:
+  { hash?: string; width?: number; height?: number } = {}) {
   if (width) await page.setViewportSize({ width, height });
   await page.goto("./" + (hash && !hash.startsWith("#") ? "#" : "") + hash);
-  await usable(page, memory);
+  await usable(page);
 }
 
-// Waits until the page's first scene is usable (and its memory section)
-export const usable = (page: Page, memory = false) => page.waitForFunction(
-  (m) => (window as Win).results?.done && (!m || (window as Win).memResults
-    ?.done), memory);
+// Waits until the page's first scene is usable
+export const usable = (page: Page) => page.waitForFunction(() =>
+  (window as Win).results?.done);
 
 // Shows scene `id` as a link would (with `sel` selected; at its first
 // moment with `mode` "before", else its last; without, the scene's

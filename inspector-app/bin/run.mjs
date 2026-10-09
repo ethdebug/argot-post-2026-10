@@ -3,8 +3,8 @@
 // Chromium, Firefox and WebKit. The page's behaviour is the e2e specs'
 // (test/e2e/, on the dev server); this checks that the build is that
 // page: the loader's sizes are current; a session logs no error or
-// warning and requests no other host; every scene and the memory section
-// decode; a load that fails shows its error and Retry, which loads it;
+// warning and requests no other host; every scene decodes; a load that
+// fails shows its error and Retry, which loads it;
 // in Chromium, the slow link, and screenshots/desktop-packed.png.
 // Usage: npm run check (it builds and runs bin/site.sh first);
 // STATIC_PORT: the server's port (default: any free one).
@@ -19,11 +19,10 @@ import { current as sizesCurrent } from "./sizes.mjs";
 const root = path.dirname(path.dirname(fileURLToPath(import.meta.url)));
 const demo = path.join(path.dirname(root), "demos", "inspector");
 const shot = (name) => path.join(demo, "screenshots", name);
-// (the storage inspector's scenes, each its snapshot; another lens's,
-// "Raw bytes", has its lens)
-const index = JSON.parse(fs.readFileSync(path.join(demo, "fixtures",
-  "index.json"), "utf8")).filter((s) => !s.lens);
-const scenes = index.map((s) => s.id);
+// (the storage inspector's scenes on the page, each its snapshot: its
+// picker's, index.html)
+const scenes = [...fs.readFileSync(path.join(root, "index.html"), "utf8")
+  .matchAll(/data-snapshot="([^"]+)"/g)].map((m) => m[1]);
 const FIRST = scenes[0];
 
 let failed = 0;
@@ -167,16 +166,15 @@ async function slowLink(browser) {
     const { usable } = window.results;
     return { paint: Math.round(paint?.startTime ?? -1),
       usable: Math.round(usable), progress: Math.round(window.progress),
-      fixtures: performance.getEntriesByType("resource")
+      data: performance.getEntriesByType("resource")
         .filter((e) => e.startTime < usable &&
-          /\/(fixtures|snapshots)\//.test(e.name))
+          /\/snapshots\//.test(e.name))
         .map((e) => e.name.split("/inspector/")[1]).sort().join() };
   });
   if (!(t.progress <= 1000)) out.push(`progress shown at ${t.progress} ms`);
   if (!(t.paint <= 1000)) out.push(`first paint at ${t.paint} ms`);
-  if (t.fixtures !== ["fixtures/index.json",
-    `snapshots/${FIRST}.json`].join()) {
-    out.push(`fetched before usable: ${t.fixtures}`);
+  if (t.data !== `snapshots/${FIRST}.json`) {
+    out.push(`fetched before usable: ${t.data}`);
   }
   // the others, idle-time
   const others = scenes.slice(1);
@@ -184,7 +182,6 @@ async function slowLink(browser) {
     .getEntriesByType("resource").some((e) =>
       e.name.endsWith(`snapshots/${id}.json`))), others,
   { timeout: 30000 }).catch(() => out.push("no prefetch"));
-  await p.waitForFunction(() => window.memResults?.done);
   const shifts = await p.evaluate(() => window.shifts);
   if (shifts > 0.01) {
     out.push(`layout shift ${shifts.toFixed(3)}: ${(await p.evaluate(() =>
@@ -239,19 +236,15 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
   });
   page.on("pageerror", (e) => problems.push(`pageerror: ${e}`));
   await page.goto(PAGE);
-  await page.waitForFunction(() => window.results?.done &&
-    window.memResults?.done, null, { timeout: 60000 });
-  // every scene decodes; the memory section's every pause
+  await page.waitForFunction(() => window.results?.done, null,
+    { timeout: 60000 });
+  // every scene decodes
   for (const id of scenes) {
     if (!await page.evaluate((x) => window.select(x), id) ||
       !Object.keys(await page.evaluate((x) => window.results.decoded[x],
         id) ?? {}).length) problems.push(`${id}: not decoded`);
   }
-  const errors = await page.evaluate(() => [...window.results.errors,
-    ...window.memResults.errors]);
-  problems.push(...errors);
-  if (!Object.keys(await page.evaluate(() => window.memResults.decoded))
-    .length) problems.push("memory: not decoded");
+  problems.push(...await page.evaluate(() => window.results.errors));
   // (the colouring loads: a walkthrough's pointer, and the contract)
   await page.evaluate((x) => window.select(x, { sel: "players" }), FIRST);
   await page.locator('#details button[data-r="start"]').click();

@@ -1,13 +1,12 @@
 // The project: the scenes (src/scenes) and their decodings, each scene's
 // moments from a source (the reader: its snapshot file; authoring: its
-// run), as timelines the engine decodes; and, until it becomes scenes,
-// the memory section's fixture
+// run), as timelines the engine decodes
 import type { Io } from "./io";
 import type {
-  Compilation, CompilationId, Decoding, DecodingId, PointId, Timeline,
+  Bookmark, Compilation, CompilationId, Decoding, DecodingId, PointId,
+  Timeline,
   TimelineId, TimelinePoint,
 } from "./types";
-import type { ProjectBookmark } from "./fixtures/legacy";
 import {
   compilationsOf, decodingsOf, pointOf, timelineOf, type BuildInfo,
   type Scene, type SceneId,
@@ -25,12 +24,16 @@ export interface Runs {
   run(s: Scenario, build: BuildId): Promise<Run>;
 }
 
+// A scene as a bookmark: its timeline, the decoding it shows, its
+// caption for the page's summary line
+export type ProjectBookmark = Bookmark &
+  { timeline: TimelineId; decoding: DecodingId; summary?: string };
+
 export interface Project {
   scenes: Scene[];
-  // (the scenes the page's storage inspector shows, as its bookmarks:
-  // a scene's moments are its points; and the memory section's)
+  // (every scene, as a bookmark: a scene's moments are its points)
   bookmarks: ProjectBookmark[];
-  // the page's scenes, in order (fixtures/index.json), each by the lens
+  // the page's scenes, in order (src/scenes page), each by the lens
   // that shows it ("inspector": the storage inspector's bookmarks)
   page: { id: string; title: string; lens: string }[];
   decodings: Record<DecodingId, Decoding>;   // "mid", "vyper/rule", …
@@ -44,8 +47,7 @@ export interface Project {
   memo: Map<string, Promise<unknown>>;
 }
 
-interface PageScene { id: string; title: string; lens?: string;
-  calldata?: { signature: string; param: string } }
+interface PageScene { id: string; title: string; lens: string }
 
 // (a promise kept until it fails: the next ask tries again)
 function memoised<T>(f: (k: string) => Promise<T>) {
@@ -62,7 +64,7 @@ function memoised<T>(f: (k: string) => Promise<T>) {
 
 // A scene as the storage inspector's bookmark: its moments, its first
 // selection, the side it opens on (two moments: the initial one)
-const bookmarkOf = (s: Scene, page?: PageScene): ProjectBookmark => ({
+const bookmarkOf = (s: Scene): ProjectBookmark => ({
   id: s.id, title: s.title,
   points: s.timeline.map((_, i) => pointOf(s.id, i)) as
     [string] | [string, string],
@@ -73,24 +75,21 @@ const bookmarkOf = (s: Scene, page?: PageScene): ProjectBookmark => ({
     : "after" } : {}),
   // (more moments: the one it opens at, its first unless it says)
   ...(s.timeline.length > 2 ? { moment: s.initial?.moment ?? 0 } : {}),
-  ...(page?.calldata ? { calldata: page.calldata } : {}),
   timeline: timelineOf(s.id), decoding: s.id,
   ...(s.caption ? { summary: s.caption } : {}),
 });
 
 export async function load(io: Io, o: { scenes: Scene[];
   builds: Record<ScenarioId, Record<BuildId, BuildInfo>>; runs?: Runs;
-  manifest?: string }): Promise<Project> {
-  const page = await io.json<PageScene[]>(o.manifest ??
-    "fixtures/index.json");
+  page?: PageScene[] }): Promise<Project> {
+  const page = o.page ?? [];
   const scenes = o.scenes;
-  // (the storage inspector's scenes the page shows: fixtures/index.json's;
+  // (the storage inspector's scenes the page shows: src/scenes page's;
   // raw-named, an embed's, is not one)
   const shown = scenes.filter((s) => s.lens === "inspector" &&
     page.some((x) => x.id === s.id));
-  // (every scene, but one of groups: its groups are, below)
-  const bookmarks = [...scenes.filter((s) => !s.groups)
-    .map((s) => bookmarkOf(s, page.find((x) => x.id === s.id)))];
+  // (every scene)
+  const bookmarks = scenes.map(bookmarkOf);
   const decodings: Record<DecodingId, Decoding> = {};
   // (the scenes whose decodings read a compilation)
   const scenesOf = new Map<CompilationId, SceneId[]>();
@@ -103,27 +102,6 @@ export async function load(io: Io, o: { scenes: Scene[];
       const ss = scenesOf.get(d.compilation) ?? [];
       if (!ss.includes(s.id)) scenesOf.set(d.compilation, [...ss, s.id]);
     }
-  }
-  // a scene's groups of moments, each a bookmark: everything in scope
-  // (its decoding "<scene>/scope"; the memory section's pauses)
-  for (const s of scenes) {
-    if (!s.groups || !decodings[s.id]) continue;
-    const id = `${s.id}/scope`;
-    decodings[id] = { ...decodings[s.id], id, variables: "scope" };
-    for (const g of s.groups) {
-      bookmarks.push({ id: g.id, title: g.title,
-        points: g.moments.map((k) => pointOf(s.id, k)) as [string],
-        ...(g.select ? { select: g.select } : {}),
-        ...(g.moments.length === 2 ? { side: "after" as const } : {}),
-        timeline: timelineOf(s.id), decoding: id });
-    }
-  }
-  // a call's calldata, by the ABI (a bookmark that names its function)
-  for (const b of bookmarks) {
-    if (!b.calldata) continue;
-    decodings[`abi:${b.id}`] = { id: `abi:${b.id}`,
-      compilation: decodings[b.decoding].compilation, timeline: b.timeline,
-      variables: "abi", keys: { from: "trace" }, abi: b.calldata };
   }
   // (authoring: each scene's run as a scene of its own, "run:<id>":
   // everything in scope at every moment)
@@ -196,14 +174,8 @@ export async function load(io: Io, o: { scenes: Scene[];
     const sceneId = id.slice(timelineOf("").length);
     const { src } = await loaded(sceneId);
     const points = await pointsOf(sceneId, src);
-    // (a group's function: its moments' locals in it)
-    for (const g of scene(sceneId).groups ?? []) {
-      for (const k of g.scope ? g.moments : []) {
-        points[k] = { ...points[k], scope: g.scope };
-      }
-    }
     // (the call's input, as the calldata of a moment after it: the
-    // calldata section reads it; on hold until the bugc stepper)
+    // stepper's calldata dump at the transaction's end)
     for (const [i, p] of points.entries()) {
       if (!p.snapshot.calldata && p.transaction) {
         points[i] = { ...p, snapshot: { ...p.snapshot,
@@ -216,8 +188,7 @@ export async function load(io: Io, o: { scenes: Scene[];
   });
   return {
     scenes, bookmarks, decodings, memo: new Map(),
-    page: page.map((s) => ({ id: s.id, title: s.title,
-      lens: s.lens ?? "inspector" })),
+    page,
     source: async (id) => id.startsWith(RUN) ? runOf(id)
       : (await loaded(id)).src,
     point: async (tl, id) => tl.startsWith(RUN) ? runPoint(id)

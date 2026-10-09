@@ -16,12 +16,10 @@ import { rawLenses } from "../lenses/raw";
 import { readHash, writeHash, type Pending } from "../ui/hash";
 import { fetchIo, type Io } from "../engine/io";
 import { load } from "../engine/project";
-import { builds, scenes } from "../scenes";
+import { builds, page, scenes } from "../scenes";
 import { decode } from "../engine/decode";
 import type { Decoded } from "../engine/types";
-import { calldataShown, fullInspector } from "../lenses/full-inspector";
-import { insideOnePlay } from "../lenses/inside-one-play";
-import type { ValueNode } from "../engine/types";
+import { fullInspector } from "../lenses/full-inspector";
 import { Lens } from "../ui/Lens";
 import { ContractSource } from "../ui/ContractSource";
 import { OtherScenes, type LensContextValue } from "../ui/hooks";
@@ -32,10 +30,6 @@ type Results = { done: boolean; usable?: number; errors: string[];
 declare global {
   interface Window {
     results: Results;
-    // the memory section's: every pause's locals, decoded (run.mjs)
-    memResults: { done: boolean; errors: string[];
-      decoded: Record<string, Record<string, { values: Record<string,
-        string>; none: string[] }[]>> };
     select(id: string, view?: { moment?: number;
       sel?: string | null }): Promise<boolean>;
   }
@@ -88,7 +82,6 @@ const onFail = (e: unknown, again: () => void) => loading
 (window as unknown as { fitDumps(): void }).fitDumps = () =>
   dispatchEvent(new Event("resize"));
 window.results = { done: false, errors: [], decoded: {} };
-window.memResults = { done: false, errors: [], decoded: {} };
 
 function Drawn() {
   useLayoutEffect(() => {
@@ -125,7 +118,7 @@ function record(id: string, [before, after]: Decoded[]) {
 }
 
 
-// The page's scenes of other lenses (fixtures/index.json's `lens`):
+// The page's scenes of other lenses (src/scenes page's `lens`):
 // "Raw bytes" shows the raw lens (its compositions by a toggle, when
 // there are several), in place of the storage inspector; the hash
 // keeps it (scene=, raw=)
@@ -133,7 +126,7 @@ const RAW = Object.fromEntries(rawLenses.map((l) =>
   [l.id.replace(/^raw-/, ""), l]));
 const hashed: Pending = {};
 function Page(p: { project: Awaited<ReturnType<typeof load>>;
-  rawBox: Element; memory: ReactElement; storage: ReactElement }) {
+  rawBox: Element; storage: ReactElement }) {
   const [scene, setScene] = useState<string | null>(() => {
     const s = readHash().get("scene");
     return p.project.page.some((x) => x.id === s && x.lens !== "inspector")
@@ -148,7 +141,6 @@ function Page(p: { project: Awaited<ReturnType<typeof load>>;
   const other = useMemo(() => ({ scene, go: setScene }), [scene]);
   return <><Drawn />
     <OtherScenes.Provider value={other}>{p.storage}</OtherScenes.Provider>
-    {p.memory}
     {scene && createPortal(<>
       {Object.keys(RAW).length > 1 && <div className="picker rawpick"
         role="radiogroup"
@@ -163,25 +155,20 @@ function Page(p: { project: Awaited<ReturnType<typeof load>>;
 }
 
 try {
-  const project = await load(io, { scenes, builds });
+  const project = await load(io, { scenes, builds, page });
   // (the contract at the top: the page's own, shown as it is)
   const contract = { file: $("contract-box").querySelector(".srcfile")
     ?.textContent ?? undefined, text: $("contract-src").textContent! };
   const mount = { pick: place($("picker")), time: place($("timeline")),
     rows: place($("related")),
     dump: place($("panel")), tree: place($("tree")),
-    bar: place($("details")), cdump: place($("cpanel")),
-    ctree: place($("ctree")), cdetails: place($("cdetails")),
-    chow: place($("chow")),
-    contract: place($("contract-box")) };
+    bar: place($("details")), contract: place($("contract-box")) };
   // (the walkthrough panel draws the details under its bar)
   statics.push($("dwrap"));
   // (the tree view draws its own edge buttons)
   statics.push($("edge-up"), $("edge-down"));
 
-  // the scene's intro and summary, and no Before | After at one point
-  // (the calldata section: its own link group's part of the page)
-  $("calldata").setAttribute("data-link-scope", "calldata");
+  // the scene's intro and summary
   const scene = (lens: LensContextValue) => {
     const s = lens.store.get();
     const bm = project.bookmarks.find((b) => b.id === s.scene);
@@ -193,25 +180,6 @@ try {
     document.querySelector("main")!.toggleAttribute("data-single",
       bm.points.length === 1);
     $("summary").textContent = bm.summary ?? "";
-    // (the call's calldata, for a scene that names its function; what it
-    // lights, for bin/run.mjs: the parts lit, and the one chosen)
-    $("calldata").hidden = !bm.calldata || !calldataShown();
-    const cl = s.links.calldata;
-    const abi = project.decodings[`abi:${bm.id}`];
-    if (abi) {
-      void decode(project, abi, bm.points[bm.points.length - 1])
-        .then((d) => {
-          // (by the parts' ABI ids, as vanilla's)
-          const part = (p?: string | null) => p ? d.byPath.get(p)?.part ??
-            null : null;
-          const k = cl?.hover?.path ?? cl?.selection ?? null;
-          const n = k ? d.byPath.get(k) : undefined;
-          (window as unknown as { calldataResults: unknown })
-            .calldataResults = { chosen: part(cl?.selection),
-              lit: !n ? [] : n.children ? n.children.map((x) => x.part)
-                : [n.part] };
-        }, () => {});
-    }
     // (the locked state, what the view is on and the way out, is the
     // bar's: WalkthroughPanel)
   };
@@ -231,46 +199,6 @@ try {
       recording.set(id, r);
     }
     return recording.get(id)!;
-  };
-
-  // The memory section, "Inside one play": its own lens in its own
-  // elements; every pause decoded once for the checks (vanilla mem.js)
-  const memMount = Object.fromEntries(Object.entries({ meta: "mmeta",
-    level: "mlevel", point: "mpoint", viewing: "mviewing",
-    note: "mnote", dump: "mpanel", sdump: "mspanel", tree: "mtree",
-    bar: "mdetails", rows: "mrelated", legend: "msrclegend",
-    src: "msrc" })
-    .map(([a, id]) => [a, place($(id)!)]));
-  const memReady = (lens: LensContextValue, shown: Promise<boolean>) => {
-    // (the storage panel's box: every pause has storage in scope)
-    $("mstore").hidden = false;
-    const flat = (ns: ValueNode[]): ValueNode[] => ns.flatMap((n) =>
-      n.kind === "group" ? flat(n.children ?? []) : n.kind ? [] : [n]);
-    void shown.then(async () => {
-      // (the locals: the scope's "@locals" group)
-      for (const o of ["0", "2"]) {
-        const id = `bug-O${o}/scope`;
-        const d = project.decodings[id];
-        const out: typeof window.memResults.decoded[string] = {};
-        for (const b of project.bookmarks.filter((x) =>
-          x.decoding === id)) {
-          out[b.id.split("/")[1]] = await Promise.all(b.points.map(
-            async (pt) => {
-              const ns = flat((await decode(project, d, pt)).tree
-                .filter((n) => n.path === "@locals"));
-              return { values: Object.fromEntries(ns.filter((n) => !n.none)
-                .map((n) => [n.path, n.value?.text ?? ""])),
-              none: ns.filter((n) => n.none).map((n) => n.path) };
-            }));
-        }
-        window.memResults.decoded[o] = out;
-      }
-    }).catch((e) => {
-      console.error(e);
-      window.memResults.errors.push(String((e as Error)?.message ?? e));
-    }).finally(() => {
-      window.memResults.done = true;
-    });
   };
 
   // (once the views have drawn what the lens shows: the dump its point,
@@ -323,10 +251,8 @@ try {
     void shown.then((ok) => ok && usable());
   };
 
-  // (each section's part of the page: its Escape and its clicks; vanilla
-  // main.js and mem.js keySection)
-  const memoryPart = (el: Element) => !!el.closest?.("#memory");
-  const storagePart = (el: Element) => !el.closest?.("#memory");
+  // (the page is the storage section's: its Escape and its clicks, all
+  // of them; vanilla main.js)
   const host = document.createElement("div");
   document.body.append(host);
   // (a scene another lens shows, "Raw bytes": in its own box under the
@@ -339,12 +265,9 @@ try {
   createRoot(host).render(<Page project={project} rawBox={rawBox}
     storage={<Lens spec={fullInspector} project={project}
       mount={mount} onReady={ready} onFail={onFail} hash
-      within={storagePart} kinds={kinds} />}
-    memory={<Lens spec={insideOnePlay} project={project} mount={memMount}
-      onReady={memReady} hash within={memoryPart} />} />);
+      within={() => true} kinds={kinds} />} />);
 } catch (e) {
-  // (the index or the memory section's data did not load: Retry loads
-  // the page again)
+  // (the index did not load: Retry loads the page again)
   if (loading) loading.fail(e, () => location.reload());
   else {
     console.error(e);

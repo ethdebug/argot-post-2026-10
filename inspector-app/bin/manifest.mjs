@@ -3,13 +3,13 @@
 // Usage: node bin/manifest.mjs > <dir>/manifest.json
 //
 // A state: the section to screenshot (storage: from #storage to the end
-// of .scols; memory: #memory), the device and colour scheme, the
+// of .scols), the device and colour scheme, the
 // URL hash (the vanilla page's keys), then actions on run.mjs
 // selectors: a click (as run.mjs taps: the element's click(), no
 // pointer), a focus (the page lights what has focus as what is pointed
 // at), or a key. `walk: "all"` makes one screenshot per walkthrough
 // step, counted on the page at run time: Start then Next until Next is
-// disabled, in either section's walkthrough.
+// disabled.
 import { fileURLToPath } from "node:url";
 
 // alice, bob and carol (as in vanilla bin/run.mjs)
@@ -33,14 +33,6 @@ const SELECTIONS = [null, undefined, "playerList", "playerList[1]", "motd",
   "totalScore", "totalHits", "players", A, `${A}.score`, `${C}.name`];
 const WALKS = ["players", A, "playerList", "playerList[1]", "totalScore",
   "motd", `${C}.name`, `${B}.plays`];
-
-// The memory section: each level's points, their sides, and the values
-// in the tree at each point (alice's record: in storage, in scope)
-const POINTS = [["roll", ["hit"]],
-  ["mult", ["_applyCombo", "points", "combo", "mult"]],
-  ["writes", ["gained", "hit", A,
-    ...["score", "combo", "bestCombo", "plays", "hits", "lastBlock"]
-      .map((f) => `${A}.${f}`)]]];
 
 const START = '#details button[data-r="start"]';
 const NEXT = '#details button[data-r="next"]';
@@ -81,42 +73,11 @@ function storage() {
           { click: `#dpick button >> nth=${at}` }] });
     }
   }
-  // the calldata (motd only): `text`, then each ABI step pointed at
-  {
-    // (on hold: drawn when the hash asks, calldata=1)
-    const hash = hashOf([["ex", "motd"], ["sel", null], ["calldata", "1"]]);
-    out.push({ id: "motd-calldata-text", section: "storage", hash,
-      actions: [{ click: '#ctree li[data-part="m"] > .row' }] });
-    for (const part of ["selector", "m-offset", "m-length", "m-data"]) {
-      out.push({ id: `motd-calldata-${part}`, section: "storage",
-        hash, actions: [{ focus: `#chow li[data-part="${part}"]` }] });
-    }
-  }
-  return out;
-}
-
-function memory() {
-  const out = [];
-  for (const opt of ["0", "2"]) for (const [pt, paths] of POINTS) {
-    {
-      const base = [["mopt", opt], ["mpt", pt]];
-      const tag = `mem-O${opt}-${pt}`;
-      out.push({ id: `${tag}-msel=none`, section: "memory",
-        hash: hashOf([...base, ["msel", null]]), actions: [] });
-      for (const p of paths) {
-        const hash = hashOf([...base, ["msel", p]]);
-        out.push({ id: `${tag}-msel=${p}`, section: "memory", hash,
-          actions: [] });
-        out.push({ id: `${tag}-msel=${p}-walk`, section: "memory", hash,
-          actions: [], walk: "all" });
-      }
-    }
-  }
   return out;
 }
 
 export function states() {
-  const all = [...storage(), ...memory()];
+  const all = storage();
   return MODES.flatMap(([device, scheme]) => all.map((s) => ({
     ...s, id: `${device}-${scheme}-${s.id}`, device, scheme })));
 }

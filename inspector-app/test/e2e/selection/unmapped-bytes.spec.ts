@@ -198,26 +198,28 @@ test("a walkthrough step's popovers list no unmapped run",
 
 test("a row no value owns is one unmapped run: its gutter, gaps or bytes "
   + "pointed at, the popover badges (unmapped), no fill", async ({ page }) => {
-  // (the memory section, nothing selected)
-  await ready(page, { memory: true, hash: "msel=" });
-  // (a memory word no local owns at this pause)
-  const slot = await page.evaluate(() => [...document.querySelectorAll<
-    HTMLElement>("#mpanel .view[data-side=after] .rows > .run > " +
-    ".wrow[data-slot]")]
-    .find((r) => !r.querySelector(".b[data-owners]"))?.dataset.slot);
+  // (the stepper's memory, nothing selected)
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.goto("./embed.html#scene=stepper-O0");
+  const M = '[data-view$=":memory"]';
+  await expect(page.locator(`${M} .wrow`).first()).toBeVisible();
+  // (a memory word no local owns at this moment)
+  const slot = await page.evaluate((m) => [...document.querySelectorAll<
+    HTMLElement>(`${m} .rows > .run > .wrow[data-slot]`)]
+    .find((r) => !r.querySelector(".b[data-owners]"))?.dataset.slot, M);
   expect(slot).toBeTruthy();
-  const R = `#mpanel .view[data-side=after] .wrow[data-slot="${slot}"]`;
+  const R = `${M} .wrow[data-slot="${slot}"]`;
   for (const on of [`${R} > .addr`, `${R} .b[data-i="9"]`]) {
     await page.locator(on).hover();
     await settle(page);
-    const got = await page.evaluate((r) => ({
-      pop: [...document.querySelectorAll<HTMLElement>("#mpanel .pop")]
+    const got = await page.evaluate(([r, m]) => ({
+      pop: [...document.querySelectorAll<HTMLElement>(`${m} .pop`)]
         .map((p) => p.querySelector(".pop-how")!.textContent!.trim()),
-      badge: document.querySelector("#mpanel .pop .pname.pfree")
+      badge: document.querySelector(`${m} .pop .pname.pfree`)
         ?.className,
       fl: document.querySelectorAll(`${r} .b.fl`).length,
       fill: getComputedStyle(document.querySelector(`${r} .b`)!)
-        .backgroundColor }), R);
+        .backgroundColor }), [R, M]);
     expect(got.pop, on).toEqual([expect.stringMatching(/ : \(unmapped\)$/)]);
     expect(got.badge, on).toBe("pname pfree pbadge pnone");
     expect(got.fl, on).toBeGreaterThan(0);

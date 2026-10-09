@@ -29,10 +29,9 @@ const repin = {
 };
 
 // The dev server serves the app at /demos/inspector/ (the post's path;
-// the local proxy depends on it), with the demo's own files beside it,
-// the fixtures among them: one source, demos/inspector/fixtures. The
-// build is relative ("./"): Pages serves the site under the repo's
-// name; bin/site.sh puts dist at demos/inspector/, over those files.
+// the local proxy depends on it), with the demo's own files beside it
+// (its contracts, screenshots, README). The build is relative ("./"):
+// Pages serves the site under the repo's name; bin/site.sh puts dist at demos/inspector/, over those files.
 export default defineConfig(({ command }) => ({
   base: command === "build" ? "./" : "/demos/inspector/",
   publicDir: command === "build" ? false : "../demos/inspector",

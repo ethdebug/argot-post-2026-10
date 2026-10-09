@@ -23,8 +23,8 @@ it("round-trips every scene x selection", async () => {
   }
 });
 
-it("parses vanilla's keys (mode and insets: read as nothing); leaves the "
-  + "memory section's alone", async () => {
+it("parses vanilla's keys (mode and insets: read as nothing); leaves "
+  + "other keys alone", async () => {
   const p = await testProject();
   expect(fromHash(lens, q("ex=motd&mode=before&sel=motd&mopt=2" +
     "&mpt=mult&mmode=after&insets=0"), p.bookmarks)).toEqual({
@@ -57,38 +57,9 @@ it("no scene asked: the lens's own first scene", async () => {
   const p = await testProject();
   expect(fromHash({ ...lens, initial: { scene: "alice" } }, q("scene=alice"),
     p.bookmarks).bookmark).toBe("alice");
-  expect(fromHash({ ...mem, initial: { scene: "O2/roll" } },
-    q("scene=bug-O2"), p.bookmarks).bookmark).toBe("O2/roll");
   // (one asked wins)
   expect(fromHash({ ...lens, initial: { scene: "alice" } }, q("ex=motd"),
     p.bookmarks).bookmark).toBe("motd");
-});
-
-// the memory section's lens: its level and pause apart (mopt, mpt), its
-// selection (absent: the pause's default; empty: none) (vanilla mem.js
-// keep, main)
-const mem: HashLens = { links: ["mem"],
-  bookmarks: ["O0/roll", "O0/mult", "O0/writes", "O2/roll", "O2/mult",
-    "O2/writes"], hash: { prefix: "m", levels: true } };
-
-it("the memory section's keys: mopt, mpt, msel", async () => {
-  const p = await testProject();
-  expect(fromHash(mem, q("ex=motd&mode=before&sel=playerList&mopt=2&mpt=mult"
-    + "&mmode=before&msel=mult&insets=0"), p.bookmarks)).toEqual({
-    bookmark: "O2/mult", selection: "mult" });
-  expect(fromHash(mem, q("mopt=2"), p.bookmarks)).toMatchObject({
-    bookmark: "O2/roll", selection: "hit" });
-  expect(fromHash(mem, q("mpt=writes&msel="), p.bookmarks)).toMatchObject({
-    bookmark: "O0/writes", selection: null });
-  // (stale: the defaults)
-  expect(fromHash(mem, q("mopt=7&mpt=x&msel=zzz"), p.bookmarks))
-    .toMatchObject({ bookmark: "O0/roll", selection: "zzz" });
-  expect(toHash(mem, { bookmark: "O2/mult", selection: "_applyCombo" },
-    p.bookmarks)).toEqual({ mopt: "2", mpt: "mult", msel: null,
-    mrel: null, mmode: null, minsets: null });
-  expect(toHash(mem, { bookmark: "O0/roll", selection: null },
-    p.bookmarks)).toEqual({ mopt: "0", mpt: "roll", msel: "", mrel: null,
-    mmode: null, minsets: null });
 });
 
 it("the related view: rel, its context rows (none: off)", async () => {
@@ -99,6 +70,7 @@ it("the related view: rel, its context rows (none: off)", async () => {
   const s = { bookmark: "mid", selection: "totalScore" };
   expect(toHash(lens, s, p.bookmarks).rel).toBe(null);
   expect(toHash(lens, { ...s, related: 1 }, p.bookmarks).rel).toBe("1");
-  expect(toHash(mem, { ...s, bookmark: "O0/roll", related: 0 },
+  // (a lens's own prefix: its keys)
+  expect(toHash({ ...lens, hash: { prefix: "m" } }, { ...s, related: 0 },
     p.bookmarks).mrel).toBe("0");
 });

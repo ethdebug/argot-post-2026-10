@@ -12,7 +12,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { pointerExamples } from "../../../test/pointer-examples";
 import { zeroMachine } from "../../../test/zero-machine";
-import { testProject } from "../../../test/project";
+import { pauseOf, testProject } from "../../../test/project";
 import { arcade, runOf } from "../../../test/run";
 import { walk as walkGraph } from "../deref/walk";
 import { regionsOf, sameAsLibrary } from "../deref/check";
@@ -208,13 +208,15 @@ describe("every pointer in our builds", async () => {
         who)).toBeGreaterThan(0);
     });
   }
-  for (const o of ["O0", "O2"]) {
-    it(`bugc -${o}: the memory section's scope walks`, async () => {
-      const dc = p.decodings[`bug-${o}/scope`];
-      const t = await p.timeline(dc.timeline);
-      const c = await p.compilation(dc.compilation);
+  for (const o of ["O0", "O2"] as const) {
+    it(`bugc -${o}: everything in scope at alice's pauses walks`,
+      async () => {
       let n = 0;
-      for (const pt of t.points) {
+      for (let k = 0; k < 4; k++) {
+        const at = await pauseOf(p, o, k);
+        const dc = at.decoding;
+        const c = await p.compilation(dc.compilation);
+        const pt = await p.point(dc.timeline, at.point);
         const d = await decode(p, dc, pt.id);
         n += await walkAll({ d, c, snap: pt.snapshot, keys: dc.keys },
           `bugc ${o} scope`);

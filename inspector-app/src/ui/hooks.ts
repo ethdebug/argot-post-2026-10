@@ -94,17 +94,15 @@ export function momentOf(m: Moment, s: LensState, p: Project):
 
 export function resolveRef(ref: DataRef, s: LensState, p: Project):
   DataAt | undefined {
-  // ("$abi": the scene's call's calldata, when it names one; "$rule":
-  // the other compiler's own reading of the scene's storage, if any)
+  // ("$rule": the other compiler's own reading of the scene's storage,
+  // if any)
   const own = p.bookmarks.find((b) => b.id === s.scene)?.decoding;
   const decoding = ref.decoding === "$scene" ? own
     : ref.decoding === "$rule" ? own && p.decodings[own]?.foreign?.rule
     // ("$hand": the scene's hand-written pointers, if it has any; else
     // the scene's own decoding)
     : ref.decoding === "$hand" ? own && (p.decodings[`${own}/hand`]
-      ? `${own}/hand` : own)
-    : ref.decoding === "$abi" ? (p.decodings[`abi:${s.scene}`]
-      ? `abi:${s.scene}` : undefined) : ref.decoding;
+      ? `${own}/hand` : own) : ref.decoding;
   const point = "moment" in ref ? momentOf(ref.moment, s, p) : ref.point;
   return decoding && point ? { decoding, point } : undefined;
 }
@@ -148,7 +146,6 @@ export function useMoments(ref: DataRef | undefined):
     const at = ref && resolveRef(ref, s, project);
     const bm = project.bookmarks.find((b) => b.id === s.scene);
     return at && bm && bm.points.length > 1 &&
-      project.decodings[at.decoding]?.variables !== "abi" &&
       bm.points.length <= UNION_MAX ? `${at.decoding}\n${bm.points
         .join(" ")}` : "";
   });
@@ -315,13 +312,13 @@ function useWalkInput(data: DataRef | undefined): WalkInput | undefined {
   const cd = useDecoded(foreign && d ? { decoding: foreign.rule,
     point: d.point } : undefined);
   // (one moment of a scene's two, named: when the two moments' names
-  // differ; the memory section's two trace steps share one)
+  // differ)
   const pa = usePoint(data && { decoding: data.decoding, moment: 0 });
   const pb = usePoint(data && { decoding: data.decoding, moment: 1 });
   const pair = !!pb && pa?.label !== pb.label;
   return useMemo(() => {
     const dc = d && decodingOf(lens, d.decoding);
-    if (!d || !point || !c || !dc || dc.variables === "abi") return;
+    if (!d || !point || !c || !dc) return;
     if (dc.foreign && !cd) return;
     return { d, c, snap: point.snapshot, keys: dc.keys,
       ...(pair ? { when: point.label } : {}),

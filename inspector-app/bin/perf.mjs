@@ -395,20 +395,6 @@ async function interact(page, out) {
     await on("related", () => clickOn(page,
       '#related button[data-rows="all"]'));
   }
-  // the memory section: the levels, the pause points, its rows
-  await show(page, "#memory");
-  for (let i = 0; i < 2; i++) {
-    for (const s of ['#mlevel button[data-opt="2"]',
-      '#mpoint button[data-id="mult"]', '#mpoint button[data-id="writes"]',
-      '#mlevel button[data-opt="0"]', '#mpoint button[data-id="roll"]']) {
-      await on("memory", () => clickOn(page, s));
-    }
-  }
-  const mrows = await page.locator("#mtree li[data-path] > .row").count();
-  for (let i = 0; i < mrows; i++) {
-    await on("memory", () => clickOn(page,
-      `#mtree li[data-path]:nth-child(${i + 1}) > .row`));
-  }
   await page.mouse.move(1, 1);
 }
 

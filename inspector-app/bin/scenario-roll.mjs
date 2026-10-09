@@ -14,8 +14,8 @@ import sha3 from "js-sha3";
 const app = path.dirname(path.dirname(fileURLToPath(import.meta.url)));
 const file = process.argv[2] ??
   path.join(app, "scenarios", "arcade", "scenario.json");
-// README "How the fixtures were made", step 3: alice hits; alice hits;
-// bob hits; carol hits four times, then misses; alice hits
+// The story (README "How the builds and scenes are made"): alice hits;
+// alice hits; bob hits; carol hits four times, then misses; alice hits
 const HITS = [true, true, true, true, true, true, true, false, true];
 
 const word = (h) => BigInt(h).toString(16).padStart(64, "0");

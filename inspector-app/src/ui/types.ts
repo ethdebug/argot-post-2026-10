@@ -112,17 +112,11 @@ export type ViewSpec = { id: ViewId; area: string; link?: LinkId;
     | { kind: "tree"; data: DataRef; filter?: Filter;
       variant?: "tree" | "table"; compare?: DataRef;
       // the dumps it lines up with (default: the lens's)
-      align?: ViewId[]; plain?: boolean;
+      align?: ViewId[];
       // (a heading over it: the rule it reads by)
-      title?: string;
-      // (compared with no other point: one call's calldata)
-      alone?: boolean;
-      // (its rows also carry data-part: the calldata section's contract)
-      partAttr?: boolean }
+      title?: string }
     | { kind: "picker";
-      of: "bookmarks" | "points" | "level" | "related" }
-    // the memory section's (Locals.tsx)
-    | { kind: "source"; data: DataRef; part?: "legend" }
+      of: "bookmarks" | "related" }
     // the contract's source, its selection's declaration marked
     | { kind: "contract"; data: DataRef }
     // a moment's source, its range marked; the locals in scope there
@@ -136,12 +130,9 @@ export type ViewSpec = { id: ViewId; area: string; link?: LinkId;
     // the scene's moments on the run's transactions (TimelineBar.tsx)
     | { kind: "timeline" }
     | { kind: "variables"; data: DataRef }
-    | { kind: "note"; data: DataRef; part: "note" | "viewing" | "meta" }
     // the moment a point is, in a line, in plain words: `text`, or the
     // point's label
     | { kind: "moment"; data: DataRef; text?: string }
-    // the calldata section's: what a part is, how the ABI finds it
-    | { kind: "abi"; data: DataRef; part: "details" | "how" }
     | { kind: "walkthrough"; data: DataRef; compare?: DataRef;
       others?: { decoding: DecodingId; who?: string }[] });
 export type ViewKind = ViewSpec["kind"];
@@ -166,7 +157,7 @@ export interface LensSpec {     // a composition for one post section
   views: ViewSpec[];
   links: LinkId[];
   initial?: Partial<LensState>; // incl. a started walkthrough
-  hash?: { prefix: string; legacy?: boolean; levels?: boolean };
+  hash?: { prefix: string; legacy?: boolean };
   // Phase 1 parity: an area's own wrapper (the dumps' #panel, in the
   // run.mjs contract), and its grid cell's class (vanilla's box)
   wrap?: Record<string, ComponentType<{ children: ReactNode }>>;
