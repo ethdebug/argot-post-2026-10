@@ -82,8 +82,8 @@ function Ruler() {
   </div></div>;
 }
 
-// a word abbreviated to its first and last `n` bytes, padded to 32
-// bytes first: 0x0000…1420, 0x53c8…aa80; every word the same width
+// a word abbreviated to its first byte and its last `n` bytes, padded
+// to 32 bytes first: 0x00…001420, 0x53…3aa80; every word the same width
 export const abbreviated = (bytes: (string | undefined)[], n: number) =>
   wordShort(bytes.map((b) => b ?? "").join(""), n);
 
@@ -519,8 +519,10 @@ export function Dump(p: { id: ViewId; location: Location; data: DataRef;
     if (!annot || !d || !l || !own) return undefined;
     const names = onChainNames(own);
     const units = unitsOf(d, l);
+    // (the stack's: one card an item, beside it; memory's, one a run)
     const notes = notesOf(d, l, units, rows, { names, perRun: hand,
-      values: disp.abbreviate === undefined });
+      values: disp.abbreviate === undefined,
+      each: disp.abbreviate !== undefined });
     // (the reveal's sequence: the values in reading order, by their
     // first byte shown; each byte after the one before it in its value)
     const first = units.map(() => Infinity);

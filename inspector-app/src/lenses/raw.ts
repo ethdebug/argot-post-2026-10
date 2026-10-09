@@ -47,7 +47,7 @@ export const rawLens = (o: { moment?: string | false; memory?: boolean } =
   // (storage's all-zero rows folded into its gaps: a shorter figure;
   // never the stack's or memory's, whose places matter)
   views: [dump2("storage", "Storage", { foldZero: true }),
-    dump2("stack", "Stack", { abbreviate: 2 }),
+    dump2("stack", "Stack", { abbreviate: 3 }),
     ...o.memory === false ? [] : [dump2("memory", "Memory",
       { density: "flow", perLine: 16 })],
     ...!o.moment ? [] : [{ id: "moment", kind: "moment" as const,

@@ -21,12 +21,18 @@ const pname = (text: string, u?: number, k?: number | string) =>
     : `<code class="pname pbadge pk${k}" data-unit="${u}">${esc(text)}${
       ""}</code>`;
 
-// A note's two shapes: its `how` on a line of its own and its items a
-// line each group; or one line, "how : what", fitted as the popovers
-// are (overlays.ts fitWhat)
-function shapes(n: Note, units: Unit[]) {
+// A note's card, "how : what", its items but those dropped (`drop` up
+// to `level`); a note with no items, its name's badge alone (a stack
+// item's)
+function shapes(n0: Note, units: Unit[], level = 0) {
+  const n = { ...n0, items: n0.items.filter((x) => !x.drop ||
+    x.drop > level) };
   const k = (u?: number) => u === undefined ? undefined : units[u].k;
   const how = pname(n.how, n.badge, k(n.badge));
+  if (!n.items.length) {
+    const one = `<span class="pop-how">${how}</span>`;
+    return { several: one, one, what: [] as Item[] };
+  }
   const lines = [...new Set(n.items.map((x) => x.line))].map((l) =>
     n.items.filter((x) => x.line === l).map((x) => pname(x.text, x.unit,
       k(x.unit)))
@@ -62,23 +68,35 @@ export function drawNotes(v: El, notes: Note[], units: Unit[],
   let vb = vb0();
   const rowsBox = () => rel(v.querySelector(".rows")!.getBoundingClientRect(),
     vb);
-  // (inside its panel's rows, side to side; the stack's, to the next
-  // panel on its right or the figure's edge)
-  const lens = v.closest(".lens") ?? v;
-  const mine = v.getBoundingClientRect();
-  const beside = [...lens.querySelectorAll(".view")].map((x) =>
-    x.getBoundingClientRect()).filter((r) => r.left >= mine.right - 1 &&
-    r.top < mine.bottom && r.bottom > mine.top).map((r) => r.left - 8);
+  // (inside its panel's rows, side to side; the stack's, inside its
+  // box, beside its words)
   const rows0 = rowsBox();
-  const right = v.classList.contains("abbr") ? Math.min(document
-    .documentElement.clientWidth - 4, lens.getBoundingClientRect().right
-    - 4, ...beside) - vb.left : rows0.r;
+  const right = v.classList.contains("abbr")
+    ? rel(v.getBoundingClientRect(), vb).r - 4 : rows0.r;
   const room = right - rows0.l;
   const narrow = document.documentElement.clientWidth < 560;
-  // each note's card: one line when it fits its room, else wrapping
-  // (never cut)
+  // each note's card, one line: the cards that may leave items out (a
+  // record's combo, then its bestCombo) all at the fewest left out that
+  // lets every one of them fit its room; else wrapping (never cut)
+  const drops = notes.filter((n) => n.items.some((x) => x.drop));
+  const top = Math.max(0, ...notes.flatMap((n) => n.items.map((x) =>
+    x.drop ?? 0)));
+  const fits = (level: number) => drops.every((n) => {
+    const t = document.createElement("span");
+    t.className = "pop note";
+    t.style.cssText = "visibility:hidden;width:max-content";
+    t.innerHTML = shapes(n, units, level).one;
+    layer.append(t);
+    const ok = t.offsetWidth <= room;
+    t.remove();
+    return ok;
+  });
+  let level = 0;
+  while (level < top && !fits(level)) level++;
+  v.dataset.dropped = String(level);
+  const beside = v.classList.contains("abbr");
   const pops = notes.map((n, i) => {
-    const s = shapes(n, units);
+    const s = shapes(n, units, level);
     const pop = document.createElement("span") as Pop;
     pop.className = "pop note under";
     pop.setAttribute("role", "note");
@@ -93,6 +111,7 @@ export function drawNotes(v: El, notes: Note[], units: Unit[],
     // lines as its room takes; a storage card's room is kept in the
     // figure, which a host pins: the fewest lines)
     if (pop.offsetWidth > room) pop.classList.add("wrap");
+    if (beside) pop.classList.add("right");
     pop.style.maxWidth = `${room}px`;
     // (its size as placed: a later change, its type fitted, redraws)
     pop.dataset.w = String(pop.offsetWidth);
@@ -133,7 +152,7 @@ export function drawNotes(v: El, notes: Note[], units: Unit[],
   // last line (in both states: nothing moves when it shows)
   const ls = lines();
   const chosen = notes.map((n, i) => {
-    const h = pops[i].offsetHeight;
+    const h = beside ? -Infinity : pops[i].offsetHeight;
     const opts = n.runs.map((run, k) => {
       const els = runEls(run);
       const last = els.map(lineOf).reduce((a, b) =>
@@ -167,6 +186,7 @@ export function drawNotes(v: El, notes: Note[], units: Unit[],
     const order = [chosen[i].k, ...n.runs.map((_, k) => k).filter((k) =>
       k !== chosen[i].k)];
     return order.map((k): Target => {
+      const wordBox = (c: El) => rel(c.getBoundingClientRect(), vb);
       const all = runEls(n.runs[k]);
       const own = all.filter((c) => n.units.includes(+(c.dataset.unit ??
         -1)));
@@ -174,6 +194,11 @@ export function drawNotes(v: El, notes: Note[], units: Unit[],
       const xs = (digits.length ? digits : own).map((c) =>
         rel(c.getBoundingClientRect(), vb));
       const ys = all.map((c) => rel(lineOf(c).getBoundingClientRect(), vb));
+      // (beside: at the item's word, its middle)
+      if (beside) {
+        const wb = own.map(wordBox);
+        return { x: wb[0].r, r: wb[0].r, t: wb[0].t, b: wb[0].b };
+      }
       return { x: (Math.min(...xs.map((r) => r.l)) +
         Math.max(...xs.map((r) => r.r))) / 2,
       t: Math.min(...ys.map((r) => r.t)),
@@ -181,6 +206,7 @@ export function drawNotes(v: El, notes: Note[], units: Unit[],
     }).filter((t) => Number.isFinite(t.x) && Number.isFinite(t.t));
   });
   const spots = place(notes.map((n, i) => ({ units: n.units,
+    ...beside ? { side: "right" as const } : {},
     shapes: [{ w: pops[i].offsetWidth, h: pops[i].offsetHeight }],
     targets: targets[i] })), cells, bounds, { narrow, reach, forbid });
   pops.forEach((pop, i) => {
@@ -190,6 +216,18 @@ export function drawNotes(v: El, notes: Note[], units: Unit[],
       return;
     }
     const g = targets[i][s.target];
+    // (the arrow's tip on its target, the card's line counted: --ax and
+    // --ay are from the card's padding box)
+    const line = parseFloat(getComputedStyle(pop).borderLeftWidth) || 0;
+    pop.dataset.tx = String(s.way === "right" ? g.r : g.x);
+    pop.dataset.ty = String((g.t + g.b) / 2);
+    if (s.way === "right") {
+      pop.style.left = `${s.box.l}px`;
+      pop.style.top = `${s.box.t}px`;
+      pop.style.setProperty("--ay", `${s.ax - line}px`);
+      pop.style.visibility = "";
+      return;
+    }
     const anchor = document.createElement("span");
     anchor.className = "nanchor";
     anchor.style.top = `${g.t}px`;
@@ -198,7 +236,7 @@ export function drawNotes(v: El, notes: Note[], units: Unit[],
     layer.append(anchor);
     pop.classList.toggle("under", s.way === "under");
     pop.style.left = `${s.box.l}px`;
-    pop.style.setProperty("--ax", `${s.ax}px`);
+    pop.style.setProperty("--ax", `${s.ax - line}px`);
     pop.style.visibility = "";
   });
 }

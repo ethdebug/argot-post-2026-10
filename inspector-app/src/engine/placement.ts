@@ -15,14 +15,17 @@
 export interface Rect { l: number; r: number; t: number; b: number }
 // a byte cell: its box, its unit (null: no value's), zero or not
 export interface Cell extends Rect { unit: number | null; zero: boolean }
-// where an arrow may point: a run's centre (x), its top and bottom
-export interface Target { x: number; t: number; b: number }
+// where an arrow may point: a run's centre (x), its top and bottom (and
+// its right edge, `r`, for a card beside it)
+export interface Target { x: number; t: number; b: number; r?: number }
 // (a shape's `cost`: what it lost to fit, its names cut)
-export interface Ask { units: number[];
+// (`side` "right": a card beside its target, its arrow pointing left at
+// the target's middle: a stack item's)
+export interface Ask { units: number[]; side?: "right";
   shapes: { w: number; h: number; cost?: number }[];
   targets: Target[] }
 export interface Spot { shape: number; target: number;
-  way: "over" | "under"; box: Rect; ax: number }
+  way: "over" | "under" | "right"; box: Rect; ax: number }
 
 // (the arrow's reach between a card and its row)
 export const REACH = 8;
@@ -57,6 +60,21 @@ export function place(asks: Ask[], cells: Cell[], bounds: Rect,
       for (const t of targets) {
         const g = a.targets[t];
         if (!g) continue;
+        if (a.side === "right") {
+          const mid = (g.t + g.b) / 2;
+          const box = { l: (g.r ?? g.x) + reach, r: (g.r ?? g.x) + reach + w,
+            t: mid - h / 2, b: mid + h / 2 };
+          if (strict && !within(box, bounds)) continue;
+          if (taken.some((x) => over(box, x))) continue;
+          if (cells.some((x) => x.unit !== null && hides(box, x)) ||
+            o.forbid?.some((x) => hides(box, x))) continue;
+          const c = s * 15 + t * 10;
+          if (c < cost) {
+            cost = c;
+            best = { shape: s, target: t, way: "right", box, ax: h / 2 };
+          }
+          continue;
+        }
         for (const way of o.narrow ? ["under" as const]
           : ["over" as const, "under" as const]) {
           const top = way === "over" ? g.t - reach - h : g.b + reach;

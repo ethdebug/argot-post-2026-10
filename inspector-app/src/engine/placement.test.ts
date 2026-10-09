@@ -73,6 +73,13 @@ describe("place", () => {
         { x: 50, t: 100, b: 110 }] }], [], B, { narrow: true });
     expect([x!.target, y!.target]).toEqual([0, 1]);
   });
+  it("beside: right of its target, the arrow at its middle", () => {
+    const [s] = place([{ units: [0], side: "right", shapes: [{ w: 50,
+      h: 10 }], targets: [{ x: 20, r: 40, t: 0, b: 20 }] }], [], B,
+    { reach: 8 });
+    expect(s).toMatchObject({ way: "right", box: { l: 48, r: 98, t: 5,
+      b: 15 }, ax: 5 });
+  });
   it("deterministic", () => {
     const asks = [{ units: [0], shapes: [{ w: 50, h: 10 }],
       targets: [{ x: 60, t: 40, b: 50 }] }];
