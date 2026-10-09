@@ -114,6 +114,8 @@ export type ViewKind = ViewSpec["kind"];
 
 export interface LensSpec {     // a composition for one post section
   id: string; title: string;
+  // (a lens for the developers only: the shell lists it in "dev")
+  dev?: boolean;
   timelines: TimelineId[];
   // its decodings: the Project's (by id), or its own
   decodings: (DecodingId | Decoding)[];

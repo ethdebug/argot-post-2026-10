@@ -9,20 +9,30 @@ import type { LensSpec } from "../ui/types";
 
 const fromHash = () => new URLSearchParams(location.hash.slice(1))
   .get("lens");
+const devHash = () => new URLSearchParams(location.hash.slice(1))
+  .get("dev") === "1";
 
-export function Shell({ project, lenses }: { project: Project;
+export function Shell({ project, lenses: every }: { project: Project;
   lenses: LensSpec[] }) {
+  // "dev": the developers' lenses too, and the parity page; on by the
+  // hash (dev=1), or by a link to a dev lens
+  const [dev, setDev] = useState(() => devHash() ||
+    !!every.find((l) => l.id === fromHash())?.dev);
+  const lenses = dev ? every : every.filter((l) => !l.dev);
   const [id, setId] = useState(() =>
     lenses.find((l) => l.id === fromHash())?.id ?? lenses[0].id);
   const [open, setOpen] = useState(false);
   const [copied, setCopied] = useState(false);
-  const k = lenses.findIndex((l) => l.id === id);
+  const k = Math.max(0, lenses.findIndex((l) => l.id === id));
   const spec = lenses[k];
 
   // the URL names the lens shown (the lens's own keys go when it changes)
   useEffect(() => {
-    if (fromHash() !== id) history.replaceState(null, "", `#lens=${id}`);
-  }, [id]);
+    if (fromHash() !== spec.id || devHash() !== dev) {
+      history.replaceState(null, "", `#lens=${spec.id}${dev ? "&dev=1"
+        : ""}`);
+    }
+  }, [spec.id, dev]);
 
   // (bound at commit, not after paint: a key pressed as soon as the
   // shell shows is not lost)
@@ -67,6 +77,9 @@ export function Shell({ project, lenses }: { project: Project;
               }}>{l.title}</button></li>)}
         </ul>
       </div>
+      <button type="button" className="shelldev" data-shell-dev
+        aria-pressed={dev} onClick={() => setDev((d) => !d)}>dev</button>
+      {dev && <a className="shellparity" href="./">parity page</a>}
       <span className="shellkeys" aria-hidden="true"><kbd>[</kbd>
         <kbd>]</kbd> lens · <kbd>g</kbd> list</span>
       <button type="button" className="shellcopy" data-shell-copy

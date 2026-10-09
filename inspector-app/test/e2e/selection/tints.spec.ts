@@ -5,7 +5,8 @@ import { test, expect, ready, select } from "../../page";
 import { A, B, C } from "../../expect";
 
 const at = async (page: Page, width: number, scene: string) => {
-  await ready(page, { width });
+  // (the calldata section, on hold, drawn for this check)
+  await ready(page, { width, hash: "#calldata=1" });
   await select(page, scene, null);
 };
 // each owner's tint classes (at rest, and lit by its selection)

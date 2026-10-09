@@ -9,5 +9,7 @@ import { rawLenses } from "./raw";
 
 // (Phase 1's page first; then lenses made of Phase 1 parts only, which
 // show the architecture fits Phase 2: spec §6b, §6c)
+// (what the maintainer reviews first; the shell's "dev" adds the rest)
+const dev = (l: LensSpec): LensSpec => ({ ...l, dev: true });
 export const lenses: LensSpec[] = [fullInspector, insideOnePlay,
-  playersWalk, alicePlays, vyper, ...rawLenses];
+  ...rawLenses, dev(playersWalk), dev(alicePlays), dev(vyper)];

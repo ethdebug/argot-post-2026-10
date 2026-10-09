@@ -1489,3 +1489,10 @@ html { overflow-anchor: none; }
 .ptrscroll { -webkit-mask-image: none; mask-image: none; }
 /* a band line's values: the step's variables, as the focus has them */
 .ptrlines .lnote { color: var(--muted); font-style: italic; }
+/* A scene another lens shows ("Raw bytes", main[data-lens]): the page
+   is that scene alone, under the scene picker; the rest steps out */
+main[data-lens] > :not(header, #storage, #rawscene),
+main[data-lens] #storage > :not(.label, #picker, :has(> #picker),
+  :has(> .picker[aria-label="Scene"])) { display: none !important; }
+main:not([data-lens]) #rawscene { display: none; }
+#rawscene .rawpick { margin: 4px 0 16px; }

@@ -35,6 +35,11 @@ export interface LensContextValue {
   show(id: string, view?: { mode?: "before" | "after";
     sel?: string | null }): Promise<boolean>;
 }
+// The page's scenes of other lenses, for a lens inside it: the one shown
+// in place of this lens's own bookmark (null: none), and a way to show
+// one. With it, the lens's scene picker lists the page's scenes.
+export const OtherScenes = createContext<{ scene: string | null;
+  go(id: string | null): void } | null>(null);
 export const LensContext = createContext<LensContextValue | null>(null);
 
 // A decoding by id: the lens's own first, then the project's
