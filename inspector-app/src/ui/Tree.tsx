@@ -18,7 +18,7 @@ import {
   hush,
 } from "./hooks";
 import type { DataRef, LinkId, ViewId } from "./types";
-import { exiting } from "./types";
+import { exiting, outside } from "./types";
 import { viewUnder } from "./scroll";
 
 // a chevron, pointing down (open); CSS turns it right when closed
@@ -330,7 +330,8 @@ export function Tree(p: { id: ViewId; data: DataRef; filter?: Filter;
       if (path === s.selection) {
         return { ...s, selection: null, hover: { path: at } };
       }
-      if (!keys && exiting(s) && !light.rows.has(at)) {
+      if (!keys && outside(s, light.rows.has(at),
+        !!light.relColours?.has(at))) {
         cleared = true;
         return { ...s, selection: null, hover: null };
       }

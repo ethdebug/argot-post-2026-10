@@ -86,7 +86,9 @@ it("what it consulted: each key in its record's colour; the anchor",
       { selection: true }).colours);
     // (a key that leads to the selection as a whole: neutral)
     const one = of(C);
-    expect([...one.relColours!]).toEqual([["playerList[2]", 0]]);
+    // (and players, whose slot 3 it consulted as the anchor)
+    expect([...one.relColours!]).toEqual([["playerList[2]", 0],
+      ["players", 0]]);
     expect(relClass(one, ["playerList[2]"])).toBe("rel pkn");
     expect(relClass(all, ["playerList[1]"])).toBe("rel pk2");
     expect(relClass(all, [`${A}.score`])).toBe(null);
