@@ -154,6 +154,21 @@ it("rows 'touched': the values', and the slots the point's "
   expect(before.id).toBe("alice:0");
 });
 
+it("rows 'touched' within roots: only the touched slots the roots own",
+  async () => {
+    const p = await testProject();
+    const [, after] = (await p.timeline("scene:alice")).points;
+    const d = await decode(p, p.decodings["alice"], after.id);
+    const l = layout(d, "storage", { rows: "touched", roots: [A] },
+      { point: after });
+    const mine = layout(d, "storage", { rows: "values", roots: [A] });
+    // (alice's play touches her record, and the totals and others too)
+    expect(l.rows.map((r) => r.address))
+      .toEqual(mine.rows.map((r) => r.address));
+    expect(l.rows.map((r) => r.address)).not.toContain(
+      recordOf(d, C, 0));
+  });
+
 it("a pair: rows named from both points (motd's cleared data, After)",
   async () => {
     const p = await testProject();

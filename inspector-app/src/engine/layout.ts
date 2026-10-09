@@ -202,8 +202,11 @@ export function layout(d: Decoded, location: Location, filter: Filter = {},
   const tx = o.point?.transaction;
   const listed = Array.isArray(filter.rows) ? filter.rows
     : filter.rows === "touched" && tx
+      // (within the filter's roots: only the touched slots its values
+      // own, or a root's own slot)
       ? [...new Set([...tx.reads, ...tx.writes])].filter((s) =>
-        o.point!.snapshot.storage.has(s))
+        o.point!.snapshot.storage.has(s) && (!roots || first.has(s) ||
+          own.has(s)))
       // (storage, all: the slots that hold something, and those the
       // values here own, zero or not: a snapshot also holds slots the
       // run touches later and other decodings read)
