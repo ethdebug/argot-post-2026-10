@@ -2,7 +2,7 @@
 // build run once per test file)
 import fs from "node:fs";
 import path from "node:path";
-import * as evm from "@ethdebug/evm";
+import * as evm from "../src/engine/run/evm";
 import { scenarioOf } from "../src/engine/run/scenario";
 import { runScenario } from "../src/engine/run/run";
 import type { BuildId, Run, Scenario } from "../src/engine/run/types";
