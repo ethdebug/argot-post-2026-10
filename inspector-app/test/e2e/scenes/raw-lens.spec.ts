@@ -44,7 +44,7 @@ const rules = async (page: Page, q: string, width: number) => {
   close(dumps.map((x) => x.row), 0.5);
   close(dumps.map((x) => x.r - x.l), 0.5);
   expect(new Set(all.map((x) => Math.round(x.l))).size)
-    .toBe(width > 760 ? 2 : 1);
+    .toBe(width >= 660 ? 2 : 1);
   for (const x of all) expect(x.r - x.wordR).toBeLessThan(24);
   for (const x of all) {
     expect(x.l).toBeGreaterThanOrEqual(0);
@@ -52,9 +52,8 @@ const rules = async (page: Page, q: string, width: number) => {
   }
   expect(await page.evaluate(() => document.documentElement.scrollWidth))
     .toBe(width);
-  if (width > 760) {
-    // (the stack: one row a word, as tall as a dump's; narrow, beside)
-    close([p.stack.row, p.storage.row], 1);
+  if (width >= 660) {
+    // (the stack: narrow, beside)
     expect(Math.abs(p.storage.t - p.stack.t)).toBeLessThan(1);
     expect(p.stack.l).toBeGreaterThan(p.storage.r);
     expect(p.stack.r - p.stack.l).toBeLessThan((p.storage.r - p.storage.l)
@@ -113,4 +112,38 @@ for (const width of [1360, 390]) {
     await expect(page.locator("#panel")).toBeVisible();
     await expect(page.locator("#rawscene .lens")).toHaveCount(0);
   });
+}
+
+// The raw panels are the storage inspector's dump, layers off: at a
+// width, the same font, row height, cell and fill as the middle of the
+// game's storage dump
+for (const width of [1440, 1024]) {
+  test(`at ${width}px the raw storage dump is the inspector's, in size`,
+    async ({ page }) => {
+      await page.setViewportSize({ width, height: 900 });
+      await page.goto("./#ex=mid");
+      await page.waitForFunction(() => (window as unknown as
+        { results: { done: boolean } }).results?.done);
+      const look = (q: string) => page.evaluate((q) => {
+        const v = document.querySelector(q)!;
+        const r = v.querySelector(".rows")!.getBoundingClientRect();
+        const row = v.querySelector(".wrow[data-slot]")!;
+        const bs = [...row.querySelectorAll(".b")];
+        return { width: r.width, font: getComputedStyle(bs[0]).fontSize,
+          row: row.getBoundingClientRect().height,
+          cell: bs[1].getBoundingClientRect().left -
+            bs[0].getBoundingClientRect().left,
+          fill: row.querySelector(".word")!.getBoundingClientRect().right -
+            r.left };
+      }, q);
+      const mid = await look("#panel .view:not([hidden])");
+      await page.locator('#picker button[data-id="raw"]').click();
+      await expect(page.locator('#rawscene .view[data-view$=":storage"] ' +
+        ".wrow[data-slot]").first()).toBeVisible();
+      const raw = await look('#rawscene .view[data-view$=":storage"]');
+      for (const k of ["width", "row", "cell", "fill"] as const) {
+        expect(Math.abs(raw[k] - mid[k]), k).toBeLessThan(0.5);
+      }
+      expect(raw.font).toBe(mid.font);
+    });
 }
