@@ -26,6 +26,8 @@ export interface Scene {
   // (its storage dumps' rows: "touched" adds the slots the moment's
   // transaction read or wrote, owned by a value or not: unmapped rows)
   rows?: "touched";
+  // (its views' roots: the values it is about, the rest not shown)
+  roots?: Path[];
   // (named groups of its moments, each shown as one with its own first
   // selection: the memory section's pauses, "O0/mult" its two steps;
   // `scope`, the function its locals are in, a group of the tree)

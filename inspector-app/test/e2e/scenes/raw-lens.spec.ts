@@ -5,6 +5,10 @@
 import type { Page } from "@playwright/test";
 import { test, expect, settle } from "../../page";
 
+// (the stack at the moment: 4 items; memory: 7 words, its first and
+// last holding carol's address)
+const STACK = 4, MEMORY = 7;
+
 const panels = (page: Page, q: string) => page.evaluate((q) =>
   Object.fromEntries([...document.querySelectorAll<HTMLElement>(
     `${q} .view`)].map((v) => {
@@ -69,7 +73,7 @@ for (const width of [1360, 1024, 390]) {
       await page.setViewportSize({ width, height: 900 });
       await page.goto("./shell.html#lens=raw-hero");
       await expect(page.locator(
-        '.view[data-view$=":stack"] .wrow[data-slot]')).toHaveCount(14);
+        '.view[data-view$=":stack"] .wrow[data-slot]')).toHaveCount(STACK);
       await rules(page, ".lens", width);
       const before = await page.locator(".lens").innerHTML();
       await page.locator('.view[data-view$=":storage"] .b').nth(40).hover();
@@ -95,7 +99,7 @@ for (const width of [1360, 390]) {
     await expect(page.locator("main")).toHaveAttribute("data-lens", "");
     await expect(page.locator(
       '#rawscene .view[data-view$=":stack"] .wrow[data-slot]'))
-      .toHaveCount(14);
+      .toHaveCount(STACK);
     await rules(page, "#rawscene", width);
     expect(await page.evaluate(() => location.hash)).toContain("scene=raw");
     // (the inspector's parts step out; the scene picker stays)
@@ -164,15 +168,17 @@ test("raw-hero folds storage's zero rows, nothing else's", async ({ page }) => {
     ".wrow[data-slot]").evaluateAll((rs) => rs.map((r) =>
     [...r.querySelectorAll(".b, .ab")].map((b) => b.textContent).join("")));
   await expect.poll(async () => (await words("stack")).length,
-    { timeout: 20_000 }).toBe(14);
+    { timeout: 20_000 }).toBe(STACK);
   const st = await words("storage");
   expect(st.length).toBeGreaterThan(5);
   expect(st.filter((w) => /^(00)+$/.test(w))).toEqual([]);
   // (no two gaps in a row)
   expect(await page.locator('.view[data-view$=":storage"] .gap + .gap')
     .count()).toBe(0);
-  expect((await words("stack")).some((w) => w === "0x00")).toBe(true);
-  expect((await words("memory")).length).toBe(3);
+  expect((await words("memory")).length).toBe(MEMORY);
+  // (memory's all-zero word stays: 0x0060)
+  expect((await words("memory")).some((w) => /^(00)+$/.test(w)))
+    .toBe(true);
   await page.goto("./#ex=mid");
   await expect(page.locator('#panel .view[data-side=after] ' +
     '.wrow[data-slot$="0003"]')).toHaveCount(1);

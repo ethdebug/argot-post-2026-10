@@ -32,10 +32,14 @@ export function SceneHost(p: { scene: Scene; project: Project;
     : { ...lens, initial: { ...lens.initial, scene: first } },
   [lens, own, first]);
   // (the scene's rows: its storage dumps' filter, "touched")
-  const shown = useMemo(() => !spec || !p.scene.rows ? spec : { ...spec,
-    views: spec.views.map((v) => v.kind === "dump" &&
-      v.location === "storage" ? { ...v, filter: { ...v.filter,
-        rows: p.scene.rows } } : v) }, [spec, p.scene.rows]);
+  // (and its roots: every tree's and storage dump's)
+  const shown = useMemo(() => !spec || (!p.scene.rows && !p.scene.roots)
+    ? spec : { ...spec, views: spec.views.map((v) => (v.kind === "dump" &&
+      v.location === "storage") || v.kind === "tree" ? { ...v, filter: {
+        ...v.filter, ...p.scene.rows && v.kind === "dump"
+          ? { rows: p.scene.rows } : {},
+        ...p.scene.roots ? { roots: p.scene.roots } : {} } } : v) },
+  [spec, p.scene.rows, p.scene.roots]);
   if (!shown) return <p className="error">no lens {p.scene.lens}</p>;
   const figure = <Lens spec={shown} project={p.project} hash={p.hash} />;
   if (p.mode === "reader") {

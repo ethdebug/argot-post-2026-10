@@ -26,6 +26,10 @@ for (const lens of ["alice-plays", "vyper"]) {
   test(`${lens}: hover plain, the rest steps back; a selection capped`,
     async ({ page }) => {
       await open(page, lens);
+      // (vyper's scene opens with alice's score selected: cleared first)
+      await page.locator(".tree").first().click({ position: { x: 1, y: 1 } });
+      await page.keyboard.press("Escape");
+      await expect(page.locator(".view .b.on, .tree .row.on")).toHaveCount(0);
       await page.locator(`.tree li[data-path="${A}.score"] > .row`).first()
         .hover();
       const h = await look(page);

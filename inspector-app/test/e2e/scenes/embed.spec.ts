@@ -29,7 +29,7 @@ for (const width of [1024, 390]) {
     await expect.poll(() => page.evaluate(() =>
       (window as unknown as { columns?: number }).columns)).toBe(2);
     await expect(frame.locator(".moment")).toHaveText(
-      "while carol joins: her name is being saved, half-written");
+      "while carol plays: right after her combo resets");
     // (the frame as tall as its content, by the last height it posted)
     const inner = await page.frameLocator("#f").locator("#embed")
       .evaluate((e) => Math.ceil(e.getBoundingClientRect().height));
@@ -95,33 +95,27 @@ test("embed.html: an unknown scene says so", async ({ page }) => {
   await expect(page.locator("[role=alert]")).toContainText("nope");
 });
 
-test("embed.html: raw-named is the raw moment, named", async ({ page }) => {
-  await page.goto("./embed.html#scene=raw-named");
-  // (inside carol's join: alice and bob are listed, carol not yet; her
-  // record is known from the trace, which hashed her key with players'
-  // slot)
-  await expect(page.locator(".tree")).toContainText("3 entries");
-  await expect(page.locator('.tree li[data-path=' +
-    '"players[0x90f79bf6eb2c4f870365e785982e1f101e93b906]"]'))
-    .toBeVisible();
-});
-
-test("embed.html#scene=raw-named: the slots carol's join wrote that no " +
-  "value owns yet, as unmapped rows", async ({ page }) => {
+test("embed.html: raw-named is the raw moment, named: every score, " +
+  "carol's whole name", async ({ page }) => {
   await page.setViewportSize({ width: 1024, height: 900 });
   await page.goto("./embed.html#scene=raw-named");
-  const row = page.locator('.view:not([hidden]) .wrow[data-slot$="c248"]');
-  await expect(row).toBeVisible({ timeout: 20_000 });
-  await row.locator(".b").nth(3).hover();
-  const pop = page.locator(".pop").first();
-  await expect(pop).toContainText("(unmapped)");
-  // (its "how" readable: the popover's ink is not its fill)
-  const [ink, fill] = await pop.locator(".phow").evaluate((h) => [
+  const C = "players[0x90f79bf6eb2c4f870365e785982e1f101e93b906]";
+  const val = (p: string) => page.locator(`.tree li[data-path="${p}"] ` +
+    "> .row .val");
+  await expect(page.locator(".tree")).toContainText("3 entries",
+    { timeout: 20_000 });
+  await expect(val(`${C}.score`)).toHaveText("100");
+  await expect(val(`${C}.combo`)).toHaveText("0");
+  await expect(val(`${C}.name`))
+    .toHaveText('"carol, the unstoppable combo queen"');
+  // (a popover's "how" readable: its ink is not its fill)
+  await page.locator('.view:not([hidden]) .wrow[data-slot] > .addr')
+    .first().hover();
+  const pop = page.locator(".pop .phow").first();
+  const [ink, fill] = await pop.evaluate((h) => [
     getComputedStyle(h).color, getComputedStyle(h.closest(".pop")!)
       .backgroundColor]);
   expect(ink).not.toBe(fill);
-  expect(ink).not.toBe("rgba(0, 0, 0, 0)");
-  await expect(row.locator(".b.hl")).toHaveCount(0);
 });
 
 // The columns each post scene lays out (the host's figure width)
@@ -207,3 +201,30 @@ for (const id of ["raw-hero", "mid", "bug-O2", "players-walk"]) {
       expect(heights[1]).toBe(heights[0]);
     });
 }
+
+// The post's Vyper figure: alice's score, two answers side by side, each
+// headed by its rule; short
+test("embed.html#scene=vyper-rules: Solidity's rule 0, Vyper's layout " +
+  "30, side by side", async ({ page }) => {
+  await page.setViewportSize({ width: 1024, height: 900 });
+  const posted: { height: number; columns: number }[] = [];
+  await page.exposeFunction("posted", (m: never) => posted.push(m));
+  await page.addInitScript(() => {
+    window.parent.postMessage = (m: unknown) =>
+      (window as never as { posted(m: unknown): void }).posted(m);
+  });
+  await page.goto("./embed.html#scene=vyper-rules");
+  const A = "players[0x70997970c51812dc3a010c7d01b50e0d17dc79c8].score";
+  const val = page.locator(`.tree li[data-path="${A}"] > .row .val`);
+  await expect(val).toHaveText(["0", "30"], { timeout: 20_000 });
+  await expect(page.locator(".tree .treehead")).toHaveText([
+    "Solidity's rule", /^Vyper's layout\s+written by hand/i]);
+  const [a, b] = await val.evaluateAll((v) => v.map((e) =>
+    e.getBoundingClientRect()));
+  expect(Math.abs(a.top - b.top)).toBeLessThan(30);
+  expect(b.left).toBeGreaterThan(a.right);
+  // (one entry, one field: nothing else in the trees)
+  await expect(page.locator(".tree li[data-path]")).toHaveCount(6);
+  await expect.poll(() => posted.at(-1)?.height).toBeLessThan(400);
+  expect(posted.at(-1)!.columns).toBe(2);
+});

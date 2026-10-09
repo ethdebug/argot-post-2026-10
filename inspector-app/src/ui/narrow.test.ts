@@ -10,7 +10,7 @@ it("one column: row by row, dumps first, a spanning area at its end",
       '"contract" "pick" "bar" "rows" "dump" "tree" "cdump" "ctree" ' +
       '"cdetails" "chow"');
     expect(narrowAreas(vyper.grid, vyper.areas))
-      .toBe('"d1" "t1" "d2" "t2"');
+      .toBe('"t1" "t2" "d1" "d2"');
     expect(narrowAreas(insideOnePlay.grid, insideOnePlay.areas)).toBe(
       '"meta" "level" "point" "viewing" "note" "bar" "rows" "dump" ' +
       '"sdump" "tree" "legend" "src"');

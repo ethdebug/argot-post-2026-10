@@ -13,5 +13,11 @@
       "label": "in the middle of the game, in the Vyper contract"
     }
   ],
-  "controls": "none"
+  "controls": "none",
+  "roots": [
+    "players[0x70997970c51812dc3a010c7d01b50e0d17dc79c8].score"
+  ],
+  "initial": {
+    "select": "players[0x70997970c51812dc3a010c7d01b50e0d17dc79c8].score"
+  }
 }

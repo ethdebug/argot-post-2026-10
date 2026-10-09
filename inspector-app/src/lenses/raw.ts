@@ -1,6 +1,7 @@
 // The raw lens: the bytes with no names (the post's opening figure,
 // "tools have always worked backwards"). Its scene's moment (raw-hero:
-// inside carol's join, while her name is written to storage): storage,
+// while carol plays, right after her combo resets; every player has a
+// score, carol's name is complete): storage,
 // the stack and memory, with every high-level layer off: no names, no
 // tints, no popovers, no tree, no hover meaning; the gutters only. It
 // lays out by its class (raw.css), at the blog figure's width and at a
@@ -29,8 +30,7 @@ const base = { timelines: [], decodings: [], links: [],
 
 // The composition: `moment`, a quiet line naming the moment in plain
 // words; false: the panels alone
-export const MOMENT = "while carol joins: her name is being saved, " +
-  "half-written";
+export const MOMENT = "while carol plays: right after her combo resets";
 export const rawLens = (o: { moment?: string | false } = {}): LensSpec => ({
   ...base, id: "raw-hero", title: "Raw bytes", layout: "raw raw-hero",
   columns: 2,

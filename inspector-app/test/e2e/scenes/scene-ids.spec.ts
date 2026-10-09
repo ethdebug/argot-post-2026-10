@@ -33,12 +33,12 @@ const checks: Record<string, (page: Page) => Promise<void>> = {
   "vyper-rules": async (page) => {
     await expect(val(page, `${A}.score`)).toHaveText("0");
   },
-  // (before any play: carol joining)
+  // (carol's play, right after her combo resets: 140 points so far)
   "raw-named": async (page) => {
-    await expect(val(page, "totalScore")).toHaveText("0");
+    await expect(val(page, "totalScore")).toHaveText("140");
   },
   "raw-hero": async (page) => {
-    await expect(page.locator(".moment")).toContainText("carol joins");
+    await expect(page.locator(".moment")).toContainText("combo resets");
   },
   "players-walk": async (page) => {
     await expect(page.locator(".rbar.replaying")).toHaveCount(1);
