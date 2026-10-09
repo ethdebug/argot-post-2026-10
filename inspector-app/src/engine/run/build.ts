@@ -1,7 +1,7 @@
 // A build from its JSON (scenarios/<scenario>/builds/<id>/build.json,
 // written by bin/build-arcade.mjs): one compiler's output for the
 // scenario's contract
-import type { Compilation, Hex, Variable } from "../types";
+import type { Compilation, Hex, Type, Variable } from "../types";
 import type { Build } from "./types";
 
 // ethdebug/format writes a pointer expression's operator with "~"
@@ -49,11 +49,31 @@ export function buildOf(json: unknown): Build {
 // these variables alone; `id`: another id than the build's)
 export function compilationOf(b: Build, o: { id?: string;
   only?: string[] } = {}): Compilation {
-  const vars = ((b.programs?.runtime.context as
+  const listed = ((b.programs?.runtime.context as
     { variables?: Variable[] } | undefined)?.variables ?? [])
     .filter((v) => !o.only || o.only.includes(v.identifier));
+  // (types written inline, bugc's: each by an id of its own, as solc's)
+  const types: Record<string, Type> = { ...b.resources?.types ?? {} };
+  const vars = listed.map((v) => (v.type as { id?: string }).id !== undefined
+    ? v : { ...v, type: { id: hoist(v.type as Type, v.identifier, types) } });
   return { id: o.id ?? b.compilation, language: b.language,
     compiler: b.compiler, provenance: "compiler", sources: b.sources,
-    types: b.resources?.types ?? {}, templates: b.resources?.pointers ?? {},
-    stateVariables: vars };
+    types, templates: b.resources?.pointers ?? {}, stateVariables: vars };
+}
+
+// An inline type into `types`, under `id`; the types it contains under
+// ids of their own (`<id>.key`, `.value`, `.element`, `.<member>`), each
+// referred to by id
+function hoist(t: Type, id: string, types: Record<string, Type>): string {
+  const x = t as unknown as Record<string, any>;
+  const ref = (r: { type: Type & { id?: string } }, sub: string) =>
+    r.type.id !== undefined ? r : { ...r, type: { id: hoist(r.type,
+      `${id}.${sub}`, types) } };
+  const c = x.contains;
+  const contains = !c ? c : Array.isArray(c)
+    ? c.map((m: { name: string; type: Type }) => ref(m as never, m.name))
+    : "key" in c ? { key: ref(c.key, "key"), value: ref(c.value, "value") }
+      : "type" in c ? ref(c, "element") : c;
+  types[id] = (contains ? { ...x, contains } : x) as Type;
+  return id;
 }
