@@ -120,17 +120,17 @@ contract Arcade {
 
   <section id="storage" aria-label="Scene">
     <h2 class="label">Scene</h2>
-    <!-- the same buttons as main.js makes from fixtures/index.json, here
+    <!-- the same buttons as the picker makes from the scenes, here
     so the page does not move when they come -->
     <div id="picker" class="picker" role="radiogroup" aria-label="Scene">
       <button role="radio" data-id="raw" data-lens="raw">Raw bytes</button>
-      <button role="radio" data-id="mid" data-fixture="arcade-mid"
+      <button role="radio" data-id="mid" data-snapshot="mid"
         data-single>The middle of the game</button>
       <button role="radio" data-id="alice"
-        data-fixture="arcade-alice">Alice plays</button>
+        data-snapshot="alice">Alice plays</button>
       <button role="radio" data-id="motd"
-        data-fixture="arcade-motd">A string moves into its slot</button>
-      <button role="radio" data-id="vyper" data-fixture="arcade-vyper"
+        data-snapshot="motd">A string moves into its slot</button>
+      <button role="radio" data-id="vyper" data-snapshot="vyper"
         data-single>Vyper reads it differently</button></div>
     <!-- one intro per scene (fixtures/index.json); the loader shows the
     first one -->

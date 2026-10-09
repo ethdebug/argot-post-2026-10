@@ -10,7 +10,7 @@ import type { Decoded, Hex, Layout, Target } from "./types";
 const at = {} as { d: Decoded; l: Layout };
 beforeAll(async () => {
   const p = await testProject();
-  at.d = await decode(p, p.decodings["sol:arcade-mid"], "arcade-mid:after");
+  at.d = await decode(p, p.decodings["mid"], "mid:0");
   at.l = layout(at.d, "storage", { rows: "values" });
 });
 const slotOf = (path: string, k = 0): Hex =>

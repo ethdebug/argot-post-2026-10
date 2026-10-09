@@ -10,7 +10,8 @@ const scenes = { mid: ["after"], alice: ["before", "after"],
 async function at(bm: string, side: string): Promise<Decoded> {
   const p = await testProject();
   const b = p.bookmarks.find((x) => x.id === bm)!;
-  return decode(p, p.decodings[b.decoding], `${b.timeline}:${side}`);
+  return decode(p, p.decodings[b.decoding],
+    b.points[side === "before" ? 0 : b.points.length - 1]);
 }
 const mid = () => at("mid", "after");
 const nodes = (g: DerefGraph) => [...g.nodes.values()];

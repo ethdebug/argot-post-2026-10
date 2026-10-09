@@ -31,7 +31,7 @@ it("as a decoding: the selector and the parameter's parts, each its "
     const { layout, rowLabel } = await import("./layout");
     const { byteKey } = await import("./hex");
     const p = await testProject();
-    const d = await decode(p, p.decodings["abi:motd"], "arcade-motd:after");
+    const d = await decode(p, p.decodings["abi:motd"], "motd:1");
     // (paths by the parameter's name, as vanilla's tree: text.length;
     // each node keeps its ABI part's id)
     expect([...d.byPath.keys()]).toEqual(["selector", "text", "text.offset",
@@ -40,7 +40,7 @@ it("as a decoding: the selector and the parameter's parts, each its "
       "m", "m-offset", "m-length", "m-data"]);
     expect(d.byPath.get("text.length")!.value!.text).toBe("5");
     const tl = await p.timeline(p.decodings["abi:motd"].timeline);
-    const point = tl.points.find((x) => x.id === "arcade-motd:after");
+    const point = tl.points.find((x) => x.id === "motd:1");
     // (the whole call's input: 100 bytes, its rows to 0x0060)
     const l = layout(d, "calldata", {}, { point });
     // (calldata is offset-addressed: rows only lay it out, from 0x0000

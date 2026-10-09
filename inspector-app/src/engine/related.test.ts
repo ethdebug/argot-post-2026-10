@@ -11,9 +11,9 @@ import { walkthrough } from "./walkthrough/fold";
 
 const mid = async () => {
   const p = await testProject();
-  const dc = p.decodings["sol:arcade-mid"];
-  const d = await decode(p, dc, "arcade-mid:after");
-  const t = await p.timeline("arcade-mid");
+  const dc = p.decodings["mid"];
+  const d = await decode(p, dc, "mid:0");
+  const t = await p.timeline("scene:mid");
   const c = await p.compilation(dc.compilation);
   const snap = t.points.find((x) => x.id === d.point)!.snapshot;
   const w = (path: string) => walkthrough({ d, c, snap, keys: dc.keys },

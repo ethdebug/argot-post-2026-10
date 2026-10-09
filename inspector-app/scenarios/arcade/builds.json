@@ -1,0 +1,26 @@
+{
+  "sol": {
+    "language": "solidity",
+    "compiler": "solc 0.8.38-develop.2026.10.5+commit.c434b2ea.Darwin.appleclang (walnut #10)",
+    "compilation": "arcade-sol",
+    "ethdebug": true
+  },
+  "vy": {
+    "language": "vyper",
+    "compiler": "vyper 0.4.3+commit.bff19ea2",
+    "compilation": "arcade-vy-rule",
+    "ethdebug": false
+  },
+  "bug-O0": {
+    "language": "bug",
+    "compiler": "bugc 7a1f5531d",
+    "compilation": "arcade-bug-O0",
+    "ethdebug": true
+  },
+  "bug-O2": {
+    "language": "bug",
+    "compiler": "bugc 7a1f5531d",
+    "compilation": "arcade-bug-O2",
+    "ethdebug": true
+  }
+}

@@ -2,6 +2,7 @@ import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 import path from "node:path";
 import { isLibrary, loaderPage } from "./bin/vite-loader";
+import { scenesPlugin } from "./bin/vite-scenes";
 
 // (the dev server's own port: 5180, or `--port`; the live-reload client
 // connects to it straight, not through a proxy in front of the page)
@@ -35,7 +36,7 @@ const repin = {
 export default defineConfig(({ command }) => ({
   base: command === "build" ? "./" : "/demos/inspector/",
   publicDir: command === "build" ? false : "../demos/inspector",
-  plugins: [react(), repin, loaderPage()],
+  plugins: [react(), repin, loaderPage(), scenesPlugin()],
   server: { port: 5180, strictPort: true, fs: { allow: [".."] },
     hmr: { clientPort: port } },
   build: {

@@ -5,7 +5,7 @@ import { pointerText } from "./pointer-text";
 
 const players = async () => {
   const p = await testProject();
-  return pointerText(await p.compilation("sol@arcade-mid"), "players");
+  return pointerText(await p.compilation("arcade-sol"), "players");
 };
 
 it("players: its pointer, then its templates, names shortened", async () => {

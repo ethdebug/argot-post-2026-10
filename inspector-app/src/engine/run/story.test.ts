@@ -1,58 +1,22 @@
-// The runner tells the fixtures' story: test/expect.ts's values decode
-// the same from the runs (lastBlock aside: the blocks differ), and the
-// raw and memory fixtures' trace steps are the runs' (addendum §8)
+// The runner tells the fixtures' story: the fixtures' transactions read
+// and write the same slots, and the raw and memory fixtures' trace steps
+// are the runs' (addendum §8; test/expect.ts's values, from the runs and
+// the snapshots: engine/source.test.ts)
 import { describe, expect, it } from "vitest";
 import fs from "node:fs";
 import path from "node:path";
-import { decode } from "../decode";
 import { fromFixture } from "../fixtures/legacy";
 import { factsOf } from "./facts";
 import { opName } from "./opcodes";
-import { arcade, momentId, runOf, runProject } from "../../../test/run";
-import { A, B, C, expected, lastBlock } from "../../../test/expect";
-import type { MomentRef } from "./types";
+import { arcade, runOf } from "../../../test/run";
+import { A } from "../../../test/expect";
 
 const fixture = (id: string) => JSON.parse(fs.readFileSync(path.join(
   __dirname, "..", "..", "..", "..", "demos", "inspector", "fixtures",
   `${id}.json`), "utf8"));
 const hex = (b: Uint8Array) => `0x${Buffer.from(b).toString("hex")}`;
-const end = (tx: number): MomentRef => ({ tx, step: "end" });
 
-// each fixture's sides as moments of the runs: the middle of the game is
-// the end of carol's miss (transaction 11); alice's third hit, 12;
-// setMotd, 13
-const SCENES = {
-  mid: { build: "sol", decoding: "sol", sides: [end(11), end(11)] },
-  alice: { build: "sol", decoding: "sol", sides: [end(11), end(12)] },
-  motd: { build: "sol", decoding: "sol", sides: [end(12), end(13)] },
-  vyper: { build: "vy", decoding: "vyAsSol", sides: [end(11), end(11)] },
-} as const;
-const project = runProject({ sol: [end(11), end(12), end(13)],
-  vy: [end(11)] });
-
-describe("the story's values, from the runs", () => {
-  it.each(Object.keys(SCENES) as (keyof typeof SCENES)[])("%s",
-    async (id) => {
-      const p = await project;
-      const s = SCENES[id];
-      for (const [k, side] of s.sides.entries()) {
-        const d = await decode(p, p.decodings[s.decoding], momentId(side));
-        for (const row of expected[id]) {
-          const n = d.byPath.get(row[0]);
-          expect(n?.value?.text ?? n?.summary, `${id} ${k} ${row[0]}`)
-            .toBe(row[1 + k]);
-        }
-      }
-    });
-  it("lastBlock: the scenario's blocks", async () => {
-    const p = await project;
-    const at = async (m: MomentRef, who: string) => (await decode(p,
-      p.decodings.sol, momentId(m))).byPath.get(`${who}.lastBlock`)
-      ?.value?.text;
-    expect(await Promise.all([A, B, C].map((x) => at(end(11), x))))
-      .toEqual(lastBlock.mid);
-    expect(await at(end(12), A)).toBe(lastBlock.alice);
-  });
+describe("the story's transactions, from the runs", () => {
   it("each fixture's transaction read and wrote the same slots", async () => {
     const sol = await runOf("sol");
     for (const [id, tx] of [["arcade-mid", 11], ["arcade-alice", 12],

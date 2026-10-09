@@ -19,8 +19,8 @@ import { current as sizesCurrent } from "./sizes.mjs";
 const root = path.dirname(path.dirname(fileURLToPath(import.meta.url)));
 const demo = path.join(path.dirname(root), "demos", "inspector");
 const shot = (name) => path.join(demo, "screenshots", name);
-// (the storage inspector's scenes; another lens's, "Raw bytes", has its
-// lens and no fixture)
+// (the storage inspector's scenes, each its snapshot; another lens's,
+// "Raw bytes", has its lens)
 const index = JSON.parse(fs.readFileSync(path.join(demo, "fixtures",
   "index.json"), "utf8")).filter((s) => !s.lens);
 const scenes = index.map((s) => s.id);
@@ -157,20 +157,20 @@ async function slowLink(browser) {
       usable: Math.round(usable), progress: Math.round(window.progress),
       fixtures: performance.getEntriesByType("resource")
         .filter((e) => e.startTime < usable &&
-          e.name.includes("/fixtures/"))
-        .map((e) => e.name.split("/fixtures/")[1]).sort().join() };
+          /\/(fixtures|snapshots)\//.test(e.name))
+        .map((e) => e.name.split("/inspector/")[1]).sort().join() };
   });
   if (!(t.progress <= 1000)) out.push(`progress shown at ${t.progress} ms`);
   if (!(t.paint <= 1000)) out.push(`first paint at ${t.paint} ms`);
-  if (t.fixtures !== [`${index[0].fixture}.json`, "index.json",
-    "memory.json"].join()) {
+  if (t.fixtures !== ["fixtures/index.json", "fixtures/memory.json",
+    `snapshots/${FIRST}.json`].join()) {
     out.push(`fetched before usable: ${t.fixtures}`);
   }
   // the others, idle-time
-  const others = index.slice(1).map((s) => s.fixture);
+  const others = scenes.slice(1);
   await p.waitForFunction((ids) => ids.every((id) => performance
     .getEntriesByType("resource").some((e) =>
-      e.name.endsWith(`fixtures/${id}.json`))), others,
+      e.name.endsWith(`snapshots/${id}.json`))), others,
   { timeout: 30000 }).catch(() => out.push("no prefetch"));
   await p.waitForFunction(() => window.memResults?.done);
   const shifts = await p.evaluate(() => window.shifts);
@@ -199,7 +199,7 @@ async function slowLink(browser) {
   console.log(`  ${kb(sum(1))} KB gzip ${kb(sum(2))} KB  total`);
   await ctx.close();
   // a failure on the slow link: Retry loads it
-  out.push(...await retryCheck(browser, "fixtures/arcade-motd.json",
+  out.push(...await retryCheck(browser, "snapshots/motd.json",
     { pick: "motd", throttle }));
   return out.map((x) => `slow link: ${x}`);
 }
@@ -265,7 +265,7 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
   problems.push(...await retryCheck(browser, "vendor/pointers.js",
     { abort: true }));
   problems.push(...await retryCheck(browser,
-    `fixtures/${index[0].fixture}.json`, { via: "#tree .error button" }));
+    `snapshots/${FIRST}.json`, { via: "#tree .error button" }));
   if (name === "chromium") problems.push(...await slowLink(browser));
   console.log(`${name} ${browser.version()}: ${problems.length
     ? "FAIL\n  " + problems.join("\n  ") : "ok"}`);

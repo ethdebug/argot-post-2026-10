@@ -43,5 +43,6 @@ export function keysFor(d: Decoding, tree: ValueNode[], tx?: TxFacts,
         source: n.path })) };
   }
   return { id: "key", name: "key", provenance: "trace",
-    values: (tx ? mappingKeys(tx, base) : []).map((value) => ({ value })) };
+    values: (tx ? mappingKeys(tx, d.keys.slot ?? base) : []).map((value) =>
+      ({ value })) };
 }
