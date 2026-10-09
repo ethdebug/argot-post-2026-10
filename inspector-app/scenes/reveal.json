@@ -5,7 +5,7 @@
     "scenario": "arcade",
     "build": "sol"
   },
-  "lens": "raw-annotated",
+  "lens": "reveal",
   "timeline": [
     {
       "tx": 11,

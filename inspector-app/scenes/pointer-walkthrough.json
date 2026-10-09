@@ -5,7 +5,7 @@
     "scenario": "arcade",
     "build": "sol"
   },
-  "lens": "players-walk",
+  "lens": "pointer-walkthrough",
   "timeline": [
     {
       "tx": 11,

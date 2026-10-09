@@ -66,7 +66,7 @@ function storage() {
     // alice: a record is named by its name on chain, or its address)
     for (const k of [6]) for (const [who, at] of [["bob", 2],
       ["carol", 3]]) {
-      out.push({ id: `${tag}-sel=players-walk${k}-${who}`,
+      out.push({ id: `${tag}-sel=pointer-walkthrough${k}-${who}`,
         section: "storage", hash: hashOf([...base, ["sel", "players"]]),
         actions: [{ click: START },
           ...Array.from({ length: k - 1 }, () => ({ click: NEXT })),
