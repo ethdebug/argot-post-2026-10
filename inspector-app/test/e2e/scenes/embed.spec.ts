@@ -3,7 +3,7 @@
 import { test, expect } from "../../page";
 
 for (const width of [1024, 390]) {
-  test(`embed.html#scene=raw at ${width}px: storage and the stack, no page ` +
+  test(`embed.html#scene=raw at ${width}px: storage, the stack and memory, no page ` +
     "chrome; its height to the host", async ({ page, baseURL }) => {
     await page.setViewportSize({ width, height: 900 });
     await page.goto("./embed.html");
@@ -20,7 +20,7 @@ for (const width of [1024, 390]) {
     const frame = page.frameLocator("#f");
     await expect(frame.locator(".view .wrow[data-slot]").first())
       .toBeVisible();
-    await expect(frame.locator(".view")).toHaveCount(2);
+    await expect(frame.locator(".view")).toHaveCount(3);
     for (const q of ["main", "header", "h1", "#picker", ".picker",
       "#contract", "footer", ".shellbar"]) {
       await expect(frame.locator(q)).toHaveCount(0);
@@ -51,7 +51,7 @@ for (const width of [1024, 390]) {
 
 test("embed.html: moment=0 leaves the moment out", async ({ page }) => {
   await page.goto("./embed.html#scene=raw&moment=0");
-  await expect(page.locator(".view")).toHaveCount(2);
+  await expect(page.locator(".view")).toHaveCount(3);
   await expect(page.locator(".moment")).toHaveCount(0);
 });
 
