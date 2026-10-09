@@ -26,6 +26,11 @@ export interface Scene {
   // (its storage dumps' rows: "touched" adds the slots the moment's
   // transaction read or wrote, owned by a value or not: unmapped rows)
   rows?: "touched";
+  // (named groups of its moments, each shown as one with its own first
+  // selection: the memory section's pauses, "O0/mult" its two steps;
+  // `scope`, the function its locals are in, a group of the tree)
+  groups?: { id: string; title: string; moments: number[];
+    select?: Path; scope?: string }[];
 }
 
 const CONTROLS = ["none", "prev-next", "scrub"];
@@ -63,6 +68,11 @@ export function sceneOf(json: unknown): Scene {
     if (k && order(timeline[k - 1]) >= order(m)) no("moments out of order");
   });
   if (j.rows !== undefined && j.rows !== "touched") no(`rows ${j.rows}`);
+  for (const g of j.groups ?? []) {
+    if (!g.moments.every((k) => k >= 0 && k < timeline.length)) {
+      no(`group ${g.id}'s moments`);
+    }
+  }
   const n = j.initial?.moment;
   if (n !== undefined && !(n >= 0 && n < timeline.length)) {
     no(`initial moment ${n}`);
@@ -166,7 +176,7 @@ function withTimeline(s: Scene, timeline: Scene["timeline"]): Scene {
 // A scene file's text: its keys in one order, two spaces, a newline
 export function sceneJson(s: Scene): string {
   const { id, title, caption, run, lens, timeline, controls, rows,
-    initial } = s;
+    initial, groups } = s;
   return JSON.stringify({ id, title, caption, run, lens, timeline,
-    controls, rows, initial }, null, 2) + "\n";
+    controls, rows, initial, groups }, null, 2) + "\n";
 }

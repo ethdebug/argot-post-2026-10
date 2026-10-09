@@ -35,12 +35,12 @@ const WALKS = ["players", A, "playerList", "playerList[1]", "totalScore",
   "motd", `${C}.name`, `${B}.plays`];
 
 // The memory section: each level's points, their sides, and the values
-// in the tree at each point (from the vanilla page at sync-base)
+// in the tree at each point (alice's record: in storage, in scope)
 const POINTS = [["roll", ["hit"]],
   ["mult", ["_applyCombo", "points", "combo", "mult"]],
-  ["writes", ["gained", "hit", "players[msg.sender]",
+  ["writes", ["gained", "hit", A,
     ...["score", "combo", "bestCombo", "plays", "hits", "lastBlock"]
-      .map((f) => `players[msg.sender].${f}`)]]];
+      .map((f) => `${A}.${f}`)]]];
 
 const START = '#details button[data-r="start"]';
 const NEXT = '#details button[data-r="next"]';

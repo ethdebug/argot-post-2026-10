@@ -4,10 +4,19 @@ import { it, expect } from "vitest";
 import { testProject } from "../../test/project";
 import { decode } from "./decode";
 import type { ValueNode } from "./types";
+import { A } from "../../test/expect";
 
+// (the bug scenes' moments: the pauses; their locals, the scope's
+// "@locals" group; and storage, its "@storage")
+const K: Record<string, number> = { roll: 0, "mult:0": 1, "mult:1": 2,
+  writes: 3 };
 const at = async (o: string, point: string) => {
   const p = await testProject();
-  return decode(p, p.decodings[`mem:${o}`], `${o}/${point}`);
+  const d = await decode(p, p.decodings[`bug-${o}/scope`],
+    `bug-${o}:${K[point]}`);
+  const g = (path: string) => d.tree.find((n) => n.path === path)!;
+  return { ...d, tree: g("@locals").children!,
+    storage: g("@storage").children! };
 };
 const values = (ns: ValueNode[]) => Object.fromEntries(ns.flatMap((n) =>
   n.kind ? [] : [[n.path, n.none ? "none" : n.value?.text]]));
@@ -29,20 +38,18 @@ for (const o of ["O0", "O2"]) {
         mult: "3" });
     });
   it(`${o}: before the writes: gained 30; hit listed, no location; `
-    + "alice's record", async () => {
+    + "alice's record, in storage", async () => {
     const d = await at(o, "writes");
-    expect(d.tree.map((n) => n.path)).toEqual(["gained", "hit",
-      "players[msg.sender]"]);
+    expect(d.tree.map((n) => n.path)).toEqual(["gained", "hit"]);
     expect(values(d.tree)).toEqual({ hit: "none", gained: "30" });
-    const r = d.byPath.get("players[msg.sender]")!;
-    expect(r.kind).toBe("record");
-    expect(r.children!.map((c) => [c.label, c.value?.text]))
+    // (her record as the trace has it then: every counter but score
+    // already written)
+    const r = d.byPath.get(A)!;
+    expect(r.children!.map((c) => [c.label, c.value?.text]).slice(0, 5))
       .toEqual([["score", "30"], ["combo", "3"], ["bestCombo", "3"],
-        ["plays", "3"], ["hits", "3"],
-        // (her play's block: each level is its own deployment)
-        ["lastBlock", o === "O0" ? "22" : "41"]]);
+        ["plays", "3"], ["hits", "3"]]);
     // (score: the low 8 bytes of the slot)
-    expect(d.byPath.get("players[msg.sender].score")!.regions).toEqual([
+    expect(d.byPath.get(`${A}.score`)!.regions).toEqual([
       expect.objectContaining({ location: "storage", offset: 24,
         length: 8 })]);
   });

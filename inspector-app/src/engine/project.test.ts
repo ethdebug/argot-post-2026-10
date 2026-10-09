@@ -8,14 +8,14 @@ import { readerProject } from "../../test/project";
 
 const A = "players[0x70997970c51812dc3a010c7d01b50e0d17dc79c8]";
 
-it("loads only the index and the memory pauses until a scene is asked "
+it("loads only the index until a scene is asked "
   + "for; then its snapshot, once", async () => {
   const seen: string[] = [];
   const io = { ...fsIo(), json: <T>(q: string) => (seen.push(q),
     q.startsWith("snapshots/") ? Promise.reject(new Error("HTTP 404"))
       : fsIo().json<T>(q)) };
   const p = await load(io as Io, { scenes, builds });
-  expect(seen).toEqual(["fixtures/index.json", "fixtures/memory.json"]);
+  expect(seen).toEqual(["fixtures/index.json"]);
   expect(p.bookmarks.map((b) => b.id))
     .toEqual(["raw-hero", "raw-named", "mid", "alice", "motd", "vyper",
       "players-walk", "alice-plays", "vyper-rules", "O0/roll", "O0/mult", "O0/writes", "O2/roll",
@@ -23,7 +23,7 @@ it("loads only the index and the memory pauses until a scene is asked "
   await expect(p.timeline("scene:mid")).rejects.toThrow("404");
   // (a failed load is not kept: asked again, it loads again)
   await expect(p.timeline("scene:mid")).rejects.toThrow("404");
-  expect(seen.slice(2)).toEqual(["snapshots/mid.json",
+  expect(seen.slice(1)).toEqual(["snapshots/mid.json",
     "snapshots/mid.json"]);
 });
 

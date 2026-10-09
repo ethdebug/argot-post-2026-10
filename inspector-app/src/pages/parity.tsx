@@ -242,34 +242,28 @@ try {
     src: "msrc" })
     .map(([a, id]) => [a, place($(id)!)]));
   const memReady = (lens: LensContextValue, shown: Promise<boolean>) => {
-    // (the storage panel's box: shown at a pause that reads a slot)
-    const box = async () => {
-      const bm = project.bookmarks.find((b) =>
-        b.id === lens.store.get().scene);
-      if (!bm) return;
-      const t = await project.timeline(bm.timeline);
-      $("mstore").hidden = !t.points.some((p) =>
-        bm.points.includes(p.id) && p.record);
-    };
-    lens.store.subscribe(() => void box());
-    void shown.then(box);
+    // (the storage panel's box: every pause has storage in scope)
+    $("mstore").hidden = false;
     const flat = (ns: ValueNode[]): ValueNode[] => ns.flatMap((n) =>
       n.kind === "group" ? flat(n.children ?? []) : n.kind ? [] : [n]);
     void shown.then(async () => {
-      for (const id of ["mem:O0", "mem:O2"]) {
+      // (the locals: the scope's "@locals" group)
+      for (const o of ["0", "2"]) {
+        const id = `bug-O${o}/scope`;
         const d = project.decodings[id];
         const out: typeof window.memResults.decoded[string] = {};
         for (const b of project.bookmarks.filter((x) =>
           x.decoding === id)) {
           out[b.id.split("/")[1]] = await Promise.all(b.points.map(
             async (pt) => {
-              const ns = flat((await decode(project, d, pt)).tree);
+              const ns = flat((await decode(project, d, pt)).tree
+                .filter((n) => n.path === "@locals"));
               return { values: Object.fromEntries(ns.filter((n) => !n.none)
                 .map((n) => [n.path, n.value?.text ?? ""])),
               none: ns.filter((n) => n.none).map((n) => n.path) };
             }));
         }
-        window.memResults.decoded[id.slice(5)] = out;
+        window.memResults.decoded[o] = out;
       }
     }).catch((e) => {
       console.error(e);

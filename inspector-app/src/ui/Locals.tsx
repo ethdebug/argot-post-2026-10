@@ -67,7 +67,7 @@ const NOTES: Record<string, (inl: string) => string> = {
     "`mult = combo`, the first where all three locals have a location with " +
     "mult = 5, then with mult = 3.",
   writes: () => "gained = 30, just before the SSTORE that adds it to her " +
-    "score; her record slot as the trace has it then (every counter but " +
+    "score; her record as the trace has it then (every counter but " +
     "score already written).",
 };
 
