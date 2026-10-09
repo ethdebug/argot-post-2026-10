@@ -24,6 +24,11 @@ jobs:
       - run: npm run build
         working-directory: inspector-app
       - run: sh inspector-app/bin/site.sh
+      # (the embed's heights, every scene at each width: heights.json)
+      - run: npx playwright install --with-deps chromium
+        working-directory: inspector-app
+      - run: node bin/heights.mjs ../_site
+        working-directory: inspector-app
       - uses: actions/configure-pages@v5
         if: github.ref == 'refs/heads/main'
       - uses: actions/upload-pages-artifact@v3

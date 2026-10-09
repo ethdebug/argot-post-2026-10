@@ -149,3 +149,61 @@ test("players-walk at 680px: one column, nothing past its edge",
     expect(await page.evaluate(() => document.documentElement.scrollWidth))
       .toBe(680);
   });
+
+// A phone: the two-column scenes in one column; no two areas overlap
+for (const id of ["vyper", "raw-named", "bug-O2", "mid"]) {
+  test(`embed.html#scene=${id} at 360px: one column, no area over another`,
+    async ({ page }) => {
+      await page.setViewportSize({ width: 360, height: 800 });
+      await page.goto(`./embed.html#scene=${id}`);
+      await expect(page.locator(".view:not([hidden])").first())
+        .toBeVisible({ timeout: 20_000 });
+      await page.waitForTimeout(500);
+      const boxes = await page.locator(".lens > [data-area]").evaluateAll(
+        (as) => as.map((a) => {
+          const r = a.getBoundingClientRect();
+          return { a: (a as HTMLElement).dataset.area, l: r.left,
+            t: r.top, r: r.right, b: r.bottom };
+        }).filter((x) => x.r - x.l > 0 && x.b - x.t > 0));
+      for (const x of boxes) {
+        for (const y of boxes) {
+          if (x === y) continue;
+          const over = x.l < y.r - 1 && y.l < x.r - 1 && x.t < y.b - 1 &&
+            y.t < x.b - 1;
+          expect(over, `${x.a} over ${y.a}`).toBe(false);
+        }
+      }
+      expect(await page.evaluate(() =>
+        document.documentElement.scrollWidth)).toBe(360);
+    });
+}
+
+// The height only once the scene is drawn: the first message says
+// ready, and the height is the same on every load
+for (const id of ["raw-hero", "mid", "bug-O2", "players-walk"]) {
+  test(`embed.html#scene=${id}: one ready height, the same each load`,
+    async ({ page, browserName }) => {
+      test.skip(browserName !== "chromium", "one browser: a measure");
+      await page.setViewportSize({ width: 1024, height: 800 });
+      const got: { height: number; ready?: boolean }[] = [];
+      await page.exposeFunction("postedMsg", (m: { height: number;
+        ready?: boolean }) => got.push(m));
+      await page.addInitScript(() => {
+        window.parent.postMessage = (m: unknown) => (window as unknown as
+          { postedMsg(m: unknown): void }).postedMsg(m);
+      });
+      const heights: number[] = [];
+      for (let k = 0; k < 2; k++) {
+        got.length = 0;
+        await page.goto(`./embed.html?k=${k}#scene=${id}`);
+        await expect.poll(() => got.length, { timeout: 20_000 })
+          .toBeGreaterThan(0);
+        expect(got[0].ready).toBe(true);
+        await page.waitForTimeout(1000);
+        // (the first is the drawn scene's: no later change of size)
+        expect(got.map((m) => m.height)).toEqual([got[0].height]);
+        heights.push(got[0].height);
+      }
+      expect(heights[1]).toBe(heights[0]);
+    });
+}
