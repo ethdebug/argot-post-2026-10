@@ -6,12 +6,18 @@
 // channel id, so two figures of one scene keep apart). Its messages:
 // { type: "model", model } (figure → panel, each change), { type:
 // "intent", intent } (panel → figure), { type: "hello" } (the panel,
-// when it loads: the figure sends the model it has).
+// when it loads: the figure sends the model it has), { type: "stuck",
+// stuck } (panel → figure: the host says whether the panel is stuck at
+// the top of its view; a step's scroll waits for it, so it never moves
+// the ▶ under the reader's pointer).
 import { createContext } from "react";
 import type { Intent, PanelModel } from "./WalkthroughPanel";
 
 export interface Port {
   publish(m: PanelModel): void;
+  // (whether the panel is stuck at the top of the host's view, as the
+  // host last said; unknown until it does)
+  stuck?: boolean;
   // (its intents to `f`; returns the way to stop)
   listen(f: (i: Intent) => void): () => void;
 }
@@ -25,12 +31,7 @@ export function figurePort(name: string): Port {
   const bc = new BroadcastChannel(name);
   let last = "";
   let model: PanelModel | null = null;
-  bc.addEventListener("message", (e) => {
-    if (e.data?.type === "hello" && model) {
-      bc.postMessage({ type: "model", model });
-    }
-  });
-  return {
+  const port: Port = {
     publish(m) {
       const s = JSON.stringify(m);
       if (s === last) return;
@@ -46,4 +47,11 @@ export function figurePort(name: string): Port {
       return () => bc.removeEventListener("message", h);
     },
   };
+  bc.addEventListener("message", (e) => {
+    if (e.data?.type === "hello" && model) {
+      bc.postMessage({ type: "model", model });
+    }
+    if (e.data?.type === "stuck") port.stuck = !!e.data.stuck;
+  });
+  return port;
 }

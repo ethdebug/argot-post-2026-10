@@ -19,6 +19,20 @@ const host = (base: string, scene: string) => `<body style="margin:0">
     <div style="height:1200px"></div>`).join("")}
   <script>
     window.heights = [];
+    // (each panel told whether it is stuck at the top, as it changes, as
+    // the post's host does)
+    const was = new Map();
+    const tell = () => document.querySelectorAll(".panel").forEach((p) => {
+      const stuck = Math.abs(p.getBoundingClientRect().top) < 0.5 &&
+        p.parentElement.getBoundingClientRect().top < 0;
+      if (was.get(p) === stuck) return;
+      was.set(p, stuck);
+      p.contentWindow.postMessage({ type: "ethdebug:stuck", stuck }, "*");
+    });
+    addEventListener("scroll", tell);
+    // (and a panel's frame, once it loads: the state as it is then)
+    document.querySelectorAll(".panel").forEach((p) =>
+      p.addEventListener("load", () => { was.delete(p); tell(); }));
     addEventListener("message", (e) => {
       const f = [...document.querySelectorAll("iframe")].find((x) =>
         x.contentWindow === e.source);
@@ -27,8 +41,10 @@ const host = (base: string, scene: string) => `<body style="margin:0">
         f.style.height = e.data.height + "px";
         heights.push([f.parentElement.id, f.className, e.data.height]);
       }
+      // (a step's lit rows into view, under the panel: as the post's
+      // host does, whenever asked)
       if (e.data?.type === "ethdebug:scroll-to") {
-        window.scrolled = (window.scrolled ?? 0) + 1;
+        window.asked = (window.asked ?? 0) + 1;
         const p = f.parentElement.querySelector(".panel");
         scrollTo(0, scrollY + f.getBoundingClientRect().top + e.data.y -
           p.offsetHeight - 16);
@@ -62,7 +78,13 @@ async ({ page, baseURL }) => {
     .toBe(4);
   await expect(page.frameLocator("#a .figure").locator(".wpanel"))
     .toHaveCount(0);
-  await page.locator("#a").scrollIntoViewIfNeeded();
+  // (the figure's top in view: the panel in its place, not stuck)
+  await expect.poll(() => page.locator("#a .figure").evaluate((f) =>
+    f.getBoundingClientRect().height)).toBeGreaterThan(600);
+  await page.evaluate(() => {
+    const a = document.querySelector("#a")!.getBoundingClientRect();
+    scrollTo(0, scrollY + a.top - 100);
+  });
   const b0 = await lit(page, "b");
   await pa.locator('#details button[data-r="start"]').click();
   await expect(pa.locator("#details.replaying")).toHaveCount(1);
@@ -73,9 +95,9 @@ async ({ page, baseURL }) => {
   await expect(pa.locator("#details .rcount")).toHaveText(/^1 \//);
   await expect.poll(() => lit(page, "a")).not.toBe(l0);
   expect(await lit(page, "b")).toBe(b0);
-  // (the step's lit rows: the host asked to bring them into view)
-  await expect.poll(() => page.evaluate(() => (window as unknown as
-    { scrolled?: number }).scrolled ?? 0)).toBeGreaterThan(0);
+  // (the panel not stuck: no step asks the host to scroll)
+  expect(await page.evaluate(() => (window as unknown as
+    { asked?: number }).asked ?? 0)).toBe(0);
   // (the panel's frame grew to its walkthrough's height)
   const ph = await page.locator("#a .panel").evaluate((f) =>
     f.getBoundingClientRect().height);
@@ -88,6 +110,10 @@ async ({ page, baseURL }) => {
   const p1 = await box(page, "#a .panel");
   expect(Math.abs(p1.top)).toBeLessThan(1);
   if (process.env.SHOT) await page.screenshot({ path: process.env.SHOT });
+  // (stuck: a step's lit rows, the host asked to bring them into view)
+  await pa.locator('#details button[data-r="next"]').click();
+  await expect.poll(() => page.evaluate(() => (window as unknown as
+    { asked?: number }).asked ?? 0)).toBeGreaterThan(0);
   // (past the figure's end: the panel leaves with it)
   await page.evaluate(() => {
     const a = document.querySelector("#a")!.getBoundingClientRect();
@@ -98,3 +124,59 @@ async ({ page, baseURL }) => {
   expect(p2.top).toBeLessThan(0);
   expect(p2.bottom).toBeLessThanOrEqual(f2.bottom + 0.5);
 });
+
+// (▶ under a still pointer: every click a step, the panel stuck or not
+// yet; a step never moves it. ← → in the panel's frame step too; no
+// step moves the focus out of the frame the reader is in)
+for (const stuck of [false, true]) {
+  test(`rapid ▶ clicks at one point, the panel ${stuck ? "stuck" : "in " +
+    "its place"}: each a step; ← → in the panel`, async ({ page, baseURL,
+    browserName }) => {
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await page.goto("./embed.html");
+    await page.setContent(host(baseURL!, "mid"));
+    const pa = page.frameLocator("#a .panel");
+    await expect(pa.locator('#details button[data-r="start"]'))
+      .toBeEnabled();
+    // (the figure drawn, at its height)
+    await expect.poll(() => page.locator("#a .figure").evaluate((f) =>
+      f.getBoundingClientRect().height)).toBeGreaterThan(600);
+    // (the figure's top in view, or above it: the panel stuck)
+    await page.evaluate((dy) => {
+      const a = document.querySelector("#a")!.getBoundingClientRect();
+      scrollTo(0, scrollY + a.top + dy);
+    }, stuck ? 400 : -60);
+    const at = async (q: string) => {
+      const r = (await pa.locator(q).boundingBox())!;
+      return [r.x + r.width / 2, r.y + r.height / 2] as const;
+    };
+    const p0 = await page.locator("#a .panel").evaluate((f) =>
+      f.getBoundingClientRect().top);
+    expect(p0 === 0, `stuck: top ${p0}`).toBe(stuck);
+    const [sx, sy] = await at('#details button[data-r="start"]');
+    await page.mouse.click(sx, sy);
+
+    await expect(pa.locator("#details .rcount")).toHaveText(/^(start|1 \/)/);
+    await expect(pa.locator("#details.replaying")).toHaveCount(1);
+    // (once the details have unfolded)
+    await page.waitForTimeout(400);
+    const [x, y] = await at('#details button[data-r="next"]');
+    const place = () => pa.locator("#details .rcount").textContent();
+    const n0 = parseInt((await place())!) || 0;
+    for (let k = 1; k <= 5; k++) {
+      await page.mouse.click(x, y);
+      await expect(pa.locator("#details .rcount"), `click ${k}`)
+        .toHaveText(new RegExp(`^${n0 + k} /`));
+    }
+    // (the frame the reader clicked keeps the focus)
+    expect(await page.evaluate(() => (document.activeElement as
+      HTMLIFrameElement)?.className)).toBe("panel");
+    for (const [key, d] of [["ArrowRight", 1], ["ArrowRight", 1],
+      ["ArrowLeft", -1]] as const) {
+      const n = parseInt((await place())!);
+      await page.keyboard.press(key);
+      await expect(pa.locator("#details .rcount"), `${key} (${browserName})`)
+        .toHaveText(new RegExp(`^${n + d} /`));
+    }
+  });
+}
