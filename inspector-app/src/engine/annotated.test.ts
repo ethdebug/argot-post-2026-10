@@ -7,12 +7,11 @@ import { decode } from "./decode";
 import { layout } from "./layout";
 import { pointOf } from "./scene";
 import {
-  groupsOf, onChainNames, shortValue, unitsOf, type Part,
+  cellsOf, notesOf, onChainNames, shortValue, unitsOf,
 } from "./annotated";
 import { A, B, C, MOTD, NAME_C, mid } from "../../test/expect";
 import type { ValueNode } from "./types";
 
-const text = (ps: Part[]) => ps.map((p) => p.text).join("");
 const story = new Map(mid);
 
 async function at(id: string) {
@@ -21,60 +20,68 @@ async function at(id: string) {
   return decode(p, p.decodings[id], pt);
 }
 
-describe("the shared moment's labels", () => {
-  it("storage: one label a variable (an entry each), the story's values",
-    async () => {
-      const d = await at("raw-annotated");
-      const names = onChainNames(d);
-      expect(names.get(C.slice(8, -1))).toBe("carol");
-      const l = layout(d, "storage", { rows: "all" });
-      const us = unitsOf(d, l, { names });
-      const labels = us.map((u) => text(u.label[0]));
-      expect(labels).toEqual([
-        "playerList: [alice, bob, carol]",
-        `motd: "${MOTD[0].slice(0, 23)}…"`,
-        "totalScore 140 · totalHits 7",
-        "players[alice]: score 30 · combo 2 · bestCombo 2 …",
-        "players[bob]: score 10 · combo 1 · bestCombo 1 …",
-        "players[carol]: score 100 · combo 0 · bestCombo 4 …"]);
-      // (each number the story's)
-      for (const [p, who] of [[A, "alice"], [B, "bob"], [C, "carol"]]) {
-        const s = labels.find((x) => x.startsWith(`players[${who}]`))!;
-        for (const f of ["score", "combo", "bestCombo"]) {
-          expect(s).toContain(`${f} ${story.get(`${p}.${f}`)}`);
-        }
-      }
-      expect(story.get("totalScore")).toBe("140");
-      expect(story.get("totalHits")).toBe("7");
-      // (two colours in the packed slot; a record's fields each its own)
-      expect([...us[2].colours.values()]).toEqual([1, 2]);
-      expect(new Set(us[5].label[0].map((x) => x.k).filter(Boolean)).size)
-        .toBe(3);
-      // carol's name, in rows of its own: a label of its own, her name
-      const shown = l.rows;
-      const gs = groupsOf(us, l, shown, { d, names });
-      const name = gs.find((g) => !g.main && us[g.unit].id === C)!;
-      expect(text(name.label[0])).toBe(
-        `players[carol].name: "${NAME_C.slice(0, 23)}…"`);
-    });
+describe("the shared moment's popovers", () => {
+  it("storage: a tint a top-level value (a record each), a popover " +
+    "each, the story's values", async () => {
+    const d = await at("raw-annotated");
+    const names = onChainNames(d);
+    expect(names.get(C.slice(8, -1))).toBe("carol");
+    const l = layout(d, "storage", { rows: "all" });
+    const us = unitsOf(d, l);
+    expect(us.map((u) => u.path)).toEqual(["playerList", "motd",
+      "totalScore", "totalHits", A, B, C]);
+    expect(us.map((u) => u.tint)).toEqual([0, 1, 2, 3, 4, 0, 1]);
+    // (a record's slot: every byte its record's, one unit)
+    const cs = cellsOf(us, l, l.rows.find((r) => r.how.endsWith(
+      "slot 3)"))!.address);
+    expect(new Set(cs).size).toBe(1);
+    expect(cs[0]).toBeGreaterThanOrEqual(4);
+    const notes = notesOf(d, l, us, l.rows, { names });
+    const said = notes.map((n) => `${n.how} : ${n.items.map((x) =>
+      x.text).join(" · ")}`);
+    const rec = (p: string, who: string, name: string) =>
+      `players[${who}] : ${["score", "combo", "bestCombo", "plays",
+        "hits"].map((f) => `${f} ${story.get(`${p}.${f}`)}`).join(" · ")
+      } · lastBlock ${{ alice: 6, bob: 7, carol: 12 }[who]} · name ${name}`;
+    expect(said).toEqual([
+      "playerList : alice · bob · carol",
+      `motd : "${MOTD[0].slice(0, 23)}…"`,
+      `slot 2 : totalScore ${story.get("totalScore")} · totalHits ${
+        story.get("totalHits")}`,
+      rec(A, "alice", '"alice"'), rec(B, "bob", '"bob"'),
+      rec(C, "carol", `"${NAME_C.slice(0, 15)}…"`)]);
+    // (carol's: her record's two slots, and her name's two, apart)
+    expect(notes[5].runs.map((r) => r.length)).toEqual([2, 2]);
+  });
 
-  it("the hand-written stack and memory: the moment's call chain, the " +
-    "keccak scratch, the free memory pointer", async () => {
+  it("the hand-written stack: one popover for its run, the moment's " +
+    "call chain", async () => {
     const s = await at("raw-annotated");
     const d = await at("raw-annotated/hand");
-    const names = onChainNames(s);
-    const of = (loc: "stack" | "memory") => {
-      const us = unitsOf(d, layout(d, loc), { names, hand: true });
-      expect(us.every((u) => u.hand)).toBe(true);
-      return us.map((u) => text(u.label[0]));
-    };
-    expect(of("stack")).toEqual(["return → _resetCombo: 0x1420",
-      "return → play: 0x12cc", "return → dispatcher: 0x0496",
-      "selector: 0x93e84cd9"]);
-    expect(of("memory")).toEqual(["keccak input: key carol · slot 3",
-      "free memory pointer: 0xe0",
-      "_rolledHit's encoding: length 64 · prevrandao 0xe94e…3a62 · " +
-      "sender carol"]);
+    const l = layout(d, "stack");
+    const us = unitsOf(d, l);
+    const [n, ...more] = notesOf(d, l, us, l.rows,
+      { names: onChainNames(s), perRun: true });
+    expect(more).toEqual([]);
+    // (abbreviated, the stack shows its values: the names alone)
+    expect(notesOf(d, l, us, l.rows, { names: onChainNames(s),
+      perRun: true, values: false })[0].items[0].text)
+      .toBe("return → _resetCombo");
+    expect(n.how).toBe("stack 0–3");
+    expect(n.items).toEqual([
+      { seg: 0, text: "return → _resetCombo 0x1420" },
+      { seg: 1, text: "return → play 0x12cc" },
+      { seg: 2, text: "return → dispatcher 0x0496" },
+      { seg: 3, text: "selector 0x93e84cd9" }]);
+    // (and memory's, kept for later figures: the keccak scratch, the
+    // free memory pointer)
+    const m = layout(d, "memory");
+    const ms = notesOf(d, m, unitsOf(d, m), m.rows,
+      { names: onChainNames(s), perRun: true });
+    expect(ms.map((n) => n.items.map((x) => x.text))).toEqual([
+      ["keccak input key carol · slot 3", "free memory pointer 0xe0"],
+      ["_rolledHit's encoding length 64 · prevrandao 0xe94e…3a62 · " +
+      "sender carol"]]);
   });
 });
 

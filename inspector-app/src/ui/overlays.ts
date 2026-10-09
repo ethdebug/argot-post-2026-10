@@ -62,7 +62,7 @@ export const lines = (view: ParentNode): El[] => [...view.querySelectorAll<El>(
   ".rows > :not(.run), .rows > .run > *")];
 // A dump's rows (not the pictures of rows in the cards)
 const ROWS = ".rows > .run > .wrow";
-interface Item { text: string; k: string | null; muted: boolean;
+export interface Item { text: string; k: string | null; muted: boolean;
   sep: string; seg?: number; id?: string; free?: boolean;
   // (a note about the bytes, not a value: "(unmapped)", "(anchor slot
   // for playerList)": its prose italic, a name in it as names are; `fixed`:
@@ -73,7 +73,7 @@ type Note = (string | { name: string })[];
 const noteItem = (note: Note, sep: string, o: Partial<Item> = {}): Item =>
   ({ text: note.map((p) => typeof p === "string" ? p : p.name).join(""),
     note, sep, muted: false, free: true, k: null, ...o });
-type Pop = El & { _what?: Item[] };
+export type Pop = El & { _what?: Item[] };
 
 const esc = (s: unknown) => String(s).replace(/[&<>"]/g, (c) =>
   ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]!);
@@ -92,7 +92,9 @@ const all = <T extends Element = El>(e: ParentNode, q: string) =>
 // on the address; near an edge of what clips it (the dump's box, or a
 // box that scrolls), shift the body and keep the arrow where it is. Its
 // width is the browser's (max-content); this caps it to the room.
-function place(pop: El, a: El, beside = false) {
+// (`within`: the room it may take, instead, when its owner says)
+export function place(pop: El, a: El, beside = false,
+  within?: { left: number; right: number }) {
   let clip = { left: 0, right: document.documentElement.clientWidth };
   // (inside the dump's box, short of its right edge)
   const dump = pop.closest(".dump")?.getBoundingClientRect();
@@ -110,6 +112,7 @@ function place(pop: El, a: El, beside = false) {
       break;
     }
   }
+  if (within) clip = within;
   pop.style.maxWidth = `${clip.right - clip.left - 8}px`;
   const at = a.getBoundingClientRect();
   const box = pop.parentElement!.getBoundingClientRect();
@@ -331,7 +334,7 @@ const noteHtml = (note: Note) => note.map((p) => typeof p === "string"
 // The names a popover shows, `keep` of them (indices), in byte order,
 // slot by slot (" / " between slots): a coloured one as a badge, the
 // rest plain; "…" where names or slots were cut
-function whatHtml(items: Item[], keep: number[]) {
+export function whatHtml(items: Item[], keep: number[]) {
   const kept = new Set(keep);
   const segs = [...new Set(items.map((x) => x.seg ?? 0))];
   const cut = '<span class="pcut">…</span>';
@@ -372,7 +375,7 @@ function whatHtml(items: Item[], keep: number[]) {
 // its first and last, then the middle slots. Then the "how" part's
 // addresses; then names from the middle; then none but "…"; then a
 // badge's own addresses.
-function fitWhat(pop: Pop) {
+export function fitWhat(pop: Pop) {
   const items = pop._what;
   const what = pop.querySelector(".pwhat");
   if (!items?.length || !what) return;
