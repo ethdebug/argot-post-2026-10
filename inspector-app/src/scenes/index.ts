@@ -3,14 +3,14 @@
 import { sceneOf, type BuildInfo, type Scene } from "../engine/scene";
 import arcade from "../../scenarios/arcade/builds.json";
 import rawHero from "../../scenes/raw-hero.json";
-import rawAnnotated from "../../scenes/reveal.json";
+import reveal from "../../scenes/reveal.json";
 import rawNamed from "../../scenes/raw-named.json";
 import carolRecord from "../../scenes/pitfall-nesting.json";
 import mid from "../../scenes/mid.json";
 import alice from "../../scenes/alice.json";
 import motd from "../../scenes/motd.json";
 import vyper from "../../scenes/vyper.json";
-import playersWalk from "../../scenes/pointer-walkthrough.json";
+import pointerWalkthrough from "../../scenes/pointer-walkthrough.json";
 import alicePlays from "../../scenes/alice-plays.json";
 import vyperRules from "../../scenes/pitfall-compiler.json";
 import stepperO0 from "../../scenes/stepper-O0.json";
@@ -18,8 +18,8 @@ import stepperO2 from "../../scenes/optimized-locals.json";
 
 // (in Vite, every scene file, the ones authoring adds too, after these;
 // Node, the snapshot build: these)
-const listed = [rawHero, rawAnnotated, rawNamed, carolRecord, mid, alice,
-  motd, vyper, playersWalk, alicePlays, vyperRules, stepperO0, stepperO2]
+const listed = [rawHero, reveal, rawNamed, carolRecord, mid, alice,
+  motd, vyper, pointerWalkthrough, alicePlays, vyperRules, stepperO0, stepperO2]
   .map(sceneOf);
 const files = typeof import.meta.glob === "function"
   ? Object.values(import.meta.glob<unknown>("../../scenes/*.json",

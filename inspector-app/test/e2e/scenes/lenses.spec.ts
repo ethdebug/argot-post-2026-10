@@ -58,8 +58,9 @@ for (const lens of ["alice-plays", "vyper"]) {
   });
 }
 
-test("players-walk: opens at step 0 of players, and walks", async ({ page }) => {
-  await page.goto("./shell.html#lens=players-walk");
+test("pointer-walkthrough: opens at step 0 of players, and walks",
+  async ({ page }) => {
+  await page.goto("./shell.html#lens=pointer-walkthrough");
   const count = page.locator(".rbar .rcount");
   await expect(count).toHaveText("start");
   await expect(page.locator(".view .b.hl")).not.toHaveCount(0);
@@ -93,7 +94,7 @@ const fit = (page: Page) => page.evaluate(() => {
   return { wide, over, gaps };
 });
 
-for (const lens of ["alice-plays", "vyper", "players-walk"]) {
+for (const lens of ["alice-plays", "vyper", "pointer-walkthrough"]) {
   for (const width of [1280, 1440]) {
     test(`${lens} at ${width}: each dump fits its box; each tree as tall `
       + "as its dumps; no sideways scroll", async ({ page }) => {
@@ -102,8 +103,8 @@ for (const lens of ["alice-plays", "vyper", "players-walk"]) {
       const f = await stable(() => fit(page));
       expect(f.wide).toBe(false);
       expect(f.over).toBe(0);
-      // (players-walk has no tree)
-      expect(f.gaps.length).toBe(lens === "players-walk" ? 0
+      // (pointer-walkthrough has no tree)
+      expect(f.gaps.length).toBe(lens === "pointer-walkthrough" ? 0
         : lens === "vyper" ? 2 : 1);
       for (const g of f.gaps) expect(Math.abs(g)).toBeLessThanOrEqual(2);
     });

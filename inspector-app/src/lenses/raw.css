@@ -75,7 +75,7 @@
   font-size: var(--fs-label); font-weight: 600; line-height: 1.45;
   color: var(--muted); overflow-wrap: break-word; }
 
-/* The same figure, annotated in place (lenses/raw.ts rawAnnotated):
+/* The same figure, annotated in place (lenses/raw.ts reveal):
    each value keeps room under one of its runs for its popover
    (ui/notes.ts, in both states), so revealing it moves nothing; laid
    out as the raw figure is */
