@@ -1,0 +1,52 @@
+// The post's figures never move the host's page on their own: from its
+// first ready height, each frame's posted height holds (no input, on a
+// phone and in the blog's wide frame); the walkthrough's panel frame at
+// its tallest from the start, whatever its step
+import { test, expect } from "../../page";
+
+const POST = ["reveal", "pitfall-nesting", "pitfall-compiler",
+  "real-debugger", "pointer-walkthrough", "optimized-locals"];
+
+for (const width of [390, 1024]) {
+  test(`the post's figures at ${width}px: one height from ready on`,
+    async ({ page, baseURL, browserName }) => {
+      test.skip(browserName !== "chromium", "one browser: a timing run");
+      test.setTimeout(180_000);
+      await page.setViewportSize({ width, height: 800 });
+      await page.goto("./embed.html");
+      for (const scene of POST) {
+        const panel = scene === "pointer-walkthrough";
+        await page.evaluate(([b, s, p]) => {
+          (window as never as { log: unknown[] }).log = [];
+          onmessage = (e) => {
+            if (e.data?.type !== "ethdebug:height") return;
+            const f = [...document.querySelectorAll("iframe")].find((x) =>
+              x.contentWindow === e.source);
+            // (a frame of the scene before, gone)
+            if (!f) return;
+            (window as never as { log: unknown[] }).log.push([f.id,
+              e.data.height, !!e.data.ready]);
+          };
+          const ch = p ? "&panel=external&channel=s" : "";
+          document.body.style.margin = "0";
+          document.body.innerHTML = (p ? `<iframe id="p" src="${b}embed-` +
+            `panel.html#scene=${s}&channel=s" style="display:block;` +
+            "width:100%;height:10px;border:0\"></iframe>" : "") +
+            `<iframe id="f" src="${b}embed.html#scene=${s}${ch}" style="` +
+            "display:block;width:100%;height:600px;border:0\"></iframe>";
+        }, [baseURL, scene, panel] as const);
+        await page.waitForTimeout(6000);
+        const log = await page.evaluate(() =>
+          (window as never as { log: [string, number, boolean][] }).log);
+        for (const id of panel ? ["f", "p"] : ["f"]) {
+          const mine = log.filter(([x]) => x === id);
+          const first = mine.findIndex(([, , r]) => r);
+          expect(first, `${scene} ${id}: ready`).toBeGreaterThanOrEqual(0);
+          // (the panel posts nothing before it)
+          if (id === "p") expect(first, `${scene} ${id}`).toBe(0);
+          expect(new Set(mine.slice(first).map(([, h]) => h)).size,
+            `${scene} ${id}: ${mine.map(([, h]) => h).join(" ")}`).toBe(1);
+        }
+      }
+    });
+}

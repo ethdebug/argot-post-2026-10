@@ -107,9 +107,19 @@ const rowPitch = (): { row?: number } => {
   const row = steps.length ? Math.min(...steps) : rows[0].height + gap;
   return { row: Math.round(row * 100) / 100 };
 };
+// (once ready, at one frame width the height never shrinks: a late
+// relayout a pixel or two shorter leaves its room, and the host's page
+// never moves; a new width starts again)
+let tallAt = { width: -1, height: 0 };
 const post = () => {
   if (!ready) return;
+  if (tallAt.width !== innerWidth) {
+    tallAt = { width: innerWidth, height: 0 };
+    root.style.minHeight = "";
+  }
   const m = measure();
+  m.height = tallAt.height = Math.max(tallAt.height, m.height);
+  root.style.minHeight = `${m.height}px`;
   const key = `${m.height}|${m.width}|${m.row}|${m.storageBottom}`;
   if (key === last) return;
   const first = !last;

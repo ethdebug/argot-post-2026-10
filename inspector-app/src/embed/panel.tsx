@@ -15,7 +15,7 @@ import "../style.css";
 import "../ui/code.css";
 import "./embed.css";
 import "./panel.css";
-import { useEffect, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { createRoot } from "react-dom/client";
 import {
   PanelView, type Intent, type PanelModel,
@@ -37,26 +37,72 @@ addEventListener("message", (e) => {
   bc.postMessage({ type: "stuck", stuck });
 });
 
+// Its height: the tallest the panel is at rest and at any step of the
+// walkthrough, at this width (each drawn, unseen, from the figure's
+// `variants`), so the frame never changes height as the reader steps,
+// nor as the panel loads; posted once known ({ ready: true }), then on a
+// change of width only. Until then, nothing: the host keeps the room
+// heights.json says.
 let last = -1;
-// (exactly the panel's border box: nothing below it)
-const ro = new ResizeObserver(() => {
-  const w = root.querySelector(".wpanel") ?? root;
-  const height = w.getBoundingClientRect().height;
-  if (height === last) return;
+let posted = false;
+const post = (height: number) => {
+  if (height === last || height <= 0) return;
   last = height;
-  parent.postMessage({ type: "ethdebug:height", height }, "*");
-});
-ro.observe(root);
-new MutationObserver(() => {
-  const w = root.querySelector(".wpanel");
-  if (w) ro.observe(w);
-}).observe(root, { childList: true });
+  parent.postMessage({ type: "ethdebug:height", height,
+    ...posted ? {} : { ready: true } }, "*");
+  posted = true;
+};
 
 function Panel() {
   const [m, setM] = useState<PanelModel | null>(null);
+  const [vs, setVs] = useState<PanelModel[] | undefined>();
+  const [tall, setTall] = useState(0);
+  const measure = useRef<HTMLDivElement>(null);
+  // (the variants drawn unseen, at this width: the tallest; again when
+  // the width changes, or the fonts come in)
+  useLayoutEffect(() => {
+    const box = measure.current;
+    if (!box) return;
+    const go = () => {
+      // (and the panel shown, should it ever be taller: never cut)
+      const hs = [...box.querySelectorAll(":scope > .wpanel"),
+        ...document.querySelectorAll(".pshown > .wpanel")].map((e) =>
+        Math.ceil(e.scrollHeight));
+      if (hs.length) setTall((t) => Math.max(t, ...hs));
+    };
+    go();
+    void document.fonts?.ready.then(go);
+    // (and as the unseen panels unfold)
+    const ticks = [100, 250, 500, 900].map((t) => setTimeout(go, t));
+    // (a new width: measured again from nothing)
+    let w = innerWidth;
+    const ro = new ResizeObserver(() => setTimeout(() => {
+      if (innerWidth !== w) {
+        w = innerWidth;
+        setTall(0);
+      }
+      go();
+    }));
+    ro.observe(box);
+    ro.observe(root);
+    return () => {
+      ro.disconnect();
+      ticks.forEach(clearTimeout);
+    };
+  }, [vs]);
+  // (posted once it holds still: the steps' details unfold as they are
+  // drawn, by an animation)
+  useEffect(() => {
+    if (!tall) return;
+    const t = setTimeout(() => post(tall), 400);
+    return () => clearTimeout(t);
+  }, [tall]);
   useEffect(() => {
     const h = (e: MessageEvent) => {
-      if (e.data?.type === "model") setM(e.data.model as PanelModel);
+      if (e.data?.type === "model") {
+        setM(e.data.model as PanelModel);
+        if (e.data.variants) setVs(e.data.variants as PanelModel[]);
+      }
     };
     bc.addEventListener("message", h);
     bc.postMessage({ type: "hello" });
@@ -78,6 +124,14 @@ function Panel() {
     addEventListener("keydown", key);
     return () => removeEventListener("keydown", key);
   }, [m]);
-  return m ? <PanelView model={m} act={act} domId="details" /> : null;
+  const none = () => {};
+  return <>
+    {m && <div className="pshown" style={{ minHeight: tall || undefined }}>
+      <PanelView model={m} act={act} domId="details" /></div>}
+    <div ref={measure} className="pmeasure" aria-hidden="true" inert>
+      {vs?.map((v, k) => <PanelView key={k} model={{ ...v, exit: undefined }}
+        act={none} />)}
+    </div>
+  </>;
 }
 createRoot(root).render(<Panel />);

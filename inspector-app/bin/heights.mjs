@@ -2,7 +2,10 @@
 // embed.html at each width a host may give it, its first (ready) height;
 // written as heights.json next to embed.html, { [scene]: { [width]:
 // height } }, so a host reserves the space before the frame loads.
-// Each scene is drawn twice at each width, in fresh pages; two ready
+// Also each scene that opens on a walkthrough (initial.walk), its panel's
+// own frame, as "<scene>#panel" (its tallest height at any step). And
+// the phones' widths too. Each is drawn twice at each width, in fresh
+// pages; two ready
 // heights that differ fail the run, so a height measured too early never
 // enters the manifest.
 // Usage: node bin/heights.mjs [<site>] (default ../_site, as
@@ -10,7 +13,9 @@
 import { chromium } from "playwright";
 import path from "node:path";
 import fs from "node:fs";
-import { WIDTHS, drawn, scenes, serve, siteOf } from "./embeds.mjs";
+import {
+  PHONES, WIDTHS, app, drawn, panelDrawn, scenes, serve, siteOf,
+} from "./embeds.mjs";
 
 export { WIDTHS };
 const site = siteOf(process.argv[2]);
@@ -20,12 +25,25 @@ const browser = await chromium.launch();
 const out = {};
 for (const scene of scenes()) {
   out[scene] = {};
-  for (const width of WIDTHS) {
+  const walks = !!JSON.parse(fs.readFileSync(path.join(app, "scenes",
+    `${scene}.json`), "utf8")).initial?.walk;
+  const panel = {};
+  for (const width of [...PHONES, ...WIDTHS]) {
     const hs = [];
     for (let k = 0; k < 2; k++) {
       const { page, height } = await drawn(browser, base, scene, width);
       hs.push(height);
       await page.close();
+    }
+    if (walks) {
+      const ps = [await panelDrawn(browser, base, scene, width),
+        await panelDrawn(browser, base, scene, width)];
+      if (ps[0] !== ps[1] || ps[0] === null) {
+        console.error(`heights: ${scene}'s panel at ${width}px drew ` +
+          ps.join(" then "));
+        process.exit(1);
+      }
+      panel[width] = ps[0];
     }
     if (hs[0] !== hs[1]) {
       console.error(`heights: ${scene} at ${width}px drew ${hs.join(" then ")}`);
@@ -33,7 +51,9 @@ for (const scene of scenes()) {
     }
     out[scene][width] = hs[0];
   }
-  console.log(scene, JSON.stringify(out[scene]));
+  if (walks) out[`${scene}#panel`] = panel;
+  console.log(scene, JSON.stringify(out[scene]), walks
+    ? JSON.stringify(panel) : "");
 }
 await browser.close();
 close();
