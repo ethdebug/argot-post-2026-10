@@ -45,6 +45,8 @@ export interface Cx {
   whoShort(inst: string): string; keyOf(inst: string): Hex | undefined;
   // (a path with its keys by name: players["alice"].score)
   pathName(p: string): string;
+  // (a key as a value: 0x7099…79c8 ("alice"); `named` false: the key)
+  keyText(inst: string, named?: boolean): string;
   // (a template's inputs for an instance, by the template's type kind)
   inputs: Map<string, Record<string, { hex: Hex }>>;
   kindOf(n?: ValueNode): string | undefined; tn(id: string): string;

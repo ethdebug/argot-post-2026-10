@@ -67,9 +67,10 @@ it("players: step 0, then ten steps, one a rule (a template entered "
   const input = formText(w.steps[1].form);
   for (const x of ['"alice" (0x7099…79c8)→[0]', '"bob" (0x3c44…93bc)→[1]',
     `${CAROL} (0x90f7…b906)→[2]`]) expect(input).toContain(x);
-  // (one spelling of a hash: keccak("alice", slot 3))
+  // (one spelling of a hash: keccak(<the key>, slot 3); the key is the
+  // address, its name only its row's label)
   const rec = formText(w.steps[4].form);
-  expect(rec).toContain('"alice"→keccak("alice", slot 3) = …aa80');
+  expect(rec).toContain('"alice"→keccak(0x7099…79c8, slot 3) = …aa80');
   // (with one record, the step says what the hash takes)
   const one = walkthrough(await at(), C)!.steps.find((s) =>
     s.chipLabel === "record")!;
@@ -288,8 +289,10 @@ it("a step's variables, as the focus has them, for its band's lines "
   const w = walkthrough(await at(), C)!;
   const map = w.steps.find((s) => s.phase === "template")!;
   const rec = w.steps.find((s) => s.chipLabel === "record")!;
-  expect(map.notes?.values).toEqual({ slot: "3", key: CAROL });
-  expect(rec.notes?.values).toEqual({ key: CAROL, slot: "3" });
+  // (the key, the address; its name beside it)
+  const key = `0x90f7…b906 (${CAROL})`;
+  expect(map.notes?.values).toEqual({ slot: "3", key });
+  expect(rec.notes?.values).toEqual({ key, slot: "3" });
 });
 
 it("one side of a pair: step 0 names the side it walks (the review's T7)",
