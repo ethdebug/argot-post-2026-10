@@ -1459,6 +1459,12 @@ main:not([data-lens]) #rawscene { display: none; }
   --fs-caption: max(13px, calc(var(--cell-fs, 14px) * 1.1));
   --fs-tiny: max(9px, calc(var(--cell-fs, 14px) * 0.65));
 }
+/* (the page's views in its own chrome, over the dump columns: the
+   contract's summary and the timeline's line, at the chrome's fixed
+   sizes, as the page's static copies of them are drawn before the lens
+   fits its cell: nothing moves when the lens takes their place) */
+#contract-box > summary { font-size: 14px; }
+#timeline .tline { font-size: 11.9px; }
 /* The tree: a companion to its dump, at its cell size; rows in its
    units */
 :is(#tree, #mtree, #ctree, .tree) { font-size: var(--fs-cell); }

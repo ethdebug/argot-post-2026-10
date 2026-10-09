@@ -57,6 +57,12 @@ export function TimelineBar(p: { id: ViewId; domId?: string }) {
   const m = s && ks[i] !== undefined ? s.moment(ks[i]) : undefined;
   const line = m ? lineOf(m, s!.txs[m.tx]?.label ?? "") : "";
   const one = n < 2 || sc?.controls === "none";
+  // (its run still loading: its line's room kept, as the page's static
+  // line keeps it, so nothing moves when the line comes)
+  if (one && !s && sceneId) {
+    return <div id={p.domId} className="tbar one" data-view={view}>
+      <p className="tline" aria-hidden="true">{"\u00a0"}</p></div>;
+  }
   if (one && !m?.label) {
     return <div id={p.domId} className="tbar empty" data-view={view} />;
   }

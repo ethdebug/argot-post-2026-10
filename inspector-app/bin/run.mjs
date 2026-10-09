@@ -126,11 +126,23 @@ async function slowLink(browser) {
       out.push(`console: ${m.text()}`);
     }
   });
+  // (each shift, with what moved: its elements, by tag, id and class,
+  // and where they were and went; printed with a failure)
   await p.addInitScript(() => {
     window.shifts = 0;
+    window.moved = [];
+    const name = (n) => !n || !n.tagName ? String(n?.nodeName ?? "?")
+      : `${n.tagName.toLowerCase()}${n.id ? `#${n.id}` : ""}${
+        typeof n.className === "string" && n.className
+          ? `.${n.className.trim().split(/\s+/).join(".")}` : ""}`;
+    const at = (r) => `${Math.round(r.y)}+${Math.round(r.height)}`;
     new PerformanceObserver((l) => {
       for (const e of l.getEntries()) {
-        if (!e.hadRecentInput) window.shifts += e.value;
+        if (e.hadRecentInput) continue;
+        window.shifts += e.value;
+        window.moved.push(`${e.value.toFixed(4)} at ${Math.round(
+          e.startTime)} ms: ${e.sources.map((s) => `${name(s.node)} ${
+          at(s.previousRect)} → ${at(s.currentRect)}`).join("; ")}`);
       }
     }).observe({ type: "layout-shift", buffered: true });
   });
@@ -174,7 +186,10 @@ async function slowLink(browser) {
   { timeout: 30000 }).catch(() => out.push("no prefetch"));
   await p.waitForFunction(() => window.memResults?.done);
   const shifts = await p.evaluate(() => window.shifts);
-  if (shifts > 0.01) out.push(`layout shift ${shifts.toFixed(3)}`);
+  if (shifts > 0.01) {
+    out.push(`layout shift ${shifts.toFixed(3)}: ${(await p.evaluate(() =>
+      window.moved)).join(" | ")}`);
+  }
   // a prefetched scene shows at once
   const t1 = Date.now();
   await p.locator('#picker button[data-id="vyper"]').click();
