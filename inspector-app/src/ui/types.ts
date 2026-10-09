@@ -139,6 +139,9 @@ export interface LensSpec {     // a composition for one post section
   grid: string;                 // CSS grid-template-areas
   // (or "", and a class whose CSS lays the areas out, at every width)
   layout?: string;
+  // how many columns it lays out side by side on a wide page (a host
+  // sizes its figure by it); default: the most areas in a grid row
+  columns?: 1 | 2;
   views: ViewSpec[];
   links: LinkId[];
   initial?: Partial<LensState>; // incl. a started walkthrough

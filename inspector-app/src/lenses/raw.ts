@@ -33,6 +33,7 @@ export const MOMENT = "while carol joins: her name is being saved, " +
   "half-written";
 export const rawLens = (o: { moment?: string | false } = {}): LensSpec => ({
   ...base, id: "raw-hero", title: "Raw bytes", layout: "raw raw-hero",
+  columns: 2,
   views: [dump2("storage", "Storage", "wide"),
     dump2("stack", "Stack", "narrow", { abbreviate: 2 }),
     ...o.moment === false ? [] : [{ id: "moment", kind: "moment" as const,

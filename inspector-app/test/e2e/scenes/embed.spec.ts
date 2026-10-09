@@ -15,6 +15,7 @@ for (const width of [1024, 390]) {
         if (e.data?.type !== "ethdebug:height") return;
         document.getElementById("f").style.height = e.data.height + "px";
         window.heights = [...(window.heights ?? []), e.data.height];
+        window.columns = e.data.columns;
       });</script></body>`);
     const frame = page.frameLocator("#f");
     await expect(frame.locator(".view .wrow[data-slot]").first())
@@ -24,6 +25,9 @@ for (const width of [1024, 390]) {
       "#contract", "footer", ".shellbar"]) {
       await expect(frame.locator(q)).toHaveCount(0);
     }
+    // (its columns: the raw lens lays out two, side by side)
+    await expect.poll(() => page.evaluate(() =>
+      (window as unknown as { columns?: number }).columns)).toBe(2);
     await expect(frame.locator(".moment")).toHaveText(
       "while carol joins: her name is being saved, half-written");
     // (the frame as tall as its content, by the last height it posted)
@@ -119,3 +123,29 @@ test("embed.html#scene=raw-named: the slots carol's join wrote that no " +
   expect(ink).not.toBe("rgba(0, 0, 0, 0)");
   await expect(row.locator(".b.hl")).toHaveCount(0);
 });
+
+// The columns each post scene lays out (the host's figure width)
+for (const [id, n] of [["raw-hero", 2], ["mid", 2], ["vyper", 2],
+  ["players-walk", 1], ["bug-O2", 2]] as const) {
+  test(`embed.html#scene=${id} posts columns: ${n}`, async ({ page }) => {
+    const cols: number[] = [];
+    await page.exposeFunction("postedCols", (c: number) => cols.push(c));
+    await page.addInitScript(() => {
+      window.parent.postMessage = (m: { columns: number }) =>
+        (window as unknown as { postedCols(c: number): void })
+          .postedCols(m.columns);
+    });
+    await page.goto(`./embed.html#scene=${id}`);
+    await expect.poll(() => cols.at(-1), { timeout: 20_000 }).toBe(n);
+  });
+}
+
+test("players-walk at 680px: one column, nothing past its edge",
+  async ({ page }) => {
+    await page.setViewportSize({ width: 680, height: 900 });
+    await page.goto("./embed.html#scene=players-walk");
+    await expect(page.locator(".view:not([hidden])").first())
+      .toBeVisible({ timeout: 20_000 });
+    expect(await page.evaluate(() => document.documentElement.scrollWidth))
+      .toBe(680);
+  });
