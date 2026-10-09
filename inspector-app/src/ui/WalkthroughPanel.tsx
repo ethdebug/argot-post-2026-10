@@ -254,6 +254,28 @@ export function WalkthroughPanel(p: { id: ViewId; data: DataRef;
     const top = walk ? `${scrollerOf(u).pad}px` : "";
     if (u.style.top !== top) u.style.top = top;
   }, [!!walk]);
+  // (and its section's dump headers stick under it, never under it: its
+  // place and height, and the headers' own, as the section's variables,
+  // as they change; the CSS reads them)
+  useEffect(() => {
+    const u = unit.current;
+    const zone = u?.closest<HTMLElement>(".walkzone");
+    if (!u || !zone || !walk) return;
+    const put = (k: string, v: string) => {
+      if (zone.style.getPropertyValue(k) !== v) zone.style.setProperty(k, v);
+    };
+    const head = zone.querySelector<HTMLElement>(".words > h2");
+    const measure = () => {
+      put("--walk-top", `${scrollerOf(u).pad}px`);
+      put("--walk-h", `${u.offsetHeight}px`);
+      if (head) put("--walk-head", `${head.offsetHeight}px`);
+    };
+    measure();
+    const ro = new ResizeObserver(measure);
+    ro.observe(u);
+    if (head) ro.observe(head);
+    return () => ro.disconnect();
+  }, [!!walk]);
   const exit = async () => {
     if (!walk || unfolding) return;
     await fold(false);

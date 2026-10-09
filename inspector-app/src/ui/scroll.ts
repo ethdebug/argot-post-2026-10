@@ -35,12 +35,19 @@ export function viewOf(s: Scroller): { top: number; bottom: number } {
     bottom: r.top + s.box.clientTop + s.box.clientHeight };
 }
 
+// what sticks at the top during a walkthrough, in the order it stacks:
+// the panel, then its section's dump headers under it (style.css)
+const STUCK = ".wpanel.walking, .walkzone .words > h2, .walkzone .words " +
+  ".relrow";
+
 // The part of the container in view for `el`: below a walkthrough panel
-// that is stuck at its top (the panels of `el`'s own scroll container)
+// that is stuck at its top, and the headers stuck under it (`el`'s own
+// scroll container's)
 export function viewUnder(el: Element): { top: number; bottom: number } {
   const s = scrollerOf(el);
   const v = viewOf(s);
-  for (const p of s.box.querySelectorAll(".wpanel.walking")) {
+  for (const p of s.box.querySelectorAll(STUCK)) {
+    if (getComputedStyle(p).position !== "sticky") continue;
     const r = p.getBoundingClientRect();
     if (r.height && r.top <= v.top + 1 && r.bottom > v.top) {
       v.top = Math.max(v.top, r.bottom);

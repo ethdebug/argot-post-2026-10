@@ -211,3 +211,71 @@ for (const [w, h] of [[1440, 900], [390, 844]]) {
     }
   });
 }
+
+// (the dump's header and its Rows toggle stick under the panel: never
+// under it, at any step or scroll while the dump shows, and still
+// clickable; they leave with the dump, at the section's end)
+for (const [w, h] of [[1440, 900], [390, 844]]) {
+  test(`${w}px: the Rows toggle stays clear of the panel and clickable`,
+    async ({ page }) => {
+      await at(page, w, h);
+      await select(page, "mid", `${C}.score`);
+      await page.locator('#details button[data-r="start"]').click();
+      const boxes = async () => {
+        await settled(page);
+        return page.evaluate(() => Object.fromEntries([["p",
+          ".wpanel.walking"], ["r", "#related"], ["d", "#dump"]].map(
+          ([k, q]) => {
+            const b = document.querySelector(q)!.getBoundingClientRect();
+            return [k, { top: b.top, bottom: b.bottom }];
+          })));
+      };
+      const clear = async (what: string) => {
+        const { p, r } = await boxes();
+        expect(r.top, `${what}: under the panel`)
+          .toBeGreaterThanOrEqual(p.bottom - 0.5);
+        expect(r.bottom, `${what}: in view`).toBeLessThan(h);
+        await page.locator('#related button[role="radio"]').last()
+          .click({ trial: true, timeout: 2000 });
+      };
+      for (let k = 0; k < 20; k++) {
+        await clear(`step ${k}`);
+        const n = page.locator('#details button[data-r="next"]');
+        if (await n.isDisabled()) break;
+        await n.click();
+      }
+      // (scrolled on: a little; then until the dump's last 60px show
+      // under the toggle)
+      await page.mouse.wheel(0, 300);
+      await clear("scrolled 300");
+      const b = await boxes();
+      await page.mouse.wheel(0, b.d.bottom - b.r.bottom - 60);
+      await clear("the dump's end");
+      // (past it: the toggle leaves with its dump)
+      await page.mouse.wheel(0, 400);
+      const e = await boxes();
+      expect(e.r.bottom).toBeLessThanOrEqual(e.d.bottom + 12);
+    });
+}
+
+// (and the memory section's: its Rows toggle under its own panel)
+test("memory: the Rows toggle stays clear of the panel and clickable",
+  async ({ page }) => {
+    await ready(page, { hash: "#mopt=0&mpt=mult&msel=combo", width: 1440,
+      memory: true });
+    await page.locator('#mdetails button[data-r="start"]').click();
+    for (let k = 0; k < 10; k++) {
+      await settled(page);
+      const [p, r] = await page.evaluate(() => ["#memory .wpanel.walking",
+        "#mrelated"].map((q) => {
+        const b = document.querySelector(q)!.getBoundingClientRect();
+        return { top: b.top, bottom: b.bottom };
+      }));
+      expect(r.top, `step ${k}`).toBeGreaterThanOrEqual(p.bottom - 0.5);
+      await page.locator('#mrelated button[role="radio"]').last()
+        .click({ trial: true, timeout: 2000 });
+      const n = page.locator('#mdetails button[data-r="next"]');
+      if (await n.isDisabled()) break;
+      await n.click();
+    }
+  });
