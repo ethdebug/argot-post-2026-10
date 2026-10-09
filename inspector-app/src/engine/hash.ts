@@ -1,7 +1,7 @@
 // A lens's view in the URL hash (vanilla panel.js setHash, main.js keep
 // and main): its scene and selection, as the legacy keys ex and sel
-// (with the lens's prefix); and the related view, rel (its context rows:
-// "0", "1"; none: off). Other keys (another lens's: mopt, mpt, msel) are
+// (with the lens's prefix); and the related view, rel ("1"; "0", an old
+// link's, on too; none: off). Other keys (another lens's: mopt, mpt, msel) are
 // not this lens's; the old Before | After and "show other state" keys
 // (mode, insets) are read as nothing.
 import type { Bookmark, Path } from "./types";
@@ -54,7 +54,7 @@ export function fromHash(lens: HashLens, h: URLSearchParams,
   const k = keys(lens);
   const ids = lens.bookmarks ?? [];
   const rel = h.get(k.rel);
-  const related = rel === "0" || rel === "1" ? { related: +rel } : {};
+  const related = rel === "0" || rel === "1" ? { related: 1 } : {};
   const asked = ids.includes(h.get(k.ex) ?? "") ? h.get(k.ex)! : undefined;
   const bm = bookmarks.find((b) => b.id === (asked ?? first(lens)));
   return {

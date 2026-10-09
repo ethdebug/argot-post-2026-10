@@ -3,7 +3,7 @@
 // view, LensState.related), and how many rows around each related one.
 import { useContext } from "react";
 import { OtherScenes, useLens, useLensState, useLink } from "./hooks";
-import type { ViewId } from "./types";
+import { RELATED_CONTEXT, type ViewId } from "./types";
 
 export function Picker(p: { id: ViewId;
   of: "bookmarks" | "related";
@@ -45,9 +45,9 @@ export function Picker(p: { id: ViewId;
   return null;
 }
 
-// All | Related, and "± 1 row" (a related row's neighbours too). Every
-// part keeps its place: the context box is there, muted, with All; the
-// hint is there, hidden, while something is selected.
+// All | Related (the related rows, a row around each: RELATED_CONTEXT).
+// Every part keeps its place: the hint is there, hidden, while something
+// is selected.
 function Related(p: { id: ViewId; domId?: string; link?: string }) {
   const lens = useLens();
   const { store } = lens;
@@ -65,13 +65,8 @@ function Related(p: { id: ViewId; domId?: string; link?: string }) {
         <button key={k} role="radio" data-rows={k}
           aria-checked={(k === "related") === on ? "true" : "false"}
           onClick={() => set(k === "all" ? undefined
-            : { context: related?.context ?? 0 })}>{t}</button>)}
+            : { context: RELATED_CONTEXT })}>{t}</button>)}
     </div>
-    <label className={`chipcheck${on ? "" : " off"}`}>
-      <input type="checkbox" data-context checked={!!related?.context}
-        disabled={!on}
-        onChange={(e) => set({ context: e.target.checked ? 1 : 0 })} />
-      ± 1 row</label>
     <span className="muted small relhint" aria-live="polite"
       style={{ visibility: on && !link.selection ? "visible" : "hidden" }}>
       select a value</span>

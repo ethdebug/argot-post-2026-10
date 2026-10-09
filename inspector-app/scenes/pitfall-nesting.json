@@ -1,6 +1,6 @@
 {
   "id": "pitfall-nesting",
-  "title": "Carol's record",
+  "title": "Alice's record",
   "run": {
     "scenario": "arcade",
     "build": "sol"
@@ -15,7 +15,8 @@
   ],
   "controls": "none",
   "initial": {
-    "select": "players[0x90f79bf6eb2c4f870365e785982e1f101e93b906]",
-    "related": 0
+    "select": "players[0x70997970c51812dc3a010c7d01b50e0d17dc79c8]",
+    "related": true,
+    "walkthrough": false
   }
 }
