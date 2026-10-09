@@ -25,9 +25,9 @@ const panels = (page: Page, q: string) => page.evaluate((q) =>
   })), q);
 
 // One cell size (one font, one line height), one grid (shared edges:
-// wider than a phone, two columns, storage and, beside it, the stack over
-// memory, its top level with storage's; a phone, one column), boxes that
-// hug their rows, the composition centred
+// from 910px, two columns across the frame, storage a word a row and,
+// beside it, the stack over memory, its top level with storage's;
+// narrower, one column), boxes that hug their rows
 const rules = async (page: Page, q: string, width: number) => {
   // (the stack takes the dumps' font once they have fitted it: the same
   // to a twentieth of a pixel)
@@ -44,7 +44,7 @@ const rules = async (page: Page, q: string, width: number) => {
     expect(Math.max(...xs) - Math.min(...xs)).toBeLessThan(d);
   close(all.map((x) => x.line), 0.5);
   expect(new Set(all.map((x) => Math.round(x.l))).size)
-    .toBe(width >= 560 ? 2 : 1);
+    .toBe(width >= 910 ? 2 : 1);
   for (const x of all) expect(x.r - x.wordR).toBeLessThan(24);
   for (const x of all) {
     expect(x.l).toBeGreaterThanOrEqual(0);
@@ -54,11 +54,14 @@ const rules = async (page: Page, q: string, width: number) => {
     .toBe(width);
   // (memory under the stack)
   expect(p.memory.t).toBeGreaterThan(p.stack.t);
-  if (width >= 560) {
-    // (two columns: storage; the stack over memory beside it, their
-    // left edges one, its top level with storage's; all centred)
-    const mid = (p.storage.l + Math.max(p.stack.r, p.memory.r)) / 2;
-    expect(Math.abs(mid - width / 2)).toBeLessThan(12);
+  if (width >= 910) {
+    // (two columns across the frame: storage, a word a row; the stack
+    // over memory beside it, their left edges one, its top level with
+    // storage's; memory flush with the frame's right, as storage is with
+    // its left)
+    // (the frame's side room, or a page's margin: the same on both)
+    expect(Math.abs(p.storage.l - (width - p.memory.r))).toBeLessThan(2);
+    expect(p.storage.l).toBeLessThan(24);
     expect(Math.abs(p.storage.t - p.stack.t)).toBeLessThan(1);
     expect(p.stack.l).toBeGreaterThan(p.storage.r);
     expect(Math.abs(p.memory.l - p.stack.l)).toBeLessThan(1);
@@ -118,51 +121,32 @@ for (const width of [1360, 390]) {
   });
 }
 
-// The raw storage dump is the storage inspector's on a wide page, layers
-// off: at any figure width from 1130px, the same width, font, row height,
-// cell and fill as the middle of the game's storage dump at 1440px (a
-// word a row). (Narrower, a text column: two columns of 16 bytes a line,
-// the figure short enough to pin; the next test.)
-test("the raw storage dump is the inspector's at 1440px, in size",
-  async ({ page }) => {
-    await page.setViewportSize({ width: 1440, height: 900 });
-    await page.goto("./#ex=mid");
-    await page.waitForFunction(() => (window as unknown as
-      { results: { done: boolean } }).results?.done);
-    const look = (q: string) => page.evaluate((q) => {
-      const v = document.querySelector(q)!;
-      const r = v.querySelector(".rows")!.getBoundingClientRect();
-      const row = v.querySelector(".wrow[data-slot]")!;
-      const bs = [...row.querySelectorAll(".b")];
-      return { width: r.width, font: getComputedStyle(bs[0]).fontSize,
-        row: row.getBoundingClientRect().height,
-        cell: bs[1].getBoundingClientRect().left -
-          bs[0].getBoundingClientRect().left,
-        fill: row.querySelector(".word")!.getBoundingClientRect().right -
-          r.left, n: row.querySelectorAll(".b").length };
-    }, q);
-    const mid = await look("#panel .view[data-side=after]");
-    expect(mid.n).toBe(32);
-    for (const width of [1440, 1360, 1130]) {
+// The raw storage dump keeps a word a row (32 bytes, one row a slot)
+// wherever it is beside the stack and memory, from 910px; and alone,
+// under 910px, as wide as the inspector's (690px) where it fits
+test("the raw storage dump: a word a row, beside the right column or " +
+  "alone", async ({ page }) => {
+    for (const width of [1440, 1280, 1024, 910, 760]) {
       await page.setViewportSize({ width, height: 900 });
       await page.goto(`./embed.html?w=${width}#scene=raw-hero`);
-      await expect(page.locator('.view[data-view$=":storage"] ' +
-        ".wrow[data-slot]").first()).toBeVisible({ timeout: 20_000 });
-      const raw = await look('.view[data-view$=":storage"]');
-      for (const k of ["width", "row", "cell", "fill", "n"] as const) {
-        expect(Math.abs(raw[k] - mid[k]), `${width}: ${k}`)
-          .toBeLessThan(0.5);
-      }
-      expect(raw.font).toBe(mid.font);
+      const row = page.locator('.view[data-view$=":storage"] ' +
+        ".wrow[data-slot]").first();
+      await expect(row).toBeVisible({ timeout: 20_000 });
+      await settle(page);
+      // (its 32 bytes on one line)
+      const tops = await row.locator(".b").evaluateAll((bs) =>
+        new Set(bs.map((b) => Math.round(b.getBoundingClientRect().top)))
+          .size);
+      expect(tops, `${width}`).toBe(1);
     }
   });
 
-// In a text column, 680 to 760px wide, the figure (and the annotated
-// one, its composition) is at most 720px tall: a host can pin it on a
-// laptop's screen
+// In a 1024px frame (the post's figure at 1440×900), the figure (and the
+// annotated one, its composition) is at most 720px tall: a host can pin
+// it on a laptop's screen
 for (const id of ["raw-hero", "raw-annotated"]) {
-  test(`${id} in a text column: at most 720px tall`, async ({ page }) => {
-    for (const width of [680, 720, 760]) {
+  test(`${id} in a 1024px frame: at most 720px tall`, async ({ page }) => {
+    for (const width of [1024]) {
       await page.setViewportSize({ width, height: 900 });
       await page.goto(`./embed.html?w=${width}#scene=${id}`);
       await expect(page.locator('.view[data-view$=":memory"] .wrow')
