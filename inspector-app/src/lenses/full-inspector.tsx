@@ -38,6 +38,8 @@ export const fullInspector: LensSpec = {
       domId: "tree", data: NOW, compare: BEFORE },
   ],
   hash: { prefix: "", legacy: true },
+  // (its grid's class: the embed lays its columns out by it, embed.css)
+  layout: "inspector",
   wrap: { dump: panel("panel", "storage") },
   // (the grid cells: vanilla's dump box and tree box)
   areas: { dump: "dump", tree: "treebox" },
