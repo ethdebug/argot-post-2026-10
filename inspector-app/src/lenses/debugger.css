@@ -20,15 +20,23 @@
    nothing beside it moves) */
 .lens.dbg { --stack-w: 9.5em; }
 .lens.dbg [data-area="narrow"] { width: var(--stack-w); }
-@media (min-width: 660px) {
-  /* (two columns: the dumps; the code, the variables and the stack under
-     them, so no column stands empty beside a long one) */
+@media (min-width: 660px) and (max-width: 1199px) {
+  /* (two columns: the dumps; the stack, then the code and the variables
+     under it, so no column stands empty beside a long one. The stack
+     first, its place reserved for its greatest depth over the
+     transaction (--stack-rows, a row --stack-row tall, ui/Moves.tsx):
+     nothing under it moves as
+     the locals or the depth change) */
   .lens.dbg { grid-template-columns: calc((100% - 28px) / 2)
     minmax(0, 1fr); grid-template-rows: auto auto 1fr;
-    grid-template-areas: "moves moves" "wide side" "wide narrow"; }
+    grid-template-areas: "moves moves" "wide narrow" "wide side"; }
+  .lens.dbg [data-area="narrow"] .rows { min-height: calc(
+    var(--stack-rows, 0) * var(--stack-row, 1.85em)); }
 }
 @media (min-width: 1200px) {
-  .lens.dbg { grid-template-columns: calc((100% - 56px) * 0.5)
+  /* (the dumps' column the inspector's: half the width less its gap;
+     the stack and the code and variables share the other half) */
+  .lens.dbg { grid-template-columns: calc((100% - 28px) / 2)
     var(--stack-w) minmax(0, 1fr); grid-template-rows: auto auto;
     grid-template-areas: "moves moves moves" "wide narrow side"; }
 }

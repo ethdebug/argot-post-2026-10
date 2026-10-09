@@ -80,7 +80,9 @@ function shower(store: Store<LensState>, spec: LensSpec, project: Project,
       links: Object.fromEntries(spec.links.map((l) => [l,
         { selection: Object.values(spec.scopes ?? {}).includes(l) ? null
           : selection, hover: null,
-          walk: selection && bm.walk ? { ...bm.walk } : null }])) }));
+          walk: !selection ? null : view?.walk ? { ...view.walk,
+            busy: undefined, exit: undefined }
+            : bm.walk ? { ...bm.walk } : null }])) }));
     return true;
   };
   return show;
@@ -266,12 +268,13 @@ export function Lens(props: { spec: LensSpec; project: Project;
         return clear(!f || f === document.body ? pressedScope : scopeOf(f));
       }
       // in a walkthrough: ← → Home End step, from anywhere in the lens
-      // but a text field
+      // but a text field (or the debugger's moves, focused: theirs)
       const moves: Record<string, (k: number, n: number) => number> = {
         ArrowLeft: (k) => k - 1, ArrowRight: (k) => k + 1,
         Home: () => 0, End: (_, n) => n - 1 };
       const move = moves[e.key];
-      if (!move || (e.target as Element).closest?.("input, textarea, select")
+      if (!move || (e.target as Element).closest?.(
+        "input, textarea, select, .moves")
         || !Object.values(store.get().links).some((l) => l.walk)) return;
       e.preventDefault();
       if (Object.values(store.get().links).some((l) => l.walk?.busy)) return;

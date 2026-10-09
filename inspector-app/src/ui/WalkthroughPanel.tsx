@@ -270,24 +270,31 @@ export function useWalkModel(p: { id: ViewId; data: DataRef;
   }, [walk, w, setLink]);
 
   // re-targeting: a new selection during a walkthrough keeps it, and its
-  // place (the steps aligned by identity); a cue when the place moved
-  const last = useRef<{ sel: string; steps: Step[]; at: number } | null>(
-    null);
+  // place (the steps aligned by identity); a cue when the place moved.
+  // (The same selection at another moment, the debugger's move: its
+  // place kept the same way; a cue only if it moved)
+  const last = useRef<{ sel: string; steps: Step[]; at: number;
+    point?: string } | null>(null);
   const [cue, setCue] = useState<{ text: string; n: number } | null>(null);
   useEffect(() => {
     const was = last.current;
-    if (walk && w && was && was.sel !== sel && sel) {
+    const point = d?.point;
+    if (walk && w && was && sel && (was.sel !== sel ||
+      (was.point !== point && was.steps !== w.steps))) {
       const r = retarget(was.steps, was.at, w.steps);
-      last.current = { sel, steps: w.steps, at: r.at };
+      last.current = { sel, steps: w.steps, at: r.at, point };
       setLink((s) => s.walk ? { ...s, walk: { step: r.at,
         n: w.steps.length } } : s);
       // (on any change of target: what it walks now, and where)
-      setCue((x) => ({ text: `now: ${w.name}, ${placeOf(w.steps, r.at)}`,
-        n: (x?.n ?? 0) + 1 }));
+      if (was.sel !== sel || r.at !== was.at) {
+        setCue((x) => ({ text: `now: ${w.name}, ${placeOf(w.steps,
+          r.at)}`, n: (x?.n ?? 0) + 1 }));
+      }
       return;
     }
-    last.current = walk && w && sel ? { sel, steps: w.steps, at: i } : null;
-  }, [walk, w, sel, i, setLink]);
+    last.current = walk && w && sel ? { sel, steps: w.steps, at: i, point }
+      : null;
+  }, [walk, w, sel, i, setLink, d?.point]);
   useEffect(() => {
     if (!cue) return;
     const t = setTimeout(() => setCue(null), 1800);

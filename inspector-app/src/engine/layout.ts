@@ -39,22 +39,55 @@ export function slotNames(graphs: Iterable<DerefGraph>,
       .filter((u) => u.value !== undefined && toBig(u.value) <= v &&
         v - toBig(u.value) < PLAIN)
       .sort((a, b) => Number(toBig(b.value!) - toBig(a.value!)))[0];
+    // an expression's name, by its bindings: an input's value, a slot's
+    // name, keccak(…) of its arguments, "… + n" (bugc writes these in
+    // its regions and its keccaks' arguments: ~wordsized, ~sum)
+    const exprName = (x: unknown, i: Instance): string | undefined => {
+      if (typeof x === "number") return nameOf(BigInt(x));
+      if (typeof x === "string") {
+        const h = i.bindings[x];
+        if (!h) return undefined;
+        const n = toBig(h);
+        return inputs.has(x) ? (n < PLAIN ? String(n) : short(h))
+          : nameOf(n);
+      }
+      const o = x as Record<string, unknown> | null;
+      if (!o || typeof o !== "object") return undefined;
+      if ("~wordsized" in o) return exprName(o["~wordsized"], i);
+      if (Array.isArray(o["~keccak256"])) {
+        const args = (o["~keccak256"] as unknown[]).map((y) =>
+          exprName(y, i));
+        return args.every((y) => y !== undefined)
+          ? `keccak(${args.join(", ")})` : undefined;
+      }
+      if (Array.isArray(o["~sum"]) && o["~sum"].length === 2) {
+        const [p, q] = o["~sum"] as unknown[];
+        const small = (y: unknown) => typeof y === "number" ? BigInt(y)
+          : typeof y === "string" && i.bindings[y] &&
+            toBig(i.bindings[y]) < PLAIN ? toBig(i.bindings[y]) : undefined;
+        const [a, k] = small(q) !== undefined ? [p, small(q)!]
+          : small(p) !== undefined ? [q, small(p)!] : [undefined, 0n];
+        const n = a === undefined ? undefined : exprName(a, i);
+        return n && plus(n, k);
+      }
+      return undefined;
+    };
     for (const i of all.sort((a, b) => seq(a) - seq(b))) {
       const v = i.value !== undefined ? toBig(i.value)
         : i.region?.slot;
       if (v === undefined || v < PLAIN || into.has(v)) continue;
       const a = ast(i);
       if (i.value !== undefined && a && a["~keccak256"]) {
-        const args = (a["~keccak256"] as unknown[]).map((x) => {
-          const id = typeof x === "string" ? x
-            : (x as { "~wordsized"?: string })["~wordsized"];
-          const h = id ? i.bindings[id] : undefined;
-          if (!h) return JSON.stringify(x);
-          const n = toBig(h);
-          return id && inputs.has(id) ? (n < PLAIN ? String(n) : short(h))
-            : nameOf(n);
-        });
-        into.set(v, `keccak(${args.join(", ")})`);
+        const n = exprName(a, i);
+        into.set(v, n ?? `keccak(${(a["~keccak256"] as unknown[])
+          .map((x) => JSON.stringify(x)).join(", ")})`);
+        continue;
+      }
+      // (a region's slot, an expression of its own: bugc's)
+      const own = i.value === undefined && a && typeof a.slot === "object"
+        ? exprName(a.slot, i) : undefined;
+      if (own) {
+        into.set(v, own);
         continue;
       }
       const b = base(i, v);
