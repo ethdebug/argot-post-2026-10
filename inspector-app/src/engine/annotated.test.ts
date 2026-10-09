@@ -88,7 +88,7 @@ describe("the shared moment's popovers", () => {
     expect(ms.map((n) => n.items.map((x) => [x.text, x.line, x.unit])))
       .toEqual([
         [["keccak input", 0, 0], ["key carol", 1, undefined],
-          ["slot 3", 1, undefined], ["free memory pointer 0x0000…00e0", 2, 1]],
+          ["slot 3", 1, undefined], ["free memory pointer 0xe0", 2, 1]],
         [["_rolledHit's encoding", 0, 2], ["length 64", 1, undefined],
           ["prevrandao 0xe94e…3a62", 1, undefined],
           ["sender carol", 2, undefined]]]);
@@ -108,12 +108,15 @@ describe("short values", () => {
       "0x70997970c51812dc3a010c7d01b50e0d17dc79c8"), names))
       .toBe("0x7099…79c8");
   });
-  it("a string cut, quoted; bytes padded to a word, its ends", () => {
+  it("a string cut, quoted; bytes without leading zero bytes; a stack item's padded", () => {
     expect(shortValue(node("string", '"gl hf"'), names)).toBe('"gl hf"');
     expect(shortValue(node("string", JSON.stringify(NAME_C)), names,
       { text: 10 })).toBe('"carol, th…"');
     expect(shortValue(node("bytes32", `0x${"0".repeat(60)}1420`), names))
-      .toBe("0x0000…1420");
+      .toBe("0x1420");
+    // (a stack item's: as the stack shows it)
+    expect(shortValue(node("bytes32", `0x${"0".repeat(60)}1420`), names,
+      { word: true })).toBe("0x0000…1420");
     expect(shortValue(node("bytes32", `0x${"ab".repeat(32)}`), names))
       .toBe("0xabab…abab");
     expect(shortValue(node("uint64", "100"), names)).toBe("100");

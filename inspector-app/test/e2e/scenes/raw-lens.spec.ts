@@ -83,7 +83,8 @@ for (const width of [1360, 1024, 390]) {
       await page.goto("./shell.html#lens=raw-hero");
       await expect(page.locator(
         '.view[data-view$=":stack"] .wrow[data-slot]')).toHaveCount(STACK);
-      await rules(page, ".lens", width);
+      // (again until it holds: the cell size settles by timers)
+      await expect(() => rules(page, ".lens", width)).toPass();
       const before = await page.locator(".lens").innerHTML();
       await page.locator('.view[data-view$=":storage"] .b').nth(40).hover();
       await settle(page);
@@ -109,7 +110,7 @@ for (const width of [1360, 390]) {
     await expect(page.locator(
       '#rawscene .view[data-view$=":stack"] .wrow[data-slot]'))
       .toHaveCount(STACK);
-    await rules(page, "#rawscene", width);
+    await expect(() => rules(page, "#rawscene", width)).toPass();
     expect(await page.evaluate(() => location.hash)).toContain("scene=raw");
     // (the inspector's parts step out; the scene picker stays)
     for (const q of ["#panel", "#tree", "#memory", "#contract"]) {
