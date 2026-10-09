@@ -25,7 +25,7 @@ test("each scene's values, via window.select", async ({ page }) => {
     .toEqual([]);
 });
 
-test("intro and summary follow the scene; one-point hides mode",
+test("intro and summary follow the scene; one moment: one dump",
   async ({ page }) => {
     await page.goto("./");
     await usable(page);
@@ -39,7 +39,7 @@ test("intro and summary follow the scene; one-point hides mode",
         .toHaveCount(1);
       await expect(page.locator("#summary")).toHaveText(s.summary);
       const single = s.points.length === 1;
-      await expect(page.locator("#mode")).toBeVisible({ visible: !single });
+      await expect(page.locator("#panel .view")).toHaveCount(single ? 1 : 2);
       if (single) {
         await expect(page.locator("main")).toHaveAttribute("data-single",
           "");
@@ -58,24 +58,33 @@ test("intro and summary follow the scene; one-point hides mode",
     }
   });
 
-test("Before | After shows the other side's dump and values",
-  async ({ page }) => {
-    await page.goto("./");
-    await usable(page);
-    await page.locator('#picker button[data-id="alice"]').click();
-    const score = page.locator(
-      '#tree li[data-path$="c8].score"] > .row .val');
-    await expect(score).toHaveText("60");
-    await expect(score).toHaveClass(/\bchg\b/);
-    await page.locator('#mode button[data-mode="before"]').click();
-    await expect(page.locator('#mode button[data-mode="before"]'))
-      .toHaveAttribute("aria-checked", "true");
-    await expect(page.locator('#panel .view[data-side="before"]'))
-      .toBeVisible();
-    await expect(page.locator('#panel .view[data-side="after"]'))
-      .toBeHidden();
-    await expect(score).toHaveText("30");
-  });
+test("a scene of two moments: the earlier's dump above the later's, " +
+  "each titled by its moment; the tree at the later, its changes marked",
+async ({ page }) => {
+  await page.goto("./");
+  await usable(page);
+  await page.locator('#picker button[data-id="alice"]').click();
+  const score = page.locator(
+    '#tree li[data-path$="c8].score"] > .row .val');
+  await expect(score).toHaveText("60");
+  await expect(score).toHaveClass(/\bchg\b/);
+  const [before, after] = ["before", "after"].map((x) =>
+    page.locator(`#panel .view[data-side=${x}]`));
+  await expect(before).toBeVisible();
+  await expect(after).toBeVisible();
+  await expect(before.locator(".view-name"))
+    .toHaveText("Storage in the middle of the game");
+  await expect(after.locator(".view-name"))
+    .toHaveText("Storage after alice's third hit");
+  expect((await before.boundingBox())!.y)
+    .toBeLessThan((await after.boundingBox())!.y);
+  // (totalScore, slot 2's last bytes: 140, then 170, the later's marked)
+  const last = (v: typeof before) => v.locator(
+    '.wrow[data-slot$="0002"] .b[data-i="31"]');
+  await expect(last(before)).toHaveText("8c");
+  await expect(last(after)).toHaveText("aa");
+  await expect(last(after)).toHaveClass(/\bchg\b/);
+});
 
 test("the Vyper scene shows Vyper's words, owned by nobody",
   async ({ page }) => {
@@ -83,7 +92,7 @@ test("the Vyper scene shows Vyper's words, owned by nobody",
     await usable(page);
     await select(page, "vyper");
     const vy = page.locator(
-      '#panel .view:not([hidden]) .wrow[data-name^="Vyper\'s keccak"]');
+      '#panel .view[data-side=after] .wrow[data-name^="Vyper\'s keccak"]');
     await expect(vy).toHaveCount(25);
     await expect(vy.locator(".b[data-owners]")).toHaveCount(0);
   });
@@ -92,7 +101,7 @@ test("the dump and the tree are always shown: at rest, with a selection, "
   + "in a walkthrough, in every scene", async ({ page }) => {
   await page.goto("./");
   await usable(page);
-  const shown = () => page.evaluate(() => ["#panel .view:not([hidden]) .rows",
+  const shown = () => page.evaluate(() => ["#panel .view[data-side=after] .rows",
     "#tree"].every((q) => {
     const r = document.querySelector(q)?.getBoundingClientRect();
     return !!r && r.width > 50 && r.height > 50;

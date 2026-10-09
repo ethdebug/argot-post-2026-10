@@ -14,9 +14,10 @@ const look = (page: Page) => page.evaluate(() => {
   const lit = [...document.querySelectorAll<HTMLElement>(".view .b.hl")];
   const rest = [...document.querySelectorAll<HTMLElement>(
     ".view:not([hidden]) .rows .b:not(.hl):not(.at)")];
-  return { lit: lit.length,
-    capped: lit.filter((b) => getComputedStyle(b).boxShadow !== "none")
-      .length,
+  return { lit: lit.filter((b) => !b.classList.contains("chg")).length,
+    // (a changed byte's own mark aside: two moments' dumps)
+    capped: lit.filter((b) => !b.classList.contains("chg") &&
+      getComputedStyle(b).boxShadow !== "none").length,
     back: rest.length > 0 && rest.every((b) =>
       +getComputedStyle(b).opacity < 0.5) };
 });

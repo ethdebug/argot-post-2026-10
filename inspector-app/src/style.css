@@ -157,7 +157,6 @@ li.same > .row .name, li.same > .row .type { opacity: 0.55; }
 .hex.short { cursor: pointer; border-bottom: 1px dotted var(--muted); }
 .hex.full { overflow-wrap: anywhere; }
 
-
 .source .src { max-height: 60vh; }
 .src {
   background: var(--panel);
@@ -214,7 +213,6 @@ li.same > .row .name, li.same > .row .type { opacity: 0.55; }
 /* The details of what is lit, under the dump: a short list of terms
    and values. It grows with its content; it never scrolls. */
 .details {
-  /* room above for a card under the dump's last rows */
   margin: 2.6em 0 0;
   padding: 8px 12px;
   min-height: calc(4 * 1.5em + 16px);
@@ -235,8 +233,7 @@ li.same > .row .name, li.same > .row .type { opacity: 0.55; }
 .details dt { color: var(--muted); }
 .details dd { margin: 0; overflow-wrap: anywhere; }
 
-/* The locked state: what the view is on while a value is selected,
-   beside the Before | After toggle */
+/* The locked state: what the view is on while a value is selected */
 .viewing {
   padding: 0 8px;
   border-radius: 9px;
@@ -250,7 +247,7 @@ li.same > .row .name, li.same > .row .type { opacity: 0.55; }
   max-width: 100%;
 }
 .moderow { flex-wrap: wrap; }
-/* "show other state": a checkbox chip, like the toggle's buttons */
+/* a checkbox chip, like a picker's buttons */
 .chipcheck {
   display: inline-flex;
   align-items: center;
@@ -264,37 +261,7 @@ li.same > .row .name, li.same > .row .type { opacity: 0.55; }
 }
 .chipcheck input { accent-color: var(--accent); margin: 0; }
 
-/* In the tree, while a value is lit: its value in the other state,
-   in a card like the dump's (under in Before, over in After) */
 .tree li, .tree .row { position: relative; }
-.tcard {
-  position: absolute;
-  right: 0;
-  z-index: 5;
-  display: flex;
-  flex-direction: column;
-  align-items: flex-end;
-  gap: 1px;
-  max-width: 90%;
-  padding: 5px 10px;
-  border-radius: 6px;
-  background: color-mix(in srgb, var(--accent) 11%, var(--panel));
-  border: 1px solid color-mix(in srgb, var(--accent) 40%, transparent);
-  box-shadow: 0 3px 10px rgb(0 0 0 / 0.16);
-  font-family: var(--mono);
-  font-size: 0.8rem;
-  color: var(--muted);
-  pointer-events: none;
-  animation: cmp-in 0.14s ease-out;
-  overflow-wrap: anywhere;
-  text-align: right;
-}
-.tcard.before { top: calc(100% + 2px); }
-.tcard.after { bottom: calc(100% + 2px); }
-.tcard .cmp-tag { left: auto; right: 8px; }
-.tcard.before .cmp-tag { top: calc(100% - 6px); border-radius: 5px; }
-.tcard.after .cmp-tag { bottom: calc(100% - 6px); border-radius: 5px; }
-.tcard .tval b { font-weight: 600; color: var(--fg); }
 
 /* Two dumps, before and after, one under the other. A dump is one
    column of words in address order, each word one line of 32 bytes in
@@ -598,72 +565,12 @@ li.same > .row .name, li.same > .row .type { opacity: 0.55; }
 .row.hl.sel { box-shadow: -4px 0 0 var(--mark), 4px 0 0 var(--mark),
   -7px 0 0 var(--accent); }
 
-/* Compare: beside each run of lit words, a picture of the same words
-   in the other dump (cloned rows, drawn as there), muted a little, in a
-   light card that floats over the neighboring rows: under the run in
-   Before, over it in After. Same size, same columns as the run. */
 .wrow { position: relative; }
-.cmp {
-  position: absolute;
-  z-index: 5; /* over the sticky dump heads */
-  pointer-events: none;
-  animation: cmp-in 0.14s ease-out;
-}
-.cmp.before { top: calc(100% + 1px); }
-.cmp.after { bottom: calc(100% + 1px); }
-/* a fade only: a moving card would be measured where it starts */
-@keyframes cmp-in { from { opacity: 0; } }
-.cmp-frame {
-  position: relative;
-  margin-left: -6px; /* room left of the addresses, as on the right */
-  overflow: clip;
-  padding: 3px 0;
-  border-radius: 6px;
-  background: color-mix(in srgb, var(--accent) 11%, var(--panel));
-  border: 1px solid color-mix(in srgb, var(--accent) 40%, transparent);
-  box-shadow: 0 3px 10px rgb(0 0 0 / 0.16);
-}
-.cmp-photo {
-  position: relative;
-  left: 5px; /* the frame's 6px of room, less its 1px border */
-  filter: saturate(0.55) contrast(0.88);
-  opacity: 0.85;
-}
-/* the card's addresses: one label column, a tinted strip with the
-   gutter's hairline against the bytes */
-.cmp-photo .addr {
-  position: static;
-  background: color-mix(in srgb, var(--accent) 9%, transparent);
-  border-right-color: color-mix(in srgb, var(--accent) 35%, var(--line));
-}
-.cmp-photo .wrow:first-child .addr { border-top-left-radius: 4px; }
-.cmp-photo .wrow:last-child .addr { border-bottom-left-radius: 4px; }
-.cmp-photo .b { transition: none; }
-/* in the card, the rest of the word is not dimmed: the card's own
-   muting is enough, and the value's bytes keep their highlight */
-.active .cmp-photo .b:not(.hl):not(.at) { opacity: 1; filter: none; }
-.active .cmp-photo .b.free:not(.hl) { opacity: 0.4; }
-/* its label, a tab on the edge away from the run */
-.cmp-tag {
-  position: absolute;
-  left: 8px;
-  z-index: 1;
-  font: 600 0.58rem/1.45 system-ui, -apple-system, "Segoe UI", sans-serif;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-  white-space: nowrap;
-  padding: 0 6px;
-  color: var(--panel);
-  background: var(--accent);
-}
-/* half over the card's edge, to take little room */
-.cmp.before .cmp-tag { top: calc(100% - 6px); border-radius: 5px; }
-.cmp.after .cmp-tag { bottom: calc(100% - 6px); border-radius: 5px; }
-.cmp.pinned .cmp-tag { display: none; }
-/* the slot popover under its address (in After), arrow up */
+
+/* the slot popover under its address, arrow up */
 .addr.popped { z-index: 3; }
 /* a lit run's addresses, as one group: a soft rounded tint behind
-   them, which the slot popover points at (not in the cards) */
+   them, which the slot popover points at */
 .addr.grp::before {
   content: "";
   position: absolute;
@@ -675,7 +582,7 @@ li.same > .row .name, li.same > .row .type { opacity: 0.55; }
   border-top-right-radius: 6px; }
 .addr.grp-end::before { bottom: 2px; border-bottom-left-radius: 6px;
   border-bottom-right-radius: 6px; }
-.cmp-photo .addr.grp::before { display: none; }
+
 .pop.under { bottom: auto; top: calc(100% - 3px + var(--aw) * 0.7071); }
 .pop.under::after {
   top: calc(0px - var(--aw) / 2);
@@ -684,46 +591,6 @@ li.same > .row .name, li.same > .row .type { opacity: 0.55; }
   border-right-color: transparent;
   clip-path: polygon(0 0, calc(100% + 1px) 0, 0 calc(100% + 1px));
 }
-
-
-/* An annotation with no room beside its rows (it would cover lit
-   bytes or the other annotation) waits, labeled, in a tray under the
-   dumps instead */
-/* fixed at the bottom of the window, over the words: it takes no room
-   in the page, so it moves nothing */
-.tray {
-  position: fixed;
-  bottom: 8px;
-  z-index: 7;
-  display: grid;
-  gap: 6px;
-  max-height: 45vh;
-  overflow: auto;
-  padding: 6px;
-  border-radius: 8px;
-  background: var(--panel);
-  border: 1px solid var(--line);
-  box-shadow: 0 4px 16px rgb(0 0 0 / 0.18);
-}
-.pin {
-  border: 1px solid var(--line);
-  border-radius: 6px;
-  padding: 4px 0 6px;
-  animation: cmp-in 0.14s ease-out;
-}
-.pin-head {
-  margin: 0 0 4px;
-  padding: 0 8px;
-  font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
-  font-size: 0.72rem;
-  color: var(--muted);
-}
-.cmp.pinned { position: relative; top: auto; bottom: auto; margin-top: 2px;
-  animation: none; }
-.pop.pinned { position: static; display: inline-block; margin: 0 8px;
-  pointer-events: auto; }
-.pop.pinned::after { display: none; }
-
 
 /* ------------------------------------------- memory, with BUG */
 
@@ -786,7 +653,6 @@ li.same > .row .name, li.same > .row .type { opacity: 0.55; }
 /* the record's storage slot after memory, and a local with no location */
 #mtree .noloc { color: var(--muted); }
 .mpickrow .label { min-width: 5.5em; }
-#mmoderow[hidden] { display: none; }
 
 /* Loading: gray lines where the values will be, and room kept for the
    lines that come with the data, so the layout does not move when it
@@ -815,11 +681,10 @@ li.same > .row .name, li.same > .row .type { opacity: 0.55; }
 /* the words: room for the smallest dump */
 #panel:empty, #mpanel:empty { min-height: 270px; }
 
-/* Scenes. A scene's intro sits under the picker. A scene with one point
-   has no other state: no Before | After, no "show other state", no
-   change legends (main[data-single]; the memory section keeps its own) */
+/* Scenes. A scene's intro sits under the picker. A scene with one
+   moment has no other state: no change legends (main[data-single]; the
+   memory section keeps its own) */
 .intros p { max-width: 78ch; margin: 10px 0 0; }
-main[data-single] #storage :is(#mode-l, #mode, .chipcheck),
 main[data-single] .walkzone > .cols :is(.chglegend, .legend .bchg,
   .intro .two) {
   display: none; }
@@ -1062,7 +927,6 @@ main[data-single] .walkzone > .cols :is(.chglegend, .legend .bchg,
 /* on a phone: the same, compact (the step's caption and formula, a
    few lines of the pointer; the rest scrolls inside it) */
 
-
 .rform { margin: 0; font-family: ui-monospace, Menlo, monospace;
   font-size: 0.85rem; line-height: 1.4; height: 4.2em; overflow: hidden;
   overflow-wrap: anywhere; }
@@ -1110,8 +974,6 @@ main[data-single] .walkzone > .cols :is(.chglegend, .legend .bchg,
 .rform .prose { font-family: system-ui, -apple-system, "Segoe UI",
   sans-serif; color: var(--muted); }
 .rwhere { font-family: inherit; height: auto; }
-
-
 
 .rctl .btn[disabled] { opacity: 0.4; cursor: default; }
 .gloss { font-family: system-ui, sans-serif; font-size: 0.75em;
@@ -1177,8 +1039,8 @@ sup.fn { font-size: 0.7em; color: var(--accent); margin-left: 1px; }
    variant of their tint, the selection yellow's, the neutral grey) */
 .wrow.rel .addr.grp::before { background: var(--rel-grey); }
 /* A change of the related view's rows (ui/transition.ts): the rows that
-   stay move, the others fade, the popovers with their rows; the cards,
-   the tray and the tree's edge buttons wait until it is done */
+   stay move, the others fade, the popovers with their rows; the tree's
+   edge buttons wait until it is done */
 /* (an even ease, in and out: a front-loaded one is over in a third of
    its time, and reads as a jump) */
 ::view-transition-group(*), ::view-transition-old(*),
@@ -1197,7 +1059,7 @@ sup.fn { font-size: 0.7em; color: var(--accent); margin-left: 1px; }
 @keyframes vt-in { from { opacity: 0; } }
 /* (a click meanwhile reaches the page under it: it is never lost) */
 ::view-transition { pointer-events: none; }
-.vt-run :is(.cmp, .tray, .tedge, .bruler) { visibility: hidden; }
+.vt-run :is(.tedge, .bruler) { visibility: hidden; }
 .pksrc { --pk: var(--pksrc); --pk-fg: var(--pksrc-fg); }
 .b.hl:is(.pk9, .pksrc) { background: var(--pk); color: var(--pk-fg); }
 .row.hl:is(.pk9, .pksrc) { background: var(--pk); color: var(--pk-fg);

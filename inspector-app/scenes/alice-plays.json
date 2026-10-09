@@ -1,0 +1,25 @@
+{
+  "id": "alice-plays",
+  "title": "Alice plays (two moments)",
+  "run": {
+    "scenario": "arcade",
+    "build": "sol"
+  },
+  "lens": "alice-plays",
+  "timeline": [
+    {
+      "tx": 11,
+      "step": "end",
+      "label": "in the middle of the game"
+    },
+    {
+      "tx": 12,
+      "step": "end",
+      "label": "after alice's third hit"
+    }
+  ],
+  "controls": "prev-next",
+  "initial": {
+    "moment": 1
+  }
+}

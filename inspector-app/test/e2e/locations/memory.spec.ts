@@ -77,21 +77,20 @@ test("one point: one dump, Memory; the roll: hit, its last byte",
   async ({ page }) => {
     await at(page);
     const v = await page.evaluate(() => [
-      (document.querySelector("#mmoderow") as HTMLElement).hidden,
-      getComputedStyle(document.querySelector("#mmoderow")!).display,
+      document.querySelectorAll("#mpanel .view").length,
       // (the panel's own header names it: "Memory"; vanilla 3c6d9b6)
       document.querySelector("#mwords-h")!.firstChild!.textContent!.trim(),
-      document.querySelectorAll("#mpanel .cmp, #mpanel .b.chg").length,
+      document.querySelectorAll("#mpanel .b.chg").length,
       document.querySelector("#msrclegend")!.textContent!.trim()]);
-    expect(v).toEqual([true, "none", "Memory", 0, "paused here"]);
+    expect(v).toEqual([1, "Memory", 0, "paused here"]);
     expect(await msel(page)).toBe("hit");
     expect(await mlit(page)).toEqual({ "after 0x00c0": "31" });
     // (no slot read at this pause: no storage panel)
     await expect(page.locator("#mstore")).toBeHidden();
   });
 
-test("inside _applyCombo: O0 a call with a frame; colours; Before | After; "
-  + "mult moves; O2 inlined", async ({ page }) => {
+test("inside _applyCombo: O0 a call with a frame; colours; both steps' "
+  + "words; mult moves; O2 inlined", async ({ page }) => {
   await at(page);
   await mpt(page, "mult");
   await page.locator("h1").hover();
@@ -110,15 +109,12 @@ test("inside _applyCombo: O0 a call with a frame; colours; Before | After; "
   expect([d.rows.points, d.rows.combo, d.rows.mult, d.rows._applyCombo,
     d.bytes["0x0080"]]).toEqual([kids[0], `${kids[1]} muted`,
     `${kids[2]} muted`, "hl", "hl"]);
-  for (const [m, want] of [["before", "Before"], ["after", "After"]]) {
-    await page.locator(`#mmode button[data-mode="${m}"]`).click();
-    const v = await page.locator("#mpanel .view").evaluateAll((vs) =>
-      vs.filter((x) => !(x as HTMLElement).hidden &&
-        (x as HTMLElement).offsetHeight).map((x) =>
-        x.querySelector(".view-name")!.textContent).join());
-    expect(v).toBe(want);
-  }
-  await page.locator('#mpanel .view:not([hidden]) .b[data-owners="points"]')
+  // (a pause of two steps: both its words, the earlier first)
+  expect(await page.locator("#mpanel .view").evaluateAll((vs) =>
+    vs.filter((x) => (x as HTMLElement).offsetHeight).map((x) =>
+      x.querySelector(".view-name")!.textContent).join()))
+    .toBe("Before,After");
+  await page.locator('#mpanel .view[data-side=after] .b[data-owners="points"]')
     .first().click();
   expect(await msel(page)).toBe("points");
   await pick(mrow(page, "mult"));
@@ -129,7 +125,7 @@ test("inside _applyCombo: O0 a call with a frame; colours; Before | After; "
   expect("0x0080" in (await mcol(page)).bytes).toBe(false);
   // (the word is shown, as the whole segment is: no value owns it)
   await expect(page.locator(
-    "#mpanel .view:not([hidden]) .wrow[data-slot='0x0080'] .b[data-owners]"))
+    "#mpanel .view[data-side=after] .wrow[data-slot='0x0080'] .b[data-owners]"))
     .toHaveCount(0);
 });
 
@@ -219,7 +215,7 @@ test("click again clears; Enter selects; its step lights its byte; Escape",
 test("each section keeps its own view", async ({ page }) => {
   await at(page);
   const memView = () => page.evaluate(() => JSON.stringify([
-    ...["#mlevel", "#mpoint", "#mmode"].map((q) =>
+    ...["#mlevel", "#mpoint"].map((q) =>
       document.querySelector(`${q} [aria-checked="true"]`)?.textContent),
     [...document.querySelectorAll<HTMLElement>("#mpanel .view")]
       .map((v) => v.hidden).join(),
@@ -230,8 +226,6 @@ test("each section keeps its own view", async ({ page }) => {
   const storeView = () => page.evaluate(() => JSON.stringify([
     (document.querySelector('#picker [aria-checked="true"]') as
       HTMLElement)?.dataset.id,
-    (document.querySelector('#mode [aria-checked="true"]') as
-      HTMLElement)?.dataset.mode,
     (document.querySelector("#tree .row.sel")?.parentElement as
       HTMLElement | null)?.dataset.path,
     (document.querySelector("#tree") as HTMLElement).innerText]));
@@ -240,7 +234,6 @@ test("each section keeps its own view", async ({ page }) => {
   await mrow(page, "mult").click();
   await page.locator("h1").hover();
   const m0 = await memView();
-  await page.locator('#mode button[data-mode="before"]').click();
   await page.locator('#picker button[data-id="motd"]').click();
   await page.locator('#tree li[data-path="totalScore"] > .row').click();
   await page.evaluate(() => (document.activeElement as HTMLElement)?.blur());
@@ -248,7 +241,6 @@ test("each section keeps its own view", async ({ page }) => {
   await page.locator("h1").hover();
   expect(await memView()).toBe(m0);
   const s0 = await storeView();
-  await page.locator('#mmode button[data-mode="before"]').click();
   await mopt(page, "2");
   await mpt(page, "writes");
   await mrow(page, "gained").click();
@@ -268,12 +260,9 @@ test("the hash keeps the memory view; a stale one gives its defaults",
         ?.textContent,
       mpt: (document.querySelector('#mpoint [aria-checked="true"]') as
         HTMLElement)?.dataset.id,
-      mmode: (document.querySelector('#mmode [aria-checked="true"]') as
-        HTMLElement)?.dataset.mode,
       msel: (document.querySelector("#mtree .row.sel")?.parentElement as
         HTMLElement | null)?.dataset.path }));
-    expect(got).toEqual({ mopt: "O2", mpt: "mult", mmode: "before",
-      msel: "mult" });
+    expect(got).toEqual({ mopt: "O2", mpt: "mult", msel: "mult" });
     await expect(page).toHaveURL(/mopt=2/);
     await page.goto("about:blank");
     await at(page, "#ex=nope&mode=compare&sel=zzz&mopt=7&mpt=x");
@@ -309,6 +298,6 @@ test("a walkthrough's read step lights the word it reads",
     await expect(page.locator("#mdetails .rcap"))
       .toHaveText("-frame is read: memory 0x0080–0x009f");
     await expect.poll(() => mlit(page)).toEqual({ "after 0x0080": "all" });
-    await expect(page.locator("#mpanel .view:not([hidden]) .pop"))
+    await expect(page.locator("#mpanel .view[data-side=after] .pop"))
       .toHaveText(["memory 0x0080 : _applyCombo#frame"]);
   });

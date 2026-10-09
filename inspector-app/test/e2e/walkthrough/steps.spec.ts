@@ -34,22 +34,22 @@ const stepNow = (page: Page) => page.evaluate(() => {
     band0: [...document.querySelectorAll("#ptr .line")].findIndex((l) =>
       l.classList.contains("on")),
     lit: [...document.querySelectorAll<HTMLElement>(
-      "#panel .view:not([hidden]) .rows .word .b.hl")].map((c) =>
+      "#panel .view[data-side=after] .rows .word .b.hl")].map((c) =>
       `${(c.closest(".wrow") as HTMLElement).dataset.slot} ${c.dataset.i}`),
     full: [...document.querySelectorAll<HTMLElement>(
-      "#panel .view:not([hidden]) .rows .word .b.hl:not(.muted)")].map((c) =>
+      "#panel .view[data-side=after] .rows .word .b.hl:not(.muted)")].map((c) =>
       `${(c.closest(".wrow") as HTMLElement).dataset.slot} ${c.dataset.i}`),
     gut: [...document.querySelectorAll<HTMLElement>(
-      "#panel .view:not([hidden]) .wrow.gut")].map((r) => r.dataset.slot!),
+      "#panel .view[data-side=after] .wrow.gut")].map((r) => r.dataset.slot!),
     // (whole slots a step computes: outlined, not lit)
     whole: [...document.querySelectorAll<HTMLElement>(
-      "#panel .view:not([hidden]) .wrow.whole")].map((r) => r.dataset.slot!),
+      "#panel .view[data-side=after] .wrow.whole")].map((r) => r.dataset.slot!),
     dim: document.querySelector("#panel")!.classList.contains("active"),
   };
 });
 type St = Awaited<ReturnType<typeof stepNow>>;
 const names = (page: Page) => page.locator(
-  '#panel .view[data-side="after"] .wrow[data-name]').evaluateAll((rs) =>
+  '#panel .view[data-side=after] .wrow[data-name]').evaluateAll((rs) =>
   Object.fromEntries(rs.map((r) => [(r as HTMLElement).dataset.slot,
     (r as HTMLElement).dataset.name])));
 const litNamed = (xs: string[], nm: Record<string, string>) => {
@@ -189,10 +189,10 @@ test("step 0: no labels, no band; ⏮ and ◀ reach it; a re-target keeps it",
     await page.locator('#details button[data-r="start"]').click();
     await page.mouse.move(1, 1);
     expect(await page.evaluate(() => ({
-      pops: document.querySelectorAll("#panel .view:not([hidden]) .pop")
+      pops: document.querySelectorAll("#panel .view[data-side=after] .pop")
         .length,
       hues: [...document.querySelectorAll(
-        "#panel .view:not([hidden]) .b.hl")].filter((b) =>
+        "#panel .view[data-side=after] .b.hl")].filter((b) =>
         /\bpk\d/.test(b.className)).length,
       band: document.querySelectorAll("#ptr .line.on").length,
       cur: document.querySelectorAll("#dots .dot[data-n].cur").length })))
@@ -339,7 +339,7 @@ test("the focus: all by default for players; one entry echoes",
     for (let k = 0; k < 10; k++) {
       await page.locator(`#dots .dot[data-n="${k}"]`).dispatchEvent("click");
       muted.push(await page.locator(
-        "#panel .view:not([hidden]) .b.hl.muted").count());
+        "#panel .view[data-side=after] .b.hl.muted").count());
       shown.push((await btns()) ? k : -1);
     }
     expect(shown.filter((k) => k >= 0)).toEqual([4]);
@@ -349,7 +349,7 @@ test("the focus: all by default for players; one entry echoes",
     await page.locator('#dots .dot[data-n="4"]').dispatchEvent("click");
     const boxes = () => page.evaluate(() => JSON.stringify([
       ...document.querySelectorAll("#details, #dpanel, #dpick button, " +
-        "#dots .dot, #panel .view:not([hidden]) .wrow, #tree")].map((e) => {
+        "#dots .dot, #panel .view[data-side=after] .wrow, #tree")].map((e) => {
       const r = e.getBoundingClientRect();
       return [r.left, r.top, r.width, r.height].map(Math.round);
     })));
@@ -358,7 +358,7 @@ test("the focus: all by default for players; one entry echoes",
     await page.locator("#dpick button", { hasText: "bob" }).click();
     await page.mouse.move(1, 1);
     expect(await boxes()).toBe(b0);
-    expect(await page.locator("#panel .view:not([hidden]) .b.hl.muted")
+    expect(await page.locator("#panel .view[data-side=after] .b.hl.muted")
       .count()).toBeGreaterThan(0);
     const x = await stepNow(page);
     expect(litNamed(x.full, await names(page))).toEqual({ [rec]: "all" });
@@ -374,7 +374,7 @@ test("entries and fields never share a colour; found rows keep labels",
       await page.locator(`#dots .dot[data-n="${k}"]`).dispatchEvent("click");
       await page.mouse.move(1, 1);
       const hs = await page.evaluate(() => [...new Set([...document
-        .querySelectorAll("#panel .view:not([hidden]) .rows .b.hl:not(" +
+        .querySelectorAll("#panel .view[data-side=after] .rows .b.hl:not(" +
           ".pksrc)")].map((c) => getComputedStyle(c).backgroundColor))]);
       await page.keyboard.press("Escape");
       return hs;
@@ -399,7 +399,7 @@ test("entries and fields never share a colour; found rows keep labels",
     // (carol's data rows keep their labels only from her text's step)
     const labelled = () => page.evaluate(() => Object.fromEntries([
       ...document.querySelectorAll<HTMLElement>(
-        "#panel .view:not([hidden]) .wrow[data-name]")].map((r) =>
+        "#panel .view[data-side=after] .wrow[data-name]")].map((r) =>
       [r.dataset.name, r.querySelector(":scope > .addr")!.classList
         .contains("grp")])));
     await page.locator('#dots .dot[data-n="8"]').dispatchEvent("click");
@@ -462,7 +462,7 @@ test("Vyper: Solidity's rule, then the misread: Vyper's own layout, "
     expect(await page.locator("#details .rcount").innerText()).toBe("done");
     // (Vyper's word, lit in its own colour, beside Solidity's reading)
     const lit = await page.evaluate(() => [...document.querySelectorAll(
-      "#panel .view:not([hidden]) .b.hl.pk9")].map((c) =>
+      "#panel .view[data-side=after] .b.hl.pk9")].map((c) =>
       (c.closest(".wrow") as HTMLElement).dataset.slot!.slice(-4)));
     expect([...new Set(lit)]).toEqual(["0446"]);
     // (carol, re-targeted: her Vyper words)
@@ -555,7 +555,7 @@ test("stepping moves nothing; the details unfold only at entry and exit",
           return [r.left, r.top, r.width, r.height].map(Math.round);
         }),
       ...[...document.querySelectorAll(
-        "#panel .view:not([hidden]) .wrow:not(.cmp *), #tree")].map((e) => {
+        "#panel .view[data-side=after] .wrow:not(.cmp *), #tree")].map((e) => {
         const r = e.getBoundingClientRect();
         return [r.left, r.top + scrollY, r.width, r.height].map(Math.round);
       })]));
@@ -582,7 +582,7 @@ test("every lit run has its popover at every step (not step 0, which has "
         const out: HTMLElement[][] = [];
         let run: HTMLElement[] | null = null;
         for (const el of [...document.querySelector(
-          "#panel .view:not([hidden]) .rows")!.children] as HTMLElement[]) {
+          "#panel .view[data-side=after] .rows")!.children] as HTMLElement[]) {
           if (el.classList.contains("wrow")) {
             if (!run) out.push(run = []);
             run.push(el);
@@ -649,7 +649,7 @@ test("a step's own gutter rows keep a dark label (not muted, not dropped)",
           const runs: HTMLElement[][] = [];
           let run: HTMLElement[] | null = null;
           for (const el of [...document.querySelector(
-            "#panel .view:not([hidden]) .rows")!.children] as HTMLElement[]) {
+            "#panel .view[data-side=after] .rows")!.children] as HTMLElement[]) {
             // (but a row only consulted, found's resting view: its light
             // label, as at rest: the anchor)
             if (el.classList.contains("gut") &&
@@ -715,13 +715,13 @@ test("the last step, found: the selection's resting view",
   await ready(page);
   const view = () => page.evaluate(() => JSON.stringify({
     b: [...document.querySelectorAll<HTMLElement>(
-      "#panel .view:not([hidden]) .b.hl")].map((c) =>
+      "#panel .view[data-side=after] .b.hl")].map((c) =>
       `${c.closest<HTMLElement>(".wrow")!.dataset.slot!.slice(-4)} ${
         c.dataset.i} ${c.className.match(/pk\d/)?.[0] ?? ""}`),
     r: [...document.querySelectorAll<HTMLElement>("#tree .row.hl")]
       .map((r) => `${(r.parentElement as HTMLElement).dataset.path} ${
         r.className.match(/pk\d/)?.[0] ?? ""}`),
-    p: [...document.querySelectorAll("#panel .view:not([hidden]) .pop")]
+    p: [...document.querySelectorAll("#panel .view[data-side=after] .pop")]
       .map((p) => p.textContent) }));
   for (const x of ["players", C, "playerList"]) {
     await select(page, "mid", x);
@@ -793,7 +793,7 @@ test("a click mid-walk re-targets it, at the same step where the steps "
     await page.locator(`#dots .dot[data-n="${k}"]`).dispatchEvent("click");
     if (how === "row") await pick(row(page, to));
     else {
-      await page.locator(`#panel .view:not([hidden]) .b[data-owners="${
+      await page.locator(`#panel .view[data-side=after] .b[data-owners="${
         to}"]`).first().click();
     }
     const cue = await page.locator("#details .rcue").textContent();

@@ -25,9 +25,8 @@ const C = `players[${ADDR.C}]`;
 const MODES = [["desktop", "light"], ["desktop", "dark"],
   ["phone", "light"]];
 
-// Each bookmark's sides: one for a bookmark with one timeline point
-const SIDES = [["mid", null], ["alice", "before"], ["alice", "after"],
-  ["motd", "before"], ["motd", "after"], ["vyper", null]];
+// The storage inspector's scenes (a scene of two moments shows both)
+const SCENES = ["mid", "alice", "motd", "vyper"];
 
 // null: none selected ("sel="); undefined: the bookmark's default
 const SELECTIONS = [null, undefined, "playerList", "playerList[1]", "motd",
@@ -37,9 +36,9 @@ const WALKS = ["players", A, "playerList", "playerList[1]", "totalScore",
 
 // The memory section: each level's points, their sides, and the values
 // in the tree at each point (from the vanilla page at sync-base)
-const POINTS = [["roll", [null], ["hit"]],
-  ["mult", ["before", "after"], ["_applyCombo", "points", "combo", "mult"]],
-  ["writes", [null], ["gained", "hit", "players[msg.sender]",
+const POINTS = [["roll", ["hit"]],
+  ["mult", ["_applyCombo", "points", "combo", "mult"]],
+  ["writes", ["gained", "hit", "players[msg.sender]",
     ...["score", "combo", "bestCombo", "plays", "hits", "lastBlock"]
       .map((f) => `players[msg.sender].${f}`)]]];
 
@@ -55,9 +54,9 @@ const hashOf = (pairs) => pairs.filter(([, v]) => v !== undefined)
 
 function storage() {
   const out = [];
-  for (const [ex, side] of SIDES) {
-    const base = [["ex", ex], ["mode", side ?? undefined]];
-    const tag = `${ex}${side ? `-${side}` : ""}`;
+  for (const ex of SCENES) {
+    const base = [["ex", ex]];
+    const tag = ex;
     for (const sel of SELECTIONS) {
       const name = sel === null ? "none" : sel === undefined ? "default"
         : short(sel);
@@ -69,10 +68,11 @@ function storage() {
       out.push({ id: `${tag}-sel=${short(sel)}-walk`, section: "storage",
         hash, actions: [], walk: "all" });
     }
-    // players, walkthrough steps 5 and 6, with bob, then carol, picked
-    // (by their place in the focus picker, after "all" and alice: a
-    // record is named by its name on chain, or its short address)
-    for (const k of [5, 6]) for (const [who, at] of [["bob", 2],
+    // players, the walkthrough's step of the records' fields (the one
+    // with a focus picker: step 0, then five steps on), with bob, then
+    // carol, picked (by their place in the picker, after "all" and
+    // alice: a record is named by its name on chain, or its address)
+    for (const k of [6]) for (const [who, at] of [["bob", 2],
       ["carol", 3]]) {
       out.push({ id: `${tag}-sel=players-walk${k}-${who}`,
         section: "storage", hash: hashOf([...base, ["sel", "players"]]),
@@ -82,12 +82,12 @@ function storage() {
     }
   }
   // the calldata (motd only): `text`, then each ABI step pointed at
-  for (const side of ["before", "after"]) {
-    const hash = hashOf([["ex", "motd"], ["mode", side], ["sel", null]]);
-    out.push({ id: `motd-${side}-calldata-text`, section: "storage", hash,
+  {
+    const hash = hashOf([["ex", "motd"], ["sel", null]]);
+    out.push({ id: "motd-calldata-text", section: "storage", hash,
       actions: [{ click: '#ctree li[data-part="m"] > .row' }] });
     for (const part of ["selector", "m-offset", "m-length", "m-data"]) {
-      out.push({ id: `motd-${side}-calldata-${part}`, section: "storage",
+      out.push({ id: `motd-calldata-${part}`, section: "storage",
         hash, actions: [{ focus: `#chow li[data-part="${part}"]` }] });
     }
   }
@@ -96,11 +96,10 @@ function storage() {
 
 function memory() {
   const out = [];
-  for (const opt of ["0", "2"]) for (const [pt, sides, paths] of POINTS) {
-    for (const side of sides) {
-      const base = [["mopt", opt], ["mpt", pt], ["mmode", side ??
-        undefined]];
-      const tag = `mem-O${opt}-${pt}${side ? `-${side}` : ""}`;
+  for (const opt of ["0", "2"]) for (const [pt, paths] of POINTS) {
+    {
+      const base = [["mopt", opt], ["mpt", pt]];
+      const tag = `mem-O${opt}-${pt}`;
       out.push({ id: `${tag}-msel=none`, section: "memory",
         hash: hashOf([...base, ["msel", null]]), actions: [] });
       for (const p of paths) {

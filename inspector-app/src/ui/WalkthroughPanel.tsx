@@ -20,7 +20,7 @@ import {
 } from "../engine/walkthrough/words";
 import {
   decodingOf, useDecoded, useLayout, useLens, useLensState, useLink,
-  usePoint, useViewSpec, useWalkthrough,
+  usePoint, usePointAt, useViewSpec, useWalkthrough,
 } from "./hooks";
 import { infoOf, whereOf, type Info, type Part, type Sides } from "./info";
 import { PointerYaml } from "./PointerYaml";
@@ -146,7 +146,9 @@ export function WalkthroughPanel(p: { id: ViewId; data: DataRef;
   const here = usePoint(p.data);
   const there = usePoint(p.compare);
   const [link, setLink] = useLink(p.link);
-  const side = useLensState((s) => s.side ?? "after");
+  // (of a pair, which this moment is: the earlier, before; the later)
+  const side = (usePointAt(p.data)?.i ?? 0) < (usePointAt(p.compare)?.i ??
+    0) ? "before" : "after";
   const single = !p.compare;
   useViewSpec(p.id);
   const lens = useLens();

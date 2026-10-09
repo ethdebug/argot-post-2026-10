@@ -5,7 +5,7 @@ import { A, C } from "../../expect";
 import { slotHex } from "../../../src/engine/hex";
 
 const lit = (page: Page) => page.locator(
-  "#panel .view:not([hidden]) .b.hl:not(.cmp *)").evaluateAll((bs) =>
+  "#panel .view[data-side=after] .b.hl:not(.cmp *)").evaluateAll((bs) =>
   bs.map((b) => `${(b.closest(".word") as HTMLElement).dataset.slot!
     .slice(-2)}:${(b as HTMLElement).dataset.i}`));
 

@@ -18,7 +18,7 @@ it("loads only the index and the memory pauses until a scene is asked "
   expect(seen).toEqual(["fixtures/index.json", "fixtures/memory.json"]);
   expect(p.bookmarks.map((b) => b.id))
     .toEqual(["raw-hero", "raw-named", "mid", "alice", "motd", "vyper",
-      "players-walk", "O0/roll", "O0/mult", "O0/writes", "O2/roll",
+      "players-walk", "alice-plays", "vyper-rules", "O0/roll", "O0/mult", "O0/writes", "O2/roll",
       "O2/mult", "O2/writes"]);
   await expect(p.timeline("scene:mid")).rejects.toThrow("404");
   // (a failed load is not kept: asked again, it loads again)

@@ -37,8 +37,8 @@ export type Win = Window & typeof globalThis & {
   fitDumps(): void;
 };
 
-// The storage dump's view shown
-export const V = "#panel .view:not([hidden])";
+// The storage dump at the moment shown (a scene of two: the later)
+export const V = '#panel .view[data-side=after]';
 
 // Opens the page (with `hash`, at `width` x `height`) and waits until
 // its first scene is usable; with `memory`, the memory section too
@@ -55,12 +55,13 @@ export const usable = (page: Page, memory = false) => page.waitForFunction(
   (m) => (window as Win).results?.done && (!m || (window as Win).memResults
     ?.done), memory);
 
-// Shows scene `id` as a link would (with `sel` selected, in `mode`;
-// without, the scene's defaults), once drawn
+// Shows scene `id` as a link would (with `sel` selected; at its first
+// moment with `mode` "before", else its last; without, the scene's
+// defaults), once drawn
 export const select = (page: Page, id: string, sel?: string | null,
   mode?: string) => page.evaluate(([i, s, m]) =>
   (window as Win).select(i, { ...s === undefined ? {} : { sel: s },
-    ...m ? { mode: m as "before" | "after" } : {} }),
+    ...m === "before" ? { moment: 0 } : {} }),
   [id, sel, mode] as const);
 
 // The storage tree's row for `path`

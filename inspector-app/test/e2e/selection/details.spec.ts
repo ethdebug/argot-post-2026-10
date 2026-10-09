@@ -24,7 +24,7 @@ test("details of what is pointed at, at two points and at one",
       Value: "totalHits (uint64)", Where: "slot 2, bytes 8–15",
       Before: "7 (0x0000000000000007)", After: "8 (0x0000000000000008)" });
     await select(page, "mid", null);
-    await page.locator(`#panel .word[data-side="after"][data-slot="${
+    await page.locator(`#panel .word[data-side=after][data-slot="${
       SLOT2}"] .b[data-i="31"]`).hover();
     const one = await dl(page);
     expect(one).toMatchObject({ Value: "totalScore (uint128)",
@@ -54,10 +54,9 @@ test("the bar at rest: the selection, and the way in", async ({ page }) => {
   await expect(page.locator("#details .rline2"))
     .toHaveText("Esc clears the selection");
   await expect(page.locator("#viewing")).toHaveCount(0);
+  // (a scene of two moments: the bar is at the later)
   await select(page, "alice", A);
   await expect(page.locator("#details .rsel")).toContainText("(after)");
-  await page.locator('#mode button[data-mode="before"]').click();
-  await expect(page.locator("#details .rsel")).toContainText("(before)");
 });
 
 test("selecting moves nothing", async ({ page }) => {
@@ -65,7 +64,7 @@ test("selecting moves nothing", async ({ page }) => {
   await select(page, "mid", null);
   const boxes = () => page.locator(
     "#details, #details > :not([hidden]), " +
-    "#panel .view:not([hidden]) .wrow:not(.cmp *), "
+    "#panel .view[data-side=after] .wrow:not(.cmp *), "
     + "#tree .row").evaluateAll((es) => es.map((e) => {
     const r = e.getBoundingClientRect();
     return [r.left + scrollX, r.top + scrollY, r.width, r.height]

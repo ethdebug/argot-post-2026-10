@@ -36,7 +36,7 @@ declare global {
     memResults: { done: boolean; errors: string[];
       decoded: Record<string, Record<string, { values: Record<string,
         string>; none: string[] }[]>> };
-    select(id: string, view?: { mode?: "before" | "after";
+    select(id: string, view?: { moment?: number;
       sel?: string | null }): Promise<boolean>;
   }
 }
@@ -167,7 +167,7 @@ try {
   // (the contract at the top: the page's own, shown as it is)
   const contract = { file: $("contract-box").querySelector(".srcfile")
     ?.textContent ?? undefined, text: $("contract-src").textContent! };
-  const mount = { pick: place($("picker")), mode: place($("mode")),
+  const mount = { pick: place($("picker")),
     rows: place($("related")),
     dump: place($("panel")), tree: place($("tree")),
     bar: place($("details")), cdump: place($("cpanel")),
@@ -236,7 +236,7 @@ try {
   // The memory section, "Inside one play": its own lens in its own
   // elements; every pause decoded once for the checks (vanilla mem.js)
   const memMount = Object.fromEntries(Object.entries({ meta: "mmeta",
-    level: "mlevel", point: "mpoint", mode: "mmoderow", viewing: "mviewing",
+    level: "mlevel", point: "mpoint", viewing: "mviewing",
     note: "mnote", dump: "mpanel", sdump: "mspanel", tree: "mtree",
     bar: "mdetails", rows: "mrelated", legend: "msrclegend",
     src: "msrc" })
@@ -286,7 +286,8 @@ try {
       r(null)));
     const done = () => {
       const s = lens.store.get();
-      const want = s.points[s.side === "before" ? "a" : "b"];
+      const want = project.bookmarks.find((b) => b.id === s.scene)
+        ?.points[s.moment];
       const sel = s.links.storage?.selection;
       return !!document.querySelector(
         `#panel .view:not([hidden])[data-point="${want}"]`) && (!sel ||
@@ -297,11 +298,6 @@ try {
     await frame();
   };
   const ready = (lens: LensContextValue, shown: Promise<boolean>) => {
-    // "show other state": the cards in the dump and by the tree's rows
-    const box = $("insets") as HTMLInputElement;
-    box.checked = lens.store.get().insets;
-    box.addEventListener("change", () => lens.store.set((s) =>
-      ({ ...s, insets: box.checked })));
     lens.store.subscribe(() => {
       scene(lens);
       const id = lens.store.get().scene;

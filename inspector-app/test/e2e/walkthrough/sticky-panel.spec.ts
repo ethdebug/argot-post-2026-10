@@ -20,7 +20,7 @@ const settled = (page: Page) => page.waitForFunction(() =>
 const geo = (page: Page) => page.evaluate(() => {
   const p = document.querySelector(".wpanel")!.getBoundingClientRect();
   const lit = [...document.querySelectorAll(
-    "#panel .view:not([hidden]) .wrow:is(.on, .gut)")].map((r) =>
+    "#panel .view[data-side=after] .wrow:is(.on, .gut)")].map((r) =>
     r.getBoundingClientRect());
   return { top: p.top, bottom: p.bottom, y: scrollY, h: innerHeight,
     litTop: Math.min(...lit.map((r) => r.top)),
@@ -163,7 +163,7 @@ for (const [w, h] of [[1440, 900], [390, 844]]) {
       const covered = await page.evaluate(async () => {
         const out: string[] = [];
         for (const c of [...document.querySelectorAll<HTMLElement>(
-          "#panel .view:not([hidden]) .wrow")].map((r) =>
+          "#panel .view[data-side=after] .wrow")].map((r) =>
           r.querySelector<HTMLElement>(".b.hl")).filter(Boolean)) {
           c!.scrollIntoView({ block: "center" });
           const pb = document.querySelector(".wpanel")!

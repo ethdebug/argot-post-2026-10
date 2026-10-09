@@ -140,15 +140,6 @@ contract Arcade {
       <p data-scene="motd" hidden>setMotd("gl hf"): a 50-byte string becomes a short one.</p>
       <p data-scene="vyper" hidden>The same game compiled by Vyper: Solidity's rule finds zeros.</p>
     </div>
-    <div class="moderow"><span class="modelabel" id="mode-l">Show</span>
-      <div id="mode" class="picker mode" role="radiogroup"
-        aria-labelledby="mode-l">
-        <button role="radio" data-mode="before"
-          aria-checked="false">Before</button>
-        <button role="radio" data-mode="after"
-          aria-checked="true">After</button></div>
-      <label class="chipcheck"><input type="checkbox" id="insets" checked>
-        show other state</label></div>
     <p id="summary" class="summary"></p>
   </section>
 
@@ -284,14 +275,6 @@ contract Arcade {
             _applyCombo</button>
           <button role="radio" data-id="writes"
             aria-checked="false">Before the writes</button></div></div>
-      <div class="moderow" id="mmoderow" hidden><span class="modelabel"
-          id="mmode-l">Show</span>
-        <div id="mmode" class="picker mode" role="radiogroup"
-          aria-labelledby="mmode-l">
-          <button role="radio" data-mode="before"
-            aria-checked="false">Before</button>
-          <button role="radio" data-mode="after"
-            aria-checked="true">After</button></div></div>
       <div class="moderow"><span id="mviewing" class="viewing"
         hidden></span></div>
       <p id="mnote" class="summary"></p>

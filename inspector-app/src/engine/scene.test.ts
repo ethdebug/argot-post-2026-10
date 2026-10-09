@@ -6,8 +6,9 @@ import { runOf } from "../../test/run";
 
 describe("the scenes", () => {
   it("are in post order, each once", () => {
-    expect(scenes.map((s) => s.id)).toEqual(["raw-hero", "raw-named", "mid", "alice",
-      "motd", "vyper", "players-walk", "bug-O0", "bug-O2"]);
+    expect(scenes.map((s) => s.id)).toEqual(["raw-hero", "raw-named",
+      "mid", "alice", "motd", "vyper", "players-walk", "alice-plays",
+      "vyper-rules", "bug-O0", "bug-O2"]);
   });
   it("name lenses that exist", () => {
     for (const s of scenes) {

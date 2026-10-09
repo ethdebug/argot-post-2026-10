@@ -118,7 +118,7 @@ test("from the keyboard: Enter on a byte or a row selects it",
   async ({ page }) => {
     await ready(page);
     await select(page, "alice", null);
-    await page.locator(`#panel .view[data-side="after"] ` +
+    await page.locator(`#panel .view[data-side=after] ` +
       `.b[data-owners="${A}.plays"][tabindex]`).first().focus();
     await page.keyboard.press("Enter");
     expect(await selected(page)).toBe(`${A}.plays`);
@@ -135,13 +135,12 @@ test("with a selection, pointing elsewhere changes nothing shown",
       document.querySelectorAll("#panel .b.hl:not(.cmp *)").length,
       [...document.querySelectorAll<HTMLElement>("#panel .pop")]
         .map((p) => p.innerText),
-      document.querySelectorAll("#panel .cmp").length,
       document.querySelector("#details")!.textContent]));
     await page.mouse.move(1, 1);
     const still = await look();
     // (an unrelated byte; then one of its own)
     for (const [f, i] of [["score", 30], ["combo", 23]] as const) {
-      await page.locator(`#panel .word[data-side="after"] ` +
+      await page.locator(`#panel .word[data-side=after] ` +
         `.b[data-owners="${A}.${f}"][data-i="${i}"]`).hover();
       await settle(page);
       expect(await look(), f).toBe(still);
@@ -155,7 +154,7 @@ test("a click that clears shows the hover under the pointer at once: a "
   const now = () => page.evaluate(() => ({
     row: document.querySelector('#tree li[data-path="totalScore"] > .row')!
       .classList.contains("hl"),
-    bytes: document.querySelectorAll("#panel .view:not([hidden]) .b.hl")
+    bytes: document.querySelectorAll("#panel .view[data-side=after] .b.hl")
       .length, sel: !!document.querySelector("#tree .row.sel") }));
   const want = { row: true, bytes: 16, sel: false };
   await pick(row(page, "totalScore"));
@@ -251,10 +250,10 @@ test("pointing at something consulted: it stands out; the rest of the "
     rel: [...document.querySelectorAll<HTMLElement>("#tree .row.rel")]
       .map((r) => r.parentElement!.dataset.path),
     relBytes: [...new Set([...document.querySelectorAll<HTMLElement>(
-      "#panel .view:not([hidden]) .b.rel")].map((b) => b.dataset.owners))],
+      "#panel .view[data-side=after] .b.rel")].map((b) => b.dataset.owners))],
     mutedRows: document.querySelectorAll("#tree .row.hl.muted").length,
     mutedBytes: document.querySelectorAll(
-      "#panel .view:not([hidden]) .b.hl.muted").length }));
+      "#panel .view[data-side=after] .b.hl.muted").length }));
   const rest = await look();
   expect(rest.rel).toEqual(expect.arrayContaining(["playerList[0]",
     "players"]));
