@@ -70,7 +70,7 @@ test("every pause's locals, decoded, at O0 and O2", async ({ page }) => {
       expect(mr.decoded[o][pt].map((x) => x.values), `${o} ${pt}`)
         .toEqual(w);
     }
-    expect(mr.decoded[o].writes[0].none).toEqual(["hit"]);
+    expect(mr.decoded[o].writes[0].none).toEqual(["player", "hit"]);
   }
 });
 
@@ -194,7 +194,7 @@ test("click again clears; Enter selects; its step lights its byte; Escape",
     expect(await msel(page)).toBe("hit");
     await page.locator('#mdetails button[data-r="start"]').click();
     await page.mouse.move(1, 1);
-    await expect.poll(() => mlit(page)).toEqual({ "after 0x0120": "31" });
+    await expect.poll(() => mlit(page)).toEqual({ "after 0x0160": "31" });
     await page.keyboard.press("Escape");
     await expect(page.locator("#mdetails.replaying")).toHaveCount(0);
     await page.keyboard.press("Escape");

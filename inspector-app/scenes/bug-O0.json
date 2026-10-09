@@ -9,22 +9,22 @@
   "timeline": [
     {
       "tx": 12,
-      "step": 400,
+      "step": 551,
       "label": "After the roll"
     },
     {
       "tx": 12,
-      "step": 792,
+      "step": 775,
       "label": "Inside _applyCombo (1 of 2)"
     },
     {
       "tx": 12,
-      "step": 793,
+      "step": 776,
       "label": "Inside _applyCombo (2 of 2)"
     },
     {
       "tx": 12,
-      "step": 903,
+      "step": 882,
       "label": "Before the writes"
     }
   ],

@@ -17,7 +17,7 @@ describe("a trace step with no range of its own", () => {
     const build = s.builds["bug-O0"];
     // (the bug-O0 scene's "mult" pause, its first moment: its JUMPDEST's
     // context has no code)
-    const at = 792;
+    const at = 775;
     const m = annotate(run, build, { tx: TX, step: at });
     expect(m.range).toBeUndefined();
     const last = lastRange(run, build, m)!;
@@ -31,7 +31,7 @@ describe("a trace step with no range of its own", () => {
   it("a moment with a range is not muted", async () => {
     const run = await runOf("bug-O0");
     const build = s.builds["bug-O0"];
-    const m = annotate(run, build, { tx: TX, step: 400 });
+    const m = annotate(run, build, { tx: TX, step: 551 });
     expect(lastRange(run, build, m)).toEqual(m.range);
     const point = momentPoint("x", m, run.stateAt(m), { build,
       last: lastRange(run, build, m) });
