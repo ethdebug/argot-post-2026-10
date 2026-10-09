@@ -510,8 +510,9 @@ li.same > .row .name, li.same > .row .type { opacity: 0.55; }
 .pop .pname.pbadge.pnone { font-weight: 400;
   --pk: var(--muted); --pk-fg: var(--muted);
   background: color-mix(in srgb, var(--bg) 85%, var(--muted)); }
-.b.free.fl { opacity: 1;
-  background: color-mix(in srgb, var(--muted) 22%, transparent); }
+/* (unmapped bytes pointed at: no fill, one step darker; the popover's
+   neutral badge says what is pointed at) */
+.b.free.fl { opacity: 0.7; filter: none; }
 .pop .pcut { opacity: 0.7; }
 .pop .full {
   display: block;

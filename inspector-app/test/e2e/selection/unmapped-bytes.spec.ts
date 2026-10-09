@@ -1,6 +1,7 @@
 // A run of bytes no value owns is its own item in the slot's popover,
 // "(unmapped)", in byte order; pointing at those bytes badges it
-// in a neutral style and lights them in a neutral one.
+// in a neutral style; the bytes take no fill, one step darker. A row no
+// value owns is one such run.
 import type { Page } from "@playwright/test";
 import { test, expect, ready, select, settle, box, V } from "../../page";
 
@@ -70,8 +71,10 @@ test("pointing at unmapped bytes badges the item neutrally",
         "#panel .pop .pname.pfree .pprose")!);
       return [c.backgroundColor, c.opacity, t.fontStyle, p.backgroundColor];
     }, ROW);
-    expect(look[0]).not.toBe("rgba(0, 0, 0, 0)");
-    expect(look[1]).toBe("1");
+    // (no fill on the bytes: one step darker; the badge says what)
+    expect(look[0]).toBe("rgba(0, 0, 0, 0)");
+    expect(Number(look[1])).toBeGreaterThan(0.5);
+    expect(Number(look[1])).toBeLessThan(1);
     expect(look[2]).toBe("italic");
     expect(look[3]).not.toBe("rgba(0, 0, 0, 0)");
     // (a gap inside the run is the run's)
@@ -192,3 +195,31 @@ test("a walkthrough step's popovers list no unmapped run",
     expect(seen.length).toBeGreaterThan(0);
     expect(seen.some((t) => t.includes("(unmapped)"))).toBe(false);
   });
+
+test("a row no value owns is one unmapped run: its gutter, gaps or bytes "
+  + "pointed at, the popover badges (unmapped), no fill", async ({ page }) => {
+  // (the memory section, nothing selected)
+  await ready(page, { memory: true, hash: "msel=" });
+  // (a memory word no local owns at this pause)
+  const slot = await page.evaluate(() => [...document.querySelectorAll<
+    HTMLElement>("#mpanel .view:not([hidden]) .rows > .wrow[data-slot]")]
+    .find((r) => !r.querySelector(".b[data-owners]"))?.dataset.slot);
+  expect(slot).toBeTruthy();
+  const R = `#mpanel .view:not([hidden]) .wrow[data-slot="${slot}"]`;
+  for (const on of [`${R} > .addr`, `${R} .b[data-i="9"]`]) {
+    await page.locator(on).hover();
+    await settle(page);
+    const got = await page.evaluate((r) => ({
+      pop: [...document.querySelectorAll<HTMLElement>("#mpanel .pop")]
+        .map((p) => p.querySelector(".pop-how")!.textContent!.trim()),
+      badge: document.querySelector("#mpanel .pop .pname.pfree")
+        ?.className,
+      fl: document.querySelectorAll(`${r} .b.fl`).length,
+      fill: getComputedStyle(document.querySelector(`${r} .b`)!)
+        .backgroundColor }), R);
+    expect(got.pop, on).toEqual([expect.stringMatching(/ : \(unmapped\)$/)]);
+    expect(got.badge, on).toBe("pname pfree pbadge pnone");
+    expect(got.fl, on).toBeGreaterThan(0);
+    expect(got.fill, on).toBe("rgba(0, 0, 0, 0)");
+  }
+});
