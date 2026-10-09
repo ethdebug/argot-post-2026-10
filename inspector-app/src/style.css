@@ -1288,6 +1288,12 @@ html { overflow-anchor: none; }
    and the focus on the right */
 .dpanel { height: 14.4em; }
 .dtext .rform { height: auto; overflow: visible; }
+/* the pointer's formulas under a step's own words, in the focus
+   picker's room (one line; a longer one is cut, whole in its title):
+   quiet, secondary */
+.rformula { min-width: 0; overflow: hidden; white-space: nowrap;
+  text-overflow: ellipsis; font: 0.75rem/1.4 ui-monospace, Menlo,
+  monospace; color: var(--muted); }
 @media (max-width: 759px) {
   /* (a phone: the title and ✕, then ◀ ▶ and the place, then the step;
      nothing cut but the title) */

@@ -60,6 +60,9 @@ export interface Step {
   // has them: shown beside the band's lines that name them)
   // (the template, or "" for the variable's own pointer, they hold in)
   notes?: { block: string; values: Record<string, string> };
+  // (a layout's own words for a step: the pointer's formulas under them,
+  // as the focus has them, quietly; FORMULAS)
+  formula?: string[];
 }
 // an instance the reader can focus (a mapping's entry)
 export interface Rec { path: Path; who: string; full?: string }
@@ -91,6 +94,9 @@ type Any = any;
 // (the walkthrough's last step, "found": one switch, to try it; vanilla
 // 6b1df3a FOUND)
 export const FOUND = true;
+// (under a step an annotator words, the pointer's formulas for it: one
+// switch, to try it; the maintainer's trial, 10-09)
+export const FORMULAS = true;
 // (a location's rows, by name: storage's slots, a segment's words)
 const NOUN: Record<string, [string, string]> = {
   storage: ["slot", "slots"], transient: ["transient slot",
@@ -458,13 +464,42 @@ export function walkthrough(x: WalkInput, path: Path, focus?: string):
   const formula = (y: X) => {
     const e = y.s.expr;
     const v = y.s.value.hex as Hex;
-    const named = (a: unknown) => typeof a === "string" &&
-      y.s.bindings?.[a] !== undefined ? small(y.s.bindings[a]) : undefined;
-    const mid = exprText(e, named, true);
-    const withVals = exprText(e, (a) => named(a), false);
+    // (an input, by its instance's name: keccak(alice, 3))
+    const named = (a: unknown) => typeof a !== "string" ||
+      y.s.bindings?.[a] === undefined ? undefined
+      : inputNames.includes(a) ? who(y.inst) : small(y.s.bindings[a]);
+    const mid = exprText(e);
+    const withVals = exprText(e, named, false, true);
     const val = small(v);
     return [`${y.s.id} = ${mid}`, ...withVals !== mid ? [withVals] : [],
       ...val !== withVals ? [val] : []].join(" = ");
+  };
+
+  // the formulas of a node, as the focus has them: a define's, a region's
+  // fields that are operations, a condition's (FORMULAS: under the words
+  // an annotator gives a step; the fold's own steps show them already)
+  const isOp = (e: unknown) => !!e && typeof e === "object";
+  const formulasOf = (nd: Nd): string[] => {
+    const y = nd.by.get(f) ?? [...nd.by.values()][0];
+    if (!y) return [];
+    if (nd.kind === "define") return isOp(y.s.expr) ? [formula(y)] : [];
+    if (nd.kind === "if") {
+      const c = exprText(y.s.cond.expr);
+      const v = exprText(y.s.cond.expr, (a) => typeof a === "string" &&
+        y.s.bindings?.[a] !== undefined ? small(y.s.bindings[a]) : undefined,
+      false, true);
+      return [`if ${c}${v !== c ? ` = ${v}` : ""} → ${y.s.branch}`];
+    }
+    const r = y.regions[0];
+    if (!r) return [];
+    return (y.s.fields ?? []).filter((fl: Any) => isOp(fl.expr))
+      .map((fl: Any) => fieldText(r, fl, y.s.bindings));
+  };
+  const withFormulas = (st: Step, nds: Nd[]) => {
+    if (!FORMULAS) return st;
+    const ls = [...new Set([...st.formula ?? [], ...nds.flatMap(formulasOf)])];
+    if (ls.length) st.formula = ls;
+    return st;
   };
 
   // (1) the inputs: where the values the pointer expects come from
@@ -485,8 +520,16 @@ export function walkthrough(x: WalkInput, path: Path, focus?: string):
   // (2) declared
   if (declared) {
     const words = ask((h) => h.declared?.(cx, declared!));
-    if (words) step({ phase: "declared", id: `declared|${variable}`,
-      band: ["~var"], ...words });
+    if (words) {
+      const st = step({ phase: "declared", id: `declared|${variable}`,
+        band: ["~var"], ...words });
+      const fs = declared.context ? computed(declared.i?.fields)
+        .filter((fl) => isOp(fl.expr)) : [];
+      if (FORMULAS && fs.length) {
+        st.formula = fs.map((fl) => fieldText(declared!.context!, fl,
+          declared!.i?.bindings));
+      }
+    }
     else if (declared.context) {
       const r = declared.context;
       const fs = computed(declared.i?.fields);
@@ -569,8 +612,8 @@ export function walkthrough(x: WalkInput, path: Path, focus?: string):
         const t = types[into.template];
         const op = opOf(nd.s.expr);
         if (words) {
-          step({ phase: "handoff", tkind: t?.kind, id: nd.k, band,
-            ...words });
+          withFormulas(step({ phase: "handoff", tkind: t?.kind, id: nd.k,
+            band, ...words }), [nd]);
           continue;
         }
         const many = xs.length > 1;
@@ -618,6 +661,7 @@ export function walkthrough(x: WalkInput, path: Path, focus?: string):
         band: [pos(nd.block, nd.at), ...branches.map((b) =>
           exact(nd.block, [...P, b]))] });
       (openIf.st as Any)._node = nd;
+      (openIf.st as Any)._absorbed = openIf.absorbed;
       (openIf.st as Any)._xs = xs;
       continue;
     }
@@ -638,8 +682,8 @@ export function walkthrough(x: WalkInput, path: Path, focus?: string):
       const parts = [{ regions: regionsOf(nd), rows, colours: M }];
       const words = ask((h) => h.read?.(cx, nd, xs));
       if (words) {
-        step({ phase: "read", rname: name, id: nd.k, band, parts, rows,
-          ...words });
+        withFormulas(step({ phase: "read", rname: name, id: nd.k, band,
+          parts, rows, ...words }), [nd]);
         continue;
       }
       const r0 = xs[0].regions[0];
@@ -663,7 +707,11 @@ export function walkthrough(x: WalkInput, path: Path, focus?: string):
     pending = [];
     const bandR = [pos(nd.block, nd.at), ...folded.flatMap((p) =>
       p.kind === "define" ? defineBand(p) : [pos(p.block, p.at)])];
-    if (hs.some((h) => h.value?.(cx, nd, xs, folded, bandR))) continue;
+    if (hs.some((h) => h.value?.(cx, nd, xs, folded, bandR))) {
+      // (the step it made or joined: the last)
+      withFormulas(out.at(-1)!, [...folded, nd]);
+      continue;
+    }
     const y0 = xs.find((y) => y.inst === f) ?? xs[0];
     const r0 = y0.regions[0];
     const lbl = (y: X) => (y.leaves.find((l) => l.path !== y.inst) ??
@@ -708,11 +756,13 @@ export function walkthrough(x: WalkInput, path: Path, focus?: string):
   for (const st of out.filter((y) => y.phase === "if") as Any[]) {
     const nodeIf = st._node as Nd;
     const sx = st._xs as X[];
+    const absorbed = (st._absorbed ?? []) as Nd[];
     delete st._node;
     delete st._xs;
+    delete st._absorbed;
     const words = ask((h) => h.branch?.(cx, st, nodeIf, sx));
     if (words) {
-      Object.assign(st, words);
+      withFormulas(Object.assign(st, words), [nodeIf, ...absorbed]);
       continue;
     }
     // what it lights: the regions it took in
