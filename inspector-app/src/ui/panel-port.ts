@@ -1,0 +1,49 @@
+// Where a walkthrough's panel is drawn, when not beside its controller:
+// in the post, the figure's embed (embed.html#…&panel=external) sends the
+// panel's model to a frame of its own (embed-panel.html), and acts on
+// that frame's intents. Both frames join one same-origin channel,
+// "ethdebug:<scene>:<channel>" (the host gives each figure its own
+// channel id, so two figures of one scene keep apart). Its messages:
+// { type: "model", model } (figure → panel, each change), { type:
+// "intent", intent } (panel → figure), { type: "hello" } (the panel,
+// when it loads: the figure sends the model it has).
+import { createContext } from "react";
+import type { Intent, PanelModel } from "./WalkthroughPanel";
+
+export interface Port {
+  publish(m: PanelModel): void;
+  // (its intents to `f`; returns the way to stop)
+  listen(f: (i: Intent) => void): () => void;
+}
+export const PanelPort = createContext<Port | null>(null);
+
+export const channelName = (scene: string, channel: string) =>
+  `ethdebug:${scene}:${channel}`;
+
+// The figure's side of the channel
+export function figurePort(name: string): Port {
+  const bc = new BroadcastChannel(name);
+  let last = "";
+  let model: PanelModel | null = null;
+  bc.addEventListener("message", (e) => {
+    if (e.data?.type === "hello" && model) {
+      bc.postMessage({ type: "model", model });
+    }
+  });
+  return {
+    publish(m) {
+      const s = JSON.stringify(m);
+      if (s === last) return;
+      last = s;
+      model = m;
+      bc.postMessage({ type: "model", model: m });
+    },
+    listen(f) {
+      const h = (e: MessageEvent) => {
+        if (e.data?.type === "intent") f(e.data.intent as Intent);
+      };
+      bc.addEventListener("message", h);
+      return () => bc.removeEventListener("message", h);
+    },
+  };
+}

@@ -8,10 +8,10 @@
 import {
   useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode,
 } from "react";
-import { band as bandOf, pointerText } from "../engine/pointer-text";
-import { useCompilation, useDecoded } from "./hooks";
+import { band as bandOf, type PointerLine } from "../engine/pointer-text";
 import { highlighter } from "./shiki";
-import type { DataRef } from "./types";
+
+const NONE: YamlText = { lines: [], names: {} };
 
 type Highlighter = { codeToHtml(code: string, o: object): string };
 type Shiki = Promise<Highlighter | null>;
@@ -30,21 +30,22 @@ function shiki(): Shiki {
     });
 }
 
+// The pointer's text, for a variable (pointer-text.ts): what the panel
+// draws, from its model
+export interface YamlText { lines: PointerLine[];
+  names: Record<string, string> }
+
+// `text`: the selection's variable's pointer (none: nothing selected);
 // `goal`: a walkthrough's step 0 (the pointer blurred and still);
 // `shown`: the details are open (the edges' buttons only then)
-export function PointerYaml({ domId, data, variable, band, before, goal,
-  shown, notes }: { domId?: string; data: DataRef; variable?: string;
+export function PointerYaml({ domId, text: yaml, band, before, goal,
+  shown, notes }: { domId?: string; text: YamlText | null;
   band?: string[]; before?: ReactNode; goal?: boolean; shown?: boolean;
   notes?: { block: string; values: Record<string, string> } }) {
-  const c = useCompilation(data);
   // (its parts' ids, after its own: "ptr" → "pgo"; "mptr" → "mpgo")
   const pre = domId?.replace(/ptr$/, "") ?? "";
-  // (a local's pointer, from its dereference graph: it is not one of the
-  // compilation's state variables)
-  const pointer = useDecoded(data)?.graphs.get(variable ?? "")?.pointer;
-  const { lines, names } = useMemo(() => c && variable
-    ? pointerText(c, variable, pointer) : { lines: [], names: {} },
-  [c, variable, pointer]);
+  const variable = !!yaml;
+  const { lines, names } = yaml ?? NONE;
   const text = lines.map((l) => l.text).join("\n");
   const [html, setHtml] = useState<{ text: string; lines: string[] }>();
   // (coloured once it is shown: the colouring loads then, not with the
