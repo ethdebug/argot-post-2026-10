@@ -2,7 +2,7 @@
 // one build by @ethdebug/evm, through ./evm (injected: the lazy chunk
 // in the browser, the module in Node), recorded per trace step; the
 // state at a moment (§2.3); the run's digest (§2.4)
-import type { Chain, Handlers, TxResult } from "./evm";
+import type { Chain, TxResult } from "./evm";
 import type { Hex, Snapshot } from "../types";
 import type {
   BuildId, Frame, Journal, MomentRef, Run, Scenario, TxRun,
@@ -36,64 +36,44 @@ function words(memory: Uint8Array, offset: number, size: number): Hex[] {
   return out;
 }
 
-// One transaction's recording: the trace handlers, then its TxRun
-function recorder() {
-  const pc: number[] = [], op: number[] = [], depth: number[] = [];
-  const frame: number[] = [], stack: bigint[][] = [];
-  const memory: Uint8Array[] = [];
-  const frames: Frame[] = [], open: number[] = [];
+// One transaction's run, from its recorded trace: its trace steps as
+// typed arrays, its journals of writes, the slots it touched, its
+// KECCAK256 inputs
+function txRun(label: string, from: Hex, input: Hex, r: TxResult): TxRun {
   const storage: Journal = [], transient: Journal = [];
   const touched = new Set<Hex>();
   const keccakInputs: Hex[][] = [];
-  const on: Handlers = {
-    frame(e) {
-      if (e.kind === "enter") {
-        const { kind: _, ...f } = e;
-        open.push(frames.length);
-        frames.push({ ...f, first: pc.length, last: pc.length - 1,
-          reverted: false });
-        return;
-      }
-      const f = frames[open.pop()!];
-      f.last = pc.length - 1;
-      f.returnData = e.returnData;
-      f.reverted = e.reverted;
-    },
-    step(t) {
-      const i = pc.length;
-      const b = t.op;
-      const f = open[open.length - 1];
-      const top = (k: number) => t.stack[t.stack.length - 1 - k];
-      pc.push(t.pc);
-      op.push(b);
-      depth.push(t.depth);
-      frame.push(f);
-      stack.push(t.stack);
-      memory.push(t.memory);
-      // (the slots of the transaction's own address: its first frame's)
-      const own = frames[f].address === frames[0].address;
-      if (b === SSTORE || b === TSTORE) {
-        (b === SSTORE ? storage : transient).push({ step: i, frame: f,
-          slot: word(top(0)), value: word(top(1)) });
-      }
-      if ((b === SSTORE || b === SLOAD) && own) touched.add(word(top(0)));
-      if (b === KECCAK256) {
-        keccakInputs.push(words(t.memory, Number(top(0)),
-          Number(top(1))));
-      }
-    },
-  };
-  const done = (label: string, from: Hex, input: Hex,
-    r: TxResult): TxRun => ({
+  r.steps.forEach((t, i) => {
+    const f = r.frameOf[i];
+    const top = (k: number) => t.stack[t.stack.length - 1 - k];
+    // (the slots of the transaction's own address: its first frame's)
+    const own = r.frames[f].address === r.frames[0].address;
+    if (t.op === SSTORE || t.op === TSTORE) {
+      (t.op === SSTORE ? storage : transient).push({ step: i, frame: f,
+        slot: word(top(0)), value: word(top(1)) });
+    }
+    if ((t.op === SSTORE || t.op === SLOAD) && own) {
+      touched.add(word(top(0)));
+    }
+    if (t.op === KECCAK256) {
+      keccakInputs.push(words(t.memory, Number(top(0)), Number(top(1))));
+    }
+  });
+  return {
     label, from, input,
     result: { success: r.success, returnData: hexOf(r.returnData),
       gasUsed: r.gasUsed },
-    steps: pc.length,
-    pc: Int32Array.from(pc), op: Uint8Array.from(op),
-    depth: Uint8Array.from(depth), frame: Uint16Array.from(frame),
-    frames, stack, memory, storage, transient, touched, keccakInputs,
-  });
-  return { on, done };
+    steps: r.steps.length,
+    pc: Int32Array.from(r.steps, (t) => t.pc),
+    op: Uint8Array.from(r.steps, (t) => t.op),
+    depth: Uint8Array.from(r.steps, (t) => t.depth),
+    frame: Uint16Array.from(r.frameOf),
+    frames: r.frames.map(({ returnData, ...f }) =>
+      ({ ...f, returnData })),
+    stack: r.steps.map((t) => [...t.stack]),
+    memory: r.steps.map((t) => t.memory),
+    storage, transient, touched, keccakInputs,
+  };
 }
 
 // (`on`: the chain to run on, for a test that reads its state after)
@@ -110,19 +90,18 @@ export async function runScenario(s: Scenario, build: BuildId,
     const { number, timestamp, prevrandao } = blockOf(s, k);
     const block = { number, timestamp, prevrandao };
     const from = addressOf.get(t.from)!;
-    const r = recorder();
     if (t.kind === "create") {
       const x = await ch.send({ from, input: b.create, value: t.value,
-        block }, r.on);
+        block });
       if (!x.created) throw new Error(`${t.label}: no contract created`);
       address = x.created;
-      txs.push(r.done(t.label, from, b.create, x));
+      txs.push(txRun(t.label, from, b.create, x));
       continue;
     }
     if (!address) throw new Error(`${t.label}: no contract yet`);
     const input = inputOf(t);
-    txs.push(r.done(t.label, from, input, await ch.send({ from, to: address,
-      input, value: t.value, block }, r.on)));
+    txs.push(txRun(t.label, from, input, await ch.send({ from, to: address,
+      input, value: t.value, block })));
   }
   if (!address) throw new Error(`scenario ${s.id} creates no contract`);
   return runOf({ scenario: s.id, build, address, txs });
