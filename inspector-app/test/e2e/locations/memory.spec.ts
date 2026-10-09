@@ -44,21 +44,16 @@ const mcol = (page: Page) => page.evaluate(() => {
   return { rows, bytes: Object.fromEntries(Object.entries(bytes)
     .map(([w, s]) => [w, [...s].sort().join()])) };
 });
-// the walkthrough (the storage section's, as #mdetails): its steps'
-// worked values, Start to the last step, then out
-const walk = async (page: Page) => {
+// the walkthrough (the storage section's, as #mdetails): one step's
+// worked values (its dot), then out
+const walkStep = async (page: Page, k: number) => {
   const bar = page.locator("#mdetails");
   await bar.locator('button[data-r="start"]').click();
-  const forms: string[] = [];
-  for (let k = 0; k < 12; k++) {
-    forms.push((await page.locator("#mdtext").innerText()).trim());
-    const next = bar.locator('button[data-r="next"]');
-    if (await next.isDisabled()) break;
-    await next.click();
-  }
+  await page.locator(`#mdots .dot[data-k="${k}"]`).click();
+  const form = (await page.locator("#mdtext").innerText()).trim();
   await bar.locator('button[data-r="exit"]').click();
   await expect(page.locator("#mdetails.replaying")).toHaveCount(0);
-  return forms;
+  return form;
 };
 
 test("every pause's locals, decoded, at O0 and O2", async ({ page }) => {
@@ -127,21 +122,6 @@ test("inside _applyCombo: O0 a call with a frame; colours; Before | After; "
     .first().click();
   expect(await msel(page)).toBe("points");
   await pick(mrow(page, "mult"));
-  // (the selection, each side: its walkthrough adds its own offset to
-  // the frame's)
-  await page.locator("h1").hover();
-  const frame = (await mrow(page, "_applyCombo").locator(".val")
-    .textContent())!.trim().slice(9);
-  const sides: string[][] = [];
-  for (const m of ["before", "after"]) {
-    await page.locator(`#mmode button[data-mode="${m}"]`).click();
-    sides.push((await walk(page)).filter((f) => f.startsWith("offset")));
-  }
-  expect(sides).toEqual([
-    [`offset = read(-frame) + 88 = ${frame} + 88 = 0x${(parseInt(frame, 16)
-      + 88).toString(16).padStart(4, "0")}\nmult = 5`],
-    [`offset = read(-frame) + 184 = ${frame} + 184 = 0x${(parseInt(frame,
-      16) + 184).toString(16).padStart(4, "0")}\nmult = 3`]]);
   await mopt(page, "2");
   await pick(mrow(page, "_applyCombo"));
   await expect(mrow(page, "_applyCombo").locator(".val"))
@@ -152,6 +132,27 @@ test("inside _applyCombo: O0 a call with a frame; colours; Before | After; "
     "#mpanel .view:not([hidden]) .wrow[data-slot='0x0080'] .b[data-owners]"))
     .toHaveCount(0);
 });
+
+// (mult moves: each side's walkthrough adds its own offset to the
+// frame's; step 2, the value's own region)
+test("inside _applyCombo, each side: mult's offset from the frame",
+  async ({ page }) => {
+    await at(page, "#mopt=0&mpt=mult&msel=mult");
+    const frame = (await mrow(page, "_applyCombo").locator(".val")
+      .textContent())!.trim().slice(9);
+    const hex = (n: number) => `0x${n.toString(16).padStart(4, "0")}`;
+    const sides: string[] = [];
+    for (const m of ["before", "after"]) {
+      await page.locator(`#mmode button[data-mode="${m}"]`).click();
+      sides.push(await walkStep(page, 2));
+    }
+    const f = parseInt(frame, 16);
+    expect(sides).toEqual([
+      `offset = read(-frame) + 88 = ${frame} + 88 = ${hex(f + 88)}\n` +
+        "mult = 5",
+      `offset = read(-frame) + 184 = ${frame} + 184 = ${hex(f + 184)}\n` +
+        "mult = 3"]);
+  });
 
 test("before the writes: gained, hit with no location, alice's record",
   async ({ page }) => {
