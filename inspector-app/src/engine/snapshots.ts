@@ -43,7 +43,7 @@ export async function sceneSnapshot(p: Project, scene: Scene):
   Promise<SceneSnapshot> {
   const timeline = timelineOf(scene.id);
   const ds = Object.values(p.decodings).filter((d) =>
-    d.timeline === timeline && d.variables !== "abi");
+    d.timeline === timeline);
   const compilations = await Promise.all([...new Set(ds.map((d) =>
     d.compilation))].map((c) => p.compilation(c)));
   return snapshotFile(scene, await p.source(scene.id), {

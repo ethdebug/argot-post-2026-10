@@ -22,7 +22,7 @@ describe("chain", () => {
     const deployed = await ch.send({ from: DEPLOYER, input: sol.create,
       block: { number: 1n, timestamp: 12n, prevrandao: "0x01" } });
     expect(deployed.success).toBe(true);
-    // (anvil's first contract from its account 0)
+    // (the deployer's first contract: account 0's, nonce 0)
     expect(deployed.created).toBe(
       "0x5fbdb2315678afecb367f032d93f642f64180aa3");
     const joined = await ch.send({ from: ALICE, to: deployed.created!,

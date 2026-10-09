@@ -3,29 +3,28 @@ import { fsIo } from "../../test/io";
 import type { Io } from "./io";
 import { load } from "./project";
 import { decode } from "./decode";
-import { builds, scenes } from "../scenes";
+import { builds, page, scenes } from "../scenes";
 import { readerProject } from "../../test/project";
 
 const A = "players[0x70997970c51812dc3a010c7d01b50e0d17dc79c8]";
 
-it("loads only the index until a scene is asked "
+it("loads nothing until a scene is asked "
   + "for; then its snapshot, once", async () => {
   const seen: string[] = [];
   const io = { ...fsIo(), json: <T>(q: string) => (seen.push(q),
     q.startsWith("snapshots/") ? Promise.reject(new Error("HTTP 404"))
       : fsIo().json<T>(q)) };
-  const p = await load(io as Io, { scenes, builds });
-  expect(seen).toEqual(["fixtures/index.json"]);
+  const p = await load(io as Io, { scenes, builds, page });
+  expect(seen).toEqual([]);
   expect(p.bookmarks.map((b) => b.id))
     .toEqual(["raw-hero", "raw-annotated",
       "raw-named", "mid", "alice", "motd", "vyper",
       "players-walk", "alice-plays", "vyper-rules", "stepper-O0",
-      "stepper-O2", "O0/roll", "O0/mult", "O0/writes", "O2/roll",
-      "O2/mult", "O2/writes"]);
+      "stepper-O2"]);
   await expect(p.timeline("scene:mid")).rejects.toThrow("404");
   // (a failed load is not kept: asked again, it loads again)
   await expect(p.timeline("scene:mid")).rejects.toThrow("404");
-  expect(seen.slice(1)).toEqual(["snapshots/mid.json",
+  expect(seen).toEqual(["snapshots/mid.json",
     "snapshots/mid.json"]);
 });
 

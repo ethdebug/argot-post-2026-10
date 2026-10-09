@@ -270,25 +270,3 @@ for (const [w, h] of [[1440, 900], [390, 844]]) {
       expect(e.r.bottom).toBeLessThanOrEqual(e.d.bottom + 12);
     });
 }
-
-// (and the memory section's: its Rows toggle under its own panel)
-test("memory: the Rows toggle stays clear of the panel and clickable",
-  async ({ page }) => {
-    await ready(page, { hash: "#mopt=0&mpt=mult&msel=combo", width: 1440,
-      memory: true });
-    await page.locator('#mdetails button[data-r="start"]').click();
-    for (let k = 0; k < 10; k++) {
-      await settled(page);
-      const [p, r] = await page.evaluate(() => ["#memory .wpanel.walking",
-        "#mrelated"].map((q) => {
-        const b = document.querySelector(q)!.getBoundingClientRect();
-        return { top: b.top, bottom: b.bottom };
-      }));
-      expect(r.top, `step ${k}`).toBeGreaterThanOrEqual(p.bottom - 0.5);
-      expect(await hit(page, "#mrelated"), `step ${k}: clickable`)
-        .toBe(true);
-      const n = page.locator('#mdetails button[data-r="next"]');
-      if (await n.isDisabled()) break;
-      await n.click();
-    }
-  });

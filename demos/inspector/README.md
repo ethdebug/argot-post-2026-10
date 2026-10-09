@@ -15,8 +15,10 @@ TypeScript library) from the ethdebug output of Walnut's solc fork
 type from the program context, and the rules for non-value types from
 the pointer templates. This page does not use soldb.
 
-Serve the repo root over HTTP and open `demos/inspector/`. The page needs no
-node: everything comes from `fixtures/`.
+The page is the app in `inspector-app/` (React + TypeScript, Vite), built
+to `demos/inspector/` on the site. Its data is the scenario's run: the
+transactions run by `@ethdebug/evm` in the browser (authoring) or saved
+as each scene's snapshot (the page).
 
 
 ## About this demo
@@ -37,8 +39,8 @@ preview build of Walnut's solc fork, walnuthq/solidity PR #10), with
 the optimizer off. Each variable's base slot, offset and type come
 from the program context; the rules for mappings, structs, arrays and
 strings come from the pointer templates in the resources.
-`@ethdebug/pointers` is from ethdebug/format main (see
-`vendor/pointers.js` below), pending release.
+`@ethdebug/pointers` is from ethdebug/format main, pinned by
+`inspector-app/vendor/PIN`, pending release.
 
 ### The contract
 
@@ -54,7 +56,8 @@ and hits; `setMotd` sets the message of the day. The story: deploy
 with a 50-byte motd; alice, bob and carol join; alice hits twice, bob
 hits, carol hits four times (a best combo of 4), then misses (the
 middle of the game); alice hits a third time; then
-the motd becomes "gl hf". Each player is an anvil account.
+the motd becomes "gl hf". Each player is one of the scenario's
+accounts (`inspector-app/scenarios/arcade/scenario.json`).
 
 ### The scenes
 
@@ -82,7 +85,7 @@ the motd becomes "gl hf". Each player is an anvil account.
   Solidity stores it in slot 1 itself, its bytes from the high end and
   2 × its length in the last byte. solc writes zeros to the two old
   data slots; they are in the dump After. The walkthrough shows where
-  the two rules part. The call's calldata is under the storage.
+  the two rules part.
 - Vyper reads it differently: the same three players, in the same game
   compiled by Vyper 0.4.3 (`contracts/Arcade.vy`), at the same middle
   of the game. The rule from the first scene, keccak256(address .
@@ -115,45 +118,19 @@ How to read the dump: one 32-byte word per row, byte 0 at the left;
   `t_mapping$_t_address_$…` are solc's internal names. ethdebug does
   not require them.
 
-### Inside one play (the memory section)
-
-Each data location is its own panel, drawn by the one location panel
-(`panel.js` `renderLocation`, with `regionBytes` for every location):
-the section shows a Memory panel and, at the last point, a Storage
-panel for alice's record slot, each with its own header and gutter,
-both lit by the same selection and walkthrough and painted the same
-way (`paint`, with its popovers and cards). The calldata of the motd scene is the
-same panel too: its parts are owners of calldata regions (the
-selector's row, then rows of 32 bytes from byte 4), painted by `paint`.
+### Stepping through bugc's code (the stepper)
 
 BUG is ethdebug's teaching language, and bugc is ethdebug's reference
-compiler. Arcade has a BUG port, and the section shows alice's third
-hit again, paused at three points inside `play()`. At each point,
-bugc's debug data lists the local variables in scope, and gives most
-of them a pointer: bugc keeps them in memory. Compile it without
-optimization (O0) or with it (O2): at O0, `_applyCombo` is a real call,
-and its locals are in a frame whose address is in the word at 0x80; at
-O2 it is inlined, so its locals are at fixed offsets, with no frame. A
-local that bugc lists with its type only has no location at that
-point. The byte ranges come from ethdebug's reference library
-(@ethdebug/pointers), which follows bugc's pointers against the memory
-at each point. Only the decoding into numbers is the page's own. The
-program is compiled by bugc from ethdebug/format main (the commit is in
-`fixtures/memory.json`).
-
-The memory dump shows memory at the paused step, one 32-byte word to a
-line, by offset: the words a local lives in; "⋯" marks words left out.
-At the last point, alice's record slot in storage comes last. Point at
-a value, a byte or an address to light it up.
-
-- "no location at this point": bugc lists the local with its type and
-  no pointer. This happens with optimization (a value the optimizer
-  folded away) and without it (at O0, `hit` after its `if`).
-- Inside `_applyCombo`, `mult = combo` moves `mult`: after it, bugc points
-  `mult` at a word that holds `combo`'s bytes too.
-- Alice's record slot is the page's own: bugc's pointer for `players`
-  gives only its base slot, so the slot (keccak256 of the key and 4)
-  and the packed members follow BUG's rules, which are Solidity's.
+compiler. Arcade has a BUG port (`bug/arcade.bug`), and the stepper
+scenes (`stepper-O0`, `stepper-O2`) step through carol's join at four
+moments, compiled without optimization (O0) and with it (O2). At each,
+the code panel marks the moment's source range, and the variables in
+scope are the storage variables and the locals bugc lists there, each
+found by bugc's pointers against the state at that moment. `name` is a
+`string calldata` reference: its word, in memory, holds the offset and
+the length of the name's bytes in the call's input, so selecting it
+lights those bytes in the calldata dump. In `play()`, `player` is a
+copy of the caller's record in memory, decoded field by field.
 
 ### Credits and links
 
@@ -163,15 +140,15 @@ Part of the ethdebug post appendix, with "ethdebug in depth"
 
 ## Scenes
 
-`fixtures/index.json` lists the scenes. Each has a title, a fixture,
-its points (one: `["before"]` or `["after"]`, the state on that side of
-the fixture's transaction; or two: `["before", "after"]`), what each
-point is called (`when`), a summary line, the variable selected first
-(`select`), and for two points the mode shown first. Each scene's intro
-is in `index.html` (`#intros`, one `<p data-scene>` per scene), and so
-are the picker's buttons, with `data-fixture` and `data-single` (one
-point), so that the page does not move when the data comes;
-`inspector-app/test/sources.test.ts` checks that they match.
+The scenes are `inspector-app/scenes/*.json`: each its run (the
+scenario and a build), the lens that draws it, its moments (a
+transaction and a trace step, or the transaction's end, each with a
+label), a caption (the page's summary line) and what it opens with.
+The page's scenes are listed in `inspector-app/src/scenes/index.ts`
+(`page`); each one's intro is in `index.html` (`#intros`, one `<p
+data-scene>` per scene), and so are the picker's buttons, so that the
+page does not move when the data comes; `inspector-app/test/
+sources.test.ts` checks that they match.
 
 1. The middle of the game: one point, after alice's two hits, bob's
    hit, carol's four hits and carol's miss. All three players: each
@@ -191,16 +168,13 @@ point), so that the page does not move when the data comes;
    on the leaderboard": slot 1 holds 0x65, the bytes at keccak(slot 1)
    and the next slot); after, slot 1 holds the 5 bytes and 0x0a, and
    solc has zeroed the two old data slots (shown After). `motd`
-   selected. This scene also shows the calldata (below).
+   selected.
 4. Vyper reads it differently: the same three players in Vyper's build,
    at the middle of the game (see "Vyper" below). One point.
 
-A scene with one point has no other state: no Before | After, no "show
-other state", no change marks or cards, no popover facts ("read,
-written"), and its dump shows only the slots of the values on the page.
-The details say "Holds" for the value. The page makes such a scene from
-the fixture by using the one side's words as both sides (`atPoint()` in
-`main.js`).
+A scene of two moments opens at its later one, its timeline under
+the picker; a step back shows the earlier one in place, the bytes the
+step changed marked.
 
 ## Vyper
 
@@ -225,122 +199,56 @@ of the selected player, each lighting its word. The script reads those
 words from the node and checks them against the getter. How to show
 this point is still to be decided.
 
-## Calldata (the setMotd scene)
-
-`setMotd(string calldata text)`: `text` stays in the transaction's
-input. solc's ethdebug output here gives no pointer for a parameter (its
-instructions carry `code` contexts only) and no calldata types or
-templates, so the page cannot ask ethdebug where `text` is, and says so.
-`calldata.js` shows the input like the other dumps (the selector line,
-then words by offset) and labels the parts by the ABI encoding rules:
-the selector, `text`'s head word (the offset, 32), its length (5) and
-its bytes ("gl hf"). The linking works both ways: click a byte to select its
-part, a part (or `text`) to light its bytes; its "How this was found" lists
-the ABI steps, each lighting its bytes. The scene names its function
-and parameter in `fixtures/index.json` (`calldata`).
-
 ## Files
 
 The page is the app in `inspector-app/` (React + TypeScript, Vite).
 Its build goes to `demos/inspector/` on the site (`inspector-app/bin/
-site.sh`; the Pages workflow runs it), beside the files here. The app
-reads its fixtures from here. The text below describes the page as it
-was before the app took its place (tag `pre-port-2026-10`); the
-behaviour is the same, the file names are the app's now.
+site.sh`; the Pages workflow runs it), beside the files here.
 
-- `decode.js`: the decoding for the fixture scripts (node).
-- `vendor/pointers.js`: `@ethdebug/pointers` bundled with esbuild from
-  ethdebug/format `origin/main` at commit
-  `d7cb421a3` (#323: expressions take `~`, not `$`), minified, for
-  `decode.js`. Rebuild with `bin/build-pointers.sh <checkout>` after
-  `yarn install` and building `packages/format` and `packages/pointers`.
-- The sigil: ethdebug/format writes a pointer expression's operator
-  with `~` (`~keccak256`), and the library takes no other; solc still
-  writes `$` (ethdebug/format#324). `decode.js` `solcTilde` rewrites
-  solc's pointers and templates as each storage fixture is read
-  (`bin/make-fixtures.mjs`; the app does the same). bugc writes `~`:
-  `fixtures/memory.json` was made with bugc at `d7cb421a3`.
-- `bin/make-fixtures.mjs`: compiles, deploys, runs the transactions,
-  writes `fixtures/` (not `index.json`) and puts the contract's source
-  into the app's `index.html`.
-- `screenshots/`: from `inspector-app/bin/run.mjs` (`npm run check` in
-  `inspector-app`; only `desktop-packed.png` is committed).
-- `bug/arcade.bug`, `bin/make-memory-fixture.mjs`,
-  `fixtures/memory.json`: the lower section, "Inside one play" (below).
-  `bug/arcade.bug` is a copy of `private/arcade/arcade.bug`.
 - `contracts/`: `Arcade.sol` and `Arcade.vy`, copied from the post's
   shared example (`private/arcade/`).
-- The walkthrough oracle is retired (2026-10-08). It was
-  `inspector-app/test/oracle/vanilla.json`, the vanilla page's
-  walkthroughs captured step by step, compared by
-  `test/e2e/oracle.spec.ts`. The Arcade renames (`roster` →
-  `playerList`, `total` → `totalScore`, `rounds` → `totalHits`,
-  `hitCount` → `hits`) change its captions, and the vanilla page is
-  deleted, so it cannot be captured again. `test/e2e/walkthrough/`
-  and `src/engine/walkthrough/fold.test.ts` check the walkthroughs.
+- `bug/arcade.bug`: the BUG port, the stepper's program.
+- `screenshots/`: from `inspector-app/bin/run.mjs` (`npm run check` in
+  `inspector-app`; only `desktop-packed.png` is committed).
+- The sigil: ethdebug/format writes a pointer expression's operator
+  with `~` (`~keccak256`), and the library takes no other; solc still
+  writes `$` (ethdebug/format#324). The app rewrites solc's pointers
+  and templates as it reads a build (`src/engine/run/build.ts`
+  `solcTilde`). bugc writes `~`.
 
-## How the fixtures were made
+## How the builds and scenes are made
 
-1. `anvil --steps-tracing --port 8555 --silent`
-2. `SOLC=<solc> VYPER=<vyper> RPC_URL=http://127.0.0.1:8555 node
-   bin/make-fixtures.mjs`. `<solc>` is a
-   native solc built from Walnut's fork, walnuthq/solidity PR #10 (head
-   `c434b2ea`, reports `0.8.38-develop.2026.10.5+commit.c434b2ea`);
-   stock solc 0.8.37 gives ethdebug types and templates but no program
-   context with the state variables, which the page needs. `<vyper>` is
-   Vyper 0.4.3. Without them, the script runs `solc` and `vyper` from
-   your PATH. It compiles Arcade.sol with `--standard-json`, viaIR,
-   optimizer off, `experimental: true`, `debug.debugInfo: ["ethdebug",
-   "ast-id"]`, and outputs `ethdebug.resources` and
-   `ethdebug.compilation` (together they give the global
-   `ethdebug.resources`), `evm.deployedBytecode.ethdebug` (the program,
-   with the program-level context), bytecode and the AST. No
-   storageLayout.
-3. The story, on a fresh anvil (deployer: account 0; alice, bob,
-   carol: accounts 1, 2, 3): deploy with the 50-byte motd; alice, bob
-   and carol join (names "alice", "bob", "carol, the unstoppable combo
-   queen"); alice hits; alice hits; bob hits; carol hits four times,
-   then misses (the middle of the game); alice hits (combo 3); `setMotd("gl hf")`, after a
-   deploy with the motd "season 2 starts friday, see you on the
-   leaderboard". A play rolls from prevrandao,
-   which anvil draws at random and cannot be told, so each play is sent
-   in an `evm_snapshot`; on the wrong outcome the script reverts, mines
-   an empty block and sends again (as `private/arcade/tools/story.py`
-   does). Hashes and block numbers differ from run to run; outcomes do
-   not. Fixtures: `arcade-mid` (carol's miss: its after side is the
-   middle of the game), `arcade-alice` (alice's third hit),
-   `arcade-motd` (setMotd); mapping keys from the joins' and plays'
-   traces.
-   - Arcade.vy: deploy, the same joins and plays to the middle of the
-     game (fixture `arcade-vyper`; see "Vyper").
-4. For each transaction the script saves:
-   - the trace steps the page needs from `debug_traceTransaction`
-     (with memory): KECCAK256 steps with memory (mapping keys), SLOAD
-     with the loaded value, SSTORE. The full trace is not kept; the
-     fixture records its step count.
-   - every storage word the decoder reads, before (block − 1) and after
-     (block), from `eth_getStorageAt`, plus every slot the trace
-     touched. The script checks that the first SLOAD and last SSTORE of
-     each slot agree with the node.
-   - the source, the program-level context's `variables` (one per
-     state variable: name, pointer, type id), ethdebug `resources`
-     (types, pointers), and state variable source ranges from the AST.
-   - `keys` and `keysFrom` when the mapping keys come from elsewhere
-     than the transaction's own KECCAK256 inputs.
+1. The builds: `SOLC=<solc> VYPER=<vyper> BUGC=<bugc>
+   inspector-app/bin/build-arcade.sh` compiles `contracts/Arcade.sol`,
+   `contracts/Arcade.vy` and `bug/arcade.bug` (at -O 0 and -O 2) into
+   `inspector-app/scenarios/arcade/builds/`. `<solc>` is a native solc
+   built from Walnut's fork, walnuthq/solidity PR #10 (head
+   `c434b2ea`); stock solc 0.8.37 gives ethdebug types and templates
+   but no program context with the state variables, which the page
+   needs. `<vyper>` is Vyper 0.4.3. `<bugc>` is `packages/bugc` of an
+   ethdebug/format checkout at the commit `inspector-app/vendor/PIN`
+   names. `ONLY=bug` rebuilds the bugc builds alone.
+2. The story, `inspector-app/scenarios/arcade/scenario.json`: deploy
+   with the 50-byte motd; alice, bob and carol join (names "alice",
+   "bob", "carol, the unstoppable combo queen"); alice hits; alice
+   hits; bob hits; carol hits four times, then misses (the middle of
+   the game); alice hits (combo 3); `setMotd("gl hf")`. Each play's
+   prevrandao is the scenario's own, chosen so the roll comes out as
+   the story says (`inspector-app/bin/scenario-roll.mjs`).
+3. The runs: `@ethdebug/evm` runs the story for each build
+   (`inspector-app/src/engine/run/`); `scenarios/arcade/digests.json`
+   holds each run's digest, which every load checks.
+4. The scenes, `inspector-app/scenes/*.json`: each a run, a lens and
+   its moments (transaction and trace step). The build saves each
+   scene's snapshot (its moments' state, cut to what its decodings
+   read); the shell (`shell.html`) runs the scenarios in the browser,
+   steps a scene's run in its debugger, and writes pins to a scene's
+   file.
 
-To change the contract: edit `contracts/`, the transactions in
-`bin/make-fixtures.mjs`, the scenes in `fixtures/index.json` and their
-intros and buttons in `index.html`, and the expected values in
-`inspector-app/test/expect.ts`; then rerun the script, `bin/sizes.mjs`
-and the app's tests (`npm run test:full` in `inspector-app`).
-
-The tests (`src/engine/decode.test.ts`,
-`test/e2e/scenes/scenes.spec.ts`) check the decoded values against the
-values the calls wrote (at the middle of the game alice 30 / combo 2 / best 2 / plays 2
-/ hits 2, bob 10 / 1 / 1 / 1 / 1, carol 100 / 0 / 4 / 5 / 4, the
-names, `playerList`, totalScore 140, totalHits 7; after alice's third
-hit 60 / 3 / 3 / 3 / 3, totalScore 170, totalHits 8; and the Vyper
-storage values).
+To change the contract: edit `contracts/` or `bug/`, rebuild, update
+the story and `inspector-app/test/expect.ts`, rerun the run tests with
+`UPDATE=1` for the digests (`src/engine/run/run.test.ts`), and run the
+app's tests (`npm run test:full` in `inspector-app`).
 
 ## Which data is ethdebug, which is not
 
@@ -395,7 +303,7 @@ offsets.
   against the bytes like a hex dump's line labels. The one mark at rest
   is a small ring beside the address for a slot the transaction wrote
   without changing it (nothing else would show that; none of the
-  current fixtures has one). Pointing at an address puts the full
+  current scenes has one). Pointing at an address puts the full
   address and what the transaction did to the slot in the details
   under the dump (and in the address's `aria-label`). The page sets no
   `title` anywhere, so it shows no native tooltips.
@@ -414,8 +322,8 @@ offsets.
 - Bytes: each byte belongs to the value whose region covers it. Regions
   are the ones the library returned (`value.region`); for a string,
   also its `length-flag` and `long-length` regions (`value.parts`,
-  added in `decode.js`). A region longer than the rest of its word goes
-  on into the next slots. Each value in a slot has a subtle tint, the
+  added by the app's decoder, `src/engine/decode.ts`). A region
+  longer than the rest of its word goes on into the next slots. Each value in a slot has a subtle tint, the
   same in both states; bytes no shown value owns are dim; changed bytes
   are underlined (red in Before, green in After); a word that did not
   change is muted.
@@ -465,10 +373,9 @@ offsets.
   over the row in After); a lit parent gets one card with its changed
   members. There is never a card for what did not change, in the tree
   or the dump. Highlighting works the same with the cards off.
-- Each section (the storage scenes, the calldata, the memory section)
-  keeps its own view: its controls, clicks and Escape act on it only.
-  With nothing focused, Escape clears the selection of the section the
-  pointer was last pressed in. The Before | After toggle is shown only
+- Each lens keeps its own view: its controls, clicks and Escape act on
+  it only. With nothing focused, Escape clears the selection of the
+  lens the pointer was last pressed in. The Before | After toggle is shown only
   in a scene with two points.
 - The URL hash keeps the view, e.g.
   `#ex=motd&mode=before&sel=motd&mopt=2&mpt=mult&mmode=after`
@@ -577,7 +484,8 @@ lines of the pointer). During a replay, the bytes of a lit slot that
 no value owns stay muted.
 
 The walkthrough follows general rules, built from the raw steps that
-`decode.js` `replay()` records for every value under the selection (in
+the app's walk (`src/engine/deref/walk.ts`) records for every value
+under the selection (in
 the state shown), each with its place in the pointer (its block: the
 variable's pointer or a template; and its path of keys). Nothing is
 computed by the page but a flag byte read from the state.
@@ -664,8 +572,8 @@ data).
 
 `dereference()` gives the regions and `view.read()` the bytes; those are
 the values on the page. The library does not report the steps it took,
-so `decode.js` `replay()` walks the same template (group, list, if,
-define, template reference) and calls the library's own `evaluate()` for
+so the app's walk (`src/engine/deref/walk.ts`) walks the same template
+(group, list, if, define, template reference) and calls the library's own `evaluate()` for
 each expression. Each replayed region must equal the region
 `dereference()` returned, or decoding stops with an error. `evaluate()`
 is imported from the package's dist (it is not a public export).
@@ -693,8 +601,8 @@ its first scene, "Raw bytes" (`#scene=raw`), and the shell as
 `shell.html#lens=raw-hero`. (Three earlier compositions mixed sizes
 and left dead areas; they are gone.)
 
-The moment (`fixtures/raw.json`, made by `bin/make-raw-fixture.mjs`):
-the same build as the storage fixtures, on a fresh anvil; deploy,
+The moment (scene `raw-hero`: transaction 3, trace step 569 of the
+`sol` build's run): deploy,
 alice joins, bob joins, then carol's
 `join("carol, the unstoppable combo queen")`. Her name is 34 bytes,
 so its text takes two words, at keccak256(her name's slot) + 0 and
@@ -707,7 +615,7 @@ storage; its source range is the whole contract (lines 4–46). The
 helper is called at step 442 from line 22,
 `players[msg.sender].name = name;`.
 
-The state is the machine's as the node reports it for that step,
+The state is the machine's at that trace step,
 before its instruction runs: the stack (14 items; among them her name's
 slot, the length 0x22, the loop's counters and the data slot being
 written), memory (96 bytes: the hash inputs at 0x00 and 0x20, the
@@ -716,127 +624,32 @@ free-memory pointer at 0x40; the name is not in memory, because
 contract's whole storage then (9 slots: every slot the deployment and
 the joins before wrote, with her join's SSTOREs before the step).
 
-To make it again: `anvil --steps-tracing --port 8556 --silent`, then
-`SOLC=<solc> RPC_URL=http://127.0.0.1:8556 node
-bin/make-raw-fixture.mjs` (solc as for `bin/make-fixtures.mjs`).
-No play is sent, so nothing is rolled: the step, the pc and the
-bytes depend only on the build and the calls.
-The moment is one parameter: `AT`, the step of her join to freeze
-(unset: the step above). `AT=442 … node bin/make-raw-fixture.mjs`
-freezes another; so does changing its default in the script.
-
-## Inside one play: locals in memory, with BUG (bugc from ethdebug/format main)
-
-A separate section under the storage demo shows alice's third hit
-(combo 3, +30) in Arcade's BUG port, `bug/arcade.bug`, paused at three
-points inside `play()`, with memory at each point and the locals bugc
-lists there as a tree. bugc (ethdebug/format main, from PR #368 on)
-compiles the port as written: the roll is
-`keccak256(block.prevrandao, msg.sender) % 3 != 0`, as in Solidity;
-`!hit`; `playerList.push(msg.sender)`; names and the motd as text. Each
-instruction's `variables` context gives each local in scope, and a
-pointer for those it has a location for. bugc keeps play()'s locals in
-memory, at -O0 and at -O2 (it gives a stack pointer only to a value it
-never stores in memory; in Arcade, only `len` in `join` and
-`setMotd`).
-
-Two pickers: Compiled (O0 | O2) and Paused (the three points). Each
-point is picked by how many locals have a location there, not by line
-(`bin/make-memory-fixture.mjs`):
-
-- After the roll: the first step where `hit` has a location (`true`).
-  `player`, play()'s copy of alice's record in memory (BUG has no
-  storage references), is listed too, with no location: bugc's
-  dominator tree leaves out a call's edge to its continuation, so a
-  local defined before `_rolledHit()` loses its pointer after it
-  (fixed in ethdebug/format#378).
-- Inside _applyCombo: two steps, with all three of `points` (10),
-  `combo` (3) and `mult` located: the last with `mult` = 5, the first with
-  `mult` = 3 (around `mult = combo`). A two-step point has Show: Before |
-  After and the cards, as the storage scenes with two points. At O0,
-  `_applyCombo` is a real call: each local's pointer reads the frame's
-  address from the word at 0x80 (region `-frame`) and adds an offset.
-  At O2 it is inlined: fixed offsets, no frame. In the tree,
-  `_applyCombo` holds the three; selected, its own bytes (the frame
-  pointer, at O0) take the selection colour, and each local a child
-  colour. After `mult = combo`, bugc points `mult` at a word that holds
-  `combo`'s bytes too, so those bytes have two owners.
-- Before the writes: `gained` = 30, at the first SSTORE of play()'s
-  write-back (`players[msg.sender] = player;`), and `player` and `hit`
-  listed with no location. Alice's record slot is at the end of the
-  dump, as the trace has it at that step (as her second hit left it:
-  score 30, combo 2). It is the page's own: bugc's pointer
-  for `players` gives only its base slot (4), so the slot,
-  keccak256(alice . 4), and the six packed members (low-order bytes
-  first, as Solidity) follow BUG's rules. Its members each get a child
-  colour.
-
-A one-step point shows one dump ("Memory") and no Before | After, no
-cards, no change marks. A local listed with no pointer shows its type
-and "no location at this point". That is not only the optimizer: at
-O0, bugc also lists `hit` with no pointer after its `if`. Linking,
-selecting, child colours and muting work as in the storage scenes.
-The URL hash keys are `mopt`, `mpt`, `mmode` (at a two-step point)
-and `msel`.
-
-How the fixture was made:
-
-1. A detached worktree of ethdebug/format main (at `1d45fea4c`, #368),
-   `yarn install --frozen-lockfile` (it builds the packages).
-2. `anvil --steps-tracing --port 8558 --silent` (without
-   `--steps-tracing`, anvil returns no steps).
-3. `BUGC=<worktree>/packages/bugc node bin/make-memory-fixture.mjs`
-   (`RPC_URL` defaults to `http://127.0.0.1:8558`), then
-   `node bin/sizes.mjs`. For -O0 and -O2, it compiles `bug/arcade.bug`,
-   deploys it, plays the story to alice's third hit (each play in a
-   snapshot, as `bin/make-fixtures.mjs` does), traces it with memory,
-   and saves each point: the step, its instruction's locals (as bugc
-   emitted them, with the source path made relative), its code range,
-   and memory after the step (a context describes the state after its
-   instruction). It checks the values by hand (above), the record's
-   members (score 30, combo 3, bestCombo 3, plays 3, hits 3,
-   lastBlock = the block), and that `playerList` holds three players.
-   Hashes and blocks differ from run to run; values and steps do not.
-
-The page dereferences each pointer with `@ethdebug/pointers` against
-that point's memory (`decode.js` `decodeLocals`). "How this was found"
-replays it with the library's evaluator, as for storage: the frame
-pointer, if any, then the local's region.
+The moment is the scene's: a different trace step is an edit of
+`scenes/raw-hero.json` (or a pin from the shell's debugger).
 
 ## Loading on a slow link
 
-What the page fetches (GitHub Pages gzips text):
-
-| File | gzip | size |
-| --- | ---: | ---: |
-| `index.html` (with the loader) | 9.5 KB | 28.2 KB |
-| `main.js`, `panel.js`, `decode.js`, `mem.js`, `calldata.js` | 46.3 KB | 137.1 KB |
-| `style.css`, `../../shared/appendix.css` | 9.9 KB | 33.9 KB |
-| `vendor/pointers.js` (minified) | 69.0 KB | 272.1 KB |
-| `fixtures/index.json`, `memory.json` | 2.9 KB | 35.6 KB |
-| the first scene's data (`arcade-mid.json`) | 3.3 KB | 13.8 KB |
-| the other three fixtures, idle-time | 10.3 KB | 49.2 KB |
-| total | 151.3 KB | 569.8 KB |
-| `vendor/shiki.js`, only when the source is opened | 58.6 KB | 196.7 KB |
-
-The bundle was 86.8 KB gzip (411 KB) before it was minified.
+What the page fetches (GitHub Pages gzips text): `index.html` (with the
+loader), the app's code (its chunks; the library's is
+`vendor/pointers.js`), the stylesheets, and the first scene's snapshot
+(`snapshots/<scene>.json`); the other scenes' snapshots idle-time; the
+EVM's chunk never (only the shell runs scenarios). `bin/sizes.mjs`
+writes the files' sizes into the built page; `npm run perf` measures
+the load.
 
 - Progress: a bar at the top and a line at the bottom left say "Loading
   the decoder and the data: n KB of m KB" (sizes after gzip is undone,
   from `bin/sizes.mjs`). The stylesheets do not block it: they load
   with `media="print"` and the page stays hidden until both are in,
   then shows in its final layout. The loader is inline at the end of
-  `index.html`, so it starts the bundle, the index, the first scene's data
-  and the memory data at once; `modulepreload` fetches the page's
-  modules beside them. The bundle is imported from the text it fetched
-  (a `blob:` URL), and `decode.js` takes it from
-  `globalThis.ethdebugPointers`.
+  `index.html`, so it starts the code and the first scene's data at
+  once.
 - No jumps: until the data comes, the tree shows gray lines, and the
   picker, the Show buttons, the meta line, the summary and the words
   have their room (the picker's buttons are in `index.html`;
-  `test/sources.test.ts` checks that they match `fixtures/index.json`).
+  `test/sources.test.ts` checks that they match the page's scenes).
 - A scene's data is fetched when it is shown. Once the page is
-  usable, the other fixtures are fetched one at a time while the
+  usable, the other scenes' data is fetched one at a time while the
   browser is idle and nothing else is loading. Picking one that is
   still loading shows its progress in the bar.
 - A load that fails says which file and why ("HTTP 503", "the network
@@ -862,7 +675,7 @@ prints the load (bytes per kind of file, cold and warm; first paint,
 LCP, the time until the page is usable, blocking time, layout shift),
 each interaction's time to the next paint (p50, p95: hovers over the
 dump and the tree, selections, a walkthrough, the scenes, All |
-Related, the memory section), the JS heap and the DOM. It exits 1 when
+Related), the JS heap and the DOM. It exits 1 when
 a number is over its budget (`BUDGETS` in the script). Options:
 `--profiles low,mid,desktop`, `--runs N` (cold loads, the median),
 `--soak S` (S seconds more of interactions, then the heap again),
@@ -879,10 +692,10 @@ slows the throttled page as much again.
 In `inspector-app`:
 
 - `src/**/*.test.ts(x)`: unit tests (vitest), each beside the module
-  it tests, on the real fixtures (`test/project.ts`, `test/io.ts`);
+  it tests, on the scenario's runs (`test/project.ts`, `test/run.ts`);
   `test/lens.tsx` mounts the full inspector with only the views a
   test needs. `test/sources.test.ts`: the page's sources against
-  `fixtures/` (picker, intros, contract, no `title`, no local paths).
+  the scenes (picker, intros, contract, no `title`, no local paths).
 - `bin/*.test.mjs`: node tests of the scripts.
 - `test/e2e/<area>/*.spec.ts`: Playwright, in Chromium, Firefox and
   WebKit, on the dev server. One folder an area: `loading` (a clean

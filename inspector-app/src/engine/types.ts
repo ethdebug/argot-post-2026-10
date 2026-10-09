@@ -1,6 +1,6 @@
 // The domain types (timeline-inspector spec §1.1-1.5), and the parts of
 // §1.6-1.7 the engine computes with (Filter, Target, Colour, Light).
-// Pure data: made by compilers, chains, fixtures and the engine.
+// Pure data: made by compilers, the runner and the engine.
 import type { Pointer, Type } from "./lib";
 
 export declare namespace Format {
@@ -53,23 +53,17 @@ export interface Timeline {
 export interface TimelinePoint {
   id: PointId;
   label: string;                        // "in the middle of the game"
-  at: { tx: Hex; side: "before" | "after" }   // a fixture's (legacy)
-    | { tx: Hex; step: number }               // a fixture's paused step
-    | { tx: number; step: number | "end" };   // a moment (run/types)
+  at: { tx: number; step: number | "end" };   // a moment (run/types)
   snapshot: Snapshot;
   transaction?: TxFacts;                // the tx this point is before/after
   locals?: Local[];                     // instruction context here (BUG memory)
   // (the port's, for a paused step: the trace step, its instruction and
-  // source range; the function whose frame the locals are in, if not
-  // the body's; a storage slot the page reads by its own rule)
+  // source range)
   // (`last`: the range is the last one before this trace step, which
   // has none of its own: shown muted; engine/moment.ts)
   paused?: { step: number; op: string; of?: number;
     range?: { source: string; offset: number; length: number };
     last?: true };
-  scope?: string;
-  record?: { path: Path; key: Hex; base: number; slot: Hex;
-    members: [name: string, bytes: number][] };
 }
 // a local variable, as an instruction's context lists it: one with no
 // pointer has no location there
@@ -109,11 +103,8 @@ export interface Decoding {             // "this rule over that storage"
   id: DecodingId;
   compilation: CompilationId;           // whose variables + templates
   timeline: TimelineId;                 // whose snapshots
-  variables: "state" | "locals" | "abi" | "scope";
+  variables: "state" | "locals" | "scope";
   keys: KeySource;                      // where mapping keys come from
-  // ("abi": a call's calldata by the ABI encoding, for this function and
-  // its one string parameter)
-  abi?: { signature: string; param: string };
   // (one compiler's rule over another compiler's storage: the Vyper
   // scene's, solc's pointers over Vyper's storage; `rule`: the decoding
   // of that storage by its own compiler's layout, for the contrast)
@@ -155,8 +146,6 @@ export interface ValueNode {
   absent?: true;
   reads?: ResolvedRegion[];
   kind?: "group" | "record";
-  // (a calldata part's ABI id: "m-length", vanilla's data-part)
-  part?: string;
   note?: string;                // "no ethdebug type …"
 }
 export type Location = "storage" | "memory" | "stack" | "calldata"

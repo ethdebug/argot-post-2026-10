@@ -10,7 +10,7 @@ import { createRoot } from "react-dom/client";
 import { fetchIo } from "../engine/io";
 import { load } from "../engine/project";
 import { lenses } from "../lenses";
-import { builds, scenes } from "../scenes";
+import { builds, page, scenes } from "../scenes";
 import { Shell } from "./Shell";
 import { browserRuns, runWorker } from "../engine/run/client";
 import { digest } from "../engine/run/run";
@@ -19,7 +19,7 @@ import { digest } from "../engine/run/run";
 // chunk loaded there; addendum §3.1)
 const runs = browserRuns(runWorker());
 const project = await load(fetchIo(import.meta.env.BASE_URL),
-  { scenes, builds, runs });
+  { scenes, builds, page, runs });
 // (the runs' digests, as digests.json's: test/e2e/authoring)
 (window as unknown as { runDigest(s: string, b: string): Promise<string> })
   .runDigest = async (s, b) => digest(await runs.run(

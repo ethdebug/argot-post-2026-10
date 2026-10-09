@@ -50,19 +50,6 @@ const checks: Record<string, (page: Page) => Promise<void>> = {
     await expect(page.locator(".rbar.replaying")).toHaveCount(1);
   },
 };
-// (the memory section's: its own level, its first pause, its run's
-// values: alice's lastBlock 13, the story's)
-for (const o of ["0", "2"]) {
-  checks[`bug-O${o}`] = async (page) => {
-    await expect(page.locator('[data-opt][aria-checked="true"]'))
-      .toHaveAttribute("data-opt", o);
-    await expect(val(page, "hit")).toHaveText("true");
-    // (her record before play() writes its copy back: as her play
-    // before left it)
-    await expect(val(page, `${A}.lastBlock`)).toHaveText(lastBlock.mid[0]);
-  };
-}
-
 // (the stepper's: carol's join, its first moment, the name's length
 // read from the call: 34 bytes)
 for (const o of ["0", "2"]) {
@@ -72,6 +59,12 @@ for (const o of ["0", "2"]) {
     await expect(val(page, "len")).toHaveText("34");
   };
 }
+
+// (the memory section's old ids, in the embed: the stepper's)
+test("embed.html#scene=bug-O2: the stepper at -O2", async ({ page }) => {
+  await page.goto("./embed.html#scene=bug-O2");
+  await checks["stepper-O2"](page);
+});
 
 test("every scene has its check", () => {
   expect(Object.keys(checks).sort()).toEqual([...ids].sort());

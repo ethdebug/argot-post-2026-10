@@ -5,8 +5,7 @@ import { test, expect, ready, select } from "../../page";
 import { A, B, C } from "../../expect";
 
 const at = async (page: Page, width: number, scene: string) => {
-  // (the calldata section, on hold, drawn for this check)
-  await ready(page, { width, hash: "#calldata=1" });
+  await ready(page, { width });
   await select(page, scene, null);
 };
 // each owner's tint classes (at rest, and lit by its selection)
@@ -22,18 +21,6 @@ const tints = (page: Page, panel: string) => page.evaluate((q) => {
 }, panel);
 const one = (by: Record<string, string[]>) =>
   Object.entries(by).filter(([, ks]) => ks.length !== 1);
-
-test("calldata: each part one tint across its rows, at rest and lit",
-  async ({ page }) => {
-    await at(page, 1600, "motd");
-    const rest = await tints(page, "#cpanel");
-    expect(Object.keys(rest).length).toBeGreaterThanOrEqual(4);
-    expect(one(rest)).toEqual([]);
-    // (the selector and the offset, which meet in row 0x0000: two)
-    expect(rest["selector"]).not.toEqual(rest["text.offset"]);
-    await page.locator('#ctree li[data-part="m"] > .row').click();
-    expect(one(await tints(page, "#cpanel"))).toEqual([]);
-  });
 
 test("storage, 16 bytes a line: each value one tint", async ({ page }) => {
   await at(page, 390, "mid");

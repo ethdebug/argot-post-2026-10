@@ -11,9 +11,10 @@ programs-react takes React 19 and shiki 3); from a detached worktree
 (#375's branch), d7cb421a3, ec7a81386.
 
 bugc (bin/build-arcade.sh's BUGC, the bug-O0 and bug-O2 builds):
-commit 031ab4198 (ethdebug/format main: #379, string calldata
-references, join's `name`; after #377 at a08698683, struct and string
-copies between storage and memory, pointers for struct locals). The
+commit ab7910c7f (ethdebug/format main: #378, locals keep their
+pointers after a call; after #379 at 031ab4198, string calldata
+references, join's `name`; #377 at a08698683, struct and string copies
+between storage and memory, pointers for struct locals). The
 four packed packages do not change from ba31f0a81 to it, so the
 tarballs stay.
 

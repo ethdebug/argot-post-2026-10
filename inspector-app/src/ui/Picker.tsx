@@ -6,7 +6,7 @@ import { OtherScenes, useLens, useLensState, useLink } from "./hooks";
 import type { ViewId } from "./types";
 
 export function Picker(p: { id: ViewId;
-  of: "bookmarks" | "points" | "level" | "related";
+  of: "bookmarks" | "related";
   domId?: string; link?: string }) {
   const lens = useLens();
   const { spec, project, store } = lens;
@@ -16,29 +16,6 @@ export function Picker(p: { id: ViewId;
   const moment = useLensState((s) => s.moment);
   const sel = useLensState((s) => s.links[spec.links[0]]?.selection ??
     null);
-  // (the memory section's: scenes "O<level>/<pause>"; a level keeps the
-  // pause, its moment and the selection; a pause takes its defaults)
-  if (p.of === "level" || p.of === "points") {
-    const ids = spec.bookmarks ?? [];
-    const [o, pt] = (current ?? "").split("/");
-    const keys = [...new Set(ids.map((i) => i.split("/")[p.of === "level"
-      ? 0 : 1]))];
-    const title = (k: string) => p.of === "level" ? k
-      : project.bookmarks.find((b) => b.id === `${o}/${k}`)?.title ?? k;
-    return <div id={p.domId} className="picker mpick" role="radiogroup"
-      aria-label={p.of === "level" ? "Optimization level" : "Pause point"}
-      data-view={`${lens.key}:${p.id}`}>
-      {keys.map((k) => <button key={k} role="radio"
-        {...(p.of === "level" ? { "data-opt": k.slice(1) }
-          : { "data-id": k })}
-        aria-checked={(p.of === "level" ? o : pt) === k ? "true" : "false"}
-        onClick={() => {
-          if ((p.of === "level" ? o : pt) === k) return;
-          const id = p.of === "level" ? `${k}/${pt}` : `${o}/${k}`;
-          void lens.show(id, p.of === "level" ? { moment, sel } : {});
-        }}>{title(k)}</button>)}
-    </div>;
-  }
   if (p.of === "bookmarks") {
     const bms = (spec.bookmarks ?? []).map((id) =>
       project.bookmarks.find((b) => b.id === id)!).filter(Boolean);

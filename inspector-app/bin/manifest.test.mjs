@@ -14,10 +14,6 @@ test("walkthroughs: players at mid, in each mode", () => {
     x.walk === "all");
   assert.strictEqual(w.length, 3);
 });
-test("memory: O0 and O2, three points", () => {
-  for (const o of ["0", "2"]) for (const p of ["roll", "mult", "writes"])
-    assert.ok(s.some((x) => x.hash.includes(`mopt=${o}&mpt=${p}`)));
-});
 test("players' focus states: at the step with the picker", () => {
   // (each scene, each mode)
   const f = s.filter((x) => x.id.endsWith("-sel=players-walk6-bob"));

@@ -9,7 +9,7 @@ describe("the scenes", () => {
     expect(scenes.map((s) => s.id)).toEqual(["raw-hero", "raw-annotated",
       "raw-named",
       "mid", "alice", "motd", "vyper", "players-walk", "alice-plays",
-      "vyper-rules", "bug-O0", "bug-O2", "stepper-O0", "stepper-O2"]);
+      "vyper-rules", "stepper-O0", "stepper-O2"]);
   });
   // (the post's first before/after is one figure: the raw bytes, then
   // the same bytes annotated, at the one moment)

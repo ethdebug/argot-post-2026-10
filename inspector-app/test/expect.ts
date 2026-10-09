@@ -1,7 +1,7 @@
 // The expected values, from vanilla bin/run.mjs
 // (A, B, C, MOTD, NAME_C, player(), mid, expected, defaults)
 
-// alice, bob and carol: anvil's accounts 1, 2 and 3
+// alice, bob and carol: the scenario's accounts 1, 2 and 3
 export const A = "players[0x70997970c51812dc3a010c7d01b50e0d17dc79c8]";
 export const B = "players[0x3c44cdddb6a900fa2b585dd299e03d12fa4293bc]";
 export const C = "players[0x90f79bf6eb2c4f870365e785982e1f101e93b906]";
@@ -63,14 +63,17 @@ export const defaults: Record<string, [string, string]> = {
 // players' lastBlock in the arcade scenario's runs (genesis block 0, one
 // transaction a block: transaction k in block k + 1): alice, bob and
 // carol in the middle of the game (their last plays: transactions 5, 6
-// and 11), and alice after her third hit (transaction 12). (The anvil
-// fixtures had 7, 8, 21 and 25: anvil mined a block for each roll.)
+// and 11), and alice after her third hit (transaction 12).
 export const lastBlock = { mid: ["6", "7", "12"], alice: "13" };
 
-// "Inside one play" (the bug-O0 and bug-O2 scenes, alice's third hit,
-// transaction 12): each moment's source range (none: the last one,
-// muted) and the locals its context lists
+// Inside one play (alice's third hit, transaction 12, in the bug runs):
+// four pauses, each its trace step at -O0 and -O2, its source range
+// (none: the last one, muted) and the locals its context lists: after
+// the roll; inside _applyCombo, the two steps around `mult = combo`;
+// before the writes
 export const PAUSE_TX = 12;
+export const PAUSE_STEPS = { O0: [551, 775, 776, 882],
+  O2: [405, 575, 576, 642] } as const;
 export const pauses: { range?: string; locals: string[] }[] = [
   { range: "!hit", locals: ["player", "hit"] },
   { locals: ["points", "combo", "mult"] },

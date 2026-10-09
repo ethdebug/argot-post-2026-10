@@ -243,12 +243,7 @@ export function layout(d: Decoded, location: Location, filter: Filter = {},
     // near the selection. Storage's slots are sparse: its values' only)
     ...addressing(location) === "offset" || location === "stack"
       ? allRows(o.point?.snapshot, location) : []])].sort(order);
-  const record = o.point?.record;
   const how = (a: Hex) => {
-    // (a slot the page reads by its own rule: named by it)
-    if (location === "storage" && record?.slot === a) {
-      return `keccak(msg.sender, slot ${record.base})`;
-    }
     if (location !== "storage") return rowName(location, a);
     const n = BigInt(a);
     return n < PLAIN ? `slot ${n}` : names.get(n) ?? extra.get(a) ??

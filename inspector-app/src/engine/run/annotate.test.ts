@@ -1,10 +1,7 @@
 import { describe, expect, it } from "vitest";
-import fs from "node:fs";
-import path from "node:path";
 import { annotate, locals } from "./annotate";
 import { arcade, runOf } from "../../../test/run";
-import { pauses } from "../../../test/expect";
-import { sceneOf } from "../scene";
+import { PAUSE_STEPS, PAUSE_TX, pauses } from "../../../test/expect";
 
 const s = arcade();
 // a byte offset's line (the source has multi-byte characters)
@@ -21,14 +18,14 @@ describe("annotate", () => {
     expect([lineOf(text, m.range!.offset),
       lineOf(text, m.range!.offset + m.range!.length)]).toEqual([4, 46]);
   });
-  it.each(["bug-O0", "bug-O2"])("%s at its scene's moments: its range " +
-    "and locals (test/expect.ts)", async (b) => {
+  it.each(["O0", "O2"] as const)("bug-%s at alice's third hit's pauses: " +
+    "its range and locals (test/expect.ts)", async (o) => {
+    const b = `bug-${o}`;
     const run = await runOf(b);
     const build = s.builds[b];
     const text = Buffer.from(build.sources[0].text, "utf8");
-    sceneOf(JSON.parse(fs.readFileSync(path.join(__dirname, "..", "..",
-      "..", "scenes", `${b}.json`), "utf8"))).timeline.forEach((at, k) => {
-      const m = annotate(run, build, at);
+    PAUSE_STEPS[o].forEach((step, k) => {
+      const m = annotate(run, build, { tx: PAUSE_TX, step });
       const r = m.range;
       expect(r && text.subarray(r.offset, r.offset + r.length).toString(),
         `${k}`).toBe(pauses[k].range);

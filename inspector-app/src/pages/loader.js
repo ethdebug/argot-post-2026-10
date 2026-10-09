@@ -124,8 +124,8 @@
   window.loading = { load, fail, retry, busy: () =>
     [...files.values()].some((f) => !f.done) };
 
-  // The decoder and the app's code, the index, the scene the page opens
-  // with, and the memory section's data, all at once; then the app runs
+  // The decoder and the app's code, and the scene the page opens with,
+  // all at once; then the app runs
   // (its code from the HTTP cache). The decoder bundle is the app's own
   // chunk, vendor/pointers.js (on the dev server, a copy, for the bar).
   function boot() {
@@ -149,9 +149,8 @@
     document.querySelector("main")?.toggleAttribute("data-single",
       !!first?.hasAttribute("data-single"));
     const label = "the decoder and the data";
-    for (const f of ["fixtures/index.json",
-      `snapshots/${first?.dataset.snapshot}.json`,
-      ...(other ? ["fixtures/raw.json"] : [])]) {
+    for (const f of [`snapshots/${first?.dataset.snapshot}.json`,
+      ...(other ? ["snapshots/raw-hero.json"] : [])]) {
       // (the app loads them again, and shows a failure)
       load(f, { label }).catch(() => {});
     }

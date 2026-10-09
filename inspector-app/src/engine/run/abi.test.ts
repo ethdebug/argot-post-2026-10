@@ -6,8 +6,6 @@ import { MOTD, NAME_C } from "../../../test/expect";
 
 const demo = path.join(__dirname, "..", "..", "..", "..", "demos",
   "inspector");
-const fixture = (id: string) => JSON.parse(fs.readFileSync(
-  path.join(demo, "fixtures", `${id}.json`), "utf8"));
 const bug = fs.readFileSync(path.join(demo, "bug", "arcade.bug"), "utf8");
 // the selector arcade.bug compares msg.data[0:4] with, under the
 // comment that names the function
@@ -20,14 +18,16 @@ describe("encodeCall", () => {
       expect(encodeCall(fn, [""]).slice(0, 10)).toBe(selectorIn(fn));
     }
   });
-  it("encodes carol's join as the raw fixture's calldata", () => {
-    expect(encodeCall("join(string)", [NAME_C]))
-      .toBe(fixture("raw").tx.input);
-  });
-  it("encodes setMotd and play() as the fixtures' calldata", () => {
-    expect(encodeCall("setMotd(string)", [MOTD[1]]))
-      .toBe(fixture("arcade-motd").tx.input);
-    expect(encodeCall("play()", [])).toBe(fixture("arcade-mid").tx.input);
+  it("encodes a string: offset, length, its bytes padded to words", () => {
+    const words = encodeCall("join(string)", [NAME_C]).slice(10)
+      .match(/.{64}/g)!;
+    const n = Buffer.byteLength(NAME_C);
+    expect(words.slice(0, 2)).toEqual(["20".padStart(64, "0"),
+      n.toString(16).padStart(64, "0")]);
+    expect(Buffer.from(words.slice(2).join(""), "hex").toString("utf8")
+      .replace(/\0+$/, "")).toBe(NAME_C);
+    expect(encodeCall("setMotd(string)", [MOTD[1]]).length)
+      .toBe(10 + 64 * 3);
   });
   it("encodes uint, address and bytes", () => {
     const a = "0x70997970c51812dc3a010c7d01b50e0d17dc79c8";

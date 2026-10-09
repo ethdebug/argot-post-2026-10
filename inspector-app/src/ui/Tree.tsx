@@ -36,7 +36,6 @@ const pk = (k: Colour | undefined) => k === undefined || k === 0 ? ""
 
 interface Ctx { light: Light; selection: string | null;
   collapsed: ReadonlySet<string>; pair?: [Decoded, Decoded];
-  plain?: boolean; partAttr?: boolean;
   // (a row's name in a view transition: transition.ts)
   vt?: (path: string) => string }
 
@@ -89,7 +88,6 @@ function Row({ n, top, c, inBlk }: { n: ValueNode; top?: boolean; c: Ctx;
     shut ? "collapsed" : "", blk ? "blk" : "", blk ? pk(blkK) : "",
     blk && mutedRow(c, n) ? "muted" : ""].filter(Boolean).join(" ");
   return <li className={li || undefined} data-path={n.path}
-    data-part={c.partAttr ? n.part ?? n.path : undefined}
     data-vt={top ? c.vt?.(`tree ${n.path}`) : undefined}>
     <div className={cls} tabIndex={0} role="button"
       data-vt={c.vt?.(n.path)}
@@ -107,7 +105,7 @@ function Row({ n, top, c, inBlk }: { n: ValueNode; top?: boolean; c: Ctx;
         : group ? <span className="val sum">{n.summary}</span>
           : n.note ? <span className="muted">{n.note}</span> : null}
     </div>
-    {group && !c.plain && <button type="button" className="chev"
+    {group && <button type="button" className="chev"
       tabIndex={0}
       aria-expanded={shut ? "false" : "true"}
       aria-label={`${shut ? "Expand" : "Collapse"} ${n.label}`}>
@@ -123,8 +121,7 @@ function Row({ n, top, c, inBlk }: { n: ValueNode; top?: boolean; c: Ctx;
 export function Tree(p: { id: ViewId; data: DataRef; filter?: Filter;
   link?: LinkId; domId?: string; variant?: "tree" | "table";
   compare?: DataRef; align?: ViewId[];
-  // (no cards of the other state, no collapsing: the memory section's)
-  plain?: boolean; partAttr?: boolean; title?: string;
+  title?: string;
   // (a row's name in a view transition: transition.ts)
   vt?: (path: string) => string }) {
   // (with the paths its scene's other moments have: engine/union.ts)
@@ -171,7 +168,6 @@ export function Tree(p: { id: ViewId; data: DataRef; filter?: Filter;
   const fewer = !!related;
   const c: Ctx = { light, selection: link.selection, pair,
     collapsed: new Set([...shut].filter((q) => !closing.has(q))),
-    plain: p.plain, partAttr: p.partAttr,
     vt: (q) => vtName(lens.key, p.id, q) };
   // only the filter's roots (the related view's), and the groups that
   // hold them
@@ -520,6 +516,6 @@ export function Tree(p: { id: ViewId; data: DataRef; filter?: Filter;
       </ul> : <div className="skel" aria-hidden="true">
         {Array.from({ length: 8 }, (_, i) => <i key={i} />)}</div>}
     </div>
-    {!p.plain && <>{edge("up")}{edge("down")}</>}
+    {edge("up")}{edge("down")}
   </>;
 }

@@ -7,10 +7,8 @@ import { A } from "../../expect";
 const go = async (page: Page, hash: string) => {
   await page.goto("about:blank");
   await page.goto(`./#${hash}`);
-  // (both sections ready: each has shown its view, and written its keys)
-  await page.waitForFunction(() => (window as Win).results?.done &&
-    (window as unknown as { memResults?: { done: boolean } }).memResults
-      ?.done);
+  // (ready: it has shown its view, and written its keys)
+  await page.waitForFunction(() => (window as Win).results?.done);
 };
 const view = (page: Page) => page.evaluate(() => ({
   ex: document.querySelector<HTMLElement>(
@@ -19,14 +17,14 @@ const view = (page: Page) => page.evaluate(() => ({
     HTMLElement | undefined)?.dataset.path,
   hash: location.hash }));
 
-test("the hash restores the view, and keeps the memory keys (the old " +
-  "mode and insets keys go)", async ({ page }) => {
-    await go(page, "ex=motd&mode=before&sel=playerList&mopt=2&mpt=mult&" +
-      "mmode=before&msel=mult&insets=0");
+test("the hash restores the view (the old mode and insets keys go)",
+  async ({ page }) => {
+    await go(page, "ex=motd&mode=before&sel=playerList&insets=0");
     const hs = await view(page);
     expect(hs).toMatchObject({ ex: "motd", sel: "playerList" });
-    for (const k of ["ex=motd", "sel=playerList", "mopt=2", "mpt=mult",
-      "msel=mult"]) expect(hs.hash).toContain(k);
+    for (const k of ["ex=motd", "sel=playerList"]) {
+      expect(hs.hash).toContain(k);
+    }
     for (const k of ["mode=", "insets="]) expect(hs.hash).not.toContain(k);
     await pick(page.locator('#tree li[data-path="totalScore"] > .row'));
     await expect.poll(() => page.evaluate(() => location.hash))
@@ -38,14 +36,13 @@ test("the hash restores the view, and keeps the memory keys (the old " +
     await page.reload();
     await page.waitForFunction(() => (window as Win).results?.done);
     await expect(page.locator("#tree .row.sel")).toHaveCount(0);
-    expect(await page.evaluate(() => location.hash)).toContain("mpt=mult");
   });
 
 test("a scene alone gives its defaults; a stale hash the first scene's",
   async ({ page }) => {
     await go(page, "ex=mid");
     expect((await view(page)).sel).toBe(A);
-    await go(page, "ex=nope&mode=compare&sel=zzz&mopt=7&mpt=x");
+    await go(page, "ex=nope&mode=compare&sel=zzz");
     const v = await view(page);
     expect([v.ex, v.sel]).toEqual(["mid", A]);
   });
