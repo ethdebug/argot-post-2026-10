@@ -25,7 +25,10 @@ export interface Scene {
               walk?: { step: number; focus?: Hex };
               // (its trees' groups shut when it opens: the values it is
               // not about)
-              collapse?: Path[] };
+              collapse?: Path[];
+              // (the related view on: only the selection's rows and
+              // those consulted to find them, `related` rows around each)
+              related?: number };
   // (its storage dumps' rows: "touched" adds the slots the moment's
   // transaction read or wrote, owned by a value or not: unmapped rows)
   rows?: "touched";

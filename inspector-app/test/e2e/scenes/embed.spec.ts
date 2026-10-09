@@ -295,3 +295,24 @@ test("embed.html#scene=vyper-rules: the two hashes' arguments, badged; " +
   await expect(pops.nth(0)).toContainText("(empty: all zeros)");
   await expect(pops.nth(1)).not.toContainText("empty");
 });
+
+// The post's complex-data figure: carol's record selected, the related
+// view on, no clicks; her packed slot six fields, six colours
+test("embed.html#scene=carol-record: carol's record, related rows only, " +
+  "her packed slot in six colours", async ({ page }) => {
+  await page.setViewportSize({ width: 1024, height: 900 });
+  await page.goto("./embed.html#scene=carol-record");
+  const C = "players[0x90f79bf6eb2c4f870365e785982e1f101e93b906]";
+  await expect(page.locator(`.tree li[data-path="${C}"] > .row.sel`))
+    .toHaveCount(1, { timeout: 20_000 });
+  const rows = page.locator('.view[data-location="storage"] ' +
+    ".wrow[data-slot]");
+  // (related: her record's slots and those consulted, not every slot)
+  await expect.poll(() => rows.count()).toBeLessThan(10);
+  const packed = rows.filter({ has: page.locator(".b") }).and(
+    page.locator('.wrow[data-slot$="9978"]'));
+  const tints = await packed.locator(".b.hl").evaluateAll((bs) =>
+    new Set(bs.map((b) => b.className.match(/pk\d/)?.[0]).filter(Boolean))
+      .size);
+  expect(tints).toBe(6);
+});

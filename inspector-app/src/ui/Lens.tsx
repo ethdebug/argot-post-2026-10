@@ -81,6 +81,9 @@ function shower(store: Store<LensState>, spec: LensSpec, project: Project,
     const apply = () => store.set((s) => ({ ...s, scene: id, moment,
       error: undefined, from: step ? s.moment : undefined,
       shows: (s.shows ?? 0) + (step ? 0 : 1),
+      // (a scene with the related view on first)
+      ...bm.related !== undefined && !view
+        ? { related: { context: bm.related } } : {},
       // (a scene that shuts groups first: its trees' collapsed, anew)
       ...bm.collapse && !view ? { views: { ...s.views, ...Object.fromEntries(
         spec.views.filter((v) => v.kind === "tree").map((v) => [v.id,

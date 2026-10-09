@@ -1,0 +1,21 @@
+{
+  "id": "carol-record",
+  "title": "Carol's record",
+  "run": {
+    "scenario": "arcade",
+    "build": "sol"
+  },
+  "lens": "inspector",
+  "timeline": [
+    {
+      "tx": 11,
+      "step": 986,
+      "label": "while carol plays: right after her combo resets"
+    }
+  ],
+  "controls": "none",
+  "initial": {
+    "select": "players[0x90f79bf6eb2c4f870365e785982e1f101e93b906]",
+    "related": 0
+  }
+}
