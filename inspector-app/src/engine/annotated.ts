@@ -164,10 +164,27 @@ export function notesOf(d: Decoded, l: Layout, units: Unit[],
         how: run.length === 1 ? rowName(l, run[0])
           : `${rowName(l, run[0])}–${rowName(l, run.at(-1)!).replace(
             /^\S+ /, "")}`,
-        items: us.map((i, k) => ({ seg: run.indexOf([...rows[i]][0]),
-          line: k, unit: i, text: `${pathName(node(units[i]).path, o.names)}${
-            o.values === false ? "" : ` ${shortValue(node(units[i]),
-              o.names, { text: 16 })}`}` })) };
+        items: (() => {
+          // (each value its line, badged; a group's members on the
+          // lines after it, two a line, plain)
+          let line = 0;
+          return us.flatMap((i): Item[] => {
+            const n = node(units[i]);
+            const seg = run.indexOf([...rows[i]][0]);
+            const name = pathName(n.path, o.names);
+            if (n.children?.length && o.values !== false) {
+              const head = { seg, line: line++, unit: i, text: name };
+              const kids = n.children.map((c, k) => ({ seg,
+                line: line + Math.floor(k / 2),
+                text: `${c.label} ${shortValue(c, o.names, { text: 16 })}` }));
+              line += Math.ceil(n.children.length / 2);
+              return [head, ...kids];
+            }
+            return [{ seg, line: line++, unit: i, text: `${name}${
+              o.values === false ? "" : ` ${shortValue(n, o.names,
+                { text: 16 })}`}` }];
+          });
+        })() };
     });
   }
   const done = new Set<number>();
