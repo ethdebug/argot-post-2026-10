@@ -1,5 +1,10 @@
 [
   {
+    "id": "raw",
+    "title": "Raw bytes",
+    "lens": "raw"
+  },
+  {
     "id": "mid",
     "title": "The middle of the game",
     "fixture": "arcade-mid",

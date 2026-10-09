@@ -52,3 +52,25 @@ it("g opens the list, Escape closes it", () => {
   act(() => void fireEvent.keyDown(document.body, { key: "Escape" }));
   expect(list.hidden).toBe(true);
 });
+
+it("lists the reviewed lenses; dev adds the developers' and the parity " +
+  "page", () => {
+  const all = [lens("one"), { ...lens("two"), dev: true }, lens("three")];
+  const { container } = render(<Shell project={project} lenses={all} />);
+  const ids = () => [...container.querySelectorAll("[data-lens]")].map((b) =>
+    b.getAttribute("data-lens"));
+  expect(ids()).toEqual(["one", "three"]);
+  expect(container.querySelector(".shellparity")).toBeNull();
+  act(() => void fireEvent.click(container.querySelector(
+    "[data-shell-dev]")!));
+  expect(ids()).toEqual(["one", "two", "three"]);
+  expect(container.querySelector(".shellparity")).not.toBeNull();
+  expect(location.hash).toBe("#lens=one&dev=1");
+});
+
+it("a link to a dev lens shows it, with dev on", () => {
+  history.replaceState(null, "", "#lens=two");
+  const all = [lens("one"), { ...lens("two"), dev: true }];
+  const { container } = render(<Shell project={project} lenses={all} />);
+  expect(current(container)).toBe("two");
+});

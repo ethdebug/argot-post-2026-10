@@ -9,8 +9,12 @@ const app = path.join(__dirname, "..");
 const demo = path.join(app, "..", "demos", "inspector");
 const read = (...p: string[]) => fs.readFileSync(path.join(...p), "utf8");
 const html = read(app, "index.html");
-const scenes = JSON.parse(read(demo, "fixtures", "index.json")) as
-  { id: string; fixture: string; title: string; points: string[] }[];
+const all = JSON.parse(read(demo, "fixtures", "index.json")) as
+  { id: string; fixture: string; title: string; points: string[];
+    lens?: string }[];
+// (the storage inspector's scenes; a scene of another lens, "Raw bytes",
+// has a button of its own, by its lens)
+const scenes = all.filter((s) => !s.lens);
 
 describe("index.html", () => {
   it("its picker has each scene of fixtures/index.json, in order", () => {
@@ -19,8 +23,13 @@ describe("index.html", () => {
       .map(([, a, t]) => ({ id: a.match(/data-id="([^"]+)"/)?.[1],
         fixture: a.match(/data-fixture="([^"]+)"/)?.[1],
         single: /data-single/.test(a), title: t.replace(/\s+/g, " ") }));
-    expect(got).toEqual(scenes.map((s) => ({ id: s.id, fixture: s.fixture,
-      single: s.points.length === 1, title: s.title })));
+    expect(got.map((b) => b.id)).toEqual(all.map((s) => s.id));
+    expect(got.filter((b) => b.fixture)).toEqual(scenes.map((s) => ({
+      id: s.id, fixture: s.fixture, single: s.points.length === 1,
+      title: s.title })));
+    expect(got.filter((b) => !b.fixture).map((b) => b.title)).toEqual(
+      all.filter((s) => s.lens).map((s) => s.title));
+    expect(picker).toMatch(/data-id="raw" data-lens="raw"/);
   });
 
   it("has one intro per scene, in order", () => {

@@ -7,18 +7,23 @@
 import "../../../shared/appendix.css";
 import "../style.css";
 import "../ui/port.css";
+import "../lenses/raw.css";
 import { createRoot } from "react-dom/client";
-import { useLayoutEffect } from "react";
+import { createPortal } from "react-dom";
+import { useLayoutEffect, useMemo, useState, type ReactElement }
+  from "react";
+import { rawLenses } from "../lenses/raw";
+import { readHash, writeHash, type Pending } from "../ui/hash";
 import { fetchIo, type Io } from "../engine/io";
 import { load } from "../engine/project";
 import { decode } from "../engine/decode";
 import type { Decoded } from "../engine/types";
-import { fullInspector } from "../lenses/full-inspector";
+import { calldataShown, fullInspector } from "../lenses/full-inspector";
 import { insideOnePlay } from "../lenses/inside-one-play";
 import type { ValueNode } from "../engine/types";
 import { Lens } from "../ui/Lens";
 import { ContractSource } from "../ui/ContractSource";
-import type { LensContextValue } from "../ui/hooks";
+import { OtherScenes, type LensContextValue } from "../ui/hooks";
 
 type Results = { done: boolean; usable?: number; errors: string[];
   decoded: Record<string, Record<string, { before?: string;
@@ -117,6 +122,42 @@ function record(id: string, [before, after]: Decoded[]) {
   window.results.decoded[id] = flat;
 }
 
+
+// The page's scenes of other lenses (fixtures/index.json's `lens`):
+// "Raw bytes" shows the raw lens, one of its three compositions, in
+// place of the storage inspector; the hash keeps it (scene=, raw=)
+const RAW = Object.fromEntries(rawLenses.map((l) =>
+  [l.id.replace(/^raw-/, ""), l]));
+const hashed: Pending = {};
+function Page(p: { project: Awaited<ReturnType<typeof load>>;
+  rawBox: Element; memory: ReactElement; storage: ReactElement }) {
+  const [scene, setScene] = useState<string | null>(() => {
+    const s = readHash().get("scene");
+    return p.project.scenes.some((x) => x.id === s && x.lens !== "inspector")
+      ? s : null;
+  });
+  const [variant, setVariant] = useState(() =>
+    RAW[readHash().get("raw") ?? ""] ? readHash().get("raw")! : "hero");
+  useLayoutEffect(() => {
+    document.querySelector("main")!.toggleAttribute("data-lens", !!scene);
+    writeHash({ scene, raw: scene ? variant : null }, hashed);
+  }, [scene, variant]);
+  const other = useMemo(() => ({ scene, go: setScene }), [scene]);
+  return <><Drawn />
+    <OtherScenes.Provider value={other}>{p.storage}</OtherScenes.Provider>
+    {p.memory}
+    {scene && createPortal(<>
+      <div className="picker rawpick" role="radiogroup"
+        aria-label="Composition">
+        {Object.entries(RAW).map(([k, l]) => <button key={k} role="radio"
+          data-raw={k} aria-checked={k === variant ? "true" : "false"}
+          title={l.title} onClick={() => setVariant(k)}>
+          {k[0].toUpperCase() + k.slice(1)}</button>)}
+      </div>
+      <Lens key={variant} spec={RAW[variant]} project={p.project} />
+    </>, p.rawBox)}</>;
+}
+
 try {
   const project = await load(io);
   // (the contract at the top: the page's own, shown as it is)
@@ -150,7 +191,7 @@ try {
     $("summary").textContent = bm.summary ?? "";
     // (the call's calldata, for a scene that names its function; what it
     // lights, for bin/run.mjs: the parts lit, and the one chosen)
-    $("calldata").hidden = !bm.calldata;
+    $("calldata").hidden = !bm.calldata || !calldataShown();
     const cl = s.links.calldata;
     const abi = project.decodings[`abi:${bm.id}`];
     if (abi) {
@@ -295,13 +336,19 @@ try {
   const storagePart = (el: Element) => !el.closest?.("#memory");
   const host = document.createElement("div");
   document.body.append(host);
-  createRoot(host).render(<><Drawn />
-    <Lens spec={fullInspector} project={project} mount={mount}
-      onReady={ready} onFail={onFail} hash within={storagePart}
-      kinds={{ contract: (q: Parameters<typeof ContractSource>[0]) =>
-        <ContractSource {...q} {...contract} /> }} />
-    <Lens spec={insideOnePlay} project={project} mount={memMount}
-      onReady={memReady} hash within={memoryPart} /></>);
+  // (a scene another lens shows, "Raw bytes": in its own box under the
+  // picker; the page hides the rest meanwhile, main[data-lens])
+  const rawBox = document.createElement("div");
+  rawBox.id = "rawscene";
+  $("storage").after(rawBox);
+  const kinds = { contract: (q: Parameters<typeof ContractSource>[0]) =>
+    <ContractSource {...q} {...contract} /> };
+  createRoot(host).render(<Page project={project} rawBox={rawBox}
+    storage={<Lens spec={fullInspector} project={project}
+      mount={mount} onReady={ready} onFail={onFail} hash
+      within={storagePart} kinds={kinds} />}
+    memory={<Lens spec={insideOnePlay} project={project} mount={memMount}
+      onReady={memReady} hash within={memoryPart} />} />);
 } catch (e) {
   // (the index or the memory section's data did not load: Retry loads
   // the page again)

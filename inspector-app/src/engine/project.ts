@@ -17,6 +17,9 @@ const VY_RULE = "arcade-vy-rule";
 
 export interface Project {
   bookmarks: ProjectBookmark[];
+  // the page's scenes, in order (fixtures/index.json), each by the lens
+  // that shows it ("inspector": the storage inspector's bookmarks)
+  scenes: { id: string; title: string; lens: string }[];
   decodings: Record<DecodingId, Decoding>;   // "sol:arcade-mid", …
   timeline(id: TimelineId): Promise<Timeline>;        // memoised fetch
   compilation(id: CompilationId): Promise<Compilation>;
@@ -30,7 +33,8 @@ export async function load(io: Io, manifest = "fixtures/index.json"):
   const [scenes, memJson] = await Promise.all([
     io.json<LegacyScene[]>(manifest), io.json("fixtures/memory.json")]);
   const mem = fromMemory(memJson);
-  const bookmarks = [...scenes.map(bookmarkOf), ...mem.bookmarks];
+  const bookmarks = [...scenes.filter((s) => !s.lens).map(bookmarkOf),
+    ...mem.bookmarks];
   const decodings: Record<DecodingId, Decoding> = {};
   for (const b of bookmarks) {
     if (mem.decodings[b.decoding]) continue;
@@ -91,6 +95,8 @@ export async function load(io: Io, manifest = "fixtures/index.json"):
   };
   return {
     bookmarks, decodings, memo: new Map(),
+    scenes: scenes.map((s) => ({ id: s.id, title: s.title,
+      lens: s.lens ?? "inspector" })),
     timeline: async (id) => mem.timelines.find((t) => t.id === id) ??
       (id === RAW ? (await rawOf()).timeline : (await fixture(id)).timeline),
     // a fixture's contract: from that fixture

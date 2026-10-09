@@ -4,6 +4,11 @@ import { panel } from "../ui/Panel";
 import type { LensSpec } from "../ui/types";
 
 const ABI = { decoding: "$abi", point: { slot: "b" } };
+// The calldata section (setMotd's, by the ABI): ON HOLD until the bugc
+// stepper; drawn only when the hash asks (calldata=1: its checks)
+export const calldataShown = () => typeof location !== "undefined" &&
+  new URLSearchParams(location.hash.slice(1)).get("calldata") === "1";
+const CALLDATA = calldataShown();
 // (the Vyper scene's dump shows Vyper's own words: no value owns them)
 const VYPER = [{ decoding: "vyRule", who: "Vyper's" }];
 
@@ -37,7 +42,8 @@ export const fullInspector: LensSpec = {
       link: "storage", data: { decoding: "$bm", point: { slot: "b" } },
       side: "after", others: VYPER },
     // the call's calldata (a bookmark that names its function): the same
-    // dump and tree, of location calldata, its own link group
+    // dump and tree, of location calldata, its own link group (on hold)
+    ...!CALLDATA ? [] : [
     { id: "cdump", kind: "dump", area: "cdump", location: "calldata",
       link: "calldata", data: ABI, title: "Calldata" },
     { id: "ctree", kind: "tree", area: "ctree", link: "calldata",
@@ -46,7 +52,7 @@ export const fullInspector: LensSpec = {
     { id: "cdetails", kind: "abi", part: "details", area: "cdetails",
       link: "calldata", domId: "cdetails", data: ABI },
     { id: "chow", kind: "abi", part: "how", area: "chow", link: "calldata",
-      domId: "chow", data: ABI },
+      domId: "chow", data: ABI }] as LensSpec["views"],
     { id: "tree", kind: "tree", area: "tree", link: "storage",
       domId: "tree", data: { decoding: "$bm", point: { slot: "$side" } } },
   ],

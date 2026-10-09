@@ -129,12 +129,19 @@
   // (its code from the HTTP cache). The decoder bundle is the app's own
   // chunk, vendor/pointers.js (on the dev server, a copy, for the bar).
   function boot() {
-    const ex = new URLSearchParams(location.hash.slice(1)).get("ex");
+    const hash = new URLSearchParams(location.hash.slice(1));
+    const ex = hash.get("ex");
     const buttons = [...document.querySelectorAll("#picker button")];
-    const first = buttons.find((b) => b.dataset.id === ex) ?? buttons[0];
+    // (the storage scene the page loads, and the scene shown: another
+    // lens's, "Raw bytes", when the hash names it)
+    const scenes = buttons.filter((b) => b.dataset.fixture);
+    const first = scenes.find((b) => b.dataset.id === ex) ?? scenes[0];
+    const other = buttons.find((b) => b.dataset.lens &&
+      b.dataset.id === hash.get("scene"));
     for (const b of buttons) {
-      b.setAttribute("aria-checked", String(b === first));
+      b.setAttribute("aria-checked", String(b === (other ?? first)));
     }
+    document.querySelector("main")?.toggleAttribute("data-lens", !!other);
     // its intro, and no Before | After for a scene with one point
     for (const p of document.querySelectorAll("#intros [data-scene]")) {
       p.hidden = p.dataset.scene !== first?.dataset.id;
@@ -143,7 +150,8 @@
       !!first?.hasAttribute("data-single"));
     const label = "the decoder and the data";
     for (const f of ["fixtures/index.json",
-      `fixtures/${first?.dataset.fixture}.json`, "fixtures/memory.json"]) {
+      `fixtures/${first?.dataset.fixture}.json`, "fixtures/memory.json",
+      ...(other ? ["fixtures/raw.json"] : [])]) {
       // (the app loads them again, and shows a failure)
       load(f, { label }).catch(() => {});
     }
