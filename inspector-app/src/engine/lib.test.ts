@@ -7,12 +7,12 @@ import type { Machine } from "./lib";
 it("the tarballs are the pinned ones", () => {
   const pin = fs.readFileSync("vendor/PIN", "utf8");
   const tgz = fs.readdirSync("vendor").filter((f) => f.endsWith(".tgz"));
-  expect(tgz).toHaveLength(2);
+  expect(tgz).toHaveLength(3);
   for (const f of tgz) {
     expect(pin).toContain(createHash("sha256")
       .update(fs.readFileSync(`vendor/${f}`)).digest("hex"));
   }
-  expect(pin).toContain("d7cb421a3");
+  expect(pin).toContain("7a1f5531d");
 });
 
 it("dereferences a storage region", async () => {

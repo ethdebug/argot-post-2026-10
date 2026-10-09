@@ -19,7 +19,8 @@
     "shiki": "^3.13.0"
   },
   "devDependencies": {
-    "@ethdebug/pointers": "file:vendor/ethdebug-pointers-0.1.0-preview.1.tgz",
+    "@ethdebug/evm": "file:vendor/ethdebug-evm-0.1.0-preview.2.tgz",
+    "@ethdebug/pointers": "file:vendor/ethdebug-pointers-0.1.0-preview.2.tgz",
     "@playwright/test": "1.63.0",
     "@testing-library/react": "^16.0.0",
     "@types/node": "^22.0.0",
@@ -37,6 +38,7 @@
     "yaml": "^2.9.1"
   },
   "overrides": {
-    "@ethdebug/format": "file:vendor/ethdebug-format-0.1.0-draft.1.tgz"
+    "@ethdebug/format": "file:vendor/ethdebug-format-0.1.0-draft.2.tgz",
+    "@ethdebug/pointers": "file:vendor/ethdebug-pointers-0.1.0-preview.2.tgz"
   }
 }
