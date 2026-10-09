@@ -4,7 +4,7 @@
 // selection's declaration marked, and scrolled into the box's view.
 import { useEffect, useMemo, useRef, useState } from "react";
 import { declarationOf, linesOf } from "../engine/declaration";
-import { highlighter } from "./shiki";
+import { lines, useColoured } from "./Code";
 import { useCompilation, useDecoded, useLens, useLink } from "./hooks";
 import type { DataRef, ViewId } from "./types";
 
@@ -26,29 +26,12 @@ export function ContractSource(p: { id: ViewId; data: DataRef;
   const d = useDecoded(p.data);
   const [link] = useLink(p.link);
   const [open, setOpen] = useState(remembered);
-  const [lines, setLines] = useState<string[] | null>(null);
   const pre = useRef<HTMLPreElement>(null);
   const src = c?.sources[0];
   const text = p.text ?? src?.text ?? "";
   const file = p.file ?? src?.path.split("/").pop();
-  // (coloured once it opens; plain lines until then)
-  useEffect(() => {
-    if (!open || !text || lines) return;
-    let live = true;
-    highlighter().then((hl) => {
-      if (!live) return;
-      const t = document.createElement("template");
-      t.innerHTML = hl.codeToHtml(text, { lang: "solidity",
-        themes: { light: "github-light", dark: "github-dark" },
-        defaultColor: false });
-      setLines([...t.content.querySelectorAll(".line")].map((l) =>
-        l.innerHTML));
-    }, (e) => console.warn(
-      "the colouring did not load; the source stays plain", e));
-    return () => {
-      live = false;
-    };
-  }, [open, text, lines]);
+  // (coloured once it opens; plain lines until then: Code.tsx)
+  const coloured = useColoured(text, "solidity", open);
   const sel = link.selection;
   const decl = useMemo(() => {
     const r = c && d && sel && d.byPath.has(sel) && src?.text === text
@@ -61,9 +44,8 @@ export function ContractSource(p: { id: ViewId; data: DataRef;
       pre.current!.scrollTop = Math.max(0, (m as HTMLElement).offsetTop -
         pre.current!.offsetTop - 40);
     }
-  }, [decl, open, lines]);
+  }, [decl, open, coloured]);
   const plain = text.replace(/\n$/, "").split("\n");
-  const rows = lines ?? plain;
   return <details id={p.domId} className="srcbox" open={open}
     data-view={`${lens.key}:${p.id}`}
     onToggle={(e) => {
@@ -76,10 +58,8 @@ export function ContractSource(p: { id: ViewId; data: DataRef;
     <summary><span className="srcfile">{file}</span>
       {" "}— the contract (<span className="srclines">{plain.length}</span>
       {" "}lines)</summary>
-    <pre ref={pre} id="contract-src" className={`src${lines ? " coloured"
-      : ""}`}>{rows.map((l, k) => <span key={k} className={`line${decl &&
-        k >= decl[0] && k <= decl[1] ? " decl" : ""}`}
-      {...(lines ? { dangerouslySetInnerHTML: { __html: l } }
-        : { children: l })} />).flatMap((x, k) => k ? ["\n", x] : [x])}
+    <pre ref={pre} id="contract-src" className={`src${coloured
+      ? " coloured" : ""}`}>{lines(text, coloured, { line: (k) => decl &&
+        k >= decl[0] && k <= decl[1] ? "decl" : "" })}
     </pre></details>;
 }
