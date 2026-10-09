@@ -502,11 +502,12 @@ export function Tree(p: { id: ViewId; data: DataRef; filter?: Filter;
       onClick={onClick} onKeyDown={onKey}>
       {p.title && <p className="view-name treehead">{p.title}
         {comp?.provenance === "hand-written" && <span className="handmade">
-          {" "}written by hand, not from {lang[0]?.toUpperCase() +
-            lang.slice(1)}</span>}</p>}
+          {" "}ethdebug data written by hand, not from {
+            lang[0]?.toUpperCase() + lang.slice(1)}</span>}</p>}
       {!p.title && comp?.provenance === "hand-written" &&
         <p className="handmade">
-        written by hand, not from {lang[0]?.toUpperCase() + lang.slice(1)}
+        ethdebug data written by hand, not from {lang[0]?.toUpperCase() +
+          lang.slice(1)}
       </p>}
       {error && !shown ? <p className="error">{error}{" "}
         <button type="button" className="btn" onClick={() =>
