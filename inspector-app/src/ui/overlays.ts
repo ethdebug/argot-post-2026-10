@@ -55,6 +55,12 @@ function byteLight(c: El) {
 // a row the selection consulted, not lit (the related treatment)
 const consulted = (r: El) => rowState(r).rel;
 type Rect = { top: number; left: number; bottom: number; right: number };
+// (WebKit on Linux, WPE/GTK: a view-transition-name nested in a named
+// element crashes it)
+const nestedNamesCrash = typeof navigator !== "undefined" &&
+  /AppleWebKit/.test(navigator.userAgent) &&
+  !/Chrome|Chromium|Edg/.test(navigator.userAgent) &&
+  /Linux/.test(navigator.userAgent);
 interface Item { text: string; k: string | null; muted: boolean;
   sep: string; seg?: number; id?: string; free?: boolean;
   // (a note about the bytes, not a value: "(unmapped)", "(anchor slot
@@ -233,7 +239,16 @@ function whatIn(root: El, rowsIn: El[]): Item[] {
   if (anchorNote && !data(r0!)?.light.relReads?.has(slotOf(r0!))) {
     return [anchorNote];
   }
-  if (!owners.length) return anchorNote ? [anchorNote] : [];
+  if (!owners.length) {
+    if (anchorNote) return [anchorNote];
+    // (a row no value owns, pointed at: its bytes one "(unmapped)" run,
+    // badged, as in a row that has values; not in a walkthrough)
+    if (walk) return [];
+    return perRow.flatMap((os, r) => os.filter((o) => o.free &&
+      o.cells.some((c) => c.classList.contains("fl"))).map((o) =>
+      ({ ...noteItem(["(unmapped)"], r ? " / " : " · ", { k: "pnone" }),
+        seg: r, id: o.id })));
+  }
   // (a length part names its value; another part, as vanilla, by its id)
   const path = (id: string) => id.replace(/#length$/, "");
   const ids = all(root, ".b[data-owners]")
@@ -604,7 +619,9 @@ function annotate(root: El, v: El, compare: boolean, names: OverlayNames,
         addr.classList.add("popped");
         // (in a view transition: it moves with its row, over the rows:
         // transition.ts)
-        if (prow.dataset.vt) {
+        // (not in WebKit on Linux: a name inside a named row crashes its
+        // renderer, CI's; there the popovers fade with the page)
+        if (prow.dataset.vt && !nestedNamesCrash) {
           pop.dataset.vt = `${prow.dataset.vt}-pop`;
           pop.dataset.vtTop = "";
         }
