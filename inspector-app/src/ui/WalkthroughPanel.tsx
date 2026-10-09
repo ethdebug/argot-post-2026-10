@@ -255,10 +255,19 @@ export function useWalkModel(p: { id: ViewId; data: DataRef;
     const rects = rows.map((r) => r.getBoundingClientRect());
     if (port) {
       if (port.stuck !== true) return;
-      parent.postMessage({ type: "ethdebug:scroll-to",
-        y: Math.round(Math.min(...rects.map((r) => r.top)) + scrollY),
-        bottom: Math.round(Math.max(...rects.map((r) => r.bottom)) +
-          scrollY) }, "*");
+      // (and the rows' labels, the popovers, above or below them: drawn
+      // once the dump has laid out the step, a frame later)
+      const pops = () => [...document.querySelectorAll<HTMLElement>(
+        dumps.map((q) => `${q} .pop`).join(", "))].map((x) =>
+        x.getBoundingClientRect()).filter((r) => r.height > 0);
+      requestAnimationFrame(() => requestAnimationFrame(() => {
+        const all = [...rows.map((r) => r.getBoundingClientRect()),
+          ...pops()];
+        parent.postMessage({ type: "ethdebug:scroll-to",
+          y: Math.round(Math.min(...all.map((r) => r.top)) + scrollY),
+          bottom: Math.round(Math.max(...all.map((r) => r.bottom)) +
+            scrollY) }, "*");
+      }));
       return;
     }
     const unit = document.querySelector(`.wpanel[data-view="${key}"]`);
