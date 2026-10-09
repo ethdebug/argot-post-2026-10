@@ -24,8 +24,8 @@ function undoneFrom(frames: Frame[]): number[] {
 }
 
 // `before` with the journal's writes before trace step `step` applied
-// (in step order), except those of frames reverted by then. (`step` = the trace step
-// count: the transaction's end.)
+// (in step order), except those of frames reverted by then. (`step` =
+// the trace step count: the transaction's end.)
 export function storageAt(j: Journal, frames: Frame[], step: number,
   before: ReadonlyMap<Hex, Hex>): Map<Hex, Hex> {
   const undone = undoneFrom(frames);
