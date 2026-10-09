@@ -59,8 +59,12 @@ const measure = () => {
   const kids = lens ? [...lens.children] as HTMLElement[] : [];
   const boxes = kids.map((k) => k.getBoundingClientRect())
     .filter((r) => r.width && r.height);
+  // (and the root's side padding: the room for what reaches out of a
+  // column, embed.css)
+  const pad = parseFloat(getComputedStyle(root).paddingLeft) +
+    parseFloat(getComputedStyle(root).paddingRight);
   const width = boxes.length ? Math.ceil(Math.max(...boxes.map((r) =>
-    r.right)) - Math.min(...boxes.map((r) => r.left))) : 0;
+    r.right)) - Math.min(...boxes.map((r) => r.left)) + pad) : 0;
   return { height: Math.ceil(root.getBoundingClientRect().height), width };
 };
 const post = () => {
