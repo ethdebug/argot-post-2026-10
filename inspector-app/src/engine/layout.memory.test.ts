@@ -23,14 +23,25 @@ it("O0 inside _applyCombo: the frame pointer's word, and the locals' "
   const x = await pair("O0", "mult");
   const l = layout(x.d, "memory", {}, { compare: x.other, point: x.point,
     comparePoint: x.otherPoint });
-  expect(l.rows.map((r) => r.address)).toEqual(["0x0080", "0x06c0",
-    "0x06e0", "0x0720"]);
-  expect(l.rows.map((r) => r.how)).toEqual(["memory 0x0080", "memory 0x06c0",
-    "memory 0x06e0", "memory 0x0720"]);
-  expect(l.rows.map((r) => !!r.gapBefore)).toEqual([true, true, false,
-    true]);
+  // (the whole segment, every word from 0x0000 to its end, no gap;
+  // the related view elides it: the maintainer, 10-08)
+  const n = Math.ceil(x.point.snapshot.memory!.length / 32);
+  expect(l.rows.map((r) => r.address)).toEqual(Array.from({ length: n },
+    (_, k) => `0x${(k * 32).toString(16).padStart(4, "0")}`));
+  expect(l.rows.every((r) => !r.gapBefore)).toBe(true);
+  expect(l.more).toBe(false);
+  for (const a of ["0x0080", "0x06c0", "0x06e0", "0x0720"]) {
+    expect(l.rows.find((r) => r.address === a)!.how).toBe(`memory ${a}`);
+  }
   // (vanilla's label: the frame pointer's owner id)
-  expect(rowLabel(l.rows[0])).toBe("memory 0x0080 : _applyCombo#frame");
+  expect(rowLabel(l.rows.find((r) => r.address === "0x0080")!))
+    .toBe("memory 0x0080 : _applyCombo#frame");
+  // (the related view: the selection's words and near ones, gaps between)
+  const only = layout(x.d, "memory", { only: { rows: ["0x0080",
+    "0x0720"] } }, { compare: x.other, point: x.point,
+    comparePoint: x.otherPoint });
+  expect(only.rows.map((r) => r.address)).toEqual(["0x0080", "0x0720"]);
+  expect(only.rows.map((r) => !!r.gapBefore)).toEqual([true, true]);
   // (after mult = combo, mult's last 4 bytes are combo's: two owners)
   expect([...l.cover.get(byteKey("memory", "0x0720", 31))!].sort())
     .toEqual(["combo", "mult"]);
@@ -40,14 +51,16 @@ it("O2 inside _applyCombo: no frame word", async () => {
   const x = await pair("O2", "mult");
   const l = layout(x.d, "memory", {}, { compare: x.other, point: x.point,
     comparePoint: x.otherPoint });
-  expect(l.rows.some((r) => r.address === "0x0080")).toBe(false);
+  // (the word is shown, as the whole segment is; no value owns it)
+  expect(l.rows.find((r) => r.address === "0x0080")?.what).toEqual([]);
 });
 
 it("before the writes: gained's word in memory; alice's record slot, in "
   + "storage, its own dump's, named by BUG's rule", async () => {
   const x = await pair("O0", "writes", 0);
   const l = layout(x.d, "memory", {}, { point: x.point });
-  expect(l.rows.map((r) => r.how)).toEqual(["memory 0x00a0"]);
+  expect(l.rows.filter((r) => r.what.length).map((r) => r.how))
+    .toEqual(["memory 0x00a0"]);
   const s = layout(x.d, "storage", {}, { point: x.point });
   expect(s.rows).toEqual([expect.objectContaining({
     address: x.point.record!.slot, how: "keccak(msg.sender, slot 4)" })]);

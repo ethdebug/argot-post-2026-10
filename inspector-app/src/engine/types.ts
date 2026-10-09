@@ -167,6 +167,8 @@ export interface Layout {
   // a string reads to find its length (vanilla's owner ids)
   cover: ReadonlyMap<ByteKey, Path[]>;  // byte -> owners
   owned: ReadonlyMap<Path, ReadonlySet<ByteKey>>;
+  // (rows go on past the last one shown: a "⋯" after it)
+  more: boolean;
 }
 export interface Row {
   address: Hex;                         // slot, or word offset
