@@ -8,7 +8,8 @@
 // says whether it is stuck at the top of its view ({ type:
 // "ethdebug:stuck", stuck }): flush with the view's top then, a card
 // with its corners when not (data-stuck; panel.css); the figure hears
-// it too.
+// it too. It follows the host's theme, as the figure's frame does
+// (theme.ts).
 import "../../../shared/appendix.css";
 import "../style.css";
 import "../ui/code.css";
@@ -20,8 +21,10 @@ import {
   PanelView, type Intent, type PanelModel,
 } from "../ui/WalkthroughPanel";
 import { channelName } from "../ui/panel-port";
+import { followTheme } from "./theme";
 
 const hash = new URLSearchParams(location.hash.slice(1));
+followTheme(hash);
 const bc = new BroadcastChannel(channelName(hash.get("scene") ?? "",
   hash.get("channel") ?? ""));
 const act = (intent: Intent) => bc.postMessage({ type: "intent", intent });
