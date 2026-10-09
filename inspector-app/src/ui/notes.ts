@@ -13,11 +13,6 @@ type El = HTMLElement;
 const esc = (s: string) => s.replace(/[&<>"]/g, (c) =>
   ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]!);
 
-// The reveal's stagger: a note fades in this many ms after the one
-// before it, all within 200ms (each fade 280ms: 500 at most)
-export const stagger = (n: number) => n > 1 ? Math.min(40, 200 / (n - 1))
-  : 0;
-
 // a name, as the popovers write one: a badge in its value's colour, or
 // plain
 const pname = (text: string, u?: number, k?: number | string) =>
@@ -49,7 +44,9 @@ function shapes(n: Note, units: Unit[]) {
 const rel = (r: DOMRect, o: DOMRect): Rect => ({ l: r.left - o.left,
   r: r.right - o.left, t: r.top - o.top, b: r.bottom - o.top });
 
-export function drawNotes(v: El, notes: Note[], units: Unit[]) {
+// (`rank`: each note's value's place in the reveal's sequence)
+export function drawNotes(v: El, notes: Note[], units: Unit[],
+  rank: number[]) {
   v.querySelector(":scope > .notes")?.remove();
   if (!notes.length) return;
   const layer = document.createElement("div");
@@ -62,14 +59,21 @@ export function drawNotes(v: El, notes: Note[], units: Unit[]) {
   const rows = rel(v.querySelector(".rows")!.getBoundingClientRect(), vb);
   // (the stack's may reach to the figure's edge; the dumps' stay in
   // their panel)
+  // (up to the next panel on its right, if one is beside it)
+  const lens = v.closest(".lens") ?? v;
+  const mine = v.getBoundingClientRect();
+  const beside = [...lens.querySelectorAll(".view")].map((x) =>
+    x.getBoundingClientRect()).filter((r) => r.left >= mine.right - 1 &&
+    r.top < mine.bottom && r.bottom > mine.top).map((r) => r.left - 8);
   const edge = v.classList.contains("abbr") ? Math.min(document
-    .documentElement.clientWidth, (v.closest(".lens") ?? v)
-    .getBoundingClientRect().right) - vb.left - 4 : view.r;
+    .documentElement.clientWidth - 4, lens.getBoundingClientRect().right
+    - 4, ...beside) - vb.left : view.r;
   const bounds = { l: rows.l - 8, r: edge, t: rows.t, b: view.b };
-  const narrow = bounds.r - bounds.l < 560;
+  // (a phone: the figure narrow, not the panel)
+  const narrow = document.documentElement.clientWidth < 560;
   // each byte (and abbreviated word): what a card would hide
   const cells: Cell[] = [...v.querySelectorAll<El>(
-    ".wrow[data-slot] .word :is(.b, .ab)")].map((c) => ({
+    ".rows .word :is(.b, .ab)")].map((c) => ({
     ...rel(c.getBoundingClientRect(), vb),
     unit: c.dataset.unit === undefined ? null : +c.dataset.unit,
     zero: c.classList.contains("z") }));
@@ -84,15 +88,16 @@ export function drawNotes(v: El, notes: Note[], units: Unit[]) {
       pop.dataset.units = n.units.join(" ");
       pop.innerHTML = html;
       if (k === 1) pop._what = s.what;
-      pop.style.setProperty("--d", `${Math.round(i * stagger(
-        notes.length))}ms`);
+      pop.dataset.r = String(rank[i]);
       pop.style.visibility = "hidden";
       layer.append(pop);
       // (one line: cut to its room, as the popovers are)
       if (k === 1) {
         pop.style.maxWidth = `${bounds.r - bounds.l}px`;
         fitWhat(pop);
-        // (still too wide, every name cut: it wraps, as the popovers do)
+        // (every name cut: whole again, wrapped; still too wide: it
+        // wraps, as the popovers do)
+        if (!pop.querySelector(".pwhat .pname")) pop.innerHTML = html;
         if (pop.querySelector<El>(".pop-how")!.scrollWidth + 16 >
           bounds.r - bounds.l) pop.classList.add("wrap");
         // (each badge's value, as the several-line shape's say it)
@@ -103,20 +108,26 @@ export function drawNotes(v: El, notes: Note[], units: Unit[]) {
       }
       return pop;
     });
-    const targets: (Target & { n: number })[] = n.runs.map((run) => {
-      const els = run.map((h) => v.querySelector<El>(
-        `.wrow[data-slot="${h}"]`)!).filter(Boolean);
-      const mine = els.flatMap((r) => [...r.querySelectorAll<El>(
-        ":scope > .word :is(.b, .ab)")]).filter((c) =>
+    // (a run's bytes: its rows' words', or, flowing (memory's 16 a
+    // line), the bytes of its words)
+    // (and, after them, each of its rows alone: a card may sit inside
+    // its own value's run, over its own bytes, when nothing else fits)
+    const targets: Target[] = [...n.runs, ...n.runs.length > 0 ? n.runs
+      .filter((r) => r.length > 1).flatMap((r) => r.map((h) => [h]))
+      : []].map((run) => {
+      const all = run.flatMap((h) => [...v.querySelectorAll<El>(
+        `.word[data-slot="${h}"] :is(.b, .ab), .b[data-row="${h}"]`)]);
+      const mine = all.filter((c) =>
         n.units.includes(+(c.dataset.unit ?? -1)));
       const digits = mine.filter((c) => !c.classList.contains("z"));
       const xs = (digits.length ? digits : mine).map((c) =>
         rel(c.getBoundingClientRect(), vb));
+      const ys = all.map((c) => rel(c.getBoundingClientRect(), vb));
       return { x: (Math.min(...xs.map((r) => r.l)) +
         Math.max(...xs.map((r) => r.r))) / 2,
-      t: rel(els[0].getBoundingClientRect(), vb).t,
-      b: rel(els.at(-1)!.getBoundingClientRect(), vb).b, n: digits.length };
-    }).filter((t) => Number.isFinite(t.x));
+      t: Math.min(...ys.map((r) => r.t)), b: Math.max(...ys.map((r) =>
+        r.b)) };
+    }).filter((t) => Number.isFinite(t.x) && Number.isFinite(t.t));
     // (its first run first: a record's own slots before its name's)
     return { pops, targets };
   });
@@ -135,7 +146,10 @@ export function drawNotes(v: El, notes: Note[], units: Unit[]) {
     a.remove();
   }
   const spots = place(made.map((m, i) => ({ units: notes[i].units,
-    shapes: m.pops.map((p) => ({ w: p.offsetWidth, h: p.offsetHeight })),
+    shapes: m.pops.map((p) => ({ w: p.offsetWidth, h: p.offsetHeight,
+      // (each name the one line cut, a little worse)
+      cost: 12 * (notes[i].items.length - p.querySelectorAll(
+        ".pwhat .pname").length) * (p._what ? 1 : 0) })),
     targets: m.targets })), cells, bounds, { narrow, reach });
   made.forEach((m, i) => {
     const s = spots[i];

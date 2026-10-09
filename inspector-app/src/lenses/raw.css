@@ -73,25 +73,50 @@
 .lens.raw .reveal button { font-size: 0.75rem; }
 
 /* The annotated layer (Display `annotate`; engine/annotated.ts, ui/
-   notes.ts): the inspector's own looks only. Raw until revealed; then
-   every value lit at once, as a selection's children are (style.css
-   .b.hl.pkN, its caps: .view.chosen), and its popover, placed freely,
-   faded in a value after another (--d), within 500ms */
-.view.annot { position: relative; }
+   notes.ts, ui/reveal.ts): the inspector's own looks only, every value
+   lit as a selection's children are (.b.hl.pkN, its caps on a .chosen
+   view) and its popover, as far as the reveal has come: each value's
+   --tf (its fill, 0 to 1; a byte --o along its value, for the sweep)
+   and each popover's --tp (ui/reveal.ts writes them), the popovers
+   eased over --a-smooth. Only colours,
+   opacity and transforms change: nothing moves. */
+.view.annot { position: relative; --a-smooth: 80ms; }
 .view.annot > .notes { position: absolute; inset: 0; pointer-events: none;
   z-index: 3; }
 .view.annot .notes .nanchor { position: absolute; left: 0; width: 0; }
-.view.annot :is(.b, .ab) { transition: background-color 280ms ease
-  var(--d, 0ms), box-shadow 280ms ease var(--d, 0ms), opacity 280ms ease,
-  filter 280ms ease; }
-.view.annot .pop.note { opacity: 0; transition: opacity 280ms ease
-  var(--d, 0ms), background-color 120ms; }
-.view.annot.revealed .pop.note { opacity: 1; }
+/* (a byte's own fill: its value's, swept left to right) */
+.view.annot :is(.b, .ab).hl { --tc: clamp(0, calc((var(--tf) - var(--o) *
+  var(--a-sweep, 0.35)) / (1 - var(--a-sweep, 0.35))), 1);
+  background: color-mix(in srgb, var(--pk) calc(var(--tc) * 100%),
+    transparent);
+  color: color-mix(in srgb, var(--pk-fg) calc(var(--tc) * 100%),
+    var(--fg));
+  box-shadow: none; opacity: 1;
+  /* (no easing of its own: the scroll is smooth already, and hundreds
+     of bytes easing at once cost frames; a hover's mute eases) */
+  transition: opacity 160ms, filter 160ms; }
+.view.annot :is(.b, .ab).hl.z { color: color-mix(in srgb, var(--pk-fg)
+  calc(var(--tc) * 100%), var(--muted)); }
+/* (its caps, an active value's: the selection's brown edge) */
+.view.annot.chosen :is(.b, .ab).hl { box-shadow: inset 0 2px 0
+  color-mix(in srgb, var(--accent) calc(var(--tc) * 100%), transparent); }
+/* (the rest steps back as the reveal begins, as a selection's does) */
+.view.annot.active .b:not(.hl):not(.at) {
+  opacity: calc(1 - 0.7 * var(--dim, 0));
+  filter: saturate(calc(1 - 0.8 * var(--dim, 0))); transition: none; }
+/* (a popover rises from its arrow) */
+.view.annot .pop.note { opacity: var(--tp, 0);
+  transform: translateY(calc((1 - var(--tp, 0)) * 6px))
+    scale(calc(0.94 + 0.06 * var(--tp, 0)));
+  transform-origin: var(--ax, 50%) 0;
+  transition: opacity var(--a-smooth) linear,
+    transform var(--a-smooth) linear, background-color 120ms; }
+.view.annot .pop.note:not(.under) { transform-origin: var(--ax, 50%) 100%;
+  transform: translateY(calc((var(--tp, 0) - 1) * 6px))
+    scale(calc(0.94 + 0.06 * var(--tp, 0))); }
 /* (written by hand: the hand-written compilation's badge, port.css) */
 .view.annot .view-head .handmade { margin: 0 0 0 6px; padding: 0 6px;
-  font-size: inherit; line-height: inherit; opacity: 0;
-  transition: opacity 280ms ease; }
-.view.annot.revealed .view-head .handmade { opacity: 1; }
+  font-size: inherit; line-height: inherit; opacity: var(--dim, 0); }
 @media (prefers-reduced-motion: reduce) {
-  .view.annot :is(.b, .ab, .pop.note, .handmade) { transition: none; }
+  .view.annot :is(.b, .ab, .pop.note) { transition: none; }
 }

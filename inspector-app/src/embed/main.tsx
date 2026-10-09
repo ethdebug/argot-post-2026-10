@@ -27,14 +27,17 @@ import { lenses } from "../lenses";
 import { rawLens } from "../lenses/raw";
 import { builds, scenes } from "../scenes";
 import { PanelPort, channelName, figurePort } from "../ui/panel-port";
-import { setRevealed } from "../ui/reveal";
+import { setProgress, setRevealed } from "../ui/reveal";
 
 const hash = new URLSearchParams(location.hash.slice(1));
 followTheme(hash);
 // (an annotated figure's reveal, from the host's scroll: { type:
-// "ethdebug:reveal", on }; ui/reveal.ts)
+// "ethdebug:reveal", on, progress }: the progress, 0 to 1, each frame;
+// an older host's `on` alone, run there; ui/reveal.ts)
 addEventListener("message", (e) => {
-  if (e.data?.type === "ethdebug:reveal") setRevealed(!!e.data.on);
+  if (e.data?.type !== "ethdebug:reveal") return;
+  if (typeof e.data.progress === "number") setProgress(e.data.progress);
+  else setRevealed(!!e.data.on);
 });
 const ALIAS: Record<string, string> = { raw: "raw-hero" };
 const id = ALIAS[hash.get("scene") ?? ""] ?? hash.get("scene") ?? "";

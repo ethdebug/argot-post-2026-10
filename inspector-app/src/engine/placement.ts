@@ -16,7 +16,9 @@ export interface Rect { l: number; r: number; t: number; b: number }
 export interface Cell extends Rect { unit: number | null; zero: boolean }
 // where an arrow may point: a run's centre (x), its top and bottom
 export interface Target { x: number; t: number; b: number }
-export interface Ask { units: number[]; shapes: { w: number; h: number }[];
+// (a shape's `cost`: what it lost to fit, its names cut)
+export interface Ask { units: number[];
+  shapes: { w: number; h: number; cost?: number }[];
   targets: Target[] }
 export interface Spot { shape: number; target: number;
   way: "over" | "under"; box: Rect; ax: number }
@@ -37,7 +39,12 @@ export function place(asks: Ask[], cells: Cell[], bounds: Rect,
     Math.max(a.l, x.l) > 3 && Math.min(a.b, x.b) - Math.max(a.t, x.t) > 3;
   const taken: Rect[] = [];
   return asks.map(one);
+  // (narrow: in bounds if it can be; else anywhere it does not touch
+  // another card)
   function one(a: Ask): Spot | null {
+    return best(a, true) ?? (o.narrow ? best(a, false) : null);
+  }
+  function best(a: Ask, strict: boolean): Spot | null {
     let best: Spot | null = null;
     let cost = Infinity;
     const shapes = o.narrow ? [a.shapes.length - 1] : a.shapes.map((_, i) => i);
@@ -58,13 +65,14 @@ export function place(asks: Ask[], cells: Cell[], bounds: Rect,
           for (const l0 of lefts) {
             const l = Math.max(bounds.l, Math.min(l0, bounds.r - w));
             const box = { l, r: l + w, t: top, b: top + h };
-            if (!within(box, bounds) && !o.narrow) continue;
+            if (strict && !within(box, bounds)) continue;
             if (taken.some((x) => over(box, x))) continue;
             const ax = g.x - l;
             if (ax < 10 || ax > w - 10) continue;
             // (under its run, as the inspector's popovers are, is read
             // first as its run's: over costs a little; a later run too)
-            let c = s * 15 + Math.abs(ax - w / 2) * 0.05 +
+            let c = s * 15 + (a.shapes[s].cost ?? 0) +
+              Math.abs(ax - w / 2) * 0.05 +
               (way === "over" ? 25 : 0) + t * 10;
             for (const x of cells) {
               if (!hides(box, x)) continue;
