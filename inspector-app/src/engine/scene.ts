@@ -3,7 +3,7 @@
 // data (scenes/<id>.json); their moments carry no annotations (the run
 // or the snapshot fills those).
 import type {
-  Compilation, Decoding, Hex, KeySource, Path, PointId, TimelineId,
+  Compilation, Decoding, Hex, KeySource, Local, Path, PointId, TimelineId,
 } from "./types";
 import type {
   BuildId, MomentRef, Scenario, ScenarioId, Timeline,
@@ -33,6 +33,11 @@ export interface Scene {
   // `scope`, the function its locals are in, a group of the tree)
   groups?: { id: string; title: string; moments: number[];
     select?: Path; scope?: string }[];
+  // pointers written by hand for its one moment, to the stack and memory
+  // words that mean something there (solc names no locals): each an
+  // ethdebug variable, its type inline; dereferenced by the same code as
+  // the compiler's, and always shown as hand-written (`<scene>/hand`)
+  pointers?: Local[];
 }
 
 const CONTROLS = ["none", "prev-next", "scrub"];
@@ -75,6 +80,15 @@ export function sceneOf(json: unknown): Scene {
       no(`group ${g.id}'s moments`);
     }
   }
+  if (j.pointers !== undefined) {
+    if (!Array.isArray(j.pointers) || timeline.length !== 1) {
+      no("pointers: a list, for a scene of one moment");
+    }
+    for (const v of j.pointers!) {
+      if (typeof v?.identifier !== "string" || typeof v.type !== "object" ||
+        typeof v.pointer !== "object") no(`pointer ${v?.identifier}`);
+    }
+  }
   const n = j.initial?.moment;
   if (n !== undefined && !(n >= 0 && n < timeline.length)) {
     no(`initial moment ${n}`);
@@ -115,7 +129,11 @@ export function decodingsOf(scene: Scene,
   const keys = KEYS[scene.run.scenario] ?? { from: "trace" };
   if (b.ethdebug) {
     return [{ id: scene.id, compilation: b.compilation, timeline,
-      variables: "state", keys }];
+      variables: "state", keys },
+    // (its hand-written pointers, read with the same compilation)
+    ...scene.pointers ? [{ id: handOf(scene.id), compilation:
+      b.compilation, timeline, variables: "locals" as const, keys,
+      locals: scene.pointers, provenance: "hand-written" as const }] : []];
   }
   if (b.language !== "vyper") {
     throw new Error(`scene ${scene.id}: no rule for ${b.language}`);
@@ -128,6 +146,9 @@ export function decodingsOf(scene: Scene,
     { id: rule, compilation: b.compilation, timeline, variables: "state",
       keys: { from: "trace" } }];
 }
+
+// a scene's decoding of its hand-written pointers
+export const handOf = (scene: SceneId) => `${scene}/hand`;
 
 // … and the compilations they read, from the scenario's builds
 export function compilationsOf(scene: Scene, s: Scenario): Compilation[] {
@@ -178,7 +199,7 @@ function withTimeline(s: Scene, timeline: Scene["timeline"]): Scene {
 // A scene file's text: its keys in one order, two spaces, a newline
 export function sceneJson(s: Scene): string {
   const { id, title, caption, run, lens, timeline, controls, rows,
-    initial, groups } = s;
+    initial, groups, pointers } = s;
   return JSON.stringify({ id, title, caption, run, lens, timeline,
-    controls, rows, initial, groups }, null, 2) + "\n";
+    controls, rows, initial, groups, pointers }, null, 2) + "\n";
 }
