@@ -1,0 +1,27 @@
+{
+  "id": "alice",
+  "title": "Alice plays",
+  "caption": "Before: the middle of the game · After: alice's third hit (combo 3, +30)",
+  "run": {
+    "scenario": "arcade",
+    "build": "sol"
+  },
+  "lens": "inspector",
+  "timeline": [
+    {
+      "tx": 11,
+      "step": "end",
+      "label": "in the middle of the game"
+    },
+    {
+      "tx": 12,
+      "step": "end",
+      "label": "after alice's third hit"
+    }
+  ],
+  "controls": "prev-next",
+  "initial": {
+    "moment": 1,
+    "select": "players[0x70997970c51812dc3a010c7d01b50e0d17dc79c8]"
+  }
+}

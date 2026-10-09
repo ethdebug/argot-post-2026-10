@@ -1,0 +1,17 @@
+{
+  "id": "raw-hero",
+  "title": "Raw bytes",
+  "run": {
+    "scenario": "arcade",
+    "build": "sol"
+  },
+  "lens": "raw-hero",
+  "timeline": [
+    {
+      "tx": 3,
+      "step": 569,
+      "label": "inside carol's join, between the two SSTOREs of her name's text"
+    }
+  ],
+  "controls": "none"
+}

@@ -1,0 +1,21 @@
+{
+  "id": "mid",
+  "title": "The middle of the game",
+  "caption": "Storage in the middle of the game: three joins, then alice hit, alice hit, bob hit, carol hit four times, carol miss",
+  "run": {
+    "scenario": "arcade",
+    "build": "sol"
+  },
+  "lens": "inspector",
+  "timeline": [
+    {
+      "tx": 11,
+      "step": "end",
+      "label": "in the middle of the game"
+    }
+  ],
+  "controls": "none",
+  "initial": {
+    "select": "players[0x70997970c51812dc3a010c7d01b50e0d17dc79c8]"
+  }
+}
