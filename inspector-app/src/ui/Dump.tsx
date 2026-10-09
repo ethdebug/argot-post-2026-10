@@ -246,7 +246,10 @@ export function Dump(p: { id: ViewId; location: Location; data: DataRef;
   const otherPoint = thereAt?.p;
   const lit0 = useLight(p.id, p.filter, undefined, p.compare);
   const [walkLink] = useLink(p.link);
-  const light = bare ? noLight : lit0;
+  // (a walkthrough walks the moment shown: the dump of the one before
+  // it stays unlit meanwhile)
+  const earlier = "moment" in p.data && p.data.moment === "previous";
+  const light = bare || (earlier && walkLink.walk) ? noLight : lit0;
   // what the compared point lights (a slot lit there only: "only"; none
   // in a walkthrough, which walks one side: vanilla panel.js)
   const there0 = useLight(p.id, p.filter, p.compare, p.data);
