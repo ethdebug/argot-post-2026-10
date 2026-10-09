@@ -2,7 +2,7 @@
 // from it at the switch) with the full-inspector lens in its storage
 // section: its views take the places of the static #picker, #mode,
 // #panel and #tree. The page keeps what is its own: the scene's intro
-// and summary, main[data-single], and the hooks bin/run.mjs uses
+// and summary, main[data-single], and the hooks the tests use
 // (window.select, window.results).
 import "../../../shared/appendix.css";
 import "../style.css";

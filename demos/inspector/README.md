@@ -171,7 +171,7 @@ point is called (`when`), a summary line, the variable selected first
 is in `index.html` (`#intros`, one `<p data-scene>` per scene), and so
 are the picker's buttons, with `data-fixture` and `data-single` (one
 point), so that the page does not move when the data comes;
-`bin/run.mjs` checks that they match.
+`inspector-app/test/sources.test.ts` checks that they match.
 
 1. The middle of the game: one point, after alice's two hits, bob's
    hit, carol's four hits and carol's miss. All three players: each
@@ -276,8 +276,8 @@ behaviour is the same, the file names are the app's now.
   `test/e2e/oracle.spec.ts`. The Arcade renames (`roster` →
   `playerList`, `total` → `totalScore`, `rounds` → `totalHits`,
   `hitCount` → `hits`) change its captions, and the vanilla page is
-  deleted, so it cannot be captured again. `bin/run.mjs` and
-  `test/e2e/` check the walkthroughs.
+  deleted, so it cannot be captured again. `test/e2e/walkthrough/`
+  and `src/engine/walkthrough/fold.test.ts` check the walkthroughs.
 
 ## How the fixtures were made
 
@@ -331,10 +331,12 @@ behaviour is the same, the file names are the app's now.
 To change the contract: edit `contracts/`, the transactions in
 `bin/make-fixtures.mjs`, the scenes in `fixtures/index.json` and their
 intros and buttons in `index.html`, and the expected values in
-`bin/run.mjs`; then rerun the script, `bin/sizes.mjs` and `bin/run.mjs`.
+`inspector-app/test/expect.ts`; then rerun the script, `bin/sizes.mjs`
+and the app's tests (`npm run test:full` in `inspector-app`).
 
-`bin/run.mjs` checks the decoded values against the values the calls
-wrote (at the middle of the game alice 30 / combo 2 / best 2 / plays 2
+The tests (`src/engine/decode.test.ts`,
+`test/e2e/scenes/scenes.spec.ts`) check the decoded values against the
+values the calls wrote (at the middle of the game alice 30 / combo 2 / best 2 / plays 2
 / hits 2, bob 10 / 1 / 1 / 1 / 1, carol 100 / 0 / 4 / 5 / 4, the
 names, `playerList`, totalScore 140, totalHits 7; after alice's third
 hit 60 / 3 / 3 / 3 / 3, totalScore 170, totalHits 8; and the Vyper
@@ -825,7 +827,7 @@ The bundle was 86.8 KB gzip (411 KB) before it was minified.
 - No jumps: until the data comes, the tree shows gray lines, and the
   picker, the Show buttons, the meta line, the summary and the words
   have their room (the picker's buttons are in `index.html`;
-  `bin/run.mjs` checks that they match `fixtures/index.json`).
+  `test/sources.test.ts` checks that they match `fixtures/index.json`).
 - A scene's data is fetched when it is shown. Once the page is
   usable, the other fixtures are fetched one at a time while the
   browser is idle and nothing else is loading. Picking one that is
