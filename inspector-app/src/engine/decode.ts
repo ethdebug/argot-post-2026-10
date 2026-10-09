@@ -72,6 +72,10 @@ async function decodeAt(p: Project, d: Decoding, point: PointId):
   const at = await p.point(d.timeline, point);
   const c = await p.compilation(d.compilation);
   const state = machineState(at.snapshot);
+  if (d.variables === "locals" && d.locals) {
+    const got = await decodeLocals(c, { ...at, locals: d.locals }, d.id);
+    return decoded(d.id, point, nested(got.tree), new Map(got.graphs));
+  }
   if (d.variables === "locals") return decodeLocals(c, at, d.id);
   if (d.variables === "scope") return decodeScope(p, d, c, at);
   if (d.variables === "abi") {
@@ -124,6 +128,29 @@ async function decodeScope(p: Project, d: Decoding, c: Compilation,
   return decoded(d.id, at.id, [group("@storage", "storage", st.tree),
     group("@locals", "locals", lo.tree)],
   new Map([...st.graphs, ...lo.graphs]));
+}
+
+// Locals whose identifiers are dotted ("keccak scratch.key"), as the
+// members of a group ("keccak scratch"), in their order; the others as
+// they are
+export function nested(tree: ValueNode[]): ValueNode[] {
+  const out: ValueNode[] = [];
+  for (const n of tree) {
+    const at = n.path.indexOf(".");
+    if (at < 0) {
+      out.push(n);
+      continue;
+    }
+    const root = n.path.slice(0, at);
+    let g = out.find((x) => x.path === root);
+    if (!g) {
+      out.push(g = { path: root, label: root, root, type: "",
+        typeText: "", kind: "record", regions: [], children: [] });
+    }
+    g.children!.push({ ...n, root, label: n.path.slice(at + 1) });
+  }
+  return out.map((g) => g.kind === "record"
+    ? { ...g, summary: `${g.children!.length} fields` } : g);
 }
 
 // a tree, indexed by path

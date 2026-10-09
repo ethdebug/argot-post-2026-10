@@ -116,6 +116,12 @@ export interface Decoding {             // "this rule over that storage"
   // scene's, solc's pointers over Vyper's storage; `rule`: the decoding
   // of that storage by its own compiler's layout, for the contrast)
   foreign?: { language: string; rule: DecodingId };
+  // (variables "locals": these, not the point's context's: pointers a
+  // scene writes by hand for its moment, where the compiler names no
+  // locals (`provenance`: "hand-written"; a dotted identifier is a
+  // member of a group, "keccak scratch.key")
+  locals?: Local[];
+  provenance?: "hand-written";
 }
 // (from: "list": a list in storage, e.g. playerList; its provenance)
 // (from: "trace": keys hashed with the variable's base slot, or with

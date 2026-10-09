@@ -94,6 +94,10 @@ export function resolveRef(ref: DataRef, s: LensState, p: Project):
   const own = p.bookmarks.find((b) => b.id === s.scene)?.decoding;
   const decoding = ref.decoding === "$scene" ? own
     : ref.decoding === "$rule" ? own && p.decodings[own]?.foreign?.rule
+    // ("$hand": the scene's hand-written pointers, if it has any; else
+    // the scene's own decoding)
+    : ref.decoding === "$hand" ? own && (p.decodings[`${own}/hand`]
+      ? `${own}/hand` : own)
     : ref.decoding === "$abi" ? (p.decodings[`abi:${s.scene}`]
       ? `abi:${s.scene}` : undefined) : ref.decoding;
   const point = "moment" in ref ? momentOf(ref.moment, s, p) : ref.point;
