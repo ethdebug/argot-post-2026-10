@@ -11,8 +11,9 @@ beforeEach(() => history.replaceState(null, "", "/"));
 const lens = (id: string): LensSpec => ({ id, title: `Lens ${id}`,
   timelines: [], decodings: [], grid: '"a"', links: [], views: [] });
 const lenses = [lens("one"), lens("two"), lens("three")];
-const project = { bookmarks: [], decodings: {}, memo: new Map() } as
-  unknown as Project;
+// (no run: the debugger waits for one)
+const project = { bookmarks: [], decodings: {}, memo: new Map(),
+  source: () => new Promise(() => {}) } as unknown as Project;
 const current = (c: HTMLElement) =>
   c.querySelector('[aria-current="page"]')?.getAttribute("data-lens");
 

@@ -1,5 +1,4 @@
-/* The code panel (Code.tsx) and the stepper's harness (the shell and
-   embed entries import this). The panel keeps
+/* The code panel (Code.tsx; the shell and embed entries import this). The panel keeps
    its size whatever the moment (mute, don't move): a fixed height that
    scrolls inside. The moment's range is in the walkthrough's tint (the
    plan colours), never the selection's yellow; the last range, when
@@ -8,7 +7,7 @@
 .codehead { margin: 0 0 6px; font-size: 0.85rem; white-space: nowrap;
   overflow: hidden; text-overflow: ellipsis; }
 .codenote { color: var(--muted); }
-.code .codesrc { height: 26em; max-height: none; }
+.code .codesrc { height: 26em; max-height: none; overflow: auto; }
 .code mark.rng { background: var(--plan-bg); color: inherit;
   border-radius: 0; box-shadow: inset 0 -2px 0 var(--plan-fg); }
 .code mark.rng.last { background: color-mix(in srgb, var(--plan-bg) 45%,
@@ -23,13 +22,3 @@
 :root[data-theme="dark"] .codesrc.coloured span[style] {
   color: var(--shiki-dark); }
 .novars { margin: 0; }
-
-/* the harness (lenses/stepper-dev.tsx) */
-.stepperbar { display: flex; flex-wrap: wrap; gap: 4px 12px;
-  align-items: baseline; margin: 0 0 12px; font-size: 0.9rem; }
-.stepperbar input { width: 6em; font: inherit; }
-.stepperbar .op { font-family: ui-monospace, Menlo, monospace; }
-.lens.stepper { grid-template-columns: minmax(0, 1fr); gap: 16px 28px; }
-@media (min-width: 900px) {
-  .lens.stepper { grid-template-columns: minmax(0, 3fr) minmax(0, 2fr); }
-}

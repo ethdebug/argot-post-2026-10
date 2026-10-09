@@ -1,0 +1,57 @@
+/* The debugger lens (lenses/debugger.ts), by the raw lens's rules: the
+   storage, calldata and memory dumps in one wide column, the inspector's
+   dump column (half the width less its 28px gap); the stack, narrow,
+   beside it at its font (--cell-fs, ui/fit.ts), a row an item; the code
+   and the variables in a column of their own, as the tree's. Boxes hug
+   their rows; equal gutters; under 660px, one column, the code and the
+   variables first. */
+.lens.dbg { display: grid; gap: 18px 28px; align-items: start;
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-areas: "moves" "side" "wide" "narrow"; }
+.lens.dbg .dbg-col { display: flex; flex-direction: column; gap: 18px;
+  min-width: 0; }
+.lens.dbg [data-area="narrow"] { align-items: flex-start;
+  justify-self: start; }
+.lens.dbg .view.abbr { font-family: var(--mono);
+  font-variant-numeric: tabular-nums; font-size: var(--cell-fs, 14px); }
+.lens.dbg .view.abbr .word .ab { line-height: var(--cell-lh, 1.85); }
+.lens.dbg .view-name { letter-spacing: 0.12em; }
+/* (the stack's column one width at every moment, its depth whatever:
+   nothing beside it moves) */
+.lens.dbg { --stack-w: 9.5em; }
+.lens.dbg [data-area="narrow"] { width: var(--stack-w); }
+@media (min-width: 660px) {
+  .lens.dbg { grid-template-columns: calc((100% - 28px) / 2)
+    var(--stack-w);
+    grid-template-areas: "moves moves" "wide narrow" "side side"; }
+}
+@media (min-width: 1200px) {
+  .lens.dbg { grid-template-columns: calc((100% - 56px) * 0.5)
+    var(--stack-w) minmax(0, 1fr);
+    grid-template-areas: "moves moves moves" "wide narrow side"; }
+}
+/* the moves: one line, its buttons tap-sized */
+.moves { display: flex; flex-wrap: wrap; align-items: center;
+  gap: 6px 14px; font-size: 0.9rem; }
+.moves:focus-visible { outline: 2px solid var(--accent);
+  outline-offset: 4px; border-radius: 6px; }
+.moves .mctl { display: inline-flex; gap: 4px; }
+.moves .mctl .btn { min-width: 32px; min-height: 32px; }
+.moves select { font: inherit; }
+.moves .mat code { font-family: var(--mono); }
+/* the scene and the debugger, side by side, or one by a switch */
+.authoring { display: grid; gap: 18px 36px; }
+.authoring .dswitch { display: none; }
+.authoring .dopen { margin: 0; }
+@media (max-width: 1099px) {
+  .authoring[data-debugger] .dswitch { display: flex; }
+  .authoring[data-debugger]:not([data-show="scene"]) > .scenepane,
+  .authoring[data-show="scene"] > .dbgpane { display: none; }
+}
+/* the pins */
+.pinbar { margin: 18px 0 0; font-size: 0.9rem; }
+.pinbar .pinhead { margin: 0 0 6px; }
+.pinbar .pins { margin: 0 0 8px; padding-left: 1.4em; }
+.pinbar .pinrow { display: flex; flex-wrap: wrap; gap: 6px; margin: 0 0 6px;
+  align-items: center; }
+.pinbar input, .pinbar select { font: inherit; }

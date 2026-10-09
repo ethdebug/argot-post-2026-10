@@ -1,12 +1,12 @@
 // A source over a run (authoring, and the snapshot build), and a
 // scene's snapshot file made from one: the run's half of source.ts
 import type {
-  Compilation, Decoding, Hex, TxFacts,
+  Compilation, Decoding, Hex, SourceRange, TxFacts,
 } from "./types";
 import type { Build, Moment, Run, Timeline } from "./run/types";
 import type { Scene } from "./scene";
 import type { BuildSlice, MomentSource, SceneSnapshot } from "./source";
-import { annotate } from "./run/annotate";
+import { annotator } from "./run/annotate";
 import { factsOf } from "./run/facts";
 import { digest } from "./run/run";
 import { slotHex } from "./hex";
@@ -50,12 +50,40 @@ const factsAt = (run: Run, m: Moment): TxFacts =>
 // visited)
 export function fromRun(run: Run, build: Build, t: Timeline | "all"):
   MomentSource {
+  const at = annotator(run, build);
   const moments = t === "all"
     ? run.txs.flatMap((x, tx): Moment[] => [...Array.from({ length:
       x.steps }, (_, step) => ({ tx, step })), { tx, step: "end" }])
-    : t.map((m) => annotate(run, build, m));
+    : t.map((m) => at(m));
+  // (each index's last range, found once: scanning back through its
+  // transaction's trace steps)
+  const lasts = new Map<number, SourceRange | undefined>();
+  const last = (i: number): SourceRange | undefined => {
+    if (lasts.has(i)) return lasts.get(i);
+    const m = moments[i];
+    if (m.step === "end") return undefined;
+    let r = (m.range !== undefined || m.pc !== undefined ? m : at(m)).range;
+    if (!r && m.step > 0) {
+      // (the trace step before it, in "all"; else annotated afresh)
+      const j = i > 0 && moments[i - 1].tx === m.tx &&
+        moments[i - 1].step === m.step - 1 ? i - 1 : -1;
+      r = j >= 0 ? last(j) : lastStep(m.tx, m.step - 1);
+    }
+    lasts.set(i, r);
+    return r;
+  };
+  const lastStep = (tx: number, step: number): SourceRange | undefined => {
+    for (let k = step; k >= 0; k--) {
+      const r = at({ tx, step: k }).range;
+      if (r) return r;
+    }
+    return undefined;
+  };
   return {
     moments, build,
+    moment: (i) => moments[i].pc !== undefined || moments[i].step === "end"
+      ? moments[i] : at(moments[i]),
+    last,
     async state(i) {
       const s = run.stateAt(moments[i]);
       return { ...s, storage: new RunStorage(s.storage) };

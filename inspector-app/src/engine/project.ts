@@ -4,7 +4,8 @@
 // the memory section's fixture
 import type { Io } from "./io";
 import type {
-  Compilation, CompilationId, Decoding, DecodingId, Timeline, TimelineId,
+  Compilation, CompilationId, Decoding, DecodingId, PointId, Timeline,
+  TimelineId, TimelinePoint,
 } from "./types";
 import type { ProjectBookmark } from "./fixtures/legacy";
 import { fromMemory } from "./fixtures/memory";
@@ -13,7 +14,7 @@ import {
   type Scene, type SceneId,
 } from "./scene";
 import {
-  fromSnapshot, pointsOf, snapshotOf, type MomentSource,
+  fromSnapshot, pointAt, pointsOf, snapshotOf, type MomentSource,
 } from "./source";
 import type { BuildId, Run, Scenario, ScenarioId } from "./run/types";
 
@@ -35,6 +36,9 @@ export interface Project {
   page: { id: string; title: string; lens: string }[];
   decodings: Record<DecodingId, Decoding>;   // "mid", "vyper/rule", …
   source(scene: SceneId): Promise<MomentSource>;     // memoised
+  // (authoring: a scene's run, every trace step and transaction end a
+  // moment: "run:<scene>", its bookmark's points filled once it ran)
+  point(timeline: TimelineId, id: PointId): Promise<TimelinePoint>;
   timeline(id: TimelineId): Promise<Timeline>;        // memoised
   compilation(id: CompilationId): Promise<Compilation>;
   // the engine's results (decode), per project
@@ -109,6 +113,19 @@ export async function load(io: Io, o: { scenes: Scene[];
       compilation: decodings[b.decoding].compilation, timeline: b.timeline,
       variables: "abi", keys: { from: "trace" }, abi: b.calldata };
   }
+  // (authoring: each scene's run as a scene of its own, "run:<id>":
+  // everything in scope at every moment)
+  const RUN = "run:";
+  if (o.runs) {
+    for (const s of scenes) {
+      const main = decodings[s.id];
+      if (!main) continue;
+      const id = `${RUN}${s.id}`;
+      decodings[id] = { ...main, id, timeline: id, variables: "scope" };
+      bookmarks.push({ id, title: `${s.title}: the run`, points: [] as
+        unknown as [string], timeline: id, decoding: id });
+    }
+  }
   const scene = (id: SceneId) => {
     const s = scenes.find((x) => x.id === id);
     if (!s) throw new Error(`no scene ${id}`);
@@ -136,6 +153,33 @@ export async function load(io: Io, o: { scenes: Scene[];
     return { src: fromRun(run, scenario.builds[s.run.build], s.timeline),
       compilations: compilationsOf(s, scenario) };
   });
+  // a run's moments, all of them (its bookmark's points, once it ran)
+  const runOf = memoised(async (id): Promise<MomentSource> => {
+    const s = scene(id.slice(RUN.length));
+    if (!o.runs) throw new Error(`${id}: a run, in authoring only`);
+    const info = o.builds[s.run.scenario];
+    const need = [s.run.build, ...info[s.run.build].ethdebug ? []
+      : Object.keys(info).filter((b) => info[b].language === "solidity")];
+    const scenario = await o.runs.scenario(s.run.scenario, need);
+    const run = await o.runs.run(scenario, s.run.build);
+    const { fromRun } = await import("./source-run");
+    const src = fromRun(run, scenario.builds[s.run.build], "all");
+    const bm = bookmarks.find((b) => b.id === id)!;
+    (bm.points as string[]).splice(0, Infinity, ...src.moments.map((_, k) =>
+      `${id}:${k}`));
+    // (the compilations: the scene's)
+    await loaded(s.id);
+    return src;
+  });
+  const runPoints = new Map<PointId, Promise<TimelinePoint>>();
+  const runPoint = (id: PointId) => {
+    if (!runPoints.has(id)) {
+      const tl = id.slice(0, id.lastIndexOf(":"));
+      runPoints.set(id, runOf(tl).then((src) =>
+        pointAt(id, src, Number(id.slice(tl.length + 1)), true)));
+    }
+    return runPoints.get(id)!;
+  };
   const sceneTimeline = memoised(async (id): Promise<Timeline> => {
     const sceneId = id.slice(timelineOf("").length);
     const { src } = await loaded(sceneId);
@@ -156,9 +200,17 @@ export async function load(io: Io, o: { scenes: Scene[];
     scenes, bookmarks, decodings, memo: new Map(),
     page: page.map((s) => ({ id: s.id, title: s.title,
       lens: s.lens ?? "inspector" })),
-    source: async (id) => (await loaded(id)).src,
+    source: async (id) => id.startsWith(RUN) ? runOf(id)
+      : (await loaded(id)).src,
+    point: async (tl, id) => tl.startsWith(RUN) ? runPoint(id)
+      : (await (mem.timelines.find((t) => t.id === tl) ??
+        sceneTimeline(tl))).points.find((x) => x.id === id) ?? Promise.reject(
+        new Error(`no point ${id} in ${tl}`)),
     timeline: async (id) => mem.timelines.find((t) => t.id === id) ??
-      sceneTimeline(id),
+      (id.startsWith(RUN) ? { id, contract: { address: "0x",
+        compilation: decodings[id]?.compilation ?? "" },
+      points: [...await Promise.all(runPoints.values())], bookmarks: [] }
+        : sceneTimeline(id)),
     async compilation(id) {
       const bug = mem.compilations.find((c) => c.id === id);
       if (bug) return bug;

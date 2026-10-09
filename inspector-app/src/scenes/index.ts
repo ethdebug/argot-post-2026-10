@@ -14,7 +14,15 @@ import vyperRules from "../../scenes/vyper-rules.json";
 import bugO0 from "../../scenes/bug-O0.json";
 import bugO2 from "../../scenes/bug-O2.json";
 
-export const scenes: Scene[] = [rawHero, rawNamed, mid, alice, motd, vyper,
-  playersWalk, alicePlays, vyperRules, bugO0, bugO2].map(sceneOf);
+// (in Vite, every scene file, the ones authoring adds too, after these;
+// Node, the snapshot build: these)
+const listed = [rawHero, rawNamed, mid, alice, motd, vyper, playersWalk,
+  alicePlays, vyperRules, bugO0, bugO2].map(sceneOf);
+const files = typeof import.meta.glob === "function"
+  ? Object.values(import.meta.glob<unknown>("../../scenes/*.json",
+    { eager: true, import: "default" })).map(sceneOf) : [];
+export const scenes: Scene[] = [...listed.map((s) =>
+  files.find((f) => f.id === s.id) ?? s),
+...files.filter((f) => !listed.some((s) => s.id === f.id))];
 
 export const builds: Record<string, Record<string, BuildInfo>> = { arcade };
