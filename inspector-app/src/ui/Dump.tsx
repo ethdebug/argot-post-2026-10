@@ -29,7 +29,7 @@ import type {
   ByteKey, Colour, Filter, Hex, Layout, Light, Location, Row, Target,
   TimelinePoint,
 } from "../engine/types";
-import { byteKey, short } from "../engine/hex";
+import { byteKey, short, wordShort } from "../engine/hex";
 import {
   decodingOf, useDecoded, useLayout, useLens, useLight, useLink,
   usePointAt, hush,
@@ -82,13 +82,10 @@ function Ruler() {
   </div></div>;
 }
 
-// a word abbreviated to its last `n` bytes: 0x…aa80 (its leading zero
-// bytes dropped first: a word that short whole, 0x22; zero, 0x00)
-export function abbreviated(bytes: (string | undefined)[], n: number) {
-  const hex = bytes.map((b) => b ?? "").join("").replace(/^(00)+/, "");
-  return hex.length > 2 * n ? `0x…${hex.slice(-2 * n)}`
-    : `0x${hex || "00"}`;
-}
+// a word abbreviated to its first and last `n` bytes, padded to 32
+// bytes first: 0x0000…1420, 0x53c8…aa80; every word the same width
+export const abbreviated = (bytes: (string | undefined)[], n: number) =>
+  wordShort(bytes.map((b) => b ?? "").join(""), n);
 
 // The rows' bytes as one run, `per` bytes a line (Display "flow"): each
 // line's address, where the location is a segment (its offset)

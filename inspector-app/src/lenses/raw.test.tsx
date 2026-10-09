@@ -79,12 +79,15 @@ for (const spec of rawLenses) {
   });
 }
 
-it("abbreviation: the last bytes after 0x…, a short word whole", () => {
+it("abbreviation: a word's first and last bytes, padded to 32: one width",
+  () => {
   const w = (h: string) => h.padStart(64, "0").match(/../g)!;
-  expect(abbreviated(w("53c8a5ff9979"), 2)).toBe("0x…9979");
-  expect(abbreviated(w("22"), 2)).toBe("0x22");
-  expect(abbreviated(w("0463"), 2)).toBe("0x0463");
-  expect(abbreviated(w(""), 2)).toBe("0x00");
+  expect(abbreviated(w("53c8a5ff9979"), 2)).toBe("0x0000…9979");
+  expect(abbreviated(w("1420"), 2)).toBe("0x0000…1420");
+  expect(abbreviated(w("22"), 2)).toBe("0x0000…0022");
+  expect(abbreviated(w("ab".repeat(32)), 2)).toBe("0xabab…abab");
+  // (a short word, its bytes the low end's)
+  expect(abbreviated(["14", "20"], 2)).toBe("0x0000…1420");
 });
 
 it("the display parameters: scale, perLine, rows shape", async () => {

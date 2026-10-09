@@ -8,7 +8,7 @@
 import type {
   Colour, Decoded, Hex, Layout, Location, Path, ValueNode,
 } from "./types";
-import { byteKey, short } from "./hex";
+import { byteKey, short, wordShort } from "./hex";
 import { rangeText } from "./location";
 
 // ------------------------------------------------- short values
@@ -37,9 +37,9 @@ export const pathName = (p: Path, names: ReadonlyMap<string, string>) =>
     `[${names.get(h.toLowerCase()) ?? short(h)}]`);
 
 // A value, short: an address by its on-chain name (else 0x90f7…b906); a
-// string quoted, cut to `text` characters; fixed bytes with their leading
-// zero bytes dropped, as the stack's words are (0x1420; long ones
-// 0xe94e…3a62); a number as it is; an array as its items, the first
+// string quoted, cut to `text` characters; fixed bytes as the stack's
+// words are, padded to 32 bytes, 0x0000…1420 (hex.ts wordShort); a
+// number as it is; an array as its items, the first
 // three; a record as its first fields
 export function shortValue(n: ValueNode, names: ReadonlyMap<string, string>,
   o: { text?: number; fields?: number } = {}): string {
@@ -62,8 +62,7 @@ export function shortValue(n: ValueNode, names: ReadonlyMap<string, string>,
     return s.length > k ? `"${s.slice(0, k - 1)}…"` : v;
   }
   if (/^bytes\d+$/.test(n.typeText) || /^0x[0-9a-f]+$/i.test(v)) {
-    const h = v.replace(/^0x(00)*/, "") || "00";
-    return h.length > 10 ? `0x${h.slice(0, 4)}…${h.slice(-4)}` : `0x${h}`;
+    return wordShort(v);
   }
   return v;
 }
