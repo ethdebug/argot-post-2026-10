@@ -1,0 +1,21 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Inspector walkthrough</title>
+<!-- A figure's walkthrough panel alone, for an iframe of its own in the
+post, beside the figure's (embed.html#scene=<id>&panel=external&
+channel=<id>): the same scene and channel in the hash. The host makes
+this frame sticky. It posts its height to the host page. -->
+<style>
+  html, body { margin: 0; background: transparent; }
+  body { display: flow-root; color: #1f2328; }
+  @media (prefers-color-scheme: dark) { body { color: #e6e4df; } }
+</style>
+</head>
+<body>
+<div id="embed"></div>
+<script type="module" src="/src/embed/panel.tsx"></script>
+</body>
+</html>
