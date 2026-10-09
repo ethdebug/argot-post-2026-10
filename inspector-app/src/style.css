@@ -1440,3 +1440,34 @@ main:not([data-lens]) #rawscene { display: none; }
   .rbar.replaying, .rbar.replaying:not(:has(.rline3 .rsrc)) { height: 18.9em; }
 }
 .ptr > .rsrc, .rbar .rsrc { line-height: 1.4em; }
+
+/* The type scale: every text size in the views, a ratio of the one cell
+   size the dumps fit to their column (--cell-fs, ui/fit.ts: set on the
+   lens's root), each with a legible floor (a phone's cell is ~12px).
+   The tokens are computed where the cell size is set (and, as a
+   default, at the root), so everything inside inherits them. */
+:root, [style*="--cell-fs"] {
+  --fs-cell: max(12px, var(--cell-fs, 14px));
+  --fs-name: max(12px, calc(var(--cell-fs, 14px) * 1.05));
+  --fs-value: max(12px, var(--cell-fs, 14px));
+  --fs-meta: max(11px, calc(var(--cell-fs, 14px) * 0.85));
+  --fs-label: max(11px, calc(var(--cell-fs, 14px) * 0.8));
+  --fs-caption: max(13px, calc(var(--cell-fs, 14px) * 1.1));
+}
+/* The tree: a companion to its dump, at its cell size; rows in its
+   units */
+:is(#tree, #mtree, #ctree, .tree) { font-size: var(--fs-cell); }
+:is(#tree, #mtree, #ctree, .tree) .name { font-size: var(--fs-name); }
+:is(#tree, #mtree, #ctree, .tree) :is(.type, .val.sum, .empty, .noloc) {
+  font-size: var(--fs-meta); }
+:is(#tree, #mtree, #ctree, .tree) .val { font-size: var(--fs-value);
+  padding: 0.1em 0.55em; }
+:is(#tree, #mtree, #ctree, .tree) .row { padding: 0.15em 0;
+  gap: 0.15em 0.7em; }
+:is(#tree, #mtree, #ctree, .tree) li.top { padding: 0.25em 0; }
+:is(#tree, #mtree, #ctree, .tree) ul { padding-left: 1.15em; }
+:is(#tree, #mtree, #ctree, .tree) > ul { padding-left: 0; }
+:is(#tree, #mtree, #ctree, .tree) li > .chev { width: 1.9em; height: 1.9em;
+  font-size: 1em; }
+:is(#tree, #mtree, #ctree, .tree) li:has(> .chev) > .row {
+  padding-right: calc(1.9em + 13px); }

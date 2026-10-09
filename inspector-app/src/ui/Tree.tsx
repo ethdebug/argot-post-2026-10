@@ -397,7 +397,7 @@ export function Tree(p: { id: ViewId; data: DataRef; filter?: Filter;
       const delta = top(d, ".words") - (top(t, ".storage") +
         tree.scrollTop);
       const pad = `${Math.max(0, now + delta)}px`;
-      if (Math.abs(delta) > 0.5 && tree.style.paddingTop !== pad) {
+      if (Math.abs(delta) > 0.1 && tree.style.paddingTop !== pad) {
         tree.style.paddingTop = pad;
       }
       const bottom = Math.max(...all.map((x) =>
@@ -417,6 +417,11 @@ export function Tree(p: { id: ViewId; data: DataRef; filter?: Filter;
     const seen = typeof ResizeObserver === "undefined" ? null
       : new ResizeObserver(() => setTimeout(align));
     for (const x of dumps()) seen?.observe(x.closest(".dump") ?? x);
+    // (and its own rows: their type follows the dumps' cell size, set
+    // after they fit, so its first row moves then; its box's padding and
+    // height, which align sets, are outside them)
+    const own = tree.querySelector(":scope > ul");
+    if (own) seen?.observe(own);
     // (again once the dump's rows and the page's fonts are in)
     const later = setTimeout(align);
     let live = true;
