@@ -72,6 +72,7 @@ async ({ page }) => {
     page.locator(`#panel .view[data-side=${x}]`));
   await expect(before).toBeVisible();
   await expect(after).toBeVisible();
+  await expect(before.locator(".view-name")).toBeVisible();
   await expect(before.locator(".view-name"))
     .toHaveText("Storage in the middle of the game");
   await expect(after.locator(".view-name"))
