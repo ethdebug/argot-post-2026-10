@@ -1,5 +1,5 @@
 // The bugc stepper's scenes (T8.1): inside carol's join, `name` is a
-// calldata reference; its pointer's data is the call's bytes, NAME_C
+// string calldata reference; its pointer's data is the call's bytes, NAME_C
 import { describe, expect, it } from "vitest";
 import { testProject } from "../../test/project";
 import { decode } from "../engine/decode";
@@ -14,6 +14,9 @@ describe.each(["stepper-O0", "stepper-O2"])("%s", (scene) => {
     const d = await decode(p, p.decodings[scene], `${scene}:1`);
     expect(d.tree.map((n) => n.path)).toEqual(["@storage", "@locals"]);
     const name = d.byPath.get("name")!;
+    // (a string calldata reference: text)
+    expect(name.typeText).toBe("string");
+    expect(name.value?.text).toBe(`"${NAME_C}"`);
     expect(name.value?.hex).toBe(NAME_HEX);
     const data = name.regions.find((r) => r.location === "calldata")!;
     expect([data.offset, data.length]).toEqual([68,
