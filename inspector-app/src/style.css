@@ -1515,3 +1515,47 @@ main:not([data-lens]) #rawscene { display: none; }
   .bs16 .bsbar, .bs16 .bsv { height: 19px; min-height: 0; }
   .bs16 .bsv, .bs16 .bsn { line-height: 19px; }
 }
+/* (the maintainer's layout, 10-08: the step's values and the focus
+   under its caption, in the bar's top section, in room kept for the
+   tallest step's (a three-row table, the byte strip); the pointer below,
+   the panel's full width) */
+.rbar.replaying { height: 14.6em; }
+.rbar > .rdetail { display: grid; grid-template-rows: 3.7em 1.9em; gap: 2px;
+  min-width: 0; flex: none; }
+.rbar > .rdetail[hidden] { display: none; }
+.rbar .dtext .rform { height: 3.7em; overflow: hidden; }
+.dpanel { grid-template-columns: minmax(0, 1fr); height: 10.6em; }
+@media (max-width: 759px) {
+  .rbar.replaying { height: 18.4em; }
+  .rbar > .rdetail { grid-template-rows: 6.3em 2.1em; }
+  .rbar .dtext .rform { height: 6.3em; }
+  .dpanel { grid-template-rows: minmax(0, 1fr); height: 9em; }
+}
+/* (the construct line under the pointer: the bar loses its line, the
+   pointer's box gains it) */
+.rbar.replaying:not(:has(.rline3 .rsrc)) { height: 13.2em; }
+.ptr { grid-template-rows: auto minmax(0, 1fr) auto; }
+.ptr > .rsrc { font-size: 0.78rem; color: var(--muted); height: 1.4em;
+  overflow: hidden; white-space: nowrap; text-overflow: ellipsis;
+  margin-top: 2px; }
+.ptr > .rsrc .source { font-size: inherit; color: inherit; opacity: 1; }
+.ptr .rkind b { color: var(--fg); font-weight: 600; }
+.ptr .fnotes a { color: var(--accent); }
+.dpanel { height: 12em; }
+.rbar .dtext .rform { height: 3.8rem; }
+.rbar > .rdetail { grid-template-rows: 3.8rem 1.9em; }
+@media (max-width: 759px) {
+  .rbar.replaying:not(:has(.rline3 .rsrc)) { height: 18.4em; }
+  .ptr { grid-template-rows: minmax(0, 1fr) auto; }
+  .ptr > .rsrc { display: none; }
+  .dpanel { height: 9em; }
+}
+/* (the glyph on the sentence's left: the same arrow, mirrored, up and
+   left toward ▶) */
+.pgo.left .pglyph { display: inline-block; transform: scaleX(-1); }
+@media (max-width: 759px) {
+  .rbar > .rdetail { grid-template-rows: 6.8rem 2.1em; }
+  .rbar .dtext .rform { height: 6.8rem; }
+  .rbar.replaying, .rbar.replaying:not(:has(.rline3 .rsrc)) { height: 18.9em; }
+}
+.ptr > .rsrc, .rbar .rsrc { line-height: 1.4em; }

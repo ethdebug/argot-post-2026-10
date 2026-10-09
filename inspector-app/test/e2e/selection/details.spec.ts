@@ -64,7 +64,8 @@ test("selecting moves nothing", async ({ page }) => {
   await ready(page);
   await select(page, "mid", null);
   const boxes = () => page.locator(
-    "#details, #details > *, #panel .view:not([hidden]) .wrow:not(.cmp *), "
+    "#details, #details > :not([hidden]), " +
+    "#panel .view:not([hidden]) .wrow:not(.cmp *), "
     + "#tree .row").evaluateAll((es) => es.map((e) => {
     const r = e.getBoundingClientRect();
     return [r.left + scrollX, r.top + scrollY, r.width, r.height]

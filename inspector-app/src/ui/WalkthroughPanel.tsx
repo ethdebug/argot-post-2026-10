@@ -27,6 +27,9 @@ import { PointerYaml } from "./PointerYaml";
 import { intoView, scrollerOf, scrollBy, toTop } from "./scroll";
 import type { DataRef, LinkId, ViewId } from "./types";
 
+// (where the construct line stands: under the pointer it describes, or
+// under the step's caption; the maintainer's open choice, 10-08)
+const KIND_UNDER_YAML = true;
 const PROBE = "Point at a value or a byte for its details.";
 const short = (h: string, keep = 4) => {
   const s = "0x" + (h.replace(/^0x0*/, "") || "0");
@@ -344,6 +347,7 @@ export function WalkthroughPanel(p: { id: ViewId; data: DataRef;
   };
 
   let barBody: ReactNode;
+  let construct: ReactNode = <span className="rsrc" />;
   let text: ReactNode;
   // (the scene, for the walkthrough's one line of context)
   const scene = useLensState((x) => x.bookmark);
@@ -366,6 +370,14 @@ export function WalkthroughPanel(p: { id: ViewId; data: DataRef;
     const lastStep = i === steps.length - 1;
     const fc = footOf(st);
     const kind = constructOf(st);
+    // (what the step is about and where its facts come from: it
+    // describes the pointer's band, so under the pointer; or, one
+    // switch away, under the caption)
+    construct = <span className="rsrc">{kind && <span className="rkind">
+      construct: <b>{kind}</b> · </span>}<span className="source">{
+      st.source}</span>{fc && <span className="fnotes"> · <a href={
+      FOOT[fc][1]} target="_blank" rel="noopener" title={FOOT[fc][0]}>ⓘ {
+      FOOT[fc][0]}</a></span>}</span>;
     barBody = <><span className="rline1"><span className="rtitle">How the
       pointer finds <code>{w.name}</code></span>{sceneTitle && <span
         className="rscene muted"> · {sceneTitle}</span>}<span
@@ -390,11 +402,7 @@ export function WalkthroughPanel(p: { id: ViewId; data: DataRef;
         {cue && <span key={cue.n} className="rcue" aria-live="polite">
           {cue.text}</span>}</span>
       <span className="rline3"><span className="rcap">{cap(st.cap)}</span>
-        <span className="rsrc">{kind && <span className="rkind">construct:
-          {" "}<b>{kind}</b> · </span>}<span className="source">{st.source}
-        </span>{fc && <span className="fnotes"> · <a href={FOOT[fc][1]}
-          target="_blank" rel="noopener" title={FOOT[fc][0]}>ⓘ {FOOT[fc][0]}
-        </a></span>}</span></span></>;
+        {!KIND_UNDER_YAML && construct}</span></>;
     text = <p className="rform"><FormView f={st.form} /></p>;
   } else {
     const own = node.children && node.regions.some((r) =>
@@ -428,23 +436,26 @@ export function WalkthroughPanel(p: { id: ViewId; data: DataRef;
     <div ref={bar} id={p.domId} className={`rbar${walk ? " replaying" : ""}`}
       aria-live="polite" tabIndex={0}
       aria-label="The selected value; how it was found"
-      data-view={`${lens.key}:${p.id}`} onClick={onClick}>{barBody}</div>
+      data-view={`${lens.key}:${p.id}`} onClick={onClick}>{barBody}
+      {/* (in a walkthrough, the step's worked values and the focus, in
+        reading order under its caption, in room kept for the tallest:
+        stepping moves nothing) */}
+      <div className="rdetail" hidden={!walk}>
+        <div id={p.domId ? "dtext" : undefined} className="dtext">{text}
+        </div>
+        <div id={p.domId ? "dpick" : undefined} className="dpick">
+          {focusing && <><span className="plab">Focus</span>
+            {[{ path: "*", who: "all", full: "all" }, ...w!.recs!].map((r) =>
+              <button key={r.path} type="button" className="btn"
+                data-focus={r.path} aria-pressed={r.path === w!.focus
+                  ? "true" : "false"} onClick={() => setFocus(r.path)}
+                aria-label={`Focus: ${r.full ?? r.who}`}>
+                {r.who}</button>)}</>}</div>
+      </div></div>
     <div ref={wrap} id={p.domId ? "dwrap" : undefined} className="dwrap"
       data-view={`${lens.key}:${p.id}`}>
       <div ref={panel} id={p.domId ? "dpanel" : undefined}
         className="dpanel" hidden={!walk}>
-        <div className="dleft">
-          <div id={p.domId ? "dtext" : undefined} className="dtext">{text}
-          </div>
-          <div id={p.domId ? "dpick" : undefined} className="dpick">
-            {focusing && <><span className="plab">Focus</span>
-              {[{ path: "*", who: "all", full: "all" }, ...w!.recs!].map((r) =>
-                <button key={r.path} type="button" className="btn"
-                  data-focus={r.path} aria-pressed={r.path === w!.focus
-                    ? "true" : "false"} onClick={() => setFocus(r.path)}
-                  aria-label={`Focus: ${r.full ?? r.who}`}>
-                  {r.who}</button>)}</>}</div>
-        </div>
         <div className="ptr" aria-label="Ethdebug data from the compiler">
           <p className="plabel">Ethdebug data from the compiler <span
             className="pnote">(as YAML; template names shortened, yields
@@ -452,6 +463,7 @@ export function WalkthroughPanel(p: { id: ViewId; data: DataRef;
           <PointerYaml domId={p.domId ? "ptr" : undefined} data={p.data}
             variable={sel?.split(/[.[]/)[0]} band={st?.band}
             goal={!!st?.goal} shown={!!walk} notes={st?.notes} />
+          {KIND_UNDER_YAML && construct}
         </div>
       </div>
     </div>
