@@ -47,7 +47,8 @@ export function useFitDump(me: RefObject<HTMLElement | null>,
         const all = [...lens.querySelectorAll<HTMLElement>(".dump .view")]
           .map((x) => sizes.get(x)).filter((x): x is number => !!x);
         if (!all.length) return;
-        // (set after this frame's layout: no resize loop; a change under
+        // (set after this layout, by a timer (a frame out of view gets
+        // no animation frames): no resize loop; a change under
         // 0.05px ends it, as the columns settle)
         const f = Math.min(...all);
         // (and a line's height: a word's line, on one line or two)
@@ -56,7 +57,7 @@ export function useFitDump(me: RefObject<HTMLElement | null>,
         const was = parseFloat(lens.style.getPropertyValue("--cell-fs"));
         if (Math.abs(f - was) < 0.05 &&
           lens.style.getPropertyValue("--cell-lh") === lh) return;
-        requestAnimationFrame(() => {
+        setTimeout(() => {
           lens.style.setProperty("--cell-fs", `${f}px`);
           if (lh) lens.style.setProperty("--cell-lh", lh);
         });
