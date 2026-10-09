@@ -30,13 +30,20 @@ describe("the shared moment's popovers", () => {
     const us = unitsOf(d, l);
     expect(us.map((u) => u.path)).toEqual(["playerList", "motd",
       "totalScore", "totalHits", A, B, C]);
-    expect(us.map((u) => u.tint)).toEqual([0, 1, 2, 3, 4, 0, 1]);
+    // (each its own child colour, never the selection's yellow)
+    expect(us.map((u) => u.k)).toEqual([1, 2, 3, 4, 5, 6, 7]);
     // (a record's slot: every byte its record's, one unit)
     const cs = cellsOf(us, l, l.rows.find((r) => r.how.endsWith(
       "slot 3)"))!.address);
     expect(new Set(cs).size).toBe(1);
     expect(cs[0]).toBeGreaterThanOrEqual(4);
     const notes = notesOf(d, l, us, l.rows, { names });
+    // (a value's popover badged in its colour; the totals, each theirs;
+    // a record's fields three a line, its name a line of its own)
+    expect(notes.map((n) => n.badge)).toEqual([0, 1, undefined, 4, 5, 6]);
+    expect(notes[2].items.map((x) => x.unit)).toEqual([2, 3]);
+    expect(notes[5].items.map((x) => x.line)).toEqual([0, 0, 0, 1, 1, 1,
+      2]);
     const said = notes.map((n) => `${n.how} : ${n.items.map((x) =>
       x.text).join(" · ")}`);
     const rec = (p: string, who: string, name: string) =>
@@ -68,11 +75,11 @@ describe("the shared moment's popovers", () => {
       perRun: true, values: false })[0].items[0].text)
       .toBe("return → _resetCombo");
     expect(n.how).toBe("stack 0–3");
-    expect(n.items).toEqual([
-      { seg: 0, text: "return → _resetCombo 0x1420" },
-      { seg: 1, text: "return → play 0x12cc" },
-      { seg: 2, text: "return → dispatcher 0x0496" },
-      { seg: 3, text: "selector 0x93e84cd9" }]);
+    expect(n.items.map((x) => [x.text, x.seg, x.line, x.unit])).toEqual([
+      ["return → _resetCombo 0x1420", 0, 0, 0],
+      ["return → play 0x12cc", 1, 1, 1],
+      ["return → dispatcher 0x0496", 2, 2, 2],
+      ["selector 0x93e84cd9", 3, 3, 3]]);
     // (and memory's, kept for later figures: the keccak scratch, the
     // free memory pointer)
     const m = layout(d, "memory");

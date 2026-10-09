@@ -5,8 +5,9 @@
 // says, and the runs of rows it may point at), and the short value
 // formats, from a decoding; which row a popover points at is
 // placement.ts's.
-import type { Decoded, Hex, Layout, Location, Path, ValueNode } from
-  "./types";
+import type {
+  Colour, Decoded, Hex, Layout, Location, Path, ValueNode,
+} from "./types";
 import { byteKey, short } from "./hex";
 import { rangeText } from "./location";
 
@@ -78,11 +79,12 @@ function fields(n: ValueNode, names: ReadonlyMap<string, string>,
 
 // ------------------------------------------------- units
 
-// What one tint covers: a top-level value, or a mapping's entry (its
-// owner ids are under `path`)
-export interface Unit { path: Path; tint: number }
-// (the at-rest tints: style.css t0…t4)
-export const TINTS = 5;
+// What one colour covers: a top-level value, or a mapping's entry (its
+// owner ids are under `path`), lit as the inspector lights a
+// composite's children: its own child colour (pk1…pk9; never the
+// selection's yellow)
+export interface Unit { path: Path; k: Colour }
+const PICKS = 9;
 
 const ownerPath = (id: string) => id.replace(/#[a-z]+$/, "");
 const under = (p: Path, root: Path) => p === root ||
@@ -99,11 +101,11 @@ const rowsOf = (l: Layout, path: Path) => {
 };
 
 // The values a layout shows, top-level (a mapping's entries each its
-// own), in tree order, each its tint in turn
+// own), in tree order, each its child colour in turn
 export function unitsOf(d: Decoded, l: Layout): Unit[] {
   return d.tree.flatMap((n) => n.children && /^mapping\(/.test(n.typeText)
     ? n.children : [n]).filter((n) => rowsOf(l, n.path).size)
-    .map((n, i) => ({ path: n.path, tint: i % TINTS }));
+    .map((n, i) => ({ path: n.path, k: (1 + i % PICKS) as Colour }));
 }
 
 // Each byte of a row: the unit whose value owns it (an index), or null
@@ -119,11 +121,16 @@ export function cellsOf(units: Unit[], l: Layout, row: Hex):
 
 // ------------------------------------------------- notes
 
-// What one popover says, "how : what" (`items`: a slot's in byte
-// order, `seg` the slot: " / " between slots), the units it is about,
-// and the runs of rows (as the dump shows them) it may point at
-export interface Note { units: number[]; how: string;
-  items: { text: string; seg: number }[]; runs: Hex[][] }
+// What one popover says, "how : what": `how` (badged in the colour of
+// unit `badge`, when it names one value), and its items (`seg`: a
+// slot's, " / " between slots on one line; `line`: its line when the
+// popover takes several; `unit`: an item that names a value of its
+// own, badged in that value's colour); the units it is about, and the
+// runs of rows (as the dump shows them) it may point at
+export interface Item { text: string; seg: number; line: number;
+  unit?: number }
+export interface Note { units: number[]; how: string; badge?: number;
+  items: Item[]; runs: Hex[][] }
 
 // The notes of a layout's units: one a unit; values alone in one slot
 // together, one note (totalScore and totalHits); `perRun`: one note a
@@ -157,8 +164,8 @@ export function notesOf(d: Decoded, l: Layout, units: Unit[],
         how: run.length === 1 ? rowName(l, run[0])
           : `${rowName(l, run[0])}–${rowName(l, run.at(-1)!).replace(
             /^\S+ /, "")}`,
-        items: us.map((i) => ({ seg: run.indexOf([...rows[i]][0]),
-          text: `${pathName(node(units[i]).path, o.names)}${
+        items: us.map((i, k) => ({ seg: run.indexOf([...rows[i]][0]),
+          line: k, unit: i, text: `${pathName(node(units[i]).path, o.names)}${
             o.values === false ? "" : ` ${shortValue(node(units[i]),
               o.names, { text: 16 })}`}` })) };
     });
@@ -177,12 +184,13 @@ export function notesOf(d: Decoded, l: Layout, units: Unit[],
     const runs = runsOf(new Set(mates.flatMap((k) => [...rows[k]])));
     if (mates.length > 1) {
       out.push({ units: mates, runs, how: rowName(l, one!),
-        items: mates.map((k) => ({ seg: 0, text: `${node(units[k]).label} ${
-          shortValue(node(units[k]), o.names)}` })) });
+        items: mates.map((k) => ({ seg: 0, line: 0, unit: k,
+          text: `${node(units[k]).label} ${
+            shortValue(node(units[k]), o.names)}` })) });
       return;
     }
     out.push({ units: [i], runs, how: pathName(n.path, o.names),
-      items: itemsOf(n, o.names) });
+      badge: i, items: itemsOf(n, o.names) });
   });
   return out;
 }
@@ -195,16 +203,29 @@ function rowName(l: Layout, row: Hex) {
   return rangeText(l.location, Number(BigInt(row)), Number(BigInt(row)));
 }
 
-// what a value is, in short items: a record's fields ("score 30"); an
-// array's items; else its value
-function itemsOf(n: ValueNode, names: ReadonlyMap<string, string>) {
+// what a value is, in short items: a record's fields ("score 30"),
+// three a line, a string field a line of its own; an array's items;
+// else its value
+function itemsOf(n: ValueNode, names: ReadonlyMap<string, string>):
+  Item[] {
   const kids = n.children ?? [];
   if (kids.length && (n.kind === "record" || !/\[\d*\]$/.test(n.typeText))) {
-    return kids.map((c) => ({ seg: 0,
-      text: `${c.label} ${shortValue(c, names, { text: 16 })}` }));
+    let line = 0;
+    let on = 0;
+    return kids.map((c) => {
+      const text = `${c.label} ${shortValue(c, names, { text: 16 })}`;
+      const alone = c.value?.text.startsWith('"');
+      if (on === 3 || (alone && on)) {
+        line++;
+        on = 0;
+      }
+      on = alone ? 3 : on + 1;
+      return { seg: 0, line, text };
+    });
   }
   if (kids.length) {
-    return kids.map((c) => ({ seg: 0, text: shortValue(c, names) }));
+    return kids.map((c) => ({ seg: 0, line: 0,
+      text: shortValue(c, names) }));
   }
-  return [{ seg: 0, text: shortValue(n, names) }];
+  return [{ seg: 0, line: 0, text: shortValue(n, names) }];
 }
