@@ -68,7 +68,7 @@ main { max-width: 1440px; }
   padding: 3px 0;
 }
 .name { font-weight: 600; overflow-wrap: anywhere; }
-.type { color: var(--muted); font-size: 0.8rem; }
+.type { color: var(--muted); font-size: var(--fs-meta); }
 li.same > .row .name, li.same > .row .type { opacity: 0.55; }
 .val {
   margin-left: auto;
@@ -89,7 +89,7 @@ li.same > .row .name, li.same > .row .type { opacity: 0.55; }
 .val .old { color: var(--old); text-decoration: line-through; }
 .val .new { color: var(--new); font-weight: 700; }
 .val .arrow { margin: 0 6px; }
-.empty { margin: 0; font-size: 0.85rem; }
+.empty { margin: 0; font-size: var(--fs-meta); }
 
 /* The steps read a little like table rows: number | kind | content,
    with a hairline between steps */
@@ -116,7 +116,7 @@ li.same > .row .name, li.same > .row .type { opacity: 0.55; }
 .steps .c { min-width: 0; }
 .steps .k {
   display: block;
-  font-size: 0.75rem;
+  font-size: var(--fs-label);
   text-transform: uppercase;
   letter-spacing: 0.05em;
   color: var(--accent);
@@ -125,7 +125,7 @@ li.same > .row .name, li.same > .row .type { opacity: 0.55; }
 .steps .final { font-weight: 400; }
 .howside { margin: 0 0 8px; color: var(--muted); }
 .howside b { color: var(--fg); font-weight: 600; }
-.mode button { font-size: 0.85rem; padding: 3px 12px; }
+.mode button { font-size: var(--fs-meta); padding: 3px 12px; }
 .mode button:not(:first-child) {
   border-top-left-radius: 0; border-bottom-left-radius: 0;
   margin-left: -1px;
@@ -136,23 +136,23 @@ li.same > .row .name, li.same > .row .type { opacity: 0.55; }
 .mode button[aria-checked="true"] { position: relative; }
 .mode { gap: 0; }
 .moderow { display: flex; align-items: center; gap: 10px; margin: 10px 0 0; }
-.modelabel { font-size: 0.8rem; color: var(--muted); }
+.modelabel { font-size: var(--fs-meta); color: var(--muted); }
 .mpicks .moderow { margin: 0 0 6px; }
 .mpicks .modelabel { min-width: 1.2em; }
 /* All | Related: the rows a dump shows (its context box muted, not
    gone, with All: nothing moves) */
 .relrow { margin: 0 0 8px; }
 .relrow .chipcheck.off { opacity: 0.5; cursor: default; }
-.relrow .relhint { font-size: 0.8rem; }
+.relrow .relhint { font-size: var(--fs-meta); }
 .how details { margin-top: 4px; }
-.how summary { cursor: pointer; color: var(--muted); font-size: 0.85rem; }
+.how summary { cursor: pointer; color: var(--muted); font-size: var(--fs-meta); }
 .how pre {
   max-height: 260px;
   overflow: auto;
   background: var(--code-bg);
   padding: 8px;
   border-radius: 4px;
-  font-size: 0.75rem;
+  font-size: var(--fs-label);
 }
 .hex.short { cursor: pointer; border-bottom: 1px dotted var(--muted); }
 .hex.full { overflow-wrap: anywhere; }
@@ -166,7 +166,8 @@ li.same > .row .name, li.same > .row .type { opacity: 0.55; }
   margin: 0;
   max-height: 70vh;
   overflow: auto;
-  font-size: 0.78rem;
+  /* (code: monospace at the cell size, as the dumps' bytes) */
+  font-size: var(--fs-cell);
   line-height: 1.45;
   white-space: pre;
 }
@@ -220,7 +221,7 @@ li.same > .row .name, li.same > .row .type { opacity: 0.55; }
   border: 1px solid var(--line);
   border-left: 3px solid var(--accent);
   border-radius: 6px;
-  font-size: 0.85rem;
+  font-size: var(--fs-meta);
   line-height: 1.5;
 }
 .details p { margin: 0; }
@@ -256,7 +257,7 @@ li.same > .row .name, li.same > .row .type { opacity: 0.55; }
   border: 1px solid var(--line);
   border-radius: 6px;
   background: var(--panel);
-  font-size: 0.85rem;
+  font-size: var(--fs-meta);
   cursor: pointer;
 }
 .chipcheck input { accent-color: var(--accent); margin: 0; }
@@ -324,7 +325,7 @@ li.same > .row .name, li.same > .row .type { opacity: 0.55; }
 .view-name {
   display: block;
   font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
-  font-size: 0.75rem;
+  font-size: var(--fs-label);
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.06em;
@@ -709,7 +710,7 @@ main[data-single] .walkzone > .cols :is(.chglegend, .legend .bchg,
 .srcbox > summary {
   padding: 8px 12px;
   color: var(--fg);
-  font-size: 0.9rem;
+  font-size: var(--fs-cell);
   border-radius: 6px;
 }
 .srcbox > summary:hover { color: var(--accent); }
@@ -821,9 +822,9 @@ main[data-single] .scols .view-name { display: none; }
 /* the focus entry: one fixed row; empty but there when there is none */
 .dpick { display: flex; align-items: center; gap: 4px; min-width: 0;
   overflow: hidden; white-space: nowrap; }
-.dpick .plab { font-size: 0.72rem; font-weight: 700; text-transform:
+.dpick .plab { font-size: var(--fs-label); font-weight: 700; text-transform:
   uppercase; letter-spacing: 0.06em; color: var(--muted); margin-right: 4px; }
-.dpick .btn { padding: 1px 10px; font-size: 0.85rem; white-space: nowrap; }
+.dpick .btn { padding: 1px 10px; font-size: var(--fs-meta); white-space: nowrap; }
 /* (pressed: as the scene picker's choice, without bold: nothing moves) */
 .dpick .btn[aria-pressed="true"] { border-color: var(--accent);
   box-shadow: inset 0 0 0 1px var(--accent); }
@@ -834,11 +835,11 @@ main[data-single] .scols .view-name { display: none; }
   color: var(--pk-fg); }
 .dtext { min-height: 0; overflow: hidden; }
 .dtext dl { margin: 0; display: grid; grid-template-columns: auto 1fr;
-  gap: 0 10px; font-size: 0.85rem; line-height: 1.35; }
+  gap: 0 10px; font-size: var(--fs-meta); line-height: 1.35; }
 .dtext dd { margin: 0; overflow-wrap: anywhere; }
 .ptr { min-height: 0; display: grid; grid-template-rows: auto
   minmax(0, 1fr); }
-.ptr .plabel { margin: 0 0 4px; font-size: 0.75rem; font-weight: 700;
+.ptr .plabel { margin: 0 0 4px; font-size: var(--fs-label); font-weight: 700;
   text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); }
 .ptr .pnote { font-weight: 400; text-transform: none; letter-spacing: 0; }
 /* the excerpt scrolls inside itself, inset under the header (a clear
@@ -872,7 +873,7 @@ main[data-single] .scols .view-name { display: none; }
 .pedge.on { opacity: 1; }
 .pedge button { pointer-events: auto; height: 16px; padding: 0 8px;
   border: 0; border-radius: 3px; background: none; cursor: pointer;
-  font: inherit; font-size: 0.6rem; line-height: 16px; font-weight: 400;
+  font: inherit; font-size: var(--fs-tiny); line-height: 16px; font-weight: 400;
   letter-spacing: 0.03em; color: var(--muted);
   display: inline-flex; align-items: center; gap: 4px; white-space: nowrap; }
 .pedge:not(.on) button { pointer-events: none; }
@@ -889,7 +890,7 @@ main[data-single] .scols .view-name { display: none; }
 .pgo { position: absolute; left: 50%; top: 55%; z-index: 3; margin: 0;
   transform: translate(-50%, -50%); width: max-content;
   max-width: calc(100% - 48px); display: flex; align-items: center;
-  gap: 8px; color: var(--fg); font-size: 0.95rem; font-weight: 600;
+  gap: 8px; color: var(--fg); font-size: var(--fs-cell); font-weight: 600;
   line-height: 1.4; pointer-events: none; }
 .pgo .ptext { display: inline-block; text-align: left; max-width: 22em;
   text-wrap: balance; }
@@ -897,7 +898,7 @@ main[data-single] .scols .view-name { display: none; }
 /* (on a phone, the pointer's box is a few lines: the sentence smaller,
    inside it) */
 @media (max-width: 759px) {
-  .pgo { font-size: 0.72rem; line-height: 1.25; top: 50%; }
+  .pgo { font-size: var(--fs-label); line-height: 1.25; top: 50%; }
   .pgo .ptext { max-width: none; }
 }
 .pgo[hidden] { display: none; }
@@ -910,7 +911,7 @@ main[data-single] .scols .view-name { display: none; }
   var(--mark) 45%, transparent); } }
 @media (prefers-reduced-motion: reduce) { .rbar .btn.halo { animation: none; } }
 #ptr code { background: none; padding: 0; border: 0; font-size: inherit; }
-.ptrlines { margin: 0; padding: 0.9em 0; font-size: 0.72rem;
+.ptrlines { margin: 0; padding: 0.9em 0; font-size: var(--fs-label);
   display: block;
   line-height: 1.5; white-space: pre; width: max-content; min-width: 100%; }
 .ptrlines .line { display: block; min-width: 100%; box-sizing: border-box;
@@ -939,10 +940,10 @@ main[data-single] .scols .view-name { display: none; }
    few lines of the pointer; the rest scrolls inside it) */
 
 .rform { margin: 0; font-family: ui-monospace, Menlo, monospace;
-  font-size: 0.85rem; line-height: 1.4; height: 4.2em; overflow: hidden;
+  font-size: var(--fs-meta); line-height: 1.4; height: 4.2em; overflow: hidden;
   overflow-wrap: anywhere; }
 /* (step 0's question: its own paragraph, in the formula's room) */
-.rform .prose.rq { display: block; margin-top: 0.35em; font-size: 1rem;
+.rform .prose.rq { display: block; margin-top: 0.35em; font-size: var(--fs-caption);
   color: var(--fg); }
 /* a step's bytes in one slot: 32 equal cells, each value a span over
    its own; its byte positions under it */
@@ -980,7 +981,7 @@ main[data-single] .scols .view-name { display: none; }
 .bsv.pk0 { --pk: var(--mark); --pk-fg: var(--chg-fg); }
 .bsn { display: block; padding: 0 2px; font-size: 0.82em; font-weight: 600;
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.bsidx span { font-size: 0.6rem; line-height: 1; color: var(--muted);
+.bsidx span { font-size: var(--fs-tiny); line-height: 1; color: var(--muted);
   text-align: center; }
 .rform .prose { font-family: system-ui, -apple-system, "Segoe UI",
   sans-serif; color: var(--muted); }
@@ -989,10 +990,10 @@ main[data-single] .scols .view-name { display: none; }
 .rctl .btn[disabled] { opacity: 0.4; cursor: default; }
 .gloss { font-family: system-ui, sans-serif; font-size: 0.75em;
   color: var(--muted); }
-.badge { font-size: 0.75rem; padding: 0 6px; border-radius: 9px;
+.badge { font-size: var(--fs-label); padding: 0 6px; border-radius: 9px;
   border: 1px solid color-mix(in srgb, var(--fg) 35%, transparent);
   color: var(--fg); background: transparent; }
-.source { font-size: 0.8rem; color: var(--fg); opacity: 0.8; }
+.source { font-size: var(--fs-meta); color: var(--fg); opacity: 0.8; }
 .source.pksrc { background: var(--pksrc); color: var(--pksrc-fg);
   opacity: 1; padding: 0 6px; border-radius: 9px; }
 sup.fn { font-size: 0.7em; color: var(--accent); margin-left: 1px; }
@@ -1001,7 +1002,7 @@ sup.fn { font-size: 0.7em; color: var(--accent); margin-left: 1px; }
    bytes */
 .bruler { position: absolute; top: 100%; z-index: 3; pointer-events: none;
   background: var(--panel); border-radius: 3px; }
-.bruler .b { font-size: 0.6rem; color: var(--muted); text-align: center; }
+.bruler .b { font-size: var(--fs-tiny); color: var(--muted); text-align: center; }
 /* a label for a run found at an earlier step of a replay: muted */
 /* (bolder and a step darker than muted text: it reads as clearly as a
    black one, while its white fill and thin line keep it secondary; the
@@ -1102,7 +1103,7 @@ html { overflow-anchor: none; }
    there is one, with a label at the left */
 .bruler.above { top: auto; bottom: 100%; }
 .bruler .blabel { position: absolute; right: 100%; top: 0; padding: 0 6px;
-  font-size: 0.6rem; color: var(--accent); }
+  font-size: var(--fs-tiny); color: var(--accent); }
 .bruler .b { color: var(--accent); }
 /* the selected value's declaration, in the contract's source */
 #contract-src .line.decl { background: var(--mark); border-radius: 2px; }
@@ -1151,7 +1152,7 @@ html { overflow-anchor: none; }
   margin-right: 9px; width: 28px;
   height: 28px; padding: 0; box-sizing: border-box;
   border: 1px solid transparent; border-radius: 6px; background: none;
-  color: var(--fg); font-size: 1.05rem; cursor: pointer; z-index: 1;
+  color: var(--fg); font-size: var(--fs-name); cursor: pointer; z-index: 1;
   display: grid; place-items: center; }
 #tree li > .chev svg { width: 1em; height: 1em; transition: transform 0.15s; }
 #tree li > .chev[aria-expanded="false"] svg { transform: rotate(-90deg); }
@@ -1164,7 +1165,7 @@ html { overflow-anchor: none; }
   #tree li > .chev svg { transition: none; }
 }
 #tree li.collapsed > ul { display: none; }
-.val.sum { color: var(--muted); font-size: 0.85rem; }
+.val.sum { color: var(--muted); font-size: var(--fs-meta); }
 /* a block of tree rows in one colour: the item, key line and parts */
 /* (drawn behind the rows, from the first row's top to the last row's
    bottom: a top-level item's padding and separator stay outside it, so
@@ -1266,7 +1267,7 @@ html { overflow-anchor: none; }
   white-space: nowrap; flex: none; }
 /* (each line at its own height, whatever it holds) */
 .rbar .rline1 { height: 1.9em; flex: none; }
-.rbar .rline2 { font-size: 0.8rem; color: var(--muted); height: 1.3em;
+.rbar .rline2 { font-size: var(--fs-meta); color: var(--muted); height: 1.3em;
   overflow: hidden; text-overflow: ellipsis; }
 .rbar:not(.replaying) .rline2 { display: block; }
 .rbar .rsel { flex: 1; min-width: 0; overflow: hidden;
@@ -1289,17 +1290,17 @@ html { overflow-anchor: none; }
   border-bottom-color: color-mix(in srgb, var(--accent) 25%, var(--line)); }
 .rbar .rtitle { font-weight: 600; overflow: hidden; text-overflow: ellipsis;
   min-width: 0; }
-.rbar .rscene { font-size: 0.85rem; overflow: hidden; text-overflow: ellipsis;
+.rbar .rscene { font-size: var(--fs-meta); overflow: hidden; text-overflow: ellipsis;
   flex: 0 1 auto; min-width: 0; }
 .rbar .rexit { margin-left: auto; flex: none; }
 .rbar .rexit .btn { padding: 1px 10px; }
 .rbar.replaying .rline2 { font-size: inherit; color: inherit; height: 2em; }
 .rbar .rctl .btn { padding: 1px 10px; min-width: 2.2em; }
 /* ▶, the way on, the main control */
-.rbar .rctl .rnext { padding: 1px 18px; font-size: 1.05rem; font-weight: 700;
+.rbar .rctl .rnext { padding: 1px 18px; font-size: var(--fs-name); font-weight: 700;
   border-color: var(--accent); }
 .rbar .rctl .btn[disabled] { opacity: 0.4; cursor: default; }
-.rbar .rcount { color: var(--muted); font-size: 0.9rem; min-width: 4.4em;
+.rbar .rcount { color: var(--muted); font-size: var(--fs-cell); min-width: 4.4em;
   font-variant-numeric: tabular-nums; }
 /* the steps as dots: done filled, the current one ringed, later ones
    empty; each a jump (its caption on hover) */
@@ -1316,9 +1317,9 @@ html { overflow-anchor: none; }
   outline-offset: 1px; border-radius: 50%; }
 .rbar .rline3 { flex-direction: column; align-items: stretch; gap: 2px;
   white-space: normal; }
-.rbar .rcap { margin: 0; font-size: 1rem; line-height: 1.35; height: 2.7em;
+.rbar .rcap { margin: 0; font-size: var(--fs-caption); line-height: 1.35; height: 2.7em;
   overflow: hidden; }
-.rbar .rsrc { font-size: 0.78rem; color: var(--muted); height: 1.4em;
+.rbar .rsrc { font-size: var(--fs-meta); color: var(--muted); height: 1.4em;
   overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
 .rbar .rsrc .source { font-size: inherit; color: inherit; opacity: 1; }
 .rbar .rkind b { color: var(--fg); font-weight: 600; }
@@ -1326,7 +1327,7 @@ html { overflow-anchor: none; }
 /* a re-targeted walkthrough's cue: over the bar, taking no room */
 .rbar .rcue { position: absolute; right: 12px; top: 2.6em; padding: 1px 8px;
   border-radius: 999px; background: var(--accent); color: var(--panel);
-  font-size: 0.75rem; font-weight: 600; pointer-events: none; }
+  font-size: var(--fs-label); font-weight: 600; pointer-events: none; }
 /* the details under the bar: the pointer on the left, the step's values
    and the focus on the right */
 .dpanel { height: 14.4em; }
@@ -1345,8 +1346,8 @@ html { overflow-anchor: none; }
   .rbar.replaying { height: 9.6em; }
   .rbar .rscene { display: none; }
   .rbar .rsel .type, .rbar .rsel .muted, .rbar .rparts { display: none; }
-  .rbar .rctl .rstart { font-size: 0.85rem; }
-  .rbar .rcap { font-size: 0.95rem; height: 4.05em; }
+  .rbar .rctl .rstart { font-size: var(--fs-meta); }
+  .rbar .rcap { font-size: var(--fs-cell); height: 4.05em; }
   .rbar .rsrc { display: none; }
   .rbar .btn { min-height: 32px; }
   .rbar .rctl .btn { min-width: 36px; }
@@ -1359,7 +1360,7 @@ html { overflow-anchor: none; }
   .dleft { grid-template-rows: auto 1.9em; }
   .ptr .plabel { display: none; }
   .ptr { grid-template-rows: minmax(0, 1fr); }
-  .rform { font-size: 0.8rem; }
+  .rform { font-size: var(--fs-meta); }
 }
 /* (the tree's edge buttons: smaller, hugging the box's edge, so they
    cover as little of a row as they can: the review's V5) */
@@ -1416,7 +1417,7 @@ main:not([data-lens]) #rawscene { display: none; }
    pointer's box gains it) */
 .rbar.replaying:not(:has(.rline3 .rsrc)) { height: 13.2em; }
 .ptr { grid-template-rows: auto minmax(0, 1fr) auto; }
-.ptr > .rsrc { font-size: 0.78rem; color: var(--muted); height: 1.4em;
+.ptr > .rsrc { font-size: var(--fs-meta); color: var(--muted); height: 1.4em;
   overflow: hidden; white-space: nowrap; text-overflow: ellipsis;
   margin-top: 2px; }
 .ptr > .rsrc .source { font-size: inherit; color: inherit; opacity: 1; }
@@ -1445,7 +1446,10 @@ main:not([data-lens]) #rawscene { display: none; }
    size the dumps fit to their column (--cell-fs, ui/fit.ts: set on the
    lens's root), each with a legible floor (a phone's cell is ~12px).
    The tokens are computed where the cell size is set (and, as a
-   default, at the root), so everything inside inherits them. */
+   default, at the root), so everything inside inherits them. Kept fixed:
+   the page's own chrome, outside the views (its summary line, a
+   section's title, the preview tag, the column headers' legends, the
+   storage column's base size), and the dumps' own fitting (.views). */
 :root, [style*="--cell-fs"] {
   --fs-cell: max(12px, var(--cell-fs, 14px));
   --fs-name: max(12px, calc(var(--cell-fs, 14px) * 1.05));
@@ -1453,6 +1457,7 @@ main:not([data-lens]) #rawscene { display: none; }
   --fs-meta: max(11px, calc(var(--cell-fs, 14px) * 0.85));
   --fs-label: max(11px, calc(var(--cell-fs, 14px) * 0.8));
   --fs-caption: max(13px, calc(var(--cell-fs, 14px) * 1.1));
+  --fs-tiny: max(9px, calc(var(--cell-fs, 14px) * 0.65));
 }
 /* The tree: a companion to its dump, at its cell size; rows in its
    units */

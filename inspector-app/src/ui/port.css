@@ -2,7 +2,7 @@
    (style.css is vanilla's, copied as-is) */
 /* a hand-written compilation's badge, over its tree */
 .handmade { display: inline-block; margin: 0 0 6px; padding: 1px 8px;
-  border-radius: 4px; font-size: 0.8rem; background: var(--plan-bg);
+  border-radius: 4px; font-size: var(--fs-meta); background: var(--plan-bg);
   color: var(--plan-fg); }
 /* (on a tree's heading: in its line, no taller than the heading's) */
 .treehead .handmade { margin: 0 0 0 6px; padding: 0 6px;
@@ -36,7 +36,7 @@
   margin-right: 9px; width: 28px;
   height: 28px; padding: 0; box-sizing: border-box;
   border: 1px solid transparent; border-radius: 6px; background: none;
-  color: var(--fg); font-size: 1.05rem; cursor: pointer; z-index: 1;
+  color: var(--fg); font-size: var(--fs-name); cursor: pointer; z-index: 1;
   display: grid; place-items: center; }
 .tree li > .chev svg { width: 1em; height: 1em; transition: transform 0.15s; }
 .tree li > .chev[aria-expanded="false"] svg { transform: rotate(-90deg); }
@@ -92,7 +92,7 @@
    height at every moment; labels cut, never wrapped. */
 .tbar { display: grid; grid-template-columns: auto minmax(0, 1fr);
   grid-template-areas: "ctl track" ". line"; gap: 4px 12px;
-  align-items: center; font-size: 0.85rem; }
+  align-items: center; font-size: var(--fs-meta); }
 .tbar.one { display: block; }
 .tbar.empty { display: none; }
 .tbar:focus-visible { outline: 2px solid var(--accent);
@@ -106,7 +106,7 @@
   box-sizing: border-box; }
 .tbar .tlab { position: absolute; top: 7px; left: 2px; right: 0;
   overflow: hidden; white-space: nowrap; color: var(--muted);
-  font-size: 0.72rem; pointer-events: none; }
+  font-size: var(--fs-label); pointer-events: none; }
 /* (only the segments wide enough show their labels: the track's own
    container query) */
 .tbar .ttrack { container-type: inline-size; }

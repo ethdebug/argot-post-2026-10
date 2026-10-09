@@ -84,9 +84,12 @@ for (const [id, views] of [["raw-named", 1], ["mid", 1], ["vyper", 1],
         "#embed *")].filter((e) => /auto|scroll/.test(
         getComputedStyle(e).overflowY) && e.scrollHeight >
         e.clientHeight + 1).length)).toBe(0);
-      const h = await page.locator("#embed").evaluate((e) =>
+      // (its height now: the views' type follows their cell size, set
+      // once the dumps fit, so it settles a moment after they show)
+      const now = () => page.locator("#embed").evaluate((e) =>
         Math.ceil(e.getBoundingClientRect().height));
-      await expect.poll(() => heights.at(-1), { timeout: 20_000 }).toBe(h);
+      await expect.poll(async () => heights.at(-1) === await now(),
+        { timeout: 20_000 }).toBe(true);
     });
 }
 
