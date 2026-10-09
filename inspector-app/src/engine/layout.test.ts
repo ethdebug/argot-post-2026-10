@@ -103,7 +103,7 @@ it("vyper: the Vyper words appear, owned by nobody", async () => {
   }
 });
 
-it("filter.roots keeps only those subtrees' rows (spec §6b)", async () => {
+it("filter.roots keeps only those subtrees' rows", async () => {
   const d = await mid();
   const l = layout(d, "storage", { roots: [A, "totalScore", "totalHits"],
     rows: "values" });

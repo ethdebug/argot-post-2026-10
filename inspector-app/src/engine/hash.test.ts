@@ -53,7 +53,7 @@ it("sel= is a cleared selection; no sel is the bookmark's", async () => {
     insets: null });
 });
 
-it("Review Focus 3: a stale or foreign hash gives the first bookmark's "
+it("a stale or foreign hash gives the first bookmark's "
   + "defaults", async () => {
   const p = await testProject();
   for (const h of ["ex=token", "ex=nope&mode=compare&sel=zzz&mopt=7",

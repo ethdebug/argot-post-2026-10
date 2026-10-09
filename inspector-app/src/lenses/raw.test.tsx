@@ -3,7 +3,7 @@
 // no popovers, no hover meaning), and the Dump's display parameters
 import { it, expect, afterEach } from "vitest";
 import { render, fireEvent, cleanup, waitFor } from "@testing-library/react";
-import fs from "node:fs";
+import { fixture } from "../../test/io";
 import { Lens } from "../ui/Lens";
 import { abbreviated } from "../ui/Dump";
 import { testProject } from "../../test/project";
@@ -11,8 +11,7 @@ import { rawLenses } from "./raw";
 import type { LensSpec } from "../ui/types";
 
 afterEach(cleanup);
-const json = JSON.parse(fs.readFileSync(
-  "../demos/inspector/fixtures/raw.json", "utf8"));
+const json = fixture("raw");
 const slow = { timeout: 5000 };
 const view = (c: HTMLElement, l: string) =>
   c.querySelector<HTMLElement>(`[data-area="${l}"] .view`);

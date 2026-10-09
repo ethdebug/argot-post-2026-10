@@ -1,9 +1,8 @@
 import { it, expect } from "vitest";
-import fs from "node:fs";
+import { fixture } from "../../../test/io";
 import { fromMemory } from "./memory";
 
-const json = JSON.parse(fs.readFileSync("../demos/inspector/fixtures/memory.json",
-  "utf8"));
+const json = fixture("memory");
 
 it("memory.json: bugc at O0 and O2, a timeline each, three pauses as "
   + "bookmarks (two steps inside _applyCombo)", () => {
