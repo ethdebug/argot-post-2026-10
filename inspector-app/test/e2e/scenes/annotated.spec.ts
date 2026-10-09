@@ -1,4 +1,4 @@
-// The annotated raw figure (scene raw-annotated, the post's first
+// The annotated raw figure (scene reveal, the post's first
 // before/after) in a real browser: raw, then revealed in place, in the
 // inspector's own looks: every value lit at once in its child colour,
 // with its caps, and the inspector's popovers, each badged in its
@@ -40,10 +40,10 @@ const over = (a: R, b: R) => a.l < b.r - 0.5 && b.l < a.r - 0.5 &&
   a.t < b.b - 0.5 && b.t < a.b - 0.5;
 
 for (const width of [1360, 1024, 390]) {
-  test(`raw-annotated at ${width}px: the inspector's popovers, over no ` +
+  test(`reveal at ${width}px: the inspector's popovers, over no ` +
     "value's digits; nothing moves on the reveal", async ({ page }) => {
     await page.setViewportSize({ width, height: 900 });
-    await page.goto("./embed.html#scene=raw-annotated");
+    await page.goto("./embed.html#scene=reveal");
     await expect(page.locator(".view")).toHaveCount(DUMPS);
     // (storage: playerList, motd, the totals, three records; the stack)
     await expect.poll(async () => (await geometry(page)).pops.length)
@@ -153,12 +153,12 @@ for (const width of [1360, 1024, 390]) {
   });
 }
 
-test("raw-annotated in a host page: revealed by its message; its " +
+test("reveal in a host page: revealed by its message; its " +
   "height says it reveals", async ({ page, baseURL }) => {
   await page.setViewportSize({ width: 1024, height: 900 });
   await page.goto("./embed.html");
   await page.setContent(`<body style="margin:0">
-    <iframe id="f" src="${baseURL}embed.html#scene=raw-annotated"
+    <iframe id="f" src="${baseURL}embed.html#scene=reveal"
       style="border:0;width:100%;height:50px;display:block"></iframe>
     <script>addEventListener("message", (e) => {
       if (e.data?.type !== "ethdebug:height") return;

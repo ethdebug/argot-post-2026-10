@@ -19,7 +19,7 @@ const text = (d: Awaited<ReturnType<typeof at>>, path: string) => {
   return n?.value?.text ?? n?.summary;
 };
 
-describe.each(["stepper-O0", "stepper-O2", "mid"])("%s's storage in scope",
+describe.each(["stepper-O0", "optimized-locals", "mid"])("%s's storage in scope",
   (scene) => {
     it("the middle of the game: test/expect.ts's values", async () => {
       const d = await at(scene, 11);
@@ -67,7 +67,7 @@ it("bugc's storage rows are named as solc's", async () => {
 // memory, each its own region, `player-score` …; alice before her third
 // hit is written back: the middle of the game's record, plays already
 // counted)
-it.each([["stepper-O0", 548], ["stepper-O2", 402]] as const)(
+it.each([["stepper-O0", 548], ["optimized-locals", 402]] as const)(
   "%s: play()'s player, a struct in memory, field by field",
   async (b, step) => {
     const p = await testProject();

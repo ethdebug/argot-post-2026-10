@@ -1,5 +1,5 @@
 // The annotated layer's units and labels, at the post's shared moment
-// (raw-annotated: transaction 11, step 986), checked against the story
+// (reveal: transaction 11, step 986), checked against the story
 // (test/expect.ts); and the short value formats
 import { describe, it, expect } from "vitest";
 import { testProject } from "../../test/project";
@@ -16,14 +16,14 @@ const story = new Map(mid);
 
 async function at(id: string) {
   const p = await testProject();
-  const pt = pointOf("raw-annotated", 0);
+  const pt = pointOf("reveal", 0);
   return decode(p, p.decodings[id], pt);
 }
 
 describe("the shared moment's popovers", () => {
   it("storage: a tint a top-level value (a record each), a popover " +
     "each, the story's values", async () => {
-    const d = await at("raw-annotated");
+    const d = await at("reveal");
     const names = onChainNames(d);
     expect(names.get(C.slice(8, -1))).toBe("carol");
     const l = layout(d, "storage", { rows: "all" });
@@ -63,8 +63,8 @@ describe("the shared moment's popovers", () => {
 
   it("the hand-written stack: one popover for its run, the moment's " +
     "call chain", async () => {
-    const s = await at("raw-annotated");
-    const d = await at("raw-annotated/hand");
+    const s = await at("reveal");
+    const d = await at("reveal/hand");
     const l = layout(d, "stack");
     const us = unitsOf(d, l);
     const [n, ...more] = notesOf(d, l, us, l.rows,

@@ -1,5 +1,5 @@
 {
-  "id": "stepper-O2",
+  "id": "optimized-locals",
   "title": "carol joins, stepped through, bugc -O 2",
   "run": {
     "scenario": "arcade",

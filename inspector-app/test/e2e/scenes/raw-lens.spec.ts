@@ -155,7 +155,7 @@ test("the raw storage dump: a word a row, beside the right column or " +
 // it on a laptop's screen. (In a host's frame, as the host gets it: its
 // height message; the annotated figure's Raw | Annotated toggle is for
 // a page that stands alone, not a frame)
-for (const id of ["raw-hero", "raw-annotated"]) {
+for (const id of ["raw-hero", "reveal"]) {
   test(`${id} in a 1024px frame: at most 720px tall`,
     async ({ page, baseURL }) => {
       for (const width of [1024]) {

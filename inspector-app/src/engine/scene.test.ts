@@ -6,16 +6,16 @@ import { runOf } from "../../test/run";
 
 describe("the scenes", () => {
   it("are in post order, each once", () => {
-    expect(scenes.map((s) => s.id)).toEqual(["raw-hero", "raw-annotated",
-      "raw-named", "carol-record",
-      "mid", "alice", "motd", "vyper", "players-walk", "alice-plays",
-      "vyper-rules", "stepper-O0", "stepper-O2"]);
+    expect(scenes.map((s) => s.id)).toEqual(["raw-hero", "reveal",
+      "raw-named", "pitfall-nesting",
+      "mid", "alice", "motd", "vyper", "pointer-walkthrough", "alice-plays",
+      "pitfall-compiler", "stepper-O0", "optimized-locals"]);
   });
   // (the post's first before/after is one figure: the raw bytes, then
   // the same bytes annotated, at the one moment)
-  it("raw-annotated is raw-hero's moment", () => {
+  it("reveal is raw-hero's moment", () => {
     const of = (id: string) => scenes.find((s) => s.id === id)!.timeline;
-    expect(of("raw-annotated")).toEqual(of("raw-hero"));
+    expect(of("reveal")).toEqual(of("raw-hero"));
   });
   it("name lenses that exist", () => {
     for (const s of scenes) {

@@ -74,6 +74,8 @@ export const lastBlock = { mid: ["6", "7", "12"], alice: "13" };
 export const PAUSE_TX = 12;
 export const PAUSE_STEPS = { O0: [551, 775, 776, 882],
   O2: [405, 575, 576, 642] } as const;
+// (the stepper's scene at each level)
+export const STEPPER = { O0: "stepper-O0", O2: "optimized-locals" } as const;
 export const pauses: { range?: string; locals: string[] }[] = [
   { range: "!hit", locals: ["player", "hit"] },
   { locals: ["points", "combo", "mult"] },
