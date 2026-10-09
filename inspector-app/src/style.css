@@ -1175,6 +1175,20 @@ html { overflow-anchor: none; }
 .wpanel.walking { position: sticky; z-index: 8; background: var(--bg);
   padding-bottom: 10px; }
 .wpanel.walking .dwrap { margin-bottom: 0; }
+/* (while it sticks, its section's dump headers stick under it, in the
+   room it takes: its height, from WalkthroughPanel; nothing slides
+   under it, and nothing moves when it starts: they are under it in the
+   flow until then) */
+.walkzone:has(.wpanel.walking) .words > h2,
+.walkzone:has(.wpanel.walking) .words .relrow {
+  position: sticky; z-index: 7; background: var(--bg);
+  top: calc(var(--walk-top, 0px) + var(--walk-h, 0px)); }
+.walkzone:has(.wpanel.walking) .words .relrow {
+  top: calc(var(--walk-top, 0px) + var(--walk-h, 0px) +
+    var(--walk-head, 0px)); }
+/* (the memory section's words column, which sticks whole at rest, goes
+   with the page meanwhile, as the storage section's: its headers stick) */
+.walkzone:has(.wpanel.walking) .cols .words { position: static; }
 .lens > [data-area]:has(> .wpanel.walking) { position: sticky; top: 0;
   z-index: 8; align-self: start; }
 /* A walkthrough's colours: yellow is the selection's alone. A row or
