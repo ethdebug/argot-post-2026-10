@@ -43,7 +43,7 @@ export default defineConfig(({ command }) => ({
   worker: { format: "es" },
   build: {
     rollupOptions: { input: { index: "index.html", shell: "shell.html",
-      embed: "embed.html" },
+      embed: "embed.html", "embed-panel": "embed-panel.html" },
       // (the decoder bundle: one chunk the loader fetches with progress)
       output: {
         manualChunks: (id) => isLibrary(id) ? "pointers"
