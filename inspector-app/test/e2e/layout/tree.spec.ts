@@ -137,27 +137,40 @@ test("a group opens and closes with a short height animation; none with "
   await page.emulateMedia({ reducedMotion: "no-preference" });
   await ready(page);
   await select(page, "mid", null);
-  // (the group's height every frame, from the click until it is still)
-  const heights = () => page.evaluate(() => new Promise<number[]>((ok) => {
-    const ul = document.querySelector<HTMLElement>(
-      '#tree li[data-path="playerList"] > ul')!;
-    const out = [ul.offsetHeight];
-    const tick = () => {
-      out.push(ul.offsetHeight);
-      if (ul.getAnimations().length && out.length < 300) {
-        requestAnimationFrame(tick);
-      } else ok(out);
+  // (the group's animation itself, caught as it starts, in the same
+  // task as the click (a MutationObserver: the style the animation
+  // sets, or the group's new rows), and awaited to its end: its height
+  // keyframes and its duration, never heights sampled at times)
+  const animation = () => page.evaluate(() => new Promise<{
+    heights: string[]; duration: number }>((ok) => {
+    const q = '#tree li[data-path="playerList"] > ul';
+    const tree = document.querySelector("#tree")!;
+    const look = () => {
+      const a = document.getAnimations().find((x) =>
+        (x.effect as KeyframeEffect | null)?.target?.matches(q));
+      if (!a) return;
+      seen.disconnect();
+      const e = a.effect as KeyframeEffect;
+      void a.finished.then(() => ok({
+        heights: e.getKeyframes().map((k) => String(k.height)),
+        duration: Number(e.getTiming().duration) }));
     };
-    requestAnimationFrame(tick);
+    const seen = new MutationObserver(look);
+    seen.observe(tree, { subtree: true, childList: true, attributes: true,
+      attributeFilter: ["style", "class"] });
   }));
+  const ul = page.locator('#tree li[data-path="playerList"] > ul');
+  const full = await ul.evaluate((e) => e.scrollHeight);
+  let anim = animation();
   await chev(page, "playerList").click();
-  const closing = await heights();
-  expect(closing.some((h) => h > 0 && h < closing[0] + 1)).toBe(true);
+  expect(await anim).toEqual({ heights: [`${full}px`, "0px"],
+    duration: 180 });
   await expect(page.locator('#tree li[data-path="playerList"]'))
     .toHaveClass(/\bcollapsed\b/);
+  anim = animation();
   await chev(page, "playerList").click();
-  const opening = await heights();
-  expect(opening.at(-1)).toBeGreaterThan(opening[0]);
+  expect(await anim).toEqual({ heights: ["0px", `${full}px`],
+    duration: 180 });
   await page.emulateMedia({ reducedMotion: "reduce" });
   await chev(page, "playerList").click();
   await expect(page.locator('#tree li[data-path="playerList"]'))
