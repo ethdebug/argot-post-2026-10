@@ -235,20 +235,22 @@ test("reveal in a host page: revealed by its message; its " +
   await expect(frame.locator(".view.revealed")).toHaveCount(DUMPS);
   await tell(false);
   await expect(frame.locator(".view.revealed")).toHaveCount(0);
-  // scroll-linked: { progress }, each value over its slice of it, in
-  // reading order: halfway, storage's first value in, the last panel's
-  // last not yet; back to 0, raw again
+  // scroll-linked: { progress }, each value over its entrance in it
+  // (ui/reveal.ts's score): halfway, storage's first in, the last
+  // panel's last not yet; back to 0, raw again
   const post = (progress: number) => page.evaluate((progress) => (document
     .getElementById("f") as HTMLIFrameElement).contentWindow!.postMessage(
     { type: "ethdebug:reveal", on: progress > 0, progress }, "*"), progress);
-  // (each panel: its first value's fill, its last value's popover)
+  // (each panel: its first value's fill (the most of any), its last
+  // value's popover)
   const vars = () => frame.locator(".view.annot").evaluateAll((vs) =>
     vs.map((v) => { const n = Number((v as HTMLElement).dataset.units);
-      const f = v.querySelector<HTMLElement>('.rows [data-r="0"]');
+      const f = Math.max(0, ...[...v.querySelectorAll<HTMLElement>(
+        ".rows [data-r]")].map((c) => Number(c.style.getPropertyValue(
+        "--tf"))));
       const p = v.querySelector<HTMLElement>(`.pop.note[data-r="${n - 1}"]`)
         ?? v.querySelector<HTMLElement>(".pop.note:last-of-type");
-      return [f?.style.getPropertyValue("--tf"),
-        p?.style.getPropertyValue("--tp")].map(Number); }));
+      return [f, Number(p?.style.getPropertyValue("--tp"))]; }));
   // (the disclaimer: only once the reveal is complete)
   const hand = () => frame.locator(".lens").evaluate((e) =>
     getComputedStyle(e).getPropertyValue("--hand").trim());
