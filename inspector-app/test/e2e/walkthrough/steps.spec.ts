@@ -21,7 +21,7 @@ const stepNow = (page: Page) => page.evaluate(() => {
       ? document.querySelector("#details .rcap")?.textContent!.trim() : null,
     form: document.querySelector("#dtext .rform")?.textContent!.trim(),
     // (the step's construct: one axis for every step)
-    kind: document.querySelector("#details .rkind b")?.textContent,
+    kind: document.querySelector(".wpanel .rkind b")?.textContent,
     count: document.querySelector("#details .rcount")?.textContent ||
       undefined,
     resolved: !!document.querySelector('#details button[data-r="start"]'),
@@ -423,7 +423,7 @@ test("footnotes link to the spec; the pointer as YAML, coloured",
     const hrefs: string[] = [];
     for (let k = 0; k < 10; k++) {
       await page.locator(`#dots .dot[data-n="${k}"]`).dispatchEvent("click");
-      hrefs.push(...await page.locator("#details .fnotes a").evaluateAll(
+      hrefs.push(...await page.locator(".wpanel .fnotes a").evaluateAll(
         (as) => as.map((a) => (a as HTMLAnchorElement).href)));
     }
     expect(hrefs.length).toBeGreaterThan(0);
@@ -456,7 +456,7 @@ test("Vyper: Solidity's rule, then the misread: Vyper's own layout, "
       .replace(/\s+/g, " ");
     expect(cap).toContain("The misread: Vyper keeps players[0x7099…79c8].score " +
       "in slot …0446, where it is 30");
-    expect(await page.locator("#details .rsrc").innerText()).toContain(
+    expect(await page.locator(".wpanel .rsrc").innerText()).toContain(
       "from: Vyper's layout, hand-written for comparison (Vyper emits no " +
       "ethdebug)");
     expect(await page.locator("#details .rcount").innerText()).toBe("done");
@@ -685,15 +685,26 @@ test("step 0: the way on, its glyph toward ▶, and ▶'s halo",
   const go = () => page.evaluate(() => {
     const l = document.querySelector<HTMLElement>("#pgo")!;
     const n = document.querySelector('#details button[data-r="next"]')!;
+    // (the glyph on the side ▶ is, mirrored when it is on the left)
+    const g = l.querySelector<HTMLElement>(".pglyph");
+    const t = l.querySelector<HTMLElement>(".ptext");
+    const nr = n.getBoundingClientRect();
+    const toward = !!g && !!t && (nr.left + nr.width / 2 <
+      t.getBoundingClientRect().left
+      ? g.getBoundingClientRect().right <= t.getBoundingClientRect().left &&
+        getComputedStyle(g).transform !== "none"
+      : g.getBoundingClientRect().left >= t.getBoundingClientRect().right);
     return { label: !l.hidden && l.tagName === "P" &&
-      /[⤴↖]$/.test(l.textContent!.trim()),
+      l.textContent!.includes("⤴"), toward,
     arrow: !!document.querySelector("svg#goarrow"),
     halo: n.classList.contains("halo") };
   });
-  expect(await go()).toEqual({ label: true, arrow: false, halo: true });
+  expect(await go()).toEqual({ label: true, toward: true, arrow: false,
+    halo: true });
   await page.locator('#details button[data-r="next"]').click();
   await expect(page.locator(".rcount")).toHaveText(/^1 \//);
-  expect(await go()).toEqual({ label: false, arrow: false, halo: false });
+  expect(await go()).toMatchObject({ label: false, arrow: false,
+    halo: false });
 });
 
 // (vanilla 6b1df3a run.mjs: the last step, "found", is the resting view:

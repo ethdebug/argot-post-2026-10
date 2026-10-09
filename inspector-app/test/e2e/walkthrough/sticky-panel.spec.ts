@@ -178,9 +178,11 @@ for (const [w, h] of [[1440, 900], [390, 844]]) {
       });
       expect(covered, `step ${k}: covered`).toEqual([]);
       const over = await page.evaluate(() => {
-        const dp = document.querySelector("#dpanel")!;
+        // (the whole panel: the bar, with the step's values under its
+        // caption, and the pointer under it)
+        const dp = document.querySelector(".wpanel")!;
         const parts = [...dp.querySelectorAll<HTMLElement>(".rcap, .rform, " +
-          ".rsrc, .fnotes, .dpick, .chips, .ptrscroll")]
+          ".rsrc, .dpick, .ptrscroll")]
           .filter((e) => e.offsetHeight);
         const hit = (a: DOMRect, b: DOMRect) => a.left < b.right - 0.5 &&
           b.left < a.right - 0.5 && a.top < b.bottom - 0.5 &&
