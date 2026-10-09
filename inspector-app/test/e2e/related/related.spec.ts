@@ -2,7 +2,7 @@
 // rows, the hash, the tree, and a walkthrough in it
 import { pick } from "../../pick";
 import type { Page } from "@playwright/test";
-import { test, expect, type Win } from "../../page";
+import { test, expect, still, type Win } from "../../page";
 import { A } from "../../expect";
 
 const open = async (page: Page, hash: string) => {
@@ -167,7 +167,7 @@ test.describe("view transitions", () => {
       });
       const n = () => page.evaluate(() =>
         (window as unknown as { vts: number }).vts);
-      const settle = () => page.waitForTimeout(400);
+      const settle = () => still(page);
       await page.locator('#related button[data-rows="related"]').click();
       await settle();
       expect(await n()).toBe(1);

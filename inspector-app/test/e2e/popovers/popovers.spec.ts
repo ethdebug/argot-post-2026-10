@@ -1,7 +1,7 @@
 // Mirrors bin/run.mjs's dump checks (vanilla d235617): popovers, the
 // pointed-at run in both views, gutters, root-slot tint, one line
 import type { Page } from "@playwright/test";
-import { test, expect, ready, select, type Win } from "../../page";
+import { test, expect, ready, select, stable, type Win } from "../../page";
 import { A, B, C } from "../../expect";
 
 const pops = (page: Page) => page.locator(
@@ -271,9 +271,8 @@ test("the dump fits the same opened at Before or After (one measure for "
     await page.goto("./" + h);
     await page.waitForFunction(() => (window as Win).results?.done);
     await page.evaluate(() => document.fonts.ready);
-    await page.waitForTimeout(100);
-    fs.push(await page.evaluate(() => getComputedStyle(document
-      .querySelector("#panel .view:not([hidden])")!).fontSize));
+    fs.push(await stable(() => page.evaluate(() => getComputedStyle(document
+      .querySelector("#panel .view:not([hidden])")!).fontSize)));
   }
   expect(new Set(fs).size, fs.join()).toBe(1);
 });

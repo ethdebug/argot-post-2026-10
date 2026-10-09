@@ -1,8 +1,6 @@
 import { pick } from "../../pick";
 import type { Page } from "@playwright/test";
-import {
-  test, expect, ready, select, row, selected, V,
-} from "../../page";
+import { test, expect, ready, select, row, selected, V } from "../../page";
 import { A, C } from "../../expect";
 import { slotHex } from "../../../src/engine/hex";
 
