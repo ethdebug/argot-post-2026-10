@@ -70,6 +70,10 @@ export interface Display {
   // rows whose bytes are all zero folded into the gaps (⋯; gaps that
   // meet, one): a figure's storage, shorter
   foldZero?: boolean;
+  // (with `bare`) the annotated layer: each top-level value a coloured
+  // composite, a short label in unlit space beside its bytes, shown
+  // while the figure is revealed (ui/reveal.ts); the bytes stay put
+  annotate?: boolean;
 }
 
 // a view's data: a decoding (or "$scene", the scene's) at a moment of
@@ -119,6 +123,9 @@ export type ViewSpec = { id: ViewId; area: string; link?: LinkId;
     | { kind: "code"; data: DataRef }
     // the debugger's moves (Moves.tsx)
     | { kind: "moves" }
+    // the annotated layer's toggle, Raw | Annotated (ui/reveal.ts), when
+    // the figure stands alone
+    | { kind: "reveal" }
     | { kind: "variables"; data: DataRef }
     | { kind: "note"; data: DataRef; part: "note" | "viewing" | "meta" }
     // the moment a point is, in a line, in plain words: `text`, or the

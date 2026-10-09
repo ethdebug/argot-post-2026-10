@@ -30,3 +30,81 @@
   font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
   font-size: 0.75rem; font-weight: 600; line-height: 1.45;
   color: var(--muted); overflow-wrap: break-word; }
+
+/* The same figure, annotated in place (lenses/raw.ts rawAnnotated):
+   the stack column keeps a lane on its right for the stack's labels
+   (they go in the margin: its words are abbreviated, no room inside),
+   so revealing them moves nothing; side by side only where storage, the
+   stack and its lane fit */
+.lens.raw-annotated { --lane: 200px; }
+.lens.raw-annotated .view.annot.abbr { margin-right: var(--lane); }
+@media (min-width: 860px) and (max-width: 1099px) {
+  .lens.raw-hero.raw-annotated { grid-template-columns: minmax(0, 690px);
+    grid-template-rows: none;
+    grid-template-areas: "storage" "stack" "memory" "moment"; }
+}
+.lens.raw .reveal { display: flex; gap: 0; margin: 0; }
+.lens.raw .reveal button { font-size: 0.75rem; }
+
+/* The annotated layer (Display `annotate`; engine/annotated.ts, ui/
+   labels.ts): raw until revealed; then each value's bytes in its colours
+   (the inspector's child colours; never the selection's yellow), the
+   rest stepped back, and the labels, faded in a unit after another
+   (--d), all within 500ms. Labels are overlays: nothing moves. */
+.view.annot { position: relative; }
+.view.annot .alabels { position: absolute; inset: 0; pointer-events: none;
+  z-index: 2; }
+.view.annot .alabel { position: absolute; white-space: nowrap;
+  font-family: var(--mono); font-size: 0.8em; line-height: 1.5;
+  padding: 0 0.5em; border-radius: 0.37em; box-sizing: border-box;
+  /* (the inspector's label: its popover's dark card, light ink) */
+  background: var(--fg); color: var(--bg);
+  border: 1px solid var(--fg); box-shadow: 0 1px 3px rgb(0 0 0 / 0.2);
+  opacity: 0; transition: opacity 280ms ease var(--d, 0ms); }
+/* (a field's name and value: a badge in its bytes' colour, as the
+   popovers' are) */
+.view.annot .alabel .ak { padding: 0 0.37em; border-radius: 0.28em;
+  font-weight: 700; color: var(--pk-fg);
+  background: color-mix(in srgb, var(--pk) 35%, #fff); }
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .view.annot .alabel .ak {
+    color: var(--pk); background: color-mix(in srgb, var(--pk-fg) 40%,
+      #fff); }
+}
+:root[data-theme="dark"] .view.annot .alabel .ak { color: var(--pk);
+  background: color-mix(in srgb, var(--pk-fg) 40%, #fff); }
+.view.annot .alabel.more { opacity: 0; }
+.view.annot.revealed .alabel.more { opacity: 0.8; }
+/* (a margin label: a short leader line back to its row) */
+.view.annot .alabel.margin::before { content: ""; position: absolute;
+  right: calc(100% + 1px); top: 50%; width: 11px;
+  border-top: 1px solid color-mix(in srgb, var(--fg) 45%, transparent); }
+/* hand-written pointers' annotations, never the compiler's: dashed
+   labels, dotted bytes, and the panel says so */
+.view.annot .alabel.hand { outline: 1px dashed var(--fg);
+  outline-offset: 1px; }
+/* (the note on its panel's title line: no line of its own to reserve) */
+.view.annot.hand .view-head { display: flex; align-items: baseline;
+  flex-wrap: wrap; }
+.view.annot .hand-note { margin-left: 10px; font-size: 0.7rem;
+  font-weight: 600; color: var(--muted); padding: 0 5px;
+  border: 1px dashed color-mix(in srgb, var(--fg) 35%, transparent);
+  border-radius: 4px; opacity: 0;
+  transition: opacity 280ms ease; }
+.view.annot :is(.b, .ab) { transition: background-color 280ms ease
+  var(--d, 0ms), color 280ms ease var(--d, 0ms),
+  opacity 280ms ease var(--d, 0ms); }
+.view.annot.revealed :is(.b, .ab).an { background: var(--pk);
+  color: var(--pk-fg); }
+/* (a value's own zero bytes lighter: its shape stays, its digits stand
+   out) */
+.view.annot.revealed .b.an.z { background: color-mix(in srgb, var(--pk)
+  40%, transparent); color: color-mix(in srgb, var(--pk-fg) 55%,
+  transparent); }
+.view.annot.revealed .b:not(.an) { opacity: 0.45; }
+.view.annot.hand.revealed :is(.b, .ab).an { text-decoration: underline
+  dotted; text-underline-offset: 3px; }
+.view.annot.revealed :is(.alabel, .hand-note) { opacity: 1; }
+@media (prefers-reduced-motion: reduce) {
+  .view.annot :is(.b, .ab, .alabel, .hand-note) { transition: none; }
+}

@@ -26,9 +26,15 @@ import { lenses } from "../lenses";
 import { rawLens } from "../lenses/raw";
 import { builds, scenes } from "../scenes";
 import { PanelPort, channelName, figurePort } from "../ui/panel-port";
+import { setRevealed } from "../ui/reveal";
 
 const hash = new URLSearchParams(location.hash.slice(1));
 followTheme(hash);
+// (an annotated figure's reveal, from the host's scroll: { type:
+// "ethdebug:reveal", on }; ui/reveal.ts)
+addEventListener("message", (e) => {
+  if (e.data?.type === "ethdebug:reveal") setRevealed(!!e.data.on);
+});
 const ALIAS: Record<string, string> = { raw: "raw-hero" };
 const id = ALIAS[hash.get("scene") ?? ""] ?? hash.get("scene") ?? "";
 // (every lens a scene may name; the raw lens with or without its moment)
@@ -37,13 +43,16 @@ const all = lenses.map((l) => l.id === "raw-hero" && hash.get("moment")
 const root = document.getElementById("embed")!;
 
 // The content's height, to the host: { type: "ethdebug:height", height,
-// columns, width }. Only once the scene is drawn (its data in, its
+// columns, width, reveal? }. (`reveal`: the figure has an annotated
+// layer, raw until the host says { type: "ethdebug:reveal", on: true }
+// as the reader scrolls to it, and again whenever this reports ready.) Only once the scene is drawn (its data in, its
 // dumps laid out, the fonts in: `ready: true` on that first one), then
 // on each real change. `columns`: how many its lens lays out side by
 // side (1 or 2: the host's figure width); `width`: what its content
 // spans, the composition centred in the frame.
 let last = "";
 let columns: 1 | 2 = 1;
+let reveals = false;
 let ready = false;
 const measure = () => {
   const lens = root.querySelector<HTMLElement>(".lens");
@@ -62,7 +71,8 @@ const post = () => {
   const first = !last;
   last = key;
   parent.postMessage({ type: "ethdebug:height", ...m, columns,
-    ...first ? { ready: true } : {} }, "*");
+    ...first ? { ready: true } : {}, ...reveals ? { reveal: true } : {} },
+  "*");
 };
 new ResizeObserver(post).observe(root);
 // (drawn: a dump's rows, or the scene's error; then the fonts, and the
@@ -87,6 +97,8 @@ const scene = project.scenes.find((s) => s.id === id);
 const only = all;
 const lens = scene && only.find((l) => l.id === scene.lens);
 if (lens) columns = columnsOf(lens);
+reveals = !!lens?.views.some((v) => v.kind === "dump" &&
+  v.display?.annotate);
 void whenDrawn();
 const port = hash.get("panel") === "external"
   ? figurePort(channelName(id, hash.get("channel") ?? "")) : null;
