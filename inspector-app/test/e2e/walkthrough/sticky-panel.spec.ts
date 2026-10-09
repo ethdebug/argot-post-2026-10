@@ -4,7 +4,7 @@
 // are out of view; Start scrolls first, then unfolds; Exit goes back to
 // where the reader was
 import type { Page } from "@playwright/test";
-import { test, expect, ready, select, still } from "../../page";
+import { test, expect, ready, select } from "../../page";
 import { C } from "../../expect";
 
 const at = (page: Page, width = 1440, height = 900) =>
@@ -136,10 +136,14 @@ test("one ✕ Exit, even while the details unfold, ends the walkthrough",
       await page.locator('#details button[data-r="start"]').click();
       await page.waitForTimeout(wait);
       await page.locator('#details button[data-r="exit"]').click();
-      await still(page);
+      // (real signals, not a quiet page: the walkthrough ends; then the
+      // next click lands, and no walkthrough comes back for it)
+      await expect(page.locator("#details.replaying"), `${wait}`)
+        .toHaveCount(0);
       await page.locator('#tree li[data-path="totalScore"] > .row')
         .dispatchEvent("click");
-      await still(page);
+      // (a click outside the selection ends it: the click has landed)
+      await expect(page.locator("#tree .row.sel")).toHaveCount(0);
       expect(await page.locator("#details.replaying").count(), `${wait}`)
         .toBe(0);
       await page.keyboard.press("Escape");
