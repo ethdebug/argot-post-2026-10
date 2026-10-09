@@ -177,7 +177,7 @@ test("players: step 0 and ten steps, their light, bands and chips",
     expect(w[4].ptr[0].startsWith("- name: score")).toBe(true);
     for (const x of ['"alice" (0x7099…79c8)→[0]', '"bob" (0x3c44…93bc)→[1]',
       `${CAROL} (0x90f7…b906)→[2]`]) expect(w[0].form).toContain(x);
-    expect(w[3].form).toContain('keccak("alice", slot 3) = …aa80');
+    expect(w[3].form).toContain('keccak(0x7099…79c8, slot 3) = …aa80');
     expect(w[7].form).toContain("even: 0x0a → 5 bytes inline");
     expect(w[7].form).toContain("odd: 0x45 → 34 bytes at keccak(slot …9979)");
   });

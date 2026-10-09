@@ -159,7 +159,8 @@ export const solidity: Annotator = {
       const v = y.s.value.hex as Hex;
       if (op === "~keccak256" && y.s.args?.length === 2) {
         const [, b] = y.s.args.map((z: Any) => z.value.hex);
-        return `keccak(${who(y.inst)}, slot ${small(b)}) = ${tail(v)}`;
+        return `keccak(${cx.keyText(y.inst, xs.length === 1)}, slot ${
+          small(b)}) = ${tail(v)}`;
       }
       if (op === "~sum") {
         const base = cx.inputs.get(`${y.inst}|${types[nd.block]?.kind}`)
@@ -189,7 +190,7 @@ export const solidity: Annotator = {
     const fy = xs.find((y) => y.inst === f) ?? xs[0];
     const base = cx.inputs.get(`${fy.inst}|${types[nd.block]?.kind}`);
     const notes: Record<string, string> = {};
-    if (base?.key) notes.key = who(fy.inst);
+    if (base?.key) notes.key = cx.keyText(fy.inst);
     if (base?.slot) notes.slot = small(base.slot.hex);
     return {
       notes: { block: nd.block, values: notes },
