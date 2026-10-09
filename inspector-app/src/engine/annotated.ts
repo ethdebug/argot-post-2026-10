@@ -39,7 +39,7 @@ export const pathName = (p: Path, names: ReadonlyMap<string, string>) =>
 // A value, short: an address by its on-chain name (else 0x90f7…b906); a
 // string quoted, cut to `text` characters; fixed bytes with their leading
 // zero bytes dropped (0xe0; long ones 0xe94e…3a62), or, a stack item's
-// (`word`), padded to 32 bytes as the stack shows it, 0x0000…1420 (hex.ts
+// (`word`), padded to 32 bytes as the stack shows it, 0x00…001420 (hex.ts
 // wordShort); a number as it is; an array as its items, the first
 // three; a record as its first fields
 export function shortValue(n: ValueNode, names: ReadonlyMap<string, string>,
@@ -129,8 +129,10 @@ export function cellsOf(units: Unit[], l: Layout, row: Hex):
 // popover takes several; `unit`: an item that names a value of its
 // own, badged in that value's colour); the units it is about, and the
 // runs of rows (as the dump shows them) it may point at
+// (`drop`: an item a card leaves out to keep to one line, the lower
+// first; every card of its kind the same)
 export interface Item { text: string; seg: number; line: number;
-  unit?: number }
+  unit?: number; drop?: number }
 export interface Note { units: number[]; how: string; badge?: number;
   items: Item[]; runs: Hex[][] }
 
@@ -143,7 +145,10 @@ export function notesOf(d: Decoded, l: Layout, units: Unit[],
   o: { names: ReadonlyMap<string, string>; perRun?: boolean;
     // (false: names alone; the dump shows the values, as an
     // abbreviated stack does)
-    values?: boolean }): Note[] {
+    values?: boolean;
+    // (one note a value, its name alone, at its own rows: the stack's
+    // items)
+    each?: boolean }): Note[] {
   const runsOf = (rows: Set<Hex>) => {
     const out: Hex[][] = [];
     let run: Hex[] | null = null;
@@ -157,8 +162,12 @@ export function notesOf(d: Decoded, l: Layout, units: Unit[],
   };
   const node = (u: Unit) => d.byPath.get(u.path)!;
   const rows = units.map((u) => rowsOf(l, u.path));
+  if (o.each) {
+    return units.map((u, i) => ({ units: [i], runs: runsOf(rows[i]),
+      how: pathName(u.path, o.names), badge: i, items: [] }));
+  }
   if (o.perRun) {
-    // (a stack item's value as the stack shows it: 0x0000…1420)
+    // (a stack item's value as the stack shows it: 0x00…001420)
     const word = l.location === "stack";
     const all = new Set(rows.flatMap((r) => [...r]));
     return runsOf(all).map((run) => {
@@ -233,18 +242,17 @@ function itemsOf(n: ValueNode, names: ReadonlyMap<string, string>):
   Item[] {
   const kids = n.children ?? [];
   if (kids.length && (n.kind === "record" || !/\[\d*\]$/.test(n.typeText))) {
-    let line = 0;
-    let on = 0;
-    return kids.map((c) => {
-      const text = `${c.label} ${shortValue(c, names, { text: 16 })}`;
-      const alone = c.value?.text.startsWith('"');
-      if (on === 3 || (alone && on)) {
-        line++;
-        on = 0;
-      }
-      on = alone ? 3 : on + 1;
-      return { seg: 0, line, text };
-    });
+    // (a record's key facts: its score, its combo and best, its name in
+    // full; else its fields; one line, combo and then bestCombo left out
+    // first where it does not fit)
+    const KEY = ["score", "combo", "bestCombo", "name"];
+    const key = kids.filter((c) => KEY.includes(c.label));
+    const shown = key.length === KEY.length ? KEY.map((k) =>
+      key.find((c) => c.label === k)!) : kids;
+    return shown.map((c) => ({ seg: 0, line: 0,
+      text: `${c.label} ${shortValue(c, names, { text: Infinity })}`,
+      ...c.label === "combo" ? { drop: 1 } : c.label === "bestCombo"
+        ? { drop: 2 } : {} }));
   }
   if (kids.length) {
     return kids.map((c) => ({ seg: 0, line: 0,

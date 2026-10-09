@@ -104,11 +104,10 @@ export function paintView(v: HTMLElement, force = false) {
   const was = force ? undefined : last.get(v);
   const now = { f: [] as string[], p: [] as string[],
     dim: stage(0, k, p, a, w).f.toFixed(3) };
-  // (the stack's first value: the figure's disclaimer comes with it)
-  if (v.dataset.location === "stack") {
-    (v.closest<HTMLElement>(".lens") ?? v).style.setProperty("--hand",
-      now.dim);
-  }
+  // (the figure's disclaimer: once the reveal is complete, as the host's
+  // own line after it; the toggle's, at its run's end)
+  (v.closest<HTMLElement>(".lens") ?? v).style.setProperty("--hand",
+    p >= 1 ? "1" : "0");
   if (now.dim !== was?.dim) {
     v.style.setProperty("--dim", now.dim);
     v.style.setProperty("--a-smooth", `${REVEAL.smoothMs}ms`);
