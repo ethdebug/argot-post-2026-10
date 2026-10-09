@@ -196,57 +196,99 @@ test.describe("view transitions", () => {
       await expect(page.locator(".vt-run")).toHaveCount(0);
     });
 
-  test("each one captures its new rows, runs to its end, and rapid "
-    + "clicks are never lost", async ({ page }) => {
-    await open(page, `ex=mid&sel=${A}.score`);
-    const has = await page.evaluate(() => "startViewTransition" in document);
-    test.skip(!has, "no View Transitions here");
-    // (each: the rows in its new state, and whether it ran its course)
-    await page.evaluate(() => {
-      const w = window as unknown as { vt: { inside?: number;
-        ms?: number }[] };
-      w.vt = [];
-      const rows = () => document.querySelectorAll(
-        "#panel .view:not([hidden]) .wrow[data-slot]").length;
-      type Start = (f: () => Promise<void>) => { finished: Promise<void> };
-      const d = document as unknown as { startViewTransition: Start };
-      const s = d.startViewTransition.bind(d);
-      d.startViewTransition = (f) => {
-        const e: { inside?: number; ms?: number } = {};
-        const t0 = performance.now();
-        w.vt.push(e);
-        const t = s(async () => {
-          await f();
-          e.inside = rows();
-        });
-        t.finished.then(() => { e.ms = performance.now() - t0; });
-        return t;
-      };
-    });
-    const log = () => page.evaluate(() =>
-      (window as unknown as { vt: { inside?: number; ms?: number }[] }).vt);
-    const rel = (k: string) => page.locator(
-      `#related button[data-rows="${k}"]`).click();
-    // (the toggle and a selection from none: their rows are drawn in
-    // the commit the transition captures, not a load later)
-    await rel("related");
-    await still(page);
-    await page.keyboard.press("Escape");
-    await still(page);
-    await page.locator('#tree li[data-path="players"] > .row').click();
-    await still(page);
-    const [on, , sel] = await log();
-    expect(on.inside).toBe(3);
-    expect(sel.inside).toBe((await rows(page)).length);
-    // (none cut short: each runs about its 400 ms)
-    expect(on.ms).toBeGreaterThan(350);
-    expect(sel.ms).toBeGreaterThan(350);
-    // (four clicks in a row: each one lands; the last one wins)
-    for (const k of ["all", "related", "all", "related"]) await rel(k);
-    await still(page);
-    expect((await log()).length).toBe(7);
-    await expect(page.locator('#related button[data-rows="related"]'))
-      .toHaveAttribute("aria-checked", "true");
-    expect((await rows(page)).length).toBe(sel.inside);
+  // (each path on a fresh page, its caches cold: the transition's new
+  // state holds the new rows (the old and new differ, a named row moves),
+  // it runs its course, and the page ends where the click said)
+  const spy = (page: Page) => page.evaluate(() => {
+    type E = { inside?: number; before: number; ms?: number;
+      moved?: number; groups?: number };
+    const w = window as unknown as { vt: E[] };
+    w.vt = [];
+    const rows = () => document.querySelectorAll(
+      "#panel .view:not([hidden]) .wrow[data-slot]").length;
+    type T = { ready: Promise<void>; finished: Promise<void> };
+    type Start = (f: () => Promise<void>) => T;
+    const d = document as unknown as { startViewTransition: Start };
+    const s = d.startViewTransition.bind(d);
+    d.startViewTransition = (f) => {
+      const e: E = { before: rows() };
+      const t0 = performance.now();
+      w.vt.push(e);
+      const t = s(async () => {
+        await f();
+        e.inside = rows();
+      });
+      t.ready.then(() => {
+        // (the named rows' groups: those whose box moves)
+        const gs = document.getAnimations().filter((a) =>
+          /::view-transition-group\(vt-/.test(String((a.effect as
+            KeyframeEffect | null)?.pseudoElement ?? "")));
+        e.groups = gs.length;
+        e.moved = gs.filter((a) => {
+          const k = (a.effect as KeyframeEffect).getKeyframes();
+          return k.length > 1 && k[0].transform !== k.at(-1)!.transform;
+        }).length;
+      }, () => {});
+      t.finished.then(() => { e.ms = performance.now() - t0; });
+      return t;
+    };
   });
+  const last = (page: Page) => page.evaluate(() => (window as unknown as
+    { vt: { inside?: number; before: number; ms?: number; moved?: number;
+      groups?: number }[] }).vt.at(-1)!);
+  const paths: [string, string, (page: Page) => Promise<unknown>][] = [
+    ["All to Related, a selection", `ex=mid&sel=${A}.score`, (page) =>
+      page.locator('#related button[data-rows="related"]').click()],
+    ["Related to All", `ex=mid&sel=${A}.score&rel=0`, (page) =>
+      page.locator('#related button[data-rows="all"]').click()],
+    ["in Related, a selection from none", "ex=mid&sel=&rel=0", (page) =>
+      page.locator('#tree li[data-path="players"] > .row').click()],
+    ["in Related, another selection", `ex=mid&sel=${A}&rel=0`, (page) =>
+      page.locator('#tree li[data-path="playerList[0]"] > .row').click()],
+    ["in Related, a clear", `ex=mid&sel=${A}&rel=0`, async (page) => {
+      await page.locator('#tree li[data-path="playerList"] > .row')
+        .focus();
+      await page.keyboard.press("Escape");
+    }],
+  ];
+  for (const [name, hash, act] of paths) {
+    test(`${name}: captured, moving, its course run (cold)`,
+      async ({ page, browserName }) => {
+        await open(page, hash);
+        const has = await page.evaluate(() =>
+          "startViewTransition" in document);
+        test.skip(!has, "no View Transitions here");
+        await spy(page);
+        await act(page);
+        await still(page);
+        await expect.poll(async () => (await last(page))?.ms, { timeout:
+          5000 }).toBeGreaterThan(0);
+        const e = await last(page);
+        const now = (await rows(page)).length;
+        expect(e.inside, "the new state captured").toBe(now);
+        expect(e.inside, "a change of rows").not.toBe(e.before);
+        expect(e.ms, "its course run").toBeGreaterThan(350);
+        // (a row moved: Chromium lists the groups' keyframes)
+        if (browserName === "chromium") {
+          expect(e.moved, "a named row moved").toBeGreaterThan(0);
+        }
+      });
+  }
+
+  test("rapid clicks are never lost: the last one wins",
+    async ({ page }) => {
+      await open(page, `ex=mid&sel=${A}.score`);
+      const has = await page.evaluate(() => "startViewTransition" in
+        document);
+      test.skip(!has, "no View Transitions here");
+      const rel = (k: string) => page.locator(
+        `#related button[data-rows="${k}"]`).click();
+      for (const k of ["related", "all", "related", "all", "related"]) {
+        await rel(k);
+      }
+      await still(page);
+      await expect(page.locator('#related button[data-rows="related"]'))
+        .toHaveAttribute("aria-checked", "true");
+      await expect.poll(() => rows(page)).toHaveLength(3);
+    });
 });

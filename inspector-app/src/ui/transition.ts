@@ -60,8 +60,18 @@ function names(on: boolean) {
   if (!on) topNames.clear();
   if (!topNames.size) return topStyle?.remove();
   topStyle ??= document.createElement("style");
-  topStyle.textContent = `${[...topNames].map((n) =>
-    `::view-transition-group(${n})`).join(", ")} { z-index: 10; }`;
+  // (a popover moves, over the rows, and is never stretched: its old
+  // and new pictures keep their size, at the box's top left, and cross-
+  // fade; a balloon of one into the other's size is too much)
+  const each = (pseudo: string) => [...topNames].map((n) =>
+    `::view-transition-${pseudo}(${n})`).join(", ");
+  topStyle.textContent = `${each("group")} { z-index: 10; }\n` +
+    `${each("old")}, ${each("new")} { height: 100%; width: auto; ` +
+    "object-fit: none; object-position: left top; }\n" +
+    `${each("old")} { animation-name: vt-out; animation-duration: ` +
+    "200ms; }\n" +
+    `${each("new")} { animation-name: vt-in; animation-duration: 200ms; ` +
+    "animation-delay: 120ms; animation-fill-mode: both; }";
   if (!topStyle.isConnected) document.head.append(topStyle);
 }
 

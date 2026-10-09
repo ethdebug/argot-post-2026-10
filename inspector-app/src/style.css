@@ -1226,9 +1226,22 @@ sup.fn { font-size: 0.7em; color: var(--accent); margin-left: 1px; }
 /* A change of the related view's rows (ui/transition.ts): the rows that
    stay move, the others fade, the popovers with their rows; the cards,
    the tray and the tree's edge buttons wait until it is done */
+/* (an even ease, in and out: a front-loaded one is over in a third of
+   its time, and reads as a jump) */
 ::view-transition-group(*), ::view-transition-old(*),
-::view-transition-new(*) { animation-duration: 400ms;
-  animation-timing-function: cubic-bezier(0.2, 0.8, 0.2, 1); }
+::view-transition-new(*) { animation-duration: 420ms;
+  animation-timing-function: cubic-bezier(0.4, 0, 0.2, 1); }
+/* (a row only before or only after: it folds away or unfolds, not just
+   fades where it stands) */
+::view-transition-old(*):only-child {
+  animation-name: vt-fold; transform-origin: top; }
+::view-transition-new(*):only-child {
+  animation-name: vt-unfold; transform-origin: top; }
+@keyframes vt-fold { to { opacity: 0; transform: scaleY(0.4); } }
+@keyframes vt-unfold { from { opacity: 0; transform: scaleY(0.4); } }
+/* (a popover's: a cross-fade, no change of size: ui/transition.ts) */
+@keyframes vt-out { to { opacity: 0; } }
+@keyframes vt-in { from { opacity: 0; } }
 /* (a click meanwhile reaches the page under it: it is never lost) */
 ::view-transition { pointer-events: none; }
 .vt-run :is(.cmp, .tray, .tedge, .bruler) { visibility: hidden; }
