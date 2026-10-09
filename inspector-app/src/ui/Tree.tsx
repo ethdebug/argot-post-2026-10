@@ -14,7 +14,7 @@ import { relClass } from "../engine/related";
 import { vtName } from "./transition";
 import {
   useCompilation, useDecoded, useLens, useLensState, useLight, useLink,
-  usePointAt, useRelatedRoots, useView, useWalkthrough,
+  usePointAt, useRelatedRoots, useUnionTree, useView, useWalkthrough,
   hush,
 } from "./hooks";
 import type { DataRef, LinkId, ViewId } from "./types";
@@ -85,7 +85,7 @@ function Row({ n, top, c, inBlk }: { n: ValueNode; top?: boolean; c: Ctx;
     : pair[0].byPath.get(n.path)?.value?.text !==
       pair[1].byPath.get(n.path)?.value?.text);
   const li = [pair ? (chg ? "chg" : "same") : "", top ? "top" : "",
-    n.none ? "none" : "",
+    n.none ? "none" : "", n.absent ? "absent" : "",
     shut ? "collapsed" : "", blk ? "blk" : "", blk ? pk(blkK) : "",
     blk && mutedRow(c, n) ? "muted" : ""].filter(Boolean).join(" ");
   return <li className={li || undefined} data-path={n.path}
@@ -96,7 +96,9 @@ function Row({ n, top, c, inBlk }: { n: ValueNode; top?: boolean; c: Ctx;
       aria-pressed={sel ? "true" : "false"}>
       <span className="name">{n.label}</span>
       <span className="type">{n.typeText}</span>
-      {n.none ? <span className={`val${!pair ? "" : chg ? " chg"
+      {n.absent && !group ? <span className="val"><span><i
+        className="noloc">not yet</i></span></span>
+        : n.none ? <span className={`val${!pair ? "" : chg ? " chg"
         : " same"}`}><span><i className="noloc">no location at this
         point</i></span></span>
         : n.value || own ? <span className={`val${!pair ? ""
@@ -125,7 +127,8 @@ export function Tree(p: { id: ViewId; data: DataRef; filter?: Filter;
   plain?: boolean; partAttr?: boolean; title?: string;
   // (a row's name in a view transition: transition.ts)
   vt?: (path: string) => string }) {
-  const d = useDecoded(p.data);
+  // (with the paths its scene's other moments have: engine/union.ts)
+  const d = useUnionTree(p.data);
   const o = useDecoded(p.compare);
   const light = useLight(p.id);
   const [link, setLink] = useLink(p.link);

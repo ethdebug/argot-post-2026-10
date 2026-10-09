@@ -21,6 +21,7 @@ import {
 import { locked } from "../engine/target";
 import { byteKey } from "../engine/hex";
 import { regionBytes } from "../engine/layout";
+import { unionRows, unionTree } from "../engine/union";
 import type { Store } from "./store";
 import type {
   DataAt, DataRef, LensSpec, LensState, LinkState, Moment, ViewState,
@@ -33,9 +34,11 @@ export interface LensContextValue {
   key: string;
   // show a scene (its moment and selection); false when its
   // data did not load (Lens.tsx)
-  // (`walk`: a walkthrough to keep, of the selection kept: a move)
+  // (`walk`: a walkthrough to keep, of the selection kept: a move;
+  // `step`: a step on the scene's timeline, from its moment shown, as one
+  // transition: ui/transition.ts)
   show(id: string, view?: { moment?: number; sel?: string | null;
-    walk?: LinkState["walk"] }):
+    walk?: LinkState["walk"]; step?: boolean }):
     Promise<boolean>;
 }
 // The page's scenes of other lenses, for a lens inside it: the one shown
@@ -80,8 +83,10 @@ export const NO_VIEW: ViewState = { collapsed: new Set() };
 export function momentOf(m: Moment, s: LensState, p: Project):
   PointId | undefined {
   const points = p.bookmarks.find((b) => b.id === s.scene)?.points;
-  const k = m === "current" ? s.moment : m === "previous" ? s.moment - 1
-    : m;
+  // ("previous": the moment a timeline step came from, else the one
+  // before it)
+  const k = m === "current" ? s.moment : m === "previous"
+    ? s.from ?? s.moment - 1 : m;
   return points?.[k];
 }
 
@@ -128,6 +133,54 @@ export function useDecoded(ref: DataRef | undefined): Decoded | undefined {
     };
   }, [lens, project, key, failed]);
   return got?.key === key ? got.d : undefined;
+}
+
+// Every moment of the scene a view shows, decoded with its decoding:
+// the union's inputs (engine/union.ts). None for a scene of one moment,
+// a run's (the debugger's: thousands), or a call's calldata by the ABI
+// (one call, at its moment)
+const UNION_MAX = 16;
+export function useMoments(ref: DataRef | undefined):
+  { d: Decoded; p: TimelinePoint }[] | undefined {
+  const lens = useLens();
+  const { project } = lens;
+  const key = useLensState((s) => {
+    const at = ref && resolveRef(ref, s, project);
+    const bm = project.bookmarks.find((b) => b.id === s.scene);
+    return at && bm && bm.points.length > 1 &&
+      project.decodings[at.decoding]?.variables !== "abi" &&
+      bm.points.length <= UNION_MAX ? `${at.decoding}\n${bm.points
+        .join(" ")}` : "";
+  });
+  const failed = useLensState((s) => !!s.error);
+  const [got, setGot] = useState<{ key: string;
+    ms: { d: Decoded; p: TimelinePoint }[] }>();
+  useEffect(() => {
+    if (!key) return;
+    const [decoding, points] = key.split("\n");
+    const dc = decodingOf(lens, decoding);
+    if (!dc) return;
+    let live = true;
+    Promise.all(points.split(" ").map(async (id) => ({
+      d: await decode(project, dc, id),
+      p: await project.point(dc.timeline, id) }))).then((ms) => {
+      if (live) setGot({ key, ms });
+    }, quiet);
+    return () => {
+      live = false;
+    };
+  }, [lens, project, key, failed]);
+  return !key ? [] : got?.key === key ? got.ms : undefined;
+}
+
+// A tree's decoding with the paths its scene's other moments have
+// (absent here: muted, "not yet")
+export function useUnionTree(ref: DataRef | undefined):
+  Decoded | undefined {
+  const d = useDecoded(ref);
+  const ms = useMoments(ref);
+  return useMemo(() => !d || !ms ? undefined : ms.length < 2 ? d
+    : unionTree(d, ms.map((m) => m.d)), [d, ms]);
 }
 
 export function useLink(id: string | undefined): [LinkState,
@@ -188,12 +241,19 @@ export function useLayout(id: string, filter?: Filter, at?: DataRef,
   const cmp = useDecoded(compare);
   // (the "Related" view: the selection's related rows only)
   const only = useRelated(id, location, data, compare);
+  // (its scene's rows: the union over its moments, so none appears or
+  // goes as the moments change; addendum §4)
+  const ms = useMoments(data);
+  const union = useMemo(() => !ms || ms.length < 2 ? undefined
+    : unionRows(ms.map((m) => layout(m.d, location, f, { point: m.p }))),
+  [ms, location, f]);
   const l = useMemo(() => {
-    if (!d || (mine[0] && !o1)) return undefined;
-    return layout(d, location, only ? { ...f, only } : f, { point,
+    if (!d || (mine[0] && !o1) || !ms) return undefined;
+    const g = union ? { ...f, rows: union } : f;
+    return layout(d, location, only ? { ...g, only } : g, { point,
       ...(cmp ? { compare: cmp } : {}),
       others: o1 ? [{ d: o1, who: mine[0].who }] : [] });
-  }, [d, o1, point, location, f, mine[0]?.who, cmp, only]);
+  }, [d, o1, point, location, f, mine[0]?.who, cmp, only, ms, union]);
   return { d, l };
 }
 

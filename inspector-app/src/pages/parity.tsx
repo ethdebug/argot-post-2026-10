@@ -167,7 +167,7 @@ try {
   // (the contract at the top: the page's own, shown as it is)
   const contract = { file: $("contract-box").querySelector(".srcfile")
     ?.textContent ?? undefined, text: $("contract-src").textContent! };
-  const mount = { pick: place($("picker")),
+  const mount = { pick: place($("picker")), time: place($("timeline")),
     rows: place($("related")),
     dump: place($("panel")), tree: place($("tree")),
     bar: place($("details")), cdump: place($("cpanel")),

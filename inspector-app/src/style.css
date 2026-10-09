@@ -654,6 +654,10 @@ li.same > .row .name, li.same > .row .type { opacity: 0.55; }
 .mknown li { margin: 4px 0; }
 /* the record's storage slot after memory, and a local with no location */
 #mtree .noloc { color: var(--muted); }
+/* a path its scene has at another moment, not this one: its row kept,
+   muted ("not yet"; engine/union.ts) */
+.tree li.absent > .row { opacity: 0.55; }
+.tree .noloc { color: var(--muted); }
 .mpickrow .label { min-width: 5.5em; }
 
 /* Loading: gray lines where the values will be, and room kept for the

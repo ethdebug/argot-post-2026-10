@@ -85,3 +85,40 @@
     grid-template-areas: var(--narrow-areas) !important;
     grid-template-columns: minmax(0, 1fr) !important; }
 }
+
+/* The timeline bar (ui/TimelineBar.tsx): ◀ ▶, the track (the run's
+   transactions, equal segments; a dashed tail; the scene's moments as
+   marks, the current one capped in the accent), the line under it. One
+   height at every moment; labels cut, never wrapped. */
+.tbar { display: grid; grid-template-columns: auto minmax(0, 1fr);
+  grid-template-areas: "ctl track" ". line"; gap: 4px 12px;
+  align-items: center; font-size: 0.85rem; }
+.tbar.one { display: block; }
+.tbar.empty { display: none; }
+.tbar:focus-visible { outline: 2px solid var(--accent);
+  outline-offset: 4px; border-radius: 6px; }
+.tbar .tctl { grid-area: ctl; display: inline-flex; gap: 4px; }
+.tbar .tctl .btn { min-width: 32px; min-height: 32px; }
+.tbar .ttrack { grid-area: track; position: relative; height: 34px;
+  touch-action: none; cursor: pointer; }
+.tbar .tseg { position: absolute; top: 15px; height: 4px;
+  background: var(--line); border-left: 2px solid var(--bg);
+  box-sizing: border-box; }
+.tbar .tlab { position: absolute; top: 7px; left: 2px; right: 0;
+  overflow: hidden; white-space: nowrap; color: var(--muted);
+  font-size: 0.72rem; pointer-events: none; }
+/* (only the segments wide enough show their labels: the track's own
+   container query) */
+.tbar .ttrack { container-type: inline-size; }
+@container (max-width: 700px) { .tbar .tlab { display: none; } }
+.tbar .ttail { position: absolute; top: 16px; right: 0; height: 0;
+  border-top: 2px dashed var(--line); }
+.tbar .tmark { position: absolute; top: 9px; width: 16px; height: 16px;
+  margin-left: -8px; padding: 0; border-radius: 50%;
+  border: 2px solid var(--muted); background: var(--bg); cursor: pointer; }
+.tbar .tmark.cur { border-color: var(--accent); background: var(--accent); }
+.tbar .tmark:focus-visible { outline: 2px solid var(--accent);
+  outline-offset: 2px; }
+.tbar .tline { grid-area: line; margin: 0; color: var(--muted);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  line-height: 1.4; }

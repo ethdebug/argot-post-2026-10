@@ -100,6 +100,7 @@ export function fromRun(run: Run, build: Build, t: Timeline | "all"):
     },
     facts: (i) => factsAt(run, moments[i]),
     peak: (i) => peaks(run)[moments[i].tx],
+    txs: run.txs.map((t) => ({ label: t.label, steps: t.steps })),
     digest: () => digest(run),
   };
 }
@@ -133,6 +134,7 @@ export async function snapshotFile(scene: Scene, src: MomentSource,
       instructions,
       ...(need.sources !== false ? { sources: build.sources } : {}) },
     states, facts: src.moments.map((_, i) => src.facts(i)),
+    txs: src.txs,
     digest: await src.digest(),
   };
 }
