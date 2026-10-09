@@ -18,7 +18,7 @@ it("loads nothing until a scene is asked "
   expect(seen).toEqual([]);
   expect(p.bookmarks.map((b) => b.id))
     .toEqual(["raw-hero", "raw-annotated",
-      "raw-named", "mid", "alice", "motd", "vyper",
+      "raw-named", "carol-record", "mid", "alice", "motd", "vyper",
       "players-walk", "alice-plays", "vyper-rules", "stepper-O0",
       "stepper-O2"]);
   await expect(p.timeline("scene:mid")).rejects.toThrow("404");
@@ -30,7 +30,8 @@ it("loads nothing until a scene is asked "
 
 it("a scene is a bookmark: its moments are the points", async () => {
   const p = await readerProject();
-  const [, , , mid, alice] = p.bookmarks;
+  const by = (id: string) => p.bookmarks.find((b) => b.id === id)!;
+  const [mid, alice] = [by("mid"), by("alice")];
   expect(mid).toMatchObject({ points: ["mid:0"], timeline: "scene:mid",
     decoding: "mid", select: A });
   expect(alice).toMatchObject({ side: "after",

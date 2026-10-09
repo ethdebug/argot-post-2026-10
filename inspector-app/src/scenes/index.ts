@@ -5,6 +5,7 @@ import arcade from "../../scenarios/arcade/builds.json";
 import rawHero from "../../scenes/raw-hero.json";
 import rawAnnotated from "../../scenes/raw-annotated.json";
 import rawNamed from "../../scenes/raw-named.json";
+import carolRecord from "../../scenes/carol-record.json";
 import mid from "../../scenes/mid.json";
 import alice from "../../scenes/alice.json";
 import motd from "../../scenes/motd.json";
@@ -17,8 +18,8 @@ import stepperO2 from "../../scenes/stepper-O2.json";
 
 // (in Vite, every scene file, the ones authoring adds too, after these;
 // Node, the snapshot build: these)
-const listed = [rawHero, rawAnnotated, rawNamed, mid, alice, motd, vyper,
-  playersWalk, alicePlays, vyperRules, stepperO0, stepperO2]
+const listed = [rawHero, rawAnnotated, rawNamed, carolRecord, mid, alice,
+  motd, vyper, playersWalk, alicePlays, vyperRules, stepperO0, stepperO2]
   .map(sceneOf);
 const files = typeof import.meta.glob === "function"
   ? Object.values(import.meta.glob<unknown>("../../scenes/*.json",
