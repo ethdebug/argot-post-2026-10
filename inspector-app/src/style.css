@@ -911,6 +911,19 @@ main[data-single] .scols .view-name { display: none; }
   var(--mark) 45%, transparent); } }
 @media (prefers-reduced-motion: reduce) { .rbar .btn.halo { animation: none; } }
 #ptr code { background: none; padding: 0; border: 0; font-size: inherit; }
+/* (where the piece shown is, in the label's line, at its end: the
+   variable and the templates entered; a new piece fades in, in the same
+   room) */
+.plabel:has(.pchain) { display: flex; gap: 12px; align-items: baseline;
+  min-width: 0; }
+.plabel .ptitle { flex: none; }
+.plabel .pchain { margin-left: auto; min-width: 0; overflow: hidden;
+  text-overflow: ellipsis; white-space: nowrap; text-transform: none;
+  letter-spacing: 0; font: 600 0.78rem/1.3 ui-monospace, Menlo, monospace;
+  color: var(--fg); }
+.ptrlines { animation: pfade 160ms ease-out; }
+@keyframes pfade { from { opacity: 0; } to { opacity: 1; } }
+@media (prefers-reduced-motion: reduce) { .ptrlines { animation: none; } }
 .ptrlines { margin: 0; padding: 0.9em 0; font-size: var(--fs-label);
   display: block;
   line-height: 1.5; white-space: pre; width: max-content; min-width: 100%; }

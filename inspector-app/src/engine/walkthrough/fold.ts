@@ -63,6 +63,11 @@ export interface Step {
   // (a layout's own words for a step: the pointer's formulas under them,
   // as the focus has them, quietly; FORMULAS)
   formula?: string[];
+  // (the piece of the pointer the step is in: the template it has
+  // entered, its name; none, the variable's own pointer. `chain`: the
+  // templates entered to reach it, outermost first, by their short
+  // names)
+  piece?: string; chain?: string[];
 }
 // an instance the reader can focus (a mapping's entry)
 export interface Rec { path: Path; who: string; full?: string }
@@ -899,6 +904,32 @@ export function walkthrough(x: WalkInput, path: Path, focus?: string):
   }
   // (and the steps an annotator adds after them: another rule's reading)
   for (const h of hs) h.extra?.(cx);
+  // each step's piece of the pointer: the block of the first place its
+  // band names (a hand-off: the define, in the block it is in); its
+  // chain, the templates the dereference entered to reach it (each
+  // template's node, entered from a node of the block before it)
+  const from = new Map<string, string>();
+  for (const n of g.nodes.values()) {
+    if (n.kind !== "template" || !n.parent) continue;
+    const b = n.parent.split("#")[0];
+    from.set(n.id.split("#")[0], b === g.root ? "" : b);
+  }
+  const chainOf = (b: string): string[] => {
+    const out: string[] = [];
+    for (let x = b, k = 0; x && k < 32; x = from.get(x) ?? "", k++) {
+      out.unshift(tn(x));
+    }
+    return out;
+  };
+  for (const st of out) {
+    const p = st.goal ? undefined : st.band[0];
+    const b = !p || p.startsWith("~") ? "" : p.replace(/^=/, "")
+      .split("|")[0];
+    if (b) {
+      st.piece = b;
+      st.chain = chainOf(b);
+    }
+  }
   const names = new Map<string, string>();
   for (const h of hs) h.names?.(cx).forEach((v, k) => names.set(k, v));
   return { target: path, steps: out, recs, focus: every ? "*" : f,

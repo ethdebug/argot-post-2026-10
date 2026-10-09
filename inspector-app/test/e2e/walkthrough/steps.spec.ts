@@ -33,6 +33,8 @@ const stepNow = (page: Page) => page.evaluate(() => {
       l.textContent!.trim()),
     band0: [...document.querySelectorAll("#ptr .line")].findIndex((l) =>
       l.classList.contains("on")),
+    // (the piece of the pointer shown: where it is)
+    piece: document.querySelector("#dpanel .pchain")?.textContent ?? "",
     lit: [...document.querySelectorAll<HTMLElement>(
       "#panel .view[data-side=after] .rows .word .b.hl")].map((c) =>
       `${(c.closest(".wrow") as HTMLElement).dataset.slot} ${c.dataset.i}`),
@@ -98,8 +100,9 @@ async function walk(page: Page, path: string) {
   if (out.at(-1)?.count === "done") found = out.pop();
   return { steps: out, goal, ctl: ctl.size, found };
 }
-const down = (ws: St[]) => ws.map((x) => x.band0).filter((b) => b >= 0)
-  .every((b, i, a) => !i || b >= a[i - 1]);
+// (within one piece of the pointer, the band only moves down)
+const down = (ws: St[]) => ws.filter((x) => x.band0 >= 0).every((x, i, a) =>
+  !i || x.piece !== a[i - 1].piece || x.band0 >= a[i - 1].band0);
 const al = "keccak(0x7099…79c8, slot 3)";
 const rec = "keccak(0x3c44…93bc, slot 3)";
 const cl0 = "keccak(0x90f7…b906, slot 3)";
@@ -171,10 +174,14 @@ test("players: step 0 and ten steps, their light, bands and chips",
     expect(goal?.count).toBe("start");
     expect(Object.values(goal!.litN).every((v) => v === "all")).toBe(true);
     expect(Object.keys(goal!.litN).length).toBeGreaterThanOrEqual(9);
-    // the record's step: its define, then the template it enters, whose
-    // frame ends the band; the next starts inside that template
-    expect(w[3].ptr.slice(-3).join("|")).toBe("Player:|expect: [slot]|for:");
+    // the record's step: its define and the template it leads into, in
+    // the mapping's piece; the next starts inside that template, its own
+    // piece
+    expect(w[3].ptr.slice(-3).join("|")).toBe(
+      "in:|template: Player|yields: …  # 9 names");
+    expect(w[3].piece).toBe("players › mapping(address => Player)");
     expect(w[4].ptr[0].startsWith("- name: score")).toBe(true);
+    expect(w[4].piece).toBe("players › mapping(address => Player) › Player");
     for (const x of ['"alice" (0x7099…79c8)→[0]', '"bob" (0x3c44…93bc)→[1]',
       `${CAROL} (0x90f7…b906)→[2]`]) expect(w[0].form).toContain(x);
     expect(w[3].form).toContain('keccak(0x7099…79c8, slot 3) = …aa80');
