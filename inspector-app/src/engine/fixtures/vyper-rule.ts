@@ -19,9 +19,11 @@ const MEMBERS: [string, string, number][] = [["score", "vy_uint64", 8],
 const yields = (prefix: string, names: string[]) =>
   Object.fromEntries(names.map((n) => [n, `${prefix}-${n}`]));
 
-export function vyperRule(fixture: unknown): Compilation {
-  const vy = (fixture as { vyper: { compiler: string; base: string } })
-    .vyper;
+// (Vyper's slot for players: its storage layout's, 108 for Arcade.vy;
+// `compiler`: the whole name, "vyper 0.4.3+commit.bff19ea2")
+export const VY_PLAYERS = "108";
+export function vyperRule(vy: { compiler: string; base: string }):
+  Compilation {
   const base = `0x${BigInt(vy.base).toString(16).padStart(2, "0")}`;
   const players: Variable = { identifier: "players",
     type: { id: "vy_players" },
@@ -29,7 +31,7 @@ export function vyperRule(fixture: unknown): Compilation {
       never };
   return {
     id: "arcade-vy-rule", language: "vyper",
-    compiler: `vyper ${vy.compiler}`, provenance: "hand-written",
+    compiler: vy.compiler, provenance: "hand-written",
     sources: [],
     types: {
       vy_uint64: { kind: "uint", bits: 64 },

@@ -1,7 +1,7 @@
 // A build from its JSON (scenarios/<scenario>/builds/<id>/build.json,
 // written by bin/build-arcade.mjs): one compiler's output for the
 // scenario's contract
-import type { Hex } from "../types";
+import type { Compilation, Hex, Variable } from "../types";
 import type { Build } from "./types";
 
 // ethdebug/format writes a pointer expression's operator with "~"
@@ -42,4 +42,18 @@ export function buildOf(json: unknown): Build {
       : j.resources } : {}),
     sources: j.sources!, compilation: j.compilation!,
   };
+}
+
+// A build as the engine's Compilation: its state variables (the runtime
+// program's context), types and templates (resources), sources. (`only`:
+// these variables alone; `id`: another id than the build's)
+export function compilationOf(b: Build, o: { id?: string;
+  only?: string[] } = {}): Compilation {
+  const vars = ((b.programs?.runtime.context as
+    { variables?: Variable[] } | undefined)?.variables ?? [])
+    .filter((v) => !o.only || o.only.includes(v.identifier));
+  return { id: o.id ?? b.compilation, language: b.language,
+    compiler: b.compiler, provenance: "compiler", sources: b.sources,
+    types: b.resources?.types ?? {}, templates: b.resources?.pointers ?? {},
+    stateVariables: vars };
 }

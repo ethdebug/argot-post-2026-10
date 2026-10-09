@@ -16,6 +16,7 @@ import { rawLenses } from "../lenses/raw";
 import { readHash, writeHash, type Pending } from "../ui/hash";
 import { fetchIo, type Io } from "../engine/io";
 import { load } from "../engine/project";
+import { builds, scenes } from "../scenes";
 import { decode } from "../engine/decode";
 import type { Decoded } from "../engine/types";
 import { calldataShown, fullInspector } from "../lenses/full-inspector";
@@ -53,10 +54,11 @@ interface Loading { load(url: string, o?: { label?: string;
   quiet?: boolean }): Promise<unknown>; fail(e: unknown,
   again: () => void): void; retry(): void; busy(): boolean }
 const loading = (window as unknown as { loading?: Loading }).loading;
-// a fixture's label: its scene's title, as the picker has it
+// a scene's snapshot's label: its scene's title, as the picker has it
 const labelOf = (p: string) => {
-  const b = document.querySelector<HTMLElement>(`#picker button[data-fixture="${
-    p.replace(/^fixtures\/|\.json$/g, "")}"]`);
+  const id = p.replace(/^snapshots\/|\.json$/g, "");
+  const b = document.querySelector<HTMLElement>(
+    `#picker button[data-snapshot="${id}"]`);
   return b ? `“${b.textContent!.replace(/\s+/g, " ").trim()}”` : undefined;
 };
 const io: Io = loading ? {
@@ -73,7 +75,7 @@ function prefetch(files: string[]) {
   const next = () => idle(() => {
     if (!files.length || !loading) return;
     if (loading.busy()) return void setTimeout(next, 500);
-    loading.load(`fixtures/${files.shift()}.json`, { quiet: true })
+    loading.load(`snapshots/${files.shift()}.json`, { quiet: true })
       .catch(() => {}).then(next);
   });
   next();
@@ -134,7 +136,7 @@ function Page(p: { project: Awaited<ReturnType<typeof load>>;
   rawBox: Element; memory: ReactElement; storage: ReactElement }) {
   const [scene, setScene] = useState<string | null>(() => {
     const s = readHash().get("scene");
-    return p.project.scenes.some((x) => x.id === s && x.lens !== "inspector")
+    return p.project.page.some((x) => x.id === s && x.lens !== "inspector")
       ? s : null;
   });
   const [variant, setVariant] = useState(() =>
@@ -161,7 +163,7 @@ function Page(p: { project: Awaited<ReturnType<typeof load>>;
 }
 
 try {
-  const project = await load(io);
+  const project = await load(io, { scenes, builds });
   // (the contract at the top: the page's own, shown as it is)
   const contract = { file: $("contract-box").querySelector(".srcfile")
     ?.textContent ?? undefined, text: $("contract-src").textContent! };
@@ -323,9 +325,9 @@ try {
         window.results.usable = performance.now();
         window.results.done = true;
         const bm = project.bookmarks.find((b) => b.id === id)!;
-        prefetch([...new Set(project.bookmarks.filter((b) =>
-          !b.decoding.startsWith("mem:")).map((b) => b.timeline))]
-          .filter((t) => t !== bm.timeline));
+        prefetch(project.bookmarks.filter((b) =>
+          !b.decoding.startsWith("mem:") && b.id !== bm.id)
+          .map((b) => b.id));
       }, () => {});
     };
     const off = lens.store.subscribe(usable);

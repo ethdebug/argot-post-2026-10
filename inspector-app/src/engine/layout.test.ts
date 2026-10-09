@@ -10,7 +10,7 @@ const at = async (decoding: string, point: string) => {
   const p = await testProject();
   return decode(p, p.decodings[decoding], point);
 };
-const mid = () => at("sol:arcade-mid", "arcade-mid:after");
+const mid = () => at("mid", "mid:0");
 const recordOf = (d: Decoded, who: string, k: number): Hex =>
   slotHex(d.byPath.get(`${who}.score`)!.regions[0].slot! + BigInt(k));
 
@@ -87,8 +87,8 @@ it("one-point bookmark: rows 'values' only", async () => {
 });
 
 it("vyper: the Vyper words appear, owned by nobody", async () => {
-  const sol = await at("vyAsSol", "arcade-vyper:after");
-  const vy = await at("vyRule", "arcade-vyper:after");
+  const sol = await at("vyper", "vyper:0");
+  const vy = await at("vyper/rule", "vyper:0");
   const l = layout(sol, "storage", { rows: "values" },
     { others: [{ d: vy, who: "Vyper's" }] });
   const words = l.rows.filter((r) => r.how.startsWith("Vyper's"));
@@ -120,12 +120,12 @@ it("filter.maxRows cuts the rows, gaps still marked", async () => {
     .toEqual([false, false, false, false, true]);
 });
 
-it.each([["sol:arcade-mid", "arcade-mid:after"],
-  ["sol:arcade-alice", "arcade-alice:before"],
-  ["sol:arcade-alice", "arcade-alice:after"],
-  ["sol:arcade-motd", "arcade-motd:before"],
-  ["sol:arcade-motd", "arcade-motd:after"],
-  ["vyAsSol", "arcade-vyper:after"], ["vyRule", "arcade-vyper:after"]])(
+it.each([["mid", "mid:0"],
+  ["alice", "alice:0"],
+  ["alice", "alice:1"],
+  ["motd", "motd:0"],
+  ["motd", "motd:1"],
+  ["vyper", "vyper:0"], ["vyper/rule", "vyper:0"]])(
   "%s at %s: every row is named from the graph", async (dc, point) => {
     const l = layout(await at(dc, point), "storage", { rows: "values" });
     expect(l.rows.length).toBeGreaterThan(0);
@@ -135,8 +135,8 @@ it.each([["sol:arcade-mid", "arcade-mid:after"],
 it("rows 'touched': the values', and the slots the point's "
   + "transaction read or wrote", async () => {
   const p = await testProject();
-  const [before, after] = (await p.timeline("arcade-alice")).points;
-  const d = await decode(p, p.decodings["sol:arcade-alice"], after.id);
+  const [before, after] = (await p.timeline("scene:alice")).points;
+  const d = await decode(p, p.decodings["alice"], after.id);
   const values = layout(d, "storage", { rows: "values" });
   const touched = layout(d, "storage", { rows: "touched" },
     { point: after });
@@ -151,14 +151,14 @@ it("rows 'touched': the values', and the slots the point's "
   // (no point given: as "values")
   expect(layout(d, "storage", { rows: "touched" }).rows)
     .toEqual(values.rows);
-  expect(before.id).toBe("arcade-alice:before");
+  expect(before.id).toBe("alice:0");
 });
 
 it("a pair: rows named from both points (motd's cleared data, After)",
   async () => {
     const p = await testProject();
-    const dc = p.decodings["sol:arcade-motd"];
-    const [bp, ap] = (await p.timeline("arcade-motd")).points;
+    const dc = p.decodings["motd"];
+    const [bp, ap] = (await p.timeline("scene:motd")).points;
     const before = await decode(p, dc, bp.id);
     const after = await decode(p, dc, ap.id);
     const l = layout(after, "storage", { rows: "touched" },

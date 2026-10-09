@@ -11,7 +11,8 @@ import {
 const at = async (bm = "mid", side = "after") => {
   const p = await testProject();
   const b = p.bookmarks.find((x) => x.id === bm)!;
-  const d = await decode(p, p.decodings[b.decoding], `${b.timeline}:${side}`);
+  const d = await decode(p, p.decodings[b.decoding],
+    b.points[side === "before" ? 0 : b.points.length - 1]);
   const t = await p.timeline(b.timeline);
   return { d, c: await p.compilation(p.decodings[b.decoding].compilation),
     snap: t.points.find((x) => x.id === d.point)!.snapshot,

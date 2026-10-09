@@ -2,9 +2,15 @@
 // that draws it, its caption and its reader controls. Scene files are
 // data (scenes/<id>.json); their moments carry no annotations (the run
 // or the snapshot fills those).
-import type { Hex, Path } from "./types";
-import type { BuildId, MomentRef, ScenarioId, Timeline }
-  from "./run/types";
+import type {
+  Compilation, Decoding, Hex, KeySource, Path, PointId, TimelineId,
+} from "./types";
+import type {
+  BuildId, MomentRef, Scenario, ScenarioId, Timeline,
+} from "./run/types";
+import { compilationOf } from "./run/build";
+import { VY_PLAYERS, vyperRule } from "./fixtures/vyper-rule";
+import { slotHex } from "./hex";
 
 export type SceneId = string;
 export type LensId = string;
@@ -58,4 +64,62 @@ export function sceneOf(json: unknown): Scene {
     no(`initial moment ${n}`);
   }
   return { ...(j as Scene), timeline };
+}
+
+// ------------------------------------------------- a scene's decodings
+
+// a scene's points, as the engine's timelines name them
+export const timelineOf = (scene: SceneId): TimelineId => `scene:${scene}`;
+export const pointOf = (scene: SceneId, moment: number): PointId =>
+  `${scene}:${moment}`;
+
+// where each scenario's mapping keys are listed (Arcade: playerList
+// lists players' keys; a mapping cannot list them)
+const KEYS: Record<ScenarioId, KeySource> = {
+  arcade: { from: "list", path: "playerList" },
+};
+
+// What the page knows of a build before it loads it (builds.json,
+// written with the builds)
+export interface BuildInfo { language: string; compiler: string;
+  compilation: string; ethdebug: boolean }
+// (solc's rule for players, read over another compiler's storage)
+const PLAYERS = "arcade-sol-players";
+
+// The decodings a scene's lens reads: the build's own rule over its
+// state; for a build with no ethdebug (Vyper), solc's rule for players
+// over its storage (keys from the run's hashes of Vyper's slot), and
+// Vyper's own layout, written by hand, beside it (`<scene>/rule`). The
+// first is the scene's, its id the scene's.
+export function decodingsOf(scene: Scene,
+  builds: Record<BuildId, BuildInfo>): Decoding[] {
+  const timeline = timelineOf(scene.id);
+  const b = builds[scene.run.build];
+  if (!b) throw new Error(`scene ${scene.id}: no build ${scene.run.build}`);
+  const keys = KEYS[scene.run.scenario] ?? { from: "trace" };
+  if (b.ethdebug) {
+    return [{ id: scene.id, compilation: b.compilation, timeline,
+      variables: "state", keys }];
+  }
+  if (b.language !== "vyper") {
+    throw new Error(`scene ${scene.id}: no rule for ${b.language}`);
+  }
+  const rule = `${scene.id}/rule`;
+  return [
+    { id: scene.id, compilation: PLAYERS, timeline, variables: "state",
+      keys: { from: "trace", slot: slotHex(BigInt(VY_PLAYERS)) },
+      foreign: { language: "vyper", rule } },
+    { id: rule, compilation: b.compilation, timeline, variables: "state",
+      keys: { from: "trace" } }];
+}
+
+// … and the compilations they read, from the scenario's builds
+export function compilationsOf(scene: Scene, s: Scenario): Compilation[] {
+  const b = s.builds[scene.run.build];
+  if (b.programs) return [compilationOf(b)];
+  const sol = Object.values(s.builds).find((x) => x.language ===
+    "solidity" && x.programs)!;
+  return [compilationOf(sol, { id: PLAYERS, only: ["players"] }),
+    { ...vyperRule({ compiler: b.compiler, base: VY_PLAYERS }),
+      id: b.compilation }];
 }

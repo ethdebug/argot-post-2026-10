@@ -21,13 +21,13 @@ describe("index.html", () => {
     const picker = html.match(/<div id="picker"[^>]*>([\s\S]*?)<\/div>/)![1];
     const got = [...picker.matchAll(/<button([^>]*)>([^<]+)</g)]
       .map(([, a, t]) => ({ id: a.match(/data-id="([^"]+)"/)?.[1],
-        fixture: a.match(/data-fixture="([^"]+)"/)?.[1],
+        snapshot: a.match(/data-snapshot="([^"]+)"/)?.[1],
         single: /data-single/.test(a), title: t.replace(/\s+/g, " ") }));
     expect(got.map((b) => b.id)).toEqual(all.map((s) => s.id));
-    expect(got.filter((b) => b.fixture)).toEqual(scenes.map((s) => ({
-      id: s.id, fixture: s.fixture, single: s.points.length === 1,
+    expect(got.filter((b) => b.snapshot)).toEqual(scenes.map((s) => ({
+      id: s.id, snapshot: s.id, single: s.points.length === 1,
       title: s.title })));
-    expect(got.filter((b) => !b.fixture).map((b) => b.title)).toEqual(
+    expect(got.filter((b) => !b.snapshot).map((b) => b.title)).toEqual(
       all.filter((s) => s.lens).map((s) => s.title));
     expect(picker).toMatch(/data-id="raw" data-lens="raw"/);
   });

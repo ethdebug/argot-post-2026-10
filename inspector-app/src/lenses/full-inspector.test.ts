@@ -12,8 +12,8 @@ it("$bm and the point slots resolve to the bookmark's points",
       const v = fullInspector.views.find((x) => x.id === id)!;
       return "data" in v ? resolveRef(v.data, s, p) : undefined;
     };
-    expect(at("before")).toEqual({ decoding: "sol:arcade-mid",
-      point: "arcade-mid:after" });
+    expect(at("before")).toEqual({ decoding: "mid",
+      point: "mid:0" });
     expect(at("after")).toEqual(at("before"));
     expect(at("tree")).toEqual(at("after"));
   });

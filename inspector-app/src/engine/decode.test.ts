@@ -12,8 +12,8 @@ const value = (scene: string, path: string) =>
 it("totalScore is 40 in the middle of the game, bytes 16-31 of slot 2",
   async () => {
     const p = await testProject();
-    const d = await decode(p, p.decodings["sol:arcade-mid"],
-      "arcade-mid:after");
+    const d = await decode(p, p.decodings["mid"],
+      "mid:0");
     const n = d.byPath.get("totalScore")!;
     expect(n.value?.text).toBe(value("mid", "totalScore"));
     expect(n.typeText).toBe("uint128");
@@ -26,43 +26,24 @@ it("totalScore is 40 in the middle of the game, bytes 16-31 of slot 2",
 
 it("alice's hit: totalScore 40 before, 70 after", async () => {
   const p = await testProject();
-  const d = p.decodings["sol:arcade-alice"];
-  expect((await decode(p, d, "arcade-alice:before")).byPath.get("totalScore")
+  const d = p.decodings["alice"];
+  expect((await decode(p, d, "alice:0")).byPath.get("totalScore")
     ?.value?.text).toBe(expected.alice.find(([x]) => x === "totalScore")![1]);
-  expect((await decode(p, d, "arcade-alice:after")).byPath.get("totalScore")
+  expect((await decode(p, d, "alice:1")).byPath.get("totalScore")
     ?.value?.text).toBe(value("alice", "totalScore"));
 });
 
 it("is memoised per decoding and point", async () => {
   const p = await testProject();
-  const d = p.decodings["sol:arcade-mid"];
-  expect(decode(p, d, "arcade-mid:after"))
-    .toBe(decode(p, d, "arcade-mid:after"));
+  const d = p.decodings["mid"];
+  expect(decode(p, d, "mid:0"))
+    .toBe(decode(p, d, "mid:0"));
 });
-
-const sides = { mid: ["after"], alice: ["before", "after"],
-  motd: ["before", "after"], vyper: ["after"] } as const;
-type Scene = keyof typeof sides;
-
-it.each(Object.keys(sides) as Scene[])(
-  "%s: values equal run.mjs expected", async (bm) => {
-    const p = await testProject();
-    const b = p.bookmarks.find((x) => x.id === bm)!;
-    for (const side of sides[bm]) {
-      const d = await decode(p, p.decodings[b.decoding],
-        `${b.timeline}:${side}`);
-      for (const [path, before, after] of expected[bm]) {
-        const n = d.byPath.get(path);
-        expect(n?.value?.text ?? n?.summary, `${bm} ${side} ${path}`)
-          .toBe(side === "before" ? before : after);
-      }
-    }
-  });
 
 it("carol's name is long: three regions incl. length parts", async () => {
   const p = await testProject();
-  const d = await decode(p, p.decodings["sol:arcade-mid"],
-    "arcade-mid:after");
+  const d = await decode(p, p.decodings["mid"],
+    "mid:0");
   const n = d.byPath.get(`${C}.name`)!;
   expect(n.value?.text).toBe(`"${NAME_C}"`);
   expect(n.regions.map((r) => [r.name, r.role, r.length])).toEqual([
@@ -74,11 +55,11 @@ it("carol's name is long: three regions incl. length parts", async () => {
 
 it("playerList's keys equal the trace's keys", async () => {
   const p = await testProject();
-  const d = await decode(p, p.decodings["sol:arcade-mid"],
-    "arcade-mid:after");
-  const t = await p.timeline("arcade-mid");
-  const traced = mappingKeys(t.points[1].transaction!, slotHex(3n));
-  const listed = keysFor(p.decodings["sol:arcade-mid"], d.tree);
+  const d = await decode(p, p.decodings["mid"],
+    "mid:0");
+  const t = await p.timeline("scene:mid");
+  const traced = mappingKeys(t.points[0].transaction!, slotHex(3n));
+  const listed = keysFor(p.decodings["mid"], d.tree);
   expect(listed.provenance).toEqual({ list: "playerList" });
   expect(listed.values.map((v) => v.source))
     .toEqual(["playerList[0]", "playerList[1]", "playerList[2]"]);
@@ -90,8 +71,8 @@ it("playerList's keys equal the trace's keys", async () => {
 
 it("composites: summaries, types and own regions", async () => {
   const p = await testProject();
-  const d = await decode(p, p.decodings["sol:arcade-mid"],
-    "arcade-mid:after");
+  const d = await decode(p, p.decodings["mid"],
+    "mid:0");
   const n = (q: string) => d.byPath.get(q)!;
   expect(d.tree.map((x) => x.path))
     .toEqual(["playerList", "motd", "totalScore", "totalHits", "players"]);

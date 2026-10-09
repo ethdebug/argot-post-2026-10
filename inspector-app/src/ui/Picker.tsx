@@ -48,7 +48,7 @@ export function Picker(p: { id: ViewId;
       project.bookmarks.find((b) => b.id === id)!).filter(Boolean);
     // (on a page with scenes of other lenses: the page's scenes, in its
     // order; another lens's scene shows in place of this one)
-    const order = other ? project.scenes.filter((s) => s.lens !== "inspector"
+    const order = other ? project.page.filter((s) => s.lens !== "inspector"
       || bms.some((b) => b.id === s.id)) : bms.map((b) => ({ id: b.id,
       title: b.title, lens: "inspector" }));
     const shown = other?.scene ?? current;
@@ -57,7 +57,7 @@ export function Picker(p: { id: ViewId;
       {order.map((s) => {
         const b = bms.find((x) => x.id === s.id);
         return <button key={s.id} role="radio" data-id={s.id}
-          data-fixture={b?.timeline}
+          data-snapshot={b?.id}
           data-lens={b ? undefined : s.lens}
           data-single={b && b.points.length === 1 ? "" : undefined}
           aria-checked={s.id === shown ? "true" : "false"}

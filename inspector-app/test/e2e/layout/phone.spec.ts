@@ -45,11 +45,11 @@ for (const [w, h] of SIZES) {
   test(`${w}px: no scene scrolls sideways; no popover runs out of its box`,
     async ({ page }) => {
       await at(page, w, h);
-      const scenes = await page.locator("#picker button[data-fixture]")
+      const scenes = await page.locator("#picker button[data-snapshot]")
         .evaluateAll((bs) => bs.map((b) => (b as HTMLElement).dataset
-          .fixture!));
+          .snapshot!));
       for (const s of scenes) {
-        await page.locator(`#picker button[data-fixture="${s}"]`).click();
+        await page.locator(`#picker button[data-snapshot="${s}"]`).click();
         await page.waitForFunction(() => (window as Win).results
           ?.done);
         await still(page);
@@ -75,7 +75,7 @@ for (const [w, h] of SIZES) {
   test(`${w}px: the bar's buttons and Before | After are tap-sized`,
     async ({ page }) => {
       await at(page, w, h);
-      await page.locator('#picker button[data-fixture="arcade-alice"]')
+      await page.locator('#picker button[data-snapshot="alice"]')
         .click();
       await page.waitForFunction(() => (window as Win).results
         ?.done);
