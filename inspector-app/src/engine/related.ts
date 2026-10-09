@@ -12,7 +12,7 @@ import type {
 import { regionBytes } from "./location";
 import { byteKey, slotHex, toBig } from "./hex";
 import { ownerPath } from "./light";
-import { within } from "./tree-paths";
+import { parentIn, within } from "./tree-paths";
 import { slotsOf, type Walkthrough } from "./walkthrough/fold";
 
 // What a selection's derivation does with each slot it consults, from
@@ -162,6 +162,14 @@ export function withRelated(light: Light, d: Decoded, l: Layout,
   // tree row consulted too, neutral; a read one's owners are, above)
   for (const p of anchors.values()) {
     if (!light.rows.has(p) && !relColours.has(p)) relColours.set(p, 0);
+  }
+  // (and every group that holds it, up to its variable: its path in the
+  // tree, inside it too; their bytes keep what they have)
+  for (let q = parentIn(d.byPath, path); q !== undefined && q !== "";
+    q = parentIn(d.byPath, q)) {
+    if (d.byPath.has(q) && !light.rows.has(q) && !relColours.has(q)) {
+      relColours.set(q, 0);
+    }
   }
   return { ...light, related: new Set(rows.filter((r) => !lit.has(r))),
     relBytes, relColours, relReads: reads, anchors };
