@@ -16,8 +16,9 @@
   font-variant-numeric: tabular-nums; font-size: var(--cell-fs, 14px); }
 .lens.raw-hero { grid-template-columns: minmax(0, 690px);
   grid-template-areas: "storage" "stack" "memory" "moment"; }
-.lens.raw-hero > :is([data-area="stack"], [data-area="memory"]) {
-  justify-self: start; }
+/* (every panel spans its column) */
+.lens.raw-hero > [data-area] { justify-self: stretch; }
+.lens.raw .view :is(.rows) { width: auto; min-width: 0; }
 /* (two columns where storage keeps a word a row beside the right one:
    storage on the left, the stack over memory on the right, the moment
    under them, across the frame's whole width. The split goes by what
@@ -29,7 +30,6 @@
   .lens.raw-hero { grid-template-columns: minmax(0, 54fr) minmax(0, 29fr);
     grid-template-rows: auto auto 1fr;
     grid-template-areas: "storage stack" "storage memory" "storage moment"; }
-  .lens.raw-hero > [data-area="memory"] { justify-self: stretch; }
 }
 /* (memory's flow in the figure's one cell size: its font and line
    height, not the flow's own tighter type) */
@@ -50,8 +50,27 @@
     grid-template-rows: auto 1fr;
     grid-template-areas: "storage stack" "storage moment"; }
 }
-/* (the stack's line as tall as the dumps' line: --cell-lh) */
-.lens.raw .view.abbr .word .ab { line-height: var(--cell-lh, 1.85); }
+/* One row pitch for every panel, in whole pixels: a line's height the
+   cell size's 1.85, rounded (so rows, their tints and the gaps between
+   them meet on device pixels, with no seams), and each row's 1px above
+   and below its bytes; a gap row whole pixels too. One header for every
+   panel: its title on one line of whole pixels (a hand-written note, if
+   any, on that line, cut to fit), nothing drawn under it. No 8-byte
+   groups: a word's 32 bytes one run, as memory's 16 are. */
+.lens.raw { --raw-lh: round(calc(var(--cell-fs, 14px) * 1.85), 1px); }
+.lens.raw .view :is(.word .bytes, .word .ab, .addr .a) {
+  line-height: var(--raw-lh); }
+.lens.raw .view .word { padding: 1px 0; }
+.lens.raw .view .gap { height: round(calc(var(--cell-fs, 14px) * 2.2),
+  1px); }
+.lens.raw .view:not(.flow) .word .bytes { gap: 0; }
+.lens.raw .view .view-head { display: flex; align-items: baseline;
+  white-space: nowrap; overflow: hidden; padding-top: 2px; height: 18px;
+  box-sizing: border-box;
+  margin-bottom: 2px; }
+.lens.raw .view .view-name { line-height: 16px; margin: 0; flex: none; }
+.lens.raw .view .view-head .handmade { min-width: 0; overflow: hidden;
+  text-overflow: ellipsis; }
 /* the moment, under the stack: in the panels' header style, quiet,
    within the stack column's width */
 .lens.raw .moment { margin: 0; max-width: 0; min-width: 100%;
@@ -63,7 +82,7 @@
    the stack keeps room under its rows for its popover (its words are
    abbreviated: the popover goes under them), so revealing it moves
    nothing; laid out as the raw figure is */
-.lens.raw-annotated .view.annot.abbr { padding-bottom: 2.4em; }
+.lens.raw-annotated .view.annot.abbr { padding-bottom: round(2.4em, 1px); }
 .lens.raw .reveal { display: flex; gap: 0; margin: 0; }
 .lens.raw .reveal button { font-size: 0.75rem; }
 
@@ -76,8 +95,9 @@
    eased over --a-smooth. Only colours,
    opacity and transforms change: nothing moves. */
 .view.annot { position: relative; --a-smooth: 80ms; }
+/* (not the page's own .notes, its rule above it: style.css) */
 .view.annot > .notes { position: absolute; inset: 0; pointer-events: none;
-  z-index: 3; }
+  z-index: 3; margin: 0; border: 0; }
 .view.annot .notes .nanchor { position: absolute; left: 0; width: 0; }
 /* (a byte's own fill: its value's, swept left to right) */
 .view.annot :is(.b, .ab).hl { --tc: clamp(0, calc((var(--tf) - var(--o) *

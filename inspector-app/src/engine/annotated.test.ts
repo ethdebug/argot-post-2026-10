@@ -76,10 +76,10 @@ describe("the shared moment's popovers", () => {
       .toBe("return → _resetCombo");
     expect(n.how).toBe("stack 0–3");
     expect(n.items.map((x) => [x.text, x.seg, x.line, x.unit])).toEqual([
-      ["return → _resetCombo 0x1420", 0, 0, 0],
-      ["return → play 0x12cc", 1, 1, 1],
-      ["return → dispatcher 0x0496", 2, 2, 2],
-      ["selector 0x93e84cd9", 3, 3, 3]]);
+      ["return → _resetCombo 0x0000…1420", 0, 0, 0],
+      ["return → play 0x0000…12cc", 1, 1, 1],
+      ["return → dispatcher 0x0000…0496", 2, 2, 2],
+      ["selector 0x0000…4cd9", 3, 3, 3]]);
     // (and memory's, kept for later figures: the keccak scratch, the
     // free memory pointer)
     const m = layout(d, "memory");
@@ -88,7 +88,7 @@ describe("the shared moment's popovers", () => {
     expect(ms.map((n) => n.items.map((x) => [x.text, x.line, x.unit])))
       .toEqual([
         [["keccak input", 0, 0], ["key carol", 1, undefined],
-          ["slot 3", 1, undefined], ["free memory pointer 0xe0", 2, 1]],
+          ["slot 3", 1, undefined], ["free memory pointer 0x0000…00e0", 2, 1]],
         [["_rolledHit's encoding", 0, 2], ["length 64", 1, undefined],
           ["prevrandao 0xe94e…3a62", 1, undefined],
           ["sender carol", 2, undefined]]]);
@@ -108,12 +108,12 @@ describe("short values", () => {
       "0x70997970c51812dc3a010c7d01b50e0d17dc79c8"), names))
       .toBe("0x7099…79c8");
   });
-  it("a string cut, quoted; bytes without leading zero bytes", () => {
+  it("a string cut, quoted; bytes padded to a word, its ends", () => {
     expect(shortValue(node("string", '"gl hf"'), names)).toBe('"gl hf"');
     expect(shortValue(node("string", JSON.stringify(NAME_C)), names,
       { text: 10 })).toBe('"carol, th…"');
     expect(shortValue(node("bytes32", `0x${"0".repeat(60)}1420`), names))
-      .toBe("0x1420");
+      .toBe("0x0000…1420");
     expect(shortValue(node("bytes32", `0x${"ab".repeat(32)}`), names))
       .toBe("0xabab…abab");
     expect(shortValue(node("uint64", "100"), names)).toBe("100");

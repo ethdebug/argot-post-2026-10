@@ -2,7 +2,7 @@
 // on one grid, at the page's width, the blog figure's (1024px) and a
 // phone's. One cell size
 // (one font, one row height, one width for every panel), edges aligned,
-// boxes that hug their rows; bare bytes, which a hover leaves as they are
+// every panel as wide as its column, one row pitch; bare bytes, which a hover leaves as they are
 import type { Page } from "@playwright/test";
 import { test, expect, settle } from "../../page";
 
@@ -27,7 +27,7 @@ const panels = (page: Page, q: string) => page.evaluate((q) =>
 // One cell size (one font, one line height), one grid (shared edges:
 // from 910px, two columns across the frame, storage a word a row and,
 // beside it, the stack over memory, its top level with storage's;
-// narrower, one column), boxes that hug their rows
+// narrower, one column), every panel as wide as its column
 const rules = async (page: Page, q: string, width: number) => {
   // (the stack takes the dumps' font once they have fitted it: the same
   // to a twentieth of a pixel)
@@ -45,7 +45,15 @@ const rules = async (page: Page, q: string, width: number) => {
   close(all.map((x) => x.line), 0.5);
   expect(new Set(all.map((x) => Math.round(x.l))).size)
     .toBe(width >= 910 ? 2 : 1);
-  for (const x of all) expect(x.r - x.wordR).toBeLessThan(24);
+  // (every panel spans its column: the stack's box as wide as memory's;
+  // storage's rows fill its box)
+  expect(p.storage.r - p.storage.wordR).toBeLessThan(24);
+  expect(Math.abs(p.stack.r - p.memory.r)).toBeLessThan(1);
+  // (one row pitch, in whole pixels)
+  if (width >= 910) {
+    close(all.map((x) => x.row), 0.5);
+    for (const x of all) expect(x.row % 1).toBe(0);
+  }
   for (const x of all) {
     expect(x.l).toBeGreaterThanOrEqual(0);
     expect(x.r).toBeLessThanOrEqual(width);

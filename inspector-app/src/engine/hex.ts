@@ -21,3 +21,10 @@ export function short(h: string, keep = 4): string {
   return s.length <= keep * 2 + 4 ? s
     : `${s.slice(0, keep + 2)}…${s.slice(-keep)}`;
 }
+
+// A word, short: padded to 32 bytes, its first and last `n` bytes,
+// "0x0000…1420": every word the same width (the stack's, a popover's)
+export function wordShort(hex: string, n = 2): string {
+  const h = hex.replace(/^0x/, "").padStart(64, "0");
+  return `0x${h.slice(0, 2 * n)}…${h.slice(-2 * n)}`;
+}
