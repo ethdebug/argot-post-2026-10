@@ -23,8 +23,13 @@ export function SceneHost(p: { scene: Scene; project: Project;
         scene: p.scene.id } } : lens
     : { ...lens, initial: { ...lens.initial, scene: p.scene.id } },
   [lens, own, p.scene.id]);
-  if (!spec) return <p className="error">no lens {p.scene.lens}</p>;
+  // (the scene's rows: its storage dumps' filter, "touched")
+  const shown = useMemo(() => !spec || !p.scene.rows ? spec : { ...spec,
+    views: spec.views.map((v) => v.kind === "dump" &&
+      v.location === "storage" ? { ...v, filter: { ...v.filter,
+        rows: p.scene.rows } } : v) }, [spec, p.scene.rows]);
+  if (!shown) return <p className="error">no lens {p.scene.lens}</p>;
   return <div data-scene={p.scene.id} data-mode={p.mode}
     style={{ display: "contents" }}>
-    <Lens spec={spec} project={p.project} hash={p.hash} /></div>;
+    <Lens spec={shown} project={p.project} hash={p.hash} /></div>;
 }

@@ -101,3 +101,21 @@ test("embed.html: raw-named is the raw moment, named", async ({ page }) => {
     '"players[0x90f79bf6eb2c4f870365e785982e1f101e93b906]"]'))
     .toBeVisible();
 });
+
+test("embed.html#scene=raw-named: the slots carol's join wrote that no " +
+  "value owns yet, as unmapped rows", async ({ page }) => {
+  await page.setViewportSize({ width: 1024, height: 900 });
+  await page.goto("./embed.html#scene=raw-named");
+  const row = page.locator('.view:not([hidden]) .wrow[data-slot$="c248"]');
+  await expect(row).toBeVisible({ timeout: 20_000 });
+  await row.locator(".b").nth(3).hover();
+  const pop = page.locator(".pop").first();
+  await expect(pop).toContainText("(unmapped)");
+  // (its "how" readable: the popover's ink is not its fill)
+  const [ink, fill] = await pop.locator(".phow").evaluate((h) => [
+    getComputedStyle(h).color, getComputedStyle(h.closest(".pop")!)
+      .backgroundColor]);
+  expect(ink).not.toBe(fill);
+  expect(ink).not.toBe("rgba(0, 0, 0, 0)");
+  await expect(row.locator(".b.hl")).toHaveCount(0);
+});
