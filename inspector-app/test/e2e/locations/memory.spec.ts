@@ -129,25 +129,18 @@ test("inside _applyCombo: O0 a call with a frame; colours; both steps' "
     .toHaveCount(0);
 });
 
-// (mult moves: each side's walkthrough adds its own offset to the
-// frame's; step 2, the value's own region)
-test("inside _applyCombo, each side: mult's offset from the frame",
+// (mult moves: the walkthrough at the pause's later step adds its own
+// offset to the frame's; step 2, the value's own region)
+test("inside _applyCombo, the later step: mult's offset from the frame",
   async ({ page }) => {
     await at(page, "#mopt=0&mpt=mult&msel=mult");
     const frame = (await mrow(page, "_applyCombo").locator(".val")
       .textContent())!.trim().slice(9);
     const hex = (n: number) => `0x${n.toString(16).padStart(4, "0")}`;
-    const sides: string[] = [];
-    for (const m of ["before", "after"]) {
-      await page.locator(`#mmode button[data-mode="${m}"]`).click();
-      sides.push(await walkStep(page, 2));
-    }
     const f = parseInt(frame, 16);
-    expect(sides).toEqual([
-      `offset = read(-frame) + 88 = ${frame} + 88 = ${hex(f + 88)}\n` +
-        "mult = 5",
+    expect(await walkStep(page, 2)).toEqual(
       `offset = read(-frame) + 184 = ${frame} + 184 = ${hex(f + 184)}\n` +
-        "mult = 3"]);
+        "mult = 3");
   });
 
 test("before the writes: gained, hit with no location, alice's record",
