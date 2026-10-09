@@ -39,7 +39,7 @@ for (const spec of rawLenses) {
       .map((a) => a.textContent);
     expect(addrs).toEqual(json.stack.map((_: string, k: number) => `${k}`));
     expect(st.querySelector(".wrow .ab")!.textContent)
-      .toBe(abbreviated(json.stack.at(-1)!.slice(2).match(/../g)!, 2));
+      .toBe(abbreviated(json.stack.at(-1)!.slice(2).match(/../g)!, 3));
     // the others the same dump: words of 32 bytes; no ruler anywhere
     // (memory: one run of bytes, 16 a line, each line its offset)
     const mem = view(c, "memory")!;
@@ -82,12 +82,12 @@ for (const spec of rawLenses) {
 it("abbreviation: a word's first and last bytes, padded to 32: one width",
   () => {
   const w = (h: string) => h.padStart(64, "0").match(/../g)!;
-  expect(abbreviated(w("53c8a5ff9979"), 2)).toBe("0x0000…9979");
-  expect(abbreviated(w("1420"), 2)).toBe("0x0000…1420");
-  expect(abbreviated(w("22"), 2)).toBe("0x0000…0022");
-  expect(abbreviated(w("ab".repeat(32)), 2)).toBe("0xabab…abab");
+  expect(abbreviated(w("53c8a5ff9979"), 3)).toBe("0x00…ff9979");
+  expect(abbreviated(w("1420"), 3)).toBe("0x00…001420");
+  expect(abbreviated(w("22"), 3)).toBe("0x00…000022");
+  expect(abbreviated(w("ab".repeat(32)), 3)).toBe("0xab…ababab");
   // (a short word, its bytes the low end's)
-  expect(abbreviated(["14", "20"], 2)).toBe("0x0000…1420");
+  expect(abbreviated(["14", "20"], 3)).toBe("0x00…001420");
 });
 
 it("the display parameters: scale, perLine, rows shape", async () => {

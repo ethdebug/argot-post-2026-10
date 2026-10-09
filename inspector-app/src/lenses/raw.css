@@ -123,18 +123,39 @@
   transform-origin: var(--ax, 50%) 0;
   transition: opacity var(--a-smooth) linear,
     transform var(--a-smooth) linear, background-color 120ms; }
-.view.annot .pop.note:not(.under) { transform-origin: var(--ax, 50%) 100%;
+.view.annot .pop.note:not(.under):not(.right) {
+  transform-origin: var(--ax, 50%) 100%;
   transform: translateY(calc((var(--tp, 0) - 1) * 6px))
     scale(calc(0.94 + 0.06 * var(--tp, 0))); }
+/* (beside its target, a stack item's: the same card, its arrow turned
+   to point left at the item's middle; it rises from there) */
+.view.annot .pop.note.right { bottom: auto; margin: 0;
+  transform-origin: 0 var(--ay, 50%);
+  transform: translateX(calc((1 - var(--tp, 0)) * 6px))
+    scale(calc(0.94 + 0.06 * var(--tp, 0))); }
+.view.annot .pop.note.right::after { left: 0;
+  top: var(--ay, 50%); transform: translate(-50%, -50%) rotate(45deg);
+  border-color: var(--pop-line); border-top-color: transparent;
+  border-right-color: transparent;
+  clip-path: polygon(-1px -1px, -1px 100%, calc(100% + 1px) 100%); }
 @media (prefers-reduced-motion: reduce) {
   .view.annot :is(.b, .ab, .pop.note) { transition: none; }
 }
 
 /* (the annotated figure's disclaimer, where the moment was: the
    hand-written badge as a tree's heading has it (port.css .handmade,
-   in the panels' title type), shown with the stack's values: --hand) */
+   in the panels' title type), shown once the reveal is complete (--hand
+   1), faded over 500ms as the host's own line is; one line where its
+   column is as wide as it, two below) */
 .lens.raw .moment-note { margin: 0; }
 .lens.raw .moment-note .handmade { margin: 0;
   font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
   font-size: var(--fs-label); font-weight: 700; text-transform: uppercase;
-  letter-spacing: 0.06em; opacity: var(--hand, 0); }
+  letter-spacing: 0.06em; opacity: var(--hand, 0);
+  transition: opacity 500ms ease; }
+@media (min-width: 1200px) {
+  .lens.raw .moment-note .handmade { white-space: nowrap; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .lens.raw .moment-note .handmade { transition: none; }
+}

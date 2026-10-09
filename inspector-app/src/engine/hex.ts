@@ -22,9 +22,10 @@ export function short(h: string, keep = 4): string {
     : `${s.slice(0, keep + 2)}…${s.slice(-keep)}`;
 }
 
-// A word, short: padded to 32 bytes, its first and last `n` bytes,
-// "0x0000…1420": every word the same width (the stack's, a popover's)
-export function wordShort(hex: string, n = 2): string {
+// A word, short: padded to 32 bytes, its first byte and its last `n`
+// bytes, "0x00…001420": every word the same width (the stack's, a stack
+// item's popover's)
+export function wordShort(hex: string, n = 3): string {
   const h = hex.replace(/^0x/, "").padStart(64, "0");
-  return `0x${h.slice(0, 2 * n)}…${h.slice(-2 * n)}`;
+  return `0x${h.slice(0, 2)}…${h.slice(-2 * n)}`;
 }

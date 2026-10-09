@@ -39,30 +39,30 @@ describe("the shared moment's popovers", () => {
     expect(cs[0]).toBeGreaterThanOrEqual(4);
     const notes = notesOf(d, l, us, l.rows, { names });
     // (a value's popover badged in its colour; the totals, each theirs;
-    // a record's fields three a line, its name a line of its own)
+    // a record's key facts, one line: combo, then bestCombo, the ones a
+    // card leaves out first; her name in full)
     expect(notes.map((n) => n.badge)).toEqual([0, 1, undefined, 4, 5, 6]);
     expect(notes[2].items.map((x) => x.unit)).toEqual([2, 3]);
-    expect(notes[5].items.map((x) => x.line)).toEqual([0, 0, 0, 1, 1, 1,
-      2]);
+    expect(notes[5].items.map((x) => [x.line, x.drop])).toEqual([[0,
+      undefined], [0, 1], [0, 2], [0, undefined]]);
     const said = notes.map((n) => `${n.how} : ${n.items.map((x) =>
       x.text).join(" · ")}`);
     const rec = (p: string, who: string, name: string) =>
-      `players[${who}] : ${["score", "combo", "bestCombo", "plays",
-        "hits"].map((f) => `${f} ${story.get(`${p}.${f}`)}`).join(" · ")
-      } · lastBlock ${{ alice: 6, bob: 7, carol: 12 }[who]} · name ${name}`;
+      `players[${who}] : ${["score", "combo", "bestCombo"].map((f) =>
+        `${f} ${story.get(`${p}.${f}`)}`).join(" · ")} · name ${name}`;
     expect(said).toEqual([
       "playerList : alice · bob · carol",
       `motd : "${MOTD[0].slice(0, 23)}…"`,
       `slot 2 : totalScore ${story.get("totalScore")} · totalHits ${
         story.get("totalHits")}`,
       rec(A, "alice", '"alice"'), rec(B, "bob", '"bob"'),
-      rec(C, "carol", `"${NAME_C.slice(0, 15)}…"`)]);
+      rec(C, "carol", `"${NAME_C}"`)]);
     // (carol's: her record's two slots, and her name's two, apart)
     expect(notes[5].runs.map((r) => r.length)).toEqual([2, 2]);
   });
 
-  it("the hand-written stack: one popover for its run, the moment's " +
-    "call chain", async () => {
+  it("the hand-written stack: one popover for its run (or one an item, " +
+    "its name alone), the moment's call chain", async () => {
     const s = await at("reveal");
     const d = await at("reveal/hand");
     const l = layout(d, "stack");
@@ -76,10 +76,17 @@ describe("the shared moment's popovers", () => {
       .toBe("return → _resetCombo");
     expect(n.how).toBe("stack 0–3");
     expect(n.items.map((x) => [x.text, x.seg, x.line, x.unit])).toEqual([
-      ["return → _resetCombo 0x0000…1420", 0, 0, 0],
-      ["return → play 0x0000…12cc", 0, 1, 1],
-      ["return → dispatcher 0x0000…0496", 0, 2, 2],
-      ["selector 0x0000…4cd9", 0, 3, 3]]);
+      ["return → _resetCombo 0x00…001420", 0, 0, 0],
+      ["return → play 0x00…0012cc", 0, 1, 1],
+      ["return → dispatcher 0x00…000496", 0, 2, 2],
+      ["selector 0x00…e84cd9", 0, 3, 3]]);
+    // (the figure's: one an item, its name badged, nothing else)
+    expect(notesOf(d, l, us, l.rows, { names: onChainNames(s),
+      each: true }).map((x) => [x.how, x.badge, x.items, x.runs]))
+      .toEqual([["return → _resetCombo", 0, [], [[l.rows[0].address]]],
+        ["return → play", 1, [], [[l.rows[1].address]]],
+        ["return → dispatcher", 2, [], [[l.rows[2].address]]],
+        ["selector", 3, [], [[l.rows[3].address]]]]);
     // (and memory's, kept for later figures: the keccak scratch, the
     // free memory pointer)
     const m = layout(d, "memory");
@@ -116,7 +123,7 @@ describe("short values", () => {
       .toBe("0x1420");
     // (a stack item's: as the stack shows it)
     expect(shortValue(node("bytes32", `0x${"0".repeat(60)}1420`), names,
-      { word: true })).toBe("0x0000…1420");
+      { word: true })).toBe("0x00…001420");
     expect(shortValue(node("bytes32", `0x${"ab".repeat(32)}`), names))
       .toBe("0xabab…abab");
     expect(shortValue(node("uint64", "100"), names)).toBe("100");

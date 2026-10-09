@@ -115,6 +115,44 @@ for (const width of [1360, 1024, 390]) {
     expect(await segs(`.view[data-location=storage] .word[data-slot="0x${
       "2".padStart(64, "0")}"] .b.hl`)).toBe(2);
     expect(await segs(".view[data-location=stack] .ab.hl")).toBe(4);
+    // every arrow's tip on its target: a card under or over, at its
+    // run's centre; a card beside (a stack item's), at its middle
+    const tips = await page.evaluate(() => [...document.querySelectorAll<
+      HTMLElement>(".pop.note")].map((pop) => {
+      const layer = pop.closest(".notes")!.getBoundingClientRect();
+      const r = pop.getBoundingClientRect();
+      const a = getComputedStyle(pop, "::after");
+      const cs = getComputedStyle(pop);
+      const right = pop.classList.contains("right");
+      const tip = right ? r.top + parseFloat(cs.borderTopWidth) +
+        parseFloat(a.top) - layer.top : r.left +
+        parseFloat(cs.borderLeftWidth) + parseFloat(a.left) - layer.left;
+      return [pop.textContent, tip - Number(right ? pop.dataset.ty
+        : pop.dataset.tx)] as const;
+    }));
+    for (const [t, d] of tips) {
+      expect(Math.abs(d), t!).toBeLessThanOrEqual(0.5);
+    }
+    // the stack's: one card an item, beside it, its name alone
+    expect((await page.locator(
+      ".view[data-location=stack] .pop.note.right").allTextContents())
+      .sort()).toEqual(["return → _resetCombo", "return → dispatcher",
+      "return → play", "selector"]);
+    // storage's cards one line each, every room kept for them one height
+    // (the raw figure's gaps even)
+    const rooms = await page.locator(".view[data-location=storage] " +
+      "[data-room]").evaluateAll((es) => [...new Set(es.map((e) =>
+      (e as HTMLElement).style.marginBottom))]);
+    // (on a phone, a card may wrap: its room as tall as it)
+    if (width >= 900) {
+      expect(rooms.length).toBeLessThanOrEqual(1);
+      for (const h of await page.locator(
+        ".view[data-location=storage] .pop.note").evaluateAll((es) =>
+        es.map((e) => e.classList.contains("wrap")))) expect(h).toBe(false);
+    }
+    // carol's name in full
+    await expect(page.locator(".pop.note").filter({ hasText:
+      "carol, the unstoppable combo queen" })).toHaveCount(1);
     // (written by hand: the caption says so; no ink in the figure)
     await expect(page.locator(".view .handmade")).toHaveCount(0);
     // every card inside its figure, and its storage cards inside storage
@@ -149,7 +187,7 @@ for (const width of [1360, 1024, 390]) {
     await expect(page.locator(".view .b.hl.muted")).toHaveCount(0);
     // carol's record, its popover with her score
     expect(on.pops.map((l) => l.text)).toContainEqual(
-      expect.stringMatching(/^players\[carol\].*score 100 · combo 0/));
+      expect.stringMatching(/^players\[carol\] : score 100 · /));
   });
 }
 
@@ -193,9 +231,17 @@ test("reveal in a host page: revealed by its message; its " +
         ?? v.querySelector<HTMLElement>(".pop.note:last-of-type");
       return [f?.style.getPropertyValue("--tf"),
         p?.style.getPropertyValue("--tp")].map(Number); }));
+  // (the disclaimer: only once the reveal is complete)
+  const hand = () => frame.locator(".lens").evaluate((e) =>
+    getComputedStyle(e).getPropertyValue("--hand").trim());
   await post(0.5);
   await expect.poll(async () => (await vars())[0][0]).toBe(1);
   expect((await vars()).at(-1)![1]).toBe(0);
+  expect(await hand()).toBe("0");
+  await post(1);
+  await expect.poll(hand).toBe("1");
+  await post(0.99);
+  await expect.poll(hand).toBe("0");
   await post(0);
   await expect.poll(async () => (await vars()).flat().every((x) => x === 0))
     .toBe(true);
