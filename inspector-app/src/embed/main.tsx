@@ -152,6 +152,11 @@ async function whenDrawn() {
   await document.fonts?.ready;
   let h = -1, still = 0;
   while (still < STILL) {
+    // (an annotated figure's cards, drawn again at the figure as it is
+    // now: their rooms final before the first height, whether or not
+    // this frame is on screen (where a browser defers its observers);
+    // a draw that changes nothing changes no height)
+    dispatchEvent(new Event("ethdebug:redraw"));
     await frame();
     const now = Math.ceil(root.getBoundingClientRect().height);
     still = now === h && (filled() || (!figure &&
