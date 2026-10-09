@@ -63,11 +63,15 @@ async ({ page }) => {
   expect(want.length).toBeGreaterThan(8);
   await open(page, "bug-O0", `12:${mult.step + 1}`);
   const names = (g: string) => page.locator(`${D} li[data-path="${g}"] ` +
-    "li[data-path] > .row .name").allTextContents();
+    "> ul > li[data-path] > .row .name").allTextContents();
   await expect.poll(() => names("@locals"))
     .toEqual(["points", "combo", "mult"]);
   expect(await names("@storage")).toEqual(["playerList", "motd",
     "totalScore", "totalHits", "players"]);
+  // (bugc's composites, by its own templates: alice's record)
+  await expect(page.locator(`${D} li[data-path=` +
+    '"players[0x70997970c51812dc3a010c7d01b50e0d17dc79c8].name"] .val'))
+    .toHaveText('"alice"');
   await page.locator(`${D} li[data-path="points"] > .row`).hover();
   await expect.poll(() => lit(`${D} [data-view$=":memory"] .b.hl`))
     .toEqual(want);
