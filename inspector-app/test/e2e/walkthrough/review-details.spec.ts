@@ -12,10 +12,10 @@ test("in a walkthrough, a click targets exactly what was clicked",
     await page.locator('#details button[data-r="start"]').click();
     await row(page, `${A}.score`).click();
     await expect(page.locator("#details .rtitle"))
-      .toHaveText("How the pointer finds players[alice].score");
+      .toHaveText('How the pointer finds players["alice"].score');
     await page.locator(`${V} .b[data-owners="${C}.combo"]`).first().click();
     await expect(page.locator("#details .rtitle"))
-      .toHaveText("How the pointer finds players[carol].combo");
+      .toHaveText('How the pointer finds players["carol, the un…"].combo');
   });
 
 test("a walkthrough shows no card of the other state", async ({ page }) => {

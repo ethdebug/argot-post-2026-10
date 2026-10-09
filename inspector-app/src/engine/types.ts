@@ -113,11 +113,8 @@ export interface Decoding {             // "this rule over that storage"
   foreign?: { language: string; rule: DecodingId };
 }
 // (from: "list": a list in storage, e.g. playerList; its provenance)
-export type KeySource = ({ from: "list"; path: Path }
-  | { from: "trace" }) & {
-  // (who each key is, by the fixture: its 40 hex digits, lower case →
-  // the name the scene's story gives it)
-  names?: Record<string, string> };
+export type KeySource = { from: "list"; path: Path }   // roster (provenance)
+  | { from: "trace" };
 export type Provenance = "compiler" | "storage" | "trace" | "abi"
   | "hand-written" | { list: Path };
 

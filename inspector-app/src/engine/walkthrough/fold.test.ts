@@ -47,8 +47,8 @@ it("players: step 0, then ten steps, one a rule (a template entered "
       "its slot",
     "The last byte of each name slot is its length flag",
     // (the players by the scene's names for them)
-    "The last byte decides the form: even → short (alice, bob), odd → " +
-      "long (carol)",
+    'The last byte decides the form: even → short ("alice", "bob"), odd → ' +
+      `long (${CAROL})`,
     "Each short text is in its slot, from the left",
     "The text starts at keccak(slot …9979) = …c248: 34 bytes over 2 slots",
   ];
@@ -60,15 +60,15 @@ it("players: step 0, then ten steps, one a rule (a template entered "
       "keccak(key, slot 3)record|6 fieldsfields|namestring|" +
       "flagstring|short | longbranch|inlinetext|keccak(slot …)text");
   expect(w.recs!.map((r) => [r.who, r.full])).toEqual([
-    ["alice", "alice"], ["bob", "bob"], ["carol", "carol"]]);
+    ['"alice"', '"alice"'], ['"bob"', '"bob"'], ['"carol, the un…"', CAROL]]);
   expect(w.focus).toBe("*");
   // (each name with its address once, at the keys)
   const input = formText(w.steps[1].form);
-  for (const x of ["alice (0x7099…79c8)→[0]", "bob (0x3c44…93bc)→[1]",
-    "carol (0x90f7…b906)→[2]"]) expect(input).toContain(x);
-  // (one spelling of a hash: keccak(alice, slot 3))
+  for (const x of ['"alice" (0x7099…79c8)→[0]', '"bob" (0x3c44…93bc)→[1]',
+    `${CAROL} (0x90f7…b906)→[2]`]) expect(input).toContain(x);
+  // (one spelling of a hash: keccak("alice", slot 3))
   const rec = formText(w.steps[4].form);
-  expect(rec).toContain("alice→keccak(alice, slot 3) = …aa80");
+  expect(rec).toContain('"alice"→keccak("alice", slot 3) = …aa80');
   // (with one record, the step says what the hash takes)
   const one = walkthrough(await at(), C)!.steps.find((s) =>
     s.chipLabel === "record")!;
@@ -90,7 +90,7 @@ it("carol's record: step 0 and the eleven steps", async () => {
   const w = rules(walkthrough(await at(), C)!);
   expect(w.steps[0].goal).toBe(true);
   const caps = w.steps.slice(1).map((s) => plain(s.cap));
-  const want = ["The key: carol's address. A mapping does not store its " +
+  const want = [`The key: the address of ${CAROL}. A mapping does not store its ` +
       "keys; the page takes it from playerList[2]",
     "players is declared at slot 3",
     "The template mapping(address => Player) takes slot and key",
@@ -197,14 +197,11 @@ it("reads come from the graph's edges, not from the pointer's text: "
     }
   });
 
-it("the scene's names for the keys, where the chain has none (Vyper's "
-  + "records, read by solc's rule)", async () => {
+it("an empty on-chain name falls back to the short address (Vyper's "
+  + "records, read by solc's rule, have none)", async () => {
   const x = await at("vyper", "after");
   const w = rules(walkthrough(x, "players")!);
-  expect(w.recs!.map((r) => r.who)).toEqual(["alice", "bob", "carol"]);
-  // (with no names from the scene: the short address)
-  const y = rules(walkthrough({ ...x, keys: { from: "trace" } }, "players")!);
-  expect(y.recs!.map((r) => r.who)).toEqual(y.recs!.map((r) =>
+  expect(w.recs!.map((r) => r.who)).toEqual(w.recs!.map((r) =>
     r.path.replace(/^players\[(0x.{4}).*(.{4})\]$/, "$1…$2")));
   const text = JSON.stringify(w.steps, (_, v) =>
     typeof v === "bigint" ? String(v) : v);
@@ -217,9 +214,9 @@ it("the last step, found: the selection, what it is; a re-target there "
   const cap = (p: string) => walkthrough(x, p)!.steps.at(-1)!;
   expect(cap("players")).toMatchObject({ phase: "found", id: "found",
     chip: "found", chipLabel: "players",
-    cap: "`players` holds 3 records: alice, bob, carol." });
+    cap: `\`players\` holds 3 records: "alice", "bob", ${CAROL}.` });
   expect(cap("playerList").cap).toBe("`playerList` holds 3 items.");
-  expect(cap(C).cap).toBe("`players[carol]` holds 7 fields.");
+  expect(cap(C).cap).toBe('`players["carol, the un…"]` holds 7 fields.');
   expect(cap("motd").cap).toBe(`\`motd\` = "${MOTD[0]}".`);
   const a = walkthrough(x, C)!.steps;
   const b = walkthrough(x, `${C}.name`)!.steps;
@@ -274,13 +271,13 @@ it("Vyper: Solidity's rule, then the misread, with Vyper's own layout "
     `${A}.score`)!;
   const last = w.steps.at(-1)!;
   expect(last.phase).toBe("external");
-  expect(plain(last.cap)).toBe("The misread: Vyper keeps players[alice]" +
+  expect(plain(last.cap)).toBe("The misread: Vyper keeps players[0x7099…79c8]" +
     ".score in slot …0446, where it is 30; Solidity's rule read 0 from " +
     "slot …aa80 where Vyper keeps nothing.");
   expect(last.source).toBe("from: Vyper's layout, hand-written for " +
     "comparison (Vyper emits no ethdebug)");
   expect(w.steps.at(-2)!.cap).toBe("Solidity's rule reads " +
-    "`players[alice].score` = 0.");
+    "`players[0x7099…79c8].score` = 0.");
   expect(w.steps.find((s) => s.phase === "declared")!.cap).toContain(
     "in Vyper's storage, that slot holds something else");
 });
@@ -290,8 +287,8 @@ it("a step's variables, as the focus has them, for its band's lines "
   const w = walkthrough(await at(), C)!;
   const map = w.steps.find((s) => s.phase === "template")!;
   const rec = w.steps.find((s) => s.chipLabel === "record")!;
-  expect(map.notes?.values).toEqual({ slot: "3", key: "carol" });
-  expect(rec.notes?.values).toEqual({ key: "carol", slot: "3" });
+  expect(map.notes?.values).toEqual({ slot: "3", key: CAROL });
+  expect(rec.notes?.values).toEqual({ key: CAROL, slot: "3" });
 });
 
 it("one side of a pair: step 0 names the side it walks (the review's T7)",
