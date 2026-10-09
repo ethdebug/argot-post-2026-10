@@ -15,21 +15,22 @@ const dump = (location: Location, title: string, display: Display):
   ViewSpec => ({ id: location, kind: "dump", area: location, location,
   data, filter: all, title, display: { bare: true, ...display } });
 
-// One cell size for the whole lens: every panel the same dump, a word a
-// row (16 bytes a line in the figure's narrow columns), in the same
-// font, which each column fits; the columns are equal, so each panel
-// has the same font, row height and width: the stack's words whole too.
-// Two columns, each its panels one under the other (an area each):
-// storage over calldata, the stack over memory, which come out even
-const dump2 = (location: Location, title: string, area: string):
-  ViewSpec => ({ ...dump(location, title, { ruler: false }), area });
+// One cell size for the whole lens: storage, memory and calldata are
+// the same dump, a word a row, in one wide column whose width fits their
+// font; the stack beside them, narrow, each item one row, its word
+// abbreviated (0x…c248), at the same font (the lens's --cell-fs) and
+// row height
+const dump2 = (location: Location, title: string, area: string,
+  display: Display = {}): ViewSpec =>
+  ({ ...dump(location, title, { ruler: false, ...display }), area });
 const base = { timelines: ["raw"], decodings: ["raw"], links: [],
-  grid: "", areas: { left: "dump raw-col", right: "dump raw-col" } };
+  grid: "", areas: { wide: "dump raw-col", narrow: "raw-col" } };
 
 export const rawHero: LensSpec = { ...base, id: "raw-hero",
-  title: "Raw bytes: two columns", layout: "raw raw-hero",
-  views: [dump2("storage", "Storage", "left"),
-    dump2("stack", "Stack", "right"), dump2("memory", "Memory", "right"),
-    dump2("calldata", "Calldata", "left")] };
+  title: "Raw bytes", layout: "raw raw-hero",
+  views: [dump2("storage", "Storage", "wide"),
+    dump2("stack", "Stack", "narrow", { abbreviate: 2 }),
+    dump2("calldata", "Calldata", "wide"),
+    dump2("memory", "Memory", "wide")] };
 
 export const rawLenses = [rawHero];

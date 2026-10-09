@@ -682,12 +682,13 @@ is imported from the package's dist (it is not a public export).
 The post's first figure shows bytes the way tools have always had
 them: no names, no colours, no popovers, no tree. The lens
 `src/lenses/raw.ts` (`raw-hero`) composes four bare dumps (the Dump's
-`display` parameters: `bare`, `ruler: false`) of one frozen moment on
-one grid: one cell size (every panel the same dump, so the same font,
-row height and width; the stack's words whole), two equal columns
-(storage over calldata, the stack over memory, which come out within
-a few pixels of each other), boxes that hug their rows. The figure is
-at most 1024px wide; on a phone, one column. The main page shows it as
+`display` parameters: `bare`, `ruler: false`, `abbreviate`) of one
+frozen moment on one grid, at one cell size: storage, calldata and
+memory share a wide column, a word a row, in the font that fits it;
+the stack beside them is narrow, a row a word (`0x…c248`), in that
+same font and row height (the lens's `--cell-fs`, `src/ui/fit.ts`).
+Boxes hug their rows. The figure is at most 1024px wide; on a phone,
+one column. The main page shows it as
 its first scene, "Raw bytes" (`#scene=raw`), and the shell as
 `shell.html#lens=raw-hero`. (Three earlier compositions mixed sizes
 and left dead areas; they are gone.)

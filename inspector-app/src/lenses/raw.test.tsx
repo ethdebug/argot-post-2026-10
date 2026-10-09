@@ -25,18 +25,19 @@ for (const spec of rawLenses) {
       .toBe(json.stack.length), slow);
     await waitFor(() => expect(c.querySelectorAll(".view .rows .wrow")
       .length).toBeGreaterThan(json.stack.length), slow);
-    // the stack: 0, 1, … from the top; each word whole, as storage's
+    // the stack: 0, 1, … from the top; each word abbreviated, one row
     const st = view(c, "stack")!;
     const addrs = [...st.querySelectorAll(".wrow .addr .a")]
       .map((a) => a.textContent);
     expect(addrs).toEqual(json.stack.map((_: string, k: number) => `${k}`));
-    // every panel the same dump: words of 32 bytes, no ruler
-    for (const l of ["storage", "stack", "memory", "calldata"]) {
-      const v = view(c, l)!;
-      expect(v.querySelector(".wrow[data-slot] .word")!
+    expect(st.querySelector(".wrow .ab")!.textContent)
+      .toBe(abbreviated(json.stack.at(-1).slice(2).match(/../g), 2));
+    // the others the same dump: words of 32 bytes; no ruler anywhere
+    for (const l of ["storage", "memory", "calldata"]) {
+      expect(view(c, l)!.querySelector(".wrow[data-slot] .word")!
         .querySelectorAll(".b").length).toBe(32);
-      expect(v.querySelector(".ruler")).toBeNull();
     }
+    expect(c.querySelector(".ruler")).toBeNull();
     // storage: every slot it has, ⋯ where the slots jump
     const sto = view(c, "storage")!;
     expect(sto.querySelectorAll(".wrow[data-slot]").length)
