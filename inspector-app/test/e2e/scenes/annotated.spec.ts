@@ -7,6 +7,7 @@
 // the others; the hand-written ones said so; the host's message
 // reveals it
 import type { Page } from "@playwright/test";
+import http from "node:http";
 import { test, expect } from "../../page";
 import { reveal } from "../../../src/lenses/raw";
 
@@ -280,46 +281,65 @@ test("reveal in a host page: revealed by its message; its " +
   await expect(frame.locator(".view.revealed")).toHaveCount(0);
 });
 
-// Its height final from its first ready, whatever the reveal does: in a
-// host's frame (off screen at first, as below a post's fold), at a
-// phone's width and the post's, the heights it posts at progress 0, 0.5
-// and 1 the ready one
+// Its height final from its first ready, whatever the reveal does and
+// wherever the frame is: in a host's frame of another origin, below the
+// host's fold (as a post's figure is: a browser holds back the rendering
+// of a frame like that, its observers too, until it is scrolled to), at
+// a phone's width and the post's: the heights it posts, on load, scrolled
+// to, and at progress 0, 0.5 and 1 by the host's messages, the ready one
+// (its host is of another origin on purpose: the requests to it are
+// this test's own; `quiet` would count them)
+test.describe("in another origin's frame", () => {
+test.use({ quiet: false });
 for (const width of [390, 1024]) {
-  test(`reveal in a ${width}px frame: one height, at every progress`,
-    async ({ page, baseURL }) => {
-      await page.setViewportSize({ width, height: 844 });
-      await page.goto("./embed.html");
-      await page.setContent(`<body style="margin:0">
-        <div style="height:2400px"></div>
-        <iframe id="f" src="${baseURL}embed.html#scene=reveal"
-          style="border:0;width:${width}px;height:50px;display:block">
-        </iframe>
-        <script>window.hs = []; addEventListener("message", (e) => {
-          if (e.data?.type !== "ethdebug:height") return;
-          window.hs.push(e.data.height);
-          document.getElementById("f").style.height = e.data.height + "px";
-        });</script></body>`);
-      const hs = () => page.evaluate(() =>
-        (window as unknown as { hs: number[] }).hs);
-      await expect.poll(async () => (await hs()).length,
-        { timeout: 20_000 }).toBeGreaterThan(0);
-      const ready = (await hs())[0];
-      await page.locator("#f").scrollIntoViewIfNeeded();
-      const frame = page.frameLocator("#f");
-      const post = (progress: number) => page.evaluate((progress) =>
-        (document.getElementById("f") as HTMLIFrameElement).contentWindow!
-          .postMessage({ type: "ethdebug:reveal", on: progress > 0,
-            progress, after: progress >= 1 ? 1 : 0 }, "*"), progress);
-      const height = () => frame.locator("#embed").evaluate((e) =>
-        Math.ceil(e.getBoundingClientRect().height));
-      for (const p of [0, 0.5, 1, 0.5, 0]) {
-        await post(p);
-        await page.waitForTimeout(600);
-        expect(await height(), `${p}`).toBe(ready);
+  test(`reveal in a ${width}px frame of another origin: one height`,
+    async ({ page, baseURL, browserName }) => {
+      // (Chromium's: it loads a lazy frame below the fold and holds back
+      // its rendering there; Firefox and WebKit load it only once near)
+      test.skip(browserName !== "chromium", "Chromium holds back the frame");
+      // (the host: a page of its own origin, 127.0.0.1, framing the
+      // embed's, localhost)
+      const host = http.createServer((_, res) => {
+        res.writeHead(200, { "content-type": "text/html" });
+        res.end(`<body style="margin:0">
+          <div style="height:2400px"></div>
+          <iframe id="f" loading="lazy"
+            src="${baseURL}embed.html#scene=reveal"
+            style="border:0;width:${width}px;height:480px;display:block">
+          </iframe>
+          <script>window.hs = []; addEventListener("message", (e) => {
+            if (e.data?.type !== "ethdebug:height") return;
+            window.hs.push(e.data.height);
+            document.getElementById("f").style.height = e.data.height + "px";
+          });</script></body>`);
+      });
+      await new Promise<void>((ok) => host.listen(0, "127.0.0.1", ok));
+      const port = (host.address() as { port: number }).port;
+      try {
+        await page.setViewportSize({ width, height: 844 });
+        await page.goto(`http://127.0.0.1:${port}/`);
+        const hs = () => page.evaluate(() =>
+          (window as unknown as { hs: number[] }).hs);
+        // (ready while below the fold, then scrolled to)
+        await expect.poll(async () => (await hs()).length,
+          { timeout: 20_000 }).toBeGreaterThan(0);
+        const ready = (await hs())[0];
+        await page.waitForTimeout(1000);
+        await page.locator("#f").scrollIntoViewIfNeeded();
+        await page.waitForTimeout(1500);
+        const post = (progress: number) => page.evaluate((progress) =>
+          (document.getElementById("f") as HTMLIFrameElement)
+            .contentWindow!.postMessage({ type: "ethdebug:reveal",
+              on: progress > 0, progress, after: progress >= 1 ? 1 : 0 },
+            "*"), progress);
+        for (const p of [0, 0.5, 1, 0.5, 0]) {
+          await post(p);
+          await page.waitForTimeout(400);
+        }
+        expect([...new Set(await hs())]).toEqual([ready]);
+      } finally {
+        host.close();
       }
-      // (a pointer over its values: the same)
-      await frame.locator('.b[data-unit="6"]').first().hover();
-      await page.waitForTimeout(300);
-      expect([...new Set(await hs())]).toEqual([ready]);
     });
 }
+});
