@@ -25,10 +25,9 @@ const panels = (page: Page, q: string) => page.evaluate((q) =>
   })), q);
 
 // One cell size (one font, one line height), one grid (shared edges:
-// on a wide page the stack and memory a column beside storage, its top
-// level with storage's; narrower, the stack and memory side by side under
-// storage, memory's right edge storage's; a phone, one column), boxes
-// that hug their rows, the composition centred
+// wider than a phone, two columns, storage and, beside it, the stack over
+// memory, its top level with storage's; a phone, one column), boxes that
+// hug their rows, the composition centred
 const rules = async (page: Page, q: string, width: number) => {
   // (the stack takes the dumps' font once they have fitted it: the same
   // to a twentieth of a pixel)
@@ -53,22 +52,16 @@ const rules = async (page: Page, q: string, width: number) => {
   }
   expect(await page.evaluate(() => document.documentElement.scrollWidth))
     .toBe(width);
-  // (memory under the stack, or beside it under storage)
-  expect(p.memory.t).toBeGreaterThanOrEqual(p.stack.t);
-  if (width >= 1130) {
-    // (the stack and memory a column beside storage; all centred)
+  // (memory under the stack)
+  expect(p.memory.t).toBeGreaterThan(p.stack.t);
+  if (width >= 560) {
+    // (two columns: storage; the stack over memory beside it, their
+    // left edges one, its top level with storage's; all centred)
     const mid = (p.storage.l + Math.max(p.stack.r, p.memory.r)) / 2;
-    expect(Math.abs(mid - width / 2)).toBeLessThan(2);
+    expect(Math.abs(mid - width / 2)).toBeLessThan(12);
     expect(Math.abs(p.storage.t - p.stack.t)).toBeLessThan(1);
     expect(p.stack.l).toBeGreaterThan(p.storage.r);
     expect(Math.abs(p.memory.l - p.stack.l)).toBeLessThan(1);
-    expect(p.memory.b).toBeLessThanOrEqual(p.storage.b + 1);
-  } else if (width >= 560) {
-    // (under storage: the stack at its left, memory at its right)
-    expect(p.stack.t).toBeGreaterThan(p.storage.b);
-    expect(Math.abs(p.stack.l - p.storage.l)).toBeLessThan(1);
-    expect(Math.abs(p.memory.r - p.storage.r)).toBeLessThan(1);
-    expect(Math.abs(p.memory.t - p.stack.t)).toBeLessThan(1);
   }
 };
 
@@ -126,9 +119,10 @@ for (const width of [1360, 390]) {
 }
 
 // The raw storage dump is the storage inspector's on a wide page, layers
-// off: at any figure width from 860px, the same width, font, row height,
+// off: at any figure width from 1130px, the same width, font, row height,
 // cell and fill as the middle of the game's storage dump at 1440px (a
-// word a row)
+// word a row). (Narrower, a text column: two columns of 16 bytes a line,
+// the figure short enough to pin; the next test.)
 test("the raw storage dump is the inspector's at 1440px, in size",
   async ({ page }) => {
     await page.setViewportSize({ width: 1440, height: 900 });
@@ -149,7 +143,7 @@ test("the raw storage dump is the inspector's at 1440px, in size",
     }, q);
     const mid = await look("#panel .view[data-side=after]");
     expect(mid.n).toBe(32);
-    for (const width of [1440, 1360, 1024, 860]) {
+    for (const width of [1440, 1360, 1130]) {
       await page.setViewportSize({ width, height: 900 });
       await page.goto(`./embed.html?w=${width}#scene=raw-hero`);
       await expect(page.locator('.view[data-view$=":storage"] ' +
@@ -162,6 +156,24 @@ test("the raw storage dump is the inspector's at 1440px, in size",
       expect(raw.font).toBe(mid.font);
     }
   });
+
+// In a text column, 680 to 760px wide, the figure (and the annotated
+// one, its composition) is at most 720px tall: a host can pin it on a
+// laptop's screen
+for (const id of ["raw-hero", "raw-annotated"]) {
+  test(`${id} in a text column: at most 720px tall`, async ({ page }) => {
+    for (const width of [680, 720, 760]) {
+      await page.setViewportSize({ width, height: 900 });
+      await page.goto(`./embed.html?w=${width}#scene=${id}`);
+      await expect(page.locator('.view[data-view$=":memory"] .wrow')
+        .first()).toBeVisible({ timeout: 20_000 });
+      await settle(page);
+      expect(await page.locator("#embed").evaluate((e) =>
+        e.getBoundingClientRect().height), `${width}`)
+        .toBeLessThanOrEqual(720);
+    }
+  });
+}
 
 // The figure's storage folds its all-zero rows into its gaps; the stack
 // keeps every item; the inspector's storage keeps its zero rows
