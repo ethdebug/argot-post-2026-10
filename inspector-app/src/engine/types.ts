@@ -62,8 +62,11 @@ export interface TimelinePoint {
   // (the port's, for a paused step: the trace step, its instruction and
   // source range; the function whose frame the locals are in, if not
   // the body's; a storage slot the page reads by its own rule)
-  paused?: { step: number; op: string; of: number;
-    range?: { source: string; offset: number; length: number } };
+  // (`last`: the range is the last one before this trace step, which
+  // has none of its own: shown muted; engine/moment.ts)
+  paused?: { step: number; op: string; of?: number;
+    range?: { source: string; offset: number; length: number };
+    last?: true };
   scope?: string;
   record?: { path: Path; key: Hex; base: number; slot: Hex;
     members: [name: string, bytes: number][] };
