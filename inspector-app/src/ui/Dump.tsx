@@ -313,6 +313,16 @@ export function Dump(p: { id: ViewId; location: Location; data: DataRef;
       left.dataset.g === right.dataset.g)) return left;
     return "row";
   };
+  // (a row no value owns, its gutter or its gaps pointed at: its bytes,
+  // one run no value owns, as unmapped bytes in a row that has values)
+  const unowned = (h: Target): Target => {
+    if (h.row === undefined || !l) return h;
+    const r = l.rows.find((x) => x.address === h.row);
+    return r && !r.what.length && !Array.from({ length: 32 }, (_, i) =>
+      l.cover.get(byteKey(p.location, h.row as Hex, i))).some((c) =>
+      c?.length) ? { bytes: { row: h.row, from: 0, to: 31,
+        location: p.location } } : h;
+  };
   const xy = (e: { target: EventTarget }) => "clientX" in e
     ? [(e as PointerEvent).clientX, (e as PointerEvent).clientY] as const
     : [undefined, undefined] as const;
@@ -322,7 +332,8 @@ export function Dump(p: { id: ViewId; location: Location; data: DataRef;
       HTMLElement | null;
     const h = at === "row" ? { row: r!.dataset.slot as Hex }
       : at ? hit(at) : null;
-    return h && d && l ? resolveTarget(h, sel, d.byPath, l) : null;
+    return h && d && l ? resolveTarget(unowned(h), sel, d.byPath, l)
+      : null;
   };
   // (the cursor in a gap: its value's bytes' cursor, by the same rules)
   const cursorAt = (e: PointerEvent) => {
@@ -349,7 +360,8 @@ export function Dump(p: { id: ViewId; location: Location; data: DataRef;
   // row's address, inside a selected composite: the child whose block
   // holds all of the slot's values
   const act = (el: EventTarget, keys = false) => {
-    const h = hit(el);
+    const h0 = hit(el);
+    const h = h0 && unowned(h0);
     if (!h || !d || !l) return false;
     // (on what the selection does not light: it ends, and the hover
     // waits for the pointer to move: hush)
