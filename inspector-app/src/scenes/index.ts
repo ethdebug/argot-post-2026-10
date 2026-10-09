@@ -15,15 +15,19 @@ import alicePlays from "../../scenes/alice-plays.json";
 import vyperRules from "../../scenes/pitfall-compiler.json";
 import stepperO0 from "../../scenes/stepper-O0.json";
 import stepperO2 from "../../scenes/optimized-locals.json";
+import realDebugger from "../../scenes/real-debugger.json";
 
 // (in Vite, every scene file, the ones authoring adds too, after these;
 // Node, the snapshot build: these)
 const listed = [rawHero, reveal, rawNamed, carolRecord, mid, alice,
   motd, vyper, pointerWalkthrough, alicePlays, vyperRules, stepperO0, stepperO2]
   .map(sceneOf);
-const files = typeof import.meta.glob === "function"
+const globbed = typeof import.meta.glob === "function"
   ? Object.values(import.meta.glob<unknown>("../../scenes/*.json",
-    { eager: true, import: "default" })).map(sceneOf) : [];
+    { eager: true, import: "default" })) : [];
+// (a figure's file: a scene whose lens brings its own data, no run)
+const isFigure = (j: unknown) => !(j as { run?: unknown }).run;
+const files = globbed.filter((j) => !isFigure(j)).map(sceneOf);
 export const scenes: Scene[] = [...listed.map((s) =>
   files.find((f) => f.id === s.id) ?? s),
 ...files.filter((f) => !listed.some((s) => s.id === f.id))];
@@ -36,3 +40,11 @@ export const page: { id: string; title: string; lens: string }[] = [
   { id: "raw", title: "Raw bytes", lens: "raw" },
   ...["mid", "alice", "motd", "vyper"].map((id) => ({ id,
     title: listed.find((s) => s.id === id)!.title, lens: "inspector" }))];
+
+// The figures: scenes whose lens brings its own data (real-debugger:
+// soldb's), each its id, title, caption and lens; no run, no moments
+export interface Figure { id: string; title: string; caption?: string;
+  lens: string }
+export const figures: Figure[] = [realDebugger as Figure,
+  ...(globbed.filter(isFigure) as Figure[]).filter((f) =>
+    f.id !== realDebugger.id)];

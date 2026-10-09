@@ -58,5 +58,10 @@ html, body { margin: 0; overflow: hidden; background: transparent; }
    as its text) */
 #embed .tree, #embed #tree, #embed pre.src { overflow: visible !important;
   height: auto !important; max-height: none !important; }
+/* (but the real debugger's panes scroll, as a debugger's do: its
+   height holds as it steps through files of any length) */
+#embed .lens.soldb pre.src { overflow: auto !important;
+  height: 26em !important; }
+#embed .lens.soldb .sside .tree { overflow: visible !important; }
 .embed-none { margin: 0; font: 14px system-ui, sans-serif;
   color: #8a4b00; }

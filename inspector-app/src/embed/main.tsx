@@ -25,7 +25,7 @@ import { SceneHost } from "../ui/SceneHost";
 import { columnsOf } from "../ui/columns";
 import { lenses } from "../lenses";
 import { rawLens } from "../lenses/raw";
-import { builds, page, scenes } from "../scenes";
+import { builds, figures, page, scenes } from "../scenes";
 import { PanelPort, channelName, figurePort } from "../ui/panel-port";
 import { setProgress, setRevealed } from "../ui/reveal";
 
@@ -119,6 +119,8 @@ const STILL = 6, WAIT_ROWS = 8000;
 const filled = () => {
   const lens = root.querySelector(".lens");
   if (!lens) return false;
+  // (a figure with data of its own: when it says it is drawn)
+  if (lens.matches("[data-figure]")) return lens.matches("[data-ready]");
   return [...lens.querySelectorAll<HTMLElement>("[data-view]")]
     .filter((v) => !v.closest("[hidden]"))
     .every((v) => v.matches(".tree") ? !!v.querySelector("li[data-path]")
@@ -126,8 +128,10 @@ const filled = () => {
 };
 async function whenDrawn() {
   const t0 = performance.now();
+  // (a figure that loads its own data, soldb's: no time limit; its
+  // own error is drawn as it is)
   while (!root.querySelector(".embed-none, .error") &&
-    !(filled() || performance.now() - t0 > WAIT_ROWS)) {
+    !(filled() || (!figure && performance.now() - t0 > WAIT_ROWS))) {
     await frame();
   }
   await document.fonts?.ready;
@@ -135,8 +139,8 @@ async function whenDrawn() {
   while (still < STILL) {
     await frame();
     const now = Math.ceil(root.getBoundingClientRect().height);
-    still = now === h && (filled() || performance.now() - t0 > WAIT_ROWS)
-      ? still + 1 : 0;
+    still = now === h && (filled() || (!figure &&
+      performance.now() - t0 > WAIT_ROWS)) ? still + 1 : 0;
     h = now;
   }
   ready = true;
@@ -146,14 +150,18 @@ async function whenDrawn() {
 const project = await load(fetchIo(import.meta.env.BASE_URL),
   { scenes, builds, page });
 const scene = project.scenes.find((s) => s.id === id);
-const lens = scene && all.find((l) => l.id === scene.lens);
+// (or a figure: its lens's own page, with its own data)
+const figure = figures.find((f) => f.id === id);
+const lens = all.find((l) => l.id === (scene ?? figure)?.lens);
 if (lens) columns = columnsOf(lens);
 reveals = !!lens?.views.some((v) => v.kind === "dump" &&
   v.display?.annotate);
 void whenDrawn();
 const port = hash.get("panel") === "external"
   ? figurePort(channelName(id, hash.get("channel") ?? "")) : null;
-createRoot(root).render(scene
+createRoot(root).render(figure && lens?.page
+  ? <lens.page spec={lens} project={project} />
+  : scene
   ? <PanelPort.Provider value={port}><SceneHost scene={scene}
     project={project} lenses={all} mode="reader" /></PanelPort.Provider>
   : <p className="embed-none" role="alert">No scene “{id}” to embed
