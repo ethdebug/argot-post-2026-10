@@ -32,7 +32,7 @@ export interface ViewState {    // one view instance's own state
   open?: ReadonlySet<Path>;
 }
 export interface LensState {
-  bookmark?: string;
+  scene?: string;               // the scene shown (a bookmark: its id)
   points: Record<string, PointId>;   // named point slots: "a", "b"
   side?: "before" | "after";    // which of a pair is shown (Phase 1)
   insets: boolean;              // Phase 1 parity; fate open
@@ -71,10 +71,14 @@ export interface Display {
   ruler?: boolean;
 }
 
-// a view's data: a decoding (or "$bm", the current bookmark's) at a
-// point (or a named point slot: "a", "b", or "$side", the shown one)
+// a view's data: a decoding (or "$scene", the scene's) at a moment of
+// the scene: the one shown ("current"), the one before it ("previous";
+// none at the first: the view is idle), or the n-th; or at a point (or
+// a named point slot: "a", "b", or "$side", the shown one; Phase 1's
+// pair, until Before | After goes)
 export type DataRef = { decoding: DecodingId;
-  point: PointId | { slot: string } };
+  point: PointId | { slot: string } }
+  | { decoding: DecodingId; moment: "current" | "previous" | number };
 // … resolved by the Lens
 export type DataAt = { decoding: DecodingId; point: PointId };
 

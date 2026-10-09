@@ -1,27 +1,38 @@
 import { test, expect } from "../../page";
 import { lenses } from "../../../src/lenses";
+import fs from "node:fs";
 
-test("picker lists the reviewed lenses (dev: every lens); ] moves on; " +
-  "reload restores", async ({ page }) => {
+// (the scene files: the registry's, read as Node reads JSON)
+const scenes = fs.readdirSync("scenes").map((f) =>
+  JSON.parse(fs.readFileSync(`scenes/${f}`, "utf8")) as { lens: string });
+
+// (what the picker lists: the scenes, then each lens no scene names)
+const lensOf = (id: string) => lenses.find((l) => l.id === id)!;
+const items = [...scenes.map((s) => lensOf(s.lens)),
+  ...lenses.filter((l) => !scenes.some((s) => s.lens === l.id))];
+
+test("picker lists the reviewed scenes (dev: every scene and lens); ] " +
+  "moves on; reload restores", async ({ page }) => {
     await page.goto("./shell.html");
-    const items = page.locator("[data-shell-picker] [data-lens]");
-    await expect(items).toHaveCount(lenses.filter((l) => !l.dev).length);
+    const list = page.locator("[data-shell-list] button");
+    await expect(list).toHaveCount(items.filter((l) => !l.dev).length);
     await page.locator("[data-shell-dev]").click();
-    await expect(items).toHaveCount(lenses.length);
+    await expect(list).toHaveCount(items.length);
     await expect(page.locator(".shellparity")).toHaveAttribute("href", "./");
     await expect(page.locator('[data-shell-picker] [aria-current="page"]'))
       .toHaveCount(1);
     await page.locator("body").press("]");
-    await expect(page).toHaveURL(/#lens=/);
+    // (the next scene, mid: its lens writes its own keys once shown)
+    await expect(page).toHaveURL(/#scene=mid&dev=1&ex=mid/);
     const url = page.url();
     await page.reload();
     expect(page.url()).toBe(url);
     await expect(page.locator('[data-shell-picker] [aria-current="page"]'))
-      .toHaveAttribute("data-lens",
-        new URL(url).hash.match(/lens=([^&]+)/)![1]);
+      .toHaveAttribute("data-scene",
+        new URL(url).hash.match(/scene=([^&]+)/)![1]);
   });
 
-test("g opens the list; a lens in it shows that lens", async ({ page }) => {
+test("g opens the list; a scene in it shows that scene", async ({ page }) => {
   await page.goto("./shell.html");
   // (the shell mounts once the project is loaded: a key pressed before
   // that has no shell to go to)
@@ -30,9 +41,9 @@ test("g opens the list; a lens in it shows that lens", async ({ page }) => {
   await expect(list).toBeHidden();
   await page.locator("body").press("g");
   await expect(list).toBeVisible();
-  await list.locator(`[data-lens="${lenses[0].id}"]`).click();
+  await list.locator('[data-scene="mid"]').click();
   await expect(list).toBeHidden();
-  await expect(page).toHaveURL(new RegExp(`#lens=${lenses[0].id}(&|$)`));
+  await expect(page).toHaveURL(/#scene=mid(&|$)/);
   await expect(page.locator("#tree li[data-path]").first()).toBeVisible();
 });
 

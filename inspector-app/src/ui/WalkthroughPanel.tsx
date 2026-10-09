@@ -350,7 +350,7 @@ export function WalkthroughPanel(p: { id: ViewId; data: DataRef;
   let construct: ReactNode = <span className="rsrc" />;
   let text: ReactNode;
   // (the scene, for the walkthrough's one line of context)
-  const scene = useLensState((x) => x.bookmark);
+  const scene = useLensState((x) => x.scene);
   const sceneTitle = lens.project.bookmarks.find((b) => b.id === scene)
     ?.title;
   // The bar at rest, two lines (one footprint, selection or none): what

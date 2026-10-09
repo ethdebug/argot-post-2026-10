@@ -7,7 +7,7 @@
 import { panel } from "../ui/Panel";
 import type { LensSpec } from "../ui/types";
 
-const at = (slot: string) => ({ decoding: "$bm", point: { slot } });
+const at = (slot: string) => ({ decoding: "$scene", point: { slot } });
 
 export const insideOnePlay: LensSpec = {
   id: "inside-one-play", title: "Inside one play (locals in memory)",

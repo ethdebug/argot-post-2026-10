@@ -184,7 +184,7 @@ try {
   $("calldata").setAttribute("data-link-scope", "calldata");
   const scene = (lens: LensContextValue) => {
     const s = lens.store.get();
-    const bm = project.bookmarks.find((b) => b.id === s.bookmark);
+    const bm = project.bookmarks.find((b) => b.id === s.scene);
     if (!bm) return;
     for (const p of $("intros").querySelectorAll<HTMLElement>(
       "[data-scene]")) {
@@ -245,7 +245,7 @@ try {
     // (the storage panel's box: shown at a pause that reads a slot)
     const box = async () => {
       const bm = project.bookmarks.find((b) =>
-        b.id === lens.store.get().bookmark);
+        b.id === lens.store.get().scene);
       if (!bm) return;
       const t = await project.timeline(bm.timeline);
       $("mstore").hidden = !t.points.some((p) =>
@@ -304,7 +304,7 @@ try {
       ({ ...s, insets: box.checked })));
     lens.store.subscribe(() => {
       scene(lens);
-      const id = lens.store.get().bookmark;
+      const id = lens.store.get().scene;
       if (id && !lens.store.get().error) recorded(id).catch(() => {});
     });
     window.select = async (id, view) => {
@@ -317,7 +317,7 @@ try {
     // it; usable once one is shown, after a failure once Retry or a pick
     // shows one)
     const usable = () => {
-      const id = lens.store.get().bookmark;
+      const id = lens.store.get().scene;
       if (!id || lens.store.get().error || window.results.done) return;
       recorded(id).then(() => drawn(lens)).then(() => {
         if (window.results.done) return;
@@ -325,9 +325,8 @@ try {
         window.results.usable = performance.now();
         window.results.done = true;
         const bm = project.bookmarks.find((b) => b.id === id)!;
-        prefetch(project.bookmarks.filter((b) =>
-          !b.decoding.startsWith("mem:") && b.id !== bm.id)
-          .map((b) => b.id));
+        prefetch((fullInspector.bookmarks ?? []).filter((b) =>
+          b !== bm.id));
       }, () => {});
     };
     const off = lens.store.subscribe(usable);

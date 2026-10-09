@@ -20,7 +20,7 @@ export function AbiView(p: { id: ViewId; data: DataRef; link?: string;
   const d = useDecoded(p.data);
   const [link, setLink] = useLink(p.link);
   const bm = useLensState((s) => lens.project.bookmarks.find((b) =>
-    b.id === s.bookmark));
+    b.id === s.scene));
   const k = link.hover?.path ?? link.selection;
   // (the parameter: the node with parts)
   const m = d?.tree.find((n) => n.children);

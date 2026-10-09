@@ -64,6 +64,7 @@ const bookmarkOf = (s: Scene, page?: PageScene): ProjectBookmark => ({
   points: s.timeline.map((_, i) => pointOf(s.id, i)) as
     [string] | [string, string],
   ...(s.initial?.select ? { select: s.initial.select } : {}),
+  ...(s.initial?.walk ? { walk: { step: s.initial.walk.step } } : {}),
   ...(s.timeline.length === 2 ? { side: s.initial?.moment === 0 ? "before"
     : "after" } : {}),
   ...(page?.calldata ? { calldata: page.calldata } : {}),
@@ -80,8 +81,11 @@ export async function load(io: Io, o: { scenes: Scene[];
   const mem = fromMemory(memJson);
   const scenes = o.scenes;
   const shown = scenes.filter((s) => s.lens === "inspector");
-  const bookmarks = [...shown.map((s) => bookmarkOf(s,
-    page.find((x) => x.id === s.id))), ...mem.bookmarks];
+  // (every scene of one or two moments, until a lens shows moments
+  // without Before | After: §8 step 4)
+  const bookmarks = [...scenes.filter((s) => s.timeline.length <= 2)
+    .map((s) => bookmarkOf(s, page.find((x) => x.id === s.id))),
+  ...mem.bookmarks];
   const decodings: Record<DecodingId, Decoding> = { ...mem.decodings };
   // (the scenes whose decodings read a compilation)
   const scenesOf = new Map<CompilationId, SceneId[]>();
