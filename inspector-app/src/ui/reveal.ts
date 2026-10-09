@@ -10,14 +10,11 @@ import { createStore } from "./store";
 
 // The reveal's shape, in one place (to tune): the overture. One voice
 // alone, then another, then more and faster, mostly top to bottom: the
-// theme (slot 2, two values in one word), a call and its response
-// (carol's record, then memory's keccak input, key carol), bob, then
-// playerList, alice and motd closer together, and the tutti (the
-// stack's four in a cascade, memory's last under them). (On a phone the
-// order is also where each card is clear of the first beat's bubble,
-// mid-screen, as the figure scrolls under it: playerList's card only
-// from 0.47, motd's only from 0.65.) `score`: by
-// panel, each value's entrance in reading order (the panel's ranks,
+// theme (slot 2, two values in one word), playerList (the keys every
+// record is found by), then the records: bob's, carol's (answered by
+// memory's keccak input, key carol, with alice's), motd, and the tutti
+// (the stack's four in a cascade, memory's last under them). `score`:
+// by panel, each value's entrance in reading order (the panel's ranks,
 // ui/Dump.tsx), [start, length] in the progress; a rank past its
 // panel's list enters with the list's last; a panel not scored, its
 // values evenly over `rest`. Within its entrance, its bytes light over
@@ -33,9 +30,9 @@ import { createStore } from "./store";
 export const REVEAL = {
   score: {
     // (playerList, motd, slot 2's two, carol, bob, alice)
-    storage: [[0.47, 0.09], [0.64, 0.08], [0, 0.18], [0, 0.18],
-      [0.24, 0.12], [0.38, 0.1], [0.54, 0.08]],
-    memory: [[0.3, 0.1], [0.3, 0.1], [0.8, 0.08]],
+    storage: [[0.24, 0.12], [0.64, 0.08], [0, 0.18], [0, 0.18],
+      [0.47, 0.09], [0.38, 0.1], [0.54, 0.08]],
+    memory: [[0.53, 0.09], [0.53, 0.09], [0.8, 0.08]],
     stack: [[0.7, 0.06], [0.73, 0.06], [0.76, 0.06], [0.79, 0.06]],
   } as Record<string, [number, number][]>,
   rest: [0.3, 0.9] as [number, number],
