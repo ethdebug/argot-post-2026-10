@@ -93,6 +93,7 @@ export interface Bookmark {             // a handpicked view of 1 or 2 points
   select?: Path;                        // selected first
   side?: "before" | "after";            // shown first (2 points)
   calldata?: { signature: string; param: string };
+  walk?: { step: number };              // its selection's, started
 }
 export interface TraceRef { url: string; steps: number;
   engine: "ref" | "soldb" }

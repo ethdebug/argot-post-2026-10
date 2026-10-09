@@ -4,7 +4,7 @@ import { initialState } from "../ui/Lens";
 import { resolveRef } from "../ui/hooks";
 import { fullInspector } from "./full-inspector";
 
-it("$bm and the point slots resolve to the bookmark's points",
+it("$scene and the point slots resolve to the bookmark's points",
   async () => {
     const p = await testProject();
     const s = initialState(fullInspector, p);

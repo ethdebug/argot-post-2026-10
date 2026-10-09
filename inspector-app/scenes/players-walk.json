@@ -15,6 +15,9 @@
   ],
   "controls": "none",
   "initial": {
-    "select": "players"
+    "select": "players",
+    "walk": {
+      "step": 0
+    }
   }
 }

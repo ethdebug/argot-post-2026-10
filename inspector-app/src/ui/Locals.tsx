@@ -144,7 +144,7 @@ export function Derivation(p: { id: ViewId; data: DataRef;
   const { single, before, after, pa, pb } = useSides(p.data);
   const lens = useLens();
   const side = useLensState((s) => single ? "after" : s.side ?? "after");
-  const opt = useLensState((s) => s.bookmark?.split("/")[0]
+  const opt = useLensState((s) => s.scene?.split("/")[0]
     .slice(1) ?? "0");
   const [link, setLink] = useLink(p.link);
   const record = (single ? pb : pb ?? pa)?.record;
@@ -299,7 +299,7 @@ export function Note(p: { id: ViewId; data: DataRef; domId?: string;
   const { single, pa, pb } = useSides(p.data);
   const c = useCompilation(p.data);
   const [link] = useLink(p.link);
-  const id = useLensState((s) => s.bookmark ?? "");
+  const id = useLensState((s) => s.scene ?? "");
   if (p.part === "viewing") {
     const sel = link.selection;
     return <span id={p.domId} className="viewing" hidden={!sel}>{sel

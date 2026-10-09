@@ -4,7 +4,7 @@ import {
   render, screen, fireEvent, cleanup, act, waitFor,
 } from "@testing-library/react";
 import { Lens } from "./Lens";
-import { useLink } from "./hooks";
+import { useLink, type LensContextValue } from "./hooks";
 import type { LensSpec } from "./types";
 import type { Project } from "../engine/project";
 import { slotHex } from "../engine/hex";
@@ -89,6 +89,38 @@ describe("with real data", () => {
     expect(project.decodings.mine).toBeUndefined();
     const { container } = render(<Lens spec={spec} project={project} />);
     await waitFor(() => expect(val(container, "totalScore")).toBe("140"), slow);
+  });
+
+  it("moments of the scene: current and previous; previous at moment 0 " +
+    "is idle", async () => {
+    const project = await testProject();
+    const at = (moment: "current" | "previous") =>
+      ({ decoding: "$scene", moment });
+    const spec: LensSpec = {
+      id: "moments", title: "Moments", timelines: [], decodings: [],
+      grid: '"a" "b"', links: ["s"], initial: { scene: "alice" },
+      views: [
+        { id: "a", kind: "dump", area: "a", location: "storage",
+          link: "s", data: at("previous") },
+        { id: "b", kind: "dump", area: "b", location: "storage",
+          link: "s", data: at("current") },
+      ],
+    };
+    let lens: LensContextValue | undefined;
+    const { container } = render(<Lens spec={spec} project={project}
+      onReady={(x) => void (lens = x)} />);
+    const word = (v: Element) => [...v.querySelectorAll(
+      `.wrow[data-slot="${slotHex(2n)}"] .b`)].map((b) => b.textContent)
+      .join("").slice(-2);
+    // (moment 1, after alice's hit: before it 140, after 170)
+    await waitFor(() => expect([...container.querySelectorAll(".view")]
+      .map(word)).toEqual(["8c", "aa"]), slow);
+    await act(async () => void await lens!.show("alice",
+      { mode: "before" }));
+    await waitFor(() => expect([...container.querySelectorAll(".view")]
+      .map(word)).toEqual(["", "8c"]), slow);
+    expect(container.querySelectorAll('.view[data-view$=":a"] .wrow' +
+      "[data-slot]")).toHaveLength(0);
   });
 
   it("two dumps at two literal points: both shown, neither a side",

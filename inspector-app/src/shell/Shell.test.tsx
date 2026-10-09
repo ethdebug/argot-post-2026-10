@@ -74,3 +74,23 @@ it("a link to a dev lens shows it, with dev on", () => {
   const { container } = render(<Shell project={project} lenses={all} />);
   expect(current(container)).toBe("two");
 });
+
+it("lists scenes, each by its lens; a lens no scene names; a link to a " +
+  "lens shows its first scene", () => {
+  const scene = (id: string, l: string) => ({ id, title: `Scene ${id}`,
+    lens: l, run: { scenario: "s", build: "b" }, controls: "none" as const,
+    timeline: [{ tx: 0, step: "end" as const }] });
+  const scenes = [scene("a", "one"), scene("b", "one"), scene("c", "two")];
+  history.replaceState(null, "", "#lens=two");
+  const { container } = render(<Shell project={project} lenses={lenses}
+    scenes={scenes} />);
+  const ids = () => [...container.querySelectorAll(
+    "[data-shell-list] button")].map((b) => b.getAttribute("data-scene") ??
+    `lens ${b.getAttribute("data-lens")}`);
+  expect(ids()).toEqual(["a", "b", "c", "lens three"]);
+  expect(container.querySelector('[aria-current="page"]')
+    ?.getAttribute("data-scene")).toBe("c");
+  expect(location.hash).toBe("#scene=c");
+  act(() => void fireEvent.keyDown(document.body, { key: "]" }));
+  expect(location.hash).toBe("#lens=three");
+});

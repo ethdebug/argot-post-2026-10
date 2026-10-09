@@ -103,7 +103,7 @@ export function transition(change: () => void): void {
 // view shows, deliberately: the view turned on or off, or (while it is
 // on, with no walkthrough, in the same bookmark's showing) a selection
 const rowsChange = (a: LensState, b: LensState) =>
-  a.bookmark === b.bookmark && a.shows === b.shows &&
+  a.scene === b.scene && a.shows === b.shows &&
   ((a.related === undefined) !== (b.related === undefined) ||
     (!!b.related && Object.keys(b.links).some((k) => {
       const [x, y] = [a.links[k], b.links[k]];

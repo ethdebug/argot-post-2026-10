@@ -5,7 +5,7 @@ import { createContext, useContext, useEffect, useMemo, useState,
 import type { Project } from "../engine/project";
 import type {
   Compilation, Decoded, Decoding, Filter, Hex, Layout, Light, Location,
-  Snapshot, TimelinePoint,
+  PointId, Snapshot, TimelinePoint,
 } from "../engine/types";
 import { decode } from "../engine/decode";
 import { layout } from "../engine/layout";
@@ -22,6 +22,7 @@ import { locked } from "../engine/target";
 import { byteKey } from "../engine/hex";
 import { regionBytes } from "../engine/layout";
 import type { Store } from "./store";
+import { pointOf } from "../engine/scene";
 import type {
   DataAt, DataRef, LensSpec, LensState, LinkState, ViewState, ViewSpec,
 } from "./types";
@@ -72,16 +73,31 @@ export const NO_LINK: LinkState = { selection: null, hover: null,
   walk: null };
 export const NO_VIEW: ViewState = { collapsed: new Set() };
 
-// A DataRef in this lens's state: "$bm" is the bookmark's decoding; a
+// A DataRef in this lens's state: "$scene" is the bookmark's decoding; a
 // point slot is the point it holds ("$side": the side shown; "$other":
 // the other one of the pair)
+// A moment of the scene shown, as its point: the one shown (the side
+// shown, of a pair), the one before it, or the n-th
+function momentOf(m: "current" | "previous" | number, s: LensState):
+  PointId | undefined {
+  if (!s.scene) return undefined;
+  const shown = s.points[s.side === "before" ? "a" : "b"];
+  const i = Number(shown?.slice(s.scene.length + 1));
+  const k = m === "current" ? i : m === "previous" ? i - 1 : m;
+  return Number.isInteger(k) && k >= 0 ? pointOf(s.scene, k) : undefined;
+}
+
 export function resolveRef(ref: DataRef, s: LensState, p: Project):
   DataAt | undefined {
   // ("$abi": the bookmark's call's calldata, when it names one)
-  const decoding = ref.decoding === "$bm"
-    ? p.bookmarks.find((b) => b.id === s.bookmark)?.decoding
-    : ref.decoding === "$abi" ? (p.decodings[`abi:${s.bookmark}`]
-      ? `abi:${s.bookmark}` : undefined) : ref.decoding;
+  const decoding = ref.decoding === "$scene"
+    ? p.bookmarks.find((b) => b.id === s.scene)?.decoding
+    : ref.decoding === "$abi" ? (p.decodings[`abi:${s.scene}`]
+      ? `abi:${s.scene}` : undefined) : ref.decoding;
+  if ("moment" in ref) {
+    const at = momentOf(ref.moment, s);
+    return decoding && at ? { decoding, point: at } : undefined;
+  }
   const slot = typeof ref.point === "string" ? null : ref.point.slot;
   const point = slot === null ? ref.point as string
     : s.points[slot === "$side" ? (s.side === "before" ? "a" : "b")
