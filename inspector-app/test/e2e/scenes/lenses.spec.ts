@@ -2,7 +2,7 @@
 // page: hover a plain fill (no caps), the rest steps back, caps on a
 // selection; chevrons at the row's right end
 import type { Page } from "@playwright/test";
-import { test, expect } from "../../page";
+import { test, expect, stable } from "../../page";
 
 const A = "players[0x70997970c51812dc3a010c7d01b50e0d17dc79c8]";
 const open = async (page: Page, lens: string) => {
@@ -91,8 +91,7 @@ for (const lens of ["alice-plays", "vyper", "players-walk"]) {
       + "as its dumps; no sideways scroll", async ({ page }) => {
       await page.setViewportSize({ width, height: 900 });
       await open(page, lens);
-      await page.waitForTimeout(200);
-      const f = await fit(page);
+      const f = await stable(() => fit(page));
       expect(f.wide).toBe(false);
       expect(f.over).toBe(0);
       // (players-walk has no tree)
@@ -109,9 +108,8 @@ for (const ex of ["vyper", "motd", "mid"]) test(`the parity page opened at `
   await page.goto(`./#ex=${ex}`);
   await page.waitForFunction(() =>
     (window as unknown as { results?: { done: boolean } }).results?.done);
-  await page.waitForTimeout(200);
-  const g = await page.evaluate(() =>
+  const g = await stable(() => page.evaluate(() =>
     document.querySelector("#dump")!.getBoundingClientRect().bottom -
-    document.querySelector("#tree")!.getBoundingClientRect().bottom);
+    document.querySelector("#tree")!.getBoundingClientRect().bottom));
   expect(Math.abs(g)).toBeLessThanOrEqual(2);
 });

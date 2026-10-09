@@ -20,7 +20,12 @@ export const test = base.extend<{ quiet: boolean }>({
     });
     page.on("console", (m) => m.type() === "error" &&
       problems.push(`console: ${m.text()}`));
-    page.on("pageerror", (e) => problems.push(`pageerror: ${e}`));
+    page.on("pageerror", (e) => {
+      // (WebKit reports a fetch that a navigation cut off, as the idle
+      // prefetch's can be, as a page error; the page catches the fetch)
+      if (!/^Fetch API cannot load .* due to access control checks/
+        .test(e.message)) problems.push(`pageerror: ${e}`);
+    });
     await use(page);
     if (quiet) expect(problems).toEqual([]);
   },
@@ -83,3 +88,34 @@ export const boxes = (page: Page, sel: string) => page.locator(sel)
     return [r.left + scrollX, r.top + scrollY, r.width, r.height]
       .map(Math.round).join();
   }));
+
+// Waits until nothing moves: no animation or transition running (one
+// that loops for ever aside), and the window's scroll the same, for
+// `frames` frames in a row (a smooth scroll comes before an animation)
+export const still = (page: Page, frames = 10) => page.evaluate((n) =>
+  new Promise<void>((ok) => {
+    let quiet = 0;
+    let y = scrollY;
+    const tick = () => {
+      const busy = document.getAnimations().some((a) =>
+        (a.playState === "running" || a.pending) &&
+        a.effect?.getComputedTiming().iterations !== Infinity);
+      quiet = !busy && scrollY === y ? quiet + 1 : 0;
+      y = scrollY;
+      if (quiet >= n) ok();
+      else requestAnimationFrame(tick);
+    };
+    requestAnimationFrame(tick);
+  }), frames);
+
+// What `read` gives once it gives the same twice in a row
+export async function stable<T>(read: () => Promise<T>): Promise<T> {
+  let last: string | undefined;
+  await expect.poll(async () => {
+    const now = JSON.stringify(await read());
+    const same = now === last;
+    last = now;
+    return same;
+  }, { intervals: [50] }).toBe(true);
+  return JSON.parse(last!) as T;
+}

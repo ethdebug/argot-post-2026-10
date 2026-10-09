@@ -4,7 +4,7 @@
 // are out of view; Start scrolls first, then unfolds; Exit goes back to
 // where the reader was
 import type { Page } from "@playwright/test";
-import { test, expect, ready, select } from "../../page";
+import { test, expect, ready, select, still } from "../../page";
 import { C } from "../../expect";
 
 const at = (page: Page, width = 1440, height = 900) =>
@@ -129,16 +129,17 @@ test("one ✕ Exit, even while the details unfold, ends the walkthrough",
   async ({ page }) => {
     await page.emulateMedia({ reducedMotion: "no-preference" });
     await ready(page);
+    // (the Exit at four moments of the unfold: the waits are the test)
     for (const wait of [0, 150, 400, 1500]) {
       await select(page, "mid", "players");
       await page.evaluate(() => scrollTo(0, 0));
       await page.locator('#details button[data-r="start"]').click();
       await page.waitForTimeout(wait);
       await page.locator('#details button[data-r="exit"]').click();
-      await page.waitForTimeout(1500);
+      await still(page);
       await page.locator('#tree li[data-path="totalScore"] > .row')
         .dispatchEvent("click");
-      await page.waitForTimeout(100);
+      await still(page);
       expect(await page.locator("#details.replaying").count(), `${wait}`)
         .toBe(0);
       await page.keyboard.press("Escape");

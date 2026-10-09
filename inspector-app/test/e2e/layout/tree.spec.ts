@@ -1,7 +1,7 @@
 // Mirrors bin/run.mjs's collapse and edge-button checks (vanilla
 // 2ff37ec), on the parity page
 import type { Page } from "@playwright/test";
-import { test, expect, ready, select, type Win } from "../../page";
+import { test, expect, ready, select, still, type Win } from "../../page";
 import { A, B, C } from "../../expect";
 
 const chev = (page: Page, p: string) =>
@@ -137,15 +137,19 @@ test("a group opens and closes with a short height animation; none with "
   await page.emulateMedia({ reducedMotion: "no-preference" });
   await ready(page);
   await select(page, "mid", null);
-  const heights = async () => {
-    const out: number[] = [];
-    for (let k = 0; k < 6; k++) {
-      out.push(await page.evaluate(() => (document.querySelector(
-        '#tree li[data-path="playerList"] > ul') as HTMLElement).offsetHeight));
-      await page.waitForTimeout(30);
-    }
-    return out;
-  };
+  // (the group's height every frame, from the click until it is still)
+  const heights = () => page.evaluate(() => new Promise<number[]>((ok) => {
+    const ul = document.querySelector<HTMLElement>(
+      '#tree li[data-path="playerList"] > ul')!;
+    const out = [ul.offsetHeight];
+    const tick = () => {
+      out.push(ul.offsetHeight);
+      if (ul.getAnimations().length && out.length < 300) {
+        requestAnimationFrame(tick);
+      } else ok(out);
+    };
+    requestAnimationFrame(tick);
+  }));
   await chev(page, "playerList").click();
   const closing = await heights();
   expect(closing.some((h) => h > 0 && h < closing[0] + 1)).toBe(true);
@@ -205,27 +209,28 @@ test("quick chevron clicks during the animation end in the right state",
     const li = page.locator('#tree li[data-path="playerList"]');
     await chev(page, "playerList").click();
     await chev(page, "playerList").click();
-    await page.waitForTimeout(400);
+    await still(page);
     await expect(li).not.toHaveClass(/\bcollapsed\b/);
     await expect(chev(page, "playerList")).toHaveAttribute("aria-expanded",
       "true");
     await chev(page, "playerList").click();
     await chev(page, "playerList").click();
     await chev(page, "playerList").click();
-    await page.waitForTimeout(400);
+    await still(page);
     await expect(li).toHaveClass(/\bcollapsed\b/);
     // (a selection made meanwhile is not hidden by a late close)
     await chev(page, "players").click();
     await select(page, "mid", `${A}.score`);
-    await page.waitForTimeout(400);
+    await still(page);
     await expect(page.locator('#tree li[data-path="players"]'))
       .not.toHaveClass(/\bcollapsed\b/);
   });
 
 test("a scrolled tree aligns as an unscrolled one (its padding stays)",
   async ({ page }) => {
-    await page.setViewportSize({ width: 1400, height: 700 });
-    await ready(page);
+    await ready(page, { width: 1400, height: 700 });
+    // (the dump's font fitted: the tree's height follows it)
+    await still(page);
     const pad = () => page.evaluate(() =>
       document.querySelector<HTMLElement>("#tree")!.style.paddingTop);
     const before = await pad();

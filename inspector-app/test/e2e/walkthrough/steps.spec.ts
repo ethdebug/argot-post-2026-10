@@ -3,7 +3,9 @@
 // on-chain `name` values, quoted
 import type { Page } from "@playwright/test";
 import { pick } from "../../pick";
-import { test, expect, ready, select, row, selected } from "../../page";
+import {
+  test, expect, ready, select, row, selected, still, stable,
+} from "../../page";
 import { A, B, C, NAME_C } from "../../expect";
 
 const CAROL = `"${NAME_C}"`;
@@ -541,7 +543,7 @@ test("stepping moves nothing; the details unfold only at entry and exit",
       document.querySelector<HTMLElement>("#dwrap")!.offsetHeight);
     const early = await h();
     // (the page scrolls to the bar first, then the details unfold)
-    await page.waitForTimeout(1500);
+    await still(page);
     const full = await h();
     expect(early).toBeLessThan(full);
     // (the panel sticks to the top of the view: its boxes on screen; the
@@ -618,14 +620,11 @@ test("the pointer's box: no scrollbar; edge buttons where there is more; "
   });
   await page.locator("#ptr").hover();
   await page.mouse.wheel(0, 300);
-  await page.waitForTimeout(150);
-  const z = await pb();
+  const z = await stable(pb);
   await page.locator('#details button[data-r="next"]').click();
-  await page.waitForTimeout(100);
-  const o = await pb();
+  const o = await stable(pb);
   if (o.down) await page.locator("#pedge-down").click();
-  await page.waitForTimeout(200);
-  const d = await pb();
+  const d = await stable(pb);
   await page.keyboard.press("Escape");
   expect(z).toMatchObject({ bar: 0, top: 0, up: false, down: false });
   expect(z.blur).toMatch(/blur/);
