@@ -1333,11 +1333,13 @@ html { overflow-anchor: none; }
 
 /* (a location panel with one view: its header names it; no view name) */
 .view-name:empty { display: none; }
-/* While a selection rests, a click on what it does not light only ends
-   it: no pointer there (data-exits: ui/types.ts exiting) */
-[data-exits] .b[data-owners]:not(.hl),
-:is(#tree, #mtree, .tree)[data-exits] .row:not(.hl) {
+/* While a selection rests, a click outside it (not lit, not consulted)
+   only ends it: no pointer there (data-exits: ui/types.ts outside); an
+   anchor's bytes, owned by none, select the variable it anchors */
+[data-exits] .b[data-owners]:not(.hl):not(.rel),
+:is(#tree, #mtree, .tree)[data-exits] .row:not(.hl):not(.rel) {
   cursor: default; }
+[data-exits] .wrow.anchor .b { cursor: pointer; }
 /* during a walkthrough, the bar and its details stick to the top of the
    view (below a host's scroll-padding-top: WalkthroughPanel sets `top`)
    while the storage section is in view; the dump scrolls under them */

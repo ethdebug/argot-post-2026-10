@@ -158,6 +158,11 @@ export function withRelated(light: Light, d: Decoded, l: Layout,
   const lit = new Set([...light.bytes].map((k) => k.split("|")[1]));
   // (an anchor the selection lights is its own: no note)
   for (const h of [...anchors.keys()]) if (lit.has(h)) anchors.delete(h);
+  // (the variable whose slot it consulted, as an anchor or read: its
+  // tree row consulted too, neutral; a read one's owners are, above)
+  for (const p of anchors.values()) {
+    if (!light.rows.has(p) && !relColours.has(p)) relColours.set(p, 0);
+  }
   return { ...light, related: new Set(rows.filter((r) => !lit.has(r))),
     relBytes, relColours, relReads: reads, anchors };
 }
