@@ -79,6 +79,14 @@ function names(on: boolean) {
 // new one while one runs replaces it (the browser skips the old one,
 // which then leaves the names and the class to the new one).
 let running = 0;
+// (the one animating now, past its capture: its end)
+let animatingNow: Promise<void> | null = null;
+// Run `f` now, or, while a transition animates, at its end
+export function afterTransition(f: () => void): void {
+  const a = animatingNow;
+  if (!a) return f();
+  a.then(() => afterTransition(f));
+}
 export function transition(change: () => void): void {
   const doc = document as Doc;
   if (!doc.startViewTransition ||
@@ -101,6 +109,16 @@ export function transition(change: () => void): void {
       flushSync(change);
       await new Promise<void>((r) => queueMicrotask(r));
       names(true);
+    });
+    // (from its capture to its end: the page under it is its new state,
+    // live; nothing redraws it meanwhile, as Firefox ends a transition
+    // whose named elements are replaced)
+    const end = t.finished.then(() => {}, () => {});
+    t.ready.then(() => {
+      if (mine === running) animatingNow = end;
+    }, () => {});
+    end.then(() => {
+      if (animatingNow === end) animatingNow = null;
     });
     t.finished.finally(done);
   } catch {

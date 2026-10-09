@@ -7,13 +7,15 @@ import { drawOverlays, type ViewData } from "./overlays";
 
 // one drawing of a box's overlays per commit, however many of its dumps
 // rendered (the pending mark lives on the box's element)
+// (while a view transition animates, its new state is the live page:
+// the overlays wait for its end, then draw; ui/transition.ts)
 function schedule(root: HTMLElement & { _overlays?: boolean }) {
   if (root._overlays) return;
   root._overlays = true;
-  queueMicrotask(() => {
+  queueMicrotask(() => afterTransition(() => {
     root._overlays = false;
     if (root.isConnected) drawOverlays(root);
-  });
+  }));
 }
 import type {
   CSSProperties, KeyboardEvent, MouseEvent, PointerEvent, ReactElement,
@@ -30,7 +32,7 @@ import {
 import { blockOf, resolveTarget } from "../engine/target";
 import { noLight } from "../engine/light";
 import { relClass } from "../engine/related";
-import { vtName } from "./transition";
+import { afterTransition, vtName } from "./transition";
 import { readWritten } from "../engine/timeline";
 import {
   addressText, addressing, hex4, rowBytes,
