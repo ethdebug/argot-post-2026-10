@@ -59,7 +59,8 @@ function shower(store: Store<LensState>, spec: LensSpec, project: Project,
     let tree;
     try {
       tree = await decode(project, dc!, bm.points[moment]);
-      await Promise.all(bm.points.map((p) => decode(project, dc!, p)));
+      // (and the moment before it: a scene of two shows both)
+      if (moment > 0) await decode(project, dc!, bm.points[moment - 1]);
     } catch (e) {
       if (ticket !== wanted) return false;
       store.set((s) => ({ ...s, error: String((e as Error)?.message ?? e) }));
@@ -122,9 +123,8 @@ function useWhen(point: string): string | undefined {
     const tl = point.slice(0, point.lastIndexOf(":"));
     const id = project.bookmarks.find((b) => b.points.includes(point))
       ?.timeline ?? `scene:${tl}`;
-    project.timeline(id).then((t) => {
-      const p = t.points.find((x) => x.id === point);
-      if (live && p) setLabel({ point, text: p.label });
+    project.point(id, point).then((p) => {
+      if (live) setLabel({ point, text: p.label });
     }, () => {});
     return () => {
       live = false;
@@ -189,8 +189,10 @@ export function Lens(props: { spec: LensSpec; project: Project;
     }
     const id = want?.bookmark ?? st.get().scene;
     // (a hash that names no scene of the lens: the scene's own view)
+    const at = spec.initial?.moment;
     const ready = id ? show(id, want?.bookmark ? { sel: want.selection }
-      : undefined) : Promise.resolve(true);
+      : at !== undefined ? { moment: at } : undefined)
+      : Promise.resolve(true);
     let live = true;
     const unsub = props.hash ? (() => {
       let off = () => {};

@@ -3,10 +3,12 @@
 // reader's path) or from a snapshot file (the reader: the scene's
 // moments only). The one seam between the modes.
 import type {
-  Compilation, Decoding, Hex, Snapshot, SourceFile, TimelinePoint, TxFacts,
+  Compilation, Decoding, Hex, Snapshot, SourceFile, SourceRange,
+  TimelinePoint, TxFacts,
 } from "./types";
 import type { Build, Format, Moment } from "./run/types";
 import { order, pointOf, sceneOf, type Scene } from "./scene";
+import { momentPoint } from "./moment";
 
 export interface BuildSlice {     // a Build cut down to what a scene needs
   // (every compilation the scene's decodings read, and the decodings;
@@ -26,6 +28,10 @@ export interface SceneSnapshot {  // snapshots/<scene>.json
 }
 export interface MomentSource {
   moments: Moment[];
+  // a moment, annotated (a run's "all": as it is visited), and the last
+  // source range at or before it in its transaction (none: none yet)
+  moment(i: number): Moment;
+  last(i: number): SourceRange | undefined;
   state(i: number): Promise<Snapshot>;
   facts(i: number): TxFacts | null;
   build: Build | BuildSlice;
@@ -35,6 +41,9 @@ export interface MomentSource {
 export function fromSnapshot(file: SceneSnapshot): MomentSource {
   return {
     moments: file.scene.timeline, build: file.build,
+    moment: (i) => file.scene.timeline[i],
+    // (a snapshot's moments: their own ranges)
+    last: (i) => file.scene.timeline[i]?.range,
     state: async (i) => file.states[i],
     facts: (i) => file.facts[i],
     digest: async () => file.digest,
@@ -45,10 +54,21 @@ export function fromSnapshot(file: SceneSnapshot): MomentSource {
 // the views read these): each moment's state and facts, its label
 export async function pointsOf(scene: string, src: MomentSource):
   Promise<TimelinePoint[]> {
-  return Promise.all(src.moments.map(async (m, i) => ({
-    id: pointOf(scene, i), label: m.label ?? "",
-    at: { tx: m.tx, step: m.step }, snapshot: await src.state(i),
-    transaction: src.facts(i) ?? undefined })));
+  return Promise.all(src.moments.map(async (_, i) =>
+    pointAt(pointOf(scene, i), src, i)));
+}
+
+// One moment as a point (engine/moment.ts momentPoint): its state, its
+// facts, its locals and its range (or the last one before it, muted).
+// (`all`: every variable its context lists, the storage ones too: the
+// debugger's scope)
+export async function pointAt(id: string, src: MomentSource, i: number,
+  all = false): Promise<TimelinePoint> {
+  const b = src.build as Build;
+  return momentPoint(id, src.moment(i), await src.state(i), {
+    ...b.programs && !all ? { build: b } : {},
+    ...src.facts(i) ? { transaction: src.facts(i)! } : {},
+    last: src.last(i) });
 }
 
 // ------------------------------------------------- the file

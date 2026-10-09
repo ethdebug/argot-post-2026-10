@@ -4,6 +4,7 @@ import "../style.css";
 import "../ui/port.css";
 import "../lenses/raw.css";
 import "../ui/code.css";
+import "../lenses/debugger.css";
 import "./shell.css";
 import { createRoot } from "react-dom/client";
 import { fetchIo } from "../engine/io";

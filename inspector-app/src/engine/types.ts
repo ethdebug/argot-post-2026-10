@@ -107,7 +107,7 @@ export interface Decoding {             // "this rule over that storage"
   id: DecodingId;
   compilation: CompilationId;           // whose variables + templates
   timeline: TimelineId;                 // whose snapshots
-  variables: "state" | "locals" | "abi";
+  variables: "state" | "locals" | "abi" | "scope";
   keys: KeySource;                      // where mapping keys come from
   // ("abi": a call's calldata by the ABI encoding, for this function and
   // its one string parameter)

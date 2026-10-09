@@ -16,7 +16,7 @@ import { load, type Runs } from "../src/engine/project";
 import type { Io } from "../src/engine/io";
 import { sceneSnapshot } from "../src/engine/snapshots";
 import { snapshotJson } from "../src/engine/source";
-import type { Scene } from "../src/engine/scene";
+import { sceneJson, sceneOf, type Scene } from "../src/engine/scene";
 import { builds, scenes as all } from "../src/scenes";
 
 const app = path.dirname(path.dirname(fileURLToPath(import.meta.url)));
@@ -86,12 +86,43 @@ export function snapshotter(o: { scenes?: Scene[];
   };
 }
 
+// Authoring's write (addendum §3.1, dev server only): a scene's file,
+// scenes/<id>.json, from its JSON; an id is lower-case letters, digits
+// and dashes (no path); the JSON must be a scene of that id
+export function writeScene(dir: string, id: string, json: unknown):
+  string {
+  if (!/^[a-z0-9][a-z0-9-]*$/.test(id)) throw new Error(`no scene id ${id}`);
+  const s = sceneOf(json);
+  if (s.id !== id) throw new Error(`the scene's id is ${s.id}, not ${id}`);
+  const file = path.join(dir, `${id}.json`);
+  fs.writeFileSync(file, sceneJson(s));
+  return file;
+}
+
 export function scenesPlugin(): Plugin {
   let file: ReturnType<typeof snapshotter> | undefined;
   return {
     name: "scenes",
     configureServer(server) {
       const re = new RegExp(`^${server.config.base}snapshots/([^/]+)\\.json$`);
+      // (authoring: POST /__scene/<id>, a scene's file written)
+      server.middlewares.use((req, res, next) => {
+        const m = req.method === "POST" &&
+          req.url?.split("?")[0].match(/^\/__scene\/([^?]*)$/);
+        if (!m) return next();
+        let body = "";
+        req.on("data", (c) => void (body += c));
+        req.on("end", () => {
+          try {
+            writeScene(path.join(app, "scenes"), decodeURIComponent(m[1]),
+              JSON.parse(body));
+            res.end("ok");
+          } catch (e) {
+            res.statusCode = 400;
+            res.end(String((e as Error)?.message ?? e));
+          }
+        });
+      });
       server.middlewares.use(async (req, res, next) => {
         const m = req.url?.split("?")[0].match(re);
         if (!m) return next();

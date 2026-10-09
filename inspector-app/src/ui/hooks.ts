@@ -418,9 +418,11 @@ export function usePointAt(ref: DataRef | undefined):
     let live = true;
     const dc = decodingOf(lens, decoding);
     if (!dc) return;
-    project.timeline(dc.timeline).then((t) => {
-      const i = t.points.findIndex((x) => x.id === point);
-      if (live && i >= 0) setGot({ key, at: { p: t.points[i], i } });
+    // (its place: in its scene's moments)
+    const i = project.bookmarks.find((b) => b.points.includes(point))
+      ?.points.indexOf(point) ?? -1;
+    project.point(dc.timeline, point).then((p) => {
+      if (live) setGot({ key, at: { p, i } });
     }, quiet);
     return () => {
       live = false;

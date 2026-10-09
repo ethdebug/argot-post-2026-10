@@ -111,7 +111,7 @@ function Row({ n, top, c, inBlk }: { n: ValueNode; top?: boolean; c: Ctx;
       {CHEV}</button>}
     {group ? <ul>{n.children!.map((x) => <Row key={x.path} n={x} c={c}
       inBlk={inBlk || blk} />)}</ul>
-      : n.children && !n.value && !own
+      : n.children && !n.value && !own && !n.path.startsWith("@")
         ? <p className="muted empty">no keys hashed in this transaction</p>
         : null}
   </li>;
