@@ -10,15 +10,20 @@ html, body { margin: 0; overflow: hidden; background: transparent; }
   --line: rgb(31 35 40 / 0.14);
 }
 @media (prefers-color-scheme: dark) {
-  #embed { --panel: rgb(255 255 255 / 0.04);
-    --line: rgb(230 228 223 / 0.14); }
+  :root:not([data-theme="light"]) #embed {
+    --panel: rgb(255 255 255 / 0.04); --line: rgb(230 228 223 / 0.14); }
 }
+:root[data-theme="dark"] #embed { --panel: rgb(255 255 255 / 0.04);
+  --line: rgb(230 228 223 / 0.14); }
 /* (a lens's grid: its columns share the width) */
 #embed .lens { grid-auto-columns: minmax(0, 1fr); gap: 0 28px;
   align-items: start; }
+/* (a composition narrower than its frame, the raw lens's: centred) */
+#embed .lens.raw { justify-content: center; }
 #embed .lens.raw { padding: 0; max-width: none; }
 /* (no box behind a panel's title: the host's page shows through) */
 #embed .view-head { background: transparent; position: static; }
+#embed .wrow.head .addr { background: transparent; }
 /* (the page's own parts: the contract's source, the scene picker) */
 #embed [data-area="contract"], #embed [data-area="pick"] { display: none; }
 /* (Before | After, for a scene of one point: nothing to pick) */

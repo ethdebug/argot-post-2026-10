@@ -407,8 +407,10 @@ export function Tree(p: { id: ViewId; data: DataRef; filter?: Filter;
     };
     align();
     // (none in jsdom)
+    // (after this frame's layout: a re-align that resizes what it
+    // watches waits a frame, no resize loop)
     const seen = typeof ResizeObserver === "undefined" ? null
-      : new ResizeObserver(() => align());
+      : new ResizeObserver(() => requestAnimationFrame(align));
     for (const x of dumps()) seen?.observe(x.closest(".dump") ?? x);
     // (again once the dump's rows and the page's fonts are in)
     const later = requestAnimationFrame(align);

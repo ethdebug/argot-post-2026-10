@@ -3,9 +3,11 @@
 // what each view shows: its data, and for Phase 1's pair of dumps,
 // which side is shown and what it is called.
 import {
-  useEffect, useId, useMemo, useState, type ComponentType, type ReactNode,
+  useEffect, useId, useMemo, useState, type ComponentType,
+  type CSSProperties, type ReactNode,
 } from "react";
 import { createPortal } from "react-dom";
+import { narrowAreas } from "./narrow";
 import type { Project } from "../engine/project";
 import { decode } from "../engine/decode";
 import { fromHash, toHash } from "../engine/hash";
@@ -332,8 +334,9 @@ export function Lens(props: { spec: LensSpec; project: Project;
     ? Object.entries(wrapped).map(([a, n]) => mount[a]
       ? createPortal(n, mount[a], a) : null)
     : <div className={["lens", spec.layout].filter(Boolean).join(" ")}
-      style={spec.grid ? { display: "grid", gridTemplateAreas: spec.grid }
-        : undefined}>
+      style={spec.grid ? { display: "grid", gridTemplateAreas: spec.grid,
+        "--narrow-areas": narrowAreas(spec.grid, spec.areas) } as
+        CSSProperties : undefined}>
       {Object.entries(wrapped).map(([a, n]) =>
         <div key={a} className={spec.areas?.[a]} data-area={a}
           data-link-scope={spec.scopes?.[a]}

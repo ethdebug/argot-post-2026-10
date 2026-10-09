@@ -419,11 +419,13 @@ li.same > .row .name, li.same > .row .type { opacity: 0.55; }
 .pop .pname.pbadge { padding: 0 0.37em; border-radius: 0.28em; font-weight: 700;
   color: var(--pk-fg); background: color-mix(in srgb, var(--pk) 35%, #fff); }
 .pop .pname.pbadge.pk0 { --pk: var(--mark); --pk-fg: var(--chg-fg); }
+/* (dark: the badge light, its text the colour's strong tone) */
 @media (prefers-color-scheme: dark) {
-  /* (the badge light, its text the colour's strong tone) */
-  .pop .pname.pbadge { color: var(--pk);
+  :root:not([data-theme="light"]) .pop .pname.pbadge { color: var(--pk);
     background: color-mix(in srgb, var(--pk-fg) 40%, #fff); }
 }
+:root[data-theme="dark"] .pop .pname.pbadge { color: var(--pk);
+  background: color-mix(in srgb, var(--pk-fg) 40%, #fff); }
 .pop .pname.muted { filter: saturate(0.25); opacity: 0.7; }
 /* Bytes no value owns: "(unmapped)", italic, muted; pointed at, a
    neutral badge (no colour), and the bytes a neutral light */
@@ -713,8 +715,9 @@ main[data-single] .walkzone > .cols :is(.chglegend, .legend .bchg,
 /* the colouring: Shiki's two themes as CSS variables */
 #contract-src.coloured span { color: var(--shiki-light); }
 @media (prefers-color-scheme: dark) {
-  #contract-src.coloured span { color: var(--shiki-dark); }
+  :root:not([data-theme="light"]) #contract-src.coloured span { color: var(--shiki-dark); }
 }
+:root[data-theme="dark"] #contract-src.coloured span { color: var(--shiki-dark); }
 .srcbox > .src { border: none; border-top: 1px solid var(--line);
   border-radius: 0 0 6px 6px; }
 .calldata { margin-top: 20px; }
@@ -918,13 +921,16 @@ main[data-single] .scols .view-name { display: none; }
 .ptrlines .line.on { background: color-mix(in srgb, var(--mark) 55%,
   transparent); box-shadow: inset 3px 0 0 var(--accent); }
 @media (prefers-color-scheme: dark) {
-  .ptrlines .line.on { background: color-mix(in srgb, var(--accent) 22%,
+  :root:not([data-theme="light"]) .ptrlines .line.on { background: color-mix(in srgb, var(--accent) 22%,
     transparent); }
 }
+:root[data-theme="dark"] .ptrlines .line.on { background: color-mix(in srgb, var(--accent) 22%,
+    transparent); }
 #ptr .ptrlines span { color: var(--shiki-light, inherit); }
 @media (prefers-color-scheme: dark) {
-  #ptr .ptrlines span { color: var(--shiki-dark, inherit); }
+  :root:not([data-theme="light"]) #ptr .ptrlines span { color: var(--shiki-dark, inherit); }
 }
+:root[data-theme="dark"] #ptr .ptrlines span { color: var(--shiki-dark, inherit); }
 /* on a phone: the same, compact (the step's caption and formula, a
    few lines of the pointer; the rest scrolls inside it) */
 
@@ -1212,9 +1218,11 @@ html { overflow-anchor: none; }
 .ptrlines .line.on { background: color-mix(in srgb, var(--pknt) 70%,
   transparent); box-shadow: inset 3px 0 0 var(--pknt-edge); }
 @media (prefers-color-scheme: dark) {
-  .ptrlines .line.on { background: color-mix(in srgb, var(--pknt) 70%,
+  :root:not([data-theme="light"]) .ptrlines .line.on { background: color-mix(in srgb, var(--pknt) 70%,
     transparent); }
 }
+:root[data-theme="dark"] .ptrlines .line.on { background: color-mix(in srgb, var(--pknt) 70%,
+    transparent); }
 /* (step 0's halo on ▶, and the tree's edge buttons: not the selection's
    yellow) */
 .rbar .btn.halo { box-shadow: 0 0 0 3px color-mix(in srgb, var(--pknt-edge)
@@ -1246,7 +1254,9 @@ html { overflow-anchor: none; }
 .rbar .rsel { flex: 1; min-width: 0; overflow: hidden;
   text-overflow: ellipsis; }
 .rbar .rctl { display: flex; align-items: center; gap: 6px; flex: none; }
-.rbar .rctl .rstart { padding: 3px 14px; font-weight: 600; color: var(--panel);
+/* (its text the page's colour, solid: a panel's colour may be
+   translucent, an embed's) */
+.rbar .rctl .rstart { padding: 3px 14px; font-weight: 600; color: var(--bg);
   background: var(--accent); border-color: var(--accent); }
 .rbar .rctl .rstart:hover:not(:disabled) { filter: brightness(1.1); }
 .rbar .rctl .rstart[disabled] { opacity: 0.5; cursor: default; }
