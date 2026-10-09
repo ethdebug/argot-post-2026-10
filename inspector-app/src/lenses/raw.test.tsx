@@ -47,10 +47,9 @@ for (const spec of rawLenses) {
     for (const [slot, w] of Object.entries(json.storage)) {
       expect(word(slot), slot).toBe((w as string).slice(2));
     }
-    const zero = [...sto.querySelectorAll<HTMLElement>(".wrow[data-slot]")]
-      .filter((r) => !(r.dataset.slot! in json.storage));
-    expect(zero.length).toBeGreaterThan(0);
-    for (const r of zero) expect(word(r.dataset.slot!)).toMatch(/^0+$/);
+    // (its all-zero rows folded into the gaps: only the written slots)
+    const shown = [...sto.querySelectorAll<HTMLElement>(".wrow[data-slot]")];
+    for (const r of shown) expect(word(r.dataset.slot!)).not.toMatch(/^0+$/);
     expect(sto.querySelectorAll(".gap").length).toBeGreaterThan(0);
     // no names, tints, popovers, tree; nothing to point at
     expect(c.querySelector(".b[data-owners], .b[class*=' t'], .b.free"))
