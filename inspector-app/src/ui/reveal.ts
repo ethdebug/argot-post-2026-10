@@ -18,24 +18,46 @@ import { createStore } from "./store";
 // `popFrom` on. The toggle runs the progress over `toggleMs`; a popover
 // eases each change over `smoothMs` (raw.css reads --a-smooth; the
 // bytes follow the scroll as it is). Reduced motion: each value at
-// once, on or off, at the middle of its slice.
+// once, on or off, at the middle of its slice. The disclaimer: from
+// `afterAt` of the host's hold after the reveal (its `after`), or
+// `afterMs` after the progress reaches 1 (a host with no `after`, the
+// toggle).
 export const REVEAL = {
   share: { storage: 0.55, stack: 0.2, memory: 0.25 } as Record<string,
     number>,
   slice: 0.14, fill: 0.6, sweep: 0.35, popFrom: 0.15, toggleMs: 1500,
+  afterAt: 0.5, afterMs: 600,
   smoothMs: 80 };
 
-export const reveal = createStore({ progress: new URLSearchParams(
-  globalThis.location?.hash.slice(1) ?? "").get("reveal") === "1" ? 1 : 0 });
+// (`after`: the host's hold after the reveal, 0 to 1 (its next beat at
+// 0); the figure's disclaimer shows from `afterAt` on. A host that
+// sends none, and the toggle: `afterMs` after the progress reaches 1)
+const opened = new URLSearchParams(globalThis.location?.hash.slice(1) ??
+  "").get("reveal") === "1" ? 1 : 0;
+export const reveal = createStore({ progress: opened, after: opened });
 // (on: any of it shown)
 export const useRevealed = () => useSyncExternalStore(reveal.subscribe,
   () => reveal.get().progress > 0);
 
 let anim = 0;
-export function setProgress(p: number) {
+let hold: ReturnType<typeof setTimeout> | undefined;
+// the progress, 0 to 1, and the hold after it, if the host says
+export function setProgress(p: number, after?: number) {
   cancelAnimationFrame(anim);
+  at(p, after);
+}
+function at(p: number, after?: number) {
   const progress = Math.max(0, Math.min(1, p));
-  reveal.set((s) => s.progress === progress ? s : { progress });
+  clearTimeout(hold);
+  hold = undefined;
+  let a = after ?? (progress >= 1 ? reveal.get().after : 0);
+  if (after === undefined && progress >= 1 && !a) {
+    hold = setTimeout(() => reveal.set((s) => s.progress >= 1
+      ? { ...s, after: 1 } : s), REVEAL.afterMs);
+  }
+  if (progress < 1 && after === undefined) a = 0;
+  reveal.set((s) => s.progress === progress && s.after === a ? s
+    : { progress, after: a });
 }
 const still = () => !!globalThis.matchMedia?.(
   "(prefers-reduced-motion: reduce)").matches;
@@ -52,7 +74,7 @@ export function setRevealed(on: boolean) {
   const step = (t: number) => {
     const k = ms ? Math.min(1, (t - t0) / ms) : 1;
     const e = k < 0.5 ? 2 * k * k : 1 - (-2 * k + 2) ** 2 / 2;
-    reveal.set(() => ({ progress: from + (to - from) * e }));
+    at(from + (to - from) * e);
     if (k < 1) anim = requestAnimationFrame(step);
   };
   anim = requestAnimationFrame(step);
@@ -104,10 +126,10 @@ export function paintView(v: HTMLElement, force = false) {
   const was = force ? undefined : last.get(v);
   const now = { f: [] as string[], p: [] as string[],
     dim: stage(0, k, p, a, w).f.toFixed(3) };
-  // (the figure's disclaimer: once the reveal is complete, as the host's
-  // own line after it; the toggle's, at its run's end)
+  // (the figure's disclaimer: in the host's hold after the reveal, from
+  // REVEAL.afterAt; the toggle's, REVEAL.afterMs after its run)
   (v.closest<HTMLElement>(".lens") ?? v).style.setProperty("--hand",
-    p >= 1 ? "1" : "0");
+    p >= 1 && reveal.get().after >= REVEAL.afterAt ? "1" : "0");
   if (now.dim !== was?.dim) {
     v.style.setProperty("--dim", now.dim);
     v.style.setProperty("--a-smooth", `${REVEAL.smoothMs}ms`);

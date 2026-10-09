@@ -131,8 +131,8 @@ export function drawNotes(v: El, notes: Note[], units: Unit[],
       return { e, t: r.t, b: r.b,
         // (a row with an address is no room: a card covers neither its
         // bytes nor its address)
-        lit: !!e.querySelector("[data-unit]") ||
-          !!e.querySelector(".addr .a")?.textContent }; });
+        // (a row no value owns is room: its bytes are no value's)
+        lit: !!e.querySelector("[data-unit]") }; });
   // (the arrow's reach, as the card's CSS draws it under a row)
   let reach = 8;
   {
@@ -174,13 +174,16 @@ export function drawNotes(v: El, notes: Note[], units: Unit[],
   vb = vb0();
   const rows = rowsBox();
   const view = rel(v.getBoundingClientRect(), vb);
-  const bounds = { l: rows.l - 8, r: rows.l + room, t: rows.t, b: view.b };
+  const bounds = { l: rows.l - 8, r: right, t: rows.t, b: view.b };
   const cells: Cell[] = [...v.querySelectorAll<El>(
     ".rows .word :is(.b, .ab)")].map((c) => ({
     ...rel(c.getBoundingClientRect(), vb),
     unit: c.dataset.unit === undefined ? null : +c.dataset.unit,
     zero: c.classList.contains("z") }));
-  const forbid = [...v.querySelectorAll<El>(".rows .addr .a")].map((a) =>
+  // (the addresses of the rows that hold a value's bytes: a card may lie
+  // over an unused row, its address too, never a value's)
+  const forbid = [...v.querySelectorAll<El>(".rows .addr .a")].filter((a) =>
+    a.closest(".wrow")?.querySelector("[data-unit]")).map((a) =>
     rel(a.getBoundingClientRect(), vb));
   const targets = notes.map((n, i) => {
     const order = [chosen[i].k, ...n.runs.map((_, k) => k).filter((k) =>

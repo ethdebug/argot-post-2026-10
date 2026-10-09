@@ -144,27 +144,14 @@
 
 /* (the annotated figure's disclaimer, where the moment was: the
    hand-written badge as a tree's heading has it (port.css .handmade,
-   in the panels' title type), shown once the reveal is complete (--hand
-   1), faded over 500ms as the host's own line is) */
+   in the panels' title type), under the stack and memory, wrapping;
+   shown after the reveal (--hand 1, ui/reveal.ts), faded over 500ms;
+   its room kept from the start) */
 .lens.raw .moment-note { margin: 0; }
 .lens.raw .moment-note .handmade { margin: 0;
   font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
   font-size: var(--fs-label); font-weight: 600; opacity: var(--hand, 0);
   transition: opacity 500ms ease; }
-/* (its own row, under the figure, across it: one line where the figure
-   has two columns) */
-.lens.raw-hero.annotated { grid-template-areas: "storage" "stack" "memory"
-  "note" "moment"; }
-.lens.raw-hero.annotated.no-memory { grid-template-areas: "storage"
-  "stack" "note" "moment"; }
-@media (min-width: 910px) {
-  .lens.raw-hero.annotated { grid-template-rows: auto auto 1fr auto;
-    grid-template-areas: "storage stack" "storage memory" "storage moment"
-      "note note"; }
-  .lens.raw-hero.annotated.no-memory { grid-template-rows: auto 1fr auto;
-    grid-template-areas: "storage stack" "storage moment" "note note"; }
-  .lens.raw .moment-note .handmade { white-space: nowrap; }
-}
 @media (prefers-reduced-motion: reduce) {
   .lens.raw .moment-note .handmade { transition: none; }
 }

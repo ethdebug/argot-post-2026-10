@@ -24,10 +24,12 @@ const geometry = (page: Page) => page.evaluate(() => {
   const pops = [...document.querySelectorAll<HTMLElement>(".pop.note")]
     .map((e) => ({ ...box(e), text: e.textContent!,
       units: e.dataset.units!.split(" ") }));
-  // (every lit byte, any value's, and every address label)
+  // (every lit byte, any value's, and the address of every row that
+  // holds one: a card may lie over an unused row, its address too)
   const digits = [...document.querySelectorAll<HTMLElement>(
-    ".rows .word :is(.b, .ab)[data-unit], .rows .addr .a")].map((e) =>
-    ({ ...box(e), unit: e.dataset.unit ?? "addr" }));
+    ".rows .word :is(.b, .ab)[data-unit], .rows .addr .a")].filter((e) =>
+    e.dataset.unit || e.closest(".wrow")?.querySelector("[data-unit]"))
+    .map((e) => ({ ...box(e), unit: e.dataset.unit ?? "addr" }));
   // (to a tenth of a pixel: a scroll's float noise is no move)
   const tenth = (r: R) => Object.fromEntries(Object.entries(r).map(
     ([k, v]) => [k, Math.round(v * 10) / 10]));
@@ -62,6 +64,12 @@ for (const width of [1360, 1024, 390]) {
     await page.getByRole("radio", { name: "Annotated" })
       .dispatchEvent("click");
     await expect(page.locator(".view.revealed")).toHaveCount(DUMPS);
+    // (the toggle's run, then its disclaimer: nothing moves for either)
+    await expect.poll(() => page.locator(".lens").evaluate((e) =>
+      getComputedStyle(e).getPropertyValue("--hand").trim()),
+    { timeout: 5000 }).toBe("1");
+    await expect(page.locator(".moment-note")).toContainText(
+      "written by hand for this post");
     const on = await geometry(page);
     expect(on.rows).toEqual(raw.rows);
     expect([on.width, on.height]).toEqual([raw.width, raw.height]);
@@ -238,10 +246,22 @@ test("reveal in a host page: revealed by its message; its " +
   await expect.poll(async () => (await vars())[0][0]).toBe(1);
   expect((await vars()).at(-1)![1]).toBe(0);
   expect(await hand()).toBe("0");
-  await post(1);
+  // (in the host's hold after the reveal, from its middle on)
+  const hold = (after: number) => page.evaluate((after) => (document
+    .getElementById("f") as HTMLIFrameElement).contentWindow!.postMessage(
+    { type: "ethdebug:reveal", on: true, progress: 1, after }, "*"), after);
+  await hold(0);
+  await page.waitForTimeout(800);
+  expect(await hand()).toBe("0");
+  await hold(0.6);
   await expect.poll(hand).toBe("1");
+  await hold(0.4);
+  await expect.poll(hand).toBe("0");
   await post(0.99);
   await expect.poll(hand).toBe("0");
+  // (a host with no hold: shortly after the reveal completes)
+  await post(1);
+  await expect.poll(hand).toBe("1");
   await post(0);
   await expect.poll(async () => (await vars()).flat().every((x) => x === 0))
     .toBe(true);
