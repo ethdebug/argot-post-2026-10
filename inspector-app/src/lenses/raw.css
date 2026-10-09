@@ -1,25 +1,26 @@
-/* The raw lens (lenses/raw.ts): four bare dumps of one moment, at the
-   size of the storage inspector's dump. Storage, calldata and memory
-   share the wide column, which is exactly the inspector's dump column
-   (half the width, less its 28px gap, from its 660px breakpoint), so
-   its dumps fit the same font, rows and spacing; the stack, narrow
-   beside them, takes that font (--cell-fs, ui/fit.ts), a row an item.
-   Boxes hug their rows; under 660px, one column. */
-.lens.raw { display: grid; gap: 0 28px; align-items: start;
-  box-sizing: border-box; padding: 12px 0 28px; }
+/* The raw lens (lenses/raw.ts), the post's opening figure: bare dumps of
+   one moment. Storage is the storage inspector's dump at its own size:
+   a word a row, in a column as wide as the inspector's dump column on a
+   wide page (690px at 1440: so the same font, rows and spacing);
+   memory under it, as wide; the stack beside them, narrow, in the same
+   font (--cell-fs, ui/fit.ts) and line height, the moment under it. The
+   composition is centred in its frame and hugs its content. Narrower
+   than both side by side: one column, storage still a word a row; a
+   phone: 16 bytes a line. */
+.lens.raw { display: grid; gap: 18px 28px; align-items: start;
+  box-sizing: border-box; padding: 12px 0 28px; justify-content: center; }
 .lens.raw .raw-col { display: flex; flex-direction: column; gap: 18px;
   min-width: 0; }
 .lens.raw .view-name { letter-spacing: 0.12em; }
-/* (the narrow column's box hugs its words, on a phone too) */
-.lens.raw [data-area="narrow"] { align-items: flex-start;
-  justify-self: start; }
 .lens.raw .view.abbr { font-family: var(--mono);
   font-variant-numeric: tabular-nums; font-size: var(--cell-fs, 14px); }
-.lens.raw-hero { grid-template-columns: minmax(0, 1fr);
-  grid-template-areas: "wide" "narrow"; row-gap: 18px; }
-@media (min-width: 660px) {
-  .lens.raw-hero { grid-template-columns: calc((100% - 28px) / 2)
-    max-content; grid-template-areas: "wide narrow"; }
+.lens.raw-hero { grid-template-columns: minmax(0, 690px);
+  grid-template-areas: "storage" "stack" "memory" "moment"; }
+.lens.raw-hero > [data-area="stack"] { justify-self: start; }
+@media (min-width: 860px) {
+  .lens.raw-hero { grid-template-columns: 690px max-content;
+    grid-template-rows: auto 1fr auto;
+    grid-template-areas: "storage stack" "storage moment" "memory ."; }
 }
 /* (the stack's line as tall as the dumps' line: --cell-lh) */
 .lens.raw .view.abbr .word .ab { line-height: var(--cell-lh, 1.85); }
