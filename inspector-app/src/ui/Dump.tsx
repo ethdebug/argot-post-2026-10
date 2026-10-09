@@ -143,6 +143,11 @@ function tintsOf(ls: Layout[], loc: Location) {
   return tint;
 }
 
+// (a row whose second half is past the segment's end: on 16 bytes a
+// line, no second line of dots)
+const half = (mine: (string | undefined)[]) =>
+  mine.slice(16).every((b) => b === undefined) && mine[0] !== undefined;
+
 function Word({ l, ls, loc, row, mine, theirs, side, name, light,
   groupsOf, bare, abbreviate }: {
   l: Layout; ls: Layout[]; loc: Location; row: Hex;
@@ -155,7 +160,8 @@ function Word({ l, ls, loc, row, mine, theirs, side, name, light,
       <span className="ab">{abbreviated(mine, abbreviate)}</span></div>;
   }
   if (bare) {
-    return <div className="word" data-side={side} data-slot={row}>
+    return <div className={`word${half(mine) ? " half" : ""}`}
+      data-side={side} data-slot={row}>
       <div className="bytes"><Octets cells={mine.map((b, i) =>
         <span key={i} className={`b${b === undefined ? " past"
           : b === "00" ? " z" : ""}`}>{b ?? "··"}</span>)} /></div></div>;
@@ -218,7 +224,8 @@ function Word({ l, ls, loc, row, mine, theirs, side, name, light,
         {mine[i] ?? "··"}</span>);
     }
   }
-  return <div className="word" data-side={side} data-slot={row}>
+  return <div className={`word${half(mine) ? " half" : ""}`}
+    data-side={side} data-slot={row}>
     <div className="bytes"><Octets cells={cells} /></div></div>;
 }
 
@@ -508,8 +515,8 @@ export function Dump(p: { id: ViewId; location: Location; data: DataRef;
         (e.nativeEvent as { acted?: boolean }).acted = true;
       }
     }, onKeyDown: onKey };
-  const ruler = disp.shape !== "strip" && disp.abbreviate === undefined &&
-    !flow;
+  const ruler = disp.ruler !== false && disp.shape !== "strip" &&
+    disp.abbreviate === undefined && !flow;
   return <div ref={me} data-side={side} role="group"
     aria-label={p.when ? `${label} ${p.when}` : label} hidden={p.hidden}
     // (lit: the rest steps back; a selection or a step: brown caps)
