@@ -4,7 +4,7 @@
 import type { Page } from "@playwright/test";
 import fs from "node:fs";
 import { test, expect } from "../../page";
-import { A, MOTD, lastBlock, mid } from "../../expect";
+import { A, MOTD, lastBlock, mid, STEPPER } from "../../expect";
 
 const ids = fs.readdirSync("scenes").map((f) => f.replace(/\.json$/, ""));
 const val = (page: Page, path: string) =>
@@ -30,12 +30,12 @@ const checks: Record<string, (page: Page) => Promise<void>> = {
   "vyper": async (page) => {
     await expect(val(page, `${A}.score`)).toHaveText("0");
   },
-  "vyper-rules": async (page) => {
+  "pitfall-compiler": async (page) => {
     await expect(val(page, `${A}.score`)).toHaveText("0");
   },
   // (carol's play, right after her combo resets: 140 points so far)
   // (carol's record, its rows only)
-  "carol-record": async (page) => {
+  "pitfall-nesting": async (page) => {
     await expect(val(page,
       "players[0x90f79bf6eb2c4f870365e785982e1f101e93b906].score"))
       .toHaveText("100");
@@ -49,20 +49,20 @@ const checks: Record<string, (page: Page) => Promise<void>> = {
       '.word[data-slot$="9978"]')).toContainText("64");
   },
   // (the shared moment, annotated: carol's record, labelled)
-  "raw-annotated": async (page) => {
+  "reveal": async (page) => {
     await expect(page.locator(".moment-note")).toContainText(
       /ethdebug data written by hand, not from solc/i);
     await expect(page.locator(".pop.note").filter({ hasText:
       /^players\[carol\].*score 100/ })).toHaveCount(1);
   },
-  "players-walk": async (page) => {
+  "pointer-walkthrough": async (page) => {
     await expect(page.locator(".rbar.replaying")).toHaveCount(1);
   },
 };
 // (the stepper's: carol's join, its first moment, the name's length
 // read from the call: 34 bytes)
-for (const o of ["0", "2"]) {
-  checks[`stepper-O${o}`] = async (page) => {
+for (const id of Object.values(STEPPER)) {
+  checks[id] = async (page) => {
     await expect(page.locator(".tbar .tline"))
       .toHaveText("the name's length, read from the call");
     await expect(val(page, "len")).toHaveText("34");
@@ -72,7 +72,7 @@ for (const o of ["0", "2"]) {
 // (the memory section's old ids, in the embed: the stepper's)
 test("embed.html#scene=bug-O2: the stepper at -O2", async ({ page }) => {
   await page.goto("./embed.html#scene=bug-O2");
-  await checks["stepper-O2"](page);
+  await checks["optimized-locals"](page);
 });
 
 test("every scene has its check", () => {

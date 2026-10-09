@@ -11,7 +11,7 @@ test("a reload during a run logs nothing", async ({ page }) => {
     await new Promise((x) => setTimeout(x, 1500));
     await r.fallback().catch(() => {});
   });
-  await page.goto("./shell.html#scene=raw-annotated");
+  await page.goto("./shell.html#scene=reveal");
   await page.waitForTimeout(400);
   await page.unroute(/evm/);
   await page.reload();

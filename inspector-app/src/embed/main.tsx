@@ -42,7 +42,7 @@ addEventListener("message", (e) => {
 // (and the memory section's old scenes, the post's figure until it
 // names the stepper's: the stepper, at the same level)
 const ALIAS: Record<string, string> = { raw: "raw-hero",
-  "bug-O0": "stepper-O0", "bug-O2": "stepper-O2" };
+  "bug-O0": "stepper-O0", "bug-O2": "optimized-locals" };
 const id = ALIAS[hash.get("scene") ?? ""] ?? hash.get("scene") ?? "";
 // (every lens a scene may name; the raw lens with or without its moment)
 const all = lenses.map((l) => l.id === "raw-hero" && hash.get("moment")

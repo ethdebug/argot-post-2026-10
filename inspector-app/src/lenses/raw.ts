@@ -54,7 +54,7 @@ export const rawLens = (o: { moment?: string | false; memory?: boolean } =
       area: "moment", data, text: o.moment }]] });
 export const rawHero = rawLens();
 
-// The same figure, annotated in place (scene raw-annotated, the post's
+// The same figure, annotated in place (scene reveal, the post's
 // first before/after): raw until revealed (ui/reveal.ts: the host's
 // scroll, or the toggle when it stands alone), then each top-level value
 // a coloured composite with a short label in unlit space (Display
@@ -67,7 +67,7 @@ export const rawHero = rawLens();
 const hand = { decoding: "$hand", moment: "current" } as const;
 export const annotated = (l: LensSpec): LensSpec => ({ ...l,
   id: "raw-annotated", title: "Raw bytes, annotated",
-  layout: `${l.layout} raw-annotated`, initial: { scene: "raw-annotated" },
+  layout: `${l.layout} raw-annotated`, initial: { scene: "reveal" },
   views: [...l.views.filter((v) => v.kind !== "moment").map((v): ViewSpec =>
     v.kind === "dump" ? { ...v, display: { ...v.display, annotate: true },
       ...v.location === "storage" ? {} : { data: hand } } : v),

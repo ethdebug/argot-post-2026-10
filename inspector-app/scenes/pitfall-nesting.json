@@ -1,11 +1,11 @@
 {
-  "id": "players-walk",
-  "title": "How players is found (a walkthrough)",
+  "id": "pitfall-nesting",
+  "title": "Carol's record",
   "run": {
     "scenario": "arcade",
     "build": "sol"
   },
-  "lens": "players-walk",
+  "lens": "inspector",
   "timeline": [
     {
       "tx": 11,
@@ -15,9 +15,7 @@
   ],
   "controls": "none",
   "initial": {
-    "select": "players",
-    "walk": {
-      "step": 0
-    }
+    "select": "players[0x90f79bf6eb2c4f870365e785982e1f101e93b906]",
+    "related": 0
   }
 }

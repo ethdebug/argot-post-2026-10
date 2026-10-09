@@ -22,10 +22,10 @@ test("picker lists the reviewed scenes (dev: every scene and lens); ] " +
     await expect(page.locator('[data-shell-picker] [aria-current="page"]'))
       .toHaveCount(1);
     await page.locator("body").press("]");
-    // (the next scene, raw-annotated: its lens writes its keys once
+    // (the next scene, reveal: its lens writes its keys once
     // shown; the URL kept is the one with them)
     await expect(page).toHaveURL(
-      /#scene=raw-annotated&dev=1&ex=raw-annotated/);
+      /#scene=reveal&dev=1&ex=reveal/);
     const url = page.url();
     await page.reload();
     expect(page.url()).toBe(url);

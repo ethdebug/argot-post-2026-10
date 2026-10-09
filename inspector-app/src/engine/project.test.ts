@@ -17,10 +17,10 @@ it("loads nothing until a scene is asked "
   const p = await load(io as Io, { scenes, builds, page });
   expect(seen).toEqual([]);
   expect(p.bookmarks.map((b) => b.id))
-    .toEqual(["raw-hero", "raw-annotated",
-      "raw-named", "carol-record", "mid", "alice", "motd", "vyper",
-      "players-walk", "alice-plays", "vyper-rules", "stepper-O0",
-      "stepper-O2"]);
+    .toEqual(["raw-hero", "reveal",
+      "raw-named", "pitfall-nesting", "mid", "alice", "motd", "vyper",
+      "pointer-walkthrough", "alice-plays", "pitfall-compiler", "stepper-O0",
+      "optimized-locals"]);
   await expect(p.timeline("scene:mid")).rejects.toThrow("404");
   // (a failed load is not kept: asked again, it loads again)
   await expect(p.timeline("scene:mid")).rejects.toThrow("404");
