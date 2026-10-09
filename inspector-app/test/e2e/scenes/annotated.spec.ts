@@ -53,7 +53,10 @@ for (const width of [1360, 1024, 390]) {
     expect(await page.locator(".view.revealed").count()).toBe(0);
     expect(await page.locator(".alabel").evaluateAll((es) => es.every((e) =>
       getComputedStyle(e).opacity === "0"))).toBe(true);
-    await page.getByRole("radio", { name: "Annotated" }).click();
+    // (the toggle pressed where it is: a click would scroll the page
+    // to it, and a browser's scroll may land between pixels)
+    await page.getByRole("radio", { name: "Annotated" })
+      .dispatchEvent("click");
     await expect(page.locator(".view.revealed")).toHaveCount(DUMPS);
     const on = await geometry(page);
     // nothing moved, nothing grew
