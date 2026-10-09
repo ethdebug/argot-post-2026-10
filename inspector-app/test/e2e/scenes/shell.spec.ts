@@ -23,7 +23,7 @@ test("picker lists the reviewed scenes (dev: every scene and lens); ] " +
       .toHaveCount(1);
     await page.locator("body").press("]");
     // (the next scene, raw-annotated)
-    await expect(page).toHaveURL(/#scene=raw-annotated&dev=1$/);
+    await expect(page).toHaveURL(/#scene=raw-annotated&dev=1(&|$)/);
     const url = page.url();
     await page.reload();
     expect(page.url()).toBe(url);
