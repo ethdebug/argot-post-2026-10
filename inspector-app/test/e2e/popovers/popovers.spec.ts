@@ -131,7 +131,7 @@ test("a gutter address outlines its word; window.fitDumps fits the row",
       .fitDumps)).toBe("function");
     const fits = await page.evaluate(() => {
       const row = document.querySelector<HTMLElement>(
-        "#panel .view[data-side=after] .rows > .wrow")!;
+        "#panel .view[data-side=after] .rows > .run > .wrow")!;
       const d = row.closest(".dump")!.getBoundingClientRect();
       return row.querySelector(".word")!.getBoundingClientRect().right <=
         d.right + 1;
@@ -231,7 +231,7 @@ test("slot 0's popover: under row 0, inside the dump, never empty",
       await page.mouse.move(1, 1);
       const x = await page.evaluate(() => {
         const row = [...document.querySelectorAll<HTMLElement>(
-          "#panel .view[data-side=after] .rows > .wrow")].find((r) =>
+          "#panel .view[data-side=after] .rows > .run > .wrow")].find((r) =>
           r.dataset.slot === "0x" + "0".repeat(64))!;
         const pop = row.querySelector<HTMLElement>(".pop")!;
         const p = pop.getBoundingClientRect();
@@ -313,8 +313,9 @@ test("no popover covers a lit byte, another row's address, or another "
       ps.forEach((p, i) => {
         const r = p.getBoundingClientRect();
         const own = p.closest(".wrow");
-        for (const e of v.querySelectorAll(".rows > .wrow.on > .addr .a, " +
-          ".rows > .wrow > .word .b.hl")) {
+        for (const e of v.querySelectorAll(
+          ".rows > .run > .wrow.on > .addr .a, " +
+          ".rows > .run > .wrow > .word .b.hl")) {
           if (e.closest(".wrow") !== own &&
             hit(r, e.getBoundingClientRect())) {
             out.push(`${p.textContent!.slice(0, 24)} on ${e.textContent}`);

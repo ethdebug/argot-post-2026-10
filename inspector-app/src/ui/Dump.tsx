@@ -491,7 +491,7 @@ export function Dump(p: { id: ViewId; location: Location; data: DataRef;
         data-vt={vt("gap", r.address)}><span>⋯</span></div>);
     } else if (slots && !bare && !/^slot \d+$|\+ \d+$/.test(name)) {
       lines.push(<div key={`r${k}`} className="gap room"
-        aria-hidden="true" data-vt={vt("room", r.address)} />);
+        aria-hidden="true" />);
     }
     // what the transaction did to the slot (a pair only)
     // (the earlier point is before the transaction between them)
@@ -524,7 +524,7 @@ export function Dump(p: { id: ViewId; location: Location; data: DataRef;
       rel && light.anchors?.has(r.address) ? "anchor" : ""]
       .filter(Boolean).join(" ");
     lines.push(<div key={r.address} className={cls} data-slot={r.address}
-      data-name={name} data-facts={facts} data-vt={vt(r.address)}
+      data-name={name} data-facts={facts} data-vt-in={vt(r.address)}
       {...(name === slotRef(r.address) || !slots ? {}
         : { "data-full": `= ${r.address}` })}>
       <span className="addr" tabIndex={bare ? undefined : 0}
@@ -544,6 +544,26 @@ export function Dump(p: { id: ViewId; location: Location; data: DataRef;
     lines.push(<div key="end" className="gap" aria-hidden="true"
       data-vt={vt("end")}><span>⋯</span></div>);
   }
+
+  // the groups: each run of adjacent rows between two "⋯" lines, one
+  // box, named in a view transition by its first row (transition.ts)
+  const grouped: ReactElement[] = [];
+  let run: ReactElement[] = [];
+  const close = () => {
+    if (!run.length) return;
+    const first = run.find((e) => !String(e.key).startsWith("r"))?.key;
+    grouped.push(<div key={`run${String(first)}`} className="run"
+      data-vt={vt("run", String(first))}>{run}</div>);
+    run = [];
+  };
+  for (const e of lines) {
+    const key = String(e.key);
+    if (key === "end" || key.startsWith("g")) {
+      close();
+      grouped.push(e);
+    } else run.push(e);
+  }
+  close();
 
   // (nothing of this location to show here: no dump)
   if (l && !rows.length) return null;
@@ -578,6 +598,6 @@ export function Dump(p: { id: ViewId; location: Location; data: DataRef;
     <div className="rows" style={disp.scale ? { fontSize: `${disp.scale}em` }
       : undefined}>{flow
         ? <Flow rows={rows} loc={loc} snap={snap}
-          per={disp.perLine ?? 16} /> : lines}</div>
+          per={disp.perLine ?? 16} /> : grouped}</div>
   </div>;
 }
