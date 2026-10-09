@@ -16,7 +16,7 @@ test("walkthroughs: players at mid, in each mode", () => {
 });
 test("players' focus states: at the step with the picker", () => {
   // (each scene, each mode)
-  const f = s.filter((x) => x.id.endsWith("-sel=players-walk6-bob"));
+  const f = s.filter((x) => x.id.endsWith("-sel=pointer-walkthrough6-bob"));
   assert.strictEqual(f.length, 4 * 3);
 });
 test("ids are unique", () =>

@@ -66,8 +66,9 @@ export const rawHero = rawLens();
 // scene's own words; the toggle under it)
 const hand = { decoding: "$hand", moment: "current" } as const;
 export const annotated = (l: LensSpec): LensSpec => ({ ...l,
-  id: "raw-annotated", title: "Raw bytes, annotated",
-  layout: `${l.layout} raw-annotated`, initial: { scene: "reveal" },
+  id: "reveal", title: "Raw bytes, annotated",
+  // (raw-hero's layout as it is: "reveal", the class, is its toggle's)
+  initial: { scene: "reveal" },
   views: [...l.views.filter((v) => v.kind !== "moment").map((v): ViewSpec =>
     v.kind === "dump" ? { ...v, display: { ...v.display, annotate: true },
       ...v.location === "storage" ? {} : { data: hand } } : v),
@@ -76,6 +77,6 @@ export const annotated = (l: LensSpec): LensSpec => ({ ...l,
   { id: "hand", kind: "moment", area: "moment", data, badge: true,
     text: HAND },
   { id: "reveal", kind: "reveal", area: "moment" }] });
-export const rawAnnotated = annotated(rawHero);
+export const reveal = annotated(rawHero);
 
 export const rawLenses = [rawHero];

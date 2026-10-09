@@ -8,10 +8,10 @@
 // reveals it
 import type { Page } from "@playwright/test";
 import { test, expect } from "../../page";
-import { rawAnnotated } from "../../../src/lenses/raw";
+import { reveal } from "../../../src/lenses/raw";
 
 // (its dumps: raw-hero's composition, storage and the stack at least)
-const DUMPS = rawAnnotated.views.filter((v) => v.kind === "dump").length;
+const DUMPS = reveal.views.filter((v) => v.kind === "dump").length;
 
 type R = { l: number; r: number; t: number; b: number };
 // every popover, and the bytes it must not hide

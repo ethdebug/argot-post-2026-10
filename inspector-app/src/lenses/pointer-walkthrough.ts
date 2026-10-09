@@ -5,8 +5,8 @@ import type { LensSpec } from "../ui/types";
 
 const data = { decoding: "$scene", moment: "current" } as const;
 
-export const playersWalk: LensSpec = {
-  id: "players-walk", title: "How players is found (a walkthrough)",
+export const pointerWalkthrough: LensSpec = {
+  id: "pointer-walkthrough", title: "How players is found (a walkthrough)",
   timelines: [], decodings: [],
   grid: '"bar" "dump"',
   links: ["s"],
