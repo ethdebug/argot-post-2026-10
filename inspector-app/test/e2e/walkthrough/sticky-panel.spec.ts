@@ -147,12 +147,7 @@ test("one ✕ Exit, even while the details unfold, ends the walkthrough",
 
 for (const [w, h] of [[1440, 900], [390, 844]]) {
   test(`${w}px: at every step, nothing covers a lit byte; the panel's `
-    + "parts keep to their room", async ({ page, browserName }) => {
-    // (a known defect, found when this check moved from bin/run.mjs:
-    // Firefox at 390px, the packed fields' step: the strip's box is 2px
-    // taller than its room)
-    test.fail(browserName === "firefox" && w === 390,
-      "Firefox, 390px: .rform overflows by 2px at the fields step");
+    + "parts keep to their room", async ({ page }) => {
     await at(page, w, h);
     await select(page, "mid", "players");
     await page.locator('#details button[data-r="start"]').click();

@@ -1498,3 +1498,18 @@ main[data-lens] #storage > :not(.label, #picker, :has(> #picker),
   :has(> .picker[aria-label="Scene"])) { display: none !important; }
 main:not([data-lens]) #rawscene { display: none; }
 #rawscene .rawpick { margin: 4px 0 16px; }
+/* the byte strip's rows at whole-pixel line boxes, not font metrics: it
+   is as tall in every browser, and fits its room (Firefox's rounding
+   made it 2px over at 390px) */
+.bsrow { line-height: 0; }
+.bscall { height: 18px; }
+.bsbar, .bsv { height: 22px; min-height: 0; }
+.bsv { line-height: 22px; }
+.bsn { line-height: 22px; }
+.bsidx { height: 12px; }
+.bsidx span { line-height: 12px; height: 12px; overflow: hidden; }
+.bsl { line-height: 15px; }
+@media (max-width: 759px) {
+  .bs16 .bsbar, .bs16 .bsv { height: 19px; min-height: 0; }
+  .bs16 .bsv, .bs16 .bsn { line-height: 19px; }
+}
