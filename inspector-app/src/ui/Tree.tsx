@@ -3,7 +3,7 @@
 // type and its value; groups collapse by their chevron; linked to the
 // dumps. A run of lit rows in one colour is one block (li.blk).
 import {
-  useEffect, useLayoutEffect, useRef, useState, type ReactNode,
+  useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode,
 } from "react";
 import type { KeyboardEvent, MouseEvent, PointerEvent } from "react";
 import type { Colour, Decoded, Filter, Light, ValueNode } from
@@ -12,6 +12,19 @@ import { changed } from "../engine/timeline";
 import { blockOf } from "../engine/target";
 import { relClass } from "../engine/related";
 import { vtName } from "./transition";
+import { onChainNames } from "../engine/annotated";
+
+// An address, short, with its on-chain name: 0x7099…79c8 ("alice"); a
+// mapping's key the same, in its brackets; any other text as it is
+const ADDR = /^0x[0-9a-fA-F]{40}$/;
+export function addrLabel(t: string, names: ReadonlyMap<string, string>) {
+  const one = (h: string) => {
+    const name = names.get(h.toLowerCase());
+    return `${h.slice(0, 6)}…${h.slice(-4)}${name ? ` ("${name}")` : ""}`;
+  };
+  const key = t.match(/^\[(0x[0-9a-fA-F]{40})\]$/);
+  return key ? `[${one(key[1])}]` : ADDR.test(t) ? one(t) : t;
+}
 import {
   useCompilation, useDecoded, useLens, useLensState, useLight, useLink,
   usePointAt, useRelatedRoots, useUnionTree, useView, useWalkthrough,
@@ -35,6 +48,8 @@ const pk = (k: Colour | undefined) => k === undefined || k === 0 ? ""
   : `pk${k}`;
 
 interface Ctx { light: Light; selection: string | null;
+  // (addresses by their on-chain names: a key, 0x7099…79c8 ("alice"))
+  names: ReadonlyMap<string, string>;
   collapsed: ReadonlySet<string>; pair?: [Decoded, Decoded];
   // (a row's name in a view transition: transition.ts)
   vt?: (path: string) => string }
@@ -92,7 +107,9 @@ function Row({ n, top, c, inBlk }: { n: ValueNode; top?: boolean; c: Ctx;
     <div className={cls} tabIndex={0} role="button"
       data-vt={c.vt?.(n.path)}
       aria-pressed={sel ? "true" : "false"}>
-      <span className="name">{n.label}</span>
+      <span className="name" title={n.label === addrLabel(n.label,
+        c.names) ? undefined : n.label}>{addrLabel(n.label, c.names)}
+      </span>
       <span className="type">{n.typeText}</span>
       {n.absent && !group ? <span className="val"><span><i
         className="noloc">not yet</i></span></span>
@@ -101,7 +118,9 @@ function Row({ n, top, c, inBlk }: { n: ValueNode; top?: boolean; c: Ctx;
         point</i></span></span>
         : n.value || own ? <span className={`val${!pair ? ""
         : valueChg || (own && chg) ? " chg" : " same"}`}>
-        <span>{n.value?.text ?? n.summary}</span></span>
+        <span title={ADDR.test(n.value?.text ?? "") ? n.value!.text
+          : undefined}>{addrLabel(n.value?.text ?? n.summary ?? "",
+          c.names)}</span></span>
         : group ? <span className="val sum">{n.summary}</span>
           : n.note ? <span className="muted">{n.note}</span> : null}
     </div>
@@ -166,7 +185,8 @@ export function Tree(p: { id: ViewId; data: DataRef; filter?: Filter;
     .map((x) => x.path) : [];
   const shut = new Set([...view.collapsed, ...auto]);
   const fewer = !!related;
-  const c: Ctx = { light, selection: link.selection, pair,
+  const names = useMemo(() => onChainNames(d), [d]);
+  const c: Ctx = { light, selection: link.selection, pair, names,
     collapsed: new Set([...shut].filter((q) => !closing.has(q))),
     vt: (q) => vtName(lens.key, p.id, q) };
   // only the filter's roots (the related view's), and the groups that

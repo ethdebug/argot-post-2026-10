@@ -9,8 +9,7 @@
   "timeline": [
     {
       "tx": 11,
-      "step": "end",
-      "label": "in the middle of the game, in the Vyper contract"
+      "step": "end"
     }
   ],
   "controls": "none",

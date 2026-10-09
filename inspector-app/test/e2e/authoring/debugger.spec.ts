@@ -85,8 +85,10 @@ test("a variable selected: how it was found, the sections' walkthrough",
     await expect(bar).toHaveClass(/replaying/);
     await bar.locator(".rdots .dot").last().click();
     // (found: the value, as the tree has it)
+    // (an address in the tree short, its whole value its title)
     const val = await page.locator(`${D} li[data-path="${path}"] > .row ` +
-      ".val").textContent();
+      ".val").evaluate((e) => (e.querySelector("[title]") as HTMLElement |
+      null)?.title ?? e.textContent);
     await expect(page.locator(`${D} .rcap`)).toContainText(` = ${val}`);
     await bar.locator('button[data-r="exit"]').click();
     await expect(bar).not.toHaveClass(/replaying/);

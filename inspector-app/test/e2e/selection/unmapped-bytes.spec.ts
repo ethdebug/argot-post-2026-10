@@ -162,11 +162,12 @@ test("every popover lists a row's unmapped run: the selection's",
   async ({ page }) => {
     await at(page);
     await page.setViewportSize({ width: 1600, height: 900 });
-    // (the record, two slots: the run is cut first, and leaves its "…")
+    // (the record, two slots: the run between the name's text and its
+    // length is kept; other names are cut first)
     await select(page, "mid", REC);
     await settle(page);
     const p = (await pops(page)).find((t) => t.includes("2 slots"));
-    expect(p).toContain("/ name · … · name.length, 2 slots");
+    expect(p).toContain("/ name · (unmapped) · name.length, 2 slots");
     // (its name, one slot: it fits; not lit: plain)
     await select(page, "mid", `${REC}.name`);
     await settle(page);

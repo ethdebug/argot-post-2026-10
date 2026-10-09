@@ -76,9 +76,15 @@ export const rangeText = (l: Location, a: number, b: number) =>
 
 // a row's address in the gutter: a slot's last digits; an offset whole;
 // a stack item's position from the top
-export const addressText = (l: Location, row: Hex) =>
-  l === "stack" ? String(BigInt(row)) : byOffset(l) ? row
+// (a storage slot whole where that is no wider than its short form,
+// "…aa80": 0x02, 0x0102; else its last two bytes)
+export const addressText = (l: Location, row: Hex) => {
+  if (l === "stack") return String(BigInt(row));
+  if (byOffset(l)) return row;
+  const h = BigInt(row).toString(16);
+  return h.length <= 4 ? `0x${h.padStart(h.length + h.length % 2, "0")}`
     : `…${row.slice(-4)}`;
+};
 
 // an offset-addressed location's bytes at a point (none: empty)
 export const segmentOf = (s: Snapshot | undefined, l: Location) =>
