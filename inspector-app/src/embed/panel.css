@@ -1,0 +1,23 @@
+/* The panel's own frame in the post (embed-panel.html): a card with its
+   corners while it scrolls with the page; stuck at the top of the view
+   (the host's message: html[data-stuck]), flush with it: square top
+   corners, no top border, a stronger edge at its foot over what scrolls
+   beneath. The frame is exactly the panel: nothing around it, and a
+   transparent page in the frame's own colour scheme (no backdrop). */
+:root { color-scheme: light dark; }
+/* (its boxes opaque, as on the page: what scrolls under it never shows
+   through; around their corners, the host's page) */
+#embed { --panel: #ffffff; }
+@media (prefers-color-scheme: dark) { #embed { --panel: #1c1f23; } }
+#embed .wpanel .rbar, #embed .wpanel .dpanel {
+  transition: border-radius 120ms ease, border-top-width 120ms ease,
+    box-shadow 120ms ease; }
+html[data-stuck] #embed .wpanel .rbar { border-top-left-radius: 0;
+  border-top-right-radius: 0; border-top-width: 0; }
+/* (its foot: the bar at rest, the details in a walkthrough) */
+html[data-stuck] #embed .wpanel .rbar:not(.replaying),
+html[data-stuck] #embed .wpanel .dpanel {
+  box-shadow: inset 0 -3px 4px -3px rgb(0 0 0 / 0.35); }
+@media (prefers-reduced-motion: reduce) {
+  #embed .wpanel .rbar, #embed .wpanel .dpanel { transition: none; }
+}

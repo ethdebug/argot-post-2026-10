@@ -4,11 +4,16 @@
 // draws the model the figure sends over their channel (ui/panel-port.ts)
 // and sends back the reader's intents (its buttons; ← → Home End and
 // Escape while it has the focus). No engine, no data. It posts its
-// height to the host page: { type: "ethdebug:height", height }.
+// height to the host page: { type: "ethdebug:height", height }. The host
+// says whether it is stuck at the top of its view ({ type:
+// "ethdebug:stuck", stuck }): flush with the view's top then, a card
+// with its corners when not (data-stuck; panel.css); the figure hears
+// it too.
 import "../../../shared/appendix.css";
 import "../style.css";
 import "../ui/code.css";
 import "./embed.css";
+import "./panel.css";
 import { useEffect, useState } from "react";
 import { createRoot } from "react-dom/client";
 import {
@@ -22,13 +27,27 @@ const bc = new BroadcastChannel(channelName(hash.get("scene") ?? "",
 const act = (intent: Intent) => bc.postMessage({ type: "intent", intent });
 const root = document.getElementById("embed")!;
 
+addEventListener("message", (e) => {
+  if (e.source !== parent || e.data?.type !== "ethdebug:stuck") return;
+  const stuck = !!e.data.stuck;
+  document.documentElement.toggleAttribute("data-stuck", stuck);
+  bc.postMessage({ type: "stuck", stuck });
+});
+
 let last = -1;
-new ResizeObserver(() => {
-  const height = Math.ceil(root.getBoundingClientRect().height);
+// (exactly the panel's border box: nothing below it)
+const ro = new ResizeObserver(() => {
+  const w = root.querySelector(".wpanel") ?? root;
+  const height = w.getBoundingClientRect().height;
   if (height === last) return;
   last = height;
   parent.postMessage({ type: "ethdebug:height", height }, "*");
-}).observe(root);
+});
+ro.observe(root);
+new MutationObserver(() => {
+  const w = root.querySelector(".wpanel");
+  if (w) ro.observe(w);
+}).observe(root, { childList: true });
 
 function Panel() {
   const [m, setM] = useState<PanelModel | null>(null);
