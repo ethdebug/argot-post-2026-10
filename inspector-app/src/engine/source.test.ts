@@ -43,10 +43,11 @@ describe.each(scenes.map((s) => [s.id, s] as const))("%s", (_, scene) => {
       }
     }
   });
-  it("is under 5 KB gzip", async () => {
+  // (6 KB since play() copies alice's record, name too, into memory)
+  it("is under 6 KB gzip", async () => {
     const file = await sceneSnapshot(await authoring, scene);
     const size = zlib.gzipSync(json(snapshotJson(file))).length;
-    expect(size).toBeLessThan(5 * 1024);
+    expect(size).toBeLessThan(6 * 1024);
   });
 });
 
