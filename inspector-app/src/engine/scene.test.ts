@@ -11,6 +11,12 @@ describe("the scenes", () => {
       "mid", "alice", "motd", "vyper", "players-walk", "alice-plays",
       "vyper-rules", "bug-O0", "bug-O2"]);
   });
+  // (the post's first before/after is one figure: the raw bytes, then
+  // the same bytes annotated, at the one moment)
+  it("raw-annotated is raw-hero's moment", () => {
+    const of = (id: string) => scenes.find((s) => s.id === id)!.timeline;
+    expect(of("raw-annotated")).toEqual(of("raw-hero"));
+  });
   it("name lenses that exist", () => {
     for (const s of scenes) {
       expect(lenses.map((l) => l.id), s.id).toContain(s.lens);
