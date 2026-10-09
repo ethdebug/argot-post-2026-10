@@ -4,7 +4,7 @@
    plan colours), never the selection's yellow; the last range, when
    the moment has none, the same, muted. */
 .code { min-width: 0; }
-.codehead { margin: 0 0 6px; font-size: 0.85rem; white-space: nowrap;
+.codehead { margin: 0 0 6px; font-size: var(--fs-meta); white-space: nowrap;
   overflow: hidden; text-overflow: ellipsis; }
 .codenote { color: var(--muted); }
 .code .codesrc { height: 26em; max-height: none; overflow: auto; }

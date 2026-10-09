@@ -34,7 +34,7 @@
    within the stack column's width */
 .lens.raw .moment { margin: 0; max-width: 0; min-width: 100%;
   font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
-  font-size: 0.75rem; font-weight: 600; line-height: 1.45;
+  font-size: var(--fs-label); font-weight: 600; line-height: 1.45;
   color: var(--muted); overflow-wrap: break-word; }
 
 /* The same figure, annotated in place (lenses/raw.ts rawAnnotated):
@@ -50,7 +50,7 @@
     grid-template-areas: "storage" "stack" "memory" "moment"; }
 }
 .lens.raw .reveal { display: flex; gap: 0; margin: 0; }
-.lens.raw .reveal button { font-size: 0.75rem; }
+.lens.raw .reveal button { font-size: var(--fs-label); }
 
 /* The annotated layer (Display `annotate`; engine/annotated.ts, ui/
    labels.ts): raw until revealed; then each value's bytes in its colours
@@ -92,7 +92,7 @@
 /* (the note on its panel's title line: no line of its own to reserve) */
 .view.annot.hand .view-head { display: flex; align-items: baseline;
   flex-wrap: wrap; }
-.view.annot .hand-note { margin-left: 10px; font-size: 0.7rem;
+.view.annot .hand-note { margin-left: 10px; font-size: var(--fs-label);
   font-weight: 600; color: var(--muted); padding: 0 5px;
   border: 1px dashed color-mix(in srgb, var(--fg) 35%, transparent);
   border-radius: 4px; opacity: 0;

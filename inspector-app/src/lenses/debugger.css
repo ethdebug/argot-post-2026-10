@@ -48,7 +48,7 @@
 }
 /* the moves: one line, its buttons tap-sized */
 .moves { display: flex; flex-wrap: wrap; align-items: center;
-  gap: 6px 14px; font-size: 0.9rem; }
+  gap: 6px 14px; font-size: var(--fs-cell); }
 .moves:focus-visible { outline: 2px solid var(--accent);
   outline-offset: 4px; border-radius: 6px; }
 .moves .mctl { display: inline-flex; gap: 4px; }
@@ -65,7 +65,7 @@
   .authoring[data-show="scene"] > .dbgpane { display: none; }
 }
 /* the pins */
-.pinbar { margin: 18px 0 0; font-size: 0.9rem; }
+.pinbar { margin: 18px 0 0; font-size: var(--fs-cell); }
 .pinbar .pinhead { margin: 0 0 6px; }
 .pinbar .pins { margin: 0 0 8px; padding-left: 1.4em; }
 .pinbar .pinrow { display: flex; flex-wrap: wrap; gap: 6px; margin: 0 0 6px;
