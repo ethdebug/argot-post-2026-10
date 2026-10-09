@@ -11,7 +11,8 @@
     "test:full": "npm test && playwright test && npm run check",
     "check": "node bin/check.mjs",
     "e2e": "playwright test",
-    "perf": "node bin/perf.mjs"
+    "perf": "node bin/perf.mjs",
+    "golden": "UPDATE_GOLDEN=1 vitest run src/engine/walkthrough/golden.test.ts"
   },
   "dependencies": {
     "react": "^19.0.0",
