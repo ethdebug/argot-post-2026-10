@@ -3,6 +3,7 @@
 // test/expect.ts's story, from bugc's runs, at the same moments
 import { describe, expect, it } from "vitest";
 import { decode } from "./decode";
+import { layout } from "./layout";
 import { testProject } from "../../test/project";
 import { expected, lastBlock, A, B, C } from "../../test/expect";
 
@@ -45,3 +46,18 @@ describe.each(["bug-O0", "bug-O2", "mid"])("%s's storage in scope",
         "motd", "totalScore", "totalHits", "players"]);
     });
   });
+
+// (a row's name, how it is found: bugc's slot expressions, ~wordsized
+// and ~sum in its regions and keccaks, named as solc's templates are)
+it("bugc's storage rows are named as solc's", async () => {
+  const p = await testProject();
+  const d = await decode(p, p.decodings["bug-O0/scope"], "bug-O0:3");
+  const t = await p.timeline("scene:bug-O0");
+  const l = layout(d, "storage", {}, { point: t.points[3] });
+  const how = Object.fromEntries(l.rows.map((r) => [r.address.slice(-4),
+    r.how]));
+  expect(how).toMatchObject({ e563: "keccak(slot 0)",
+    e564: "keccak(slot 0) + 1", "0cf6": "keccak(slot 1)",
+    fb94: "keccak(0x7099…79c8, slot 4)",
+    "15f1": "keccak(keccak(0x90f7…b906, slot 4) + 1)" });
+});

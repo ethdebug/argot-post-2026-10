@@ -32,11 +32,40 @@ export function Moves(p: { id: ViewId; domId?: string }) {
     if (!s || !scene) return;
     const j = move(s, i, how);
     if (j !== i) {
-      void lens.show(scene, { moment: j, sel: lens.store.get().links[
-        lens.spec.links[0]]?.selection ?? null });
+      // (the selection kept, and its walkthrough: re-targeted to the new
+      // moment, at the same step, by the panel)
+      const l = lens.store.get().links[lens.spec.links[0]];
+      void lens.show(scene, { moment: j, sel: l?.selection ?? null,
+        walk: l?.walk ?? null });
     }
   };
   const box = useRef<HTMLDivElement>(null);
+  // (the stack's place, reserved: its greatest depth over the
+  // transaction, by a stack row's height as drawn, for the lens's
+  // layout, debugger.css)
+  const peak = s?.peak?.(i);
+  useEffect(() => {
+    const l = box.current?.closest<HTMLElement>(".lens");
+    if (!l || peak === undefined) return;
+    l.style.setProperty("--stack-rows", String(peak));
+    // (again as the dumps' font is fitted: the stack resized)
+    const measure = () => {
+      const r = l.querySelector('[data-area="narrow"] .wrow');
+      const h = r && `${r.getBoundingClientRect().height}px`;
+      if (h && h !== "0px" && l.style.getPropertyValue("--stack-row") !== h) {
+        l.style.setProperty("--stack-row", h);
+      }
+    };
+    const t = setTimeout(measure);
+    const area = l.querySelector('[data-area="narrow"]');
+    const ro = area && typeof ResizeObserver !== "undefined"
+      ? new ResizeObserver(measure) : null;
+    if (area) ro?.observe(area);
+    return () => {
+      clearTimeout(t);
+      ro?.disconnect();
+    };
+  }, [peak, i]);
   const onKey = (e: KeyboardEvent) => {
     const how = KEYS[e.key];
     if (!how || (e.target as Element).closest("select, input")) return;

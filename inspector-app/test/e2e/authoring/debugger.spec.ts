@@ -83,6 +83,41 @@ async ({ page }) => {
   await expect(page.locator(`${D} .novars`)).toHaveText(/no locals/);
 });
 
+// (the one engine path: the panel the sections use, over the variable's
+// own pointer against the state at the debugger's moment)
+test("a variable selected: how it was found, the sections' walkthrough; " +
+  "a move re-targets it, at the same step", async ({ page }) => {
+  const [, mult] = pause("mult");
+  await open(page, "bug-O0", `12:${mult.step + 1}`);
+  const bar = page.locator(`${D} .rbar`);
+  const A = "players[0x70997970c51812dc3a010c7d01b50e0d17dc79c8]";
+  for (const path of [`${A}.score`, "playerList[1]", "combo"]) {
+    await pick(page.locator(`${D} li[data-path="${path}"] > .row`));
+    await bar.locator('button[data-r="start"]').click();
+    await expect(bar).toHaveClass(/replaying/);
+    await bar.locator(".rdots .dot").last().click();
+    // (found: the value, as the tree has it)
+    const val = await page.locator(`${D} li[data-path="${path}"] > .row ` +
+      ".val").textContent();
+    await expect(page.locator(`${D} .rcap`)).toContainText(` = ${val}`);
+    await bar.locator('button[data-r="exit"]').click();
+    await expect(bar).not.toHaveClass(/replaying/);
+  }
+  // (a move mid-walk: the same selection's walkthrough at the new
+  // moment, at the same step)
+  await pick(page.locator(`${D} li[data-path="mult"] > .row`));
+  await bar.locator('button[data-r="start"]').click();
+  await bar.locator('button[data-r="next"]').click();
+  const cap = await page.locator(`${D} .rcap`).textContent();
+  const count = await bar.locator(".rcount").textContent();
+  await page.locator(`${D} .moves`).focus();
+  await page.keyboard.press("ArrowRight");
+  await expect.poll(() => at(page)).toBe(`12:${mult.step + 2}`);
+  await expect(bar).toHaveClass(/replaying/);
+  await expect(bar.locator(".rcount")).toHaveText(count!);
+  await expect(page.locator(`${D} .rcap`)).toHaveText(cap!);
+});
+
 test("moves: a trace step, a range change, a transaction's ends, another " +
   "transaction; keys; the hash keeps the moment", async ({ page }) => {
   await open(page, "bug-O0", "12:400");
@@ -118,6 +153,68 @@ test("the debugger opens by its button, and stays open in the hash",
     await page.reload();
     await expect(page.locator(".dbgpane")).toBeVisible();
   });
+
+// (mute, don't move: the stack's place, and the code's under it, the
+// same at every moment of a transaction, its locals and its depth
+// whatever)
+test("between 660 and 1199px: the stack and the code keep their places " +
+  "as the locals and the stack's depth change", async ({ page }) => {
+  await open(page, "bug-O0", "12:400", 1024);
+  const tops = () => page.evaluate(() => ["narrow", "side"].map((a) =>
+    Math.round(document.querySelector(`.dbgpane [data-area="${a}"]`)!
+      .getBoundingClientRect().top)));
+  const vars = () => page.locator(`${D} .vars li[data-path]`).count();
+  // (once the dumps' font is fitted)
+  let t0 = await tops();
+  await expect.poll(async () => {
+    const t = await tops();
+    const same = t.join() === t0.join();
+    t0 = t;
+    return same;
+  }, { intervals: [300] }).toBe(true);
+  const seen = new Set<number>();
+  await page.locator(`${D} .moves`).focus();
+  for (let k = 0; k < 30; k++) {
+    // (by range: through the play's functions)
+    await page.keyboard.press("ArrowDown");
+    await page.waitForTimeout(50);
+    seen.add(await vars());
+    expect(await tops()).toEqual(t0);
+  }
+  // (the locals did change)
+  expect(seen.size).toBeGreaterThan(1);
+});
+
+// (the same storage at the same moment: the inspector's dump, exactly:
+// its font, its rows, its cells, its gutter, its owners' tints, its
+// rows' names)
+for (const w of [1440, 1024]) {
+  test(`${w}px: the storage dump is the inspector's`, async ({ page }) => {
+    const A = "players[0x70997970c51812dc3a010c7d01b50e0d17dc79c8]";
+    const look = (s: string) => page.evaluate((s) => {
+      const v = document.querySelector(s)!;
+      const rows = [...v.querySelectorAll(".wrow:not(.head)")];
+      const b = v.querySelector(".word .b")!;
+      const at = (e: Element | null) => e!.getBoundingClientRect();
+      return { w: at(v).width, fs: getComputedStyle(v).fontSize,
+        rowH: at(rows[0]).height, cell: at(b.nextElementSibling).left -
+          at(b).left, gutter: at(v.querySelector(".addr")).width,
+        owned: v.querySelectorAll(".b[data-owners]").length,
+        lit: v.querySelectorAll(".b.hl").length,
+        names: [...v.querySelectorAll(".addr")].map((a) =>
+          a.getAttribute("title") ?? a.textContent).join() };
+    }, s);
+    await page.setViewportSize({ width: w, height: 1000 });
+    await page.goto(`./#ex=mid&sel=${A}`);
+    await page.waitForFunction(() =>
+      (window as unknown as { results?: { done: boolean } }).results?.done);
+    const want = await look("#panel .view:not([hidden])");
+    await page.goto("about:blank");
+    await open(page, "mid", undefined, w);
+    await pick(page.locator(`${D} li[data-path="${A}"] > .row`));
+    await expect.poll(() => look(`${D} #dpanel .view`)).toEqual(want);
+  });
+}
 
 test("a narrow page: Debugger | Scene, one at a time", async ({ page }) => {
   await open(page, "mid", undefined, 390);
