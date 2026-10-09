@@ -1,15 +1,14 @@
 // The annotated layer of the raw lens (the post's first before/after):
-// the same dumps, each top-level value a coloured composite with a short
-// label beside its bytes. Pure: the units (what one label names, and
-// the colour of each of its parts), their labels' text, and the short
-// value formats, from a decoding; where the labels go is placement.ts.
-import type {
-  Colour, Decoded, Hex, Layout, Location, Path, ValueNode,
-} from "./types";
-import { childColours } from "./light";
+// the same dumps, each top-level value (a mapping's entries each) in
+// one at-rest tint, and the inspector's popovers saying what each is.
+// Pure: the units (what one tint covers), the notes (what one popover
+// says, and the runs of rows it may point at), and the short value
+// formats, from a decoding; which row a popover points at is
+// placement.ts's.
+import type { Decoded, Hex, Layout, Location, Path, ValueNode } from
+  "./types";
 import { byteKey, short } from "./hex";
-import { rowBytes } from "./location";
-import type { Snapshot } from "./types";
+import { rangeText } from "./location";
 
 // ------------------------------------------------- short values
 
@@ -79,27 +78,15 @@ function fields(n: ValueNode, names: ReadonlyMap<string, string>,
 
 // ------------------------------------------------- units
 
-// A label's text, in parts: plain, or a part in a colour (a field's name
-// and value, as its bytes are coloured)
-export type Part = { text: string; k?: Colour };
-// One thing a label names: a top-level variable, a mapping's entry, a
-// group of hand-written locals, or variables that share one slot alone
-// (totalScore and totalHits); its owners (the layout's owner ids under
-// it), each one's colour, and its label's text, longest first (the
-// placement takes the first that fits)
-export interface Unit {
-  id: string; paths: Path[]; hand: boolean;
-  colours: ReadonlyMap<Path, Colour>;
-  label: Part[][];
-}
+// What one tint covers: a top-level value, or a mapping's entry (its
+// owner ids are under `path`)
+export interface Unit { path: Path; tint: number }
+// (the at-rest tints: style.css t0…t4)
+export const TINTS = 5;
 
 const ownerPath = (id: string) => id.replace(/#[a-z]+$/, "");
 const under = (p: Path, root: Path) => p === root ||
   p.startsWith(root + ".") || p.startsWith(root + "[");
-// a composite's own colour (its length word) is neutral, never the
-// selection's yellow: nothing is selected here
-const noYellow = (m: ReadonlyMap<Path, Colour>) => new Map([...m].map(
-  ([p, k]) => [p, k === 0 ? "nt" as const : k]));
 
 // The rows (addresses) a value's own bytes are in, in a layout
 const rowsOf = (l: Layout, path: Path) => {
@@ -111,157 +98,113 @@ const rowsOf = (l: Layout, path: Path) => {
   return out;
 };
 
-// The units of a decoding, as a layout of one location shows them:
-// the top-level values that own bytes there, a mapping's entries each
-// its own; values alone in one row, side by side, one unit
-export function unitsOf(d: Decoded, l: Layout,
-  o: { names: ReadonlyMap<string, string>; hand?: boolean }): Unit[] {
-  const top = d.tree.flatMap((n) => n.children && /^mapping\(/.test(
-    n.typeText) ? n.children : [n]).filter((n) => rowsOf(l, n.path).size);
-  const units: Unit[] = [];
-  // (one-row leaves that share their row with nothing else: merged)
-  const leafRow = (n: ValueNode) => {
-    const rs = [...rowsOf(l, n.path)];
-    return !n.children && rs.length === 1 ? rs[0] : undefined;
-  };
-  const done = new Set<ValueNode>();
-  for (const n of top) {
-    if (done.has(n)) continue;
-    const row = leafRow(n);
-    const mates = row ? top.filter((m) => leafRow(m) === row) : [n];
-    mates.forEach((m) => done.add(m));
-    if (mates.length > 1) {
-      // (as the source declares them)
-      const ms = mates;
-      const colours = new Map<Path, Colour>(ms.map((m, i) =>
-        [m.path, (1 + i) as Colour]));
-      const part = (m: ValueNode): Part => ({ k: colours.get(m.path),
-        text: `${m.label} ${shortValue(m, o.names)}` });
-      units.push({ id: ms.map((m) => m.path).join("+"),
-        paths: ms.map((m) => m.path), hand: !!o.hand, colours,
-        label: [ms.flatMap((m, i) => [...i ? [{ text: " · " }] : [],
-          part(m)])] });
-      continue;
-    }
-    units.push(unitOf(d, n, o));
-  }
-  return units;
+// The values a layout shows, top-level (a mapping's entries each its
+// own), in tree order, each its tint in turn
+export function unitsOf(d: Decoded, l: Layout): Unit[] {
+  return d.tree.flatMap((n) => n.children && /^mapping\(/.test(n.typeText)
+    ? n.children : [n]).filter((n) => rowsOf(l, n.path).size)
+    .map((n, i) => ({ path: n.path, tint: i % TINTS }));
 }
 
-function unitOf(d: Decoded, n: ValueNode,
-  o: { names: ReadonlyMap<string, string>; hand?: boolean }): Unit {
-  const name = pathName(n.path, o.names);
-  const kids = noYellow(childColours(d, n.path, 9));
-  // (a leaf: one colour)
-  const colours = kids.size ? kids : new Map<Path, Colour>([[n.path, 1]]);
-  const head = { text: `${name}: ` };
-  let label: Part[][];
-  if (n.children && (n.kind === "record" || !/\[\d*\]$/.test(n.typeText))) {
-    // a record: its first fields, each in its colour; then fewer
-    const by = (k: number): Part[] => [head, ...(n.children ?? [])
-      .slice(0, k).flatMap((c, i) => [...i ? [{ text: " · " }] : [],
-        { text: `${c.label} ${shortValue(c, o.names, { text: 16 })}`,
-          k: colours.get(c.path) }]),
-    ...(n.children!.length > k ? [{ text: " …" }] : [])];
-    label = [3, 2, 1].map(by);
-  } else {
-    const v = (text?: number) => shortValue(n, o.names, { text });
-    label = [[head, { text: v(), k: colours.get(n.path) }],
-      [head, { text: v(14), k: colours.get(n.path) }]];
-  }
-  label.push([{ text: name }]);
-  return { id: n.path, paths: [n.path], hand: !!o.hand, colours, label };
+// Each byte of a row: the unit whose value owns it (an index), or null
+export function cellsOf(units: Unit[], l: Layout, row: Hex):
+  (number | null)[] {
+  return Array.from({ length: 32 }, (_, i) => {
+    const ids = l.cover.get(byteKey(l.location as Location, row, i)) ?? [];
+    const k = units.findIndex((u) => ids.some((id) =>
+      under(ownerPath(id), u.path)));
+    return k < 0 ? null : k;
+  });
 }
 
-// Which unit owns an owner id (a value path, or a part of one), and its
-// colour there
-export function colourOf(units: Unit[], id: string):
-  { unit: number; k: Colour } | undefined {
-  const p = ownerPath(id);
-  for (const [i, u] of units.entries()) {
-    if (!u.paths.some((q) => under(p, q))) continue;
-    // (the colour of the nearest value at or above it that has one)
-    for (let q: string = p; q; q = q.replace(/(\.[^.[\]]+|\[[^\]]*\])$/,
-      "")) {
-      const k = u.colours.get(q);
-      if (k !== undefined) return { unit: i, k };
-      if (!/[.[]/.test(q)) break;
-    }
-    return { unit: i, k: 1 };
-  }
-  return undefined;
-}
+// ------------------------------------------------- notes
 
-// ------------------------------------------------- groups
+// What one popover says, "how : what" (`items`: a slot's in byte
+// order, `seg` the slot: " / " between slots), the units it is about,
+// and the runs of rows (as the dump shows them) it may point at
+export interface Note { units: number[]; how: string;
+  items: { text: string; seg: number }[]; runs: Hex[][] }
 
-// A unit's rows as the dump shows them (`shown`: its rows, in order,
-// with a gap where they jump): runs of adjacent rows that hold its
-// bytes; the first run holds its label, the others a short one each
-// (what they hold: "players[carol].name: "carol, the unst…"")
-export interface Group { unit: number; rows: Hex[]; main: boolean;
-  label: Part[][] }
-export function groupsOf(units: Unit[], l: Layout,
-  shown: { address: Hex; gapBefore?: boolean }[], o: {
-    d: Decoded; names: ReadonlyMap<string, string> }): Group[] {
-  const out: Group[] = [];
-  units.forEach((u, i) => {
-    const mine = new Set(u.paths.flatMap((p) => [...rowsOf(l, p)]));
+// The notes of a layout's units: one a unit; values alone in one slot
+// together, one note (totalScore and totalHits); `perRun`: one note a
+// run of adjacent rows, whatever units are in it (the stack's items,
+// as the inspector's popovers do)
+export function notesOf(d: Decoded, l: Layout, units: Unit[],
+  shown: { address: Hex; gapBefore?: boolean }[],
+  o: { names: ReadonlyMap<string, string>; perRun?: boolean;
+    // (false: names alone; the dump shows the values, as an
+    // abbreviated stack does)
+    values?: boolean }): Note[] {
+  const runsOf = (rows: Set<Hex>) => {
+    const out: Hex[][] = [];
     let run: Hex[] | null = null;
-    const runs: Hex[][] = [];
     for (const r of shown) {
-      if (!mine.has(r.address) || r.gapBefore) run = null;
-      if (!mine.has(r.address)) continue;
-      if (!run) runs.push(run = []);
+      if (!rows.has(r.address) || r.gapBefore) run = null;
+      if (!rows.has(r.address)) continue;
+      if (!run) out.push(run = []);
       run.push(r.address);
     }
-    runs.forEach((rows, k) => out.push({ unit: i, rows, main: k === 0,
-      label: k === 0 ? u.label : more(u, rows, l, o) }));
+    return out;
+  };
+  const node = (u: Unit) => d.byPath.get(u.path)!;
+  const rows = units.map((u) => rowsOf(l, u.path));
+  if (o.perRun) {
+    const all = new Set(rows.flatMap((r) => [...r]));
+    return runsOf(all).map((run) => {
+      const us = units.map((_, i) => i).filter((i) =>
+        run.some((r) => rows[i].has(r)));
+      return { units: us, runs: [run],
+        how: run.length === 1 ? rowName(l, run[0])
+          : `${rowName(l, run[0])}–${rowName(l, run.at(-1)!).replace(
+            /^\S+ /, "")}`,
+        items: us.map((i) => ({ seg: run.indexOf([...rows[i]][0]),
+          text: `${pathName(node(units[i]).path, o.names)}${
+            o.values === false ? "" : ` ${shortValue(node(units[i]),
+              o.names, { text: 16 })}`}` })) };
+    });
+  }
+  const done = new Set<number>();
+  const out: Note[] = [];
+  units.forEach((u, i) => {
+    if (done.has(i)) return;
+    const n = node(u);
+    const one = !n.children && rows[i].size === 1 ? [...rows[i]][0]
+      : undefined;
+    const mates = one ? units.map((_, k) => k).filter((k) =>
+      !node(units[k]).children && rows[k].size === 1 &&
+      rows[k].has(one)) : [i];
+    mates.forEach((k) => done.add(k));
+    const runs = runsOf(new Set(mates.flatMap((k) => [...rows[k]])));
+    if (mates.length > 1) {
+      out.push({ units: mates, runs, how: rowName(l, one!),
+        items: mates.map((k) => ({ seg: 0, text: `${node(units[k]).label} ${
+          shortValue(node(units[k]), o.names)}` })) });
+      return;
+    }
+    out.push({ units: [i], runs, how: pathName(n.path, o.names),
+      items: itemsOf(n, o.names) });
   });
   return out;
 }
 
-// the label of a unit's later run: the value its rows hold (their
-// owners' nearest common value), by path; its value too when the unit's
-// own label does not show it (a record's field past its first three)
-function more(u: Unit, rows: Hex[], l: Layout,
-  o: { d: Decoded; names: ReadonlyMap<string, string> }): Part[][] {
-  const ids = new Set<string>();
-  for (const r of rows) {
-    for (let i = 0; i < 32; i++) {
-      for (const id of l.cover.get(byteKey(l.location, r, i)) ?? []) {
-        ids.add(ownerPath(id));
-      }
-    }
-  }
-  const ps = [...ids].filter((p) => u.paths.some((q) => under(p, q)));
-  let common = ps[0] ?? u.paths[0];
-  while (!ps.every((p) => under(p, common))) {
-    common = common.replace(/(\.[^.[\]]+|\[[^\]]*\])$/, "");
-  }
-  const name = pathName(common, o.names);
-  const n = o.d.byPath.get(common);
-  const k = colourOf([u], common)?.k;
-  const shownIn = u.paths.includes(common) || !n || n.children ||
-    (o.d.byPath.get(u.paths[0])?.children ?? []).slice(0, 3).includes(n);
-  if (shownIn) return [[{ text: name, k }]];
-  return [[{ text: `${name}: ` }, { text: shortValue(n, o.names), k }],
-    [{ text: `${name}: ` }, { text: shortValue(n, o.names,
-      { text: 12 }), k }], [{ text: name, k }]];
+// a row's name, where the layout does not name it by a rule: "slot 2",
+// "stack 0", "memory 0x0040"
+function rowName(l: Layout, row: Hex) {
+  if (l.location === "storage") return `slot ${BigInt(row)}`;
+  if (l.location === "stack") return `stack ${BigInt(row)}`;
+  return rangeText(l.location, Number(BigInt(row)), Number(BigInt(row)));
 }
 
-// ------------------------------------------------- the cells
-
-// What each byte of a row is in the annotated layer: its unit, colour,
-// and whether it is zero (a label may cover its own unit's zeros)
-export function cellsOf(units: Unit[], l: Layout, row: Hex,
-  snap: Snapshot | undefined): ({ unit: number; k: Colour } | null)[] {
-  return Array.from({ length: 32 }, (_, i) => {
-    const ids = l.cover.get(byteKey(l.location as Location, row, i)) ?? [];
-    for (const id of ids) {
-      const c = colourOf(units, id);
-      if (c) return c;
-    }
-    return null;
-  }).map((c, i) => c && rowBytes(snap, l.location, row)[i] !== undefined
-    ? c : null);
+// what a value is, in short items: a record's fields ("score 30"); an
+// array's items; else its value
+function itemsOf(n: ValueNode, names: ReadonlyMap<string, string>) {
+  const kids = n.children ?? [];
+  if (kids.length && (n.kind === "record" || !/\[\d*\]$/.test(n.typeText))) {
+    return kids.map((c) => ({ seg: 0,
+      text: `${c.label} ${shortValue(c, names, { text: 16 })}` }));
+  }
+  if (kids.length) {
+    return kids.map((c) => ({ seg: 0, text: shortValue(c, names) }));
+  }
+  return [{ seg: 0, text: shortValue(n, names) }];
 }

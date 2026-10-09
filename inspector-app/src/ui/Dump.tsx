@@ -4,10 +4,10 @@
 import { useFitDump } from "./fit";
 import { useEffect, useLayoutEffect, useMemo, useRef } from "react";
 import { drawOverlays, type ViewData } from "./overlays";
-import { drawLabels, stagger } from "./labels";
+import { drawNotes, stagger } from "./notes";
 import { useRevealed } from "./reveal";
 import {
-  cellsOf, groupsOf as labelGroups, onChainNames, unitsOf, type Unit,
+  cellsOf, notesOf, onChainNames, unitsOf,
 } from "../engine/annotated";
 
 // one drawing of a box's overlays per commit, however many of its dumps
@@ -154,29 +154,28 @@ function tintsOf(ls: Layout[], loc: Location) {
 const half = (mine: (string | undefined)[]) =>
   mine.slice(16).every((b) => b === undefined) && mine[0] !== undefined;
 
+// (each byte of a row, in the annotated layer: its unit, tint, delay)
+type Annot = ({ unit: number; tint: number; d: number } | null)[];
 function Word({ l, ls, loc, row, mine, theirs, side, pair, name, light,
-  groupsOf, bare, abbreviate, annot, stagger }: {
+  groupsOf, bare, abbreviate, annot }: {
   l: Layout; ls: Layout[]; loc: Location; row: Hex;
   mine: (string | undefined)[]; theirs: (string | undefined)[];
   side?: string; pair?: boolean; name: string; light: Light;
   groupsOf: (id: string) => boolean; bare?: boolean;
-  abbreviate?: number; annot?: ReturnType<typeof cellsOf>;
-  stagger?: number }) {
-  // (the annotated layer: a byte's unit and colour, as classes the
-  // reveal shows; a run of one unit's colour rounded at its ends)
+  abbreviate?: number; annot?: Annot }) {
+  // (the annotated layer: a byte's value (its unit), in that value's
+  // at-rest tint, uniformly, as the reveal shows it; a run of one
+  // value's bytes rounded at its ends, as the dump's owners are; its
+  // fade a little after the one before it: `d` ms)
   const an = (i: number) => {
     const c = annot?.[i];
     if (!c) return "";
-    const same = (j: number) => annot![j]?.unit === c.unit &&
-      annot![j]?.k === c.k;
-    return ` an pk${c.k}${i % 8 === 0 || !same(i - 1) ? " gs" : ""}${
-      i % 8 === 7 || !same(i + 1) ? " ge" : ""}`;
+    const same = (j: number) => annot![j]?.unit === c.unit;
+    return ` an t${c.tint}${!same(i - 1) ? " gs" : ""}${
+      !same(i + 1) ? " ge" : ""}`;
   };
-  // (each unit fades in a little after the one before: the reveal's
-  // stagger, `stagger` ms a unit)
   const unit = (i: number) => annot?.[i] ? { "data-unit": annot[i]!.unit,
-    style: { "--d": `${Math.round(annot[i]!.unit * (stagger ?? 0))}ms` } as
-      CSSProperties } : {};
+    style: { "--d": `${annot[i]!.d}ms` } as CSSProperties } : {};
   if (abbreviate !== undefined) {
     const k = annot?.findIndex(Boolean) ?? -1;
     return <div className="word" data-side={side} data-slot={row}>
@@ -475,9 +474,10 @@ export function Dump(p: { id: ViewId; location: Location; data: DataRef;
   }, [l, disp.foldZero, snap, p.location]);
   useFitDump(me, true, rows.length);
 
-  // the annotated layer (display `annotate`): the units of the values
-  // here, the colour of each byte, and the labels' groups; keys by their
-  // on-chain names, from the scene's own decoding
+  // the annotated layer (display `annotate`): the values here, each in
+  // its tint, and the popovers that say what they are; keys by their
+  // on-chain names, from the scene's own decoding. Hand-written
+  // pointers' (the stack's): a popover a run of rows, as ever
   const annot = !!disp.annotate;
   const own = useDecoded(annot ? { decoding: "$scene", moment: "current" }
     : undefined);
@@ -486,15 +486,20 @@ export function Dump(p: { id: ViewId; location: Location; data: DataRef;
   const layer = useMemo(() => {
     if (!annot || !d || !l || !own) return undefined;
     const names = onChainNames(own);
-    const units: Unit[] = unitsOf(d, l, { names, hand });
-    return { units, groups: labelGroups(units, l, rows, { d, names }) };
-  }, [annot, d, l, own, rows, hand]);
+    const units = unitsOf(d, l);
+    const notes = notesOf(d, l, units, rows, { names, perRun: hand,
+      values: disp.abbreviate === undefined });
+    // (a unit fades in with its note)
+    const step = stagger(notes.length);
+    const delay = units.map((_, i) => Math.round(step *
+      Math.max(0, notes.findIndex((n) => n.units.includes(i)))));
+    return { units, notes, delay };
+  }, [annot, d, l, own, rows, hand, disp.abbreviate]);
   const revealed = useRevealed();
   useLayoutEffect(() => {
     const v = me.current;
     if (!v || !layer) return;
-    const draw = () => v.isConnected && drawLabels(v, layer.units,
-      layer.groups);
+    const draw = () => v.isConnected && drawNotes(v, layer.notes);
     draw();
     addEventListener("resize", draw);
     let live = true;
@@ -599,8 +604,9 @@ export function Dump(p: { id: ViewId; location: Location; data: DataRef;
         side={order} pair={!!p.compare} name={name} light={light}
         groupsOf={groupsOf}
         bare={bare} abbreviate={disp.abbreviate}
-        annot={layer && cellsOf(layer.units, l, r.address, snap)}
-        stagger={layer && stagger(layer.units.length)} />}
+        annot={layer && cellsOf(layer.units, l, r.address).map((u) =>
+          u === null ? null : { unit: u, tint: layer.units[u].tint,
+            d: layer.delay[u] })} />}
     </div>);
   });
   if (l?.more && !flow) {
@@ -657,8 +663,9 @@ export function Dump(p: { id: ViewId; location: Location; data: DataRef;
     data-location={p.location}
     data-exits={exiting(link) || undefined} {...handlers}>
     <div className="view-head"><span className="view-name">{title}</span>
-      {/* (pointers written by hand, not the compiler's: said so) */}
-      {hand && <span className="hand-note">pointers written by hand
+      {/* (pointers written by hand, not the compiler's: said so, as a
+        hand-written compilation's tree says it) */}
+      {hand && <span className="handmade">written by hand, not from solc
       </span>}
       {ruler && <div className="wrow head"><span className="addr" />
         <Ruler /></div>}
