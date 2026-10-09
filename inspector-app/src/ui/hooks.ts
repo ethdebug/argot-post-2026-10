@@ -186,15 +186,17 @@ export function useLayout(id: string, filter?: Filter, at?: DataRef,
 // selection's related rows (engine/related.ts) at the view's point and
 // at the point it compares with, so a pair's two sides keep one set of
 // rows. None while the view is off, or nothing is selected. Hovering
-// changes nothing: only a selection does.
+// changes nothing: only a selection does. (Its inputs are loaded
+// whether it is on or not: a switch draws its rows in the same commit,
+// the one a view transition captures, not a load later.)
 export function useRelated(id: string, location: Location,
   data?: DataRef, compare?: DataRef): Filter["only"] | undefined {
   const v = useViewSpec(id);
   const context = useLensState((s) => s.related?.context);
   const [link] = useLink(v.link);
   const on = context !== undefined && !!link.selection;
-  const a = useWalkInput(on ? data : undefined);
-  const b = useWalkInput(on ? compare : undefined);
+  const a = useWalkInput(data);
+  const b = useWalkInput(compare);
   const { project } = useLens();
   const sel = link.selection;
   const key = useMemo(() => {
@@ -209,14 +211,15 @@ export function useRelated(id: string, location: Location,
 
 // The related view's values for a tree (Filter.roots): the selection
 // and the values outside it its walkthrough reads (engine/related.ts);
-// none while the view is off, or nothing is selected
+// none while the view is off, or nothing is selected (its inputs loaded
+// either way, as useRelated's)
 export function useRelatedRoots(id: string): string[] | undefined {
   const v = useViewSpec(id);
   const on = useLensState((s) => s.related !== undefined);
   const [link] = useLink(v.link);
   const sel = on ? link.selection : null;
-  const x = useWalkInput(sel && "data" in v ? v.data : undefined);
-  const d = useDecoded(sel && "data" in v ? v.data : undefined);
+  const x = useWalkInput("data" in v ? v.data : undefined);
+  const d = useDecoded("data" in v ? v.data : undefined);
   const { project } = useLens();
   const key = useMemo(() => !sel || !d?.byPath.has(sel) ? ""
     : relatedValues(d, sel, x ? walkOf(project, x, sel) : null).join("\n"),

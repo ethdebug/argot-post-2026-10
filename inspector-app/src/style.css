@@ -1227,8 +1227,10 @@ sup.fn { font-size: 0.7em; color: var(--accent); margin-left: 1px; }
    stay move, the others fade, the popovers with their rows; the cards,
    the tray and the tree's edge buttons wait until it is done */
 ::view-transition-group(*), ::view-transition-old(*),
-::view-transition-new(*) { animation-duration: 220ms;
-  animation-timing-function: ease-out; }
+::view-transition-new(*) { animation-duration: 400ms;
+  animation-timing-function: cubic-bezier(0.2, 0.8, 0.2, 1); }
+/* (a click meanwhile reaches the page under it: it is never lost) */
+::view-transition { pointer-events: none; }
 .vt-run :is(.cmp, .tray, .tedge, .bruler) { visibility: hidden; }
 .pksrc { --pk: var(--pksrc); --pk-fg: var(--pksrc-fg); }
 .b.hl:is(.pk9, .pksrc) { background: var(--pk); color: var(--pk-fg); }
