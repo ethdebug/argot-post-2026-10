@@ -1,14 +1,13 @@
 // The project: the scenes (src/scenes) and their decodings, each scene's
 // moments from a source (the reader: its snapshot file; authoring: its
-// run), as timelines the engine decodes; and, until they become scenes,
-// the raw moment and the memory section's fixtures
+// run), as timelines the engine decodes; and, until it becomes scenes,
+// the memory section's fixture
 import type { Io } from "./io";
 import type {
   Compilation, CompilationId, Decoding, DecodingId, Timeline, TimelineId,
 } from "./types";
 import type { ProjectBookmark } from "./fixtures/legacy";
 import { fromMemory } from "./fixtures/memory";
-import { fromRaw, RAW } from "./fixtures/raw";
 import {
   compilationsOf, decodingsOf, pointOf, timelineOf, type BuildInfo,
   type Scene, type SceneId,
@@ -102,10 +101,6 @@ export async function load(io: Io, o: { scenes: Scene[];
       if (!ss.includes(s.id)) scenesOf.set(d.compilation, [...ss, s.id]);
     }
   }
-  // the raw moment (fixtures/raw.json): its bytes, with no variables
-  decodings[RAW] = { id: RAW, compilation: RAW, timeline: RAW,
-    variables: "state", keys: { from: "trace" } };
-  const raw = memoised(() => io.json("fixtures/raw.json").then(fromRaw));
   // a call's calldata, by the ABI (a bookmark that names its function)
   for (const b of bookmarks) {
     if (!b.calldata) continue;
@@ -158,11 +153,10 @@ export async function load(io: Io, o: { scenes: Scene[];
       lens: s.lens ?? "inspector" })),
     source: async (id) => (await loaded(id)).src,
     timeline: async (id) => mem.timelines.find((t) => t.id === id) ??
-      (id === RAW ? (await raw(RAW)).timeline : sceneTimeline(id)),
+      sceneTimeline(id),
     async compilation(id) {
       const bug = mem.compilations.find((c) => c.id === id);
       if (bug) return bug;
-      if (id === RAW) return (await raw(RAW)).compilation;
       // (from a scene loaded already, if one reads it)
       const ss = scenesOf.get(id) ?? [];
       const s = ss.find((x) => asked.has(x)) ?? ss[0];

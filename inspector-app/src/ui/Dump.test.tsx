@@ -29,14 +29,12 @@ it("hovering a byte changes classes only, not the markup", async () => {
 it("one word per row, its owners' bytes marked", async () => {
   const { container } = await dumps();
   // (the layout, then the words: the last byte reads 8c)
+  // (mid: one moment, one dump: none before it)
   await waitFor(() => expect(container.querySelector(
-    `.view[data-side="after"] .wrow[data-slot="${slot2}"] .b[data-i="31"]`)
-    ?.textContent)
+    `.view .wrow[data-slot="${slot2}"] .b[data-i="31"]`)?.textContent)
     .toBe("8c"), slow);
-  const view = container.querySelector('.view[data-side="after"]')!;
-  expect(view.hasAttribute("hidden")).toBe(false);
-  expect(container.querySelector('.view[data-side="before"]')!
-    .hasAttribute("hidden")).toBe(true);
+  expect(container.querySelectorAll(".view")).toHaveLength(1);
+  const view = container.querySelector(".view")!;
   const row = view.querySelector(`.rows .wrow[data-slot="${slot2}"]`)!;
   expect(row.getAttribute("data-name")).toBe("slot 2");
   const cells = [...row.querySelectorAll(".b")];
@@ -47,5 +45,5 @@ it("one word per row, its owners' bytes marked", async () => {
   expect(cells[8].getAttribute("data-owners")).toBe("totalHits");
   expect(cells[0].classList.contains("free")).toBe(true);
   expect(cells[16].getAttribute("aria-label"))
-    .toBe("totalScore, bytes 16 to 31 of slot 2, after");
+    .toBe("totalScore, bytes 16 to 31 of slot 2");
 });

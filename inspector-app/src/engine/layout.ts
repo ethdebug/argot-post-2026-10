@@ -152,9 +152,10 @@ export function layout(d: Decoded, location: Location, filter: Filter = {},
       if (!first.has(h)) extra.set(h, `${o.who ? `${o.who} ` : ""}${n}`);
     }
   }
-  // each variable's own slot (a mapping's holds none of its data)
+  // each variable's own slot (a mapping's holds none of its data; a
+  // storage variable's: storage's rows only)
   const own = new Map<Hex, Path>();
-  for (const n of d.tree) {
+  for (const n of location === "storage" ? d.tree : []) {
     if (roots && !roots.includes(n.path)) continue;
     const g = d.graphs.get(n.root);
     const declared = g && [...g.nodes.values()].find((x) =>
@@ -167,7 +168,13 @@ export function layout(d: Decoded, location: Location, filter: Filter = {},
     : filter.rows === "touched" && tx
       ? [...new Set([...tx.reads, ...tx.writes])].filter((s) =>
         o.point!.snapshot.storage.has(s))
-      : filter.rows === "all" ? allRows(o.point?.snapshot, location) : [];
+      // (storage, all: the slots that hold something, and those the
+      // values here own, zero or not: a snapshot also holds slots the
+      // run touches later and other decodings read)
+      : filter.rows === "all" ? allRows(o.point?.snapshot, location)
+        .filter((a) => location !== "storage" || first.has(a) ||
+          !/^0x0*$/.test(o.point!.snapshot.storage.get(a) ?? "0x"))
+        : [];
 
   // memory: the compared point's words too, and those that changed
   const words = new Set<Hex>();

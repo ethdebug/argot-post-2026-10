@@ -19,7 +19,7 @@ const TX = 12;
 const ID = "stepper-dev";
 // (memory.json's "mult" pause, after `mult = combo`)
 const FIRST = 793;
-const at = { decoding: ID, point: { slot: "a" } };
+const at = { decoding: ID, moment: "current" } as const;
 
 const lensOf = (c: Compilation): LensSpec => ({
   id: ID, title: "Code and variables (bug-O0, dev harness)",
@@ -95,7 +95,12 @@ export function StepperHarness({ project: base }: { spec: LensSpec;
     if (!got || "error" in got) return undefined;
     const { run, build, c, e } = got;
     const points = new Map<string, TimelinePoint>();
+    const steps = run.txs[TX].steps;
+    // (the run's trace steps as one scene's moments)
     const project: Project = { ...base, memo: new Map(),
+      bookmarks: [...base.bookmarks, { id: ID, title: ID, timeline: ID,
+        decoding: ID, points: Array.from({ length: steps }, (_, i) =>
+          `${TX}:${i}`) as [string] }],
       timeline: async (id) => id !== ID ? base.timeline(id)
         : { id, contract: { address: run.address, compilation: c.id },
           points: [...points.values()], bookmarks: [] },
@@ -116,7 +121,7 @@ export function StepperHarness({ project: base }: { spec: LensSpec;
   const point = made?.pointAt(n);
   useEffect(() => {
     if (!lens || !point) return;
-    lens.store.set((s) => ({ ...s, points: { a: point.id, b: point.id } }));
+    lens.store.set((s) => ({ ...s, scene: ID, moment: n }));
     const q = new URLSearchParams(location.hash.slice(1));
     q.set("lens", ID);
     q.set("step", String(n));

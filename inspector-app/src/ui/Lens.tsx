@@ -13,8 +13,8 @@ import { readHash, writeHash, type Pending } from "./hash";
 import { createStore, type Store } from "./store";
 import { animated } from "./transition";
 import {
-  decodingOf, LensContext, useLensState, type LensContextValue,
-  hush, pointer,
+  decodingOf, LensContext, useLens, useLensState, resolveRef,
+  type LensContextValue, hush, pointer,
 } from "./hooks";
 import { viewKinds } from "./views";
 import type {
@@ -23,14 +23,16 @@ import type {
 
 type Kinds = Partial<Record<ViewKind, ComponentType<any>>>;
 
+// (a scene's first moment shown: its initial one, else its last)
+const firstMoment = (bm: { points: unknown[]; side?: string }) =>
+  bm.side === "before" ? 0 : bm.points.length - 1;
+
 export function initialState(spec: LensSpec, project: Project): LensState {
   const id = spec.initial?.scene ?? spec.bookmarks?.[0];
   const bm = project.bookmarks.find((b) => b.id === id);
   return {
     scene: bm?.id,
-    points: bm ? { a: bm.points[0], b: bm.points[1] ?? bm.points[0] } : {},
-    side: bm?.side ?? "after",
-    insets: true,
+    moment: bm ? firstMoment(bm) : 0,
     links: Object.fromEntries(spec.links.map((l) =>
       [l, { selection: null, hover: null, walk: null }])),
     views: {},
@@ -38,12 +40,9 @@ export function initialState(spec: LensSpec, project: Project): LensState {
   };
 }
 
-const WHEN = { before: "before the transaction",
-  after: "after the transaction" };
-
-// Show a bookmark: its points, the side it opens with (or `view.mode`),
-// and its selection (or `view.sel`; one the tree does not have is none),
-// in every link group. Waits for its data; a later call wins.
+// Show a scene: its moment (its first, or `view.moment`), and its
+// selection (or `view.sel`; one the tree does not have is none), in
+// every link group. Waits for its data; a later call wins.
 // (`onFail`: the page's report of a load that failed, with a retry)
 function shower(store: Store<LensState>, spec: LensSpec, project: Project,
   onFail?: (e: unknown, again: () => void) => void) {
@@ -52,14 +51,14 @@ function shower(store: Store<LensState>, spec: LensSpec, project: Project,
     const ticket = ++wanted;
     const bm = project.bookmarks.find((b) => b.id === id);
     if (!bm) return false;
-    const single = bm.points.length === 1;
-    const side = single ? "after" : view?.mode ?? bm.side ?? "after";
-    const point = bm.points[side === "before" ? 0 : bm.points.length - 1];
+    const asked = view?.moment;
+    const moment = asked !== undefined && asked >= 0 &&
+      asked < bm.points.length ? asked : firstMoment(bm);
     const dc = decodingOf({ spec, project } as LensContextValue,
       bm.decoding);
     let tree;
     try {
-      tree = await decode(project, dc!, point);
+      tree = await decode(project, dc!, bm.points[moment]);
       await Promise.all(bm.points.map((p) => decode(project, dc!, p)));
     } catch (e) {
       if (ticket !== wanted) return false;
@@ -71,11 +70,10 @@ function shower(store: Store<LensState>, spec: LensSpec, project: Project,
     if (ticket !== wanted) return true; // another was asked for since
     const want = view && "sel" in view ? view.sel : bm.select;
     const selection = want && tree.byPath.has(want) ? want : null;
-    store.set((s) => ({ ...s, scene: id, error: undefined,
+    store.set((s) => ({ ...s, scene: id, moment, error: undefined,
       shows: (s.shows ?? 0) + 1,
-      points: { a: bm.points[0], b: bm.points[1] ?? bm.points[0] }, side,
       // (a link group of its own section starts with nothing selected:
-      // the bookmark's selection is the others')
+      // the scene's selection is the others')
       links: Object.fromEntries(spec.links.map((l) => [l,
         { selection: Object.values(spec.scopes ?? {}).includes(l) ? null
           : selection, hover: null,
@@ -85,42 +83,54 @@ function shower(store: Store<LensState>, spec: LensSpec, project: Project,
   return show;
 }
 
-// A view, with what the lens decides for it: a dump that is one side of
-// the pair is shown when the lens shows that side, and is titled Before
-// or After (Storage at one point); any other dump is shown, titled
-// (the pair's views also compare with the other side: a dump's changed
-// bytes and its slots' facts, a tree's changed values; two points show
-// the slots the transaction read or wrote too)
+// A view, with what the lens decides for it: one whose data has no
+// point (the moment before a scene's first) is idle, or with
+// `idle: "hidden"` not drawn; a dump compared with another moment shows
+// the rows its transaction touched too, and is titled by its moment (a
+// scene of one moment: its own title)
 function Present({ v, View }: { v: ViewSpec; View: ComponentType<any> }) {
-  const shown = useLensState((s) => s.side ?? "after");
-  const single = useLensState((s) => s.points.a === s.points.b);
-  const insets = useLensState((s) => s.insets);
-  const pair: DataRef | undefined = !single && "data" in v &&
-    "point" in v.data && typeof v.data.point !== "string"
-    ? { ...v.data, point: { slot: v.data.point.slot === "a" ? "b"
-      : v.data.point.slot === "b" ? "a" : "$other" } } : undefined;
-  const other = ("compare" in v ? v.compare : undefined) ?? pair;
+  const { project } = useLens();
+  const at = (r?: DataRef) => useLensState((s) => r ? resolveRef(r, s,
+    project)?.point ?? "" : "");
+  const here = at("data" in v ? v.data : undefined);
+  const there = at("compare" in v ? v.compare : undefined);
+  const label = useLensState((s) => {
+    const bm = project.bookmarks.find((b) => b.id === s.scene);
+    return bm && bm.points.length > 1 ? bm.points.indexOf(here) : -1;
+  });
+  const when = useWhen(v.kind === "dump" ? here : "");
   if (v.kind === "tree" || v.kind === "walkthrough") {
-    return <View {...v} compare={v.kind === "tree" && v.alone ? undefined
-      : other} />;
+    return <View {...v} compare={there ? v.compare : undefined} />;
   }
   if (v.kind !== "dump") return <View {...v} />;
-  const side = v.side;
-  // (paused steps, one of them: one dump; a transaction's pair keeps
-  // both, the same, as vanilla's storage section)
-  if (single && side === "before" && v.steps) return null;
-  // (a lens of paused steps: the panel's own header names the location,
-  // a view's name only tells Before from After: vanilla mem.js)
-  const title = v.steps && single ? "" : !side || single
-    ? v.title ?? "Storage" : side === "before" ? "Before" : "After";
-  // (a lens of paused steps: "Memory before the step")
-  const when = !side ? undefined : !v.steps ? WHEN[side]
-    : single ? "at this point" : `${side} the step`;
-  return <View {...v} hidden={!!side && shown !== side} title={title}
-    when={when}
-    compare={side || v.compare ? other : undefined}
-    filter={side && !single ? { ...v.filter, rows: "touched" } : v.filter}
-    cards={!!side && !single && insets} />;
+  if (v.idle === "hidden" && !here) return null;
+  const title = v.title ?? "Storage";
+  const two = label >= 0 && v.title2 !== undefined;
+  return <View {...v} title={!two ? title : v.title2 === "moment"
+    ? when ? `${title} ${when}` : title : v.title2} when={when}
+    compare={there ? v.compare : undefined}
+    filter={there ? { ...v.filter, rows: "touched" } : v.filter} />;
+}
+
+// a point's label: "in the middle of the game"
+function useWhen(point: string): string | undefined {
+  const { project } = useLens();
+  const [label, setLabel] = useState<{ point: string; text: string }>();
+  useEffect(() => {
+    if (!point) return;
+    let live = true;
+    const tl = point.slice(0, point.lastIndexOf(":"));
+    const id = project.bookmarks.find((b) => b.points.includes(point))
+      ?.timeline ?? `scene:${tl}`;
+    project.timeline(id).then((t) => {
+      const p = t.points.find((x) => x.id === point);
+      if (live && p) setLabel({ point, text: p.label });
+    }, () => {});
+    return () => {
+      live = false;
+    };
+  }, [project, point]);
+  return label?.point === point ? label.text : undefined;
 }
 
 export function Lens(props: { spec: LensSpec; project: Project;
@@ -174,14 +184,13 @@ export function Lens(props: { spec: LensSpec; project: Project;
     const want = props.hash ? fromHash(spec, readHash(), project.bookmarks)
       : undefined;
     if (want) {
-      st.set((s) => ({ ...s, insets: want.insets,
-        related: want.related === undefined ? undefined
-          : { context: want.related } }));
+      st.set((s) => ({ ...s, related: want.related === undefined
+        ? undefined : { context: want.related } }));
     }
     const id = want?.bookmark ?? st.get().scene;
     // (a hash that names no scene of the lens: the scene's own view)
-    const ready = id ? show(id, want?.bookmark ? { mode: want.side,
-      sel: want.selection } : undefined) : Promise.resolve(true);
+    const ready = id ? show(id, want?.bookmark ? { sel: want.selection }
+      : undefined) : Promise.resolve(true);
     let live = true;
     const unsub = props.hash ? (() => {
       let off = () => {};
@@ -190,7 +199,6 @@ export function Lens(props: { spec: LensSpec; project: Project;
         const write = () => {
           const s = st.get();
           writeHash(toHash(spec, { bookmark: s.scene,
-            side: s.side ?? "after", insets: s.insets,
             selection: s.links[spec.links[0]]?.selection ?? null,
             related: s.related?.context },
           project.bookmarks), pending);

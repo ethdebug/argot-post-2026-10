@@ -14,7 +14,7 @@ import { relClass } from "../engine/related";
 import { vtName } from "./transition";
 import {
   useCompilation, useDecoded, useLens, useLensState, useLight, useLink,
-  useRelatedRoots, useView, useWalkthrough,
+  usePointAt, useRelatedRoots, useView, useWalkthrough,
   hush,
 } from "./hooks";
 import type { DataRef, LinkId, ViewId } from "./types";
@@ -36,7 +36,6 @@ const pk = (k: Colour | undefined) => k === undefined || k === 0 ? ""
 
 interface Ctx { light: Light; selection: string | null;
   collapsed: ReadonlySet<string>; pair?: [Decoded, Decoded];
-  card?: { path: string; side: string; node: ReactNode };
   plain?: boolean; partAttr?: boolean;
   // (a row's name in a view transition: transition.ts)
   vt?: (path: string) => string }
@@ -89,9 +88,6 @@ function Row({ n, top, c, inBlk }: { n: ValueNode; top?: boolean; c: Ctx;
     n.none ? "none" : "",
     shut ? "collapsed" : "", blk ? "blk" : "", blk ? pk(blkK) : "",
     blk && mutedRow(c, n) ? "muted" : ""].filter(Boolean).join(" ");
-  // (the other state's card: under the row and its members in Before,
-  // over the row in After)
-  const card = c.card?.path === n.path ? c.card : undefined;
   return <li className={li || undefined} data-path={n.path}
     data-part={c.partAttr ? n.part ?? n.path : undefined}>
     <div className={cls} tabIndex={0} role="button"
@@ -107,7 +103,6 @@ function Row({ n, top, c, inBlk }: { n: ValueNode; top?: boolean; c: Ctx;
         <span>{n.value?.text ?? n.summary}</span></span>
         : group ? <span className="val sum">{n.summary}</span>
           : n.note ? <span className="muted">{n.note}</span> : null}
-      {card?.side === "after" && card.node}
     </div>
     {group && !c.plain && <button type="button" className="chev"
       tabIndex={0}
@@ -119,49 +114,7 @@ function Row({ n, top, c, inBlk }: { n: ValueNode; top?: boolean; c: Ctx;
       : n.children && !n.value && !own
         ? <p className="muted empty">no keys hashed in this transaction</p>
         : null}
-    {card?.side === "before" && card.node}
   </li>;
-}
-
-// While a value is lit, a card by its row gives its value in the other
-// state (vanilla main.js treeCard): only where it differs; for a parent,
-// its changed members (at most 4, then "+N more")
-function treeCard(path: string | null, pair: [Decoded, Decoded],
-  side: string): Ctx["card"] {
-  if (!path) return undefined;
-  const [b, a] = pair;
-  const text = (d: Decoded, q: string) => {
-    const n = d.byPath.get(q);
-    return n?.value?.text ?? (n?.children && n.regions.some((r) =>
-      r.role === "length") ? n.summary : undefined);
-  };
-  const shown = side === "before" ? a : b;
-  const node = shown.byPath.get(path) ?? (side === "before" ? b : a)
-    .byPath.get(path);
-  if (!node) return undefined;
-  const changed: string[] = [];
-  const visit = (q: string) => {
-    const [x, y] = [text(b, q), text(a, q)];
-    if ((x !== undefined || y !== undefined) && x !== y) changed.push(q);
-    const kids = new Set([...(b.byPath.get(q)?.children ?? []),
-      ...(a.byPath.get(q)?.children ?? [])].map((k) => k.path));
-    kids.forEach(visit);
-  };
-  visit(path);
-  if (!changed.length) return undefined;
-  const other = side === "before" ? "after" : "before";
-  const val = (q: string) => {
-    const t = text(side === "before" ? a : b, q);
-    return t === undefined ? <i>none</i> : t;
-  };
-  const own = changed[0] === path;
-  return { path, side, node: <div className={`tcard ${side}`}
-    aria-hidden="true"><span className="cmp-tag">{other}</span>
-    {own ? <span className="tval">{val(path)}</span>
-      : <>{changed.slice(0, 4).map((q) => <span key={q} className="tval">
-        <b>{q.slice(path.length).replace(/^\./, "")}</b> {val(q)}</span>)}
-      {changed.length > 4 && <span className="tval muted">+{
-        changed.length - 4} more</span>}</>}</div> };
 }
 
 export function Tree(p: { id: ViewId; data: DataRef; filter?: Filter;
@@ -176,7 +129,9 @@ export function Tree(p: { id: ViewId; data: DataRef; filter?: Filter;
   const light = useLight(p.id);
   const [link, setLink] = useLink(p.link);
   const [view, setView] = useView(p.id);
-  const side = useLensState((s) => s.side ?? "after");
+  // (a pair, earlier first: this moment and the one compared with)
+  const here = usePointAt(p.data)?.i ?? 0;
+  const there = usePointAt(p.compare)?.i ?? 0;
   const box = useRef<HTMLDivElement>(null);
   // (a bookmark shown, again or anew: the tree from its top, as
   // vanilla's render)
@@ -192,8 +147,7 @@ export function Tree(p: { id: ViewId; data: DataRef; filter?: Filter;
   const lang = comp?.language ?? "";
   // (a pair: before, after)
   const pair: [Decoded, Decoded] | undefined = p.compare && d && o
-    ? (side === "before" ? [d, o] : [o, d]) : undefined;
-  const insets = useLensState((s) => s.insets);
+    ? (here < there ? [d, o] : [o, d]) : undefined;
   // (the selection's row in view; in a walkthrough, the step's first
   // row: vanilla treeTo, on a selection and on each step)
   const walkOf = useWalkthrough(p.id);
@@ -201,11 +155,6 @@ export function Tree(p: { id: ViewId; data: DataRef; filter?: Filter;
   const to = link.walk && walkOf && stepNo !== undefined
     ? walkOf.steps[Math.min(stepNo, walkOf.steps.length - 1)]?.rows[0]
     : link.selection;
-  // (the card's row: in a walkthrough, the step's first row; else the
-  // selection, or what is pointed at: vanilla treeCard)
-  const lit = link.walk ? to ?? null
-    : link.selection && d?.byPath.has(link.selection)
-      ? link.selection : link.hover?.path ?? [...light.rows][0] ?? null;
   // (the related view: only the selection, the groups that hold it and
   // the values its walkthrough reads outside it; its members that are
   // groups shut, unless the reader opened them)
@@ -219,12 +168,7 @@ export function Tree(p: { id: ViewId; data: DataRef; filter?: Filter;
   const c: Ctx = { light, selection: link.selection, pair,
     collapsed: new Set([...shut].filter((q) => !closing.has(q))),
     plain: p.plain, partAttr: p.partAttr,
-    vt: (q) => vtName(lens.key, p.id, q),
-    // (no card of the other state in a walkthrough: it is about where
-    // the bytes are, not what changed; the review's V4)
-    card: pair && insets && light.muted && !p.plain && !link.walk
-      ? treeCard(lit, pair, side)
-      : undefined };
+    vt: (q) => vtName(lens.key, p.id, q) };
   // only the filter's roots (the related view's), and the groups that
   // hold them
   const roots = related ?? p.filter?.roots;
@@ -478,7 +422,7 @@ export function Tree(p: { id: ViewId; data: DataRef; filter?: Filter;
       removeEventListener("resize", align);
     };
     // (when the tree is drawn anew, as vanilla's renderTree, and on resize)
-  }, [d, side, lens.key, alignKey, shows, fewer]);
+  }, [d, here, lens.key, alignKey, shows, fewer]);
 
   // lit rows out of the box's view: a yellow circle button on the edge
   // past which they are (an overlay; a click scrolls to the first)

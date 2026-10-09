@@ -18,14 +18,6 @@ test("in a walkthrough, a click targets exactly what was clicked",
       .toHaveText('How the pointer finds players["carol, the un…"].combo');
   });
 
-test("a walkthrough shows no card of the other state", async ({ page }) => {
-  await ready(page);
-  await select(page, "alice", A);
-  await expect(page.locator("#tree .tcard")).not.toHaveCount(0);
-  await page.locator('#details button[data-r="start"]').click();
-  await expect(page.locator("#tree .tcard")).toHaveCount(0);
-});
-
 test("the pointer's edge labels cover none of its lines", async ({ page }) => {
   await ready(page);
   await select(page, "mid", "players");

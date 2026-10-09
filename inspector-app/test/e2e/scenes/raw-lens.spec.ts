@@ -136,7 +136,7 @@ for (const width of [1440, 1024]) {
           fill: row.querySelector(".word")!.getBoundingClientRect().right -
             r.left };
       }, q);
-      const mid = await look("#panel .view:not([hidden])");
+      const mid = await look("#panel .view[data-side=after]");
       await page.locator('#picker button[data-id="raw"]').click();
       await expect(page.locator('#rawscene .view[data-view$=":storage"] ' +
         ".wrow[data-slot]").first()).toBeVisible();

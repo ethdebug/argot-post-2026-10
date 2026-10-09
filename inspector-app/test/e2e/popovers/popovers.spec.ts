@@ -5,7 +5,7 @@ import { test, expect, ready, select, stable, type Win } from "../../page";
 import { A, B, C } from "../../expect";
 
 const pops = (page: Page) => page.locator(
-  "#panel .view:not([hidden]) .pop").allInnerTexts();
+  "#panel .view[data-side=after] .pop").allInnerTexts();
 const SLOT2 = "0x" + "2".padStart(64, "0");
 
 test("a value's popover: how : what · what the transaction did",
@@ -17,11 +17,10 @@ test("a value's popover: how : what · what the transaction did",
       .toEqual([
         "slot 2 : (unmapped) · totalHits · totalScore · read, written"]);
     await select(page, "mid", null);
-    await page.locator(`#panel .word[data-side="after"][data-slot="${
+    await page.locator(`#panel .word[data-side=after][data-slot="${
       SLOT2}"] .b[data-i="31"]`).hover();
     await expect.poll(() => pops(page))
       .toEqual(["slot 2 : (unmapped) · totalHits · totalScore"]);
-    await expect(page.locator("#panel .cmp, #panel .tray")).toHaveCount(0);
   });
 
 test("a byte pointed at: the same run outlined in both views",
@@ -29,7 +28,6 @@ test("a byte pointed at: the same run outlined in both views",
     await ready(page);
     await select(page, "alice", null);
     for (const [from, to] of [["before", "after"], ["after", "before"]]) {
-      await page.locator(`#mode button[data-mode="${from}"]`).click();
       await page.locator(`#panel .word[data-side="${from}"][data-slot="${
         SLOT2}"] .b[data-i="14"]`).hover();
       const at = await page.evaluate(() => {
@@ -54,7 +52,7 @@ test("popovers: black; a badge only for what is lit; one line, inside "
   await ready(page);
   const popOf = (how: string) => page.evaluate((h) => {
     const pop = [...document.querySelectorAll<HTMLElement>(
-      "#panel .view:not([hidden]) .pop")].find((p) =>
+      "#panel .view[data-side=after] .pop")].find((p) =>
       p.querySelector(".phow")?.textContent === h);
     if (!pop) return null;
     const kids = [...pop.querySelector(".pwhat")?.children ?? []];
@@ -98,10 +96,10 @@ test("popovers: black; a badge only for what is lit; one line, inside "
   // (bob's name's bytes pointed at: `name` a badge, its length plain)
   await select(page, "mid", null);
   await page.locator(
-    `#panel .view:not([hidden]) .b[data-owners="${B}.name"]`).first()
+    `#panel .view[data-side=after] .b[data-owners="${B}.name"]`).first()
     .hover();
   const bn = await page.evaluate(() => [...document.querySelectorAll(
-    "#panel .view:not([hidden]) .pop .pname")].map((n) => `${
+    "#panel .view[data-side=after] .pop .pname")].map((n) => `${
     n.textContent}${n.classList.contains("pbadge") ? "*" : ""}`).join());
   expect(bn).toMatch(/(^|,)name\*/);
   expect(bn).toMatch(/name\.length(,|$)/);
@@ -110,7 +108,7 @@ test("popovers: black; a badge only for what is lit; one line, inside "
 test("a selection inside a mapping tints its root slot's gutter",
   async ({ page }) => {
     await ready(page);
-    const r3 = `#panel .view:not([hidden]) .wrow[data-slot="0x${
+    const r3 = `#panel .view[data-side=after] .wrow[data-slot="0x${
       "0".repeat(63)}3"]`;
     for (const x of [A, `${B}.plays`]) {
       await select(page, "mid", x);
@@ -125,15 +123,15 @@ test("a gutter address outlines its word; window.fitDumps fits the row",
   async ({ page }) => {
     await ready(page);
     await select(page, "mid", null);
-    await page.locator(`#panel .view:not([hidden]) .wrow[data-slot="${
+    await page.locator(`#panel .view[data-side=after] .wrow[data-slot="${
       SLOT2}"] > .addr`).hover();
-    await expect(page.locator(`#panel .view:not([hidden]) .wrow[data-slot="${
+    await expect(page.locator(`#panel .view[data-side=after] .wrow[data-slot="${
       SLOT2}"] .b.at`)).toHaveCount(32);
     expect(await page.evaluate(() => typeof (window as Win)
       .fitDumps)).toBe("function");
     const fits = await page.evaluate(() => {
       const row = document.querySelector<HTMLElement>(
-        "#panel .view:not([hidden]) .rows > .wrow")!;
+        "#panel .view[data-side=after] .rows > .wrow")!;
       const d = row.closest(".dump")!.getBoundingClientRect();
       return row.querySelector(".word")!.getBoundingClientRect().right <=
         d.right + 1;
@@ -146,7 +144,7 @@ test("hovering and clicking move nothing", async ({ page }) => {
   await select(page, "alice", A);
   // (in the page's coordinates: pointing may scroll the window)
   const boxes = () => page.locator(
-    "#panel .view:not([hidden]) .wrow:not(.cmp *), #tree .row")
+    "#panel .view[data-side=after] .wrow:not(.cmp *), #tree .row")
     .evaluateAll((es) => es.map((e) => {
       const r = e.getBoundingClientRect();
       return [r.left + scrollX, r.top + scrollY, r.width, r.height]
@@ -160,25 +158,20 @@ test("hovering and clicking move nothing", async ({ page }) => {
     rest = await boxes();
     return JSON.stringify(rest) === JSON.stringify(was);
   }).toBe(true);
-  await page.locator(`#panel .view:not([hidden]) .b[data-owners="${C}.plays"]`)
+  await page.locator(`#panel .view[data-side=after] .b[data-owners="${C}.plays"]`)
     .first().hover();
   await expect.poll(boxes).toEqual(rest);
   await page.locator('#tree li[data-path="totalScore"] > .row').click();
   await expect.poll(boxes).toEqual(rest);
 });
 
-test("motd After: its cleared data named as Before; one popover; no tray",
+test("motd After: its cleared data named as Before; one popover",
   async ({ page }) => {
     await ready(page);
-    for (const m of ["after", "before"]) {
-      await select(page, "motd", "motd", m);
-      await page.mouse.move(1, 1);
-      await expect(page.locator("#panel .tray")).toHaveCount(0);
-    }
     await select(page, "motd", "motd", "after");
     await page.mouse.move(1, 1);
     const names = await page.locator(
-      '#panel .view[data-side="after"] .wrow[data-name]').evaluateAll((rs) =>
+      '#panel .view[data-side=after] .wrow[data-name]').evaluateAll((rs) =>
       rs.map((r) => (r as HTMLElement).dataset.name));
     expect(names).toContain("keccak(slot 1)");
     expect(names).toContain("keccak(slot 1) + 1");
@@ -196,12 +189,12 @@ test("popovers scale with the dump; the arrow's tip on its address",
       await page.waitForFunction(() =>
         (window as Win).results?.done);
       await page.mouse.move(1, 1);
-      await expect(page.locator("#panel .view:not([hidden]) .pop").first())
+      await expect(page.locator("#panel .view[data-side=after] .pop").first())
         .toBeAttached();
       seen.push({ wd, ...await page.evaluate(() => {
         const views = document.querySelector("#panel .views")!;
         const pops = [...document.querySelectorAll<HTMLElement>(
-          "#panel .view:not([hidden]) .pop")];
+          "#panel .view[data-side=after] .pop")];
         const ratio = parseFloat(getComputedStyle(pops[0]).fontSize) /
           parseFloat(getComputedStyle(views).fontSize);
         // (the tip: the arrow's far corner, a square turned 45°)
@@ -238,7 +231,7 @@ test("slot 0's popover: under row 0, inside the dump, never empty",
       await page.mouse.move(1, 1);
       const x = await page.evaluate(() => {
         const row = [...document.querySelectorAll<HTMLElement>(
-          "#panel .view:not([hidden]) .rows > .wrow")].find((r) =>
+          "#panel .view[data-side=after] .rows > .wrow")].find((r) =>
           r.dataset.slot === "0x" + "0".repeat(64))!;
         const pop = row.querySelector<HTMLElement>(".pop")!;
         const p = pop.getBoundingClientRect();
@@ -272,7 +265,7 @@ test("the dump fits the same opened at Before or After (one measure for "
     await page.waitForFunction(() => (window as Win).results?.done);
     await page.evaluate(() => document.fonts.ready);
     fs.push(await stable(() => page.evaluate(() => getComputedStyle(document
-      .querySelector("#panel .view:not([hidden])")!).fontSize)));
+      .querySelector("#panel .view[data-side=after]")!).fontSize)));
   }
   expect(new Set(fs).size, fs.join()).toBe(1);
 });
@@ -294,7 +287,7 @@ test("an address focused from the keyboard shows its popover",
     await ready(page);
     await select(page, "alice", null);
     const addr = page.locator(
-      '#panel .view[data-side="after"] .wrow [tabindex]').first();
+      '#panel .view[data-side=after] .wrow [tabindex]').first();
     // (in view first: a scroll after the focus would move the pointer)
     await addr.scrollIntoViewIfNeeded();
     await page.mouse.move(1, 1);
@@ -311,7 +304,7 @@ test("no popover covers a lit byte, another row's address, or another "
     await select(page, id, sel);
     await page.mouse.move(1, 1);
     const cover = await page.evaluate(() => {
-      const v = document.querySelector("#panel .view:not([hidden])")!;
+      const v = document.querySelector("#panel .view[data-side=after]")!;
       const hit = (a: DOMRect, b: DOMRect) => a.left < b.right - 0.5 &&
         b.left < a.right - 0.5 && a.top < b.bottom - 0.5 &&
         b.top < a.bottom - 0.5;

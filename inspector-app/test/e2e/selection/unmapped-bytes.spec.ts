@@ -155,7 +155,7 @@ test("with a selection, a click in a gap of the run clears it; no hover " +
 });
 
 const REC = "players[0x3c44cdddb6a900fa2b585dd299e03d12fa4293bc]";
-const pops = (page: Page) => page.locator("#panel .view:not([hidden]) .pop")
+const pops = (page: Page) => page.locator("#panel .view[data-side=after] .pop")
   .allInnerTexts();
 
 test("every popover lists a row's unmapped run: the selection's",
@@ -202,10 +202,10 @@ test("a row no value owns is one unmapped run: its gutter, gaps or bytes "
   await ready(page, { memory: true, hash: "msel=" });
   // (a memory word no local owns at this pause)
   const slot = await page.evaluate(() => [...document.querySelectorAll<
-    HTMLElement>("#mpanel .view:not([hidden]) .rows > .wrow[data-slot]")]
+    HTMLElement>("#mpanel .view[data-side=after] .rows > .wrow[data-slot]")]
     .find((r) => !r.querySelector(".b[data-owners]"))?.dataset.slot);
   expect(slot).toBeTruthy();
-  const R = `#mpanel .view:not([hidden]) .wrow[data-slot="${slot}"]`;
+  const R = `#mpanel .view[data-side=after] .wrow[data-slot="${slot}"]`;
   for (const on of [`${R} > .addr`, `${R} .b[data-i="9"]`]) {
     await page.locator(on).hover();
     await settle(page);

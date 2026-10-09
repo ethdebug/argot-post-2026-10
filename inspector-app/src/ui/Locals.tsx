@@ -8,13 +8,16 @@ import {
 } from "./hooks";
 import type { DataRef, ViewId } from "./types";
 
-// both sides of the pause: [before, after] (one point: after only)
+// both steps of the pause: the moment before the one shown, and it (a
+// pause of one step: that one only)
 function useSides(data: DataRef) {
-  const single = useLensState((s) => s.points.a === s.points.b);
-  const a = useDecoded({ ...data, point: { slot: "a" } });
-  const b = useDecoded({ ...data, point: { slot: "b" } });
-  const pa = usePoint({ ...data, point: { slot: "a" } });
-  const pb = usePoint({ ...data, point: { slot: "b" } });
+  const [prev, now] = (["previous", "current"] as const).map((moment) =>
+    ({ decoding: data.decoding, moment }));
+  const a = useDecoded(prev);
+  const b = useDecoded(now);
+  const pa = usePoint(prev);
+  const pb = usePoint(now);
+  const single = !pa;
   return { single, before: single ? undefined : a, after: b, pa, pb };
 }
 

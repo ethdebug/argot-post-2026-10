@@ -13,7 +13,7 @@ const look = async (page: Page, w: number, h: number) => {
     const d = document.querySelector("#panel")!.getBoundingClientRect();
     const t = document.querySelector("#tree")!.getBoundingClientRect();
     const word = document.querySelector(
-      "#panel .view:not([hidden]) .word .bytes")!;
+      "#panel .view[data-side=after] .word .bytes")!;
     const lines = new Set([...word.querySelectorAll(".b")].map((b) =>
       Math.round(b.getBoundingClientRect().top))).size;
     return { two: t.left >= d.right - 1 && Math.abs(t.top - d.top) < 200,

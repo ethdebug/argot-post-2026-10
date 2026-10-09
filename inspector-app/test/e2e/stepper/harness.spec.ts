@@ -77,14 +77,13 @@ test("the locals; hovering one lights its memory bytes, the memory " +
   await ready(page, { width: 1280, memory: true });
   await page.locator('#mlevel button[data-opt="0"]').click();
   await page.locator('#mpoint button[data-id="mult"]').click();
-  await page.locator('#mmode button[data-mode="after"]').click();
   const lit = (sel: string) => page.locator(sel).evaluateAll((bs) =>
     bs.map((b) => `${(b.closest(".word") as HTMLElement).dataset.slot} ${
       (b as HTMLElement).dataset.i}`).sort());
   // (what it lights for points: its bytes, and the frame pointer its
   // pointer reads)
   await pick(page.locator('#mtree li[data-path="points"] > .row'));
-  const want = await lit("#mpanel .view:not([hidden]) .b.hl");
+  const want = await lit("#mpanel .view[data-side=after] .b.hl");
   expect(want.length).toBeGreaterThan(8);
   await open(page, mult.step + 1);
   const names = await page.locator("#svars li[data-path] > .row .name")
