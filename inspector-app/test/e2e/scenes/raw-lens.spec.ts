@@ -21,9 +21,10 @@ const panels = (page: Page, q: string) => page.evaluate((q) =>
         .height }];
   })), q);
 
-// One cell size (one font, one line height; storage, calldata and
-// memory one width), one grid (shared edges, the stack beside on a wide
-// page, its tops level with storage's), boxes that hug their rows
+// One cell size (one font, one line height; storage and memory one
+// width), one grid (shared edges, the stack beside on a wide page, its
+// tops level with storage's), boxes that hug their rows, the
+// composition centred
 const rules = async (page: Page, q: string, width: number) => {
   // (the stack takes the dumps' font once they have fitted it: the same
   // to a twentieth of a pixel)
@@ -34,17 +35,16 @@ const rules = async (page: Page, q: string, width: number) => {
   };
   await expect.poll(spread).toBeLessThan(0.06);
   const p = await panels(page, q);
-  expect(Object.keys(p).sort()).toEqual(["calldata", "memory", "stack",
-    "storage"]);
+  expect(Object.keys(p).sort()).toEqual(["memory", "stack", "storage"]);
   const all = Object.values(p);
-  const dumps = [p.storage, p.calldata, p.memory];
+  const dumps = [p.storage, p.memory];
   const close = (xs: number[], d: number) =>
     expect(Math.max(...xs) - Math.min(...xs)).toBeLessThan(d);
   close(all.map((x) => x.line), 0.5);
   close(dumps.map((x) => x.row), 0.5);
   close(dumps.map((x) => x.r - x.l), 0.5);
   expect(new Set(all.map((x) => Math.round(x.l))).size)
-    .toBe(width >= 660 ? 2 : 1);
+    .toBe(width >= 860 ? 2 : 1);
   for (const x of all) expect(x.r - x.wordR).toBeLessThan(24);
   for (const x of all) {
     expect(x.l).toBeGreaterThanOrEqual(0);
@@ -52,8 +52,10 @@ const rules = async (page: Page, q: string, width: number) => {
   }
   expect(await page.evaluate(() => document.documentElement.scrollWidth))
     .toBe(width);
-  if (width >= 660) {
-    // (the stack: narrow, beside)
+  if (width >= 860) {
+    // (the stack: narrow, beside; storage and the stack centred)
+    const mid = (p.storage.l + p.stack.r) / 2;
+    expect(Math.abs(mid - width / 2)).toBeLessThan(2);
     expect(Math.abs(p.storage.t - p.stack.t)).toBeLessThan(1);
     expect(p.stack.l).toBeGreaterThan(p.storage.r);
     expect(p.stack.r - p.stack.l).toBeLessThan((p.storage.r - p.storage.l)
@@ -114,36 +116,40 @@ for (const width of [1360, 390]) {
   });
 }
 
-// The raw panels are the storage inspector's dump, layers off: at a
-// width, the same font, row height, cell and fill as the middle of the
-// game's storage dump
-for (const width of [1440, 1024]) {
-  test(`at ${width}px the raw storage dump is the inspector's, in size`,
-    async ({ page }) => {
+// The raw storage dump is the storage inspector's on a wide page, layers
+// off: at any figure width from 860px, the same width, font, row height,
+// cell and fill as the middle of the game's storage dump at 1440px (a
+// word a row)
+test("the raw storage dump is the inspector's at 1440px, in size",
+  async ({ page }) => {
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await page.goto("./#ex=mid");
+    await page.waitForFunction(() => (window as unknown as
+      { results: { done: boolean } }).results?.done);
+    const look = (q: string) => page.evaluate((q) => {
+      const v = document.querySelector(q)!;
+      const r = v.querySelector(".rows")!.getBoundingClientRect();
+      const row = v.querySelector(".wrow[data-slot]")!;
+      const bs = [...row.querySelectorAll(".b")];
+      return { width: r.width, font: getComputedStyle(bs[0]).fontSize,
+        row: row.getBoundingClientRect().height,
+        cell: bs[1].getBoundingClientRect().left -
+          bs[0].getBoundingClientRect().left,
+        fill: row.querySelector(".word")!.getBoundingClientRect().right -
+          r.left, n: row.querySelectorAll(".b").length };
+    }, q);
+    const mid = await look("#panel .view[data-side=after]");
+    expect(mid.n).toBe(32);
+    for (const width of [1440, 1360, 1024, 860]) {
       await page.setViewportSize({ width, height: 900 });
-      await page.goto("./#ex=mid");
-      await page.waitForFunction(() => (window as unknown as
-        { results: { done: boolean } }).results?.done);
-      const look = (q: string) => page.evaluate((q) => {
-        const v = document.querySelector(q)!;
-        const r = v.querySelector(".rows")!.getBoundingClientRect();
-        const row = v.querySelector(".wrow[data-slot]")!;
-        const bs = [...row.querySelectorAll(".b")];
-        return { width: r.width, font: getComputedStyle(bs[0]).fontSize,
-          row: row.getBoundingClientRect().height,
-          cell: bs[1].getBoundingClientRect().left -
-            bs[0].getBoundingClientRect().left,
-          fill: row.querySelector(".word")!.getBoundingClientRect().right -
-            r.left };
-      }, q);
-      const mid = await look("#panel .view[data-side=after]");
-      await page.locator('#picker button[data-id="raw"]').click();
-      await expect(page.locator('#rawscene .view[data-view$=":storage"] ' +
-        ".wrow[data-slot]").first()).toBeVisible();
-      const raw = await look('#rawscene .view[data-view$=":storage"]');
-      for (const k of ["width", "row", "cell", "fill"] as const) {
-        expect(Math.abs(raw[k] - mid[k]), k).toBeLessThan(0.5);
+      await page.goto(`./embed.html?w=${width}#scene=raw-hero`);
+      await expect(page.locator('.view[data-view$=":storage"] ' +
+        ".wrow[data-slot]").first()).toBeVisible({ timeout: 20_000 });
+      const raw = await look('.view[data-view$=":storage"]');
+      for (const k of ["width", "row", "cell", "fill", "n"] as const) {
+        expect(Math.abs(raw[k] - mid[k]), `${width}: ${k}`)
+          .toBeLessThan(0.5);
       }
       expect(raw.font).toBe(mid.font);
-    });
-}
+    }
+  });
