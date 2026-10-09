@@ -602,6 +602,12 @@ function annotate(root: El, v: El, compare: boolean, names: OverlayNames,
         pop.classList.toggle("under", way === "under");
         addr.append(pop);
         addr.classList.add("popped");
+        // (in a view transition: it moves with its row, over the rows:
+        // transition.ts)
+        if (prow.dataset.vt) {
+          pop.dataset.vt = `${prow.dataset.vt}-pop`;
+          pop.dataset.vtTop = "";
+        }
         const a = prow.querySelector<El>(".a")!;
         place(pop, a);
         // (its names, cut to its room; then placed again, at its width)
