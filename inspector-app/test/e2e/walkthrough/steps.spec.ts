@@ -793,7 +793,13 @@ test("a click mid-walk re-targets it, at the same step where the steps "
     await select(page, "mid", from);
     await page.locator('#details button[data-r="start"]').click();
     await page.locator(`#dots .dot[data-n="${k}"]`).dispatchEvent("click");
-    if (how === "row") await pick(row(page, to));
+    // (the row in the middle of the view: not under the stuck panel)
+    if (how === "row") {
+      await row(page, to).evaluate((e) =>
+        e.scrollIntoView({ block: "center" }));
+      // (at its name: its middle may be under the box's edge button)
+      await pick(row(page, to), { position: { x: 12, y: 6 } });
+    }
     else {
       await page.locator(`#panel .view[data-side=after] .b[data-owners="${
         to}"]`).first().click();
