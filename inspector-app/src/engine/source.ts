@@ -34,6 +34,9 @@ export interface MomentSource {
   last(i: number): SourceRange | undefined;
   state(i: number): Promise<Snapshot>;
   facts(i: number): TxFacts | null;
+  // (a run's: the stack's greatest depth over the moment's transaction;
+  // the debugger reserves it)
+  peak?(i: number): number;
   build: Build | BuildSlice;
   digest(): Promise<string>;
 }

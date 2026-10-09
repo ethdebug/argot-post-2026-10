@@ -33,7 +33,9 @@ export interface LensContextValue {
   key: string;
   // show a scene (its moment and selection); false when its
   // data did not load (Lens.tsx)
-  show(id: string, view?: { moment?: number; sel?: string | null }):
+  // (`walk`: a walkthrough to keep, of the selection kept: a move)
+  show(id: string, view?: { moment?: number; sel?: string | null;
+    walk?: LinkState["walk"] }):
     Promise<boolean>;
 }
 // The page's scenes of other lenses, for a lens inside it: the one shown

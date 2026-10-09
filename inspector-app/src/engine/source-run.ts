@@ -48,6 +48,16 @@ const factsAt = (run: Run, m: Moment): TxFacts =>
 // `t`: a scene's timeline (annotated here), or "all": every trace step
 // of every transaction and each one's end (bare: annotated as they are
 // visited)
+// each transaction's greatest stack depth (once a run)
+const peakOf = new WeakMap<Run, number[]>();
+const peaks = (run: Run) => {
+  if (!peakOf.has(run)) {
+    peakOf.set(run, run.txs.map((t) => t.stack.reduce((m, s) =>
+      Math.max(m, s.length), 0)));
+  }
+  return peakOf.get(run)!;
+};
+
 export function fromRun(run: Run, build: Build, t: Timeline | "all"):
   MomentSource {
   const at = annotator(run, build);
@@ -89,6 +99,7 @@ export function fromRun(run: Run, build: Build, t: Timeline | "all"):
       return { ...s, storage: new RunStorage(s.storage) };
     },
     facts: (i) => factsAt(run, moments[i]),
+    peak: (i) => peaks(run)[moments[i].tx],
     digest: () => digest(run),
   };
 }
