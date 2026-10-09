@@ -15,4 +15,4 @@ import { Shell } from "./Shell";
 const project = await load(fetchIo(import.meta.env.BASE_URL),
   { scenes, builds });
 createRoot(document.getElementById("shell")!).render(
-  <Shell project={project} lenses={lenses} />);
+  <Shell project={project} lenses={lenses} scenes={scenes} />);

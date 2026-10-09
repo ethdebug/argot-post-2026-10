@@ -1,38 +1,62 @@
-// The dev/review shell (spec §5.1): one lens as a full page, a fixed
-// bar to switch lenses (the picker; [ and ] previous/next, g the list),
-// and a "copy link" button. The hash (#lens=<id>&<lens keys>) is only
-// written here and by the lens; a reload shows the same lens.
+// The dev/review shell (spec §5.1; addendum §3: the authoring host):
+// one scene as a full page, drawn by its lens; a fixed bar to switch
+// scenes (the picker; [ and ] previous/next, g the list), and a "copy
+// link" button. "dev" adds the developers' scenes and the lenses no
+// scene names. The hash (#scene=<id>, or #lens=<id> for a lens with no
+// scene; a link to a lens shows its first scene) is only written here
+// and by the lens; a reload shows the same.
 import { useEffect, useLayoutEffect, useState } from "react";
 import type { Project } from "../engine/project";
+import type { Scene } from "../engine/scene";
 import { Lens } from "../ui/Lens";
+import { SceneHost } from "../ui/SceneHost";
 import type { LensSpec } from "../ui/types";
 
-const fromHash = () => new URLSearchParams(location.hash.slice(1))
-  .get("lens");
-const devHash = () => new URLSearchParams(location.hash.slice(1))
-  .get("dev") === "1";
+const hashed = (k: string) => new URLSearchParams(location.hash.slice(1))
+  .get(k);
+const devHash = () => hashed("dev") === "1";
 
-export function Shell({ project, lenses: every }: { project: Project;
-  lenses: LensSpec[] }) {
-  // "dev": the developers' lenses too, and the parity page; on by the
-  // hash (dev=1), or by a link to a dev lens
-  const [dev, setDev] = useState(() => devHash() ||
-    !!every.find((l) => l.id === fromHash())?.dev);
-  const lenses = dev ? every : every.filter((l) => !l.dev);
-  const [id, setId] = useState(() =>
-    lenses.find((l) => l.id === fromHash())?.id ?? lenses[0].id);
+// what the picker lists: a scene, or a lens no scene names (its key:
+// "scene=<id>" or "lens=<id>", as the hash names it)
+interface Item { id: string; key: "scene" | "lens"; title: string;
+  dev: boolean; scene?: Scene; lens: LensSpec }
+const keyOf = (x: Item) => `${x.key}=${x.id}`;
+
+export function Shell({ project, lenses: every, scenes = [] }:
+  { project: Project; lenses: LensSpec[]; scenes?: Scene[] }) {
+  const lensOf = (id: string) => every.find((l) => l.id === id);
+  const all: Item[] = [
+    ...scenes.filter((s) => lensOf(s.lens)).map((s): Item => ({ id: s.id,
+      key: "scene", title: s.title, dev: !!lensOf(s.lens)!.dev, scene: s,
+      lens: lensOf(s.lens)! })),
+    ...every.filter((l) => !scenes.some((s) => s.lens === l.id))
+      .map((l): Item => ({ id: l.id, key: "lens", title: l.title,
+        dev: !!l.dev, lens: l }))];
+  // the hash's item: a scene, a lens with no scene, or a lens's first
+  // scene
+  const wanted = () => all.find((x) => x.key === "scene" &&
+    x.id === hashed("scene")) ?? all.find((x) => x.key === "lens" &&
+    x.id === hashed("lens")) ?? all.find((x) => x.lens.id ===
+    hashed("lens"));
+  // "dev": on by the hash (dev=1), or by a link to a dev item
+  const [dev, setDev] = useState(() => devHash() || !!wanted()?.dev);
+  const items = dev ? all : all.filter((x) => !x.dev);
+  const [id, setId] = useState(() => {
+    const w = wanted();
+    return keyOf(w && items.includes(w) ? w : items[0]);
+  });
   const [open, setOpen] = useState(false);
   const [copied, setCopied] = useState(false);
-  const k = Math.max(0, lenses.findIndex((l) => l.id === id));
-  const spec = lenses[k];
+  const k = Math.max(0, items.findIndex((x) => keyOf(x) === id));
+  const item = items[k];
 
-  // the URL names the lens shown (the lens's own keys go when it changes)
+  // the URL names the item shown (the lens's own keys go when it changes)
   useEffect(() => {
-    if (fromHash() !== spec.id || devHash() !== dev) {
-      history.replaceState(null, "", `#lens=${spec.id}${dev ? "&dev=1"
-        : ""}`);
+    if (hashed(item.key) !== item.id || devHash() !== dev) {
+      history.replaceState(null, "", `#${item.key}=${item.id}${dev
+        ? "&dev=1" : ""}`);
     }
-  }, [spec.id, dev]);
+  }, [item, dev]);
 
   // (bound at commit, not after paint: a key pressed as soon as the
   // shell shows is not lost)
@@ -41,7 +65,7 @@ export function Shell({ project, lenses: every }: { project: Project;
       if ((e.target as Element).closest?.("input, textarea, select") ||
         e.metaKey || e.ctrlKey || e.altKey) return;
       const go = (d: number) =>
-        setId(lenses[(k + d + lenses.length) % lenses.length].id);
+        setId(keyOf(items[(k + d + items.length) % items.length]));
       if (e.key === "]") go(1);
       else if (e.key === "[") go(-1);
       else if (e.key === "g") setOpen((o) => !o);
@@ -51,7 +75,7 @@ export function Shell({ project, lenses: every }: { project: Project;
     };
     document.addEventListener("keydown", onKey);
     return () => document.removeEventListener("keydown", onKey);
-  }, [lenses, k, open]);
+  }, [items, k, open]);
 
   const copy = async () => {
     await navigator.clipboard?.writeText(location.href);
@@ -60,34 +84,41 @@ export function Shell({ project, lenses: every }: { project: Project;
   };
 
   return <>
-    <nav className="shellbar" aria-label="Lenses">
+    <nav className="shellbar" aria-label="Scenes">
       <div className="shellpick" data-shell-picker>
         <button type="button" className="shellcur" aria-expanded={open}
           onClick={() => setOpen((o) => !o)}>
-          <span className="shellk">lens</span> {spec.title}
-          <span className="shellcount"> ({k + 1} of {lenses.length})</span>
+          <span className="shellk">{item.key}</span> {item.title}
+          <span className="shellcount"> ({k + 1} of {items.length})</span>
         </button>
         <ul className="shelllist" data-shell-list hidden={!open}>
-          {lenses.map((l) => <li key={l.id}>
-            <button type="button" data-lens={l.id}
-              aria-current={l.id === id ? "page" : undefined}
+          {items.map((x) => <li key={keyOf(x)}>
+            <button type="button" {...{ [`data-${x.key}`]: x.id }}
+              data-lens={x.lens.id}
+              aria-current={keyOf(x) === id ? "page" : undefined}
               onClick={() => {
-                setId(l.id);
+                setId(keyOf(x));
                 setOpen(false);
-              }}>{l.title}</button></li>)}
+              }}>{x.title}</button></li>)}
         </ul>
       </div>
       <button type="button" className="shelldev" data-shell-dev
         aria-pressed={dev} onClick={() => setDev((d) => !d)}>dev</button>
       {dev && <a className="shellparity" href="./">parity page</a>}
       <span className="shellkeys" aria-hidden="true"><kbd>[</kbd>
-        <kbd>]</kbd> lens · <kbd>g</kbd> list</span>
+        <kbd>]</kbd> scene · <kbd>g</kbd> list</span>
       <button type="button" className="shellcopy" data-shell-copy
         onClick={copy}>{copied ? "copied" : "copy link"}</button>
     </nav>
     <div className="shellpage">
-      {spec.page ? <spec.page key={spec.id} spec={spec} project={project} />
-        : <Lens key={spec.id} spec={spec} project={project} hash />}
+      {item.lens.page
+        ? <item.lens.page key={keyOf(item)} spec={item.lens}
+          project={project} />
+        : item.scene
+          ? <SceneHost key={keyOf(item)} scene={item.scene}
+            project={project} lenses={every} mode="authoring" hash />
+          : <Lens key={keyOf(item)} spec={item.lens} project={project}
+            hash />}
     </div>
   </>;
 }

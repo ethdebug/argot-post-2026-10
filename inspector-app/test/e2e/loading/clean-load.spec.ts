@@ -8,7 +8,7 @@ test("the parity page and the shell load", async ({ page }) => {
   await expect(page.locator("[data-shell-picker]")).toBeAttached();
 });
 
-for (const url of ["./", "./shell.html"]) {
+for (const url of ["./", "./shell.html#scene=mid"]) {
   test(`${url}: no console errors on load, nor once a pointer is coloured`,
     async ({ page }) => {
       const errors: string[] = [];

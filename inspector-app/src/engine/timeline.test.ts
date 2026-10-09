@@ -26,6 +26,6 @@ it("motd: slot 1 is 'read, written' at motd:after", async () => {
 
 it("a bookmark's points", async () => {
   const p = await testProject();
-  expect(pointsOf(p.bookmarks[1]))
+  expect(pointsOf(p.bookmarks.find((b) => b.id === "alice")!))
     .toEqual(["alice:0", "alice:1"]);
 });

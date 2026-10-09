@@ -3,15 +3,13 @@
 // light are just unlit)
 import type { LensSpec } from "../ui/types";
 
-const data = { decoding: "mid", point: "mid:0" };
+const data = { decoding: "$scene", moment: "current" } as const;
 
 export const playersWalk: LensSpec = {
   id: "players-walk", title: "How players is found (a walkthrough)",
-  timelines: ["scene:mid"], decodings: ["mid"],
+  timelines: [], decodings: [],
   grid: '"bar" "dump"',
   links: ["s"],
-  initial: { links: { s: { selection: "players", hover: null,
-    walk: { step: 0 } } } },
   views: [
     { id: "walk", kind: "walkthrough", area: "bar", link: "s", data },
     { id: "dump", kind: "dump", area: "dump", location: "storage",

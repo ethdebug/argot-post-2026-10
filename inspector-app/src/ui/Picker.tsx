@@ -13,7 +13,7 @@ export function Picker(p: { id: ViewId;
   const { spec, project, store } = lens;
   const other = useContext(OtherScenes);
   if (p.of === "related") return <Related {...p} />;
-  const current = useLensState((s) => s.bookmark);
+  const current = useLensState((s) => s.scene);
   const side = useLensState((s) => s.side ?? "after");
   const single = useLensState((s) => s.points.a === s.points.b);
   const sel = useLensState((s) => s.links[spec.links[0]]?.selection ??

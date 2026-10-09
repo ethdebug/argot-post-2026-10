@@ -24,10 +24,10 @@ import type {
 type Kinds = Partial<Record<ViewKind, ComponentType<any>>>;
 
 export function initialState(spec: LensSpec, project: Project): LensState {
-  const id = spec.initial?.bookmark ?? spec.bookmarks?.[0];
+  const id = spec.initial?.scene ?? spec.bookmarks?.[0];
   const bm = project.bookmarks.find((b) => b.id === id);
   return {
-    bookmark: bm?.id,
+    scene: bm?.id,
     points: bm ? { a: bm.points[0], b: bm.points[1] ?? bm.points[0] } : {},
     side: bm?.side ?? "after",
     insets: true,
@@ -71,14 +71,15 @@ function shower(store: Store<LensState>, spec: LensSpec, project: Project,
     if (ticket !== wanted) return true; // another was asked for since
     const want = view && "sel" in view ? view.sel : bm.select;
     const selection = want && tree.byPath.has(want) ? want : null;
-    store.set((s) => ({ ...s, bookmark: id, error: undefined,
+    store.set((s) => ({ ...s, scene: id, error: undefined,
       shows: (s.shows ?? 0) + 1,
       points: { a: bm.points[0], b: bm.points[1] ?? bm.points[0] }, side,
       // (a link group of its own section starts with nothing selected:
       // the bookmark's selection is the others')
       links: Object.fromEntries(spec.links.map((l) => [l,
         { selection: Object.values(spec.scopes ?? {}).includes(l) ? null
-          : selection, hover: null, walk: null }])) }));
+          : selection, hover: null,
+          walk: selection && bm.walk ? { ...bm.walk } : null }])) }));
     return true;
   };
   return show;
@@ -95,7 +96,7 @@ function Present({ v, View }: { v: ViewSpec; View: ComponentType<any> }) {
   const single = useLensState((s) => s.points.a === s.points.b);
   const insets = useLensState((s) => s.insets);
   const pair: DataRef | undefined = !single && "data" in v &&
-    typeof v.data.point !== "string"
+    "point" in v.data && typeof v.data.point !== "string"
     ? { ...v.data, point: { slot: v.data.point.slot === "a" ? "b"
       : v.data.point.slot === "b" ? "a" : "$other" } } : undefined;
   const other = ("compare" in v ? v.compare : undefined) ?? pair;
@@ -177,9 +178,10 @@ export function Lens(props: { spec: LensSpec; project: Project;
         related: want.related === undefined ? undefined
           : { context: want.related } }));
     }
-    const id = want?.bookmark ?? st.get().bookmark;
-    const ready = id ? show(id, want && { mode: want.side,
-      sel: want.selection }) : Promise.resolve(true);
+    const id = want?.bookmark ?? st.get().scene;
+    // (a hash that names no scene of the lens: the scene's own view)
+    const ready = id ? show(id, want?.bookmark ? { mode: want.side,
+      sel: want.selection } : undefined) : Promise.resolve(true);
     let live = true;
     const unsub = props.hash ? (() => {
       let off = () => {};
@@ -187,7 +189,7 @@ export function Lens(props: { spec: LensSpec; project: Project;
         if (!live) return;
         const write = () => {
           const s = st.get();
-          writeHash(toHash(spec, { bookmark: s.bookmark,
+          writeHash(toHash(spec, { bookmark: s.scene,
             side: s.side ?? "after", insets: s.insets,
             selection: s.links[spec.links[0]]?.selection ?? null,
             related: s.related?.context },
