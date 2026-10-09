@@ -681,15 +681,16 @@ is imported from the package's dist (it is not a public export).
 
 The post's first figure shows bytes the way tools have always had
 them: no names, no colours, no popovers, no tree. The lens
-`src/lenses/raw.ts` composes four bare dumps (the Dump's `display`
-parameters: `bare`, `shape: "strip"`, `abbreviate`, `density:
-"flow"`, `perLine`, `scale`) of one frozen moment, in three
-compositions to pick from: `raw-hero` (V1: storage top left, the
-stack a full-height strip on the right, memory under storage, a
-corner open for a caption), `raw-spine` (V2: the stack down the left,
-memory and calldata in a narrow column on the right) and
-`raw-sheets` (V3: overlapping sheets). Each is a lens in the shell's
-picker (`shell.html#lens=raw-hero`).
+`src/lenses/raw.ts` (`raw-hero`) composes four bare dumps (the Dump's
+`display` parameters: `bare`, `ruler: false`) of one frozen moment on
+one grid: one cell size (every panel the same dump, so the same font,
+row height and width; the stack's words whole), two equal columns
+(storage over calldata, the stack over memory, which come out within
+a few pixels of each other), boxes that hug their rows. The figure is
+at most 1024px wide; on a phone, one column. The main page shows it as
+its first scene, "Raw bytes" (`#scene=raw`), and the shell as
+`shell.html#lens=raw-hero`. (Three earlier compositions mixed sizes
+and left dead areas; they are gone.)
 
 The moment (`fixtures/raw.json`, made by `bin/make-raw-fixture.mjs`):
 the same build as the storage fixtures, on a fresh anvil; deploy,
