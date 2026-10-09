@@ -21,13 +21,15 @@
 .lens.dbg { --stack-w: 9.5em; }
 .lens.dbg [data-area="narrow"] { width: var(--stack-w); }
 @media (min-width: 660px) {
+  /* (two columns: the dumps; the code, the variables and the stack under
+     them, so no column stands empty beside a long one) */
   .lens.dbg { grid-template-columns: calc((100% - 28px) / 2)
-    var(--stack-w);
-    grid-template-areas: "moves moves" "wide narrow" "side side"; }
+    minmax(0, 1fr); grid-template-rows: auto auto 1fr;
+    grid-template-areas: "moves moves" "wide side" "wide narrow"; }
 }
 @media (min-width: 1200px) {
   .lens.dbg { grid-template-columns: calc((100% - 56px) * 0.5)
-    var(--stack-w) minmax(0, 1fr);
+    var(--stack-w) minmax(0, 1fr); grid-template-rows: auto auto;
     grid-template-areas: "moves moves moves" "wide narrow side"; }
 }
 /* the moves: one line, its buttons tap-sized */
