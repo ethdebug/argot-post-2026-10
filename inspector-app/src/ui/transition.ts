@@ -7,7 +7,10 @@
 // set as view-transition-name only during a transition (a name makes
 // its element a stacking context, which the popovers must not meet),
 // and only on rows wholly inside what clips them (a row half out of the
-// tree's box would show past it). The popovers hide meanwhile.
+// tree's box would show past it). The popovers move with their rows
+// (named after them, drawn over the rows: data-vt-top), placed for the
+// new rows before the new state is captured; the cards and the tray
+// hide meanwhile.
 import { flushSync } from "react-dom";
 import type { Store } from "./store";
 import type { LensState } from "./types";
@@ -40,14 +43,26 @@ function inView(el: HTMLElement): boolean {
   return true;
 }
 
+// (the names over the others, in the old state or the new one: their
+// groups' z-index, while it runs)
+const topNames = new Set<string>();
+let topStyle: HTMLStyleElement | null = null;
+
 function names(on: boolean) {
   const seen = new Set<string>();
   for (const el of document.querySelectorAll<HTMLElement>("[data-vt]")) {
     const n = el.dataset.vt!;
     const ok = on && !seen.has(n) && inView(el);
     if (ok) seen.add(n);
+    if (ok && el.dataset.vtTop !== undefined) topNames.add(n);
     el.style.viewTransitionName = ok ? n : "";
   }
+  if (!on) topNames.clear();
+  if (!topNames.size) return topStyle?.remove();
+  topStyle ??= document.createElement("style");
+  topStyle.textContent = `${[...topNames].map((n) =>
+    `::view-transition-group(${n})`).join(", ")} { z-index: 10; }`;
+  if (!topStyle.isConnected) document.head.append(topStyle);
 }
 
 // Run `change` (a state change React draws) as a view transition
@@ -61,8 +76,11 @@ export function transition(change: () => void): void {
   root.classList.add("vt-run");
   names(true);
   try {
-    const t = doc.startViewTransition(() => {
+    // (after the commit, the overlays drawn for it, a microtask later:
+    // Dump.tsx schedule; then the new state is captured)
+    const t = doc.startViewTransition(async () => {
       flushSync(change);
+      await new Promise<void>((r) => queueMicrotask(r));
       names(true);
     });
     t.finished.finally(() => {
