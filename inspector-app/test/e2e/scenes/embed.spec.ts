@@ -24,7 +24,8 @@ for (const width of [1024, 390]) {
       "#contract", "footer", ".shellbar"]) {
       await expect(frame.locator(q)).toHaveCount(0);
     }
-    await expect(frame.locator(".moment")).toContainText("step 569 of 868");
+    await expect(frame.locator(".moment")).toHaveText(
+      "while carol joins: her name is being saved, half-written");
     // (the frame as tall as its content, by the last height it posted)
     const inner = await page.frameLocator("#f").locator("#embed")
       .evaluate((e) => Math.ceil(e.getBoundingClientRect().height));
@@ -33,10 +34,12 @@ for (const width of [1024, 390]) {
       .toBe(inner);
     expect(await page.locator("#f").evaluate((f) =>
       f.getBoundingClientRect().height)).toBe(inner);
-    // (no margin, a transparent page)
+    // (no margin, a transparent page; it never scrolls)
     expect(await frame.locator("body").evaluate((b) => [
       getComputedStyle(b).margin, getComputedStyle(b).backgroundColor]))
       .toEqual(["0px", "rgba(0, 0, 0, 0)"]);
+    expect(await frame.locator("html").evaluate((h) =>
+      getComputedStyle(h).overflow)).toBe("hidden");
     expect(await frame.locator(".view-head").first().evaluate((h) =>
       getComputedStyle(h).backgroundColor)).toBe("rgba(0, 0, 0, 0)");
   });
@@ -46,4 +49,49 @@ test("embed.html: moment=0 leaves the moment out", async ({ page }) => {
   await page.goto("./embed.html#scene=raw&moment=0");
   await expect(page.locator(".view")).toHaveCount(4);
   await expect(page.locator(".moment")).toHaveCount(0);
+});
+
+// Any scene of the registry, by its id, drawn by its lens alone
+for (const [id, views] of [["raw-named", 2], ["mid", 2], ["vyper", 2],
+  ["players-walk", 1], ["bug-O2", 1]] as const) {
+  test(`embed.html#scene=${id}: its lens alone, its height posted`,
+    async ({ page }) => {
+      const heights: number[] = [];
+      await page.exposeFunction("posted", (h: number) => heights.push(h));
+      await page.addInitScript(() => {
+        window.parent.postMessage = (m: { height: number }) =>
+          (window as unknown as { posted(h: number): void }).posted(
+            m.height);
+      });
+      await page.setViewportSize({ width: 1024, height: 900 });
+      await page.goto(`./embed.html#scene=${id}`);
+      await expect(page.locator(".view:not([hidden])").first())
+        .toBeVisible();
+      await expect.poll(() => page.locator(".view").count())
+        .toBeGreaterThanOrEqual(views);
+      for (const q of ["main", "#picker", "#contract-box",
+        "[data-area=contract] *", ".shellbar"]) {
+        await expect(page.locator(`${q}:visible`)).toHaveCount(0);
+      }
+      // (no box inside it scrolls; its last height is its content's)
+      expect(await page.evaluate(() => [...document.querySelectorAll(
+        "#embed *")].filter((e) => /auto|scroll/.test(
+        getComputedStyle(e).overflowY) && e.scrollHeight >
+        e.clientHeight + 1).length)).toBe(0);
+      const h = await page.locator("#embed").evaluate((e) =>
+        Math.ceil(e.getBoundingClientRect().height));
+      await expect.poll(() => heights.at(-1)).toBe(h);
+    });
+}
+
+test("embed.html: an unknown scene says so", async ({ page }) => {
+  await page.goto("./embed.html#scene=nope");
+  await expect(page.locator("[role=alert]")).toContainText("nope");
+});
+
+test("embed.html: raw-named is the raw moment, named", async ({ page }) => {
+  await page.goto("./embed.html#scene=raw-named");
+  // (inside carol's join: alice and bob are listed, carol not yet)
+  await expect(page.locator(".tree")).toContainText("2 entries");
+  await expect(page.locator(".tree")).not.toContainText("carol");
 });

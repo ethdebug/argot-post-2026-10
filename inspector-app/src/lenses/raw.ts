@@ -27,13 +27,15 @@ const base = { timelines: ["raw"], decodings: ["raw"], links: [],
   grid: "", areas: { wide: "dump raw-col", narrow: "raw-col" } };
 
 // The composition: `moment`, a quiet line under the stack naming the
-// moment (what it is inside, its step); off: the panels alone
-export const rawLens = (o: { moment?: boolean } = {}): LensSpec => ({
+// moment in plain words; false: the panels alone
+export const MOMENT = "while carol joins: her name is being saved, " +
+  "half-written";
+export const rawLens = (o: { moment?: string | false } = {}): LensSpec => ({
   ...base, id: "raw-hero", title: "Raw bytes", layout: "raw raw-hero",
   views: [dump2("storage", "Storage", "wide"),
     dump2("stack", "Stack", "narrow", { abbreviate: 2 }),
     ...o.moment === false ? [] : [{ id: "moment", kind: "moment" as const,
-      area: "narrow", data }],
+      area: "narrow", data, text: o.moment ?? MOMENT }],
     dump2("calldata", "Calldata", "wide"),
     dump2("memory", "Memory", "wide")] });
 export const rawHero = rawLens();

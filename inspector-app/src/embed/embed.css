@@ -1,6 +1,30 @@
-/* the embed: the lens alone, flush with the frame */
-body { background: transparent; }
+/* The embed: a scene's lens alone, flush with the frame, on the host's
+   page: a transparent page, translucent panels with a hairline edge;
+   the document never scrolls (the host sizes the frame by its height
+   messages), nor does any panel inside it */
+html, body { margin: 0; overflow: hidden; background: transparent; }
+#embed {
+  --bg: transparent;
+  --panel: rgb(255 255 255 / 0.55);
+  --line: rgb(31 35 40 / 0.14);
+}
+@media (prefers-color-scheme: dark) {
+  #embed { --panel: rgb(255 255 255 / 0.04);
+    --line: rgb(230 228 223 / 0.14); }
+}
+/* (a lens's grid: its columns share the width) */
+#embed .lens { grid-auto-columns: minmax(0, 1fr); gap: 0 28px;
+  align-items: start; }
 #embed .lens.raw { padding: 0; max-width: none; }
-.embed-none { margin: 0; font: 14px system-ui, sans-serif; }
 /* (no box behind a panel's title: the host's page shows through) */
 #embed .view-head { background: transparent; position: static; }
+/* (the page's own parts: the contract's source, the scene picker) */
+#embed [data-area="contract"], #embed [data-area="pick"] { display: none; }
+/* (Before | After, for a scene of one point: nothing to pick) */
+#embed .picker.mode[data-single] { display: none; }
+/* (no inner scrolling: the tree as tall as its rows, a source as long
+   as its text) */
+#embed .tree, #embed #tree, #embed pre.src { overflow: visible !important;
+  height: auto !important; max-height: none !important; }
+.embed-none { margin: 0; font: 14px system-ui, sans-serif;
+  color: #8a4b00; }

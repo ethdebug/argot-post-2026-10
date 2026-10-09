@@ -22,8 +22,8 @@ test("picker lists the reviewed scenes (dev: every scene and lens); ] " +
     await expect(page.locator('[data-shell-picker] [aria-current="page"]'))
       .toHaveCount(1);
     await page.locator("body").press("]");
-    // (the next scene, mid: its lens writes its own keys once shown)
-    await expect(page).toHaveURL(/#scene=mid&dev=1&ex=mid/);
+    // (the next scene, raw-named: its lens writes its keys once shown)
+    await expect(page).toHaveURL(/#scene=raw-named&dev=1&ex=raw-named/);
     const url = page.url();
     await page.reload();
     expect(page.url()).toBe(url);

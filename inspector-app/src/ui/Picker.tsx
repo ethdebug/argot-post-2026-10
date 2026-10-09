@@ -71,6 +71,7 @@ export function Picker(p: { id: ViewId;
   }
   if (p.of === "side") {
     const picker = <div id={p.domId} className="picker mode"
+      data-single={single ? "" : undefined}
       role="radiogroup" aria-labelledby={`${p.domId ?? "mode"}-l`}
       aria-label="Show" data-view={`${lens.key}:${p.id}`}>
       {(["before", "after"] as const).map((m) => <button key={m}
