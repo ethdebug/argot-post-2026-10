@@ -14,36 +14,29 @@ afterEach(cleanup);
 const json = fixture("raw");
 const slow = { timeout: 5000 };
 const view = (c: HTMLElement, l: string) =>
-  c.querySelector<HTMLElement>(`[data-area="${l}"] .view`);
+  c.querySelector<HTMLElement>(`.view[data-view$=":${l}"]`);
 
 for (const spec of rawLenses) {
   it(`${spec.id}: four bare dumps; the stack top first`, async () => {
     const project = await testProject();
     const { container: c } = render(<Lens spec={spec} project={project} />);
     await waitFor(() => expect(c.querySelectorAll(
-      '[data-area="stack"] .wrow[data-slot]').length)
+      '.view[data-view$=":stack"] .wrow[data-slot]').length)
       .toBe(json.stack.length), slow);
     await waitFor(() => expect(c.querySelectorAll(".view .rows .wrow")
       .length).toBeGreaterThan(json.stack.length), slow);
-    // the stack: 0, 1, … from the top; each word abbreviated
+    // the stack: 0, 1, … from the top; each word whole, as storage's
     const st = view(c, "stack")!;
-    expect(st.classList.contains("strip")).toBe(true);
     const addrs = [...st.querySelectorAll(".wrow .addr .a")]
       .map((a) => a.textContent);
     expect(addrs).toEqual(json.stack.map((_: string, k: number) => `${k}`));
-    expect(st.querySelector(".wrow .ab")!.textContent)
-      .toBe(abbreviated(json.stack.at(-1).slice(2).match(/../g), 2));
-    // memory: one run, `perLine` bytes a line, no gap rows
-    const per = spec.views.flatMap((v) => v.id === "memory" &&
-      v.kind === "dump" ? [v.display?.perLine ?? 16] : [])[0];
-    const mem = view(c, "memory")!;
-    expect(mem.classList.contains("flow")).toBe(true);
-    expect(mem.querySelectorAll(".gap").length).toBe(0);
-    const lines = [...mem.querySelectorAll(".wrow")];
-    expect(lines.length).toBe(Math.ceil((json.memory.length - 2) / 2 / per));
-    expect(lines[1].querySelector(".a")!.textContent)
-      .toBe(`0x${per.toString(16).padStart(4, "0")}`);
-    expect(lines[0].querySelectorAll(".b").length).toBe(per);
+    // every panel the same dump: words of 32 bytes, no ruler
+    for (const l of ["storage", "stack", "memory", "calldata"]) {
+      const v = view(c, l)!;
+      expect(v.querySelector(".wrow[data-slot] .word")!
+        .querySelectorAll(".b").length).toBe(32);
+      expect(v.querySelector(".ruler")).toBeNull();
+    }
     // storage: every slot it has, ⋯ where the slots jump
     const sto = view(c, "storage")!;
     expect(sto.querySelectorAll(".wrow[data-slot]").length)

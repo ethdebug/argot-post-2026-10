@@ -15,37 +15,21 @@ const dump = (location: Location, title: string, display: Display):
   ViewSpec => ({ id: location, kind: "dump", area: location, location,
   data, filter: all, title, display: { bare: true, ...display } });
 
-// storage the hero; the stack a strip of short words, the top first;
-// memory and calldata dense, one run of bytes each
-const views = (o: { memory?: Display; calldata?: Display } = {}) => [
-  dump("storage", "Storage", {}),
-  dump("stack", "Stack", { shape: "strip", abbreviate: 2 }),
-  dump("memory", "Memory", { density: "flow", perLine: 16, scale: 0.86,
-    ...o.memory }),
-  dump("calldata", "Calldata", { density: "flow", perLine: 16, scale: 0.86,
-    ...o.calldata }),
-];
+// One cell size for the whole lens: every panel the same dump, a word a
+// row (16 bytes a line in the figure's narrow columns), in the same
+// font, which each column fits; the columns are equal, so each panel
+// has the same font, row height and width: the stack's words whole too.
+// Two columns, each its panels one under the other (an area each):
+// storage over calldata, the stack over memory, which come out even
+const dump2 = (location: Location, title: string, area: string):
+  ViewSpec => ({ ...dump(location, title, { ruler: false }), area });
 const base = { timelines: ["raw"], decodings: ["raw"], links: [],
-  grid: "", areas: { storage: "dump raw-storage", stack: "raw-box",
-    memory: "raw-box", calldata: "raw-box" } };
+  grid: "", areas: { left: "dump raw-col", right: "dump raw-col" } };
 
-// V1: storage top left, the stack a full-height strip on the right,
-// memory tucked under storage, the corner left for a caption
 export const rawHero: LensSpec = { ...base, id: "raw-hero",
-  title: "Raw bytes, V1: storage hero, stack strip",
-  layout: "raw raw-hero", views: views() };
+  title: "Raw bytes: two columns", layout: "raw raw-hero",
+  views: [dump2("storage", "Storage", "left"),
+    dump2("stack", "Stack", "right"), dump2("memory", "Memory", "right"),
+    dump2("calldata", "Calldata", "left")] };
 
-// V2: the stack as a spine on the left, storage in the middle, memory
-// and calldata stacked in a narrow column on the right
-export const rawSpine: LensSpec = { ...base, id: "raw-spine",
-  title: "Raw bytes, V2: stack spine, side column",
-  layout: "raw raw-spine",
-  views: views({ memory: { perLine: 8 }, calldata: { perLine: 8 } }) };
-
-// V3: sheets on a desk: storage large, the stack strip laid over its
-// right edge, memory and calldata as small cards overlapping its foot
-export const rawSheets: LensSpec = { ...base, id: "raw-sheets",
-  title: "Raw bytes, V3: overlapping sheets",
-  layout: "raw raw-sheets", views: views() };
-
-export const rawLenses = [rawHero, rawSpine, rawSheets];
+export const rawLenses = [rawHero];

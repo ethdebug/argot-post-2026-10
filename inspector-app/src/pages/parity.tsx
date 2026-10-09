@@ -124,8 +124,9 @@ function record(id: string, [before, after]: Decoded[]) {
 
 
 // The page's scenes of other lenses (fixtures/index.json's `lens`):
-// "Raw bytes" shows the raw lens, one of its three compositions, in
-// place of the storage inspector; the hash keeps it (scene=, raw=)
+// "Raw bytes" shows the raw lens (its compositions by a toggle, when
+// there are several), in place of the storage inspector; the hash
+// keeps it (scene=, raw=)
 const RAW = Object.fromEntries(rawLenses.map((l) =>
   [l.id.replace(/^raw-/, ""), l]));
 const hashed: Pending = {};
@@ -147,13 +148,14 @@ function Page(p: { project: Awaited<ReturnType<typeof load>>;
     <OtherScenes.Provider value={other}>{p.storage}</OtherScenes.Provider>
     {p.memory}
     {scene && createPortal(<>
-      <div className="picker rawpick" role="radiogroup"
+      {Object.keys(RAW).length > 1 && <div className="picker rawpick"
+        role="radiogroup"
         aria-label="Composition">
         {Object.entries(RAW).map(([k, l]) => <button key={k} role="radio"
           data-raw={k} aria-checked={k === variant ? "true" : "false"}
           title={l.title} onClick={() => setVariant(k)}>
           {k[0].toUpperCase() + k.slice(1)}</button>)}
-      </div>
+      </div>}
       <Lens key={variant} spec={RAW[variant]} project={p.project} />
     </>, p.rawBox)}</>;
 }

@@ -378,6 +378,8 @@ li.same > .row .name, li.same > .row .type { opacity: 0.55; }
      read as two; a value going on to the next line stays one block, its
      fill drawn across the gap: .jd) */
   .word .bytes { row-gap: 2px; }
+  /* (a row past the segment's end after its first 16 bytes: one line) */
+  .word.half .oct:nth-child(n+3) { display: none; }
   .word .b.jd::after { content: ""; position: absolute; left: 0;
     right: 0; top: 100%; height: 2px; background: inherit;
     pointer-events: none; }

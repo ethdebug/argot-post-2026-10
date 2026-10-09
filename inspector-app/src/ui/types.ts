@@ -63,6 +63,8 @@ export interface Display {
   scale?: number;               // the type's size, times this
   // the bytes only: no names, no tints, no popovers, no hover or click
   bare?: boolean;
+  // the byte ruler over the rows (default: shown, where rows are words)
+  ruler?: boolean;
 }
 
 // a view's data: a decoding (or "$bm", the current bookmark's) at a
