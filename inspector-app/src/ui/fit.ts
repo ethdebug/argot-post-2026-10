@@ -5,6 +5,9 @@
 // the .dump box, with its rows.
 import { useLayoutEffect, type RefObject } from "react";
 
+// each fitted dump view's font, for its lens's cell size
+const sizes = new WeakMap<Element, number>();
+
 export function useFitDump(me: RefObject<HTMLElement | null>,
   shown: boolean, rows: number) {
   useLayoutEffect(() => {
@@ -31,9 +34,32 @@ export function useFitDump(me: RefObject<HTMLElement | null>,
       fit();
     });
     addEventListener("resize", fit);
+    // (in a lens: its cell size, --cell-fs, the smallest font its dumps
+    // fit; a panel that is not a fitted dump, such as an abbreviated
+    // stack, takes it: one cell size for the whole lens)
+    const d0 = me.current?.closest<HTMLElement>(".dump");
+    const lens = d0?.closest<HTMLElement>(".lens");
+    const seen = !lens || !d0 || typeof ResizeObserver === "undefined" ||
+      !shown ? null : new ResizeObserver(() => {
+        const v = me.current;
+        if (!v || !lens.isConnected) return;
+        sizes.set(v, parseFloat(getComputedStyle(v).fontSize));
+        const all = [...lens.querySelectorAll<HTMLElement>(".dump .view")]
+          .map((x) => sizes.get(x)).filter((x): x is number => !!x);
+        if (!all.length) return;
+        // (set after this frame's layout: no resize loop; a change under
+        // 0.05px ends it, as the columns settle)
+        const f = Math.min(...all);
+        const was = parseFloat(lens.style.getPropertyValue("--cell-fs"));
+        if (Math.abs(f - was) < 0.05) return;
+        requestAnimationFrame(() =>
+          lens.style.setProperty("--cell-fs", `${f}px`));
+      });
+    if (d0) seen?.observe(d0);
     return () => {
       live = false;
       removeEventListener("resize", fit);
+      seen?.disconnect();
     };
   }, [me, shown, rows]);
 }

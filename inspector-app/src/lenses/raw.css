@@ -1,16 +1,26 @@
 /* The raw lens (lenses/raw.ts): four bare dumps of one moment on one
-   grid. One cell size: each column is a dump box whose font fits it
-   (.views; the columns are equal), so every panel has the same font,
-   row height and width, and hugs its rows. The figure is at most the
-   blog's 1024px wide; under 760px, one column. */
+   grid. One cell size: storage, calldata and memory share the wide
+   column, a dump box whose font fits it; the stack, narrow beside them,
+   takes that font (--cell-fs, ui/fit.ts) and row height, each item one
+   row. Boxes hug their rows. The figure is at most the blog's 1024px
+   wide; under 760px, one column. */
 .lens.raw { display: grid; gap: 0 24px; align-items: start;
   max-width: 1024px; box-sizing: border-box; padding: 12px 0 28px; }
 .lens.raw .raw-col { display: flex; flex-direction: column; gap: 18px;
   min-width: 0; }
 .lens.raw .view-name { letter-spacing: 0.12em; }
-.lens.raw-hero { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-  grid-template-areas: "left right"; }
+/* (the narrow column's box hugs its words, on a phone too) */
+.lens.raw [data-area="narrow"] { align-items: flex-start; }
+.lens.raw .view.abbr { font-family: var(--mono);
+  font-variant-numeric: tabular-nums; font-size: var(--cell-fs, 14px); }
+.lens.raw-hero { grid-template-columns: minmax(0, 1fr) max-content;
+  grid-template-areas: "wide narrow"; }
 @media (max-width: 759.98px) {
   .lens.raw.raw-hero { grid-template-columns: minmax(0, 1fr);
-    grid-template-areas: "left" "right"; row-gap: 18px; }
+    grid-template-areas: "wide" "narrow"; row-gap: 18px; }
+}
+/* (a phone: the dumps' words take two lines; the stack's one line is
+   as tall as one of theirs) */
+@media (max-width: 759.98px) {
+  .lens.raw .view.abbr .word .ab { line-height: 1.4; }
 }
