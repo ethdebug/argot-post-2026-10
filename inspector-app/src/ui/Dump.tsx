@@ -573,11 +573,12 @@ export function Dump(p: { id: ViewId; location: Location; data: DataRef;
     if (!v || !layer) return;
     let cards: ResizeObserver | undefined;
     // (an observer's redraw, after its round: a redraw inside one sizes
-    // what it observes, a loop the browser reports)
-    let queued = 0;
+    // what it observes, a loop the browser reports; by a timer, not an
+    // animation frame, which a frame off screen may not get)
+    let queued: ReturnType<typeof setTimeout> | undefined;
     const later = () => {
-      cancelAnimationFrame(queued);
-      queued = requestAnimationFrame(() => draw());
+      clearTimeout(queued);
+      queued = setTimeout(() => draw(), 0);
     };
     const draw = () => {
       if (!v.isConnected) return;
@@ -597,6 +598,7 @@ export function Dump(p: { id: ViewId; location: Location; data: DataRef;
     };
     draw();
     addEventListener("resize", draw);
+    addEventListener("ethdebug:redraw", draw);
     // (and when its rows' size changes: the cell size fitted, the fonts)
     const ro = typeof ResizeObserver === "undefined" ? undefined
       : new ResizeObserver(later);
@@ -612,8 +614,9 @@ export function Dump(p: { id: ViewId; location: Location; data: DataRef;
       document.fonts?.removeEventListener?.("loadingdone", draw);
       ro?.disconnect();
       cards?.disconnect();
-      cancelAnimationFrame(queued);
+      clearTimeout(queued);
       removeEventListener("resize", draw);
+      removeEventListener("ethdebug:redraw", draw);
     };
   }, [layer]);
   // (after the popovers are drawn, and after each redraw: the hover's

@@ -45,11 +45,21 @@ for (const width of [1360, 1024, 390]) {
   test(`reveal at ${width}px: the inspector's popovers, over no ` +
     "value's digits; nothing moves on the reveal", async ({ page }) => {
     await page.setViewportSize({ width, height: 900 });
+    // (its own window its host here: the ready height's message)
+    await page.addInitScript(() => addEventListener("message", (e) => {
+      if (e.data?.type === "ethdebug:height" && e.data.ready) {
+        (window as unknown as { ready: boolean }).ready = true;
+      }
+    }));
     await page.goto("./embed.html#scene=reveal");
     await expect(page.locator(".view")).toHaveCount(DUMPS);
     // (storage: playerList, motd, the totals, three records; the stack)
     await expect.poll(async () => (await geometry(page)).pops.length)
       .toBeGreaterThanOrEqual(7);
+    // (and drawn for good: its first height posted, ready)
+    await expect.poll(() => page.evaluate(() =>
+      (window as unknown as { ready?: boolean }).ready),
+    { timeout: 20_000 }).toBe(true);
     await page.evaluate(() => document.fonts.ready);
     const raw = await geometry(page);
     // (raw: no tints, no popovers to see)
@@ -267,3 +277,47 @@ test("reveal in a host page: revealed by its message; its " +
     .toBe(true);
   await expect(frame.locator(".view.revealed")).toHaveCount(0);
 });
+
+// Its height final from its first ready, whatever the reveal does: in a
+// host's frame (off screen at first, as below a post's fold), at a
+// phone's width and the post's, the heights it posts at progress 0, 0.5
+// and 1 the ready one
+for (const width of [390, 1024]) {
+  test(`reveal in a ${width}px frame: one height, at every progress`,
+    async ({ page, baseURL }) => {
+      await page.setViewportSize({ width, height: 844 });
+      await page.goto("./embed.html");
+      await page.setContent(`<body style="margin:0">
+        <div style="height:2400px"></div>
+        <iframe id="f" src="${baseURL}embed.html#scene=reveal"
+          style="border:0;width:${width}px;height:50px;display:block">
+        </iframe>
+        <script>window.hs = []; addEventListener("message", (e) => {
+          if (e.data?.type !== "ethdebug:height") return;
+          window.hs.push(e.data.height);
+          document.getElementById("f").style.height = e.data.height + "px";
+        });</script></body>`);
+      const hs = () => page.evaluate(() =>
+        (window as unknown as { hs: number[] }).hs);
+      await expect.poll(async () => (await hs()).length,
+        { timeout: 20_000 }).toBeGreaterThan(0);
+      const ready = (await hs())[0];
+      await page.locator("#f").scrollIntoViewIfNeeded();
+      const frame = page.frameLocator("#f");
+      const post = (progress: number) => page.evaluate((progress) =>
+        (document.getElementById("f") as HTMLIFrameElement).contentWindow!
+          .postMessage({ type: "ethdebug:reveal", on: progress > 0,
+            progress, after: progress >= 1 ? 1 : 0 }, "*"), progress);
+      const height = () => frame.locator("#embed").evaluate((e) =>
+        Math.ceil(e.getBoundingClientRect().height));
+      for (const p of [0, 0.5, 1, 0.5, 0]) {
+        await post(p);
+        await page.waitForTimeout(600);
+        expect(await height(), `${p}`).toBe(ready);
+      }
+      // (a pointer over its values: the same)
+      await frame.locator('.b[data-unit="6"]').first().hover();
+      await page.waitForTimeout(300);
+      expect([...new Set(await hs())]).toEqual([ready]);
+    });
+}
