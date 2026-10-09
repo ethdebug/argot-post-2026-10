@@ -43,4 +43,23 @@ export const rawLens = (o: { moment?: string | false } = {}): LensSpec => ({
       area: "moment", data, text: o.moment ?? MOMENT }]] });
 export const rawHero = rawLens();
 
+// The same figure, annotated in place (scene raw-annotated, the post's
+// first before/after): raw until revealed (ui/reveal.ts: the host's
+// scroll, or the toggle when it stands alone), then each top-level value
+// a coloured composite with a short label in unlit space (Display
+// `annotate`); the stack's and memory's from the scene's hand-written
+// pointers ("$hand"), said so. Its stack column keeps room on its right
+// for the stack's labels (raw.css): no layout change when they appear.
+const hand = { decoding: "$hand", moment: "current" } as const;
+const handDump = (location: Location, title: string, display: Display) =>
+  ({ ...dump2(location, title, display), data: hand }) as ViewSpec;
+export const rawAnnotated: LensSpec = { ...base, id: "raw-annotated",
+  title: "Raw bytes, annotated", layout: "raw raw-hero raw-annotated",
+  columns: 2, initial: { scene: "raw-annotated" },
+  views: [dump2("storage", "Storage", { foldZero: true, annotate: true }),
+    handDump("stack", "Stack", { abbreviate: 2, annotate: true }),
+    handDump("memory", "Memory", { annotate: true }),
+    { id: "moment", kind: "moment", area: "moment", data },
+    { id: "reveal", kind: "reveal", area: "moment" }] };
+
 export const rawLenses = [rawHero];

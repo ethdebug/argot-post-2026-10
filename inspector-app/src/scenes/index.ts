@@ -3,6 +3,7 @@
 import { sceneOf, type BuildInfo, type Scene } from "../engine/scene";
 import arcade from "../../scenarios/arcade/builds.json";
 import rawHero from "../../scenes/raw-hero.json";
+import rawAnnotated from "../../scenes/raw-annotated.json";
 import rawNamed from "../../scenes/raw-named.json";
 import mid from "../../scenes/mid.json";
 import alice from "../../scenes/alice.json";
@@ -16,7 +17,7 @@ import bugO2 from "../../scenes/bug-O2.json";
 
 // (in Vite, every scene file, the ones authoring adds too, after these;
 // Node, the snapshot build: these)
-const listed = [rawHero, rawNamed, mid, alice, motd, vyper, playersWalk,
+const listed = [rawHero, rawAnnotated, rawNamed, mid, alice, motd, vyper, playersWalk,
   alicePlays, vyperRules, bugO0, bugO2].map(sceneOf);
 const files = typeof import.meta.glob === "function"
   ? Object.values(import.meta.glob<unknown>("../../scenes/*.json",
