@@ -1,0 +1,4 @@
+/* the embed: the lens alone, flush with the frame */
+body { background: transparent; }
+#embed .lens.raw { padding: 0; max-width: none; }
+.embed-none { margin: 0; font: 14px system-ui, sans-serif; }

@@ -111,6 +111,8 @@ export type ViewSpec = { id: ViewId; area: string; link?: LinkId;
     // the contract's source, its selection's declaration marked
     | { kind: "contract"; data: DataRef }
     | { kind: "note"; data: DataRef; part: "note" | "viewing" | "meta" }
+    // the moment a point is, in a line: what it is inside, and its step
+    | { kind: "moment"; data: DataRef }
     // the calldata section's: what a part is, how the ABI finds it
     | { kind: "abi"; data: DataRef; part: "details" | "how" }
     | { kind: "walkthrough"; data: DataRef; compare?: DataRef;

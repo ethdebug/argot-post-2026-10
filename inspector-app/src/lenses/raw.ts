@@ -26,11 +26,16 @@ const dump2 = (location: Location, title: string, area: string,
 const base = { timelines: ["raw"], decodings: ["raw"], links: [],
   grid: "", areas: { wide: "dump raw-col", narrow: "raw-col" } };
 
-export const rawHero: LensSpec = { ...base, id: "raw-hero",
-  title: "Raw bytes", layout: "raw raw-hero",
+// The composition: `moment`, a quiet line under the stack naming the
+// moment (what it is inside, its step); off: the panels alone
+export const rawLens = (o: { moment?: boolean } = {}): LensSpec => ({
+  ...base, id: "raw-hero", title: "Raw bytes", layout: "raw raw-hero",
   views: [dump2("storage", "Storage", "wide"),
     dump2("stack", "Stack", "narrow", { abbreviate: 2 }),
+    ...o.moment === false ? [] : [{ id: "moment", kind: "moment" as const,
+      area: "narrow", data }],
     dump2("calldata", "Calldata", "wide"),
-    dump2("memory", "Memory", "wide")] };
+    dump2("memory", "Memory", "wide")] });
+export const rawHero = rawLens();
 
 export const rawLenses = [rawHero];
