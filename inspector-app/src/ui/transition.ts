@@ -65,7 +65,10 @@ function names(on: boolean) {
   if (!topStyle.isConnected) document.head.append(topStyle);
 }
 
-// Run `change` (a state change React draws) as a view transition
+// Run `change` (a state change React draws) as a view transition. A
+// new one while one runs replaces it (the browser skips the old one,
+// which then leaves the names and the class to the new one).
+let running = 0;
 export function transition(change: () => void): void {
   const doc = document as Doc;
   if (!doc.startViewTransition ||
@@ -73,6 +76,12 @@ export function transition(change: () => void): void {
     return change();
   }
   const root = document.documentElement;
+  const mine = ++running;
+  const done = () => {
+    if (mine !== running) return;
+    names(false);
+    root.classList.remove("vt-run");
+  };
   root.classList.add("vt-run");
   names(true);
   try {
@@ -83,13 +92,9 @@ export function transition(change: () => void): void {
       await new Promise<void>((r) => queueMicrotask(r));
       names(true);
     });
-    t.finished.finally(() => {
-      names(false);
-      root.classList.remove("vt-run");
-    });
+    t.finished.finally(done);
   } catch {
-    names(false);
-    root.classList.remove("vt-run");
+    done();
     change();
   }
 }
@@ -105,13 +110,26 @@ const rowsChange = (a: LensState, b: LensState) =>
       return x?.selection !== y?.selection && !x?.walk && !y?.walk;
     })));
 
-// A lens's store whose changes of the related view's rows animate
+// A lens's store whose changes of the related view's rows animate. The
+// change waits for the transition's callback (the old rows are captured
+// first); meanwhile every other change composes onto it, so a click
+// then is never lost, and lands with it.
 export function animated(store: Store<LensState>): Store<LensState> {
+  let pending: LensState | null = null;
   return { ...store, set(f) {
-    const prev = store.get();
+    const prev = pending ?? store.get();
     const next = f(prev);
     if (next === prev) return;
-    if (rowsChange(prev, next)) transition(() => store.set(f));
-    else store.set(() => next);
+    if (pending) {
+      pending = next;
+      return;
+    }
+    if (!rowsChange(prev, next)) return store.set(() => next);
+    pending = next;
+    transition(() => {
+      const s = pending!;
+      pending = null;
+      store.set(() => s);
+    });
   } };
 }
