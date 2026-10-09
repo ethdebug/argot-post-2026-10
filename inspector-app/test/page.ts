@@ -18,7 +18,10 @@ export const test = base.extend<{ quiet: boolean }>({
         problems.push(`request to ${u.href}`);
       }
     });
+    // (WebKit's own line for a module load a navigation cut off, as a
+    // reload mid-load does: the browser's, not the page's)
     page.on("console", (m) => m.type() === "error" &&
+      !/^Cannot load \S+ due to access control checks\.$/.test(m.text()) &&
       problems.push(`console: ${m.text()}`));
     page.on("pageerror", (e) => {
       // (WebKit reports a fetch that a navigation cut off, as the idle
