@@ -51,7 +51,7 @@ const checks: Record<string, (page: Page) => Promise<void>> = {
   // (the shared moment, annotated: carol's record, labelled)
   "reveal": async (page) => {
     await expect(page.locator(".moment-note")).toContainText(
-      /written by hand until solc support lands/i);
+      /written by hand for this post/i);
     await expect(page.locator(".pop.note").filter({ hasText:
       /^players\[carol\].*score 100/ })).toHaveCount(1);
   },

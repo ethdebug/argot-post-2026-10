@@ -32,11 +32,15 @@ import { setProgress, setRevealed } from "../ui/reveal";
 const hash = new URLSearchParams(location.hash.slice(1));
 followTheme(hash);
 // (an annotated figure's reveal, from the host's scroll: { type:
-// "ethdebug:reveal", on, progress }: the progress, 0 to 1, each frame;
+// "ethdebug:reveal", on, progress, after }: the progress, 0 to 1, each
+// frame, and the hold after it, 0 to 1 (`after`, if the host has one);
 // an older host's `on` alone, run there; ui/reveal.ts)
 addEventListener("message", (e) => {
   if (e.data?.type !== "ethdebug:reveal") return;
-  if (typeof e.data.progress === "number") setProgress(e.data.progress);
+  if (typeof e.data.progress === "number") {
+    setProgress(e.data.progress, typeof e.data.after === "number"
+      ? e.data.after : undefined);
+  }
   else setRevealed(!!e.data.on);
 });
 // (and the memory section's old scenes, the post's figure until it
