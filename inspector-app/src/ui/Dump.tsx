@@ -2,9 +2,9 @@
 // renderPanel, wordHtml, paint): one word a row, in address order, each
 // byte linked to the value that owns it
 import { useFitDump } from "./fit";
-import { useEffect, useLayoutEffect, useMemo, useRef } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { drawOverlays, type ViewData } from "./overlays";
-import { drawNotes, stagger } from "./notes";
+import { drawNotes, hoverNotes, stagger } from "./notes";
 import { useRevealed } from "./reveal";
 import {
   cellsOf, notesOf, onChainNames, unitsOf,
@@ -154,8 +154,11 @@ function tintsOf(ls: Layout[], loc: Location) {
 const half = (mine: (string | undefined)[]) =>
   mine.slice(16).every((b) => b === undefined) && mine[0] !== undefined;
 
-// (each byte of a row, in the annotated layer: its unit, tint, delay)
-type Annot = ({ unit: number; tint: number; d: number } | null)[];
+// (each byte of a row, in the annotated layer: its unit, its child
+// colour, its fade's delay; `on`: revealed, lit; `muted`: another unit
+// is hovered)
+type Annot = { on: boolean; hover: number | null;
+  cells: ({ unit: number; k: number; d: number } | null)[] };
 function Word({ l, ls, loc, row, mine, theirs, side, pair, name, light,
   groupsOf, bare, abbreviate, annot }: {
   l: Layout; ls: Layout[]; loc: Location; row: Hex;
@@ -163,23 +166,26 @@ function Word({ l, ls, loc, row, mine, theirs, side, pair, name, light,
   side?: string; pair?: boolean; name: string; light: Light;
   groupsOf: (id: string) => boolean; bare?: boolean;
   abbreviate?: number; annot?: Annot }) {
-  // (the annotated layer: a byte's value (its unit), in that value's
-  // at-rest tint, uniformly, as the reveal shows it; a run of one
-  // value's bytes rounded at its ends, as the dump's owners are; its
-  // fade a little after the one before it: `d` ms)
+  // (the annotated layer: revealed, every value lit at once, as a lit
+  // composite's children are: its bytes in its child colour, a run of
+  // them rounded at its ends; hovering one, the others muted, as the
+  // inspector mutes a selection's other children)
   const an = (i: number) => {
-    const c = annot?.[i];
-    if (!c) return "";
-    const same = (j: number) => annot![j]?.unit === c.unit;
-    return ` an t${c.tint}${!same(i - 1) ? " gs" : ""}${
-      !same(i + 1) ? " ge" : ""}`;
+    const c = annot?.cells[i];
+    if (!c || !annot!.on) return "";
+    const same = (j: number) => annot!.cells[j]?.unit === c.unit;
+    return ` hl pk${c.k}${!same(i - 1) ? " gs" : ""}${
+      !same(i + 1) ? " ge" : ""}${annot!.hover !== null &&
+      annot!.hover !== c.unit ? " muted" : ""}`;
   };
-  const unit = (i: number) => annot?.[i] ? { "data-unit": annot[i]!.unit,
-    style: { "--d": `${annot[i]!.d}ms` } as CSSProperties } : {};
+  const unit = (i: number) => annot?.cells[i] ? {
+    "data-unit": annot.cells[i]!.unit,
+    style: { "--d": `${annot.cells[i]!.d}ms` } as CSSProperties } : {};
   if (abbreviate !== undefined) {
-    const k = annot?.findIndex(Boolean) ?? -1;
+    const k = annot?.cells.findIndex(Boolean) ?? -1;
     return <div className="word" data-side={side} data-slot={row}>
-      <span className={`ab${k >= 0 ? `${an(k)} gs ge` : ""}`}
+      <span className={`ab${k >= 0 && annot!.on ? ` b${an(k)} gs ge`
+        : ""}`}
         {...k >= 0 ? unit(k) : {}}>
         {abbreviated(mine, abbreviate)}</span></div>;
   }
@@ -496,19 +502,53 @@ export function Dump(p: { id: ViewId; location: Location; data: DataRef;
     return { units, notes, delay };
   }, [annot, d, l, own, rows, hand, disp.abbreviate]);
   const revealed = useRevealed();
+  // (revealed: every value active, lit with its caps, as a selection's
+  // children are; Display annotateFill "hover": the plain fill, no caps)
+  const active = annot && revealed && disp.annotateFill !== "hover";
+  // the value the pointer is on (a byte of it, or its popover): the
+  // others muted, their popovers the light, kept kind
+  const [hover, setHover] = useState<number | null>(null);
+  const hoverRef = useRef<number | null>(null);
+  useEffect(() => {
+    if (!revealed) setHover(null);
+  }, [revealed]);
+  const hovering = annot && revealed ? {
+    onPointerOver: (e: PointerEvent) => {
+      const t = e.target as Element;
+      const u = t.closest<HTMLElement>("[data-unit]")?.dataset.unit ??
+        t.closest<HTMLElement>(".pop.note")?.dataset.units?.split(" ")[0];
+      setHover(u === undefined ? null : +u);
+    },
+    onPointerLeave: () => setHover(null) } : {};
   useLayoutEffect(() => {
     const v = me.current;
     if (!v || !layer) return;
-    const draw = () => v.isConnected && drawNotes(v, layer.notes);
+    const draw = () => {
+      if (!v.isConnected) return;
+      drawNotes(v, layer.notes, layer.units);
+      hoverNotes(v, hoverRef.current);
+    };
     draw();
     addEventListener("resize", draw);
+    // (and when its rows' size changes: the cell size fitted, the fonts)
+    const ro = typeof ResizeObserver === "undefined" ? undefined
+      : new ResizeObserver(() => draw());
+    const rs = v.querySelector(".rows");
+    if (rs) ro?.observe(rs);
     let live = true;
     document.fonts?.ready.then(() => live && draw());
     return () => {
       live = false;
+      ro?.disconnect();
       removeEventListener("resize", draw);
     };
   }, [layer]);
+  // (after the popovers are drawn, and after each redraw: the hover's
+  // look)
+  hoverRef.current = hover;
+  useLayoutEffect(() => {
+    if (me.current) hoverNotes(me.current, hover);
+  });
 
   // the overlays (popovers), over the dumps' box, once per render of any
   // of its dumps; again on resize and once the fonts are in (the labels
@@ -604,9 +644,10 @@ export function Dump(p: { id: ViewId; location: Location; data: DataRef;
         side={order} pair={!!p.compare} name={name} light={light}
         groupsOf={groupsOf}
         bare={bare} abbreviate={disp.abbreviate}
-        annot={layer && cellsOf(layer.units, l, r.address).map((u) =>
-          u === null ? null : { unit: u, tint: layer.units[u].tint,
-            d: layer.delay[u] })} />}
+        annot={layer && { on: revealed, hover,
+          cells: cellsOf(layer.units, l, r.address).map((u) =>
+            u === null ? null : { unit: u, k: layer.units[u].k as number,
+              d: layer.delay[u] }) }} />}
     </div>);
   });
   if (l?.more && !flow) {
@@ -653,15 +694,15 @@ export function Dump(p: { id: ViewId; location: Location; data: DataRef;
   return <div ref={me} data-side={order} role="group"
     aria-label={p.when ? `${label} ${p.when}` : label}
     // (lit: the rest steps back; a selection or a step: brown caps)
-    className={["view", light.muted ? "active" : "",
-      link.selection || link.walk ? "chosen" : "",
+    className={["view", light.muted || active ? "active" : "",
+      link.selection || link.walk || active ? "chosen" : "",
       light.walk ? "walking" : "", disp.shape === "strip" ? "strip" : "",
       disp.abbreviate !== undefined ? "abbr" : "", flow ? "flow" : "",
       bare ? "bare" : "", annot ? "annot" : "", annot && revealed
         ? "revealed" : "", hand ? "hand" : ""].filter(Boolean).join(" ")}
     data-view={`${lens.key}:${p.id}`} data-point={l?.point}
     data-location={p.location}
-    data-exits={exiting(link) || undefined} {...handlers}>
+    data-exits={exiting(link) || undefined} {...handlers} {...hovering}>
     <div className="view-head"><span className="view-name">{title}</span>
       {/* (pointers written by hand, not the compiler's: said so, as a
         hand-written compilation's tree says it) */}
