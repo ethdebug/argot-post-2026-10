@@ -19,8 +19,9 @@ import {
   type LensContextValue, hush, pointer,
 } from "./hooks";
 import { viewKinds } from "./views";
-import type {
-  DataRef, LensSpec, LensState, ViewKind, ViewSpec,
+import {
+  RELATED_CONTEXT, type DataRef, type LensSpec, type LensState,
+  type ViewKind, type ViewSpec,
 } from "./types";
 
 type Kinds = Partial<Record<ViewKind, ComponentType<any>>>;
@@ -82,8 +83,8 @@ function shower(store: Store<LensState>, spec: LensSpec, project: Project,
       error: undefined, from: step ? s.moment : undefined,
       shows: (s.shows ?? 0) + (step ? 0 : 1),
       // (a scene with the related view on first)
-      ...bm.related !== undefined && !view
-        ? { related: { context: bm.related } } : {},
+      ...bm.related && !view
+        ? { related: { context: RELATED_CONTEXT } } : {},
       // (a scene that shuts groups first: its trees' collapsed, anew)
       ...bm.collapse && !view ? { views: { ...s.views, ...Object.fromEntries(
         spec.views.filter((v) => v.kind === "tree").map((v) => [v.id,
@@ -205,7 +206,7 @@ export function Lens(props: { spec: LensSpec; project: Project;
       : undefined;
     if (want) {
       st.set((s) => ({ ...s, related: want.related === undefined
-        ? undefined : { context: want.related } }));
+        ? undefined : { context: RELATED_CONTEXT } }));
     }
     const id = want?.bookmark ?? st.get().scene;
     // (a hash that names no scene of the lens: the scene's own view)

@@ -90,7 +90,7 @@ export interface Bookmark {             // a handpicked view of 1 or 2 points
   calldata?: { signature: string; param: string };
   walk?: { step: number };              // its selection's, started
   collapse?: Path[];                    // its trees' groups shut first
-  related?: number;                     // the related view on, first
+  related?: boolean;                    // the related view on, first
 }
 export interface TraceRef { url: string; steps: number;
   engine: "ref" | "soldb" }

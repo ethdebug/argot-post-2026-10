@@ -21,29 +21,33 @@ const rel = (page: Page) => page.evaluate(() =>
 const ROSTER0 = "keccak(slot 0)";
 const RECORD = "keccak(0x7099…79c8, slot 3)";
 
-test("All | Related: on, ± 1 row, off; in the hash", async ({ page }) => {
+// (the related view: the related rows, and a row around each, always)
+const SIX = ["slot 2", "slot 3", ROSTER0, `${ROSTER0} + 1`, RECORD,
+  `${RECORD} + 1`];
+
+test("All | Related: on, off; in the hash", async ({ page }) => {
   await open(page, `ex=mid&sel=${A}.score`);
   const all = await rows(page);
   expect(all.length).toBeGreaterThan(10);
   expect(await rel(page)).toBe(null);
   await page.locator('#related button[data-rows="related"]').click();
-  await expect.poll(() => rows(page)).toEqual(["slot 3", ROSTER0, RECORD]);
-  expect(await rel(page)).toBe("0");
-  await page.locator("#related input[data-context]").check();
-  await expect.poll(() => rows(page)).toEqual(["slot 2", "slot 3", ROSTER0,
-    `${ROSTER0} + 1`, RECORD, `${RECORD} + 1`]);
+  await expect.poll(() => rows(page)).toEqual(SIX);
   expect(await rel(page)).toBe("1");
+  // (no control for the rows around: always one)
+  await expect(page.locator("#related input")).toHaveCount(0);
   await page.locator('#related button[data-rows="all"]').click();
   await expect.poll(() => rows(page)).toEqual(all);
   expect(await rel(page)).toBe(null);
 });
 
-test("the hash: a reload keeps the view and its context", async ({ page }) => {
-  await open(page, `ex=mid&sel=${A}.score&rel=1`);
-  await expect(page.locator('#related button[data-rows="related"]'))
-    .toHaveAttribute("aria-checked", "true");
-  await expect(page.locator("#related input[data-context]")).toBeChecked();
-  await expect.poll(() => rows(page)).toHaveLength(6);
+test("the hash: a reload keeps the view (an old link's rel=0 too)",
+  async ({ page }) => {
+  for (const r of ["1", "0"]) {
+    await open(page, `ex=mid&sel=${A}.score&rel=${r}`);
+    await expect(page.locator('#related button[data-rows="related"]'))
+      .toHaveAttribute("aria-checked", "true");
+    await expect.poll(() => rows(page)).toEqual(SIX);
+  }
 });
 
 test("the tree: the selection's path, and where its key came from",
@@ -64,20 +68,22 @@ test("nothing selected: every row, and a hint", async ({ page }) => {
 test("hover moves nothing; a click selects, and the rows follow",
   async ({ page }) => {
     await open(page, `ex=mid&sel=${A}.score&rel=0`);
-    await expect.poll(() => rows(page)).toHaveLength(3);
+    await expect.poll(() => rows(page)).toEqual(SIX);
     await page.locator('#tree li[data-path="playerList"] > .row').hover();
     await page.locator('#tree li[data-path="playerList[0]"] > .row').hover();
-    expect(await rows(page)).toEqual(["slot 3", ROSTER0, RECORD]);
+    expect(await rows(page)).toEqual(SIX);
     // (consulted by the selection, so inside it: one click selects it)
     await page.locator('#tree li[data-path="playerList[0]"] > .row').click();
-    await expect.poll(() => rows(page)).toEqual(["slot 0", ROSTER0]);
+    await expect.poll(() => rows(page)).toEqual(["slot 0", "slot 1",
+      ROSTER0, `${ROSTER0} + 1`]);
   });
 
 test("a walkthrough in the related view: step 0 to found, the same rows",
   async ({ page }) => {
     await open(page, `ex=mid&sel=${A}&rel=0`);
     const shown = await rows(page);
-    expect(shown).toEqual(["slot 3", ROSTER0, RECORD, `${RECORD} + 1`]);
+    expect(shown).toEqual(["slot 2", "slot 3", ROSTER0, `${ROSTER0} + 1`,
+      RECORD, `${RECORD} + 1`]);
     await page.locator('#details button[data-r="start"]').click();
     await expect(page.locator("#details .rcount")).toHaveText("start");
     // (step 0: the record's slots lit, in rows that are shown)
@@ -169,7 +175,7 @@ test.describe("view transitions", () => {
       await page.locator('#related button[data-rows="related"]').click();
       await settle();
       expect(await n()).toBe(1);
-      await expect.poll(() => rows(page)).toHaveLength(3);
+      await expect.poll(() => rows(page)).toHaveLength(6);
       await page.locator('#tree li[data-path="playerList[0]"] > .row').hover();
       await settle();
       expect(await n()).toBe(1);
@@ -325,6 +331,6 @@ test.describe("view transitions", () => {
       await still(page);
       await expect(page.locator('#related button[data-rows="related"]'))
         .toHaveAttribute("aria-checked", "true");
-      await expect.poll(() => rows(page)).toHaveLength(3);
+      await expect.poll(() => rows(page)).toHaveLength(6);
     });
 });

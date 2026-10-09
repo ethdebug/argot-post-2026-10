@@ -34,11 +34,11 @@ const checks: Record<string, (page: Page) => Promise<void>> = {
     await expect(val(page, `${A}.score`)).toHaveText("0");
   },
   // (carol's play, right after her combo resets: 140 points so far)
-  // (carol's record, its rows only)
+  // (alice's record, its rows only)
   "pitfall-nesting": async (page) => {
     await expect(val(page,
-      "players[0x90f79bf6eb2c4f870365e785982e1f101e93b906].score"))
-      .toHaveText("100");
+      "players[0x70997970c51812dc3a010c7d01b50e0d17dc79c8].score"))
+      .toHaveText("30");
   },
   "raw-named": async (page) => {
     await expect(val(page, "totalScore")).toHaveText("140");

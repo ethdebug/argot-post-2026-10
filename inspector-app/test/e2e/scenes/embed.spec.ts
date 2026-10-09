@@ -297,23 +297,36 @@ test("embed.html#scene=pitfall-compiler: the two hashes' arguments, badged; " +
   await expect(pops.nth(1)).not.toContainText("empty");
 });
 
-// The post's complex-data figure: carol's record selected, the related
-// view on, no clicks; her packed slot six fields, six colours
-test("embed.html#scene=pitfall-nesting: carol's record, related rows only, " +
-  "her packed slot in six colours", async ({ page }) => {
+// The post's nesting figure: alice's record selected, the related view
+// on (a row around each), no walkthrough, no clicks; her packed slot six
+// fields, six colours; her name's slot three parts: the text at its
+// start, its length in the last byte, unmapped bytes between; storage a
+// word a row
+test("embed.html#scene=pitfall-nesting: alice's record, related rows " +
+  "only, a packed slot and a short string", async ({ page }) => {
   await page.setViewportSize({ width: 1024, height: 900 });
   await page.goto("./embed.html#scene=pitfall-nesting");
-  const C = "players[0x90f79bf6eb2c4f870365e785982e1f101e93b906]";
-  await expect(page.locator(`.tree li[data-path="${C}"] > .row.sel`))
+  const A = "players[0x70997970c51812dc3a010c7d01b50e0d17dc79c8]";
+  await expect(page.locator(`.tree li[data-path="${A}"] > .row.sel`))
     .toHaveCount(1, { timeout: 20_000 });
+  await expect(page.locator('[data-r="start"], .rbar')).toHaveCount(0);
+  await expect(page.locator("input[data-context]")).toHaveCount(0);
   const rows = page.locator('.view[data-location="storage"] ' +
     ".wrow[data-slot]");
-  // (related: her record's slots and those consulted, not every slot)
   await expect.poll(() => rows.count()).toBeLessThan(10);
-  const packed = rows.filter({ has: page.locator(".b") }).and(
-    page.locator('.wrow[data-slot$="9978"]'));
-  const tints = await packed.locator(".b.hl").evaluateAll((bs) =>
+  const slot = (s: string) => page.locator(
+    `.view[data-location="storage"] .wrow[data-slot$="${s}"]`);
+  const tints = await slot("aa80").locator(".b.hl").evaluateAll((bs) =>
     new Set(bs.map((b) => b.className.match(/pk\d/)?.[0]).filter(Boolean))
       .size);
   expect(tints).toBe(6);
+  // (the name's slot: "alice", 5 bytes; 26 unmapped; its length, 0x0a)
+  const name = await slot("aa81").locator(".b").evaluateAll((bs) =>
+    bs.map((b) => b.classList.contains("hl") ? "v"
+      : b.dataset.owners ? "o" : "u").join(""));
+  expect(name).toBe("v".repeat(5) + "u".repeat(26) + "v");
+  // (a word a row: its 32 bytes on one line)
+  expect(await slot("aa80").locator(".b").evaluateAll((bs) => new Set(
+    bs.map((b) => Math.round(b.getBoundingClientRect().top))).size))
+    .toBe(1);
 });

@@ -66,7 +66,7 @@ it("the related view: rel, its context rows (none: off)", async () => {
   const p = await testProject();
   const at = (h: string) => fromHash(lens, q(h), p.bookmarks).related;
   expect([at("ex=mid"), at("ex=mid&rel=0"), at("ex=mid&rel=1"),
-    at("ex=mid&rel=x")]).toEqual([undefined, 0, 1, undefined]);
+    at("ex=mid&rel=x")]).toEqual([undefined, 1, 1, undefined]);
   const s = { bookmark: "mid", selection: "totalScore" };
   expect(toHash(lens, s, p.bookmarks).rel).toBe(null);
   expect(toHash(lens, { ...s, related: 1 }, p.bookmarks).rel).toBe("1");
