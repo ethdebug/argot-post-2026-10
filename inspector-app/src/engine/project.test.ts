@@ -44,20 +44,14 @@ it("a bookmark names its points, timeline and decoding", async () => {
   await p.timeline("arcade-mid");
   expect(p.decodings["sol:arcade-mid"]).toEqual({ id: "sol:arcade-mid",
     compilation: "sol@arcade-mid", timeline: "arcade-mid", variables: "state",
-    keys: { from: "list", path: "playerList", names: PLAYERS } });
+    keys: { from: "list", path: "playerList" } });
   await p.timeline("arcade-vyper");
   // (Vyper's: the keys from the trace; solc's rule over another
   // compiler's storage, with that compiler's own reading beside it)
-  expect(p.decodings.vyAsSol.keys).toEqual({ from: "trace",
-    names: PLAYERS });
+  expect(p.decodings.vyAsSol.keys).toEqual({ from: "trace" });
   expect(p.decodings.vyAsSol.foreign).toEqual({ language: "vyper",
     rule: "vyRule" });
 });
-
-// (who each key is, by the fixture's `players`)
-const PLAYERS = { "70997970c51812dc3a010c7d01b50e0d17dc79c8": "alice",
-  "3c44cdddb6a900fa2b585dd299e03d12fa4293bc": "bob",
-  "90f79bf6eb2c4f870365e785982e1f101e93b906": "carol" };
 
 it("a point's snapshot is that side's storage", async () => {
   const p = await load(fsIo());
