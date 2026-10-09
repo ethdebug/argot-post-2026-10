@@ -794,8 +794,9 @@ main[data-single] .walkzone > .cols :is(.chglegend, .legend .bchg,
 .howread { margin: 10px 0 6px; }
 /* (two columns: in the one breakpoint, at the top) */
 .colhead { margin-top: 0; }
-/* the dump's state is in the bar and the Show toggle */
-.scols .view-name { display: none; }
+/* a scene of one moment: the panel's head names its dump; of two, each
+   dump's own title names its moment */
+main[data-single] .scols .view-name { display: none; }
 /* under the bar, joined to it, during a replay only, at one size:
    the step (its caption, formula, constructs, footnote; then the chips,
    one row) and the pointer. Each part has its own fixed room. */
