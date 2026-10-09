@@ -502,7 +502,9 @@ li.same > .row .name, li.same > .row .type { opacity: 0.55; }
 /* Bytes no value owns: "(unmapped)", italic, muted; pointed at, a
    neutral badge (no colour), and the bytes a neutral light */
 /* (a note: its prose italic, a name in it upright, as names are) */
-.pop .pname.pfree .pprose { font-style: italic; }
+/* (and quieter than names: never bold, as a light popover's text is) */
+.pop .pname.pfree .pprose { font-style: italic; font-weight: 400;
+  opacity: 0.85; }
 .pop .pname.pbadge.pnone { font-weight: 400;
   --pk: var(--muted); --pk-fg: var(--muted);
   background: color-mix(in srgb, var(--bg) 85%, var(--muted)); }
@@ -1220,12 +1222,12 @@ sup.fn { font-size: 0.7em; color: var(--accent); margin-left: 1px; }
    variant of their tint, the selection yellow's, the neutral grey) */
 .wrow.rel .addr.grp::before { background: var(--rel-grey); }
 /* A change of the related view's rows (ui/transition.ts): the rows that
-   stay move, the others fade; the popovers and the tree's edge buttons
-   wait until it is done */
+   stay move, the others fade, the popovers with their rows; the cards,
+   the tray and the tree's edge buttons wait until it is done */
 ::view-transition-group(*), ::view-transition-old(*),
 ::view-transition-new(*) { animation-duration: 220ms;
   animation-timing-function: ease-out; }
-.vt-run :is(.pop, .cmp, .tray, .tedge, .bruler) { visibility: hidden; }
+.vt-run :is(.cmp, .tray, .tedge, .bruler) { visibility: hidden; }
 .pksrc { --pk: var(--pksrc); --pk-fg: var(--pksrc-fg); }
 .b.hl:is(.pk9, .pksrc) { background: var(--pk); color: var(--pk-fg); }
 .row.hl:is(.pk9, .pksrc) { background: var(--pk); color: var(--pk-fg);
