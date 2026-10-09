@@ -4,7 +4,7 @@
 import { dereference, Data, type Pointer } from "./lib";
 import type {
   Compilation, Decoded, Decoding, DerefGraph, Format, Hex, InputNode,
-  PointId, ResolvedRegion, TimelinePoint, ValueNode, Variable,
+  Local, PointId, ResolvedRegion, TimelinePoint, ValueNode, Variable,
 } from "./types";
 import type { Project } from "./project";
 import { machineState } from "./snapshot";
@@ -100,7 +100,9 @@ async function decodeScope(p: Project, d: Decoding, c: Compilation,
   const typed = c.stateVariables.some((v) => c.types[typeIdOf(v)]);
   const st = typed ? await decodeAt(p, { ...d, variables: "state" }, at.id)
     : await decodeLocals(c, { ...at, scope: undefined, record: undefined,
-      locals: (at.locals ?? []).filter((v) => named.has(v.identifier)) });
+      // (the program's own variables, whether the moment's context
+      // lists them or not: a moment's locals leave them out)
+      locals: c.stateVariables as unknown as Local[] });
   const lo = await decodeLocals(c, { ...at, locals: (at.locals ?? [])
     .filter((v) => !named.has(v.identifier)) });
   const group = (path: string, label: string, children: ValueNode[]):
