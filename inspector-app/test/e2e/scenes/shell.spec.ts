@@ -1,11 +1,14 @@
 import { test, expect } from "../../page";
 import { lenses } from "../../../src/lenses";
 
-test("picker lists every lens; ] moves on; reload restores",
-  async ({ page }) => {
+test("picker lists the reviewed lenses (dev: every lens); ] moves on; " +
+  "reload restores", async ({ page }) => {
     await page.goto("./shell.html");
     const items = page.locator("[data-shell-picker] [data-lens]");
+    await expect(items).toHaveCount(lenses.filter((l) => !l.dev).length);
+    await page.locator("[data-shell-dev]").click();
     await expect(items).toHaveCount(lenses.length);
+    await expect(page.locator(".shellparity")).toHaveAttribute("href", "./");
     await expect(page.locator('[data-shell-picker] [aria-current="page"]'))
       .toHaveCount(1);
     await page.locator("body").press("]");

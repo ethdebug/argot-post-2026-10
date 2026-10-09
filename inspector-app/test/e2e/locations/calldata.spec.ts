@@ -5,6 +5,8 @@
 import type { Page } from "@playwright/test";
 import { test, expect, ready, select, type Win } from "../../page";
 
+// (the section is on hold, hidden; calldata=1 draws it, for these)
+
 const dl = (page: Page, q: string) => page.evaluate((q) => {
   const out: Record<string, string> = {};
   for (const dt of document.querySelectorAll(`${q} dt`)) {
@@ -26,7 +28,7 @@ const range = (a: number, b: number) =>
 
 test("setMotd's calldata: selector, a byte selects its part, details",
   async ({ page }) => {
-    await ready(page, { hash: "#ex=motd" });
+    await ready(page, { hash: "#ex=motd&calldata=1" });
     await expect(page.locator("#calldata")).toBeVisible();
     await expect(page.locator('#ctree li[data-part="selector"] .val'))
       .toHaveText("0x5fe59b9d");
@@ -55,7 +57,7 @@ test("setMotd's calldata: selector, a byte selects its part, details",
 
 test("under the storage dump, in its column; the motd scene only",
   async ({ page }) => {
-    await ready(page, { hash: "#ex=motd" });
+    await ready(page, { hash: "#ex=motd&calldata=1" });
     // (at rest: polled, the dump's font fitted)
     await expect.poll(() => page.evaluate(() => {
       const r = (q: string) => document.querySelector(q)!
@@ -75,7 +77,7 @@ test("under the storage dump, in its column; the motd scene only",
 
 test("its selection is its own: storage's stays; Escape clears its own",
   async ({ page }) => {
-    await ready(page, { hash: "#ex=motd&sel=motd" });
+    await ready(page, { hash: "#ex=motd&sel=motd&calldata=1" });
     const storage = () => page.evaluate(() =>
       new URLSearchParams(location.hash.slice(1)).get("sel"));
     expect(await storage()).toBe("motd");
@@ -101,7 +103,7 @@ test("its selection is its own: storage's stays; Escape clears its own",
 test("an offset-addressed run is named by its bytes' range, once",
   async ({ page }) => {
     await page.setViewportSize({ width: 1600, height: 900 });
-    await page.goto("./");
+    await page.goto("./#calldata=1");
     await page.waitForFunction(() => (window as unknown as
       { results: { done: boolean } }).results?.done);
     await page.evaluate(() => (window as unknown as { select(i: string,
@@ -120,3 +122,9 @@ test("an offset-addressed run is named by its bytes' range, once",
     expect(await page.locator("#cpanel .pop .phow").allInnerTexts())
       .toEqual(["calldata 0x0040"]);
   });
+
+test("on hold: no calldata section unless the hash asks", async ({ page }) => {
+  await ready(page, { hash: "#ex=motd" });
+  await expect(page.locator("#calldata")).toBeHidden();
+  await expect(page.locator("#cpanel .view")).toHaveCount(0);
+});

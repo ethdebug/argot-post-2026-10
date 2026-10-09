@@ -112,10 +112,13 @@ if (!sizesCurrent()) {
     .map(([, a, t]) => `${a.match(/data-id="([^"]+)"/)?.[1]} ${
       a.match(/data-fixture="([^"]+)"/)?.[1]} ${/data-single/.test(a)
       ? 1 : 2} ${t.replace(/\s+/g, " ")}`).join("\n");
-  const scenes = JSON.parse(fs.readFileSync(path.join(demo, "fixtures",
+  // (the storage inspector's scenes; another lens's, "Raw bytes", has a
+  // button with its lens, no fixture)
+  const all = JSON.parse(fs.readFileSync(path.join(demo, "fixtures",
     "index.json"), "utf8"));
-  const want = scenes.map((x) => `${x.id} ${x.fixture} ${x.points.length
-  } ${x.title}`).join("\n");
+  const scenes = all.filter((x) => !x.lens);
+  const want = all.map((x) => x.lens ? `${x.id} undefined 2 ${x.title}`
+    : `${x.id} ${x.fixture} ${x.points.length} ${x.title}`).join("\n");
   const intros = [...html.matchAll(/<p data-scene="([^"]+)" hidden>/g)]
     .map((m) => m[1]).join();
   if (intros !== scenes.map((x) => x.id).join()) {
@@ -3347,82 +3350,14 @@ for (const [name, type] of [["chromium", chromium], ["firefox", firefox],
   await setMode("after");
   await page.keyboard.press("Escape");
 
-  // The calldata of setMotd (motd scene only), by the ABI encoding: a
-  // byte selects its part of m; a part lights its bytes
-  {
-    const { keccak256 } = (await import("js-sha3")).default;
-    const cdl = () => page.evaluate(() => window.calldataResults);
-    const shownCd = await page.evaluate(() =>
-      !document.querySelector("#calldata").hidden);
-    const selector = await page.locator(
-      '#ctree li[data-part="selector"] .val').innerText();
-    if (!shownCd || selector !== "0x" + keccak256("setMotd(string)")
-      .slice(0, 8)) problems.push(`calldata: ${shownCd} ${selector}`);
-    // offset 32, then the length (48) at 0x24, then the bytes at 0x44
-    await pick(page.locator(
-      '#cpanel .wrow[data-slot="0x0020"] .b[data-i="8"]'));
-    const c = await cdl();
-    if (c.chosen !== "m-length") problems.push(`calldata byte: ${c.chosen}`);
-    const cdetails = await dl("#cdetails");
-    if (cdetails.Holds !== "5" ||
-      cdetails.Where !== "calldata 0x0024–0x0043") {
-      problems.push(`calldata details: ${JSON.stringify(cdetails)}`);
-    }
-    await pick(page.locator(
-      '#cpanel .wrow[data-slot="0x0020"] .b[data-i="8"]'));
-    await page.locator('#ctree li[data-part="m"] > .row').hover();
-    // (each byte's place in the calldata: its row's start, plus its
-    // index in the row)
-    const cl = await page.evaluate(() => [...document.querySelectorAll(
-      "#cpanel .b.hl")].map((b) => parseInt(b.closest(".wrow").dataset.slot,
-      16) + +b.dataset.i));
-    if (cl.join() !== range(4, 72).join()) {
-      problems.push(`calldata m lit: ${cl.length}`);
-    }
-    // (pointing at a part lights its row only; text, its own row too)
-    const crows = () => page.evaluate(() => [...document.querySelectorAll(
-      "#ctree .row.hl")].map((r) => r.parentElement.dataset.part).join());
-    const tm = await crows();
-    await page.locator('#ctree li[data-part="m-length"] > .row').hover();
-    const tl = await crows();
-    await page.locator('#ctree li[data-part="m"] > .row').hover();
-    if (tl !== "m-length" || !tm.split(",").includes("m")) {
-      problems.push(`calldata rows: ${tm} | ${tl}`);
-    }
-    // (its parts in child colours, one each, as any composite's)
-    const ck = await page.evaluate(() => [...new Set([...document
-      .querySelectorAll("#cpanel .b.hl")].map((b) =>
-      b.className.match(/pk\d/)?.[0] ?? ""))]);
-    if (ck.length !== 3 || ck.some((k) => !k)) {
-      problems.push(`calldata colours: ${ck}`);
-    }
-    // (the same panel as storage's: a popover on the lit rows, the
-    // panel's header)
-    const cpop = await page.evaluate(() => [document.querySelectorAll(
-      "#cpanel .pop").length, document.querySelector("#cpanel .views")
-      ?.dataset.loc]);
-    if (!cpop[0] || cpop[1] !== "calldata") {
-      problems.push(`calldata panel: ${cpop}`);
-    }
-    if (!(await page.locator("#chow").textContent()).includes(
-      "not by ethdebug")) problems.push("calldata: no why-not");
-    await page.locator("h1").hover();
-    // next to the storage dump: in its column, right under it
-    const place = await page.evaluate(() => {
-      const r = (q) => document.querySelector(q).getBoundingClientRect();
-      const [c, p, d] = [r("#calldata"), r("#panel"), r("#dump")];
-      return { left: Math.abs(c.left - p.left) < 2,
-        under: c.top >= d.bottom - 1 && c.top - d.bottom < 60,
-        shown: c.height > 100 };
-    });
-    if (!place.left || !place.under || !place.shown) {
-      problems.push(`calldata place: ${JSON.stringify(place)}`);
-    }
-    for (const id of Object.keys(expected).filter((x) => x !== "motd")) {
-      await scene(id);
-      if (await page.locator("#calldata").isVisible()) {
-        problems.push(`calldata shown in ${id}`);
-      }
+  // The calldata of setMotd: ON HOLD until the bugc stepper, not drawn
+  // (its checks are test/e2e/locations/calldata.spec.ts, with the hash's
+  // calldata=1)
+  for (const id of Object.keys(expected)) {
+    await scene(id);
+    if (await page.locator("#calldata").isVisible() ||
+      await page.locator("#cpanel .view").count()) {
+      problems.push(`calldata shown in ${id}`);
     }
   }
 

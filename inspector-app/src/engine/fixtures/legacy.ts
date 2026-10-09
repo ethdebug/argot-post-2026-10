@@ -10,6 +10,9 @@ import { slotHex, toBig } from "../hex";
 
 export interface LegacyScene {
   id: string; title: string; fixture: string;
+  // (a scene shown by another lens than the storage inspector's: "raw";
+  // it has no fixture or points of its own here)
+  lens?: string;
   points: ("before" | "after")[];
   when: string | Record<string, string>;
   summary: string; select: Path; mode?: "before" | "after";

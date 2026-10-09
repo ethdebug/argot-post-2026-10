@@ -3,8 +3,11 @@ import { test, expect, usable, select, type Win } from "../../page";
 import { expected, defaults } from "../../expect";
 import fs from "node:fs";
 
-const scenes = JSON.parse(fs.readFileSync("../demos/inspector/fixtures/index.json",
-  "utf8")) as { id: string; summary: string; points: string[] }[];
+const all = JSON.parse(fs.readFileSync("../demos/inspector/fixtures/index.json",
+  "utf8")) as { id: string; summary: string; points: string[];
+    lens?: string }[];
+// (the storage inspector's scenes: Raw bytes is the raw lens's)
+const scenes = all.filter((s) => !s.lens);
 
 
 test("each scene's values, via window.select", async ({ page }) => {

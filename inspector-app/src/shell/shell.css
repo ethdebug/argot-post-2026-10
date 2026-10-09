@@ -27,3 +27,6 @@
 /* a lens's grid: its columns share the width */
 .shellpage .lens { grid-auto-columns: minmax(0, 1fr); gap: 0 28px;
   align-items: start; }
+.shelldev[aria-pressed="true"] { border-color: var(--accent);
+  color: var(--accent); }
+.shellparity { color: var(--muted); }

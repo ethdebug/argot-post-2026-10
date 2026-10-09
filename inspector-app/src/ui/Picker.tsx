@@ -2,7 +2,8 @@
 // the side of a pair shown (Before | After). Radio buttons; the one
 // shown is aria-checked. Or the rows shown: All | Related (the related
 // view, LensState.related), and how many rows around each related one.
-import { useLens, useLensState, useLink } from "./hooks";
+import { useContext } from "react";
+import { OtherScenes, useLens, useLensState, useLink } from "./hooks";
 import type { ViewId } from "./types";
 
 export function Picker(p: { id: ViewId;
@@ -10,6 +11,7 @@ export function Picker(p: { id: ViewId;
   domId?: string; row?: string; link?: string }) {
   const lens = useLens();
   const { spec, project, store } = lens;
+  const other = useContext(OtherScenes);
   if (p.of === "related") return <Related {...p} />;
   const current = useLensState((s) => s.bookmark);
   const side = useLensState((s) => s.side ?? "after");
@@ -44,13 +46,27 @@ export function Picker(p: { id: ViewId;
   if (p.of === "bookmarks") {
     const bms = (spec.bookmarks ?? []).map((id) =>
       project.bookmarks.find((b) => b.id === id)!).filter(Boolean);
+    // (on a page with scenes of other lenses: the page's scenes, in its
+    // order; another lens's scene shows in place of this one)
+    const order = other ? project.scenes.filter((s) => s.lens !== "inspector"
+      || bms.some((b) => b.id === s.id)) : bms.map((b) => ({ id: b.id,
+      title: b.title, lens: "inspector" }));
+    const shown = other?.scene ?? current;
     return <div id={p.domId} className="picker" role="radiogroup"
       aria-label="Scene" data-view={`${lens.key}:${p.id}`}>
-      {bms.map((b) => <button key={b.id} role="radio" data-id={b.id}
-        data-fixture={b.timeline}
-        data-single={b.points.length === 1 ? "" : undefined}
-        aria-checked={b.id === current ? "true" : "false"}
-        onClick={() => void lens.show(b.id)}>{b.title}</button>)}
+      {order.map((s) => {
+        const b = bms.find((x) => x.id === s.id);
+        return <button key={s.id} role="radio" data-id={s.id}
+          data-fixture={b?.timeline}
+          data-lens={b ? undefined : s.lens}
+          data-single={b && b.points.length === 1 ? "" : undefined}
+          aria-checked={s.id === shown ? "true" : "false"}
+          onClick={() => {
+            if (!b) return other?.go(s.id);
+            other?.go(null);
+            void lens.show(b.id);
+          }}>{s.title}</button>;
+      })}
     </div>;
   }
   if (p.of === "side") {
