@@ -75,8 +75,8 @@ export function drawNotes(v: El, notes: Note[], units: Unit[],
     - 4, ...beside) - vb.left : rows0.r;
   const room = right - rows0.l;
   const narrow = document.documentElement.clientWidth < 560;
-  // each note's card: one line when it fits its room, else its value's
-  // name on a line and its parts after, wrapping (never cut)
+  // each note's card: one line when it fits its room, else wrapping
+  // (never cut)
   const pops = notes.map((n, i) => {
     const s = shapes(n, units);
     const pop = document.createElement("span") as Pop;
@@ -89,10 +89,10 @@ export function drawNotes(v: El, notes: Note[], units: Unit[],
     // (its own width, never its box's: max-content)
     pop.style.width = "max-content";
     layer.append(pop);
-    if (pop.offsetWidth > room) {
-      pop.innerHTML = s.several;
-      pop.classList.add("wrap");
-    }
+    // (too wide for its panel: wrapped, "how : what" flowing on as few
+    // lines as its room takes; a storage card's room is kept in the
+    // figure, which a host pins: the fewest lines)
+    if (pop.offsetWidth > room) pop.classList.add("wrap");
     pop.style.maxWidth = `${room}px`;
     // (its size as placed: a later change, its type fitted, redraws)
     pop.dataset.w = String(pop.offsetWidth);
@@ -110,7 +110,10 @@ export function drawNotes(v: El, notes: Note[], units: Unit[],
   const lines = () => [...v.querySelectorAll<El>(".rows .wrow, .rows .gap")]
     .map((e) => { const r = rel(e.getBoundingClientRect(), vb);
       return { e, t: r.t, b: r.b,
-        lit: !!e.querySelector("[data-unit]") }; });
+        // (a row with an address is no room: a card covers neither its
+        // bytes nor its address)
+        lit: !!e.querySelector("[data-unit]") ||
+          !!e.querySelector(".addr .a")?.textContent }; });
   // (the arrow's reach, as the card's CSS draws it under a row)
   let reach = 8;
   {
