@@ -1,7 +1,8 @@
 // The annotated figure's popovers: free places, the one that hides the
 // least; never over another popover or out of bounds; deterministic
 import { describe, it, expect } from "vitest";
-import { place, REACH, type Cell, type Rect } from "./placement";
+import { place, REACH, roomUnder, type Cell, type Rect } from
+  "./placement";
 
 const box = (l: number, t: number, w: number, h: number): Rect =>
   ({ l, r: l + w, t, b: t + h });
@@ -13,6 +14,27 @@ const row = (t: number, spec: string): Cell[] => [...spec.padEnd(20, ".")]
 const B = box(0, 0, 200, 200);
 
 describe("place", () => {
+  it("never over a value's bytes, its own or another's, nor an address",
+    () => {
+      // (unit 0's bytes under the only place in bounds: none)
+      const cells = row(20, "aaaa0000");
+      expect(place([{ units: [0], shapes: [{ w: 60, h: 10 }],
+        targets: [{ x: 20, t: 0, b: 10 }] }], cells,
+      box(0, 0, 200, 30))).toEqual([null]);
+      // (nor the address at the left)
+      expect(place([{ units: [0], shapes: [{ w: 60, h: 10 }],
+        targets: [{ x: 20, t: 0, b: 10 }] }], [], box(0, 0, 200, 30),
+      { forbid: [box(0, 18, 200, 10)] })).toEqual([null]);
+    });
+  it("roomUnder: what is missing down to the next lit line", () => {
+    const lines = [{ t: 100, b: 110, lit: false },
+      { t: 110, b: 120, lit: false }, { t: 120, b: 130, lit: true }];
+    // (30 free under b 90, a card 20 + reach 8 + 2: fits)
+    expect(roomUnder(90, 20, lines, 8)).toBe(0);
+    expect(roomUnder(90, 40, lines, 8)).toBe(20);
+    // (nothing after: all of it)
+    expect(roomUnder(90, 20, [], 8)).toBe(30);
+  });
   it("away from another value's digits: below, not over row 1", () => {
     // unit 0's row at y 50; unit 1's digits just above it
     const cells = [...row(30, "11111111111111111111"), ...row(50, "0000")];

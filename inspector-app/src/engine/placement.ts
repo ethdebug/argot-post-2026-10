@@ -1,4 +1,5 @@
-// Where the annotated figure's popovers go (pure; the DOM gives the
+// Where the annotated figure's popovers go (and the room each keeps
+// under its value: roomUnder) (pure; the DOM gives the
 // geometry, ui/notes.ts). Free placement, for this figure only: a
 // popover (the inspector's card and arrow) may point at the centre of
 // any run of its value's bytes, from above or below, and slide along
@@ -31,8 +32,10 @@ const within = (a: Rect, b: Rect) => a.l >= b.l - 0.5 &&
   a.r <= b.r + 0.5 && a.t >= b.t - 0.5 && a.b <= b.b + 0.5;
 
 // (`reach`: the arrow's, between a card and its row; default REACH)
+// (`forbid`: what a card never covers: the rows' address labels)
 export function place(asks: Ask[], cells: Cell[], bounds: Rect,
-  o: { narrow?: boolean; reach?: number } = {}): (Spot | null)[] {
+  o: { narrow?: boolean; reach?: number; forbid?: Rect[] } = {}):
+  (Spot | null)[] {
   const reach = o.reach ?? REACH;
   // (a cell hidden: covered more than a sliver of it)
   const hides = (a: Rect, x: Rect) => Math.min(a.r, x.r) -
@@ -67,6 +70,10 @@ export function place(asks: Ask[], cells: Cell[], bounds: Rect,
             const box = { l, r: l + w, t: top, b: top + h };
             if (strict && !within(box, bounds)) continue;
             if (taken.some((x) => over(box, x))) continue;
+            // (never over a value's bytes, its own or another's, nor an
+            // address: what it explains stays in view)
+            if (cells.some((x) => x.unit !== null && hides(box, x)) ||
+              o.forbid?.some((x) => hides(box, x))) continue;
             const ax = g.x - l;
             if (ax < 10 || ax > w - 10) continue;
             // (under its run, as the inspector's popovers are, is read
@@ -74,11 +81,9 @@ export function place(asks: Ask[], cells: Cell[], bounds: Rect,
             let c = s * 15 + (a.shapes[s].cost ?? 0) +
               Math.abs(ax - w / 2) * 0.05 +
               (way === "over" ? 25 : 0) + t * 10;
+            // (unlit bytes: zeros a little, others much)
             for (const x of cells) {
-              if (!hides(box, x)) continue;
-              // (another value's zeros: they are part of it)
-              const mine = x.unit === null || a.units.includes(x.unit);
-              c += x.zero ? mine ? 1 : 5 : mine ? 200 : 1000;
+              if (hides(box, x)) c += x.zero ? 1 : 1000;
             }
             if (c < cost - 1e-9) {
               cost = c;
@@ -91,4 +96,17 @@ export function place(asks: Ask[], cells: Cell[], bounds: Rect,
     if (best) taken.push(best.box);
     return best;
   }
+}
+
+// The room a card needs under a run (its last line's bottom at `b`):
+// the space down to the next line with a value's bytes in it (or none:
+// `lines` holds the lines after the run, top to bottom, each lit or
+// not), less what the card and its arrow take; what is missing, to
+// keep under the run (0: it fits)
+export function roomUnder(b: number, h: number,
+  lines: { t: number; b: number; lit: boolean }[], reach = REACH): number {
+  const next = lines.find((x) => x.lit && x.t >= b - 0.5);
+  const free = next ? next.t - b : lines.length ? Math.max(b,
+    ...lines.map((x) => x.b)) - b : 0;
+  return Math.max(0, Math.ceil(reach + h + 2 - free));
 }

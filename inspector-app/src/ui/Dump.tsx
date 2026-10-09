@@ -563,10 +563,27 @@ export function Dump(p: { id: ViewId; location: Location; data: DataRef;
   useLayoutEffect(() => {
     const v = me.current;
     if (!v || !layer) return;
+    let cards: ResizeObserver | undefined;
+    // (an observer's redraw, after its round: a redraw inside one sizes
+    // what it observes, a loop the browser reports)
+    let queued = 0;
+    const later = () => {
+      cancelAnimationFrame(queued);
+      queued = requestAnimationFrame(() => draw());
+    };
     const draw = () => {
       if (!v.isConnected) return;
       drawNotes(v, layer.notes, layer.units, layer.notes.map((n) =>
         Math.min(...n.units.map((u) => layer.rank[u]))));
+      // (a card whose size changes after (its type fitted to the cells
+      // later): drawn again)
+      cards?.disconnect();
+      cards = typeof ResizeObserver === "undefined" ? undefined
+        : new ResizeObserver(() => {
+          if ([...v.querySelectorAll<HTMLElement>(".pop.note")].some((p) =>
+            p.offsetWidth !== Number(p.dataset.w))) later();
+        });
+      v.querySelectorAll(".pop.note").forEach((p) => cards?.observe(p));
       paintView(v, true);
       hoverNotes(v, hoverRef.current);
     };
@@ -574,14 +591,20 @@ export function Dump(p: { id: ViewId; location: Location; data: DataRef;
     addEventListener("resize", draw);
     // (and when its rows' size changes: the cell size fitted, the fonts)
     const ro = typeof ResizeObserver === "undefined" ? undefined
-      : new ResizeObserver(() => draw());
-    const rs = v.querySelector(".rows");
-    if (rs) ro?.observe(rs);
+      : new ResizeObserver(later);
+    // (and a byte's: the cell size, fitted after the first draw)
+    for (const e of [v.querySelector(".rows"), v.querySelector(
+      ".rows .word .b, .rows .word .ab")]) if (e) ro?.observe(e);
     let live = true;
     document.fonts?.ready.then(() => live && draw());
+    // (a face the cards use loads later than the rows': again)
+    document.fonts?.addEventListener?.("loadingdone", draw);
     return () => {
       live = false;
+      document.fonts?.removeEventListener?.("loadingdone", draw);
       ro?.disconnect();
+      cards?.disconnect();
+      cancelAnimationFrame(queued);
       removeEventListener("resize", draw);
     };
   }, [layer]);
@@ -751,10 +774,6 @@ export function Dump(p: { id: ViewId; location: Location; data: DataRef;
     data-exits={exiting(link) || undefined} {...handlers} {...hovering}
     {...layer ? { "data-units": layer.units.length } : {}}>
     <div className="view-head"><span className="view-name">{title}</span>
-      {/* (pointers written by hand, not the compiler's: said so, as a
-        hand-written compilation's tree says it) */}
-      {hand && <span className="handmade">written by hand, not from solc
-      </span>}
       {ruler && <div className="wrow head"><span className="addr" />
         <Ruler /></div>}
     </div>

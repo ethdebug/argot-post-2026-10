@@ -2,8 +2,8 @@
 // before/after) in a real browser: raw, then revealed in place, in the
 // inspector's own looks: every value lit at once in its child colour,
 // with its caps, and the inspector's popovers, each badged in its
-// value's colour. Every popover placed, none over another or over
-// another value's digits; nothing moves when they appear; a hover mutes
+// value's colour. Every popover placed, none over another, over any
+// value's bytes or an address, nor out of its panel; nothing moves when they appear; a hover mutes
 // the others; the hand-written ones said so; the host's message
 // reveals it
 import type { Page } from "@playwright/test";
@@ -24,9 +24,10 @@ const geometry = (page: Page) => page.evaluate(() => {
   const pops = [...document.querySelectorAll<HTMLElement>(".pop.note")]
     .map((e) => ({ ...box(e), text: e.textContent!,
       units: e.dataset.units!.split(" ") }));
+  // (every lit byte, any value's, and every address label)
   const digits = [...document.querySelectorAll<HTMLElement>(
-    ".wrow[data-slot] .b[data-unit]:not(.z)")].map((e) => ({ ...box(e),
-    unit: e.dataset.unit! }));
+    ".rows .word :is(.b, .ab)[data-unit], .rows .addr .a")].map((e) =>
+    ({ ...box(e), unit: e.dataset.unit ?? "addr" }));
   // (to a tenth of a pixel: a scroll's float noise is no move)
   const tenth = (r: R) => Object.fromEntries(Object.entries(r).map(
     ([k, v]) => [k, Math.round(v * 10) / 10]));
@@ -70,10 +71,10 @@ for (const width of [1360, 1024, 390]) {
       for (const b of on.pops.slice(i + 1)) {
         expect(over(a, b), `${a.text} / ${b.text}`).toBe(false);
       }
+      // (never over what it explains, nor anything else lit, nor an
+      // address)
       for (const d of on.digits) {
-        if (!a.units.includes(d.unit)) {
-          expect(over(a, d), a.text).toBe(false);
-        }
+        expect(over(a, d), `${a.text} over ${d.unit}`).toBe(false);
       }
     }
     // every value lit, active: its child colour, its caps; never the
@@ -104,10 +105,21 @@ for (const width of [1360, 1024, 390]) {
       expect(u, String(text)).toBeDefined();
       expect(a, String(text)).toBe(b);
     }
-    // the stack's (and memory's): written by hand, said so, once a panel
-    await expect(page.locator(".view.hand .handmade")).toHaveCount(
-      DUMPS - 1);
-    await expect(page.locator(".view:not(.hand) .handmade")).toHaveCount(0);
+    // (written by hand: the caption says so; no ink in the figure)
+    await expect(page.locator(".view .handmade")).toHaveCount(0);
+    // every card inside its figure, and its storage cards inside storage
+    const sto = await page.locator(".view[data-location=storage] .rows")
+      .evaluate((e) => { const r = e.getBoundingClientRect();
+        return [r.left + scrollX, r.right + scrollX]; });
+    for (const t of await page.locator(
+      ".view[data-location=storage] .pop.note").evaluateAll((es) =>
+      es.map((e) => { const r = e.getBoundingClientRect();
+        return [r.left + scrollX, r.right + scrollX]; }))) {
+      expect(t[0]).toBeGreaterThanOrEqual(sto[0] - 8.5);
+      expect(t[1]).toBeLessThanOrEqual(sto[1] + 0.5);
+    }
+    // never cut: every value's parts named whole
+    expect(await page.locator(".pop.note .pcut").count()).toBe(0);
     // a hover on carol's bytes: the others muted, their popovers light
     const carol = page.locator(".pop.note").filter({ hasText:
       /^players\[carol\]/ });

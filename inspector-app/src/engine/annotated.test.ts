@@ -77,9 +77,9 @@ describe("the shared moment's popovers", () => {
     expect(n.how).toBe("stack 0–3");
     expect(n.items.map((x) => [x.text, x.seg, x.line, x.unit])).toEqual([
       ["return → _resetCombo 0x0000…1420", 0, 0, 0],
-      ["return → play 0x0000…12cc", 1, 1, 1],
-      ["return → dispatcher 0x0000…0496", 2, 2, 2],
-      ["selector 0x0000…4cd9", 3, 3, 3]]);
+      ["return → play 0x0000…12cc", 0, 1, 1],
+      ["return → dispatcher 0x0000…0496", 0, 2, 2],
+      ["selector 0x0000…4cd9", 0, 3, 3]]);
     // (and memory's, kept for later figures: the keccak scratch, the
     // free memory pointer)
     const m = layout(d, "memory");
