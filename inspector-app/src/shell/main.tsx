@@ -10,7 +10,7 @@ import { createRoot } from "react-dom/client";
 import { fetchIo } from "../engine/io";
 import { load } from "../engine/project";
 import { lenses } from "../lenses";
-import { builds, page, scenes } from "../scenes";
+import { builds, figures, page, scenes } from "../scenes";
 import { Shell } from "./Shell";
 import { browserRuns, runWorker } from "../engine/run/client";
 import { digest } from "../engine/run/run";
@@ -25,4 +25,5 @@ const project = await load(fetchIo(import.meta.env.BASE_URL),
   .runDigest = async (s, b) => digest(await runs.run(
     await runs.scenario(s, [b]), b));
 createRoot(document.getElementById("shell")!).render(
-  <Shell project={project} lenses={lenses} scenes={scenes} />);
+  <Shell project={project} lenses={lenses} scenes={scenes}
+    figures={figures} />);
