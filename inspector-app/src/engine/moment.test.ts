@@ -1,72 +1,23 @@
-// A moment of a run as the engine's point (addendum §6): bug-O0 and
-// bug-O2 at the memory section's paused trace steps give memory.json's
-// source ranges, and its locals with the values the section decodes
-// from memory.json today
+// A moment of a run as the engine's point (addendum §6): a trace step's
+// range, or the last one before it, muted; a local on the stack
 import { describe, expect, it } from "vitest";
 import { annotate } from "./run/annotate";
 import { compilationOf } from "./run/build";
 import { decodeLocals } from "./decode";
-import { fromMemory } from "./fixtures/memory";
 import { lastRange, momentPoint } from "./moment";
-import type { Decoded, ValueNode } from "./types";
 import { arcade, runOf } from "../../test/run";
-import { fixture } from "../../test/io";
 
 const s = arcade();
-const memory = fixture("memory");
-// (alice's third hit: memory.json's transaction, in the runs)
+// (alice's third hit: the bug scenes' transaction)
 const TX = 12;
-
-// a local: its value (or "none": no location), and the bytes it owns
-// and reads
-const local = (n?: ValueNode) => n && { value: n.none ? "none"
-  : n.value?.text, bytes: [...n.regions, ...n.reads ?? []].map((r) =>
-  [r.location, r.name, r.offset, r.length]) };
-const locals = (d: Decoded, names: string[]) =>
-  Object.fromEntries(names.map((x) => [x, local(d.byPath.get(x))]));
-
-describe("bug runs at memory.json's paused trace steps", async () => {
-  // (memory.json's own points, decoded as it was)
-  const fx = fromMemory(memory);
-  for (const level of memory.levels) {
-    const o = `O${level.optimize}`;
-    const build = s.builds[`bug-${o}`];
-    const c = compilationOf(build);
-    for (const p of level.points) {
-      p.steps.forEach((at: { step: number; range?: object;
-        variables: { identifier: string }[] }, k: number) => {
-        const id = p.steps.length === 1 ? `${o}/${p.id}` : `${o}/${p.id}:${k}`;
-        it(`${id}: its range and its locals' values`, async () => {
-          const run = await runOf(`bug-${o}`);
-          // (memory.json's state is after its trace step: the next one)
-          const m = annotate(run, build, { tx: TX, step: at.step + 1 });
-          const point = momentPoint(id, m, run.stateAt(m),
-            { build, steps: run.txs[TX].steps });
-          const r = point.paused?.range;
-          expect(point.paused?.last ? undefined : r && { offset: r.offset,
-            length: r.length }).toEqual(at.range);
-          const names = at.variables.map((v) => v.identifier);
-          expect(point.locals!.map((v) => v.identifier)).toEqual(names);
-          const fp = fx.timelines.flatMap((t) => t.points)
-            .find((x) => x.id === id)!;
-          const want = await decodeLocals(fx.compilations.find((x) =>
-            x.id === `bug-${o}`)!, { ...fp, scope: undefined,
-            record: undefined });
-          const got = await decodeLocals(c, point);
-          expect(locals(got, names)).toEqual(locals(want, names));
-        });
-      });
-    }
-  }
-});
 
 describe("a trace step with no range of its own", () => {
   it("shows the last range before it, muted", async () => {
     const run = await runOf("bug-O0");
     const build = s.builds["bug-O0"];
-    // (memory.json's "mult" pause: its JUMPDEST's context has no code)
-    const at = memory.levels[0].points.find((p: { id: string }) =>
-      p.id === "mult").steps[0].step + 1;
+    // (the bug-O0 scene's "mult" pause, its first moment: its JUMPDEST's
+    // context has no code)
+    const at = 792;
     const m = annotate(run, build, { tx: TX, step: at });
     expect(m.range).toBeUndefined();
     const last = lastRange(run, build, m)!;

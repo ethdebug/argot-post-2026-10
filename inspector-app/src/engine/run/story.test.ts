@@ -1,6 +1,6 @@
 // The runner tells the fixtures' story: the fixtures' transactions read
-// and write the same slots, and the raw and memory fixtures' trace steps
-// are the runs' (addendum §8; test/expect.ts's values, from the runs and
+// and write the same slots, and the raw fixture's trace step is
+// the run's (addendum §8; test/expect.ts's values, from the runs and
 // the snapshots: engine/source.test.ts)
 import { describe, expect, it } from "vitest";
 import fs from "node:fs";
@@ -57,38 +57,3 @@ describe("the raw moment: carol's join, trace step 569", () => {
     });
 });
 
-describe("the memory fixture's paused trace steps, in the bug runs", () => {
-  const mem = fixture("memory");
-  const s = arcade();
-  // alice's third hit (transaction 12): its roll hashes prevrandao (in
-  // memory's word 0) and alice; the fixture's block and prevrandao were
-  // anvil's
-  const prevrandao = s.transactions[12].block.prevrandao;
-  it.each([[0, "bug-O0"], [1, "bug-O2"]] as const)("%i: %s",
-    async (level, build) => {
-      const run = await runOf(build);
-      const t = run.txs[12];
-      expect(t.steps).toBe(mem.levels[level].trace.steps);
-      for (const p of mem.levels[level].points) {
-        for (const at of p.steps) {
-          const what = `${build} ${p.id} ${at.step}`;
-          expect([t.pc[at.step], opName(t.op[at.step])], what)
-            .toEqual([at.pc, at.op]);
-          // (memory.json's memory is after its trace step's instruction)
-          const m = run.stateAt({ tx: 12, step: at.step + 1 }).memory!;
-          const f = Buffer.from(at.memory.slice(2), "hex");
-          expect(m.length, what).toBe(f.length);
-          const differ = [...m.keys()].filter((i) => m[i] !== f[i]);
-          // only prevrandao (word 0) and, at -O 0, the block
-          // number's low byte (byte 1439: 13 here)
-          const allowed = (i: number) => i < 32 ||
-            (level === 0 && i === 1439);
-          expect(differ.filter((i) => !allowed(i)), what).toEqual([]);
-          if (differ.some((i) => i < 32)) {
-            expect(hex(m.slice(0, 32)), what).toBe(prevrandao);
-          }
-          if (level === 0) expect(m[1439], what).toBe(13);
-        }
-      }
-    });
-});

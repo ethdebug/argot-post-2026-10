@@ -51,6 +51,19 @@ it("a stale or foreign hash gives the first scene's defaults",
     }
   });
 
+// (a lens showing one scene, the shell's #scene=: with no key of its own
+// in the hash, that scene, never the first)
+it("no scene asked: the lens's own first scene", async () => {
+  const p = await testProject();
+  expect(fromHash({ ...lens, initial: { scene: "alice" } }, q("scene=alice"),
+    p.bookmarks).bookmark).toBe("alice");
+  expect(fromHash({ ...mem, initial: { scene: "O2/roll" } },
+    q("scene=bug-O2"), p.bookmarks).bookmark).toBe("O2/roll");
+  // (one asked wins)
+  expect(fromHash({ ...lens, initial: { scene: "alice" } }, q("ex=motd"),
+    p.bookmarks).bookmark).toBe("motd");
+});
+
 // the memory section's lens: its level and pause apart (mopt, mpt), its
 // selection (absent: the pause's default; empty: none) (vanilla mem.js
 // keep, main)

@@ -12,6 +12,9 @@ export interface HashLens {
   // pt; the selection only when not the pause's default: the memory
   // section's, vanilla mem.js keep)
   hash?: { prefix: string; legacy?: boolean; levels?: boolean };
+  // (its own first scene, when not its first bookmark: the shell's
+  // #scene=; a hash that asks for none gives it)
+  initial?: { scene?: string };
 }
 export interface HashState {
   bookmark?: string;
@@ -48,8 +51,14 @@ export function toHash(lens: HashLens, s: HashState,
   };
 }
 
-// The view a hash asks for; a stale one (no such scene) gives the first
-// scene, with its defaults
+const first = (lens: HashLens) => {
+  const ids = lens.bookmarks ?? [];
+  const own = lens.initial?.scene;
+  return own && ids.includes(own) ? own : ids[0];
+};
+
+// The view a hash asks for; a stale one (no such scene) gives the lens's
+// first scene (its own, or its first bookmark), with its defaults
 export function fromHash(lens: HashLens, h: URLSearchParams,
   bookmarks: Bookmark[]): HashState {
   const k = keys(lens);
@@ -60,7 +69,7 @@ export function fromHash(lens: HashLens, h: URLSearchParams,
     return { ...levelsFrom(lens, h, bookmarks), ...related };
   }
   const asked = ids.includes(h.get(k.ex) ?? "") ? h.get(k.ex)! : undefined;
-  const bm = bookmarks.find((b) => b.id === (asked ?? ids[0]));
+  const bm = bookmarks.find((b) => b.id === (asked ?? first(lens)));
   return {
     bookmark: bm?.id,
     selection: asked && h.has(k.sel) ? h.get(k.sel) || null
@@ -76,7 +85,7 @@ function levelsFrom(lens: HashLens, h: URLSearchParams,
   bookmarks: Bookmark[]): HashState {
   const p = lens.hash!.prefix;
   const ids = lens.bookmarks ?? [];
-  const [opt0, pt0] = (ids[0] ?? "").split("/");
+  const [opt0, pt0] = (first(lens) ?? "").split("/");
   const opt = ids.some((i) => i.startsWith(`O${h.get(`${p}opt`)}/`))
     ? `O${h.get(`${p}opt`)}` : opt0;
   const pt = ids.includes(`${opt}/${h.get(`${p}pt`)}`) ? h.get(`${p}pt`)!

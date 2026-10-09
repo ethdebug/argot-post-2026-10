@@ -1,21 +1,19 @@
 // The debugger (addendum §3.1, §6) in the shell: a scene's run, every
 // trace step a moment; the code panel, everything in scope, a dump of
 // every location, linked; the moves; the pins. Expected values from
-// memory.json (bug-O0, alice's third hit: transaction 12)
+// the bug-O0 scene's moments and test/expect.ts (alice's third hit:
+// transaction 12)
 import type { Page } from "@playwright/test";
 import fs from "node:fs";
 import { test, expect, ready } from "../../page";
 import { pick } from "../../pick";
+import { pauses } from "../../expect";
 
-const memory = JSON.parse(fs.readFileSync(
-  "../demos/inspector/fixtures/memory.json", "utf8"));
-const pause = (id: string) => memory.levels[0].points.find((p:
-  { id: string }) => p.id === id).steps as { step: number; range?:
-  { offset: number; length: number } }[];
-const source: string = memory.program.source;
-const slice = (r: { offset: number; length: number }) => Buffer.from(
-  source, "utf8").subarray(r.offset, r.offset + r.length).toString("utf8")
-  .replace(/\n/g, "");
+// (the scene's moments: 1 and 2, the "mult" pause's two trace steps)
+const moments = (JSON.parse(fs.readFileSync("scenes/bug-O0.json", "utf8"))
+  .timeline as { step: number }[]).map((m) => m.step);
+const first = { step: moments[1], range: pauses[1].range };
+const mult = { step: moments[2], range: pauses[2].range! };
 
 const D = ".dbgpane";
 const open = async (page: Page, scene: string, at?: string, w = 1440) => {
@@ -33,17 +31,16 @@ const marked = (page: Page) => page.locator(`${D} .code`).evaluate((c) => {
 const at = (page: Page) => page.locator(`${D} .moves .mat`)
   .getAttribute("data-moment");
 
-test("the code panel marks the moment's range, memory.json's; a trace " +
+test("the code panel marks the moment's range; a trace " +
   "step with none, the last one, muted; the box keeps its size",
 async ({ page }) => {
-  const [first, mult] = pause("mult");
-  await open(page, "bug-O0", `12:${mult.step + 1}`);
+  await open(page, "bug-O0", `12:${mult.step}`);
   await expect.poll(() => marked(page))
-    .toEqual({ text: slice(mult.range!), last: false });
+    .toEqual({ text: mult.range.replace(/\n/g, ""), last: false });
   const box = await page.locator(`${D} .code`).boundingBox();
   expect(first.range).toBeUndefined();
   await page.goto("about:blank");
-  await open(page, "bug-O0", `12:${first.step + 1}`);
+  await open(page, "bug-O0", `12:${first.step}`);
   await expect.poll(async () => (await marked(page)).last).toBe(true);
   expect(await page.locator(`${D} .code`).boundingBox()).toEqual(box);
 });
@@ -51,7 +48,6 @@ async ({ page }) => {
 test("everything in scope: the storage variables and the locals; a " +
   "local lights its memory bytes, as the memory section's does",
 async ({ page }) => {
-  const [, mult] = pause("mult");
   await ready(page, { width: 1280, memory: true });
   await page.locator('#mlevel button[data-opt="0"]').click();
   await page.locator('#mpoint button[data-id="mult"]').click();
@@ -61,7 +57,7 @@ async ({ page }) => {
   await pick(page.locator('#mtree li[data-path="points"] > .row'));
   const want = await lit("#mpanel .view[data-side=after] .b.hl");
   expect(want.length).toBeGreaterThan(8);
-  await open(page, "bug-O0", `12:${mult.step + 1}`);
+  await open(page, "bug-O0", `12:${mult.step}`);
   const names = (g: string) => page.locator(`${D} li[data-path="${g}"] ` +
     "> ul > li[data-path] > .row .name").allTextContents();
   await expect.poll(() => names("@locals"))
@@ -87,8 +83,7 @@ async ({ page }) => {
 // own pointer against the state at the debugger's moment)
 test("a variable selected: how it was found, the sections' walkthrough; " +
   "a move re-targets it, at the same step", async ({ page }) => {
-  const [, mult] = pause("mult");
-  await open(page, "bug-O0", `12:${mult.step + 1}`);
+  await open(page, "bug-O0", `12:${mult.step}`);
   const bar = page.locator(`${D} .rbar`);
   const A = "players[0x70997970c51812dc3a010c7d01b50e0d17dc79c8]";
   for (const path of [`${A}.score`, "playerList[1]", "combo"]) {
@@ -112,7 +107,7 @@ test("a variable selected: how it was found, the sections' walkthrough; " +
   const count = await bar.locator(".rcount").textContent();
   await page.locator(`${D} .moves`).focus();
   await page.keyboard.press("ArrowRight");
-  await expect.poll(() => at(page)).toBe(`12:${mult.step + 2}`);
+  await expect.poll(() => at(page)).toBe(`12:${mult.step + 1}`);
   await expect(bar).toHaveClass(/replaying/);
   await expect(bar.locator(".rcount")).toHaveText(count!);
   await expect(page.locator(`${D} .rcap`)).toHaveText(cap!);
@@ -263,8 +258,7 @@ test("pins: pin this moment, unpin, a new scene from here: each the " +
 
 test("a row is its location's: storage slot N and the stack's row N "
   + "are not one row; pointing at one lights it alone", async ({ page }) => {
-  const [, mult] = pause("mult");
-  await open(page, "bug-O0", `12:${mult.step + 1}`);
+  await open(page, "bug-O0", `12:${mult.step}`);
   // (a row address both locations show: hover each one's gutter)
   const rows = (loc: string) => page.locator(
     `${D} .view[data-view$=":${loc}"] .wrow[data-slot]`).evaluateAll(
