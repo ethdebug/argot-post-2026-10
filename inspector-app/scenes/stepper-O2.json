@@ -14,12 +14,12 @@
     },
     {
       "tx": 3,
-      "step": 181,
+      "step": 166,
       "label": "the name, sliced from the call"
     },
     {
       "tx": 3,
-      "step": 382,
+      "step": 378,
       "label": "the name, written to carol's record"
     },
     {

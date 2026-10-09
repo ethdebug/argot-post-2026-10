@@ -49,8 +49,8 @@ code {
   if (msg.data[0:4] as bytes4 == 0x6a786b07) {
     let len = msg.data[36:68] as bytes32 as uint256;
     // (a calldata reference: the name stays in the call, no copy)
-    let name: bytes calldata = msg.data[68:68 + len];
-    players[msg.sender].name = name as string;
+    let name: string calldata = msg.data[68:68 + len] as string calldata;
+    players[msg.sender].name = name;
     playerList.push(msg.sender);
     return;
   }
