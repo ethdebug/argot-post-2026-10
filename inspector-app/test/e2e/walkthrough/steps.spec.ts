@@ -2,7 +2,8 @@
 // decided rule its run.mjs does not have yet: instances named by their
 // on-chain `name` values, quoted
 import type { Page } from "@playwright/test";
-import { test, expect, ready, select, row } from "../../page";
+import { pick } from "../../pick";
+import { test, expect, ready, select, row, selected } from "../../page";
 import { A, B, C, NAME_C } from "../../expect";
 
 const CAROL = `"${NAME_C}"`;
@@ -769,3 +770,37 @@ test("on a phone, the packed fields' strip is two rows of 16, in its box",
       [...Array(16).keys()].join(),
       [...Array(16).keys()].map((i) => i + 16).join()] });
   });
+
+// (a click in the tree or the dump during a walkthrough re-targets it,
+// keeping the place by the steps' identities, and says so in the cue)
+test("a click mid-walk re-targets it, at the same step where the steps "
+  + "match; the cue says what and where", async ({ page }) => {
+  await ready(page);
+  const retarget = async (from: string, k: number, to: string,
+    how: "row" | "byte" = "row") => {
+    await select(page, "mid", from);
+    await page.locator('#details button[data-r="start"]').click();
+    await page.locator(`#dots .dot[data-n="${k}"]`).dispatchEvent("click");
+    if (how === "row") await pick(row(page, to));
+    else {
+      await page.locator(`#panel .view:not([hidden]) .b[data-owners="${
+        to}"]`).first().click();
+    }
+    const cue = await page.locator("#details .rcue").textContent();
+    await page.mouse.move(1, 1);
+    const x = { count: (await stepNow(page)).count, sel: await selected(page),
+      on: await page.locator("#details.replaying").count(), cue };
+    await page.keyboard.press("Escape");
+    return x;
+  };
+  // (carol's name → bob's: the same step; carol's record at its fields →
+  // carol's name: the record's step; a name → totalScore: its one step)
+  expect(await retarget(`${C}.name`, 4, `${B}.name`)).toEqual({
+    count: "5 / 8", sel: `${B}.name`, on: 1,
+    cue: "now: players[bob].name, 5 / 8" });
+  expect(await retarget(C, 4, `${C}.name`)).toMatchObject({
+    sel: `${C}.name`, on: 1, cue: "now: players[carol].name, 4 / 8" });
+  expect(await retarget(`${C}.name`, 4, "totalScore", "byte")).toEqual({
+    count: "1 / 1", sel: "totalScore", on: 1,
+    cue: "now: totalScore, 1 / 1" });
+});
