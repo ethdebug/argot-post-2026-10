@@ -64,7 +64,8 @@ export function compilationOf(b: Build, o: { id?: string;
 // An inline type into `types`, under `id`; the types it contains under
 // ids of their own (`<id>.key`, `.value`, `.element`, `.<member>`), each
 // referred to by id
-function hoist(t: Type, id: string, types: Record<string, Type>): string {
+export function hoist(t: Type, id: string, types: Record<string, Type>):
+  string {
   const x = t as unknown as Record<string, any>;
   const ref = (r: { type: Type & { id?: string } }, sub: string) =>
     r.type.id !== undefined ? r : { ...r, type: { id: hoist(r.type,

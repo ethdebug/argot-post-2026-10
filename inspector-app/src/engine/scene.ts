@@ -29,6 +29,9 @@ export interface Scene {
   // (its storage dumps' rows: "touched" adds the slots the moment's
   // transaction read or wrote, owned by a value or not: unmapped rows)
   rows?: "touched";
+  // (what its decoding shows: everything in scope at the moment, the
+  // storage variables and the locals: the stepper's; else its storage)
+  variables?: "scope";
   // (its views' roots: the values it is about, the rest not shown)
   roots?: Path[];
   // (named groups of its moments, each shown as one with its own first
@@ -78,6 +81,9 @@ export function sceneOf(json: unknown): Scene {
     if (k && order(timeline[k - 1]) >= order(m)) no("moments out of order");
   });
   if (j.rows !== undefined && j.rows !== "touched") no(`rows ${j.rows}`);
+  if (j.variables !== undefined && j.variables !== "scope") {
+    no(`variables ${j.variables}`);
+  }
   for (const g of j.groups ?? []) {
     if (!g.moments.every((k) => k >= 0 && k < timeline.length)) {
       no(`group ${g.id}'s moments`);
@@ -135,7 +141,7 @@ export function decodingsOf(scene: Scene,
   const keys = KEYS[scene.run.scenario] ?? { from: "trace" };
   if (b.ethdebug) {
     return [{ id: scene.id, compilation: b.compilation, timeline,
-      variables: "state", keys },
+      variables: scene.variables ?? "state", keys },
     // (its hand-written pointers, read with the same compilation)
     ...scene.pointers ? [{ id: handOf(scene.id), compilation:
       b.compilation, timeline, variables: "locals" as const, keys,
@@ -205,7 +211,8 @@ function withTimeline(s: Scene, timeline: Scene["timeline"]): Scene {
 // A scene file's text: its keys in one order, two spaces, a newline
 export function sceneJson(s: Scene): string {
   const { id, title, caption, run, lens, timeline, controls, rows,
-    initial, groups, pointers } = s;
+    variables, initial, groups, pointers } = s;
   return JSON.stringify({ id, title, caption, run, lens, timeline,
-    controls, rows, initial, groups, pointers }, null, 2) + "\n";
+    controls, rows, variables, initial, groups, pointers }, null, 2) +
+    "\n";
 }

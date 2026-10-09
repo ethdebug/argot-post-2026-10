@@ -26,8 +26,9 @@ import type {
 type Kinds = Partial<Record<ViewKind, ComponentType<any>>>;
 
 // (a scene's first moment shown: its initial one, else its last)
-const firstMoment = (bm: { points: unknown[]; side?: string }) =>
-  bm.side === "before" ? 0 : bm.points.length - 1;
+const firstMoment = (bm: { points: unknown[]; side?: string;
+  moment?: number }) => bm.moment ?? (bm.side === "before" ? 0
+  : bm.points.length - 1);
 
 export function initialState(spec: LensSpec, project: Project): LensState {
   const id = spec.initial?.scene ?? spec.bookmarks?.[0];

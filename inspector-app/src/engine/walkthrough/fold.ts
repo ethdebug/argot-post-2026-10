@@ -147,8 +147,10 @@ export function walkthrough(x: WalkInput, path: Path, focus?: string):
   const kindOf = (n?: ValueNode) => n && types[n.type]?.kind;
 
   const leaves: ValueNode[] = [];
+  // (and a composite whose pointer reads words to find its parts: a
+  // struct local's own word, its reference)
   const visit = (n: ValueNode) => {
-    if (n.regions.length) leaves.push(n);
+    if (n.regions.length || n.reads?.length) leaves.push(n);
     (n.children ?? []).forEach(visit);
   };
   visit(node);
@@ -885,8 +887,11 @@ export function walkthrough(x: WalkInput, path: Path, focus?: string):
         whoList}`
       : t?.kind === "struct" ? `${n} ${n === 1 ? "field" : "fields"}`
         : t?.kind === "array" ? `${n} ${n === 1 ? "item" : "items"}` : "";
+    // (a local's composite: its type inline, not the compilation's; its
+    // summary, "7 fields")
     const said = parts ? `\`${sk}\` holds ${parts}`
-      : `\`${sk}\` = ${node.value?.text ?? ""}`;
+      : !node.value && node.summary ? `\`${sk}\` holds ${node.summary}`
+        : `\`${sk}\` = ${node.value?.text ?? ""}`;
     out.push({ id: "found", phase: "found",
       cap: ask((h) => h.found?.(cx, { parts })) ?? `${said}.`,
       form: text(), constructs: [], source: "", chip: "found",

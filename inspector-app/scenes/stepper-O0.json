@@ -1,0 +1,33 @@
+{
+  "id": "stepper-O0",
+  "title": "carol joins, stepped through, bugc -O 0",
+  "run": {
+    "scenario": "arcade",
+    "build": "bug-O0"
+  },
+  "lens": "stepper",
+  "timeline": [
+    {
+      "tx": 3,
+      "step": 264,
+      "label": "the name's length, read from the call"
+    },
+    {
+      "tx": 3,
+      "step": 317,
+      "label": "the name, sliced from the call"
+    },
+    {
+      "tx": 3,
+      "step": 530,
+      "label": "the name, written to carol's record"
+    },
+    {
+      "tx": 3,
+      "step": "end",
+      "label": "after carol joins"
+    }
+  ],
+  "controls": "prev-next",
+  "variables": "scope"
+}

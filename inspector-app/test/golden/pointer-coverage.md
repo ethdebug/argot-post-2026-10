@@ -11,12 +11,12 @@ in each location its pointer's regions are in.
 | .length | walks: schema 4 | walks: schema 4 | walks: schema 2 |  |  |  |  |
 | .offset | walks: schema 5 | walks: schema 5 | walks: schema 2 |  |  |  |  |
 | conditional | walks: schema 1, solc 3, bugc O0 scope 8, bugc O0 state 2, bugc O2 scope 8, bugc O2 state 2 | walks: schema 1 |  |  |  |  |  |
-| group | walks: schema 8, solc 4, vyper rule 3, bugc O0 scope 12, bugc O0 state 3, bugc O2 scope 12, bugc O2 state 3 | walks: schema 8, bugc O0 scope 9 | walks: schema 3 |  |  |  |  |
+| group | walks: schema 8, solc 4, vyper rule 3, bugc O0 scope 12, bugc O0 state 3, bugc O2 scope 12, bugc O2 state 3 | walks: schema 8, bugc O0 scope 11, bugc O2 scope 2 | walks: schema 3 | walks: bugc O0 scope 1, bugc O2 scope 1 |  |  |  |
 | list | walks: schema 1, solc 1, vyper rule 1, bugc O0 scope 4, bugc O0 state 1, bugc O2 scope 4, bugc O2 state 1 | walks: schema 3 | walks: schema 2 |  |  |  |  |
-| literal | walks: schema 38, solc 6, vyper rule 5, bugc O0 scope 20, bugc O0 state 5, bugc O2 scope 20, bugc O2 state 5 | walks: schema 13, bugc O0 scope 13, bugc O2 scope 13 | walks: schema 5, bugc O0 scope 1, bugc O2 scope 1 | walks: schema 1 | walks: schema 1 | walks: schema 3 | walks: schema 1 |
+| literal | walks: schema 38, solc 6, vyper rule 5, bugc O0 scope 20, bugc O0 state 5, bugc O2 scope 20, bugc O2 state 5 | walks: schema 13, bugc O0 scope 15, bugc O2 scope 15 | walks: schema 5, bugc O0 scope 1, bugc O2 scope 1 | walks: schema 1, bugc O0 scope 1, bugc O2 scope 1 | walks: schema 1 | walks: schema 3 | walks: schema 1 |
 | reference | walks: schema 2, solc 4, vyper rule 3, bugc O0 scope 4, bugc O2 scope 4 |  |  |  |  |  |  |
 | reference (yields) | walks: schema 1, solc 2, vyper rule 1 |  |  |  |  |  |  |
-| region | walks: schema 38, solc 6, vyper rule 5, bugc O0 scope 20, bugc O0 state 5, bugc O2 scope 20, bugc O2 state 5 | walks: schema 13, bugc O0 scope 13, bugc O2 scope 13 | walks: schema 5, bugc O0 scope 1, bugc O2 scope 1 | walks: schema 1 | walks: schema 1 | walks: schema 3 | walks: schema 1 |
+| region | walks: schema 38, solc 6, vyper rule 5, bugc O0 scope 20, bugc O0 state 5, bugc O2 scope 20, bugc O2 state 5 | walks: schema 13, bugc O0 scope 15, bugc O2 scope 15 | walks: schema 5, bugc O0 scope 1, bugc O2 scope 1 | walks: schema 1, bugc O0 scope 1, bugc O2 scope 1 | walks: schema 1 | walks: schema 3 | walks: schema 1 |
 | scope (define/in) | walks: schema 5, solc 4, vyper rule 3, bugc O0 scope 8, bugc O0 state 2, bugc O2 scope 8, bugc O2 state 2 | walks: schema 2 | walks: schema 1 |  |  |  |  |
 | templates | walks: schema 3, bugc O0 scope 4, bugc O0 state 1, bugc O2 scope 4, bugc O2 state 1 |  |  |  |  |  |  |
 | variable | walks: schema 5, solc 4, vyper rule 3, bugc O0 scope 12, bugc O0 state 3, bugc O2 scope 12, bugc O2 state 3 | walks: schema 4 | walks: schema 2 |  |  |  |  |
@@ -24,11 +24,11 @@ in each location its pointer's regions are in.
 | ~difference | walks: schema 6, solc 4, bugc O0 scope 8, bugc O0 state 2, bugc O2 scope 8, bugc O2 state 2 |  |  |  |  |  |  |
 | ~keccak256 | walks: schema 4, solc 4, vyper rule 1, bugc O0 scope 12, bugc O0 state 3, bugc O2 scope 12, bugc O2 state 3 | walks: schema 1 |  |  |  |  |  |
 | ~product | walks: schema 5, solc 1 | walks: schema 3 | walks: schema 3 |  |  | walks: schema 1 |  |
-| ~quotient | walks: schema 4, solc 4, bugc O0 scope 8, bugc O0 state 2, bugc O2 scope 8, bugc O2 state 2 |  |  |  |  | walks: schema 1 |  |
-| ~read | walks: schema 3, solc 4, vyper rule 3, bugc O0 scope 12, bugc O0 state 3, bugc O2 scope 12, bugc O2 state 3 | walks: schema 4, bugc O0 scope 9 | walks: schema 3 |  |  |  |  |
-| ~remainder | walks: schema 2, solc 4, bugc O0 scope 8, bugc O0 state 2, bugc O2 scope 8, bugc O2 state 2 |  |  |  |  |  |  |
+| ~quotient | walks: schema 4, solc 4, bugc O0 scope 8, bugc O0 state 2, bugc O2 scope 8, bugc O2 state 2 | walks: bugc O0 scope 1, bugc O2 scope 1 |  | walks: bugc O0 scope 1, bugc O2 scope 1 |  | walks: schema 1 |  |
+| ~read | walks: schema 3, solc 4, vyper rule 3, bugc O0 scope 12, bugc O0 state 3, bugc O2 scope 12, bugc O2 state 3 | walks: schema 4, bugc O0 scope 11, bugc O2 scope 2 | walks: schema 3 | walks: bugc O0 scope 1, bugc O2 scope 1 |  |  |  |
+| ~remainder | walks: schema 2, solc 4, bugc O0 scope 8, bugc O0 state 2, bugc O2 scope 8, bugc O2 state 2 | walks: bugc O0 scope 1, bugc O2 scope 1 |  | walks: bugc O0 scope 1, bugc O2 scope 1 |  |  |  |
 | ~sizedN | walks: schema 2 |  |  |  |  |  |  |
-| ~sum | walks: schema 4, solc 4, vyper rule 3, bugc O0 scope 12, bugc O0 state 3, bugc O2 scope 12, bugc O2 state 3 | walks: schema 4, bugc O0 scope 9 | walks: schema 2 |  |  |  |  |
+| ~sum | walks: schema 4, solc 4, vyper rule 3, bugc O0 scope 12, bugc O0 state 3, bugc O2 scope 12, bugc O2 state 3 | walks: schema 4, bugc O0 scope 10, bugc O2 scope 1 | walks: schema 2 |  |  |  |  |
 | ~this | walks: schema 3 | walks: schema 2 | walks: schema 2 |  |  |  |  |
 | ~wordsize | walks: schema 9, solc 4, bugc O0 scope 8, bugc O0 state 2, bugc O2 scope 8, bugc O2 state 2 | walks: schema 3 | walks: schema 3 |  |  | walks: schema 2 |  |
 | ~wordsized | walks: schema 5, solc 4, vyper rule 1, bugc O0 scope 12, bugc O0 state 3, bugc O2 scope 12, bugc O2 state 3 | walks: schema 1 |  |  |  |  |  |
