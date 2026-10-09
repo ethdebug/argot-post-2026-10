@@ -34,7 +34,7 @@ import {
 } from "./hooks";
 import { infoOf, type Info, type Part, type Sides } from "./info";
 import { PointerYaml, type YamlText } from "./PointerYaml";
-import { PanelPort } from "./panel-port";
+import { PanelPort, type Port } from "./panel-port";
 import { intoView, scrollerOf, scrollBy, toTop } from "./scroll";
 import type { DataRef, LinkId, ViewId } from "./types";
 
@@ -177,7 +177,7 @@ export type Intent = { type: "start" } | { type: "step"; to: number } |
 // -------------------------------------------------------- controller
 
 export function useWalkModel(p: { id: ViewId; data: DataRef;
-  link?: LinkId; compare?: DataRef }, external = false):
+  link?: LinkId; compare?: DataRef }, port: Port | null = null):
   { model: PanelModel; act: (i: Intent) => void } {
   const { d, l } = useLayout(p.id);
   const o = useDecoded(p.compare);
@@ -236,7 +236,9 @@ export function useWalkModel(p: { id: ViewId; data: DataRef;
   // sticky panel, when some of it is out of view (not at entry: the
   // page is on its way to the bar; the tree brings its own rows). In a
   // frame of the post, the host scrolls: the rows' place in the frame,
-  // to it ({ type: "ethdebug:scroll-to", y, bottom })
+  // to it ({ type: "ethdebug:scroll-to", y, bottom }), only while the
+  // panel is stuck at the top of its view, as the host has said: a
+  // scroll then never moves the ▶ under the reader's pointer
   const shownKey = useRef<string | null>(null);
   useLayoutEffect(() => {
     const k = walk ? `${sel}|${i}|${w?.focus ?? ""}` : null;
@@ -251,7 +253,8 @@ export function useWalkModel(p: { id: ViewId; data: DataRef;
       `${q} .wrow:is(.on, .gut)`).join(", "))];
     if (!rows.length) return;
     const rects = rows.map((r) => r.getBoundingClientRect());
-    if (external) {
+    if (port) {
+      if (port.stuck !== true) return;
       parent.postMessage({ type: "ethdebug:scroll-to",
         y: Math.round(Math.min(...rects.map((r) => r.top)) + scrollY),
         bottom: Math.round(Math.max(...rects.map((r) => r.bottom)) +
@@ -634,7 +637,7 @@ export function WalkthroughPanel(p: { id: ViewId; data: DataRef;
   link?: LinkId; domId?: string; compare?: DataRef;
   others?: { decoding: string; who?: string }[] }) {
   const port = useContext(PanelPort);
-  const { model, act } = useWalkModel(p, !!port);
+  const { model, act } = useWalkModel(p, port);
   const latest = useRef(act);
   latest.current = act;
   const stable = useCallback((i: Intent) => latest.current(i), []);
