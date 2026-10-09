@@ -16,16 +16,43 @@
   font-variant-numeric: tabular-nums; font-size: var(--cell-fs, 14px); }
 .lens.raw-hero { grid-template-columns: minmax(0, 690px);
   grid-template-areas: "storage" "stack" "memory" "moment"; }
-.lens.raw-hero > [data-area="stack"] { justify-self: start; }
-@media (min-width: 860px) {
-  .lens.raw-hero { grid-template-columns: 690px max-content;
-    grid-template-rows: auto 1fr auto;
-    grid-template-areas: "storage stack" "storage moment" "memory ."; }
+.lens.raw-hero > :is([data-area="stack"], [data-area="memory"]) {
+  justify-self: start; }
+/* (narrower than both columns side by side, wider than a phone: storage
+   on top, as wide as it fits; the stack and memory side by side under it,
+   the moment under the stack) */
+@media (min-width: 560px) and (max-width: 1129px) {
+  .lens.raw-hero { grid-template-columns: max-content minmax(0, 1fr);
+    grid-template-rows: auto auto 1fr;
+    grid-template-areas: "storage storage" "stack memory" "moment memory";
+    width: min(690px, 100%); margin: 0 auto; }
+  /* (memory's right edge storage's) */
+  .lens.raw-hero > [data-area="memory"] { justify-self: end; }
 }
+/* (side by side where storage, 690px, and the right column, memory's 16
+   bytes a line, fit) */
+@media (min-width: 1130px) {
+  .lens.raw-hero { grid-template-columns: 690px max-content;
+    grid-template-rows: auto auto 1fr;
+    grid-template-areas: "storage stack" "storage memory" "storage moment"; }
+}
+/* (memory's flow in the figure's one cell size: its font and line
+   height, not the flow's own tighter type) */
+.lens.raw .view.flow { font-family: var(--mono);
+  font-variant-numeric: tabular-nums; font-size: var(--cell-fs, 14px); }
+.lens.raw .view.flow .rows { font-size: inherit; letter-spacing: 0;
+  width: auto; }
+.lens.raw .view.flow :is(.word .bytes, .addr .a) {
+  line-height: var(--cell-lh, 1.85); }
+/* (and storage's byte pitch: a byte 2.4ch, no gaps between) */
+.lens.raw .view.flow .word .bytes { column-gap: 0;
+  grid-template-columns: repeat(var(--per, 16), 2.4ch); }
+.lens.raw .view.flow .b { text-align: center; }
 /* (no memory: storage and the stack's column alone) */
 .lens.raw-hero.no-memory { grid-template-areas: "storage" "stack" "moment"; }
 @media (min-width: 860px) {
-  .lens.raw-hero.no-memory { grid-template-rows: auto 1fr;
+  .lens.raw-hero.no-memory { grid-template-columns: 690px max-content;
+    grid-template-rows: auto 1fr;
     grid-template-areas: "storage stack" "storage moment"; }
 }
 /* (the stack's line as tall as the dumps' line: --cell-lh) */
@@ -40,16 +67,8 @@
 /* The same figure, annotated in place (lenses/raw.ts rawAnnotated):
    the stack keeps room under its rows for its popover (its words are
    abbreviated: the popover goes under them), so revealing it moves
-   nothing; side by side only where storage, the stack and its popover
-   fit */
+   nothing; laid out as the raw figure is */
 .lens.raw-annotated .view.annot.abbr { padding-bottom: 2.4em; }
-@media (min-width: 860px) and (max-width: 1099px) {
-  .lens.raw-hero.raw-annotated { grid-template-columns: minmax(0, 690px);
-    grid-template-rows: none;
-    grid-template-areas: "storage" "stack" "memory" "moment"; }
-  .lens.raw-hero.raw-annotated.no-memory {
-    grid-template-areas: "storage" "stack" "moment"; }
-}
 .lens.raw .reveal { display: flex; gap: 0; margin: 0; }
 .lens.raw .reveal button { font-size: 0.75rem; }
 
