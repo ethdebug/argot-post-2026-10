@@ -38,8 +38,12 @@ export interface LensState {
   views: Record<ViewId, ViewState>;
   // (a bookmark whose data did not load: the error, until it does)
   error?: string;
-  // (each show of a bookmark, counted: the views start from the top)
+  // (each show of a bookmark, counted: the views start from the top; a
+  // step on its timeline is not one)
   shows?: number;
+  // (the moment a step on the timeline came from: what "previous"
+  // compares with until the next show, the step's changes marked)
+  from?: number;
   // (a click or Escape that cleared a selection from outside it: no
   // hover until the pointer moves past 3px from here: ui/hooks.ts hush)
   hush?: { x: number; y: number };
@@ -126,6 +130,8 @@ export type ViewSpec = { id: ViewId; area: string; link?: LinkId;
     // the annotated layer's toggle, Raw | Annotated (ui/reveal.ts), when
     // the figure stands alone
     | { kind: "reveal" }
+    // the scene's moments on the run's transactions (TimelineBar.tsx)
+    | { kind: "timeline" }
     | { kind: "variables"; data: DataRef }
     | { kind: "note"; data: DataRef; part: "note" | "viewing" | "meta" }
     // the moment a point is, in a line, in plain words: `text`, or the

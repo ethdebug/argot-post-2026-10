@@ -100,6 +100,9 @@ export function sceneOf(json: unknown): Scene {
 
 // a scene's points, as the engine's timelines name them
 export const timelineOf = (scene: SceneId): TimelineId => `scene:${scene}`;
+// (a scene timeline's scene; none for another timeline: a run's)
+export const sceneOfTimeline = (t: TimelineId): SceneId | undefined =>
+  t.startsWith("scene:") ? t.slice("scene:".length) : undefined;
 export const pointOf = (scene: SceneId, moment: number): PointId =>
   `${scene}:${moment}`;
 

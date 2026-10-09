@@ -13,7 +13,7 @@ import { decode } from "../engine/decode";
 import { fromHash, toHash } from "../engine/hash";
 import { readHash, writeHash, type Pending } from "./hash";
 import { createStore, type Store } from "./store";
-import { animated } from "./transition";
+import { animated, transition } from "./transition";
 import {
   decodingOf, LensContext, useLens, useLensState, resolveRef,
   type LensContextValue, hush, pointer,
@@ -73,8 +73,13 @@ function shower(store: Store<LensState>, spec: LensSpec, project: Project,
     if (ticket !== wanted) return true; // another was asked for since
     const want = view && "sel" in view ? view.sel : bm.select;
     const selection = want && tree.byPath.has(want) ? want : null;
-    store.set((s) => ({ ...s, scene: id, moment, error: undefined,
-      shows: (s.shows ?? 0) + 1,
+    // (a step on the timeline: the same scene, from its moment; the views
+    // keep their place; one transition)
+    const was = store.get();
+    const step = !!view?.step && was.scene === id && was.moment !== moment;
+    const apply = () => store.set((s) => ({ ...s, scene: id, moment,
+      error: undefined, from: step ? s.moment : undefined,
+      shows: (s.shows ?? 0) + (step ? 0 : 1),
       // (a link group of its own section starts with nothing selected:
       // the scene's selection is the others')
       links: Object.fromEntries(spec.links.map((l) => [l,
@@ -83,6 +88,8 @@ function shower(store: Store<LensState>, spec: LensSpec, project: Project,
           walk: !selection ? null : view?.walk ? { ...view.walk,
             busy: undefined, exit: undefined }
             : bm.walk ? { ...bm.walk } : null }])) }));
+    if (step) transition(apply);
+    else apply();
     return true;
   };
   return show;
@@ -274,8 +281,22 @@ export function Lens(props: { spec: LensSpec; project: Project;
         Home: () => 0, End: (_, n) => n - 1 };
       const move = moves[e.key];
       if (!move || (e.target as Element).closest?.(
-        "input, textarea, select, .moves")
-        || !Object.values(store.get().links).some((l) => l.walk)) return;
+        "input, textarea, select, .moves")) return;
+      // (no walkthrough: the timeline's moments, if the lens has one;
+      // TimelineBar.tsx)
+      if (!Object.values(store.get().links).some((l) => l.walk)) {
+        const s = store.get();
+        const bm = project.bookmarks.find((b) => b.id === s.scene);
+        if (!bm || bm.points.length < 2 ||
+          !spec.views.some((v) => v.kind === "timeline")) return;
+        e.preventDefault();
+        const k = Math.max(0, Math.min(bm.points.length - 1,
+          move(s.moment, bm.points.length)));
+        if (k !== s.moment) void value.show(bm.id, { moment: k,
+          sel: s.links[spec.links[0]]?.selection ?? null,
+          walk: s.links[spec.links[0]]?.walk ?? null, step: true });
+        return;
+      }
       e.preventDefault();
       if (Object.values(store.get().links).some((l) => l.walk?.busy)) return;
       store.set((s) => ({ ...s, links: Object.fromEntries(Object.entries(
@@ -321,7 +342,7 @@ export function Lens(props: { spec: LensSpec; project: Project;
       document.removeEventListener("keydown", keyed);
       document.removeEventListener("click", click);
     };
-  }, [key, store, spec, props.within]);
+  }, [key, store, spec, props.within, project, value]);
   const kinds: Kinds = { ...viewKinds, ...props.kinds };
   const areas: Record<string, ReactNode[]> = {};
   for (const v of spec.views) {

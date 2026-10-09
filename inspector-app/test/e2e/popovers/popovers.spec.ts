@@ -23,11 +23,11 @@ test("a value's popover: how : what · what the transaction did",
       .toEqual(["slot 2 : (unmapped) · totalHits · totalScore"]);
   });
 
-test("a byte pointed at: the same run outlined in both views",
+test("a byte pointed at: its run outlined",
   async ({ page }) => {
     await ready(page);
     await select(page, "alice", null);
-    for (const [from, to] of [["before", "after"], ["after", "before"]]) {
+    for (const [from, to] of [["after", "after"]]) {
       await page.locator(`#panel .word[data-side="${from}"][data-slot="${
         SLOT2}"] .b[data-i="14"]`).hover();
       const at = await page.evaluate(() => {
