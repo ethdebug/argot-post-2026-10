@@ -64,18 +64,11 @@ async function decodeAt(p: Project, d: Decoding, point: PointId):
   const at = timeline.points.find((x) => x.id === point);
   if (!at) throw new Error(`no point ${point} in ${d.timeline}`);
   const state = machineState(at.snapshot);
-  if (d.variables === "locals" || d.variables === "abi") {
-    const graphs = new Map<string, DerefGraph>();
-    const tree = d.variables === "abi"
-      ? abiTree(at.snapshot.calldata ?? new Uint8Array(), d.abi!.param)
-      : await localsAt(c, at, state, graphs);
-    const byPath = new Map<string, ValueNode>();
-    const index = (n: ValueNode) => {
-      byPath.set(n.path, n);
-      n.children?.forEach(index);
-    };
-    tree.forEach(index);
-    return { decoding: d.id, point, tree, byPath, graphs, layouts: {} };
+  if (d.variables === "locals") return decodeLocals(c, at, d.id);
+  if (d.variables === "abi") {
+    const tree = abiTree(at.snapshot.calldata ?? new Uint8Array(),
+      d.abi!.param);
+    return decoded(d.id, point, tree, new Map());
   }
   const vars = c.stateVariables.filter((v) => {
     const q = v.pointer as { location?: string; define?: object };
@@ -94,23 +87,38 @@ async function decodeAt(p: Project, d: Decoding, point: PointId):
       baseSlot(v));
     done.set(v, await variable(c, v, state, keys, graphs));
   }
-  const tree = vars.map((v) => done.get(v)!);
+  return decoded(d.id, point, vars.map((v) => done.get(v)!), graphs);
+}
+
+// a tree, indexed by path
+function decoded(decoding: string, point: PointId, tree: ValueNode[],
+  graphs: Map<string, DerefGraph>): Decoded {
   const byPath = new Map<string, ValueNode>();
   const index = (n: ValueNode) => {
     byPath.set(n.path, n);
     n.children?.forEach(index);
   };
   tree.forEach(index);
-  return { decoding: d.id, point, tree, byPath, graphs, layouts: {} };
+  return { decoding, point, tree, byPath, graphs, layouts: {} };
+}
+
+// The locals of a point (a moment's: engine/moment.ts), decoded with a
+// compilation's templates: a Variables tree (addendum §6)
+export async function decodeLocals(c: Compilation, at: TimelinePoint,
+  decoding = "locals"): Promise<Decoded> {
+  const graphs = new Map<string, DerefGraph>();
+  const tree = await localsAt(c, at, machineState(at.snapshot), graphs);
+  return decoded(decoding, at.id, tree, graphs);
 }
 
 const hex4 = (n: number) => "0x" + n.toString(16).padStart(4, "0");
 
 // The locals an instruction's context lists at a point (vanilla decode.js
-// decodeLocals, mem.js sideTree, recordNode): each one in memory,
-// dereferenced by the library against the point's memory (a pointer that
-// reads the stack is left out: the state has no stack); one listed with
-// no pointer has no location there. Inside a function (the point's
+// decodeLocals, mem.js sideTree, recordNode): each one dereferenced by
+// the library against the point's state, in memory, on the stack, in
+// calldata (a pointer that reads a part the state lacks is left out: a
+// fixture's point has memory only); one listed with no pointer has no
+// location there; one that cannot be read there says why. Inside a function (the point's
 // scope), its locals are under one node for it, which owns the frame
 // pointer they are found from, if any. Then a storage slot the page
 // reads by its own rule (alice's record).
@@ -127,22 +135,32 @@ async function localsAt(c: Compilation, at: TimelinePoint, state: State,
       continue;
     }
     const json = JSON.stringify(v.pointer);
-    if (!json.includes('"memory"') || json.includes('"stack"')) continue;
+    const has = { memory: at.snapshot.memory, stack: at.snapshot.stack,
+      calldata: at.snapshot.calldata };
+    if (Object.entries(has).some(([l, x]) => !x &&
+      json.includes(`"${l}"`))) continue;
     if (!isValueType(type, {})) {
-      throw new Error(`${v.identifier}: a ${node.typeText} in memory is ` +
-        "not supported");
+      out.push({ ...node, note: `a ${node.typeText}: not shown yet` });
+      continue;
     }
-    const pointer = v.pointer as Pointer;
-    const ids = await graphOf(c, v.identifier, pointer, state, [], graphs,
-      async () => [...(await viewOf(pointer, state, c)).regions]);
-    const view = await viewOf(pointer, state, c);
-    const all = [...view.regions] as unknown as LibRegion[];
-    const k = all.map((r) => r.name).lastIndexOf(v.identifier);
-    const bytes = await view.read(view.regions[k]);
-    out.push({ ...node, value: decodeValue(type, bytes, {}),
-      regions: [resolved(all[k], "value", ids[k])],
-      reads: all.flatMap((r, i) => i === k ? [] : [resolved(r, "value",
-        ids[i])]) });
+    try {
+      const pointer = v.pointer as Pointer;
+      const ids = await graphOf(c, v.identifier, pointer, state, [],
+        graphs, async () => [...(await viewOf(pointer, state, c)).regions]);
+      const view = await viewOf(pointer, state, c);
+      const all = [...view.regions] as unknown as LibRegion[];
+      // (its own region by its name; else the last one)
+      const named = all.map((r) => r.name).lastIndexOf(v.identifier);
+      const k = named >= 0 ? named : all.length - 1;
+      const bytes = await view.read(view.regions[k]);
+      out.push({ ...node, value: decodeValue(type, bytes, {}),
+        regions: [resolved(all[k], "value", ids[k])],
+        reads: all.flatMap((r, i) => i === k ? [] : [resolved(r, "value",
+          ids[i])]) });
+    } catch (e) {
+      out.push({ ...node, note: `not read here: ${
+        (e as Error)?.message ?? e}` });
+    }
   }
   // (those with no location after those with one: vanilla mem.js localsAt)
   out.sort((a, b) => Number(!!a.none) - Number(!!b.none));
