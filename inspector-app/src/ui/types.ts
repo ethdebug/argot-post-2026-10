@@ -102,6 +102,8 @@ export type ViewSpec = { id: ViewId; area: string; link?: LinkId;
       variant?: "tree" | "table"; compare?: DataRef;
       // the dumps it lines up with (default: the lens's)
       align?: ViewId[]; plain?: boolean;
+      // (a heading over it: the rule it reads by)
+      title?: string;
       // (compared with no other point: one call's calldata)
       alone?: boolean;
       // (its rows also carry data-part: the calldata section's contract)

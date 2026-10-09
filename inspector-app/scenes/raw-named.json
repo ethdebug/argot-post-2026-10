@@ -8,11 +8,10 @@
   "lens": "inspector",
   "timeline": [
     {
-      "tx": 3,
-      "step": 569,
-      "label": "while carol joins: her name is being saved, half-written"
+      "tx": 11,
+      "step": 986,
+      "label": "while carol plays: right after her combo resets"
     }
   ],
-  "controls": "none",
-  "rows": "touched"
+  "controls": "none"
 }

@@ -4,6 +4,9 @@
 .handmade { display: inline-block; margin: 0 0 6px; padding: 1px 8px;
   border-radius: 4px; font-size: 0.8rem; background: var(--plan-bg);
   color: var(--plan-fg); }
+/* (on a tree's heading: in its line, no taller than the heading's) */
+.treehead .handmade { margin: 0 0 0 6px; padding: 0 6px;
+  font-size: inherit; line-height: inherit; }
 
 /* The interaction rules of any lens (vanilla's are keyed to #panel and
    #tree; these are the same rules on the views' own classes): a hover is
