@@ -5,6 +5,10 @@
 // so; the host's message reveals it
 import type { Page } from "@playwright/test";
 import { test, expect } from "../../page";
+import { rawAnnotated } from "../../../src/lenses/raw";
+
+// (its dumps: raw-hero's composition, storage and the stack at least)
+const DUMPS = rawAnnotated.views.filter((v) => v.kind === "dump").length;
 
 type R = { l: number; r: number; t: number; b: number };
 // every label, and the cells it must not cover: lit digits, and the
@@ -36,7 +40,7 @@ for (const width of [1360, 1024, 390]) {
     "moves on the reveal", async ({ page }) => {
     await page.setViewportSize({ width, height: 900 });
     await page.goto("./embed.html#scene=raw-annotated");
-    await expect(page.locator(".view")).toHaveCount(3);
+    await expect(page.locator(".view")).toHaveCount(DUMPS);
     await expect.poll(async () => (await geometry(page)).labels.length)
       .toBeGreaterThanOrEqual(13);
     await page.evaluate(() => document.fonts.ready);
@@ -46,7 +50,7 @@ for (const width of [1360, 1024, 390]) {
     expect(await page.locator(".alabel").evaluateAll((es) => es.every((e) =>
       getComputedStyle(e).opacity === "0"))).toBe(true);
     await page.getByRole("radio", { name: "Annotated" }).click();
-    await expect(page.locator(".view.revealed")).toHaveCount(3);
+    await expect(page.locator(".view.revealed")).toHaveCount(DUMPS);
     const on = await geometry(page);
     // nothing moved, nothing grew
     expect(on.rows).toEqual(raw.rows);
@@ -69,7 +73,7 @@ for (const width of [1360, 1024, 390]) {
     for (const l of on.labels) {
       expect(l.hand, l.text).toBe(!l.view.endsWith(":storage"));
     }
-    await expect(page.locator(".view.hand .hand-note")).toHaveCount(2);
+    await expect(page.locator(".view.hand .hand-note")).toHaveCount(DUMPS - 1);
     // carol's record, labelled with her score
     expect(on.labels.map((l) => l.text)).toContainEqual(
       expect.stringMatching(/^players\[carol\]: score 100 · combo 0/));
@@ -99,7 +103,7 @@ test("raw-annotated in a host page: revealed by its message; its " +
     .getElementById("f") as HTMLIFrameElement).contentWindow!.postMessage(
     { type: "ethdebug:reveal", on }, "*"), on);
   await tell(true);
-  await expect(frame.locator(".view.revealed")).toHaveCount(3);
+  await expect(frame.locator(".view.revealed")).toHaveCount(DUMPS);
   await tell(false);
   await expect(frame.locator(".view.revealed")).toHaveCount(0);
 });
