@@ -10,7 +10,8 @@
   min-width: 0; }
 .lens.raw .view-name { letter-spacing: 0.12em; }
 /* (the narrow column's box hugs its words, on a phone too) */
-.lens.raw [data-area="narrow"] { align-items: flex-start; }
+.lens.raw [data-area="narrow"] { align-items: flex-start;
+  justify-self: start; }
 .lens.raw .view.abbr { font-family: var(--mono);
   font-variant-numeric: tabular-nums; font-size: var(--cell-fs, 14px); }
 .lens.raw-hero { grid-template-columns: minmax(0, 1fr) max-content;
@@ -24,3 +25,9 @@
 @media (max-width: 759.98px) {
   .lens.raw .view.abbr .word .ab { line-height: 1.4; }
 }
+/* the moment, under the stack: in the panels' header style, quiet,
+   within the stack column's width */
+.lens.raw .moment { margin: 0; max-width: 0; min-width: 100%;
+  font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+  font-size: 0.75rem; font-weight: 600; line-height: 1.45;
+  color: var(--muted); overflow-wrap: break-word; }

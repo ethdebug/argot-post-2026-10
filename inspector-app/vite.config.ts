@@ -40,7 +40,8 @@ export default defineConfig(({ command }) => ({
   server: { port: 5180, strictPort: true, fs: { allow: [".."] },
     hmr: { clientPort: port } },
   build: {
-    rollupOptions: { input: { index: "index.html", shell: "shell.html" },
+    rollupOptions: { input: { index: "index.html", shell: "shell.html",
+      embed: "embed.html" },
       // (the decoder bundle: one chunk the loader fetches with progress)
       output: {
         manualChunks: (id) => isLibrary(id) ? "pointers" : undefined,

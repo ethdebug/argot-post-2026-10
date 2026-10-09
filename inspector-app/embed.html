@@ -1,0 +1,20 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Inspector embed</title>
+<!-- One scene's lens alone, for an iframe in the post: no page chrome,
+no outer margin, a transparent background; the scene by the hash
+(#scene=raw). It posts its height to the host page. -->
+<style>
+  html, body { margin: 0; background: transparent; }
+  body { display: flow-root; color: #1f2328; }
+  @media (prefers-color-scheme: dark) { body { color: #e6e4df; } }
+</style>
+</head>
+<body>
+<div id="embed"></div>
+<script type="module" src="/src/embed/main.tsx"></script>
+</body>
+</html>
