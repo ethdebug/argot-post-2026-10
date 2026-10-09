@@ -866,3 +866,47 @@ relative to the machine it runs on: 6x on an Apple-silicon laptop
 (Lighthouse benchmark index about 3400) is about a budget Android
 phone (index about 600). Run it on an idle machine: other work
 slows the throttled page as much again.
+
+## Tests
+
+In `inspector-app`:
+
+- `src/**/*.test.ts(x)`: unit tests (vitest), each beside the module
+  it tests, on the real fixtures (`test/project.ts`, `test/io.ts`);
+  `test/lens.tsx` mounts the full inspector with only the views a
+  test needs. `test/sources.test.ts`: the page's sources against
+  `fixtures/` (picker, intros, contract, no `title`, no local paths).
+- `bin/*.test.mjs`: node tests of the scripts.
+- `test/e2e/<area>/*.spec.ts`: Playwright, in Chromium, Firefox and
+  WebKit, on the dev server. One folder an area: `loading` (a clean
+  load, the URL hash, the dev server's re-pin), `scenes` (scenes,
+  contract source, shell, lenses), `selection` (linking, clicks and
+  keys, row gaps, unmapped bytes, details, other-state cards, tints),
+  `popovers`, `walkthrough`, `layout` (columns, phone, tree),
+  `locations` (storage, calldata, memory), `related`. A spec imports
+  `test`, `expect` and the helpers (`ready`, `select`, `row`,
+  `still`, …) from `test/page.ts`; its `test` fails on a console
+  error, a page error or a request to another host. Wait on
+  conditions (`ready`, `still`, `stable`, `expect.poll`), never a
+  fixed time. `@chromium`: Chromium only; `@slow`: not in the fast
+  tier.
+- `bin/run.mjs` (`npm run check`): the built site's smoke, served
+  gzipped as GitHub Pages does: the loader's sizes, a session with no
+  error, warning or request elsewhere, every scene decoded, a failed
+  load's Retry, the slow link (Chromium), `screenshots/`'s picture.
+
+Tiers:
+
+- `npm run test:fast` (about 2 min): tsc, units, node tests, and the
+  e2e in Chromium without `@slow`. Run it before each push.
+- `npm run test:full`: tsc, units, node tests, the e2e in all three
+  browsers, `npm run check`. CI (`.github/workflows/test.yml`) runs
+  it on every push to main and every PR, the browsers side by side;
+  read its result after a push.
+- One area: `npx playwright test test/e2e/walkthrough
+  --project=chromium`; one test: add `-g "<title>"`.
+
+The e2e use a quarter of the cores (`E2E_WORKERS` to change it) and
+start Vite on `E2E_PORT` (default 5181) unless one runs there;
+`PAGE=<url>` runs them against another page. `npm run perf` is
+separate (above).
