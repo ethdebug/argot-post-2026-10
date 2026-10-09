@@ -159,14 +159,16 @@ test("between 660 and 1199px: the stack and the code keep their places " +
     Math.round(document.querySelector(`.dbgpane [data-area="${a}"]`)!
       .getBoundingClientRect().top)));
   const vars = () => page.locator(`${D} .vars li[data-path]`).count();
-  // (once the dumps' font is fitted)
+  // (once the dumps' font is fitted and a stack row measured)
+  await expect.poll(() => page.locator(`${D} .lens`).evaluate((l) =>
+    (l as HTMLElement).style.getPropertyValue("--stack-row"))).not.toBe("");
   let t0 = await tops();
   await expect.poll(async () => {
     const t = await tops();
     const same = t.join() === t0.join();
     t0 = t;
     return same;
-  }, { intervals: [300] }).toBe(true);
+  }, { intervals: [600] }).toBe(true);
   const seen = new Set<number>();
   await page.locator(`${D} .moves`).focus();
   for (let k = 0; k < 30; k++) {
