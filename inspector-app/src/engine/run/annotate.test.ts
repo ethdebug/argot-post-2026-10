@@ -3,10 +3,9 @@ import fs from "node:fs";
 import path from "node:path";
 import { annotate, locals } from "./annotate";
 import { arcade, runOf } from "../../../test/run";
+import { pauses } from "../../../test/expect";
+import { sceneOf } from "../scene";
 
-const fixture = (id: string) => JSON.parse(fs.readFileSync(path.join(
-  __dirname, "..", "..", "..", "..", "demos", "inspector", "fixtures",
-  `${id}.json`), "utf8"));
 const s = arcade();
 // a byte offset's line (the source has multi-byte characters)
 const lineOf = (text: string, offset: number) => Buffer.from(text, "utf8")
@@ -22,27 +21,21 @@ describe("annotate", () => {
     expect([lineOf(text, m.range!.offset),
       lineOf(text, m.range!.offset + m.range!.length)]).toEqual([4, 46]);
   });
-  it("bug-O0 at memory.json's paused steps: its range and locals",
-    async () => {
-      const level = fixture("memory").levels[0];
-      const run = await runOf("bug-O0");
-      for (const p of level.points) {
-        for (const at of p.steps) {
-          // (memory.json's state is after its trace step: the next one,
-          // with that step's instruction's context)
-          const m = annotate(run, s.builds["bug-O0"],
-            { tx: 12, step: at.step + 1 });
-          const what = `${p.id} ${at.step}`;
-          expect(m.range && { offset: m.range.offset,
-            length: m.range.length }, what).toEqual(at.range);
-          const names = locals(m.context!, s.builds["bug-O0"])
-            .map((v) => v.identifier);
-          expect(names, what)
-            .toEqual(at.variables.map((v: { identifier: string }) =>
-              v.identifier));
-        }
-      }
+  it.each(["bug-O0", "bug-O2"])("%s at its scene's moments: its range " +
+    "and locals (test/expect.ts)", async (b) => {
+    const run = await runOf(b);
+    const build = s.builds[b];
+    const text = Buffer.from(build.sources[0].text, "utf8");
+    sceneOf(JSON.parse(fs.readFileSync(path.join(__dirname, "..", "..",
+      "..", "scenes", `${b}.json`), "utf8"))).timeline.forEach((at, k) => {
+      const m = annotate(run, build, at);
+      const r = m.range;
+      expect(r && text.subarray(r.offset, r.offset + r.length).toString(),
+        `${k}`).toBe(pauses[k].range);
+      expect(locals(m.context!, build).map((v) => v.identifier), `${k}`)
+        .toEqual(pauses[k].locals);
     });
+  });
   it("trace step 0: the program's context; end: no instruction",
     async () => {
       const run = await runOf("sol");

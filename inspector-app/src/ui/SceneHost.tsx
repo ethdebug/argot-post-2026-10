@@ -21,13 +21,16 @@ export function SceneHost(p: { scene: Scene; project: Project;
   // that are not this one shows it as its one scene, when it is a
   // bookmark (raw-named, the storage inspector's); else its own, until it
   // reads scenes: §8 4)
-  const own = p.project.bookmarks.some((b) => b.id === p.scene.id);
+  // (a scene of groups, the memory section's: its first group, its other
+  // groups and the lens's other scenes to pick)
+  const first = p.scene.groups?.[0]?.id ?? p.scene.id;
+  const own = p.project.bookmarks.some((b) => b.id === first);
   const spec = useMemo(() => !lens ? lens : lens.bookmarks &&
-    !lens.bookmarks.includes(p.scene.id) ? own ? { ...lens,
-      bookmarks: [p.scene.id], initial: { ...lens.initial,
-        scene: p.scene.id } } : lens
-    : { ...lens, initial: { ...lens.initial, scene: p.scene.id } },
-  [lens, own, p.scene.id]);
+    !lens.bookmarks.includes(first) ? own ? { ...lens,
+      bookmarks: [first], initial: { ...lens.initial,
+        scene: first } } : lens
+    : { ...lens, initial: { ...lens.initial, scene: first } },
+  [lens, own, first]);
   // (the scene's rows: its storage dumps' filter, "touched")
   const shown = useMemo(() => !spec || !p.scene.rows ? spec : { ...spec,
     views: spec.views.map((v) => v.kind === "dump" &&

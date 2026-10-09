@@ -92,12 +92,8 @@ async function whenDrawn() {
 const project = await load(fetchIo(import.meta.env.BASE_URL),
   { scenes, builds });
 const scene = project.scenes.find((s) => s.id === id);
-// (the memory section's lens reads no scenes yet: it opens at the
-// scene's build's level, O0 or O2)
-const level = scene && project.bookmarks.find((b) =>
-  b.decoding === `mem:${scene.run.build.replace(/^bug-/, "")}`);
-const only = all.map((l) => scene && level && l.id === scene.lens
-  ? { ...l, initial: { ...l.initial, scene: level.id } } : l);
+// (a scene of groups, the memory section's: its first, SceneHost)
+const only = all;
 const lens = scene && only.find((l) => l.id === scene.lens);
 if (lens) columns = columnsOf(lens);
 void whenDrawn();

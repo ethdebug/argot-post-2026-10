@@ -66,3 +66,14 @@ export const defaults: Record<string, [string, string]> = {
 // and 11), and alice after her third hit (transaction 12). (The anvil
 // fixtures had 7, 8, 21 and 25: anvil mined a block for each roll.)
 export const lastBlock = { mid: ["6", "7", "12"], alice: "13" };
+
+// "Inside one play" (the bug-O0 and bug-O2 scenes, alice's third hit,
+// transaction 12): each moment's source range (none: the last one,
+// muted) and the locals its context lists
+export const PAUSE_TX = 12;
+export const pauses: { range?: string; locals: string[] }[] = [
+  { range: "!hit", locals: ["hit"] },
+  { locals: ["points", "combo", "mult"] },
+  { range: "if (combo < 5) {\n      mult = combo;\n    }",
+    locals: ["points", "combo", "mult"] },
+  { range: "players[msg.sender].score", locals: ["hit", "gained"] }];
