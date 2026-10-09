@@ -32,15 +32,24 @@ const find = (tree: ValueNode[], path: string): ValueNode | undefined => {
 };
 
 // The input `key` of a decoding's mappings: the items of its list (in
-// the tree decoded so far), or the trace's keys
+// the tree decoded so far), then the keys the trace hashed with the
+// mapping's slot up to the point that the list does not have yet (a
+// player joining: hashed, not yet listed), in the order first seen; or
+// the trace's keys alone
 export function keysFor(d: Decoding, tree: ValueNode[], tx?: TxFacts,
   base?: Hex): InputNode {
   if (d.keys.from === "list") {
     const list = d.keys.path;
     const items = find(tree, list)?.children ?? [];
+    const listed = items.map((n) => ({ value: word(n.value!.text),
+      source: n.path }));
+    // (a key from the trace: one word, as the list's items are)
+    const traced = (tx && base ? mappingKeys(tx, base) : [])
+      .filter((k) => k.length === 66).map(word)
+      .filter((k) => !listed.some((x) => x.value === k))
+      .map((value) => ({ value }));
     return { id: "key", name: "key", provenance: { list },
-      values: items.map((n) => ({ value: word(n.value!.text),
-        source: n.path })) };
+      values: [...listed, ...traced] };
   }
   return { id: "key", name: "key", provenance: "trace",
     values: (tx ? mappingKeys(tx, d.keys.slot ?? base) : []).map((value) =>
