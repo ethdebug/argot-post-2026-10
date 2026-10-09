@@ -2,21 +2,33 @@
 // 1b0530a, built here from the dereference graph): the rules its
 // pointer follows, one step each, in the order of the YAML (the band
 // only moves down), each for all of the selection's instances at once (a
-// mapping's entries, an array's items). First, the inputs the page
-// supplies (a mapping's keys, no band). Every template entered is a
+// mapping's entries, an array's items). Every construct the pointer
+// schema allows walks, in every location: every template entered is a
 // step, and the define that leads into it; every region read and every
-// branch taken is a step, one fork step where instances part. When the
-// selection spans more than one slot or region, step 0 comes first:
-// what we are about to find (its slots, whole, in yellow; no labels).
-// Instances are named by their on-chain `name` values, quoted.
+// branch taken is a step, one fork step where instances part; a value's
+// own region is a step, with the defines and lists that lead to it.
+// When the selection spans more than one row or region, step 0 comes
+// first: what we are about to find (its rows, whole, in yellow; no
+// labels); with more than one step, "found" comes last. The steps' words
+// are the fold's own, from the construct and the region's location;
+// annotators (hooks.ts) add what a layout or the page's data know: where
+// an input comes from, the instances' names, a focus, a layout's own
+// words for a step (solc's storage: solidity.ts), steps of their own.
 import type {
-  Colour, Compilation, Decoded, Hex, Instance, KeySource, Path,
+  Colour, Compilation, Decoded, Hex, Instance, KeySource, Location, Path,
   ResolvedRegion, RuleNode, Snapshot, ValueNode,
 } from "../types";
 import { short, slotHex, toBig } from "../hex";
 import { typeName } from "../values";
 import { childColours } from "../light";
 import { pointerText } from "../pointer-text";
+import { addressing, rangeText, regionBytes, regionHex } from "../location";
+import { exprText } from "./expr";
+import {
+  COMPILER, READ, nWord, type Annotator, type Cx, type Declared, type Nd,
+  type X,
+} from "./hooks";
+import { annotatorsFor } from "./annotators";
 
 export type Tok = string | { code: string } | { gloss: string } |
   { prose: string } | { question: string } | { field: Path; text: string };
@@ -31,10 +43,11 @@ export type Form =
   | { kind: "strip"; fields: { path?: Path; name: string; from: number;
     to: number; k: Colour }[] };
 // (`k`: its regions' bytes in that colour, whatever owns them;
-// `wholes`: slots computed here, lit whole in `k`, their bytes not read)
+// `wholes`: slots computed here, lit whole in `k`, their bytes not read;
+// `at`: the location of `slots`, when it is not storage)
 export interface Part { regions: ResolvedRegion[]; rows: Path[];
   colours?: ReadonlyMap<Path, Colour>; dim?: boolean; slots?: Hex[];
-  k?: Colour; wholes?: Hex[] }
+  k?: Colour; wholes?: Hex[]; at?: Location }
 export interface Step {
   id: string;            // the step's identity: its node and kind, not
                          // its instances (re-targeting aligns on it)
@@ -48,14 +61,16 @@ export interface Step {
   // (the template, or "" for the variable's own pointer, they hold in)
   notes?: { block: string; values: Record<string, string> };
 }
+// an instance the reader can focus (a mapping's entry)
+export interface Rec { path: Path; who: string; full?: string }
 // (a rule's instances in a form's table: `k` its entry's colour; `dim`:
 // not the focus, an echo)
 export interface Walkthrough {
   target: Path; steps: Step[];
   // a mapping's entries, for the focus picker; "*": all at full strength
-  recs: { path: Path; who: string; full?: string }[] | null; focus: string;
+  recs: Rec[] | null; focus: string;
   variable: string;
-  // (the slots the walkthrough touches: its labels' runs; and who each
+  // (the rows the walkthrough touches: its labels' runs; and who each
   // key is, for the labels: "0x7099…79c8" → "alice")
   span: Hex[]; names: Map<string, string>;
   // (the selection, its keys by name: players[carol].name)
@@ -68,52 +83,54 @@ export interface WalkInput {
   // (another compiler's storage read by this rule: that compiler's own
   // reading of it, for the contrast at the end)
   contrast?: { d: Decoded; language: string };
+  // (the annotators, when not the compilation's language's)
+  annotators?: Annotator[];
 }
 
 type Any = any;
-const PICKS = 10;
 // (the walkthrough's last step, "found": one switch, to try it; vanilla
 // 6b1df3a FOUND)
 export const FOUND = true;
-// (where a step's facts come from: one form for every step)
-const COMPILER = "from: the compiler (ethdebug)";
-const STORAGE = "from: storage (a value read)";
-const LANG = (l: string) => l[0].toUpperCase() + l.slice(1);
-// (solc's rule over another compiler's storage: the Vyper scene)
-const RULE = (_l: string) => "Solidity's rule";
-const nWord = (n: number) => ["no", "one", "two", "three", "four", "five",
-  "six", "seven", "eight"][n] ?? String(n);
-
-// bytes a–b of a region, or the slots it spans
-function bytesText(r: ResolvedRegion) {
-  const o = r.offset;
-  const n = r.length;
-  if (o + n > 32) return `${Math.ceil((o + n) / 32)} slots`;
-  return o === 0 && n === 32 ? "the whole slot" : n === 1 ? `byte ${o}`
-    : `bytes ${o}–${o + n - 1}`;
-}
+// (a location's rows, by name: storage's slots, a segment's words)
+const NOUN: Record<string, [string, string]> = {
+  storage: ["slot", "slots"], transient: ["transient slot",
+    "transient slots"], stack: ["stack item", "stack items"] };
+const noun = (l: Location, n: number) =>
+  (NOUN[l] ?? ["word", "words"])[n === 1 ? 0 : 1];
 
 // a raw step: one instance of one rule node, as vanilla's replay()
 // recorded a step (its kind, block and path of keys)
-interface Raw { kind: string; block: string; at: (string | number)[];
-  i: Instance; n: RuleNode }
-interface X { inst: string; s: Any; leaves: ValueNode[];
-  regions: ResolvedRegion[] }
-interface Nd { k: string; kind: string; block: string; at: (string |
-  number)[]; s: Any; by: Map<string, X>; line: number; seen: number;
-  node: RuleNode }
-
 export function walkthrough(x: WalkInput, path: Path, focus?: string):
   Walkthrough | null {
   const { d, c, snap } = x;
   const node = d.byPath.get(path);
   if (!node) return null;
   const types = c.types as Record<string, Any>;
-  const pointers = c.templates as Record<string, Any>;
   const variable = path.split(/[.[]/)[0];
   const varNode = d.byPath.get(variable);
   const g = d.graphs.get(variable);
   if (!g) return null;
+  const hs = annotatorsFor(x);
+  // (the first annotator's answer to a hook)
+  const ask = <T>(f: (h: Annotator) => T | null | undefined): T |
+    undefined => {
+    for (const h of hs) {
+      const v = f(h);
+      if (v !== null && v !== undefined) return v;
+    }
+    return undefined;
+  };
+  // (the templates: the compilation's, and those the pointer defines)
+  const inline: Record<string, Any> = {};
+  const scan = (o: Any) => {
+    if (!o || typeof o !== "object") return;
+    if (o.templates && typeof o.templates === "object" && "in" in o) {
+      Object.assign(inline, o.templates);
+    }
+    Object.values(o).forEach(scan);
+  };
+  scan(g.pointer);
+  const pointers = { ...inline, ...c.templates } as Record<string, Any>;
   const all = [...g.nodes.values()].flatMap((n) => n.instances);
   const byId = new Map(all.map((i) => [i.id, i]));
   const seqOf = (id: string) => Number(id.slice(id.lastIndexOf("@") + 1));
@@ -143,18 +160,9 @@ export function walkthrough(x: WalkInput, path: Path, focus?: string):
     leaf.path;
   const tn = (id: string) => types[id] ? typeName(types[id], types) : id;
   const getAt = (block: string, at: (string | number)[]) =>
-    at.reduce<Any>((o, k) => o?.[k], block ? pointers[block] : null);
+    at.reduce<Any>((o, k) => o?.[k], block ? pointers[block] : g.pointer);
   const opOf = (e: Any) => e && typeof e === "object" ? Object.keys(e)[0]
     : null;
-  // the keys: from the contract's own list of them (playerList, decoded from
-  // storage), or the trace
-  const keyList = x.keys.from === "list" ? x.keys.path : null;
-  const keyItem = (key: Hex) => {
-    const list = keyList ? d.byPath.get(keyList) : undefined;
-    const k = w32(key).slice(-40);
-    return list?.children?.find((ch) => ch.value?.text?.toLowerCase()
-      .endsWith(k)) ?? null;
-  };
   // The walkthrough's colours, each with one meaning from step 0 to
   // found: within the selection, the colours its resting view gives
   // (found is that view; its own bytes, the selection's yellow, 0); an
@@ -175,7 +183,7 @@ export function walkthrough(x: WalkInput, path: Path, focus?: string):
     : kOf(inst);
 
   // the YAML's lines, for the document order of the nodes
-  const { lines } = pointerText(c, variable);
+  const { lines } = pointerText(c, variable, g.pointer);
   const lineOf = (block: string, at: (string | number)[]) => {
     const p = `${block}|${at.join(".")}`;
     const i = lines.findIndex((l) => l.pos === p || (at.length > 0 &&
@@ -212,18 +220,21 @@ export function walkthrough(x: WalkInput, path: Path, focus?: string):
           const v = typeof a === "string" ? a : a?.["~wordsized"];
           return { value: { hex: i.bindings[v] ?? "0x" } };
         }) : undefined;
-      return { id, expr: ast, value: { hex: i.value ?? "0x" }, args };
+      return { id, expr: ast, value: { hex: i.value ?? "0x" }, args,
+        bindings: i.bindings };
     }
     if (n.kind === "conditional") {
-      return { branch: i.branch, cond: { expr: ast.if } };
+      return { branch: i.branch, cond: { expr: ast.if }, bindings:
+        i.bindings };
     }
     if (n.kind === "list") {
       const each = ast.list.each;
       const r = leaf.regions.map((q) => byId.get(q.instance))
         .find((q) => q?.bindings[each] !== undefined);
-      return { index: String(toBig(r?.bindings[each] ?? "0x0")) };
+      return { index: String(toBig(r?.bindings[each] ?? "0x0")), each,
+        count: ast.list.count };
     }
-    return { name: ast.name };
+    return { name: ast.name, fields: i.fields, bindings: i.bindings };
   };
 
   // What reads a region: the graph's edges (an instance's `uses`), never
@@ -244,15 +255,18 @@ export function walkthrough(x: WalkInput, path: Path, focus?: string):
   const reads = (block: string, name: string) =>
     readRegions.has(`${block}|${name}`);
   const hasRead = (nd: Nd) =>
-    nd.node.instances.some((i) => i.uses.some(isRegion));
+    nd.node.instances.some((i: Instance) => i.uses.some(isRegion));
 
   // the nodes: one per place in the pointer; each with its instances
-  let declared: Any = null;
+  // (a value's own regions, and those read to find it: a local's frame
+  // pointer)
+  let declared: (Declared & { nd?: RuleNode; i?: Instance }) | null = null;
   const nodes = new Map<string, Nd>();
   let seen = 0;
   for (const leaf of leaves) {
     const inst = instOf(leaf);
-    const rs = leaf.regions.map((r) => byId.get(r.instance)!)
+    const mine = [...leaf.regions, ...leaf.reads ?? []];
+    const rs = mine.map((r) => byId.get(r.instance)!)
       .filter(Boolean).sort((a, b) => seqOf(a.id) - seqOf(b.id));
     const raws: { i: Instance; region?: ResolvedRegion }[] = [];
     const had = new Set<string>();
@@ -262,14 +276,13 @@ export function walkthrough(x: WalkInput, path: Path, focus?: string):
         had.add(id);
         raws.push({ i: byId.get(id)! });
       }
-      raws.push({ i: ri, region: leaf.regions.find((q) =>
-        q.instance === ri.id) });
+      raws.push({ i: ri, region: mine.find((q) => q.instance === ri.id) });
     }
     for (const { i, region } of raws) {
       const n = g.nodes.get(i.node)!;
       if (n.kind === "declared") {
-        declared ??= i.region ? { context: i.region, region: i.region }
-          : { slot: i.value };
+        declared ??= i.region ? { context: i.region, region: i.region,
+          nd: n, i } : { slot: i.value, nd: n, i };
         continue;
       }
       if (n.kind === "group") continue;
@@ -296,20 +309,28 @@ export function walkthrough(x: WalkInput, path: Path, focus?: string):
     a.seen - b.seen);
   const insts = [...new Set(leaves.map(instOf))].filter((i) =>
     i !== variable || kindOf(varNode) !== "array");
-  // each instance's template inputs, by template kind
+  // each instance's template inputs, by template kind (and by template)
   const inputs = new Map<string, Record<string, { hex: Hex }>>();
   for (const nd of order.filter((n) => n.kind === "template")) {
     for (const [i, xx] of nd.by) {
       inputs.set(`${i}|${types[nd.s.name]?.kind}`, xx.s.inputs ?? {});
+      inputs.set(`${i}|@${nd.s.name}`, xx.s.inputs ?? {});
     }
   }
-  const keyOf = (i: string) => inputs.get(`${i}|mapping`)?.key?.hex;
-  // an instance by its on-chain `name` value, quoted (an empty one, "",
-  // is none), else its key: one name for each, everywhere; its address
-  // once, at the keys
-  const named = (t?: string) => t && t !== '""' ? t : undefined;
-  const nameOf = (i: string) => named(d.byPath.get(`${i}.name`)?.value
-    ?.text);
+  // an instance's key: the value it is given from outside the pointer
+  // (a graph input, as its first template takes it)
+  const inputNames = g.inputs.map((n) => n.name);
+  const keyOf = (i: string): Hex | undefined => {
+    for (const nd of order) {
+      if (nd.kind !== "template") continue;
+      const ins = nd.by.get(i)?.s.inputs ?? {};
+      for (const k of inputNames) if (ins[k]) return ins[k].hex;
+    }
+    return undefined;
+  };
+  // an instance by its name (an annotator's), else its key, else its
+  // path: one name for each, everywhere; its key once, at the inputs
+  const nameOf = (i: string) => ask((h) => h.name?.(cx, i));
   const who = (i: string) => nameOf(i) ?? (keyOf(i) ? short(keyOf(i)!)
     : i.replace(/\[(0x[0-9a-fA-F]{16,})\]/g, (_, h) => `[${short(h)}]`));
   const whoAt = (i: string) => keyOf(i) && nameOf(i)
@@ -320,24 +341,10 @@ export function walkthrough(x: WalkInput, path: Path, focus?: string):
   // (a path with its keys by name, shortened: players["carol, the un…"])
   const pathName = (p: string) => p.replace(/\[(0x[0-9a-fA-F]{16,})\]/g,
     (m, h, at) => {
-      const nm = named(d.byPath.get(`${p.slice(0, at)}${m}.name`)?.value
-        ?.text);
+      const nm = nameOf(`${p.slice(0, at)}${m}`);
       return `[${nm ? clip(nm) : short(h)}]`;
     });
-  const isRec = insts.some((i) => keyOf(i));
   const whoShort = (i: string) => clip(who(i));
-  const recs = isRec && insts.length > 1
-    ? insts.map((i) => ({ path: i, who: whoShort(i), full: who(i) }))
-    : null;
-  // the focus: one instance at full strength, the others echoing it;
-  // or "*", all of them (by default for a composite with several; one
-  // entry or a value in it: that entry)
-  const ownE = entryPath(node.path);
-  const own = ownE && insts.includes(ownE) ? ownE
-    : insts.includes(node.path) ? node.path : null;
-  const every = focus === "*" || (focus === undefined && !own &&
-    insts.length > 1);
-  const f = focus && insts.includes(focus) ? focus : own ?? insts[0];
 
   const out: Step[] = [];
   const step = (s: Partial<Step> & Pick<Step, "id" | "phase">): Step => {
@@ -358,80 +365,6 @@ export function walkthrough(x: WalkInput, path: Path, focus?: string):
     `${block}|${at.join(".")}`;
   const exact = (block: string, at: (string | number)[]) =>
     `=${pos(block, at)}`;
-
-  // (1) the inputs: the mapping's keys, and where they come from
-  const keyed = insts.filter((i) => keyOf(i));
-  if (keyed.length) {
-    const items = keyed.map((i) => [i, keyItem(keyOf(i)!)] as const);
-    const one = keyed.length === 1;
-    const has = items.filter(([, it]) => it) as [string, ValueNode][];
-    // (a mapping does not store its keys: the page supplies them; a key
-    // the list does not have yet, from the trace: the transaction hashed
-    // it with the mapping's slot)
-    const TRACED = "the trace: this transaction hashed it with the " +
-      "mapping's slot";
-    const from = (it: ValueNode | null) => it ? `\`${it.path}\``
-      : keyList ? TRACED : "the trace of the calls";
-    const traced = keyList && items.some(([, it]) => !it);
-    step({ phase: "input", id: "input",
-      cap: one ? `The key: the address of ${who(keyed[0])}. A mapping does not ` +
-        `store its keys; the page takes it from ${from(items[0][1])}`
-        : "The keys: a mapping does not store its keys; the page takes " +
-          `them from ${keyList ? `\`${keyList}\`` : "the trace of the calls"}` +
-          (traced ? ", and one not listed yet from the trace (this " +
-            "transaction hashed it with the mapping's slot)" : ""),
-      form: one ? text(whoAt(keyed[0])) : table(items.map(([i, it]) =>
-        [[whoAt(i)], [it?.label ?? "trace"], srcOf(i)])),
-      source: keyList ? `from: the page (${keyList}, read from storage)`
-        : "from: the page (the trace)",
-      chip: one ? "key" : "keys", chipLabel: keyList ?? "trace",
-      parts: [{ regions: has.flatMap(([, it]) => it.regions),
-        rows: has.map(([, it]) => it.path),
-        colours: new Map(has.map(([i, it]) => [it.path, srcOf(i)])) }],
-      rows: has.map(([, it]) => it.path) });
-  }
-
-  // (2) declared
-  if (declared) {
-    const kind = kindOf(varNode) ?? "value";
-    if (declared.context) {
-      const r = declared.context as ResolvedRegion;
-      step({ phase: "declared", id: `declared|${variable}`, band: ["~var"],
-        cap: `\`${variable}\` is at slot ${small(r.slot!)}, ${r.length} ` +
-          `bytes from offset ${r.offset}`,
-        form: strip([{ name: variable, from: r.offset, to: r.offset +
-          r.length - 1, k: 0 }]),
-        constructs: ["pointer"], source: COMPILER,
-        chip: `slot ${small(r.slot!)}`, chipLabel: "value",
-        parts: [{ regions: [r], rows: [variable], colours: M }],
-        rows: [variable] });
-    } else {
-      const w = wordAt(declared.slot);
-      const at = `slot ${small(declared.slot)}`;
-      const empty = w !== undefined && !toBig(w);
-      step({ phase: "declared", id: `declared|${variable}`, band: ["~var"],
-        cap: x.contrast ? `${RULE(x.contrast.language)} says \`${variable
-          }\` is declared at ${at}${empty ? "; that slot holds nothing"
-          : `; in ${LANG(x.contrast.language)}'s storage, that slot holds ` +
-            "something else"}`
-          : kind === "mapping" && empty
-            ? `\`${variable}\` is declared at ${at}; that slot holds nothing`
-            : `\`${variable}\` is declared at ${at}`,
-        form: text(),
-        constructs: ["pointer"], source: COMPILER,
-        chip: `slot ${small(declared.slot)}`, chipLabel: ["mapping",
-          "string", "array", "struct"].includes(kind) ? kind === "struct"
-          ? "record" : kind : "value",
-        gutters: [w32(declared.slot)], parts: [{ regions: [],
-          rows: [variable], colours: M }], rows: [variable] });
-    }
-  }
-
-  // (3) the pointer's nodes, in document order
-  let openIf: Any = null; // an `if` step and its branches' places
-  let pending: Nd[] = []; // defines and lists folded into the next region
-  const inBranch = (nd: Nd) => openIf && openIf.branches.some((b: Any[]) =>
-    nd.block === openIf.block && b.every((k, j) => nd.at[j] === k));
   const defineBand = (nd: Nd) => [exact(nd.block, nd.at.slice(0, -1)),
     pos(nd.block, nd.at)];
   const instRows = (nd: Nd) => [...nd.by.values()].flatMap((xx) =>
@@ -444,24 +377,146 @@ export function walkthrough(x: WalkInput, path: Path, focus?: string):
   };
   const regionsOf = (nd: Nd) => [...nd.by.values()].flatMap((xx) =>
     xx.regions);
-  // a field's colour at the packed fields: its own in the walkthrough's
-  // colours where it has one (the selection is its record, or the field
-  // itself); else, with several entries shown, a colour no entry uses
-  const fieldColours = () => {
-    const used = new Set(insts.map(kOf));
-    const free = [...Array(PICKS).keys()].slice(1).filter((k) =>
-      !used.has(k as Colour)) as Colour[];
-    const fc = childColours(d, f, 9);
-    return (leafPath: string): Colour => {
-      const own = M.get(leafPath);
-      if (own !== undefined && own !== kOf(instOf({ path: leafPath }))) {
-        return own;
-      }
-      const name = leafPath.slice(instOf({ path: leafPath }).length);
-      const k = fc.get(`${f}${name}`);
-      return typeof k === "number" && k ? free[(k - 1) % free.length] : 0;
-    };
+
+  // the focus: one instance at full strength, the others echoing it;
+  // or "*", all of them (by default for a composite with several; one
+  // entry or a value in it: that entry)
+  const ownE = entryPath(node.path);
+  const own = ownE && insts.includes(ownE) ? ownE
+    : insts.includes(node.path) ? node.path : null;
+  const every = focus === "*" || (focus === undefined && !own &&
+    insts.length > 1);
+  const f = focus && insts.includes(focus) ? focus : own ?? insts[0];
+
+  const cx: Cx = { x, snap, path, variable, node, varNode, types,
+    pointers, leaves, insts, f, every, order, out, declared, M, kOf, srcOf,
+    kLeaf, who, whoAt, whoShort, keyOf, inputs, kindOf, tn, getAt, opOf,
+    reads, entryPath, instOf, inTarget, w32, wordAt, tail, small, step,
+    pathName,
+    text, table, strip, pos,
+    exact, defineBand, instRows, regionsOf };
+  const recs = ask((h) => h.focus?.(cx)) ?? null;
+
+  // (a region's place, in its location's words: slot 3, bytes 0–7;
+  // stack item 2; memory 0x0080–0x009f)
+  const placeText = (r: ResolvedRegion) => {
+    const bytes = r.offset === 0 && r.length === 32 ? ""
+      : r.length === 0 ? `, no bytes (at byte ${r.offset})`
+      : r.length === 1 ? `, byte ${r.offset}`
+        : `, bytes ${r.offset}–${r.offset + r.length - 1}`;
+    if (addressing(r.location) === "slot") {
+      return `${noun(r.location, 1)} ${small(r.slot ?? 0n)}${bytes}`;
+    }
+    if (!r.length) return `${rangeText(r.location, r.offset, r.offset)}, ` +
+      "no bytes";
+    return rangeText(r.location, r.offset, r.offset + r.length - 1);
   };
+  // (a value as the dump shows it: its bytes' number, or the value's own
+  // text when the selection is that value)
+  // (a region read for another's offset in a segment: as an offset,
+  // 0x0680, as the dump addresses it)
+  const asOffset = (name?: string) => !!name && order.some((n) =>
+    n.kind === "region" && [...n.by.values()].some((y) =>
+      (y.s.fields ?? []).some((fl: Any) => fl.field === "offset" &&
+        addressing(y.regions[0]?.location ?? "storage") === "offset" &&
+        JSON.stringify(fl.expr).includes(JSON.stringify({ "~read":
+          name }).slice(1, -1)))));
+  const valueText = (r: ResolvedRegion) => {
+    const h = regionHex(snap, r);
+    if (h === undefined) return "not part of this state";
+    const n = toBig(h);
+    if (asOffset(r.name) && n < 1n << 32n) {
+      return `0x${n.toString(16).padStart(4, "0")}`;
+    }
+    return n < 1n << 32n ? String(n) : short(h);
+  };
+  // (a computed field: its expression, its operands' values, its value:
+  // "offset = read(-frame) + 188 = 0x0200 + 188 = 0x02bc")
+  const fieldText = (r: ResolvedRegion, fl: NonNullable<Instance[
+    "fields"]>[number], bindings: Record<string, Hex> = {}) => {
+    const asNum = (h: Hex) => fl.field === "offset" &&
+      addressing(r.location) === "offset"
+      ? `0x${toBig(h).toString(16).padStart(4, "0")}` : small(h);
+    const e = exprText(fl.expr);
+    // (its operands' values: an expression's, as the walk evaluated it;
+    // a variable's, as it is bound)
+    const mid = exprText(fl.expr, (a) => {
+      const v = fl.args?.find((y) => y.expr === a);
+      if (v && typeof a === "object") return asNum(v.value);
+      return typeof a === "string" && bindings[a] !== undefined
+        ? small(bindings[a]) : undefined;
+    });
+    const top = typeof fl.expr === "string";
+    const val = asNum(fl.value);
+    return [`${fl.field} = ${e}`, ...!top && mid !== e && mid !== val
+      ? [mid] : [], val].join(" = ");
+  };
+  // (the fields a region computes: those that are expressions)
+  const computed = (fs: Instance["fields"]) => (fs ?? []).filter((fl) =>
+    fl.expr !== null && typeof fl.expr === "object" ||
+    (typeof fl.expr === "string" && !/^(0x[0-9a-f]*|\d+)$/i.test(fl.expr)));
+  const formula = (y: X) => {
+    const e = y.s.expr;
+    const v = y.s.value.hex as Hex;
+    const named = (a: unknown) => typeof a === "string" &&
+      y.s.bindings?.[a] !== undefined ? small(y.s.bindings[a]) : undefined;
+    const mid = exprText(e, named, true);
+    const withVals = exprText(e, (a) => named(a), false);
+    const val = small(v);
+    return [`${y.s.id} = ${mid}`, ...withVals !== mid ? [withVals] : [],
+      ...val !== withVals ? [val] : []].join(" = ");
+  };
+
+  // (1) the inputs: where the values the pointer expects come from
+  for (const h of hs) h.inputs?.(cx);
+  if (!out.length && g.inputs.length) {
+    const ks = insts.filter((i) => keyOf(i));
+    if (ks.length) {
+      step({ phase: "input", id: "input",
+        cap: `The ${g.inputs.map((n) => `\`${n.name}\``).join(" and ")}: ` +
+          "from outside the pointer",
+        form: ks.length === 1 ? text(whoAt(ks[0])) : table(ks.map((i) =>
+          [[whoAt(i)], [short(keyOf(i)!)], srcOf(i)])),
+        source: "from: the page", chip: g.inputs[0].name,
+        chipLabel: "input" });
+    }
+  }
+
+  // (2) declared
+  if (declared) {
+    const words = ask((h) => h.declared?.(cx, declared!));
+    if (words) step({ phase: "declared", id: `declared|${variable}`,
+      band: ["~var"], ...words });
+    else if (declared.context) {
+      const r = declared.context;
+      const fs = computed(declared.i?.fields);
+      step({ phase: "declared", id: `declared|${variable}`, band: ["~var"],
+        cap: `\`${variable}\` is at ${placeText(r)}`,
+        form: fs.length ? { kind: "lines", lines: [...fs.map((fl) =>
+          [fieldText(r, fl, declared!.i?.bindings)]), [`${variable} = ${
+          node.value?.text ?? valueText(r)}`]] }
+          : text(`${variable} = ${node.value?.text ?? valueText(r)}`),
+        constructs: ["pointer"], source: COMPILER,
+        chip: placeText(r), chipLabel: "value",
+        parts: [{ regions: [r], rows: [variable], colours: M }],
+        rows: [variable] });
+    } else {
+      const k = Object.keys((g.pointer as Any)?.define ?? {})[0] ?? "slot";
+      step({ phase: "declared", id: `declared|${variable}`, band: ["~var"],
+        cap: `\`${variable}\`'s pointer defines \`${k}\` = ${small(
+          declared.slot!)}`,
+        form: text(), constructs: ["pointer"], source: COMPILER,
+        chip: `${k} ${small(declared.slot!)}`, chipLabel: "value",
+        parts: [{ regions: [], rows: [variable], colours: M }],
+        rows: [variable] });
+    }
+  }
+
+  // (3) the pointer's nodes, in document order
+  let openIf: Any = null; // an `if` step and its branches' places
+  let pending: Nd[] = []; // defines and lists folded into the next region
+  const inBranch = (nd: Nd) => openIf && openIf.branches.some((b: Any[]) =>
+    nd.block === openIf.block && b.every((k, j) => nd.at[j] === k));
   for (const nd of order) {
     if (openIf && !inBranch(nd)) openIf = null;
     const xs = [...nd.by.values()];
@@ -480,8 +535,8 @@ export function walkthrough(x: WalkInput, path: Path, focus?: string):
       const ks = (nd.s.expect ?? []) as string[];
       const vals = (k: string) => [...new Set(xs.map((y) =>
         y.s.inputs?.[k]?.hex))];
-      const valOf = (y: X, k: string) => k === "key" ? who(y.inst)
-        : small(y.s.inputs[k].hex);
+      const valOf = (y: X, k: string) => inputNames.includes(k) ||
+        k === "key" ? who(y.inst) : small(y.s.inputs[k].hex);
       const what = (k: string) => {
         const vs = vals(k);
         if (vs.length === 1 && vs[0] !== undefined) {
@@ -493,13 +548,13 @@ export function walkthrough(x: WalkInput, path: Path, focus?: string):
       step({ phase: "template", tkind: t?.kind, id: nd.k,
         notes: { block: nd.s.name, values: Object.fromEntries(ks.filter((k) =>
           fx.s.inputs?.[k]).map((k) => [k, valOf(fx, k)])) },
-        cap: `The template \`${tn(nd.s.name)}\` takes ${ks.map((k) =>
-          `\`${k}\``).join(" and ")}`,
+        cap: ks.length ? `The template \`${tn(nd.s.name)}\` takes ${ks.map(
+          (k) => `\`${k}\``).join(" and ")}`
+          : `The template \`${tn(nd.s.name)}\` takes nothing`,
         form: text(ks.map(what).join("; ")),
         constructs: ["template"], source: COMPILER,
         chip: tn(nd.s.name), chipLabel: "template",
-        gutters: [...new Set(xs.map((y) => y.s.inputs?.slot?.hex)
-          .filter(Boolean).map((h) => w32(h)))],
+        gutters: ask((h) => h.anchors?.(cx, nd, xs)) ?? [],
         parts: [{ regions: [], rows: [variable], colours: M }],
         rows: [variable], band: tband });
       continue;
@@ -508,67 +563,34 @@ export function walkthrough(x: WalkInput, path: Path, focus?: string):
       const into = getAt(nd.block, [...nd.at.slice(0, -2), "in"]);
       if (into && typeof into === "object" && "template" in into) {
         // the hand-off into a nested template
+        const band = [...defineBand(nd), pos(nd.block, [...nd.at.slice(0,
+          -2), "in"])];
+        const words = ask((h) => h.handoff?.(cx, nd, xs, into));
         const t = types[into.template];
         const op = opOf(nd.s.expr);
-        // (one spelling: keccak(alice, slot 3); slot + 1)
-        const formula = (y: X) => {
-          const v = y.s.value.hex as Hex;
-          if (op === "~keccak256" && y.s.args?.length === 2) {
-            const [, b] = y.s.args.map((z: Any) => z.value.hex);
-            return `keccak(${who(y.inst)}, slot ${small(b)}) = ${tail(v)}`;
-          }
-          if (op === "~sum") {
-            const base = inputs.get(`${y.inst}|${types[nd.block]?.kind}`)
-              ?.slot?.hex;
-            const dd = base ? toBig(v) - toBig(base) : null;
-            return base ? `${tail(base)} + ${dd} = ${tail(v)}` : tail(v);
-          }
-          return `${nd.s.id} = ${small(v)}`;
-        };
+        if (words) {
+          step({ phase: "handoff", tkind: t?.kind, id: nd.k, band,
+            ...words });
+          continue;
+        }
+        const many = xs.length > 1;
+        const fy = xs.find((y) => y.inst === f) ?? xs[0];
         const leafOf = (y: X) => y.leaves.find((l) => l.path !== y.inst) ??
           y.leaves[0];
-        const fname = (y: X) => leafOf(y).path.slice(y.inst.length)
-          .replace(/^\./, "") || leafOf(y).label;
-        const many = xs.length > 1;
-        const isRecord = t?.kind === "struct";
-        const slotN = small(xs[0].s.args?.[1]?.value.hex ?? "0x0");
-        // (the first hash of the walkthrough says what it hashes)
-        const hashGloss = op === "~keccak256" && !out.some((y) =>
-          y.phase === "handoff" && y.constructs.includes("~keccak256"));
-        const into1 = `the template \`${tn(into.template)}\` takes it as ` +
-          "its `slot`";
-        const rows = isRecord ? xs.map((y) => y.inst)
-          : xs.map((y) => leafOf(y).path);
-        const fm: Form = many ? table(xs.map((y) => [[who(y.inst)],
-          [formula(y)], kOf(y.inst)])) : text(formula(xs[0]));
-        // (its variables, as the focus has them)
-        const fy = xs.find((y) => y.inst === f) ?? xs[0];
-        const base = inputs.get(`${fy.inst}|${types[nd.block]?.kind}`);
-        const notes: Record<string, string> = {};
-        if (base?.key) notes.key = who(fy.inst);
-        if (base?.slot) notes.slot = small(base.slot.hex);
-        step({ phase: "handoff", tkind: t?.kind, id: nd.k,
-          notes: { block: nd.block, values: notes },
-          cap: isRecord ? `${many ? "Each record is" : "The record is"} ` +
-            `at keccak(key, slot ${slotN}); ${into1}`
-            : `\`${fname(xs[0])}\` is in the next slot, slot + 1; ${into1}`,
-          form: hashGloss && fm.kind === "text" ? text(formula(xs[0]),
-            { prose: "  (keccak of two 32-byte words: the key, then the " +
-              "slot)" }) : fm,
-          constructs: ["define", ...(op ? [op] : [])],
-          source: COMPILER,
-          chip: isRecord ? `keccak(key, slot ${slotN})` : fname(xs[0]),
-          chipLabel: isRecord ? "record" : tn(into.template),
-          // (the computed slots, lit whole, as a region is: in each
-          // entry's colour; one entry alone, the selection's yellow;
-          // with one entry in focus, the others echo)
-          parts: xs.map((y) => ({ regions: [], rows: [isRecord ? y.inst
-            : leafOf(y).path], colours: M, k: xs.length === 1 ? 0
-            : kOf(y.inst), dim: !every && y.inst !== f,
-            wholes: [w32(y.s.value.hex)] })),
-          rows,
-          band: [...defineBand(nd), pos(nd.block, [...nd.at.slice(0, -2),
-            "in"])] });
+        step({ phase: "handoff", tkind: t?.kind, id: nd.k, band,
+          notes: { block: nd.block, values: Object.fromEntries(Object
+            .entries(fy.s.bindings ?? {}).map(([k, v]) => [k,
+              inputNames.includes(k) ? who(fy.inst) : small(v as Hex)])) },
+          cap: `\`${nd.s.id}\` = ${exprText(nd.s.expr)}; the template ` +
+            `\`${tn(into.template)}\` takes it as its \`${nd.s.id}\``,
+          form: many ? table(xs.map((y) => [[who(y.inst)], [formula(y)],
+            kOf(y.inst)])) : text(formula(xs[0])),
+          constructs: ["define", ...(op ? [op] : [])], source: COMPILER,
+          chip: nd.s.id, chipLabel: tn(into.template),
+          parts: xs.map((y) => ({ regions: [], rows: [leafOf(y).path],
+            colours: M, k: xs.length === 1 ? 0 : kOf(y.inst),
+            dim: !every && y.inst !== f })),
+          rows: xs.map((y) => leafOf(y).path) });
         continue;
       }
       if (openIf && hasRead(nd) && inBranch(nd)) {
@@ -588,10 +610,11 @@ export function walkthrough(x: WalkInput, path: Path, focus?: string):
       const branches = [...new Set(xs.map((y) => y.s.branch as string))];
       openIf = { block: nd.block, branches: branches.map((b) => [...P, b]),
         absorbed: [], nd };
+      const loc = (regionsOf(nd)[0] ?? xs[0]?.leaves[0]?.regions[0])
+        ?.location ?? "storage";
       openIf.st = step({ phase: "if", id: nd.k,
-        constructs: ["if"], source: STORAGE,
-        chip: branches.length > 1 ? "short | long" : branches[0] === "then"
-          ? "short" : "long", chipLabel: "branch",
+        constructs: ["if"], source: READ(loc),
+        chip: branches.join(" | "), chipLabel: "branch",
         band: [pos(nd.block, nd.at), ...branches.map((b) =>
           exact(nd.block, [...P, b]))] });
       (openIf.st as Any)._node = nd;
@@ -610,230 +633,169 @@ export function walkthrough(x: WalkInput, path: Path, focus?: string):
       continue;
     }
     if (read) {
-      const vals = xs.map((y) => [y, y.regions[0]] as const);
-      const byte = (r: ResolvedRegion) => {
-        const wv = wordAt(r.slot!) ?? "0x0";
-        if (name === "length-flag") return `0x${w32(wv as Hex).slice(-2)}`;
-        return String(toBig(wv));
-      };
+      const band = [pos(nd.block, nd.at)];
+      const rows = [...new Set(instRows(nd))];
+      const parts = [{ regions: regionsOf(nd), rows, colours: M }];
+      const words = ask((h) => h.read?.(cx, nd, xs));
+      if (words) {
+        step({ phase: "read", rname: name, id: nd.k, band, parts, rows,
+          ...words });
+        continue;
+      }
+      const r0 = xs[0].regions[0];
       const many = xs.length > 1;
-      // (the rule in the caption, the value in the form)
-      // (a string by its own name: `name`, `motd`)
-      const sname = (xs[0].leaves[0]?.path ?? "").split(".").pop()!
-        .replace(/\[.*$/, "");
-      const lbl = name === "length-flag" ? `The last byte of \`${sname
-        }\`'s slot is its length flag` : name === "length" ? `Slot ${small(
-          vals[0][1].slot!)} holds the length` : `\`${name}\` is read`;
-      step({ phase: "read", rname: name, id: nd.k,
-        cap: many && name === "length-flag" ? "The last byte of each " +
-          `\`${sname}\` slot is its length flag` : lbl,
-        form: many ? table(vals.map(([y, r]) => [[who(y.inst)], [byte(r)],
-          kLeaf(y)])) : strip([{ name: `${name} = ${byte(vals[0][1])}`,
-          from: vals[0][1].offset, to: vals[0][1].offset +
-            vals[0][1].length - 1, k: kLeaf(vals[0][0]) }]),
-        constructs: ["region"], source: STORAGE,
-        chip: name === "length-flag" ? "flag" : name,
-        chipLabel: name === "length" ? "array" : "string",
-        parts: [{ regions: regionsOf(nd), rows: [...new Set(instRows(nd))],
-          colours: M }],
-        rows: [...new Set(instRows(nd))], band: [pos(nd.block, nd.at)] });
+      const fs = computed(xs[0].s.fields);
+      const more = xs[0].regions.length - 1;
+      step({ phase: "read", rname: name, id: nd.k, band, parts, rows,
+        cap: `\`${name}\` is read: ${placeText(r0)}${more > 0 ? ` (and ${
+          nWord(more)} more)` : ""}`,
+        form: many ? table(xs.map((y) => [[who(y.inst)], [`${name} = ${
+          valueText(y.regions[0])}`], kLeaf(y)]))
+          : { kind: "lines", lines: [...fs.map((fl) => [fieldText(r0, fl,
+            xs[0].s.bindings)]),
+            [`${name} = ${valueText(r0)}`]] },
+        constructs: [`region:${r0.location}`], source: READ(r0.location),
+        chip: name, chipLabel: "region" });
       continue;
     }
     // a value's own region: a field, a string's data, a list's item
-    const prev = out.at(-1) as Any;
-    const parent = nd.at.slice(0, -1).join(".");
     const folded = pending;
     pending = [];
     const bandR = [pos(nd.block, nd.at), ...folded.flatMap((p) =>
       p.kind === "define" ? defineBand(p) : [pos(p.block, p.at)])];
-    if (name === "item" || folded.some((p) => p.kind === "list")) {
-      const data = folded.find((p) => p.kind === "define");
-      const base = data ? [...data.by.values()][0].s.args?.[0]?.value.hex
-        ?? declared?.slot : declared?.slot;
-      const start = data ? [...data.by.values()][0].s.value.hex : null;
-      const idx = order.find((n) => n.kind === "list");
-      const is = idx ? [...idx.by.values()].map((y) => +y.s.index)
-        .sort((a, b) => a - b) : [];
-      const one = is.length === 1;
-      step({ phase: "item", id: nd.k,
-        cap: one ? `The items start at keccak(slot ${small(base)})`
-          : `The items start at keccak(slot ${small(base)}), one slot each, ` +
-            "for `length` items",
-        form: text(`keccak(slot ${small(base)}) = ${start ? tail(start) : "?"}${
-          one ? `; item ${is[0]} at + ${is[0]}` : `; items ${is[0]}…${is.at(
-            -1)} at + i`}`),
-        constructs: ["~keccak256", "list"], source: COMPILER,
-        chip: `keccak(slot ${small(base)})`, chipLabel: "items",
-        parts: [{ regions: regionsOf(nd), rows: instRows(nd), colours: M }],
-        rows: instRows(nd), band: bandR });
-      continue;
-    }
-    if (name === "data" || name?.endsWith("-data")) {
-      const ifn = order.find((n) => n.kind === "if");
-      const long = !!ifn && xs.every((y) => ifn.by.get(y.inst)?.s.branch ===
-        "else");
-      const lenOf = (y: X) => y.regions[0]?.length ?? 0;
-      const many = xs.length > 1;
-      const slots = (y: X) => Math.ceil(lenOf(y) / 32);
-      const one = xs[0];
-      const startOf = folded.length ? [...folded[0].by.values()][0].s
-        .args?.[0]?.value.hex ?? one.regions[0].slot : one.regions[0].slot;
-      step({ phase: "data", id: nd.k,
-        cap: many ? long ? "Each long text starts at keccak(its slot)"
-          : "Each short text is in its slot, from the left"
-          : long ? `The text starts at keccak(slot ${tail(startOf)}) = ${
-            tail(one.regions[0].slot!)}: ${lenOf(one)} bytes over ${slots(one)
-            } ${slots(one) === 1 ? "slot" : "slots"}`
-            : `The text is in the slot itself: ${lenOf(one)} bytes from ` +
-              "the left",
-        form: many ? table(xs.map((y) => [[who(y.inst)], [`${lenOf(y)
-          } bytes at ${tail(y.regions[0].slot!)}`], kLeaf(y)]))
-          : text(xs[0].leaves.at(-1)!.value?.text ?? ""),
-        constructs: long ? ["~keccak256", "region"] : ["region"],
-        source: COMPILER, chip: long ? "keccak(slot …)"
-          : "inline", chipLabel: "text",
-        parts: [{ regions: regionsOf(nd), rows: [...new Set(instRows(nd))],
-          colours: M }],
-        rows: [...new Set(instRows(nd))], band: bandR });
-      continue;
-    }
-    // fields: the siblings in one group, one step
-    if (prev?.phase === "fields" && prev._parent === `${nd.block}|${parent}`
-      && !folded.length) {
-      prev._nodes.push(nd);
-      prev.band.push(...bandR);
-      continue;
-    }
-    const st = step({ phase: "fields", id: `fields|${nd.block}|${parent}`,
-      band: bandR, constructs: ["region"], source: COMPILER,
-      chipLabel: "fields" }) as Any;
-    st._parent = `${nd.block}|${parent}`;
-    st._nodes = [nd];
+    if (hs.some((h) => h.value?.(cx, nd, xs, folded, bandR))) continue;
+    const y0 = xs.find((y) => y.inst === f) ?? xs[0];
+    const r0 = y0.regions[0];
+    const lbl = (y: X) => (y.leaves.find((l) => l.path !== y.inst) ??
+      y.leaves[0])?.label ?? name;
+    const nameR = name ?? lbl(y0);
+    const rs = regionsOf(nd);
+    const fs = computed(y0.s.fields);
+    const many = xs.length > 1;
+    // (the defines and lists folded into it: each, as the focus has it)
+    const lead: Tok[][] = folded.flatMap((p) => {
+      const py = p.by.get(y0.inst) ?? [...p.by.values()][0];
+      if (!py) return [];
+      if (p.kind === "list") {
+        const n = rs.length;
+        return [[`${py.s.each} = 0…${Math.max(0, n - 1)}: ${n} ${n === 1
+          ? "item" : "items"} (count = ${exprText(py.s.count)})`]];
+      }
+      return [[formula(py)]];
+    });
+    const placeOfAll = rs.length > 1
+      ? `${placeText(rs[0])} … ${placeText(rs.at(-1)!)}` : placeText(r0);
+    step({ phase: "value", id: nd.k, band: bandR,
+      cap: many ? `Each \`${nameR}\` is at its own place`
+        : `\`${nameR}\` is at ${placeOfAll}`,
+      form: many ? table(xs.map((y) => [[who(y.inst)], [placeText(
+        y.regions[0])], kLeaf(y)]))
+        : { kind: "lines", lines: [...lead, ...fs.map((fl) =>
+          [fieldText(r0, fl, y0.s.bindings)]), ...rs.length === 1
+          ? [[`${lbl(y0)} = ${y0.leaves[0]?.value?.text ?? valueText(r0)}`]]
+          : []] },
+      constructs: [`region:${r0.location}`, ...folded.map((p) => p.kind)],
+      source: COMPILER, chip: nameR, chipLabel: "region",
+      parts: [{ regions: rs, rows: [...new Set(instRows(nd))],
+        colours: M }],
+      rows: [...new Set(instRows(nd))] });
   }
 
-  // the fields steps, now that their nodes are known
-  for (const st of out.filter((y) => y.phase === "fields") as Any[]) {
-    const kc = fieldColours();
-    const fs = (st._nodes as Nd[]).flatMap((nd) => [...nd.by.values()]
-      .map((y) => ({ y, nd, leaf: y.leaves[0], region: y.regions[0] })));
-    const mine = fs.filter((z) => z.y.inst === f);
-    const items = [...mine].sort((a, b) => a.region.offset - b.region.offset);
-    const n = st._nodes.length;
-    const nm = (z: typeof fs[0]) => z.leaf.path.slice(z.y.inst.length)
-      .replace(/^\./, "") || z.leaf.label;
-    const row = items[0] && w32(items[0].region.slot!);
-    Object.assign(st, {
-      cap: n > 1 ? `The first slot packs ${nWord(n)} fields, from ` +
-        "the right"
-        : `\`${nm(items[0])}\` is ${bytesText(items[0].region)} of the ` +
-          "record's first slot",
-      // (the byte strip: the word, its fields over their bytes)
-      form: strip(items.map((z) => ({ path: z.leaf.path, name: nm(z),
-        from: z.region.offset, to: z.region.offset + z.region.length - 1,
-        k: kc(z.leaf.path) }))),
-      chip: n > 1 ? `${n} fields` : nm(items[0]),
-      chipLabel: n > 1 ? "fields" : "field",
-      ruler: row,
-      parts: fs.map((z) => ({ regions: [z.region], rows: [z.leaf.path],
-        colours: new Map([[z.leaf.path, kc(z.leaf.path)]]),
-        dim: !every && z.y.inst !== f })),
-      rows: (every ? fs : mine).map((z) => z.leaf.path) });
-    delete st._nodes;
-    delete st._parent;
-  }
+  // the steps an annotator completes (its deferred words), or adds
+  for (const h of hs) h.finish?.(cx);
 
   // the `if` steps, now that what they took in is known
   for (const st of out.filter((y) => y.phase === "if") as Any[]) {
     const nodeIf = st._node as Nd;
     const sx = st._xs as X[];
-    const branchOf = new Map(sx.map((y) => [y.inst, y.s.branch]));
-    const flagOf = (i: string) => {
-      const r = order.find((n) => n.kind === "region" && n.s.name ===
-        "length-flag")?.by.get(i)?.regions[0];
-      return r ? w32((wordAt(r.slot!) ?? "0x0") as Hex) : null;
-    };
-    const lens = (i: string) => {
-      const w = flagOf(i);
-      if (!w) return null;
-      return branchOf.get(i) === "then" ? toBig("0x" + w.slice(-2)) / 2n
-        : (toBig(w) - 1n) / 2n;
-    };
-    const shorts = sx.filter((y) => y.s.branch === "then");
-    const longs = sx.filter((y) => y.s.branch === "else");
-    // what it lights: the regions it took in, else the flag it reads
-    const regs = (i: string) => {
-      const ownR = order.filter((n) => n.kind === "region" &&
-        reads(n.block, n.s.name) && n.by.has(i) && n.line > nodeIf.line &&
-        st.band.includes(pos(n.block, n.at)))
-        .flatMap((n) => n.by.get(i)!.regions);
-      if (ownR.length) return ownR;
-      return order.find((n) => n.kind === "region" && n.s.name ===
-        "length-flag")?.by.get(i)?.regions ?? [];
-    };
+    delete st._node;
+    delete st._xs;
+    const words = ask((h) => h.branch?.(cx, st, nodeIf, sx));
+    if (words) {
+      Object.assign(st, words);
+      continue;
+    }
+    // what it lights: the regions it took in
+    const regs = (i: string) => order.filter((n) => n.kind === "region" &&
+      reads(n.block, n.s.name) && n.by.has(i) && n.line > nodeIf.line &&
+      st.band.includes(pos(n.block, n.at))).flatMap((n) =>
+      n.by.get(i)!.regions);
     const rowsOf = (i: string) => sx.find((y) => y.inst === i)!.leaves
       .map((l) => l.path);
-    const ex = (list: X[]) => list.find((y) => y.inst === f) ?? list[0];
-    const many = sx.length > 1;
-    const line = (y: X) => y.s.branch === "then"
-      ? `even: 0x${flagOf(y.inst)?.slice(-2)} → ${lens(y.inst)} bytes inline`
-      : `odd: 0x${flagOf(y.inst)?.slice(-2)} → ${lens(y.inst)} bytes at ` +
-        `keccak(slot ${tail(regs(y.inst)[0]?.slot ?? 0n)})`;
-    const names = (list: X[]) => list.map((y) => who(y.inst)).join(", ");
-    const fork = shorts.length && longs.length;
+    const cond = exprText(sx[0].s.cond.expr);
+    const line = (y: X) => `${exprText(y.s.cond.expr, (a) =>
+      typeof a === "string" && y.s.bindings?.[a] !== undefined
+        ? small(y.s.bindings[a]) : undefined, false)} → ${y.s.branch}`;
+    const branches = [...new Set(sx.map((y) => y.s.branch))];
     Object.assign(st, {
-      cap: fork ? `The last byte decides the form: even → short (${names(
-        shorts)}), odd → long (${names(longs)})`
-        : !flagOf(sx[0].inst) ? `The condition takes \`${sx[0].s.branch}\``
-          : longs.length ? many ? "Odd → long: each slot holds 2 × " +
-            "length + 1" : "Odd → long: the slot holds 2 × length + 1, " +
-            `so length = ${lens(longs[0].inst)}`
-            : many ? "Even → short: the last byte holds 2 × length"
-              : "Even → short: the last byte holds 2 × length, so " +
-                `length = ${lens(shorts[0].inst)}`,
-      form: fork ? { kind: "lines", lines: [ex(shorts), ex(longs)].map((y) =>
-        [line(y), " ", { prose: `(${who(y.inst)})` }]) } as Form
-        : many ? table(sx.map((y) => [[who(y.inst)], [line(y)],
-          kLeaf(y)])) : text(line(sx[0])),
+      cap: branches.length > 1 ? `The condition \`${cond}\` parts the ` +
+        "instances: some take `then`, some `else`"
+        : `The condition \`${cond}\` takes \`${branches[0]}\``,
+      form: sx.length > 1 ? table(sx.map((y) => [[who(y.inst)], [line(y)],
+        kLeaf(y)])) : text(line(sx[0])),
       parts: [{ regions: sx.flatMap((y) => regs(y.inst)),
         rows: sx.flatMap((y) => rowsOf(y.inst)), colours: M }],
       rows: sx.flatMap((y) => rowsOf(y.inst)) });
-    delete st._node;
-    delete st._xs;
   }
 
   // step 0, the goal (vanilla c62550a): when the selection takes more
-  // than one slot or region, every slot the walkthrough touches (but its
-  // inputs'), whole, in the selection's yellow, with no label: which
-  // bytes are what is what the steps find
-  const touched = slotsOf(out.filter((y) => y.phase !== "input"));
-  const allS = [...touched].sort((a, b) => toBig(a) < toBig(b) ? -1 : 1);
+  // than one row or region (or reads one to find it), every row of its
+  // location the walkthrough touches (but its inputs'), whole, in the
+  // selection's yellow, with no label: which bytes are what is what the
+  // steps find
   const ownR = leaves.filter((l) => inTarget(l.path))
     .flatMap((l) => l.regions);
-  const ownS = new Set(ownR.flatMap(spanned));
+  const readR = node.reads ?? [];
+  const byOrder = (a: Hex, b: Hex) => toBig(a) < toBig(b) ? -1 : 1;
+  // (per location: the rows touched, its own, those read to find it)
+  const locs = [...new Set([...ownR, ...readR].map((r) => r.location))];
+  if (!locs.length) locs.push("storage");
+  const per = locs.map((l) => {
+    const own = new Set(ownR.filter((r) => r.location === l)
+      .flatMap(spanned));
+    return { l, own,
+      all: [...slotsOf(out.filter((y) => y.phase !== "input"), l)]
+        .sort(byOrder),
+      read: new Set(readR.filter((r) => r.location === l).flatMap(spanned)
+        .filter((h) => !own.has(h))) };
+  });
+  const allS = per.flatMap((q) => q.all);
+  const ownN = per.reduce((n, q) => n + q.own.size, 0);
   const sk = pathName(path);
-  const foreign = x.contrast;
-  if (ownS.size > 1 || ownR.length > 1) {
-    // (scattered: the selection's own slots are not one run)
-    const own = [...ownS].sort((a, b) => toBig(a) < toBig(b) ? -1 : 1);
-    const apart = own.some((h, k) => k > 0 &&
-      toBig(h) - toBig(own[k - 1]) > 1n);
-    const none = allS.filter((h) => !ownS.has(h)).length;
+  if (ownN > 1 || ownR.length + readR.length > 1) {
+    const [{ l: loc, own: ownS }] = per;
+    // (scattered: the selection's own rows are not one run)
+    const mine = [...ownS].sort(byOrder);
+    const step1 = addressing(loc) === "slot" ? 1n : 32n;
+    const apart = mine.some((h, k) => k > 0 &&
+      toBig(h) - toBig(mine[k - 1]) > step1);
+    const none = per[0].all.filter((h) => !ownS.has(h)).length;
     const n = allS.length;
     // (one side of a pair: "After setMotd, this slot holds `motd`.")
     const when = x.when ? `${x.when[0].toUpperCase()}${x.when.slice(1)}, `
       : "";
     const up = (t: string) => when ? t : t[0].toUpperCase() + t.slice(1);
-    out.unshift({ id: "goal", phase: "goal", goal: true,
-      cap: foreign ? `${when}${up("these")} are the ${n === 1 ? "slot"
-        : `${n} slots`} ${RULE(foreign.language)} would read for \`${sk}\`.`
-        : `${when}${up(n === 1 ? "this slot holds" : `these ${n} slots belong to`)
-          } \`${sk}\`${apart ? ", scattered across storage" : ""}${none
-          ? `; ${none === 1 ? "one of them holds" : `${nWord(none)} of them hold`
-          } none of its data` : ""}.`,
+    // (rows of more than one location: places)
+    const nn = per.length > 1 ? n === 1 ? "place" : "places" : noun(loc, n);
+    // (rows read to find it, not its own: a local's frame pointer)
+    const k = per.reduce((m, q) => m + q.read.size, 0);
+    const cap = ask((h) => h.goal?.(cx, { when, up, n, noun: nn })) ??
+      (k ? `${when}${up(`these ${n} ${nn} find`)} \`${sk}\`: ${ownN === 1
+        ? "one holds it" : `${nWord(ownN)} hold it`}; ${k === 1
+        ? "one is read to find it" : `${nWord(k)} are read to find it`}.`
+        : undefined) ??
+      (per.length > 1 ? `${when}${up(`these ${n} ${nn} belong to`)} \`${
+        sk}\`, in ${locs.join(" and ")}.` : undefined) ??
+      `${when}${up(n === 1 ? `this ${nn} holds` : `these ${n} ${nn} belong to`)
+      } \`${sk}\`${apart ? `, scattered across ${loc}` : ""}${none
+        ? `; ${none === 1 ? "one of them holds" : `${nWord(none)} of them hold`
+        } none of its data` : ""}.`;
+    out.unshift({ id: "goal", phase: "goal", goal: true, cap,
       form: text({ question: n === 1 ? "Which rules find it, and what does " +
         "it mean?" : "Which rules find them, and what do they mean?" }),
       constructs: [], source: "", chip: "", chipLabel: "",
-      parts: [{ regions: [], rows: [path], slots: allS }],
+      parts: per.map((q) => ({ regions: [], rows: [path], slots: q.all,
+        ...q.l !== "storage" ? { at: q.l } : {} })),
       rows: [path], gutters: [], band: [] });
   }
   // the last step, "found": the selection as it rests, its colours and
@@ -847,7 +809,7 @@ export function walkthrough(x: WalkInput, path: Path, focus?: string):
       ? types[t.contains?.value?.type?.id] : null;
     // (a plain statement of the result: "`players` holds 3 records:
     // alice, bob, carol."; "`totalScore` = 140.")
-    const whoList = isRec && t?.kind === "mapping"
+    const whoList = insts.some((i) => keyOf(i)) && t?.kind === "mapping"
       ? `: ${insts.map(who).join(", ")}` : "";
     const parts = t?.kind === "mapping" ? `${n} ${vt?.kind === "struct"
       ? n === 1 ? "record" : "records" : n === 1 ? "entry" : "entries"}${
@@ -857,82 +819,44 @@ export function walkthrough(x: WalkInput, path: Path, focus?: string):
     const said = parts ? `\`${sk}\` holds ${parts}`
       : `\`${sk}\` = ${node.value?.text ?? ""}`;
     out.push({ id: "found", phase: "found",
-      cap: foreign ? `${RULE(foreign.language)} reads ${parts
-        ? `\`${sk}\` as ${parts}` : `\`${sk}\` = ${node.value?.text ?? ""}`}.`
-        : `${said}.`,
+      cap: ask((h) => h.found?.(cx, { parts })) ?? `${said}.`,
       form: text(), constructs: [], source: "", chip: "found",
       chipLabel: sk, parts: [], rows: [path], gutters: [], band: [] });
   }
-  // another compiler's storage: the walkthrough ends by naming the
-  // misread, with that compiler's own layout, hand-written for comparison
-  // (no ethdebug from it): its words for the selection, in a colour of
-  // their own
-  if (foreign && out.length) {
-    const cd = foreign.d;
-    const L = LANG(foreign.language);
-    const words: { slot: Hex; name: string; text: string;
-      r: ResolvedRegion }[] = [];
-    const visitC = (n: ValueNode) => {
-      for (const r of n.regions) {
-        if (r.slot === undefined) continue;
-        words.push({ slot: w32(r.slot), r, name: n.path.slice(
-          (entryPath(n.path) ?? "").length).replace(/^\./, "") || n.label,
-        text: r.role === "length" ? "length" : n.value?.text ?? "" });
-      }
-      (n.children ?? []).forEach(visitC);
-    };
-    const mine = cd.byPath.get(path);
-    if (mine) visitC(mine);
-    if (words.length) {
-      const read = node.value?.text;
-      const theirs = mine?.value?.text;
-      const one = words.length === 1;
-      // (what the slots Solidity's rule read hold in this storage)
-      const solS = [...ownS];
-      const blank = solS.every((h) => !toBig(wordAt(h) ?? "0x0"));
-      out.push({ id: "external", phase: "external",
-        cap: `The misread: ${L} keeps \`${sk}\` ${one ? `in slot ${tail(
-          words[0].slot)}` : "in other slots"}${theirs !== undefined
-          ? `, where it is ${theirs}` : ""}; ${RULE(foreign.language)} ${
-          read !== undefined ? `read ${read} ` : "read "}from ${solS.length
-          === 1 ? `slot ${tail(solS[0])}` : "slots"} where ${L} keeps ${
-          blank ? "nothing" : "other data"}.`,
-        form: table(words.map((w) => [[tail(w.slot)], [w.r.role === "length"
-          ? `${w.name} (length)` : `${w.name} = ${w.text}`], 9])),
-        constructs: [], source: `from: ${L}'s layout, hand-written for ` +
-          `comparison (${L} emits no ethdebug)`, chip: L,
-        chipLabel: "hand-written",
-        parts: [{ regions: words.map((w) => w.r), rows: [], k: 9 },
-          { regions: ownR, rows: [path], colours: M }],
-        rows: [path], gutters: [], band: [] });
-    }
-  }
+  // (and the steps an annotator adds after them: another rule's reading)
+  for (const h of hs) h.extra?.(cx);
   const names = new Map<string, string>();
-  for (const i of insts) {
-    const k = keyOf(i);
-    if (k && nameOf(i)) names.set(short(k), whoShort(i));
-  }
+  for (const h of hs) h.names?.(cx).forEach((v, k) => names.set(k, v));
   return { target: path, steps: out, recs, focus: every ? "*" : f,
     variable, span: allS, names, name: sk };
 }
 
-// The slots steps touch: their regions' (whole), their parts' slots,
-// their gutters
-export function slotsOf(steps: Step[]): Set<Hex> {
+// The rows of a location that steps touch: their regions' (whole),
+// their parts' slots, their gutters (storage's: a slot computed whole)
+export function slotsOf(steps: Step[], location: Location = "storage"):
+  Set<Hex> {
   const out = new Set<Hex>();
+  const store = location === "storage";
   for (const st of steps) {
     for (const p of st.parts) {
-      for (const r of p.regions) spanned(r).forEach((h) => out.add(h));
-      for (const h of p.slots ?? []) out.add(h);
-      for (const h of p.wholes ?? []) out.add(h);
+      for (const r of p.regions) {
+        if (r.location === location) spanned(r).forEach((h) => out.add(h));
+      }
+      if ((p.at ?? "storage") === location) {
+        for (const h of p.slots ?? []) out.add(h);
+      }
+      if (store) for (const h of p.wholes ?? []) out.add(h);
     }
-    for (const h of st.gutters) out.add(h);
+    if (store) for (const h of st.gutters) out.add(h);
   }
   return out;
 }
 
-// the slots a region spans
+// the rows a region spans (storage's: slots; a segment's: its words)
 function spanned(r: ResolvedRegion): Hex[] {
+  if (r.location !== "storage") {
+    return [...new Set(regionBytes(r).map(([row]) => row))];
+  }
   if (r.slot === undefined) return [];
   const n = Math.max(1, Math.ceil((r.offset + r.length) / 32));
   return Array.from({ length: n }, (_, k) => slotHex(r.slot! + BigInt(k)));

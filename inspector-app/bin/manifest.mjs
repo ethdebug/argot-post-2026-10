@@ -8,9 +8,8 @@
 // selectors: a click (as run.mjs taps: the element's click(), no
 // pointer), a focus (the page lights what has focus as what is pointed
 // at), or a key. `walk: "all"` makes one screenshot per walkthrough
-// step, counted on the page at run time: in the storage section, Start
-// then Next until Next is disabled; in the memory section, each step of
-// the selected value's derivation ("#mhow li[data-region]"), focused.
+// step, counted on the page at run time: Start then Next until Next is
+// disabled, in either section's walkthrough.
 import { fileURLToPath } from "node:url";
 
 // alice, bob and carol (as in vanilla bin/run.mjs)

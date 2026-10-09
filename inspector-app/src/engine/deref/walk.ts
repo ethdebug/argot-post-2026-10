@@ -44,8 +44,9 @@ export async function walk(pointer: Format.Pointer, o: {
   state: Machine.State; templates: Format.Pointer.Templates;
   inputs: InputNode[]; root: string }): Promise<DerefGraph> {
   const nodes = new Map<NodeId, RuleNode & { instances: Instance[] }>();
-  const templates = o.templates as Record<string, { expect?: string[];
-    for: P }>;
+  // (a copy: a pointer's own `templates` add to it while inside them)
+  const templates = { ...o.templates } as Record<string, {
+    expect?: string[]; for: P }>;
   let seq = 0;
 
   const node = (id: NodeId, kind: NodeKind, ast: P, template?: string,
@@ -75,9 +76,10 @@ export async function walk(pointer: Format.Pointer, o: {
         chain.pop();
       }
     };
-    const ev = (expr: unknown, variables: Record<string, Value>) =>
-      evaluate(expr as never, { state: o.state, regions: { ...regions } as
-        never, variables: variables as never }) as Promise<Value>;
+    const ev = (expr: unknown, variables: Record<string, Value>,
+      self?: object) => evaluate(expr as never, { state: o.state,
+      regions: { ...regions, ...(self ? { "~this": self } : {}) } as never,
+      variables: variables as never }) as Promise<Value>;
 
     // a new instance of a node, with the edges of the expressions it
     // evaluates (`exprs`), in a scope (`scope`: name -> its source)
@@ -119,9 +121,35 @@ export async function walk(pointer: Format.Pointer, o: {
         // (each field's expression and value, and an operation's operands
         // that are expressions themselves: vanilla replay's explain)
         const fields: NonNullable<Instance["fields"]> = [];
+        // (the fields in a queue, as the library's evaluateRegion: a
+        // field may look up another of its own region's, `~this`)
+        const done: Record<string, Data> = {};
+        const self = new Proxy({ ...p }, { get(_t, k) {
+          if (typeof k === "string" && k in done) return done[k];
+          throw new Error(`Property not evaluated yet: ~this.${String(k)}`);
+        } });
+        const queue = (["slot", "offset", "length"] as const)
+          .filter((k) => k in p);
+        const tries: Record<string, number> = {};
+        const got: Partial<Record<"slot" | "offset" | "length", Value>> = {};
+        while (queue.length) {
+          const k = queue.shift()!;
+          try {
+            got[k] = await ev(p[k], vals, self);
+            done[k] = toData(got[k]!);
+          } catch (e) {
+            if (!String((e as Error)?.message).startsWith(
+              "Property not evaluated yet: ~this.")) throw e;
+            tries[k] = (tries[k] ?? 0) + 1;
+            if (tries[k] > 2) {
+              throw new Error(`Circular reference detected: ~this.${k}`);
+            }
+            queue.push(k);
+          }
+        }
         for (const k of ["slot", "offset", "length"] as const) {
           if (!(k in p)) continue;
-          const v = await ev(p[k], vals);
+          const v = got[k]!;
           region[k] = toData(v);
           exprs.push(p[k]);
           const e = p[k];
@@ -130,7 +158,8 @@ export async function walk(pointer: Format.Pointer, o: {
           const args = op && op !== "~read" &&
             xs.some((a) => a && typeof a === "object")
             ? await Promise.all(xs.map(async (a) =>
-              ({ expr: a, value: hexOf(await ev(a, vals)) }))) : undefined;
+              ({ expr: a, value: hexOf(await ev(a, vals, self)) })))
+            : undefined;
           fields.push({ field: k, expr: e, value: hexOf(v),
             ...(args ? { args } : {}) });
         }
@@ -213,6 +242,18 @@ export async function walk(pointer: Format.Pointer, o: {
         }
         return;
       }
+      if ("templates" in p) {
+        // (templates defined here, for references inside `in`)
+        const saved0 = { ...templates };
+        Object.assign(templates, p.templates);
+        try {
+          await go(p.in, vals, scope, block, `${at}/in`, parent);
+        } finally {
+          for (const k of Object.keys(templates)) delete templates[k];
+          Object.assign(templates, saved0);
+        }
+        return;
+      }
       if ("template" in p) {
         const t = templates[p.template];
         if (!t) throw new Error(`no template ${p.template}`);
@@ -246,7 +287,7 @@ export async function walk(pointer: Format.Pointer, o: {
     await go(pointer, vals, scope, o.root, "");
   }
 
-  return { root: o.root, nodes, inputs: o.inputs,
+  return { root: o.root, pointer, nodes, inputs: o.inputs,
     order: preOrder(pointer, o.root, templates).filter((id) =>
       nodes.has(id)) };
 }
@@ -258,6 +299,7 @@ function preOrder(pointer: P, root: string,
   templates: Record<string, { for: P }>): NodeId[] {
   const out: NodeId[] = [];
   const seen = new Set<string>();
+  const local: Record<string, { for: P }> = {};
   const go = (p: P, block: string, at: string) => {
     const id = `${block}#${at}`;
     if (!p || typeof p !== "object") return;
@@ -278,11 +320,15 @@ function preOrder(pointer: P, root: string,
         out.push(`${id}/define/${name}`);
       }
       go(p.in, block, `${at}/in`);
+    } else if ("templates" in p) {
+      Object.assign(local, p.templates);
+      go(p.in, block, `${at}/in`);
     } else if ("template" in p) {
       out.push(`${p.template}#`);
       if (seen.has(p.template)) return;
       seen.add(p.template);
-      go(templates[p.template]?.for, p.template, "/for");
+      go((local[p.template] ?? templates[p.template])?.for, p.template,
+        "/for");
     }
   };
   go(pointer, root, "");

@@ -41,12 +41,26 @@ function flowOf(v: Any, rename?: (n: string) => string,
 const WIDE = 80;
 const COND = ["if", "then", "else"];
 
-export function pointerText(c: Compilation, variable: string):
-  { lines: PointerLine[]; names: Record<string, string> } {
-  const pointers = c.templates as Record<string, Any>;
+// (`pointer`: a variable that is not one of the compilation's state
+// variables, a local, by its own pointer)
+export function pointerText(c: Compilation, variable: string,
+  pointer?: unknown): { lines: PointerLine[]; names: Record<string,
+  string> } {
   const types = c.types as Record<string, Format.Type>;
-  const v = c.stateVariables.find((x) => x.identifier === variable);
+  const v = c.stateVariables.find((x) => x.identifier === variable) ??
+    (pointer ? { identifier: variable, pointer, type: {} } : undefined);
   if (!v) return { lines: [], names: {} };
+  // (and the templates a pointer defines for itself, inline)
+  const own: Record<string, Any> = {};
+  const scan = (o: Any) => {
+    if (!o || typeof o !== "object") return;
+    if (o.templates && typeof o.templates === "object" && "in" in o) {
+      Object.assign(own, o.templates);
+    }
+    Object.values(o).forEach(scan);
+  };
+  scan(v.pointer);
+  const pointers = { ...own, ...c.templates } as Record<string, Any>;
   const names: Record<string, string> = {};
   const short = (n: string) => {
     if (!pointers[n]) return n;
@@ -81,6 +95,13 @@ export function pointerText(c: Compilation, variable: string):
         const n = Object.keys(x).length;
         put(d, `yields: …  # ${n} ${n === 1 ? "name" : "names"}`,
           [...tags, ...own], at);
+        continue;
+      }
+      // (templates a pointer defines inline: each as its own block, after
+      // the pointer, as a compilation's are)
+      if (k === "templates" && x && typeof x === "object" && "in" in o) {
+        const n = Object.keys(x).length;
+        put(d, `templates: …  # ${n} below`, [...tags, ...own], at);
         continue;
       }
       // (and a template named inside a value written in flow style)

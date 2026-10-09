@@ -244,8 +244,7 @@ export function useRelatedRoots(id: string): string[] | undefined {
 }
 
 // What a walkthrough is computed from, for a view's data (state
-// variables only: no walkthrough of locals; the memory section shows
-// its steps)
+// variables, or locals: not a call's calldata by the ABI)
 // (another compiler's storage read by this rule: that compiler's own
 // reading of it, for the contrast; one side of a pair: the point's name)
 function useWalkInput(data: DataRef | undefined): WalkInput | undefined {
@@ -256,10 +255,15 @@ function useWalkInput(data: DataRef | undefined): WalkInput | undefined {
   const foreign = d && decodingOf(lens, d.decoding)?.foreign;
   const cd = useDecoded(foreign && d ? { decoding: foreign.rule,
     point: d.point } : undefined);
-  const pair = useLensState((s) => s.points.a !== s.points.b);
+  // (one side of a pair, named: when the two points' names differ; the
+  // memory section's two trace steps share one)
+  const pa = usePoint(data && { ...data, point: { slot: "a" } });
+  const pb = usePoint(data && { ...data, point: { slot: "b" } });
+  const pair = useLensState((s) => s.points.a !== s.points.b) &&
+    pa?.label !== pb?.label;
   return useMemo(() => {
     const dc = d && decodingOf(lens, d.decoding);
-    if (!d || !point || !c || !dc || dc.variables !== "state") return;
+    if (!d || !point || !c || !dc || dc.variables === "abi") return;
     if (dc.foreign && !cd) return;
     return { d, c, snap: point.snapshot, keys: dc.keys,
       ...(pair ? { when: point.label } : {}),

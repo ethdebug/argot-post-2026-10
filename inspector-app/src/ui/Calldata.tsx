@@ -6,7 +6,7 @@ import type { ValueNode } from "../engine/types";
 import { hex4 } from "../engine/location";
 import { useDecoded, useLens, useLensState, useLink } from "./hooks";
 import type { DataRef, ViewId } from "./types";
-import { span as spanOf } from "../engine/derivation";
+import { spanText as spanOf } from "../engine/location";
 
 const span = (n: ValueNode) => spanOf(n.regions[0]);
 // a part's name: "text (length)"; the selector's own
