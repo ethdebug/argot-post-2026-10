@@ -52,21 +52,25 @@ code {
     playerList.push(msg.sender);
     return;
   }
-  // play()
-  players[msg.sender].plays = players[msg.sender].plays + 1;
-  players[msg.sender].lastBlock = block.number as uint64;
+  // play(): a copy of the caller's record in memory (BUG has no
+  // storage references), written back once
+  let player: Player = players[msg.sender];
+  player.plays = player.plays + 1;
+  player.lastBlock = block.number as uint64;
   let hit = _rolledHit();
   if (!hit) {
-    players[msg.sender].combo = 0;   // _resetCombo, inlined by hand
+    player.combo = 0;   // _resetCombo, inlined by hand
+    players[msg.sender] = player;
     return;
   }
-  players[msg.sender].combo = players[msg.sender].combo + 1;
-  players[msg.sender].hits = players[msg.sender].hits + 1;
-  if (players[msg.sender].combo > players[msg.sender].bestCombo) {
-    players[msg.sender].bestCombo = players[msg.sender].combo;
+  player.combo = player.combo + 1;
+  player.hits = player.hits + 1;
+  if (player.combo > player.bestCombo) {
+    player.bestCombo = player.combo;
   }
-  let gained = _applyCombo(10, players[msg.sender].combo);
-  players[msg.sender].score = players[msg.sender].score + gained;
+  let gained = _applyCombo(10, player.combo);
+  player.score = player.score + gained;
+  players[msg.sender] = player;
   totalScore = totalScore + gained;
   totalHits = totalHits + 1;
 }

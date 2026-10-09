@@ -57,7 +57,9 @@ for (const o of ["0", "2"]) {
     await expect(page.locator('[data-opt][aria-checked="true"]'))
       .toHaveAttribute("data-opt", o);
     await expect(val(page, "hit")).toHaveText("true");
-    await expect(val(page, `${A}.lastBlock`)).toHaveText(lastBlock.alice);
+    // (her record before play() writes its copy back: as her play
+    // before left it)
+    await expect(val(page, `${A}.lastBlock`)).toHaveText(lastBlock.mid[0]);
   };
 }
 

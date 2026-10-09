@@ -745,7 +745,11 @@ point is picked by how many locals have a location there, not by line
 (`bin/make-memory-fixture.mjs`):
 
 - After the roll: the first step where `hit` has a location (`true`).
-  It is the only local listed; at O0 for 11 steps, at O2 for 10.
+  `player`, play()'s copy of alice's record in memory (BUG has no
+  storage references), is listed too, with no location: bugc's
+  dominator tree leaves out a call's edge to its continuation, so a
+  local defined before `_rolledHit()` loses its pointer after it
+  (fixed in ethdebug/format#378).
 - Inside _applyCombo: two steps, with all three of `points` (10),
   `combo` (3) and `mult` located: the last with `mult` = 5, the first with
   `mult` = 3 (around `mult = combo`). A two-step point has Show: Before |
@@ -757,10 +761,11 @@ point is picked by how many locals have a location there, not by line
   pointer, at O0) take the selection colour, and each local a child
   colour. After `mult = combo`, bugc points `mult` at a word that holds
   `combo`'s bytes too, so those bytes have two owners.
-- Before the writes: `gained` = 30, at the last step before the SSTORE
-  of `score`, and `hit` listed with no location. Alice's record slot is
-  at the end of the dump, as the trace has it at that step (every
-  counter but `score` written). It is the page's own: bugc's pointer
+- Before the writes: `gained` = 30, at the first SSTORE of play()'s
+  write-back (`players[msg.sender] = player;`), and `player` and `hit`
+  listed with no location. Alice's record slot is at the end of the
+  dump, as the trace has it at that step (as her second hit left it:
+  score 30, combo 2). It is the page's own: bugc's pointer
   for `players` gives only its base slot (4), so the slot,
   keccak256(alice . 4), and the six packed members (low-order bytes
   first, as Solidity) follow BUG's rules. Its members each get a child

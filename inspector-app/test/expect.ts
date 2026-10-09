@@ -72,8 +72,8 @@ export const lastBlock = { mid: ["6", "7", "12"], alice: "13" };
 // muted) and the locals its context lists
 export const PAUSE_TX = 12;
 export const pauses: { range?: string; locals: string[] }[] = [
-  { range: "!hit", locals: ["hit"] },
+  { range: "!hit", locals: ["player", "hit"] },
   { locals: ["points", "combo", "mult"] },
   { range: "if (combo < 5) {\n      mult = combo;\n    }",
     locals: ["points", "combo", "mult"] },
-  { range: "players[msg.sender].score", locals: ["hit", "gained"] }];
+  { range: "players[msg.sender]", locals: ["player", "hit", "gained"] }];
