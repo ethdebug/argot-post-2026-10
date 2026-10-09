@@ -5,9 +5,8 @@
 import type { Page } from "@playwright/test";
 import { test, expect, settle } from "../../page";
 
-// (the stack at the moment: 4 items; memory: 7 words, its first and
-// last holding carol's address)
-const STACK = 4, MEMORY = 7;
+// (the stack at the moment: 4 items)
+const STACK = 4;
 
 const panels = (page: Page, q: string) => page.evaluate((q) =>
   Object.fromEntries([...document.querySelectorAll<HTMLElement>(
@@ -25,8 +24,7 @@ const panels = (page: Page, q: string) => page.evaluate((q) =>
         .height }];
   })), q);
 
-// One cell size (one font, one line height; storage and memory one
-// width), one grid (shared edges, the stack beside on a wide page, its
+// One cell size (one font, one line height), one grid (shared edges, the stack beside on a wide page, its
 // tops level with storage's), boxes that hug their rows, the
 // composition centred
 const rules = async (page: Page, q: string, width: number) => {
@@ -39,14 +37,12 @@ const rules = async (page: Page, q: string, width: number) => {
   };
   await expect.poll(spread).toBeLessThan(0.06);
   const p = await panels(page, q);
-  expect(Object.keys(p).sort()).toEqual(["memory", "stack", "storage"]);
+  // (no memory: storage and the stack)
+  expect(Object.keys(p).sort()).toEqual(["stack", "storage"]);
   const all = Object.values(p);
-  const dumps = [p.storage, p.memory];
   const close = (xs: number[], d: number) =>
     expect(Math.max(...xs) - Math.min(...xs)).toBeLessThan(d);
   close(all.map((x) => x.line), 0.5);
-  close(dumps.map((x) => x.row), 0.5);
-  close(dumps.map((x) => x.r - x.l), 0.5);
   expect(new Set(all.map((x) => Math.round(x.l))).size)
     .toBe(width >= 860 ? 2 : 1);
   for (const x of all) expect(x.r - x.wordR).toBeLessThan(24);
@@ -159,8 +155,7 @@ test("the raw storage dump is the inspector's at 1440px, in size",
   });
 
 // The figure's storage folds its all-zero rows into its gaps; the stack
-// keeps every item, memory every word; the inspector's storage keeps
-// its zero rows
+// keeps every item; the inspector's storage keeps its zero rows
 test("raw-hero folds storage's zero rows, nothing else's", async ({ page }) => {
   await page.setViewportSize({ width: 1360, height: 900 });
   await page.goto("./embed.html#scene=raw-hero");
@@ -175,10 +170,6 @@ test("raw-hero folds storage's zero rows, nothing else's", async ({ page }) => {
   // (no two gaps in a row)
   expect(await page.locator('.view[data-view$=":storage"] .gap + .gap')
     .count()).toBe(0);
-  expect((await words("memory")).length).toBe(MEMORY);
-  // (memory's all-zero word stays: 0x0060)
-  expect((await words("memory")).some((w) => /^(00)+$/.test(w)))
-    .toBe(true);
   await page.goto("./#ex=mid");
   await expect(page.locator('#panel .view[data-side=after] ' +
     '.wrow[data-slot$="0003"]')).toHaveCount(1);

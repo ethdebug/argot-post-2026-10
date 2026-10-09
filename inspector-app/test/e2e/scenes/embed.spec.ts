@@ -3,7 +3,7 @@
 import { test, expect } from "../../page";
 
 for (const width of [1024, 390]) {
-  test(`embed.html#scene=raw at ${width}px: the four panels, no page ` +
+  test(`embed.html#scene=raw at ${width}px: storage and the stack, no page ` +
     "chrome; its height to the host", async ({ page, baseURL }) => {
     await page.setViewportSize({ width, height: 900 });
     await page.goto("./embed.html");
@@ -20,7 +20,7 @@ for (const width of [1024, 390]) {
     const frame = page.frameLocator("#f");
     await expect(frame.locator(".view .wrow[data-slot]").first())
       .toBeVisible();
-    await expect(frame.locator(".view")).toHaveCount(3);
+    await expect(frame.locator(".view")).toHaveCount(2);
     for (const q of ["main", "header", "h1", "#picker", ".picker",
       "#contract", "footer", ".shellbar"]) {
       await expect(frame.locator(q)).toHaveCount(0);
@@ -51,7 +51,7 @@ for (const width of [1024, 390]) {
 
 test("embed.html: moment=0 leaves the moment out", async ({ page }) => {
   await page.goto("./embed.html#scene=raw&moment=0");
-  await expect(page.locator(".view")).toHaveCount(3);
+  await expect(page.locator(".view")).toHaveCount(2);
   await expect(page.locator(".moment")).toHaveCount(0);
 });
 
@@ -108,6 +108,14 @@ test("embed.html: raw-named is the raw moment, named: every score, " +
   await expect(val(`${C}.combo`)).toHaveText("0");
   await expect(val(`${C}.name`))
     .toHaveText('"carol, the unstoppable combo queen"');
+  // (carol's record selected and open; alice's and bob's shut)
+  await expect(page.locator(`.tree li[data-path="${C}"] > .row.sel`))
+    .toHaveCount(1);
+  for (const k of ["0x70997970c51812dc3a010c7d01b50e0d17dc79c8",
+    "0x3c44cdddb6a900fa2b585dd299e03d12fa4293bc"]) {
+    await expect(page.locator(`.tree li[data-path="players[${k}]"]`))
+      .toHaveClass(/collapsed/);
+  }
   // (a popover's "how" readable: its ink is not its fill)
   await page.locator('.view:not([hidden]) .wrow[data-slot] > .addr')
     .first().hover();
