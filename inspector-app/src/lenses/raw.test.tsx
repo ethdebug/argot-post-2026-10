@@ -3,7 +3,6 @@
 // no popovers, no hover meaning), and the Dump's display parameters
 import { it, expect, afterEach } from "vitest";
 import { render, fireEvent, cleanup, waitFor } from "@testing-library/react";
-import { fixture } from "../../test/io";
 import { Lens } from "../ui/Lens";
 import { abbreviated } from "../ui/Dump";
 import { testProject } from "../../test/project";
@@ -11,7 +10,15 @@ import { rawLenses } from "./raw";
 import type { LensSpec } from "../ui/types";
 
 afterEach(cleanup);
-const json = fixture("raw");
+// (the scene's moment, from the run: its stack, top last; its storage;
+// its calldata)
+const moment = async () => {
+  const p = await testProject();
+  const { snapshot: s } = (await p.timeline("scene:raw-hero")).points[0];
+  const hex = (b: Uint8Array) => `0x${Buffer.from(b).toString("hex")}`;
+  return { stack: s.stack!, storage: Object.fromEntries(s.storage),
+    calldata: hex(s.calldata!) };
+};
 const slow = { timeout: 5000 };
 const view = (c: HTMLElement, l: string) =>
   c.querySelector<HTMLElement>(`.view[data-view$=":${l}"]`);
@@ -19,6 +26,7 @@ const view = (c: HTMLElement, l: string) =>
 for (const spec of rawLenses) {
   it(`${spec.id}: three bare dumps; the stack top first`, async () => {
     const project = await testProject();
+    const json = await moment();
     const { container: c } = render(<Lens spec={spec} project={project} />);
     await waitFor(() => expect(c.querySelectorAll(
       '.view[data-view$=":stack"] .wrow[data-slot]').length)
@@ -31,21 +39,21 @@ for (const spec of rawLenses) {
       .map((a) => a.textContent);
     expect(addrs).toEqual(json.stack.map((_: string, k: number) => `${k}`));
     expect(st.querySelector(".wrow .ab")!.textContent)
-      .toBe(abbreviated(json.stack.at(-1).slice(2).match(/../g), 2));
+      .toBe(abbreviated(json.stack.at(-1)!.slice(2).match(/../g)!, 2));
     // the others the same dump: words of 32 bytes; no ruler anywhere
     for (const l of ["storage", "memory"]) {
       expect(view(c, l)!.querySelector(".wrow[data-slot] .word")!
         .querySelectorAll(".b").length).toBe(32);
     }
     expect(c.querySelector(".ruler")).toBeNull();
-    // storage: every slot that holds something (raw.json's, each its
-    // word) and the slots the values here own, zero (carol's record,
-    // not yet written); ⋯ where the slots jump
+    // storage: every slot that holds something, each its word; ⋯ where
+    // the slots jump
     const sto = view(c, "storage")!;
     const word = (slot: string) => [...sto.querySelectorAll(
       `.wrow[data-slot="${slot}"] .b`)].map((b) => b.textContent).join("");
     for (const [slot, w] of Object.entries(json.storage)) {
-      expect(word(slot), slot).toBe((w as string).slice(2));
+      if (/^0x0*$/.test(w)) continue;
+      expect(word(slot), slot).toBe(w.slice(2));
     }
     // (its all-zero rows folded into the gaps: only the written slots)
     const shown = [...sto.querySelectorAll<HTMLElement>(".wrow[data-slot]")];
@@ -72,6 +80,7 @@ it("abbreviation: the last bytes after 0x…, a short word whole", () => {
 
 it("the display parameters: scale, perLine, rows shape", async () => {
   const project = await testProject();
+  const json = await moment();
   const spec: LensSpec = { id: "p", title: "P", timelines: [],
     decodings: [], links: [], initial: { scene: "raw-hero" }, grid: '"a b"', views: [
       { id: "a", kind: "dump", area: "a", location: "calldata",
@@ -90,8 +99,10 @@ it("the display parameters: scale, perLine, rows shape", async () => {
   expect(a.querySelector<HTMLElement>(".rows")!.style.fontSize).toBe("2em");
   const lines = a.querySelectorAll(".wrow");
   expect(lines.length).toBe(Math.ceil((json.calldata.length - 2) / 16));
-  expect(lines[1].querySelectorAll(".b").length).toBe(8);
-  expect(lines[1].querySelector(".a")!.textContent).toBe("0x0008");
+  // (play()'s calldata: its selector, 4 bytes on one line)
+  const n = (json.calldata.length - 2) / 2;
+  expect(lines[0].querySelectorAll(".b").length).toBe(Math.min(n, 8));
+  expect(lines[0].querySelector(".a")!.textContent).toBe("0x0000");
   // (no shape, no abbreviation: whole words, 32 bytes a row, a ruler)
   const b = view(c, "b")!;
   expect(b.querySelectorAll(".wrow[data-slot]").length)

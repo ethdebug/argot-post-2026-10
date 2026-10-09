@@ -122,7 +122,7 @@ export function Tree(p: { id: ViewId; data: DataRef; filter?: Filter;
   link?: LinkId; domId?: string; variant?: "tree" | "table";
   compare?: DataRef; align?: ViewId[];
   // (no cards of the other state, no collapsing: the memory section's)
-  plain?: boolean; partAttr?: boolean;
+  plain?: boolean; partAttr?: boolean; title?: string;
   // (a row's name in a view transition: transition.ts)
   vt?: (path: string) => string }) {
   const d = useDecoded(p.data);
@@ -496,7 +496,12 @@ export function Tree(p: { id: ViewId; data: DataRef; filter?: Filter;
       data-view={`${lens.key}:${p.id}`} data-align={alignKey}
       onPointerOver={point} onPointerMove={point} onFocus={point}
       onClick={onClick} onKeyDown={onKey}>
-      {comp?.provenance === "hand-written" && <p className="handmade">
+      {p.title && <p className="view-name treehead">{p.title}
+        {comp?.provenance === "hand-written" && <span className="handmade">
+          {" "}written by hand, not from {lang[0]?.toUpperCase() +
+            lang.slice(1)}</span>}</p>}
+      {!p.title && comp?.provenance === "hand-written" &&
+        <p className="handmade">
         written by hand, not from {lang[0]?.toUpperCase() + lang.slice(1)}
       </p>}
       {error && !shown ? <p className="error">{error}{" "}
