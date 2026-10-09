@@ -223,3 +223,20 @@ async ({ page }) => {
       .toBe("pointer");
   }
 });
+
+test("a field selected: the groups that hold it are consulted in the "
+  + "tree, and a click on one selects it", async ({ page }) => {
+  await ready(page, { width: 1280 });
+  await select(page, "mid", `${A}.bestCombo`);
+  for (const v of [A, "players"]) {
+    await expect(row(page, v), v).toHaveClass(/\brel\b/);
+    expect(await cursor(page, `#tree li[data-path="${v}"] > .row`))
+      .toBe("pointer");
+  }
+  // (the record's own bytes keep what they had: its field lit, the rest
+  // not tinted as consulted)
+  expect(await page.locator(`${V} .b.rel[data-owners^="${A}."]`).count())
+    .toBe(0);
+  await row(page, A).click();
+  expect(await selected(page)).toBe(A);
+});
