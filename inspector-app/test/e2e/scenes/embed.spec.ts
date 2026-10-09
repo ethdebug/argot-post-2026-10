@@ -91,7 +91,11 @@ test("embed.html: an unknown scene says so", async ({ page }) => {
 
 test("embed.html: raw-named is the raw moment, named", async ({ page }) => {
   await page.goto("./embed.html#scene=raw-named");
-  // (inside carol's join: alice and bob are listed, carol not yet)
-  await expect(page.locator(".tree")).toContainText("2 entries");
-  await expect(page.locator(".tree")).not.toContainText("carol");
+  // (inside carol's join: alice and bob are listed, carol not yet; her
+  // record is known from the trace, which hashed her key with players'
+  // slot)
+  await expect(page.locator(".tree")).toContainText("3 entries");
+  await expect(page.locator('.tree li[data-path=' +
+    '"players[0x90f79bf6eb2c4f870365e785982e1f101e93b906]"]'))
+    .toBeVisible();
 });

@@ -365,14 +365,21 @@ export function walkthrough(x: WalkInput, path: Path, focus?: string):
     const items = keyed.map((i) => [i, keyItem(keyOf(i)!)] as const);
     const one = keyed.length === 1;
     const has = items.filter(([, it]) => it) as [string, ValueNode][];
-    // (a mapping does not store its keys: the page supplies them)
+    // (a mapping does not store its keys: the page supplies them; a key
+    // the list does not have yet, from the trace: the transaction hashed
+    // it with the mapping's slot)
+    const TRACED = "the trace: this transaction hashed it with the " +
+      "mapping's slot";
     const from = (it: ValueNode | null) => it ? `\`${it.path}\``
-      : "the trace of the calls";
+      : keyList ? TRACED : "the trace of the calls";
+    const traced = keyList && items.some(([, it]) => !it);
     step({ phase: "input", id: "input",
       cap: one ? `The key: the address of ${who(keyed[0])}. A mapping does not ` +
         `store its keys; the page takes it from ${from(items[0][1])}`
         : "The keys: a mapping does not store its keys; the page takes " +
-          `them from ${keyList ? `\`${keyList}\`` : "the trace of the calls"}`,
+          `them from ${keyList ? `\`${keyList}\`` : "the trace of the calls"}` +
+          (traced ? ", and one not listed yet from the trace (this " +
+            "transaction hashed it with the mapping's slot)" : ""),
       form: one ? text(whoAt(keyed[0])) : table(items.map(([i, it]) =>
         [[whoAt(i)], [it?.label ?? "trace"], srcOf(i)])),
       source: keyList ? `from: the page (${keyList}, read from storage)`
