@@ -24,7 +24,7 @@ const view = (c: HTMLElement, l: string) =>
   c.querySelector<HTMLElement>(`.view[data-view$=":${l}"]`);
 
 for (const spec of rawLenses) {
-  it(`${spec.id}: three bare dumps; the stack top first`, async () => {
+  it(`${spec.id}: two bare dumps; the stack top first`, async () => {
     const project = await testProject();
     const json = await moment();
     const { container: c } = render(<Lens spec={spec} project={project} />);
@@ -41,7 +41,9 @@ for (const spec of rawLenses) {
     expect(st.querySelector(".wrow .ab")!.textContent)
       .toBe(abbreviated(json.stack.at(-1)!.slice(2).match(/../g)!, 2));
     // the others the same dump: words of 32 bytes; no ruler anywhere
-    for (const l of ["storage", "memory"]) {
+    // (no memory: storage and the stack only)
+    expect(view(c, "memory")).toBeNull();
+    for (const l of ["storage"]) {
       expect(view(c, l)!.querySelector(".wrow[data-slot] .word")!
         .querySelectorAll(".b").length).toBe(32);
     }
