@@ -1,9 +1,8 @@
 import { it, expect } from "vitest";
-import fs from "node:fs";
+import { fixture } from "../../../test/io";
 import { fromFixture, solcTilde } from "./legacy";
 
-const mid = JSON.parse(fs.readFileSync("../demos/inspector/fixtures/arcade-mid.json",
-  "utf8"));
+const mid = fixture("arcade-mid");
 
 it("solc's \"$\" expressions read as \"~\" (ethdebug/format#324): keys and "
   + "keyword strings, nowhere else", () => {

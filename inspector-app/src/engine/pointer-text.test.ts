@@ -35,7 +35,7 @@ it("keys in the spec's order: if, then, else; a region's name first",
       .toEqual(["- name: score", "location: storage", "slot: slot"]);
   });
 
-it("one line each, none wider than 80, in flow or block style", async () => {
+it("one line each, none wider than 100, in flow or block style", async () => {
   const { lines } = await players();
   expect(lines.every((l) => l.text.length <= 80 + 20)).toBe(true);
   // (a long expression goes in block style: operator, then operands)

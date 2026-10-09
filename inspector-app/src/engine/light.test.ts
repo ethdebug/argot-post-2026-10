@@ -116,7 +116,7 @@ it("a gutter address lights its row's 32 bytes as pointed at", () => {
   expect(g.bytes.size + g.rows.size).toBe(0);
 });
 
-it("Review Focus 1: motd's old data at motd:after lights nothing there",
+it("motd's old data at motd:after lights nothing there",
   async () => {
     const p = await testProject();
     const d = p.decodings["sol:arcade-motd"];
