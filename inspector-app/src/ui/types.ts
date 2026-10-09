@@ -132,7 +132,10 @@ export type ViewSpec = { id: ViewId; area: string; link?: LinkId;
     | { kind: "variables"; data: DataRef }
     // the moment a point is, in a line, in plain words: `text`, or the
     // point's label
-    | { kind: "moment"; data: DataRef; text?: string }
+    | { kind: "moment"; data: DataRef; text?: string;
+      // (a note in the hand-written badge's style, not a quiet line: the
+      // annotated figure's disclaimer)
+      badge?: boolean }
     | { kind: "walkthrough"; data: DataRef; compare?: DataRef;
       others?: { decoding: DecodingId; who?: string }[] });
 export type ViewKind = ViewSpec["kind"];

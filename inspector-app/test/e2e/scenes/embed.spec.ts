@@ -28,8 +28,8 @@ for (const width of [1024, 390]) {
     // (its columns: the raw lens lays out two, side by side)
     await expect.poll(() => page.evaluate(() =>
       (window as unknown as { columns?: number }).columns)).toBe(2);
-    await expect(frame.locator(".moment")).toHaveText(
-      "while carol plays: right after her combo resets");
+    // (no moment line: the post's prose gives the moment)
+    await expect(frame.locator(".moment")).toHaveCount(0);
     // (the frame as tall as its content, by the last height it posted)
     const inner = await page.frameLocator("#f").locator("#embed")
       .evaluate((e) => Math.ceil(e.getBoundingClientRect().height));
@@ -229,7 +229,8 @@ test("embed.html#scene=vyper-rules: Solidity's rule 0, Vyper's layout " +
   const val = page.locator(`.tree li[data-path="${A}"] > .row .val`);
   await expect(val).toHaveText(["0", "30"], { timeout: 20_000 });
   await expect(page.locator(".tree .treehead")).toHaveText([
-    "Solidity's rule", /^Vyper's layout\s+written by hand/i]);
+    "Solidity's rule",
+    /^Vyper's layout\s+ethdebug data written by hand, not from Vyper/i]);
   const [a, b] = await val.evaluateAll((v) => v.map((e) =>
     e.getBoundingClientRect()));
   expect(Math.abs(a.top - b.top)).toBeLessThan(30);

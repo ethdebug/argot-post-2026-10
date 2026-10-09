@@ -44,11 +44,14 @@ const checks: Record<string, (page: Page) => Promise<void>> = {
     await expect(val(page, "totalScore")).toHaveText("140");
   },
   "raw-hero": async (page) => {
-    await expect(page.locator(".moment")).toContainText("combo resets");
+    // (carol's record, her score 100 = 0x64: the moment's bytes)
+    await expect(page.locator('.view[data-view$=":storage"] ' +
+      '.word[data-slot$="9978"]')).toContainText("64");
   },
   // (the shared moment, annotated: carol's record, labelled)
   "raw-annotated": async (page) => {
-    await expect(page.locator(".moment")).toContainText("carol plays");
+    await expect(page.locator(".moment-note")).toContainText(
+      /ethdebug data written by hand, not from solc/i);
     await expect(page.locator(".pop.note").filter({ hasText:
       /^players\[carol\].*score 100/ })).toHaveCount(1);
   },

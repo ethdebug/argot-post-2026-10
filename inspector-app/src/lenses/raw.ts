@@ -32,9 +32,13 @@ const base = { timelines: [], decodings: [], links: [],
     moment: "raw-col" } };
 
 // The composition: `moment`, a quiet line naming the moment in plain
-// words (false: the panels alone); `memory` (default: shown), its dump
-// under the stack
+// words (default: none, the post's prose gives it); `memory` (default:
+// shown), its dump under the stack
 export const MOMENT = "while carol plays: right after her combo resets";
+// the annotated figure's disclaimer: its stack and memory pointers are
+// the scene's, not solc's
+export const HAND = "Stack and memory: ethdebug data written by hand, " +
+  "not from solc";
 export const rawLens = (o: { moment?: string | false; memory?: boolean } =
   {}): LensSpec => ({
   ...base, id: "raw-hero", title: "Raw bytes",
@@ -46,8 +50,8 @@ export const rawLens = (o: { moment?: string | false; memory?: boolean } =
     dump2("stack", "Stack", { abbreviate: 2 }),
     ...o.memory === false ? [] : [dump2("memory", "Memory",
       { density: "flow", perLine: 16 })],
-    ...o.moment === false ? [] : [{ id: "moment", kind: "moment" as const,
-      area: "moment", data, text: o.moment ?? MOMENT }]] });
+    ...!o.moment ? [] : [{ id: "moment", kind: "moment" as const,
+      area: "moment", data, text: o.moment }]] });
 export const rawHero = rawLens();
 
 // The same figure, annotated in place (scene raw-annotated, the post's
@@ -64,10 +68,13 @@ const hand = { decoding: "$hand", moment: "current" } as const;
 export const annotated = (l: LensSpec): LensSpec => ({ ...l,
   id: "raw-annotated", title: "Raw bytes, annotated",
   layout: `${l.layout} raw-annotated`, initial: { scene: "raw-annotated" },
-  views: [...l.views.map((v): ViewSpec => v.kind === "dump"
-    ? { ...v, display: { ...v.display, annotate: true },
-      ...v.location === "storage" ? {} : { data: hand } }
-    : v.kind === "moment" ? { ...v, text: undefined } : v),
+  views: [...l.views.filter((v) => v.kind !== "moment").map((v): ViewSpec =>
+    v.kind === "dump" ? { ...v, display: { ...v.display, annotate: true },
+      ...v.location === "storage" ? {} : { data: hand } } : v),
+  // (where the moment was: what is written by hand, said in the
+  // hand-written badge's style; shown with the stack's values)
+  { id: "hand", kind: "moment", area: "moment", data, badge: true,
+    text: HAND },
   { id: "reveal", kind: "reveal", area: "moment" }] });
 export const rawAnnotated = annotated(rawHero);
 
