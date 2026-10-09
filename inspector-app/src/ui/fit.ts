@@ -35,7 +35,7 @@ export function useFitDump(me: RefObject<HTMLElement | null>,
     });
     addEventListener("resize", fit);
     // (in a lens: its cell size, --cell-fs, the smallest font its dumps
-    // fit; a panel that is not a fitted dump, such as an abbreviated
+    // fit, and their line's height, --cell-lh; a panel that is not a fitted dump, such as an abbreviated
     // stack, takes it: one cell size for the whole lens)
     const d0 = me.current?.closest<HTMLElement>(".dump");
     const lens = d0?.closest<HTMLElement>(".lens");
@@ -50,10 +50,16 @@ export function useFitDump(me: RefObject<HTMLElement | null>,
         // (set after this frame's layout: no resize loop; a change under
         // 0.05px ends it, as the columns settle)
         const f = Math.min(...all);
+        // (and a line's height: a word's line, on one line or two)
+        const b = v.querySelector(".word .bytes");
+        const lh = b ? `${getComputedStyle(b).lineHeight}` : "";
         const was = parseFloat(lens.style.getPropertyValue("--cell-fs"));
-        if (Math.abs(f - was) < 0.05) return;
-        requestAnimationFrame(() =>
-          lens.style.setProperty("--cell-fs", `${f}px`));
+        if (Math.abs(f - was) < 0.05 &&
+          lens.style.getPropertyValue("--cell-lh") === lh) return;
+        requestAnimationFrame(() => {
+          lens.style.setProperty("--cell-fs", `${f}px`);
+          if (lh) lens.style.setProperty("--cell-lh", lh);
+        });
       });
     if (d0) seen?.observe(d0);
     return () => {
