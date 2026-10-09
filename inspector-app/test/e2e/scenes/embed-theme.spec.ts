@@ -44,7 +44,7 @@ for (const [os, theme] of [["light", ""], ["dark", ""], ["light", "dark"],
       `<iframe src="${new URL(`./embed.html#scene=mid&panel=external` +
       `&channel=t${t}`, page.url())}"></iframe>`);
     const panel = page.frameLocator("iframe").first();
-    const b = panel.locator('button[data-r="start"]');
+    const b = panel.locator('.pshown button[data-r="start"]');
     await expect(b).toBeVisible({ timeout: 20_000 });
     const [ink, fill] = await b.evaluate((e) => {
       const c = getComputedStyle(e);

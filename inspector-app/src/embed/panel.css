@@ -21,3 +21,10 @@ html[data-stuck] #embed .wpanel .dpanel {
 @media (prefers-reduced-motion: reduce) {
   #embed .wpanel .rbar, #embed .wpanel .dpanel { transition: none; }
 }
+/* (the panel at rest and at each step, drawn unseen at the frame's
+   width, to keep the tallest's height: panel.tsx) */
+#embed { position: relative; }
+#embed .pmeasure { position: absolute; left: 0; right: 0; top: 0;
+  visibility: hidden; pointer-events: none; height: 0; overflow: visible; }
+#embed .pshown { display: flow-root; }
+#embed .pshown > .wpanel { min-height: inherit; box-sizing: border-box; }

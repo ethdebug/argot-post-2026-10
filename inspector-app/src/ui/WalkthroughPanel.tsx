@@ -182,7 +182,8 @@ export type Intent = { type: "start" } | { type: "step"; to: number } |
 
 export function useWalkModel(p: { id: ViewId; data: DataRef;
   link?: LinkId; compare?: DataRef }, port: Port | null = null):
-  { model: PanelModel; act: (i: Intent) => void } {
+  { model: PanelModel; act: (i: Intent) => void;
+    variants?: PanelModel[] } {
   const { d, l } = useLayout(p.id);
   const o = useDecoded(p.compare);
   const here = usePoint(p.data);
@@ -327,31 +328,36 @@ export function useWalkModel(p: { id: ViewId; data: DataRef;
   const yaml = useMemo(() => c && variable ? pointerText(c, variable,
     pointer) : null, [c, variable, pointer]);
 
-  let rest: PanelModel["rest"];
-  let wm: PanelModel["walk"];
-  if (!node || !sides) {
-    const t = sides && locked(link.hover, null, sides.d.byPath);
-    rest = { info: sides ? infoOf(sides, t ?? null) : null };
-  } else if (st && w) {
-    const fc = footOf(st);
+  // (a step's part of the model: the one shown, or any, for the panel's
+  // frame to measure them all)
+  const stepOf = (k: number): PanelModel["walk"] => {
+    const s0 = steps[k];
+    const fc = footOf(s0);
     // (the focus picker: only at a step it changes, the packed fields)
-    const focusing = !!w.recs && st.phase === "fields";
-    wm = { name: w.name, ...sceneTitle ? { scene: sceneTitle } : {}, i,
-      place: placeOf(steps, i), last: i === steps.length - 1,
-      goal: !!st.goal, dots: steps.map((s, k) => ({ cap: s.cap,
-        ...s.goal ? {} : { n: k - goal }, place: placeOf(steps, k) })),
-      ...cue ? { cue } : {}, cap: st.cap, form: st.form,
-      ...st.formula ? { formula: st.formula } : {},
-      construct: { kind: constructOf(st), source: st.source,
+    const focusing = !!w!.recs && s0.phase === "fields";
+    return { name: w!.name, ...sceneTitle ? { scene: sceneTitle } : {},
+      i: k, place: placeOf(steps, k), last: k === steps.length - 1,
+      goal: !!s0.goal, dots: steps.map((s, j) => ({ cap: s.cap,
+        ...s.goal ? {} : { n: j - goal }, place: placeOf(steps, j) })),
+      ...cue && k === i ? { cue } : {}, cap: s0.cap, form: s0.form,
+      ...s0.formula ? { formula: s0.formula } : {},
+      construct: { kind: constructOf(s0), source: s0.source,
         ...fc ? { foot: FOOT[fc] } : {} },
-      ...focusing ? { focus: { recs: w.recs!, focus: w.focus } } : {} };
-  } else {
+      ...focusing ? { focus: { recs: w!.recs!, focus: w!.focus } } : {} };
+  };
+  const yamlOf = (s0: Step | undefined): PanelModel["yaml"] => ({
+    text: yaml, band: s0?.band, goal: !!s0?.goal,
+    ...s0?.notes ? { notes: s0.notes } : {}, piece: s0?.piece ?? "",
+    chain: variable ? [variable, ...s0?.chain ?? []] : [] });
+  // (the panel at rest with the selection shown)
+  const selRest = (): PanelModel["rest"] => {
+    if (!node) return undefined;
     const own = node.children && node.regions.some((r) =>
       r.role === "length");
     const v = node.value?.text ?? (own ? node.summary : undefined);
     const n = node.children?.length ?? 0;
     const otherText = o?.byPath.get(node.path)?.value?.text;
-    rest = { name: w?.name ?? shortKeys(sel!), typeText: node.typeText,
+    return { name: w?.name ?? shortKeys(sel!), typeText: node.typeText,
       ...v !== undefined ? { value: v } : node.children
         ? { parts: `${n} ${partsWord(node.typeText, n)}` } : {},
       ...!single ? { side } : {}, canStart: !!w?.steps.length,
@@ -359,13 +365,25 @@ export function useWalkModel(p: { id: ViewId; data: DataRef;
         : `${otherText !== undefined && otherText !== v ? `${side ===
           "after" ? "before" : "after"}: ${otherText} · ` : ""}Esc clears ` +
           "the selection" };
-  }
+  };
+  let rest: PanelModel["rest"];
+  let wm: PanelModel["walk"];
+  if (!node || !sides) {
+    const t = sides && locked(link.hover, null, sides.d.byPath);
+    rest = { info: sides ? infoOf(sides, t ?? null) : null };
+  } else if (st && w) {
+    wm = stepOf(i);
+  } else rest = selRest();
   const model: PanelModel = { key, walking: !!walk, rest, walk: wm,
-    yaml: { text: yaml, band: st?.band, goal: !!st?.goal,
-      ...st?.notes ? { notes: st.notes } : {}, piece: st?.piece ?? "",
-      chain: variable ? [variable, ...st?.chain ?? []] : [] },
-    ...walk?.exit ? { exit: true } : {} };
-  return { model, act };
+    yaml: yamlOf(st), ...walk?.exit ? { exit: true } : {} };
+  // (for a panel in a frame of its own: the panel at rest, the selection
+  // shown, and at each of its steps, so it keeps the tallest's height)
+  const variants = !port || !node || !sides || !w ? undefined : [
+    { ...model, walking: false, walk: undefined, exit: undefined,
+      rest: selRest(), yaml: yamlOf(undefined) },
+    ...steps.map((s0, k): PanelModel => ({ key, walking: true,
+      walk: stepOf(k), yaml: yamlOf(s0) }))];
+  return { model, act, variants };
 }
 
 // -------------------------------------------------------------- view
@@ -655,11 +673,11 @@ export function WalkthroughPanel(p: { id: ViewId; data: DataRef;
   link?: LinkId; domId?: string; compare?: DataRef;
   others?: { decoding: string; who?: string }[] }) {
   const port = useContext(PanelPort);
-  const { model, act } = useWalkModel(p, port);
+  const { model, act, variants } = useWalkModel(p, port);
   const latest = useRef(act);
   latest.current = act;
   const stable = useCallback((i: Intent) => latest.current(i), []);
-  useEffect(() => port?.publish(model));
+  useEffect(() => port?.publish(model, variants));
   useEffect(() => port?.listen(stable), [port, stable]);
   if (port) return null;
   return <PanelView model={model} act={stable} domId={p.domId} />;
