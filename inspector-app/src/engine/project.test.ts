@@ -17,9 +17,9 @@ it("loads only the index and the memory pauses until a scene is asked "
   const p = await load(io as Io, { scenes, builds });
   expect(seen).toEqual(["fixtures/index.json", "fixtures/memory.json"]);
   expect(p.bookmarks.map((b) => b.id))
-    .toEqual(["raw-hero", "mid", "alice", "motd", "vyper", "players-walk",
-      "O0/roll", "O0/mult", "O0/writes", "O2/roll", "O2/mult",
-      "O2/writes"]);
+    .toEqual(["raw-hero", "raw-named", "mid", "alice", "motd", "vyper",
+      "players-walk", "O0/roll", "O0/mult", "O0/writes", "O2/roll",
+      "O2/mult", "O2/writes"]);
   await expect(p.timeline("scene:mid")).rejects.toThrow("404");
   // (a failed load is not kept: asked again, it loads again)
   await expect(p.timeline("scene:mid")).rejects.toThrow("404");
@@ -29,7 +29,7 @@ it("loads only the index and the memory pauses until a scene is asked "
 
 it("a scene is a bookmark: its moments are the points", async () => {
   const p = await readerProject();
-  const [, mid, alice] = p.bookmarks;
+  const [, , mid, alice] = p.bookmarks;
   expect(mid).toMatchObject({ points: ["mid:0"], timeline: "scene:mid",
     decoding: "mid", select: A });
   expect(alice).toMatchObject({ side: "after",

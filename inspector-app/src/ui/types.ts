@@ -120,8 +120,9 @@ export type ViewSpec = { id: ViewId; area: string; link?: LinkId;
     | { kind: "code"; data: DataRef }
     | { kind: "variables"; data: DataRef }
     | { kind: "note"; data: DataRef; part: "note" | "viewing" | "meta" }
-    // the moment a point is, in a line: what it is inside, and its step
-    | { kind: "moment"; data: DataRef }
+    // the moment a point is, in a line, in plain words: `text`, or the
+    // point's label
+    | { kind: "moment"; data: DataRef; text?: string }
     // the calldata section's: what a part is, how the ABI finds it
     | { kind: "abi"; data: DataRef; part: "details" | "how" }
     | { kind: "walkthrough"; data: DataRef; compare?: DataRef;

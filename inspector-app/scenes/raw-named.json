@@ -1,0 +1,17 @@
+{
+  "id": "raw-named",
+  "title": "The same bytes, named",
+  "run": {
+    "scenario": "arcade",
+    "build": "sol"
+  },
+  "lens": "inspector",
+  "timeline": [
+    {
+      "tx": 3,
+      "step": 569,
+      "label": "while carol joins: her name is being saved, half-written"
+    }
+  ],
+  "controls": "none"
+}

@@ -13,11 +13,16 @@ export function SceneHost(p: { scene: Scene; project: Project;
   hash?: boolean }) {
   const lens = p.lenses.find((l) => l.id === p.scene.lens);
   // (the scene, shown first; a lens with scenes of its own to pick from
-  // that are not this one shows its own, until it reads scenes: §8 4)
-  const spec = useMemo(() => !lens || (lens.bookmarks &&
-    !lens.bookmarks.includes(p.scene.id)) ? lens
+  // that are not this one shows it as its one scene, when it is a
+  // bookmark (raw-named, the storage inspector's); else its own, until it
+  // reads scenes: §8 4)
+  const own = p.project.bookmarks.some((b) => b.id === p.scene.id);
+  const spec = useMemo(() => !lens ? lens : lens.bookmarks &&
+    !lens.bookmarks.includes(p.scene.id) ? own ? { ...lens,
+      bookmarks: [p.scene.id], initial: { ...lens.initial,
+        scene: p.scene.id } } : lens
     : { ...lens, initial: { ...lens.initial, scene: p.scene.id } },
-  [lens, p.scene.id]);
+  [lens, own, p.scene.id]);
   if (!spec) return <p className="error">no lens {p.scene.lens}</p>;
   return <div data-scene={p.scene.id} data-mode={p.mode}
     style={{ display: "contents" }}>
