@@ -13,5 +13,6 @@
       "label": "while carol joins: her name is being saved, half-written"
     }
   ],
-  "controls": "none"
+  "controls": "none",
+  "rows": "touched"
 }
