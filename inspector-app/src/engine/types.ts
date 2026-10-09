@@ -239,7 +239,9 @@ export interface Target {               // what the pointer (or finger) is on
 export interface Light {                // DERIVED per view, never stored
   bytes: ReadonlySet<ByteKey>; rows: ReadonlySet<Path>;
   colours: ReadonlyMap<Path, Colour>;
-  focus?: Colour;                       // a pointed child of the selection
+  // a pointed child of the selection; "none": something it consulted is
+  // pointed at, every child colour steps back
+  focus?: Colour | "none";
   cap: ReadonlySet<Path | ByteKey>;     // brown edge = the selection only
   at?: Target["bytes"]; gutters: ReadonlySet<Hex>;
   muted: boolean;                       // the rest mutes

@@ -16,7 +16,7 @@ import {
   walkthrough, type WalkInput, type Walkthrough,
 } from "../engine/walkthrough/fold";
 import {
-  related, relatedValues, withRelated,
+  pointConsulted, related, relatedValues, withRelated,
 } from "../engine/related";
 import { locked } from "../engine/target";
 import { byteKey } from "../engine/hex";
@@ -354,7 +354,9 @@ export function useLight(id: string, filter?: Filter, at?: DataRef,
       const lk = locked(hover, sel, d.byPath);
       const k = lk?.path && lk.path !== sel
         ? base.colours.get(lk.path) : undefined;
-      return { ...base, cap: new Set([sel]),
+      // (pointing at what it consulted: that one stands out)
+      const out = lk ? base : pointConsulted(base, d, l, hover);
+      return { ...out, cap: new Set([sel]),
         ...(k !== undefined && k !== 0 ? { focus: k } : {}) };
     }
     if (hover?.path && d.byPath.has(hover.path)) {
