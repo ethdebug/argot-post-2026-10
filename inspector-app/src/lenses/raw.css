@@ -18,23 +18,24 @@
   grid-template-areas: "storage" "stack" "memory" "moment"; }
 .lens.raw-hero > :is([data-area="stack"], [data-area="memory"]) {
   justify-self: start; }
-/* (narrower than both columns side by side, wider than a phone: storage
-   on top, as wide as it fits; the stack and memory side by side under it,
-   the moment under the stack) */
-@media (min-width: 560px) and (max-width: 1129px) {
-  .lens.raw-hero { grid-template-columns: max-content minmax(0, 1fr);
-    grid-template-rows: auto auto 1fr;
-    grid-template-areas: "storage storage" "stack memory" "moment memory";
-    width: min(690px, 100%); margin: 0 auto; }
-  /* (memory's right edge storage's) */
-  .lens.raw-hero > [data-area="memory"] { justify-self: end; }
-}
-/* (side by side where storage, 690px, and the right column, memory's 16
-   bytes a line, fit) */
-@media (min-width: 1130px) {
-  .lens.raw-hero { grid-template-columns: 690px max-content;
+/* (wider than a phone: two columns, storage on the left; the stack over
+   memory on the right, the moment under them. Up to 1129px the columns
+   share the width evenly: storage fits its half, 16 bytes a line, and
+   memory's 16 bytes a line at that size take the other; from 1130px
+   storage is 690px, 32 bytes a line, the right column its content) */
+@media (min-width: 560px) {
+  .lens.raw-hero { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
     grid-template-rows: auto auto 1fr;
     grid-template-areas: "storage stack" "storage memory" "storage moment"; }
+}
+/* (as wide as a text column at most: 650px, its cells about 10.3px, so
+   the figure is under 720px tall, short enough for a host to pin it on a
+   laptop's screen) */
+@media (min-width: 560px) and (max-width: 1129px) {
+  .lens.raw-hero { width: min(650px, 100%); margin: 0 auto; }
+}
+@media (min-width: 1130px) {
+  .lens.raw-hero { grid-template-columns: 690px max-content; }
 }
 /* (memory's flow in the figure's one cell size: its font and line
    height, not the flow's own tighter type) */
