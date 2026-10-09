@@ -85,10 +85,13 @@ describe("the shared moment's popovers", () => {
     const m = layout(d, "memory");
     const ms = notesOf(d, m, unitsOf(d, m), m.rows,
       { names: onChainNames(s), perRun: true });
-    expect(ms.map((n) => n.items.map((x) => x.text))).toEqual([
-      ["keccak input key carol · slot 3", "free memory pointer 0xe0"],
-      ["_rolledHit's encoding length 64 · prevrandao 0xe94e…3a62 · " +
-      "sender carol"]]);
+    expect(ms.map((n) => n.items.map((x) => [x.text, x.line, x.unit])))
+      .toEqual([
+        [["keccak input", 0, 0], ["key carol", 1, undefined],
+          ["slot 3", 1, undefined], ["free memory pointer 0xe0", 2, 1]],
+        [["_rolledHit's encoding", 0, 2], ["length 64", 1, undefined],
+          ["prevrandao 0xe94e…3a62", 1, undefined],
+          ["sender carol", 2, undefined]]]);
   });
 });
 

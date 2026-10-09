@@ -4,8 +4,8 @@
 import { useFitDump } from "./fit";
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { drawOverlays, type ViewData } from "./overlays";
-import { drawNotes, hoverNotes, stagger } from "./notes";
-import { useRevealed } from "./reveal";
+import { drawNotes, hoverNotes } from "./notes";
+import { paintView, useRevealed } from "./reveal";
 import {
   cellsOf, notesOf, onChainNames, unitsOf,
 } from "../engine/annotated";
@@ -92,10 +92,29 @@ export function abbreviated(bytes: (string | undefined)[], n: number) {
 
 // The rows' bytes as one run, `per` bytes a line (Display "flow"): each
 // line's address, where the location is a segment (its offset)
-function Flow({ rows, loc, snap, per }: { rows: Row[]; loc: Location;
-  snap?: TimelinePoint["snapshot"]; per: number }) {
-  const all = rows.flatMap((r) => rowBytes(snap, loc, r.address)
-    .filter((b): b is string => b !== undefined));
+function Flow({ rows, loc, snap, per, annot }: { rows: Row[];
+  loc: Location; snap?: TimelinePoint["snapshot"]; per: number;
+  // (the annotated layer: each row's bytes, as a Word's)
+  annot?: (row: Hex) => Annot }) {
+  const at0 = rows.flatMap((r) => {
+    const bs = rowBytes(snap, loc, r.address);
+    const a = annot?.(r.address);
+    return bs.map((b, i) => ({ b, row: r.address, c: a?.cells[i] ?? null,
+      on: !!a?.on, hover: a?.hover ?? null }))
+      .filter((x): x is typeof x & { b: string } => x.b !== undefined);
+  });
+  const all = at0.map((x) => x.b);
+  // (lit as a Word's bytes are, a run of one value rounded at its ends)
+  const an = (j: number) => {
+    const x = at0[j];
+    if (!x.c) return "";
+    const same = (k: number) => at0[k]?.c?.unit === x.c!.unit;
+    return ` hl pk${x.c.k}${!same(j - 1) ? " gs" : ""}${
+      !same(j + 1) ? " ge" : ""}${x.hover !== null && x.hover !== x.c.unit
+      ? " muted" : ""}`;
+  };
+  const data = (j: number) => at0[j].c ? { "data-unit": at0[j].c!.unit,
+    "data-row": at0[j].row, ...cellVars(at0[j].c!) } : {};
   const from = rows.length ? Number(BigInt(rows[0].address)) : 0;
   const lines: ReactElement[] = [];
   for (let k = 0; k * per < all.length; k++) {
@@ -105,7 +124,8 @@ function Flow({ rows, loc, snap, per }: { rows: Row[]; loc: Location;
         {addressing(loc) === "offset" ? hex4(at) : ""}</span></span>
       <div className="word"><div className="bytes">
         {all.slice(k * per, (k + 1) * per).map((b, i) =>
-          <span key={i} className={`b${b === "00" ? " z" : ""}`}>{b}</span>)}
+          <span key={i} className={`b${b === "00" ? " z" : ""}${
+            an(k * per + i)}`} {...data(k * per + i)}>{b}</span>)}
       </div></div></div>);
   }
   return <div style={{ "--per": per } as CSSProperties}>{lines}</div>;
@@ -157,8 +177,13 @@ const half = (mine: (string | undefined)[]) =>
 // (each byte of a row, in the annotated layer: its unit, its child
 // colour, its fade's delay; `on`: revealed, lit; `muted`: another unit
 // is hovered)
-type Annot = { on: boolean; hover: number | null;
-  cells: ({ unit: number; k: number; d: number } | null)[] };
+type Cell = { unit: number; k: number; r: number; o: number };
+type Annot = { on: boolean; hover: number | null; cells: (Cell | null)[] };
+// (a byte's reveal: its value's place in the sequence, `r` (ui/reveal.ts
+// writes its --tf, the value's progress); `o`, its place in its value, 0
+// to 1, for the sweep)
+const cellVars = (c: Cell) => ({ "data-r": c.r,
+  style: { "--o": c.o.toFixed(3) } as CSSProperties });
 function Word({ l, ls, loc, row, mine, theirs, side, pair, name, light,
   groupsOf, bare, abbreviate, annot }: {
   l: Layout; ls: Layout[]; loc: Location; row: Hex;
@@ -172,20 +197,18 @@ function Word({ l, ls, loc, row, mine, theirs, side, pair, name, light,
   // inspector mutes a selection's other children)
   const an = (i: number) => {
     const c = annot?.cells[i];
-    if (!c || !annot!.on) return "";
+    if (!c) return "";
     const same = (j: number) => annot!.cells[j]?.unit === c.unit;
     return ` hl pk${c.k}${!same(i - 1) ? " gs" : ""}${
       !same(i + 1) ? " ge" : ""}${annot!.hover !== null &&
       annot!.hover !== c.unit ? " muted" : ""}`;
   };
   const unit = (i: number) => annot?.cells[i] ? {
-    "data-unit": annot.cells[i]!.unit,
-    style: { "--d": `${annot.cells[i]!.d}ms` } as CSSProperties } : {};
+    "data-unit": annot.cells[i]!.unit, ...cellVars(annot.cells[i]!) } : {};
   if (abbreviate !== undefined) {
     const k = annot?.cells.findIndex(Boolean) ?? -1;
     return <div className="word" data-side={side} data-slot={row}>
-      <span className={`ab${k >= 0 && annot!.on ? ` b${an(k)} gs ge`
-        : ""}`}
+      <span className={`ab${k >= 0 ? ` b${an(k)} gs ge` : ""}`}
         {...k >= 0 ? unit(k) : {}}>
         {abbreviated(mine, abbreviate)}</span></div>;
   }
@@ -495,16 +518,35 @@ export function Dump(p: { id: ViewId; location: Location; data: DataRef;
     const units = unitsOf(d, l);
     const notes = notesOf(d, l, units, rows, { names, perRun: hand,
       values: disp.abbreviate === undefined });
-    // (a unit fades in with its note)
-    const step = stagger(notes.length);
-    const delay = units.map((_, i) => Math.round(step *
-      Math.max(0, notes.findIndex((n) => n.units.includes(i)))));
-    return { units, notes, delay };
+    // (the reveal's sequence: the values in reading order, by their
+    // first byte shown; each byte after the one before it in its value)
+    const first = units.map(() => Infinity);
+    const ord = new Map<Hex, number[]>();
+    const seen = units.map(() => 0);
+    rows.forEach((r, k) => {
+      const cs = cellsOf(units, l, r.address);
+      ord.set(r.address, cs.map((u, i) => {
+        if (u === null) return 0;
+        first[u] = Math.min(first[u], k * 32 + i);
+        return seen[u]++;
+      }));
+    });
+    const rank = units.map((_, i) => units.map((_, j) => j).sort((a, b) =>
+      first[a] - first[b] || a - b).indexOf(i));
+    return { units, notes, rank, ord, seen };
   }, [annot, d, l, own, rows, hand, disp.abbreviate]);
   const revealed = useRevealed();
-  // (revealed: every value active, lit with its caps, as a selection's
-  // children are; Display annotateFill "hover": the plain fill, no caps)
-  const active = annot && revealed && disp.annotateFill !== "hover";
+  // (a row's bytes in the annotated layer)
+  const annotOf = layer && l ? (row: Hex): Annot => ({ on: revealed,
+    hover, cells: cellsOf(layer.units, l, row).map((u, i) => u === null
+      ? null : { unit: u, k: layer.units[u].k as number,
+        r: layer.rank[u], o: layer.seen[u] > 1 ? (layer.ord.get(row)?.[i]
+          ?? 0) / (layer.seen[u] - 1) : 0 }) })
+    : undefined;
+  // (every value active, lit with its caps, as a selection's children
+  // are, as far as the reveal has come (raw.css); Display annotateFill
+  // "hover": the plain fill, no caps)
+  const active = annot && disp.annotateFill !== "hover";
   // the value the pointer is on (a byte of it, or its popover): the
   // others muted, their popovers the light, kept kind
   const [hover, setHover] = useState<number | null>(null);
@@ -525,7 +567,9 @@ export function Dump(p: { id: ViewId; location: Location; data: DataRef;
     if (!v || !layer) return;
     const draw = () => {
       if (!v.isConnected) return;
-      drawNotes(v, layer.notes, layer.units);
+      drawNotes(v, layer.notes, layer.units, layer.notes.map((n) =>
+        Math.min(...n.units.map((u) => layer.rank[u]))));
+      paintView(v, true);
       hoverNotes(v, hoverRef.current);
     };
     draw();
@@ -548,6 +592,8 @@ export function Dump(p: { id: ViewId; location: Location; data: DataRef;
   hoverRef.current = hover;
   useLayoutEffect(() => {
     if (me.current) hoverNotes(me.current, hover);
+    // (a render may make new bytes: their reveal written again)
+    if (me.current && layer) paintView(me.current, true);
   });
 
   // the overlays (popovers), over the dumps' box, once per render of any
@@ -644,10 +690,7 @@ export function Dump(p: { id: ViewId; location: Location; data: DataRef;
         side={order} pair={!!p.compare} name={name} light={light}
         groupsOf={groupsOf}
         bare={bare} abbreviate={disp.abbreviate}
-        annot={layer && { on: revealed, hover,
-          cells: cellsOf(layer.units, l, r.address).map((u) =>
-            u === null ? null : { unit: u, k: layer.units[u].k as number,
-              d: layer.delay[u] }) }} />}
+        annot={annotOf?.(r.address)} />}
     </div>);
   });
   if (l?.more && !flow) {
@@ -694,7 +737,7 @@ export function Dump(p: { id: ViewId; location: Location; data: DataRef;
   return <div ref={me} data-side={order} role="group"
     aria-label={p.when ? `${label} ${p.when}` : label}
     // (lit: the rest steps back; a selection or a step: brown caps)
-    className={["view", light.muted || active ? "active" : "",
+    className={["view", light.muted || annot ? "active" : "",
       link.selection || link.walk || active ? "chosen" : "",
       light.walk ? "walking" : "", disp.shape === "strip" ? "strip" : "",
       disp.abbreviate !== undefined ? "abbr" : "", flow ? "flow" : "",
@@ -702,7 +745,8 @@ export function Dump(p: { id: ViewId; location: Location; data: DataRef;
         ? "revealed" : "", hand ? "hand" : ""].filter(Boolean).join(" ")}
     data-view={`${lens.key}:${p.id}`} data-point={l?.point}
     data-location={p.location}
-    data-exits={exiting(link) || undefined} {...handlers} {...hovering}>
+    data-exits={exiting(link) || undefined} {...handlers} {...hovering}
+    {...layer ? { "data-units": layer.units.length } : {}}>
     <div className="view-head"><span className="view-name">{title}</span>
       {/* (pointers written by hand, not the compiler's: said so, as a
         hand-written compilation's tree says it) */}
@@ -714,6 +758,6 @@ export function Dump(p: { id: ViewId; location: Location; data: DataRef;
     <div className="rows" style={disp.scale ? { fontSize: `${disp.scale}em` }
       : undefined}>{flow
         ? <Flow rows={rows} loc={loc} snap={snap}
-          per={disp.perLine ?? 16} /> : grouped}</div>
+          per={disp.perLine ?? 16} annot={annotOf} /> : grouped}</div>
   </div>;
 }

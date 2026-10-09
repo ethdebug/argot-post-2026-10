@@ -53,7 +53,10 @@ for (const width of [1360, 1024, 390]) {
     expect(await page.locator(".view.revealed").count()).toBe(0);
     expect(await page.locator(".pop.note").evaluateAll((es) => es.every(
       (e) => getComputedStyle(e).opacity === "0"))).toBe(true);
-    expect(await page.locator(".view .b.hl, .view.chosen").count()).toBe(0);
+    // (a colour mixed to nothing: rgba(…, 0), or color(srgb … / 0))
+    expect(await page.locator(".view .b.hl").evaluateAll((es) => es.every(
+      (e) => /(, 0\)|\/ 0\))$/.test(getComputedStyle(e).backgroundColor))))
+      .toBe(true);
     // (the toggle pressed in place: a click would scroll to it)
     await page.getByRole("radio", { name: "Annotated" })
       .dispatchEvent("click");
@@ -153,5 +156,26 @@ test("raw-annotated in a host page: revealed by its message; its " +
   await tell(true);
   await expect(frame.locator(".view.revealed")).toHaveCount(DUMPS);
   await tell(false);
+  await expect(frame.locator(".view.revealed")).toHaveCount(0);
+  // scroll-linked: { progress }, each value over its slice of it, in
+  // reading order: halfway, storage's first value in, the last panel's
+  // last not yet; back to 0, raw again
+  const post = (progress: number) => page.evaluate((progress) => (document
+    .getElementById("f") as HTMLIFrameElement).contentWindow!.postMessage(
+    { type: "ethdebug:reveal", on: progress > 0, progress }, "*"), progress);
+  // (each panel: its first value's fill, its last value's popover)
+  const vars = () => frame.locator(".view.annot").evaluateAll((vs) =>
+    vs.map((v) => { const n = Number((v as HTMLElement).dataset.units);
+      const f = v.querySelector<HTMLElement>('.rows [data-r="0"]');
+      const p = v.querySelector<HTMLElement>(`.pop.note[data-r="${n - 1}"]`)
+        ?? v.querySelector<HTMLElement>(".pop.note:last-of-type");
+      return [f?.style.getPropertyValue("--tf"),
+        p?.style.getPropertyValue("--tp")].map(Number); }));
+  await post(0.5);
+  await expect.poll(async () => (await vars())[0][0]).toBe(1);
+  expect((await vars()).at(-1)![1]).toBe(0);
+  await post(0);
+  await expect.poll(async () => (await vars()).flat().every((x) => x === 0))
+    .toBe(true);
   await expect(frame.locator(".view.revealed")).toHaveCount(0);
 });
