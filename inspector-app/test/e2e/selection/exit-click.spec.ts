@@ -186,3 +186,40 @@ test("a composite selected: a click on a grandchild selects its child",
       await after(null, () => pick(row(page, `${A}.score`))),
     ]).toEqual([A, A, A, `${A}.score`, `${A}.score`]);
   });
+
+test("what the selection consulted is inside it: a click there selects "
+  + "it, with a pointer; an anchor's bytes, the variable it anchors",
+async ({ page }) => {
+  await ready(page, { width: 1280 });
+  // (players: its keys in playerList are consulted)
+  await select(page, "mid", "players");
+  const pl1 = `${V} .b.rel[data-owners="playerList[1]"]`;
+  expect(await cursor(page, '#tree li[data-path="playerList[1]"] > .row'))
+    .toBe("pointer");
+  expect(await cursor(page, pl1)).toBe("pointer");
+  await row(page, "playerList[1]").click();
+  expect(await selected(page)).toBe("playerList[1]");
+  await select(page, "mid", "players");
+  await page.locator(pl1).first().click();
+  expect(await selected(page)).toBe("playerList[1]");
+  // (alice's record: players' slot 3 is its anchor, its bytes owned by
+  // none; a click there selects players)
+  await select(page, "mid", A);
+  const s3 = `${V} .wrow.anchor[data-slot="${slotHex(3n)}"] .b`;
+  expect(await cursor(page, s3)).toBe("pointer");
+  await page.locator(s3).nth(5).click();
+  expect(await selected(page)).toBe("players");
+});
+
+test("the variable whose slot a selection consulted is consulted in the "
+  + "tree: players for a record, playerList for an item",
+async ({ page }) => {
+  await ready(page, { width: 1280 });
+  for (const [sel, v] of [[A, "players"], [`${A}.score`, "players"],
+    ["playerList[0]", "playerList"]]) {
+    await select(page, "mid", sel);
+    await expect(row(page, v), sel).toHaveClass(/\brel\b/);
+    expect(await cursor(page, `#tree li[data-path="${v}"] > .row`))
+      .toBe("pointer");
+  }
+});

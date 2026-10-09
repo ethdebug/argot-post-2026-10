@@ -17,10 +17,13 @@ export interface LinkState {    // shared by the views of one link group
   walk: { step: number; focus?: string; n?: number; busy?: boolean;
     exit?: boolean } | null;
 }
-// While a selection rests (no walkthrough), a click (not a key) on what
-// it does not light only ends it: the one rule for the clicks and the
-// cursor (the views' data-exits)
+// While a selection rests (no walkthrough), a click (not a key) outside
+// it only ends it: the one rule for the clicks and the cursor (the
+// views' data-exits). Inside it: what it lights, and what it consulted
+// (the related treatment: classes hl and rel; a click there selects it)
 export const exiting = (s: LinkState) => !!s.selection && !s.walk;
+export const outside = (s: LinkState, lit: boolean, consulted: boolean) =>
+  exiting(s) && !lit && !consulted;
 export interface ViewState {    // one view instance's own state
   collapsed: ReadonlySet<Path>; // Tree only; default empty (expanded)
   // (Tree, the related view: the selection's members the reader opened;

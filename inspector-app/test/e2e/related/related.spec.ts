@@ -1,6 +1,5 @@
 // The related view: All | Related over the storage dump, its context
 // rows, the hash, the tree, and a walkthrough in it
-import { pick } from "../../pick";
 import type { Page } from "@playwright/test";
 import { test, expect, still, type Win } from "../../page";
 import { A } from "../../expect";
@@ -69,9 +68,8 @@ test("hover moves nothing; a click selects, and the rows follow",
     await page.locator('#tree li[data-path="playerList"] > .row').hover();
     await page.locator('#tree li[data-path="playerList[0]"] > .row').hover();
     expect(await rows(page)).toEqual(["slot 3", ROSTER0, RECORD]);
-    // (not lit by the selection: the first click ends it, the second
-    // selects: test/pick.ts)
-    await pick(page.locator('#tree li[data-path="playerList[0]"] > .row'));
+    // (consulted by the selection, so inside it: one click selects it)
+    await page.locator('#tree li[data-path="playerList[0]"] > .row').click();
     await expect.poll(() => rows(page)).toEqual(["slot 0", ROSTER0]);
   });
 

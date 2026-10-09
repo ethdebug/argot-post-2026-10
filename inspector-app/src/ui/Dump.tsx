@@ -37,7 +37,7 @@ import {
   addressText, addressing, goesOn, hex4, rowBytes,
 } from "../engine/location";
 import type { DataRef, Display, LinkId, ViewId } from "./types";
-import { exiting } from "./types";
+import { exiting, outside } from "./types";
 
 const TINTS = 5;
 const PLAIN = 1n << 32n;
@@ -358,10 +358,19 @@ export function Dump(p: { id: ViewId; location: Location; data: DataRef;
         h.row as Hex, i)))
       : !!h.bytes && lit0.bytes.has(byteKey(p.location, h.bytes.row,
         h.bytes.from));
+    // (what the selection consulted is inside it too: its bytes, or a
+    // row it consulted, an anchor's among them)
+    const row = (h.row ?? h.bytes?.row) as Hex | undefined;
+    const consulted = !!row && (!!lit0.related?.has(row) ||
+      (h.bytes ? !!lit0.relBytes?.has(byteKey(p.location, h.bytes.row,
+        h.bytes.from)) : [...Array(32).keys()].some((i) =>
+        lit0.relBytes?.has(byteKey(p.location, row, i)))));
+    // (an anchor's bytes, owned by none: the variable it anchors)
+    const anchor = row ? lit0.anchors?.get(row) : undefined;
     let cleared = false;
     setLink((s) => {
       const sel = s.selection;
-      if (exiting(s) && !lit && !keys) {
+      if (outside(s, lit, consulted) && !keys) {
         cleared = true;
         return { ...s, selection: null, hover: null };
       }
@@ -380,7 +389,7 @@ export function Dump(p: { id: ViewId; location: Location; data: DataRef;
       }
       // (in a walkthrough, exactly the value clicked: no drilling)
       const t = resolveTarget(h, keys || s.walk ? null : sel, d.byPath, l);
-      const q = t.path ?? null;
+      const q = t.path ?? (consulted ? anchor : undefined) ?? null;
       // (a click on the selection, which clears it: its hover at once,
       // vanilla rehover; with nothing selected, on bytes no value owns:
       // nothing changes, the hover stays)
@@ -478,7 +487,8 @@ export function Dump(p: { id: ViewId; location: Location; data: DataRef;
     const rel = !on && !only && !!light.related?.has(r.address);
     const cls = ["wrow", same ? "same" : "", k % 2 ? "zb" : "",
       on ? "on" : "", only ? "only" : "", known ? "known" : "",
-      gut ? "gut" : "", rel ? "rel" : ""]
+      gut ? "gut" : "", rel ? "rel" : "",
+      rel && light.anchors?.has(r.address) ? "anchor" : ""]
       .filter(Boolean).join(" ");
     lines.push(<div key={r.address} className={cls} data-slot={r.address}
       data-name={name} data-facts={facts} data-vt={vt(r.address)}
