@@ -9,8 +9,7 @@
   "timeline": [
     {
       "tx": 11,
-      "step": 986,
-      "label": "while carol plays: right after her combo resets"
+      "step": 986
     }
   ],
   "controls": "none",

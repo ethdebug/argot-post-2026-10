@@ -283,6 +283,15 @@ function whatIn(root: El, rowsIn: El[]): Item[] {
       common = "";
     }
   }
+  // (in a figure, a run of the selection's own slots, the selection all
+  // its values: the selection by its name, as one; its fields are the
+  // tree's to list)
+  const sel = x0?.light.cap;
+  if (!walk && root.closest("#embed") && rows.length > 1 && common &&
+    sel?.has(common)) {
+    return [{ ...item(owners.flatMap((o) => o.cells), shortKeys(common)),
+      k: "pk0" }];
+  }
   if (rows.length > 1 && ks.size <= 1) {
     return [item(owners.flatMap((o) => o.cells), common ? shortKeys(common)
       : ps.map(shortKeys).join(" · "))];
@@ -320,6 +329,12 @@ function whatIn(root: El, rowsIn: El[]): Item[] {
       x.id = o.id;
       out.push(x);
     });
+  });
+  // (unmapped bytes between two lit values in one slot, a short string's
+  // text and its length: part of what is shown, never cut)
+  out.forEach((x, i) => {
+    const near = (j: number) => out[j]?.seg === x.seg && !!out[j]?.k;
+    if (x.free && near(i - 1) && near(i + 1)) x.fixed = true;
   });
   // (read and an anchor: its names, then the note)
   if (anchorNote) out.push({ ...anchorNote, seg: out.at(-1)?.seg ?? 0 });
@@ -457,8 +472,9 @@ export function fitWhat(pop: Pop) {
       keep.splice(Math.floor(keep.length / 2), 1);
     } else {
       // (the fullest slot, down by its middle name)
-      const inner = segs.map((g) => keep.filter((i) => segOf(i) === g))
-        .filter((l) => l.length > 2).sort((a, b) => b.length - a.length)[0];
+      const inner = segs.map((g) => keep.filter((i) => segOf(i) === g &&
+        !items[i].fixed)).filter((l) => l.length > 2)
+        .sort((a, b) => b.length - a.length)[0];
       if (inner) {
         const m = inner[Math.floor(inner.length / 2)];
         keep = keep.filter((i) => i !== m);
@@ -570,12 +586,15 @@ const rects = (el: El): Rect[] => [el.getBoundingClientRect()];
 // The annotations of one dump, per run of lit rows: the slot popover
 // (under the run; else over it; never over a lit row's address, lit
 // bytes or another annotation; none where there is no room)
-function annotate(root: El, v: El, taken: Rect[], room: Rect[]) {
+function annotate(root: El, v: El, taken: Rect[], room: Rect[],
+  soft: Rect[] = []) {
   const runList = runs(v);
   if (!runList.length) return;
+  let strict = true;
   const fits = (el: El) => {
     const rs = rects(el);
     if (rs.some((r) => taken.some((t) => overlaps(r, t)) ||
+      (strict && soft.some((t) => overlaps(r, t))) ||
       !inside(r, room))) return false;
     taken.push(...rs);
     return true;
@@ -601,9 +620,18 @@ function annotate(root: El, v: El, taken: Rect[], room: Rect[]) {
         slotOf(r)))) pop.classList.add("kept");
       // (a run the selection only consulted: the same light label)
       if (consulted(run[0])) pop.classList.add("kept", "related");
-      const ways = ["under", "over"];
+      // (a run the reader points at: anywhere free of lit bytes, if no
+      // place is free of every byte)
+      const pointed = run.some((r) => {
+        const at = data(r)?.light.at;
+        return at?.row === slotOf(r);
+      });
+      const ways = ["under", "over", ...pointed && soft.length
+        ? ["under!", "over!"] : []];
       let placed = false;
-      for (const way of ways) {
+      for (const w of ways) {
+        const way = w.replace("!", "");
+        strict = !w.endsWith("!");
         const prow = way === "over" ? run[0] : run.at(-1)!;
         const addr = prow.querySelector<El>(".addr")!;
         pop.classList.toggle("under", way === "under");
@@ -651,11 +679,16 @@ export function clearOverlays(root: El) {
 export function drawOverlays(root: El) {
   clearOverlays(root);
   const views = all(root, ".view").filter((v) => !v.hidden);
-  const taken = all(root, ".view .rows .word .b[data-i]")
-    .filter((c) => byteLight(c).hl).map((c) =>
-      c.getBoundingClientRect() as Rect);
+  // (lit bytes; in a figure, every byte too, `soft`: a popover there
+  // covers none, but the one for a row the reader points at, which goes
+  // where it can)
+  const bytes = all(root, ".view .rows .word .b[data-i]");
+  const taken = bytes.filter((c) => byteLight(c).hl).map((c) =>
+    c.getBoundingClientRect() as Rect);
+  const soft = root.closest("#embed") ? bytes.filter((c) =>
+    !byteLight(c).hl).map((c) => c.getBoundingClientRect() as Rect) : [];
   const room = bounds(root);
-  for (const v of views) annotate(root, v, taken, room);
+  for (const v of views) annotate(root, v, taken, room, soft);
   // a walkthrough step about bytes in a slot: their positions, 0 to 31,
   // over that slot (an overlay, like a popover)
   for (const v of views) {

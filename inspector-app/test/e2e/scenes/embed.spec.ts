@@ -325,6 +325,30 @@ test("embed.html#scene=pitfall-nesting: alice's record, related rows " +
     bs.map((b) => b.classList.contains("hl") ? "v"
       : b.dataset.owners ? "o" : "u").join(""));
   expect(name).toBe("v".repeat(5) + "u".repeat(26) + "v");
+  // (her record's slots: its popover the record, by name, no list)
+  await expect(page.locator(".pop").filter({ hasText: "2 slots" }))
+    .toHaveText("keccak(0x7099…79c8, slot 3) : players[0x7099…79c8], " +
+      "2 slots");
+  // (the tree: keys and addresses short, by name; nothing wraps)
+  await expect(page.locator(`.tree li[data-path="${A}"] > .row .name`))
+    .toHaveText('[0x7099…79c8 ("alice")]');
+  // (no popover over any byte)
+  const over = await page.evaluate(() => {
+    const bs = [...document.querySelectorAll(".rows .b")].map((b) =>
+      b.getBoundingClientRect());
+    return [...document.querySelectorAll(".pop")].some((p) => {
+      const r = p.getBoundingClientRect();
+      return bs.some((b) => b.left < r.right - 0.5 && r.left < b.right - 0.5
+        && b.top < r.bottom - 0.5 && r.top < b.bottom - 0.5);
+    });
+  });
+  expect(over).toBe(false);
+  // (small slots whole: 0x02, 0x03)
+  await expect(page.locator('.wrow[data-slot$="0003"] .addr .a'))
+    .toHaveText("0x03");
+  // (no moment line: post figures have none)
+  await expect(page.locator(".tline, .moment")).toHaveCount(0);
+  await expect(page.locator("#embed")).not.toContainText("while carol");
   // (a word a row: its 32 bytes on one line)
   expect(await slot("aa80").locator(".b").evaluateAll((bs) => new Set(
     bs.map((b) => Math.round(b.getBoundingClientRect().top))).size))

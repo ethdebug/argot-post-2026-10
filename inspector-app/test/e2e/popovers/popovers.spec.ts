@@ -279,7 +279,7 @@ test("at rest: no popover, nothing steps back, the dump only hex",
     await expect(page.locator("#panel.active, #tree.active")).toHaveCount(0);
     // (names live in the tree)
     expect((await page.locator("#panel .rows").allInnerTexts()).join(" ")
-      .replace(/[0-9a-f…⋯\s]/g, "")).toBe("");
+      .replace(/0x|[0-9a-f…⋯\s]/g, "")).toBe("");
   });
 
 test("an address focused from the keyboard shows its popover",
