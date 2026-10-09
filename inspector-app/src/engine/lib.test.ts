@@ -7,7 +7,7 @@ import type { Machine } from "./lib";
 it("the tarballs are the pinned ones", () => {
   const pin = fs.readFileSync("vendor/PIN", "utf8");
   const tgz = fs.readdirSync("vendor").filter((f) => f.endsWith(".tgz"));
-  expect(tgz).toHaveLength(3);
+  expect(tgz).toHaveLength(4);
   for (const f of tgz) {
     expect(pin).toContain(createHash("sha256")
       .update(fs.readFileSync(`vendor/${f}`)).digest("hex"));
