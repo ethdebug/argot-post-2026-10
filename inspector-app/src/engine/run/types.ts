@@ -48,7 +48,7 @@ export interface TxSpec {
 export type BuildId = string;     // "sol", "vy", "bug-O0", "bug-O2"
 export interface Build {
   language: "solidity" | "vyper" | "bug";
-  compiler: string;                       // "solc 0.8.38-develop… (walnut #10)"
+  compiler: string;               // "solc 0.8.38-develop… (walnut #10)"
   create: Hex;                            // creation bytecode (+ ctor args)
   programs?: { create?: Format.Program; runtime: Format.Program };
   resources?: Format.Info.Resources;      // types, pointer templates

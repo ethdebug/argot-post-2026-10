@@ -4,7 +4,7 @@
 import { describe, expect, it } from "vitest";
 import fs from "node:fs";
 import path from "node:path";
-import * as evm from "@ethdebug/evm";
+import * as evm from "./evm";
 import { digest, runScenario } from "./run";
 import { opByte } from "./opcodes";
 import { arcade, BUILDS, runOf } from "../../../test/run";
@@ -51,12 +51,12 @@ describe.each(BUILDS)("runScenario: %s", (build) => {
     });
   it("at a transaction's end, holds what the EVM holds", async () => {
     const s = arcade();
-    const ex = new evm.Executor({ chainId: s.chain.chainId });
-    const run = await runScenario(s, build, evm, ex);
+    const ch = evm.chain(s.chain.chainId);
+    const run = await runScenario(s, build, evm, ch);
     const end = run.stateAt({ tx: run.txs.length - 1, step: "end" });
     expect(end.storage.size).toBeGreaterThan(10);
     for (const [slot, value] of end.storage) {
-      expect(word(await ex.getStorage(BigInt(slot), run.address)), slot)
+      expect(word(await ch.storage(run.address, BigInt(slot))), slot)
         .toBe(value);
     }
     expect(end.memory).toBeUndefined();

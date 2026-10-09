@@ -1,8 +1,8 @@
 // The runner (addendum §2.1): a scenario's transactions executed with
-// one build by @ethdebug/evm (injected: the lazy chunk in the browser,
-// the package in Node), recorded per trace step; the state at a moment
-// (§2.3); the run's digest (§2.4)
-import type * as Evm from "@ethdebug/evm";
+// one build by @ethdebug/evm, through ./evm (injected: the lazy chunk
+// in the browser, the module in Node), recorded per trace step; the
+// state at a moment (§2.3); the run's digest (§2.4)
+import type { Chain, Handlers, TxResult } from "./evm";
 import type { Hex, Snapshot } from "../types";
 import type {
   BuildId, Frame, Journal, MomentRef, Run, Scenario, TxRun,
@@ -12,13 +12,14 @@ import { inputOf } from "./abi";
 import { opByte } from "./opcodes";
 import { storageAt } from "./journal";
 
-type EvmModule = typeof import("@ethdebug/evm");
+type EvmModule = typeof import("./evm");
+// a Run as data: what a worker posts (stateAt is rebuilt from it)
+export type RunData = Omit<Run, "stateAt">;
 
 const SLOAD = opByte("SLOAD");
 const SSTORE = opByte("SSTORE");
 const TSTORE = opByte("TSTORE");
 const KECCAK256 = opByte("KECCAK256");
-const NONE = new Uint8Array();
 const ZERO: Hex = `0x${"0".repeat(64)}`;
 
 const word = (n: bigint): Hex => `0x${n.toString(16).padStart(64, "0")}`;
@@ -44,16 +45,13 @@ function recorder() {
   const storage: Journal = [], transient: Journal = [];
   const touched = new Set<Hex>();
   const keccakInputs: Hex[][] = [];
-  const options: Evm.TraceOptions = {
-    memory: "changed",
+  const on: Handlers = {
     frame(e) {
       if (e.kind === "enter") {
-        const f = e.frame;
+        const { kind: _, ...f } = e;
         open.push(frames.length);
-        frames.push({ depth: f.depth, address: f.address.toLowerCase() as Hex,
-          codeAddress: f.codeAddress.toLowerCase() as Hex,
-          caller: f.caller.toLowerCase() as Hex, calldata: f.calldata,
-          first: pc.length, last: pc.length - 1, reverted: false });
+        frames.push({ ...f, first: pc.length, last: pc.length - 1,
+          reverted: false });
         return;
       }
       const f = frames[open.pop()!];
@@ -63,15 +61,15 @@ function recorder() {
     },
     step(t) {
       const i = pc.length;
-      const b = opByte(t.opcode);
+      const b = t.op;
       const f = open[open.length - 1];
       const top = (k: number) => t.stack[t.stack.length - 1 - k];
       pc.push(t.pc);
       op.push(b);
-      depth.push(t.depth ?? 0);
+      depth.push(t.depth);
       frame.push(f);
       stack.push(t.stack);
-      memory.push(t.memory ?? NONE);
+      memory.push(t.memory);
       // (the slots of the transaction's own address: its first frame's)
       const own = frames[f].address === frames[0].address;
       if (b === SSTORE || b === TSTORE) {
@@ -80,31 +78,31 @@ function recorder() {
       }
       if ((b === SSTORE || b === SLOAD) && own) touched.add(word(top(0)));
       if (b === KECCAK256) {
-        keccakInputs.push(words(t.memory ?? NONE, Number(top(0)),
+        keccakInputs.push(words(t.memory, Number(top(0)),
           Number(top(1))));
       }
     },
   };
   const done = (label: string, from: Hex, input: Hex,
-    r: Evm.ExecutionResult): TxRun => ({
+    r: TxResult): TxRun => ({
     label, from, input,
-    result: { success: r.success, returnData: hexOf(r.returnValue),
+    result: { success: r.success, returnData: hexOf(r.returnData),
       gasUsed: r.gasUsed },
     steps: pc.length,
     pc: Int32Array.from(pc), op: Uint8Array.from(op),
     depth: Uint8Array.from(depth), frame: Uint16Array.from(frame),
     frames, stack, memory, storage, transient, touched, keccakInputs,
   });
-  return { options, done };
+  return { on, done };
 }
 
-// (`executor`: one to run in, for a test that reads its state after)
+// (`on`: the chain to run on, for a test that reads its state after)
 export async function runScenario(s: Scenario, build: BuildId,
-  evm: EvmModule, executor?: Evm.Executor): Promise<Run> {
+  evm: EvmModule, on?: Chain): Promise<Run> {
   const b = s.builds[build];
   if (!b) throw new Error(`scenario ${s.id} has no build ${build}`);
-  const ex = executor ?? new evm.Executor({ chainId: s.chain.chainId });
-  for (const a of s.accounts) await ex.fund(a.address, a.balance);
+  const ch = on ?? evm.chain(s.chain.chainId);
+  for (const a of s.accounts) await ch.fund(a.address, a.balance);
   const addressOf = new Map(s.accounts.map((a) => [a.name, a.address]));
   let address: Hex | undefined;
   const txs: TxRun[] = [];
@@ -112,25 +110,27 @@ export async function runScenario(s: Scenario, build: BuildId,
     const { number, timestamp, prevrandao } = blockOf(s, k);
     const block = { number, timestamp, prevrandao };
     const from = addressOf.get(t.from)!;
-    const { options, done } = recorder();
-    const value = t.value;
+    const r = recorder();
     if (t.kind === "create") {
-      const r = await ex.deploy({ from, create: b.create, value, block },
-        options);
-      if (!r.address) throw new Error(`${t.label}: no contract created`);
-      address = r.address.toLowerCase() as Hex;
-      txs.push(done(t.label, from, b.create, r));
+      const x = await ch.send({ from, input: b.create, value: t.value,
+        block }, r.on);
+      if (!x.created) throw new Error(`${t.label}: no contract created`);
+      address = x.created;
+      txs.push(r.done(t.label, from, b.create, x));
       continue;
     }
     if (!address) throw new Error(`${t.label}: no contract yet`);
     const input = inputOf(t);
-    txs.push(done(t.label, from, input,
-      await ex.call({ from, to: address, input, value, block }, options)));
+    txs.push(r.done(t.label, from, input, await ch.send({ from, to: address,
+      input, value: t.value, block }, r.on)));
   }
   if (!address) throw new Error(`scenario ${s.id} creates no contract`);
-  return { scenario: s.id, build, address, txs,
-    stateAt: stateOf(address, txs) };
+  return runOf({ scenario: s.id, build, address, txs });
 }
+
+// a Run from its data
+export const runOf = (d: RunData): Run =>
+  ({ ...d, stateAt: stateOf(d.address, d.txs) });
 
 // Run.stateAt (§2.3), from the recorded transactions: storage = the
 // slots the transactions up to this one touch (all of this one's), each
