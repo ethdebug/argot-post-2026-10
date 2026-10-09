@@ -1,0 +1,133 @@
+{
+  "id": "raw-annotated",
+  "title": "The same bytes, annotated",
+  "run": {
+    "scenario": "arcade",
+    "build": "sol"
+  },
+  "lens": "raw-annotated",
+  "timeline": [
+    {
+      "tx": 11,
+      "step": 986,
+      "label": "while carol plays: her combo just reset"
+    }
+  ],
+  "controls": "none",
+  "pointers": [
+    {
+      "identifier": "return → _resetCombo",
+      "type": {
+        "kind": "bytes",
+        "size": 32
+      },
+      "pointer": {
+        "location": "stack",
+        "slot": 0
+      }
+    },
+    {
+      "identifier": "return → play",
+      "type": {
+        "kind": "bytes",
+        "size": 32
+      },
+      "pointer": {
+        "location": "stack",
+        "slot": 1
+      }
+    },
+    {
+      "identifier": "return → dispatcher",
+      "type": {
+        "kind": "bytes",
+        "size": 32
+      },
+      "pointer": {
+        "location": "stack",
+        "slot": 2
+      }
+    },
+    {
+      "identifier": "selector",
+      "type": {
+        "kind": "bytes",
+        "size": 32
+      },
+      "pointer": {
+        "location": "stack",
+        "slot": 3
+      }
+    },
+    {
+      "identifier": "keccak input.key",
+      "type": {
+        "kind": "address"
+      },
+      "pointer": {
+        "location": "memory",
+        "offset": "0xc",
+        "length": "0x14"
+      }
+    },
+    {
+      "identifier": "keccak input.slot",
+      "type": {
+        "kind": "uint",
+        "bits": 256
+      },
+      "pointer": {
+        "location": "memory",
+        "offset": "0x20",
+        "length": "0x20"
+      }
+    },
+    {
+      "identifier": "free memory pointer",
+      "type": {
+        "kind": "bytes",
+        "size": 32
+      },
+      "pointer": {
+        "location": "memory",
+        "offset": "0x40",
+        "length": "0x20"
+      }
+    },
+    {
+      "identifier": "_rolledHit's encoding.length",
+      "type": {
+        "kind": "uint",
+        "bits": 256
+      },
+      "pointer": {
+        "location": "memory",
+        "offset": "0x80",
+        "length": "0x20"
+      }
+    },
+    {
+      "identifier": "_rolledHit's encoding.prevrandao",
+      "type": {
+        "kind": "bytes",
+        "size": 32
+      },
+      "pointer": {
+        "location": "memory",
+        "offset": "0xa0",
+        "length": "0x20"
+      }
+    },
+    {
+      "identifier": "_rolledHit's encoding.sender",
+      "type": {
+        "kind": "address"
+      },
+      "pointer": {
+        "location": "memory",
+        "offset": "0xcc",
+        "length": "0x14"
+      }
+    }
+  ]
+}

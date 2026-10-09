@@ -6,7 +6,8 @@ import { runOf } from "../../test/run";
 
 describe("the scenes", () => {
   it("are in post order, each once", () => {
-    expect(scenes.map((s) => s.id)).toEqual(["raw-hero", "raw-named",
+    expect(scenes.map((s) => s.id)).toEqual(["raw-hero", "raw-annotated",
+      "raw-named",
       "mid", "alice", "motd", "vyper", "players-walk", "alice-plays",
       "vyper-rules", "bug-O0", "bug-O2"]);
   });

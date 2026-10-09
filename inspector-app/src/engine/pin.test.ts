@@ -9,7 +9,8 @@ const alice = sceneOf(JSON.parse(file("alice")));
 
 describe("pins", () => {
   it("a scene file's text is sceneJson's", () => {
-    for (const id of ["mid", "alice", "motd", "raw-hero", "raw-named"]) {
+    for (const id of ["mid", "alice", "motd", "raw-hero", "raw-named",
+      "raw-annotated"]) {
       expect(sceneJson(sceneOf(JSON.parse(file(id)))), id).toBe(file(id));
     }
   });

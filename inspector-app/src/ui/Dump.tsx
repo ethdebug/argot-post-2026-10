@@ -4,6 +4,11 @@
 import { useFitDump } from "./fit";
 import { useEffect, useLayoutEffect, useMemo, useRef } from "react";
 import { drawOverlays, type ViewData } from "./overlays";
+import { drawLabels, stagger } from "./labels";
+import { useRevealed } from "./reveal";
+import {
+  cellsOf, groupsOf as labelGroups, onChainNames, unitsOf, type Unit,
+} from "../engine/annotated";
 
 // one drawing of a box's overlays per commit, however many of its dumps
 // rendered (the pending mark lives on the box's element)
@@ -26,8 +31,8 @@ import type {
 } from "../engine/types";
 import { byteKey, short } from "../engine/hex";
 import {
-  useDecoded, useLayout, useLens, useLight, useLink, usePointAt,
-  hush,
+  decodingOf, useDecoded, useLayout, useLens, useLight, useLink,
+  usePointAt, hush,
 } from "./hooks";
 import { blockOf, resolveTarget } from "../engine/target";
 import { noLight } from "../engine/light";
@@ -150,22 +155,42 @@ const half = (mine: (string | undefined)[]) =>
   mine.slice(16).every((b) => b === undefined) && mine[0] !== undefined;
 
 function Word({ l, ls, loc, row, mine, theirs, side, pair, name, light,
-  groupsOf, bare, abbreviate }: {
+  groupsOf, bare, abbreviate, annot, stagger }: {
   l: Layout; ls: Layout[]; loc: Location; row: Hex;
   mine: (string | undefined)[]; theirs: (string | undefined)[];
   side?: string; pair?: boolean; name: string; light: Light;
   groupsOf: (id: string) => boolean; bare?: boolean;
-  abbreviate?: number }) {
+  abbreviate?: number; annot?: ReturnType<typeof cellsOf>;
+  stagger?: number }) {
+  // (the annotated layer: a byte's unit and colour, as classes the
+  // reveal shows; a run of one unit's colour rounded at its ends)
+  const an = (i: number) => {
+    const c = annot?.[i];
+    if (!c) return "";
+    const same = (j: number) => annot![j]?.unit === c.unit &&
+      annot![j]?.k === c.k;
+    return ` an pk${c.k}${i % 8 === 0 || !same(i - 1) ? " gs" : ""}${
+      i % 8 === 7 || !same(i + 1) ? " ge" : ""}`;
+  };
+  // (each unit fades in a little after the one before: the reveal's
+  // stagger, `stagger` ms a unit)
+  const unit = (i: number) => annot?.[i] ? { "data-unit": annot[i]!.unit,
+    style: { "--d": `${Math.round(annot[i]!.unit * (stagger ?? 0))}ms` } as
+      CSSProperties } : {};
   if (abbreviate !== undefined) {
+    const k = annot?.findIndex(Boolean) ?? -1;
     return <div className="word" data-side={side} data-slot={row}>
-      <span className="ab">{abbreviated(mine, abbreviate)}</span></div>;
+      <span className={`ab${k >= 0 ? `${an(k)} gs ge` : ""}`}
+        {...k >= 0 ? unit(k) : {}}>
+        {abbreviated(mine, abbreviate)}</span></div>;
   }
   if (bare) {
     return <div className={`word${half(mine) ? " half" : ""}`}
       data-side={side} data-slot={row}>
       <div className="bytes"><Octets cells={mine.map((b, i) =>
         <span key={i} className={`b${b === undefined ? " past"
-          : b === "00" ? " z" : ""}`}>{b ?? "··"}</span>)} /></div></div>;
+          : b === "00" ? " z" : ""}${an(i)}`} {...unit(i)}>{b ?? "··"}
+        </span>)} /></div></div>;
   }
   const ownersIn = (x: Layout) => Array.from({ length: 32 }, (_, i) =>
     x.cover.get(byteKey(loc, row, i)) ?? []);
@@ -450,6 +475,36 @@ export function Dump(p: { id: ViewId; location: Location; data: DataRef;
   }, [l, disp.foldZero, snap, p.location]);
   useFitDump(me, true, rows.length);
 
+  // the annotated layer (display `annotate`): the units of the values
+  // here, the colour of each byte, and the labels' groups; keys by their
+  // on-chain names, from the scene's own decoding
+  const annot = !!disp.annotate;
+  const own = useDecoded(annot ? { decoding: "$scene", moment: "current" }
+    : undefined);
+  const hand = annot && !!d && decodingOf(lens, d.decoding)?.provenance ===
+    "hand-written";
+  const layer = useMemo(() => {
+    if (!annot || !d || !l || !own) return undefined;
+    const names = onChainNames(own);
+    const units: Unit[] = unitsOf(d, l, { names, hand });
+    return { units, groups: labelGroups(units, l, rows, { d, names }) };
+  }, [annot, d, l, own, rows, hand]);
+  const revealed = useRevealed();
+  useLayoutEffect(() => {
+    const v = me.current;
+    if (!v || !layer) return;
+    const draw = () => v.isConnected && drawLabels(v, layer.units,
+      layer.groups);
+    draw();
+    addEventListener("resize", draw);
+    let live = true;
+    document.fonts?.ready.then(() => live && draw());
+    return () => {
+      live = false;
+      removeEventListener("resize", draw);
+    };
+  }, [layer]);
+
   // the overlays (popovers), over the dumps' box, once per render of any
   // of its dumps; again on resize and once the fonts are in (the labels
   // are fitted in them)
@@ -543,7 +598,9 @@ export function Dump(p: { id: ViewId; location: Location; data: DataRef;
           r.address)}
         side={order} pair={!!p.compare} name={name} light={light}
         groupsOf={groupsOf}
-        bare={bare} abbreviate={disp.abbreviate} />}
+        bare={bare} abbreviate={disp.abbreviate}
+        annot={layer && cellsOf(layer.units, l, r.address, snap)}
+        stagger={layer && stagger(layer.units.length)} />}
     </div>);
   });
   if (l?.more && !flow) {
@@ -594,10 +651,14 @@ export function Dump(p: { id: ViewId; location: Location; data: DataRef;
       link.selection || link.walk ? "chosen" : "",
       light.walk ? "walking" : "", disp.shape === "strip" ? "strip" : "",
       disp.abbreviate !== undefined ? "abbr" : "", flow ? "flow" : "",
-      bare ? "bare" : ""].filter(Boolean).join(" ")}
+      bare ? "bare" : "", annot ? "annot" : "", annot && revealed
+        ? "revealed" : "", hand ? "hand" : ""].filter(Boolean).join(" ")}
     data-view={`${lens.key}:${p.id}`} data-point={l?.point}
     data-exits={exiting(link) || undefined} {...handlers}>
     <div className="view-head"><span className="view-name">{title}</span>
+      {/* (pointers written by hand, not the compiler's: said so) */}
+      {hand && <span className="hand-note">pointers written by hand
+      </span>}
       {ruler && <div className="wrow head"><span className="addr" />
         <Ruler /></div>}
     </div>
