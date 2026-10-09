@@ -1,0 +1,21 @@
+{
+  "id": "vyper",
+  "title": "Vyper reads it differently",
+  "caption": "Vyper 0.4.3: the same joins and plays, to the middle of the game",
+  "run": {
+    "scenario": "arcade",
+    "build": "vy"
+  },
+  "lens": "inspector",
+  "timeline": [
+    {
+      "tx": 11,
+      "step": "end",
+      "label": "in the middle of the game, in the Vyper contract"
+    }
+  ],
+  "controls": "none",
+  "initial": {
+    "select": "players[0x70997970c51812dc3a010c7d01b50e0d17dc79c8].score"
+  }
+}
