@@ -116,14 +116,15 @@ describe("with real data", () => {
     await waitFor(() => expect([...container.querySelectorAll(".view")]
       .map(word)).toEqual(["8c", "aa"]), slow);
     await act(async () => void await lens!.show("alice",
-      { mode: "before" }));
+      { moment: 0 }));
     await waitFor(() => expect([...container.querySelectorAll(".view")]
       .map(word)).toEqual(["", "8c"]), slow);
     expect(container.querySelectorAll('.view[data-view$=":a"] .wrow' +
       "[data-slot]")).toHaveLength(0);
   });
 
-  it("two dumps at two literal points: both shown, neither a side",
+  it("two dumps at two literal points, uncompared: both shown, each the " +
+    "later of none",
     async () => {
       const project = await testProject();
       const at = (point: string) => ({ decoding: "alice",
@@ -149,7 +150,7 @@ describe("with real data", () => {
       expect(views.map((v) => v.hasAttribute("hidden")))
         .toEqual([false, false]);
       expect(views.map((v) => v.getAttribute("data-side")))
-        .toEqual([null, null]);
+        .toEqual(["after", "after"]);
     });
 });
 

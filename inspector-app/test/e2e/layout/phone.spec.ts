@@ -72,14 +72,13 @@ const small = (page: Page, sel: string) => page.locator(sel).evaluateAll(
   }).filter(Boolean));
 
 for (const [w, h] of SIZES) {
-  test(`${w}px: the bar's buttons and Before | After are tap-sized`,
+  test(`${w}px: the bar's buttons are tap-sized`,
     async ({ page }) => {
       await at(page, w, h);
       await page.locator('#picker button[data-snapshot="alice"]')
         .click();
       await page.waitForFunction(() => (window as Win).results
         ?.done);
-      expect(await small(page, "#mode button")).toEqual([]);
       await select(page, "alice", "totalScore");
       expect(await small(page, "#details button")).toEqual([]);
       await page.locator('#details button[data-r="start"]').click();

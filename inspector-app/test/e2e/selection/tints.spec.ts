@@ -53,7 +53,7 @@ const colours = (page: Page) => page.evaluate(() => {
   }
   const dump: Record<string, Set<string>> = {};
   for (const c of document.querySelectorAll<HTMLElement>(
-    "#panel .view:not([hidden]) .b.hl[data-owners]")) {
+    "#panel .view[data-side=after] .b.hl[data-owners]")) {
     for (const o of c.dataset.owners!.split("|")) {
       (dump[o.replace(/#length$/, "")] ??= new Set()).add(k(c));
     }

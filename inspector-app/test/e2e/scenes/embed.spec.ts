@@ -52,7 +52,7 @@ test("embed.html: moment=0 leaves the moment out", async ({ page }) => {
 });
 
 // Any scene of the registry, by its id, drawn by its lens alone
-for (const [id, views] of [["raw-named", 2], ["mid", 2], ["vyper", 2],
+for (const [id, views] of [["raw-named", 1], ["mid", 1], ["vyper", 1],
   ["players-walk", 1], ["bug-O2", 1]] as const) {
   test(`embed.html#scene=${id}: its lens alone, its height posted`,
     async ({ page }) => {

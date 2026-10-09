@@ -33,9 +33,7 @@ export interface ViewState {    // one view instance's own state
 }
 export interface LensState {
   scene?: string;               // the scene shown (a bookmark: its id)
-  points: Record<string, PointId>;   // named point slots: "a", "b"
-  side?: "before" | "after";    // which of a pair is shown (Phase 1)
-  insets: boolean;              // Phase 1 parity; fate open
+  moment: number;               // its moment shown: an index of its points
   links: Record<LinkId, LinkState>;
   views: Record<ViewId, ViewState>;
   // (a bookmark whose data did not load: the error, until it does)
@@ -73,30 +71,29 @@ export interface Display {
 
 // a view's data: a decoding (or "$scene", the scene's) at a moment of
 // the scene: the one shown ("current"), the one before it ("previous";
-// none at the first: the view is idle), or the n-th; or at a point (or
-// a named point slot: "a", "b", or "$side", the shown one; Phase 1's
-// pair, until Before | After goes)
-export type DataRef = { decoding: DecodingId;
-  point: PointId | { slot: string } }
-  | { decoding: DecodingId; moment: "current" | "previous" | number };
+// none at the first: the view is idle), or the n-th; or at a point
+export type Moment = "current" | "previous" | number;
+export type DataRef = { decoding: DecodingId; point: PointId }
+  | { decoding: DecodingId; moment: Moment };
 // … resolved by the Lens
 export type DataAt = { decoding: DecodingId; point: PointId };
 
 export type ViewSpec = { id: ViewId; area: string; link?: LinkId;
   domId?: string }
   & ({ kind: "dump"; location: Location; data: DataRef; filter?: Filter;
-      // Phase 1's pair: the side of it this dump is (shown when the lens
-      // shows that side; titled Before/After); else its own title
-      side?: "before" | "after"; title?: string;
-      // the point (or decoding) it compares with: changed bytes, the
-      // slots' facts (Phase 1's pair: the other side)
+      title?: string;
+      // its title in a scene of two moments ("moment": `title` and the
+      // moment's label; default: `title`)
+      title2?: string;
+      // the moment (or decoding) it compares with: changed bytes, the
+      // slots' facts, and the rows its transaction touched
       compare?: DataRef;
+      // (with no point to show, e.g. "previous" at a scene's first
+      // moment: no box at all, rather than an idle one)
+      idle?: "hidden";
       // other decodings of the same point whose words it shows, owned
       // by none here, named "<who> keccak(…)" (Phase 1: Vyper's)
       others?: { decoding: DecodingId; who?: string }[];
-      // (its points are paused steps of a trace, not a transaction's
-      // before and after)
-      steps?: boolean;
       display?: Display }
     | { kind: "tree"; data: DataRef; filter?: Filter;
       variant?: "tree" | "table"; compare?: DataRef;
@@ -107,9 +104,7 @@ export type ViewSpec = { id: ViewId; area: string; link?: LinkId;
       // (its rows also carry data-part: the calldata section's contract)
       partAttr?: boolean }
     | { kind: "picker";
-      of: "bookmarks" | "points" | "side" | "level" | "related";
-      // (a side picker in a row of its own, hidden at one point)
-      row?: string }
+      of: "bookmarks" | "points" | "level" | "related" }
     // the memory section's (Locals.tsx)
     | { kind: "source"; data: DataRef; part?: "legend" }
     // the contract's source, its selection's declaration marked

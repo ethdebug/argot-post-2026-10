@@ -1,7 +1,7 @@
 // The raw lens: the bytes with no names (the post's opening figure,
-// "tools have always worked backwards"). One frozen moment
-// (fixtures/raw.json: inside carol's join, while her name is written
-// to storage): storage, the stack, memory and calldata, with every
+// "tools have always worked backwards"). Its scene's moment (raw-hero:
+// inside carol's join, while her name is written to storage): storage,
+// the stack, memory and calldata, with every
 // high-level layer off: no names, no tints, no popovers, no tree, no
 // hover meaning; the gutters only. Three compositions of the same four
 // dumps, to pick from; each lays out by its class (raw.css, which the
@@ -9,7 +9,7 @@
 import type { Filter, Location } from "../engine/types";
 import type { Display, LensSpec, ViewSpec } from "../ui/types";
 
-const data = { decoding: "raw", point: "raw" };
+const data = { decoding: "$scene", moment: "current" } as const;
 const all: Filter = { rows: "all" };
 const dump = (location: Location, title: string, display: Display):
   ViewSpec => ({ id: location, kind: "dump", area: location, location,
@@ -23,7 +23,8 @@ const dump = (location: Location, title: string, display: Display):
 const dump2 = (location: Location, title: string, area: string,
   display: Display = {}): ViewSpec =>
   ({ ...dump(location, title, { ruler: false, ...display }), area });
-const base = { timelines: ["raw"], decodings: ["raw"], links: [],
+const base = { timelines: [], decodings: [], links: [],
+  initial: { scene: "raw-hero" },
   grid: "", areas: { wide: "dump raw-col", narrow: "raw-col" } };
 
 // The composition: `moment`, a quiet line under the stack naming the

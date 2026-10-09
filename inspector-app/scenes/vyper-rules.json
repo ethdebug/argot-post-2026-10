@@ -1,0 +1,17 @@
+{
+  "id": "vyper-rules",
+  "title": "Vyper vs Solidity",
+  "run": {
+    "scenario": "arcade",
+    "build": "vy"
+  },
+  "lens": "vyper",
+  "timeline": [
+    {
+      "tx": 11,
+      "step": "end",
+      "label": "in the middle of the game, in the Vyper contract"
+    }
+  ],
+  "controls": "none"
+}

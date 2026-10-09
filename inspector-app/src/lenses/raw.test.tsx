@@ -38,10 +38,19 @@ for (const spec of rawLenses) {
         .querySelectorAll(".b").length).toBe(32);
     }
     expect(c.querySelector(".ruler")).toBeNull();
-    // storage: every slot it has, ⋯ where the slots jump
+    // storage: every slot that holds something (raw.json's, each its
+    // word) and the slots the values here own, zero (carol's record,
+    // not yet written); ⋯ where the slots jump
     const sto = view(c, "storage")!;
-    expect(sto.querySelectorAll(".wrow[data-slot]").length)
-      .toBe(Object.keys(json.storage).length);
+    const word = (slot: string) => [...sto.querySelectorAll(
+      `.wrow[data-slot="${slot}"] .b`)].map((b) => b.textContent).join("");
+    for (const [slot, w] of Object.entries(json.storage)) {
+      expect(word(slot), slot).toBe((w as string).slice(2));
+    }
+    const zero = [...sto.querySelectorAll<HTMLElement>(".wrow[data-slot]")]
+      .filter((r) => !(r.dataset.slot! in json.storage));
+    expect(zero.length).toBeGreaterThan(0);
+    for (const r of zero) expect(word(r.dataset.slot!)).toMatch(/^0+$/);
     expect(sto.querySelectorAll(".gap").length).toBeGreaterThan(0);
     // no names, tints, popovers, tree; nothing to point at
     expect(c.querySelector(".b[data-owners], .b[class*=' t'], .b.free"))
@@ -64,13 +73,13 @@ it("abbreviation: the last bytes after 0x…, a short word whole", () => {
 
 it("the display parameters: scale, perLine, rows shape", async () => {
   const project = await testProject();
-  const spec: LensSpec = { id: "p", title: "P", timelines: ["raw"],
-    decodings: ["raw"], links: [], grid: '"a b"', views: [
+  const spec: LensSpec = { id: "p", title: "P", timelines: [],
+    decodings: [], links: [], initial: { scene: "raw-hero" }, grid: '"a b"', views: [
       { id: "a", kind: "dump", area: "a", location: "calldata",
-        data: { decoding: "raw", point: "raw" }, filter: { rows: "all" },
+        data: { decoding: "$scene", moment: "current" }, filter: { rows: "all" },
         display: { bare: true, density: "flow", perLine: 8, scale: 2 } },
       { id: "b", kind: "dump", area: "b", location: "stack",
-        data: { decoding: "raw", point: "raw" },
+        data: { decoding: "$scene", moment: "current" },
         display: { bare: true } }] };
   const { container: c } = render(<Lens spec={spec} project={project} />);
   await waitFor(() => expect(c.querySelectorAll(

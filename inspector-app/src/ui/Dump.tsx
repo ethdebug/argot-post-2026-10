@@ -7,13 +7,12 @@ import { drawOverlays, type ViewData } from "./overlays";
 
 // one drawing of a box's overlays per commit, however many of its dumps
 // rendered (the pending mark lives on the box's element)
-function schedule(root: HTMLElement & { _overlays?: boolean },
-  cards: boolean) {
+function schedule(root: HTMLElement & { _overlays?: boolean }) {
   if (root._overlays) return;
   root._overlays = true;
   queueMicrotask(() => {
     root._overlays = false;
-    if (root.isConnected) drawOverlays(root, { cards });
+    if (root.isConnected) drawOverlays(root);
   });
 }
 import type {
@@ -148,11 +147,11 @@ function tintsOf(ls: Layout[], loc: Location) {
 const half = (mine: (string | undefined)[]) =>
   mine.slice(16).every((b) => b === undefined) && mine[0] !== undefined;
 
-function Word({ l, ls, loc, row, mine, theirs, side, name, light,
+function Word({ l, ls, loc, row, mine, theirs, side, pair, name, light,
   groupsOf, bare, abbreviate }: {
   l: Layout; ls: Layout[]; loc: Location; row: Hex;
   mine: (string | undefined)[]; theirs: (string | undefined)[];
-  side?: string; name: string; light: Light;
+  side?: string; pair?: boolean; name: string; light: Light;
   groupsOf: (id: string) => boolean; bare?: boolean;
   abbreviate?: number }) {
   if (abbreviate !== undefined) {
@@ -219,7 +218,7 @@ function Word({ l, ls, loc, row, mine, theirs, side, name, light,
         data-owners={g.owners.length ? g.owners.join("|") : undefined}
         {...(first ? { tabIndex: 0, role: "button",
           "aria-label":
-            `${label}, ${range} of ${name}${side ? `, ${side}` : ""}` }
+            `${label}, ${range} of ${name}${pair ? `, ${side}` : ""}` }
           : {})}>
         {mine[i] ?? "··"}</span>);
     }
@@ -229,13 +228,11 @@ function Word({ l, ls, loc, row, mine, theirs, side, name, light,
     <div className="bytes"><Octets cells={cells} /></div></div>;
 }
 
-// `side`: Phase 1's pair (data-side); `hidden`, `title`, `when`,
-// `compare` (the pair's other point: changed bytes, the slots' facts):
-// the lens's choice (Lens.tsx)
+// `title`, `when` (its moment's label), `compare` (another moment:
+// changed bytes, the slots' facts): the lens's choice (Lens.tsx)
 export function Dump(p: { id: ViewId; location: Location; data: DataRef;
-  filter?: Filter; link?: LinkId; domId?: string;
-  side?: "before" | "after"; hidden?: boolean; title?: string;
-  when?: string; compare?: DataRef; cards?: boolean; display?: Display }) {
+  filter?: Filter; link?: LinkId; domId?: string; title?: string;
+  when?: string; compare?: DataRef; display?: Display }) {
   const disp = p.display ?? {};
   const bare = !!disp.bare;
   const flow = disp.density === "flow";
@@ -249,8 +246,7 @@ export function Dump(p: { id: ViewId; location: Location; data: DataRef;
   const otherPoint = thereAt?.p;
   const lit0 = useLight(p.id, p.filter, undefined, p.compare);
   const [walkLink] = useLink(p.link);
-  // (a walkthrough lights the side it walks, the one shown)
-  const light = bare || (p.hidden && walkLink.walk) ? noLight : lit0;
+  const light = bare ? noLight : lit0;
   // what the compared point lights (a slot lit there only: "only"; none
   // in a walkthrough, which walks one side: vanilla panel.js)
   const there0 = useLight(p.id, p.filter, p.compare, p.data);
@@ -259,9 +255,12 @@ export function Dump(p: { id: ViewId; location: Location; data: DataRef;
   const d = useDecoded(p.data);
   const lens = useLens();
   const groupsOf = (id: string) => !!d?.byPath.get(id)?.children;
-  const side = p.side;
   const title = p.title ?? "Storage";
   const label = p.location[0].toUpperCase() + p.location.slice(1);
+  // (which of two moments this is: the earlier, "before", its changed
+  // bytes in the old colour; else, and at one moment, "after")
+  const order = hereAt && thereAt && hereAt.i < thereAt.i ? "before"
+    : "after";
 
   // what the pointer is on (vanilla main.js target): a run of bytes, or
   // a row's address; as a target that follows the blocks
@@ -421,25 +420,24 @@ export function Dump(p: { id: ViewId; location: Location; data: DataRef;
 
   const me = useRef<HTMLDivElement>(null);
   const rows = l?.rows ?? [];
-  useFitDump(me, !p.hidden, rows.length);
+  useFitDump(me, true, rows.length);
 
-  // the overlays (popovers, cards, the tray), over the dumps' box, once
-  // per render of any of its dumps; again on resize and once the fonts
-  // are in (the labels are fitted in them)
-  const cards = !!p.cards && !link.walk;
+  // the overlays (popovers), over the dumps' box, once per render of any
+  // of its dumps; again on resize and once the fonts are in (the labels
+  // are fitted in them)
   useLayoutEffect(() => {
     if (bare) return;
     const v = me.current as (HTMLDivElement & { _data?: ViewData }) | null;
     if (v && l) v._data = { light, there: p.compare ? there : undefined, l };
     const root = v?.closest<HTMLElement>(".panel") ?? v?.parentElement;
-    if (root) schedule(root, cards);
+    if (root) schedule(root);
   });
   useEffect(() => {
     if (bare) return;
     const again = () => {
       const v = me.current;
       const root = v?.closest<HTMLElement>(".panel") ?? v?.parentElement;
-      if (root) schedule(root, cards);
+      if (root) schedule(root);
     };
     addEventListener("resize", again);
     let live = true;
@@ -448,7 +446,7 @@ export function Dump(p: { id: ViewId; location: Location; data: DataRef;
       live = false;
       removeEventListener("resize", again);
     };
-  }, [cards, bare]);
+  }, [bare]);
   const lines: ReactElement[] = [];
   // (the pair's layouts, the earlier point's first, for the tints)
   const tintOrder = useMemo(() => !l ? [] : !lThere ? [l]
@@ -514,7 +512,8 @@ export function Dump(p: { id: ViewId; location: Location; data: DataRef;
         mine={rowBytes(snap, loc, r.address)}
         theirs={rowBytes((p.compare ? otherPoint : here)?.snapshot, loc,
           r.address)}
-        side={side} name={name} light={light} groupsOf={groupsOf}
+        side={order} pair={!!p.compare} name={name} light={light}
+        groupsOf={groupsOf}
         bare={bare} abbreviate={disp.abbreviate} />}
     </div>);
   });
@@ -539,8 +538,8 @@ export function Dump(p: { id: ViewId; location: Location; data: DataRef;
     }, onKeyDown: onKey };
   const ruler = disp.ruler !== false && disp.shape !== "strip" &&
     disp.abbreviate === undefined && !flow;
-  return <div ref={me} data-side={side} role="group"
-    aria-label={p.when ? `${label} ${p.when}` : label} hidden={p.hidden}
+  return <div ref={me} data-side={order} role="group"
+    aria-label={p.when ? `${label} ${p.when}` : label}
     // (lit: the rest steps back; a selection or a step: brown caps)
     className={["view", light.muted ? "active" : "",
       link.selection || link.walk ? "chosen" : "",

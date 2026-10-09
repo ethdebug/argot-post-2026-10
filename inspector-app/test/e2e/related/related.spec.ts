@@ -12,7 +12,7 @@ const open = async (page: Page, hash: string) => {
 };
 // the storage dump's rows shown, by name
 const rows = (page: Page) => page.locator(
-  "#panel .view:not([hidden]) .wrow[data-slot]").evaluateAll((rs) =>
+  "#panel .view[data-side=after] .wrow[data-slot]").evaluateAll((rs) =>
   rs.map((r) => (r as HTMLElement).dataset.name));
 const tree = (page: Page) => page.locator("#tree li[data-path]")
   .evaluateAll((ls) => ls.map((l) => (l as HTMLElement).dataset.path));
@@ -82,7 +82,7 @@ test("a walkthrough in the related view: step 0 to found, the same rows",
     await expect(page.locator("#details .rcount")).toHaveText("start");
     // (step 0: the record's slots lit, in rows that are shown)
     const lit = () => page.locator(
-      "#panel .view:not([hidden]) .wrow:has(.b.hl)").evaluateAll((rs) =>
+      "#panel .view[data-side=after] .wrow:has(.b.hl)").evaluateAll((rs) =>
       rs.map((r) => (r as HTMLElement).dataset.name));
     await expect.poll(lit).toEqual(["slot 3", RECORD, `${RECORD} + 1`]);
     await page.locator("#details").focus();
@@ -100,7 +100,7 @@ test("what a selection consulted: tinted in its record's colour, a light "
   for (const rel of ["", "&rel=0"]) {
     await open(page, `ex=mid&sel=players${rel}`);
     const playerList = page.locator(
-      '#panel .view:not([hidden]) .wrow[data-name^="keccak(slot 0)"]');
+      '#panel .view[data-side=after] .wrow[data-name^="keccak(slot 0)"]');
     await expect(playerList).toHaveCount(3);
     await expect(playerList.first()).toHaveClass(/\brel\b/);
     // (alice's address, her record's colour, desaturated: blue)
@@ -124,7 +124,7 @@ test("what a selection consulted: tinted in its record's colour, a light "
 test("a consulted slot's role: anchor (a note), read (its names), both",
   async ({ page }) => {
     const pop = (slot: string) => page.locator(
-      `#panel .view:not([hidden]) .wrow[data-name="${slot}"] .pop`);
+      `#panel .view[data-side=after] .wrow[data-name="${slot}"] .pop`);
     // (players' record: slot 3's number only, the base of its hash)
     await open(page, `ex=mid&sel=${A}`);
     await expect(pop("slot 3")).toHaveText(
@@ -143,7 +143,7 @@ test("a consulted slot's role: anchor (a note), read (its names), both",
     // (playerList itself: slot 0 is its own length, lit, as before)
     await open(page, "ex=mid&sel=playerList");
     await expect(pop("slot 0")).not.toHaveClass(/related/);
-    await expect(page.locator("#panel .view:not([hidden]) " +
+    await expect(page.locator("#panel .view[data-side=after] " +
       '.wrow[data-name="slot 0"] .b.hl').first())
       .toBeVisible();
   });
@@ -205,7 +205,7 @@ test.describe("view transitions", () => {
     const w = window as unknown as { vt: E[] };
     w.vt = [];
     const rows = () => document.querySelectorAll(
-      "#panel .view:not([hidden]) .wrow[data-slot]").length;
+      "#panel .view[data-side=after] .wrow[data-slot]").length;
     type T = { ready: Promise<void>; finished: Promise<void> };
     type Start = (f: () => Promise<void>) => T;
     const d = document as unknown as { startViewTransition: Start };

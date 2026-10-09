@@ -95,7 +95,7 @@ test("a gap between two values, and the row's ends: the address's hover",
 
 test("a gap inside one value is that value's (slot 0: `length`)",
   async ({ page }) => {
-    await at(page, "alice");
+    await at(page, "mid");
     const slot = "0x" + "0".repeat(64);
     const row = `${V} .wrow[data-slot="${slot}"]`;
     const b0 = await box(page, `${row} .b[data-i="0"]`);
@@ -114,7 +114,7 @@ test("a gap inside one value is that value's (slot 0: `length`)",
   });
 
 test("between two rows there is no point with no hover", async ({ page }) => {
-  await at(page, "alice");
+  await at(page, "mid");
   const rows = page.locator(`${V} .wrow[data-slot]`);
   const a = (await rows.nth(0).boundingBox())!;
   const x = a.x + a.width - 1;

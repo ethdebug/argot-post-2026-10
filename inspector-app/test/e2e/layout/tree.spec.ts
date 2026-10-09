@@ -12,14 +12,14 @@ const st = (page: Page) => page.evaluate(() => {
     aria: li.querySelector(":scope > .chev")!.getAttribute("aria-expanded"),
     kids: (li.querySelector(":scope > ul") as HTMLElement).offsetHeight,
     hues: [...document.querySelectorAll(
-      "#panel .view:not([hidden]) .b.hl")].filter((b) =>
+      "#panel .view[data-side=after] .b.hl")].filter((b) =>
       /\bpk\d/.test(b.className)).length,
-    lit: document.querySelectorAll("#panel .view:not([hidden]) .b.hl")
+    lit: document.querySelectorAll("#panel .view[data-side=after] .b.hl")
       .length,
     sel: (document.querySelector("#tree .row.sel")?.parentElement as
       HTMLElement | undefined)?.dataset.path,
     dump: JSON.stringify([...document.querySelectorAll(
-      "#panel .view:not([hidden]) .wrow")].map((r) => {
+      "#panel .view[data-side=after] .wrow")].map((r) => {
       const b = r.getBoundingClientRect();
       return [b.left, b.top + scrollY].map(Math.round);
     })) };
@@ -41,7 +41,7 @@ test("groups collapse by their chevron; the dump never moves",
     const s3 = await st(page);
     await select(page, "mid", null);
     await page.locator(
-      `#panel .view:not([hidden]) .b[data-owners="${A}.score"]`)
+      `#panel .view[data-side=after] .b[data-owners="${A}.score"]`)
       .first().click();
     const s4 = await st(page);
     expect([s0.shut, s0.aria, s0.hues > 0]).toEqual([false, "true", true]);
@@ -61,11 +61,11 @@ test("a chevron points at its row; a hidden row lights its ancestor",
     await chev(page, "playerList").hover();
     await expect(page.locator('#tree li[data-path="playerList"] > .row'))
       .toHaveClass(/\bhl\b/);
-    await expect(page.locator("#panel .view:not([hidden]) .b.hl"))
+    await expect(page.locator("#panel .view[data-side=after] .b.hl"))
       .toHaveCount(92);
     await chev(page, "playerList").click();
     await page.locator(
-      '#panel .view:not([hidden]) .b[data-owners="playerList[0]"]')
+      '#panel .view[data-side=after] .b[data-owners="playerList[0]"]')
       .first().hover();
     await expect(page.locator('#tree li[data-path="playerList"] > .row'))
       .toHaveClass(/\bhl\b/);
@@ -110,7 +110,7 @@ test("a lit row out of the tree's view: a circle button on the edge",
     // goes: what a reader scrolling with the wheel would see too)
     await page.locator("#edge-down").scrollIntoViewIfNeeded();
     await page.locator(
-      `#panel .view:not([hidden]) .b[data-owners="${C}.plays"]`)
+      `#panel .view[data-side=after] .b[data-owners="${C}.plays"]`)
       .first().hover();
     expect(await pill("down")).toEqual({ text: "", title: false,
       inside: true, round: true, centred: true });
@@ -127,7 +127,7 @@ test("a lit row out of the tree's view: a circle button on the edge",
       t.scrollTop = t.scrollHeight;
     });
     await page.locator(
-      '#panel .view:not([hidden]) .b[data-owners="playerList[0]"]')
+      '#panel .view[data-side=after] .b[data-owners="playerList[0]"]')
       .first().hover();
     expect(await pill("up")).toMatchObject({ round: true, centred: true });
   });
@@ -186,9 +186,9 @@ test("a slot the value uses only in the other state: marked 'only'",
     // (After: motd is short, in slot 1; its old data slots, lit Before,
     // are "only" After)
     await expect(page.locator(
-      '#panel .view[data-side="after"] .wrow.only')).toHaveCount(2);
+      '#panel .view[data-side=after] .wrow.only')).toHaveCount(2);
     await expect(page.locator(
-      '#panel .view[data-side="after"] .wrow.only > .word .b.hl'))
+      '#panel .view[data-side=after] .wrow.only > .word .b.hl'))
       .toHaveCount(0);
   });
 
@@ -201,7 +201,7 @@ test("the tree box: as tall as the dump, its first row level with the "
     const t = document.querySelector<HTMLElement>("#tree")!;
     const d = document.querySelector<HTMLElement>("#dump")!;
     const line = document.querySelector<HTMLElement>(
-      "#panel .view:not([hidden]) .rows > *")!;
+      "#panel .view[data-side=after] .rows > *")!;
     const row = document.querySelector<HTMLElement>("#tree li .row")!;
     const top = (e: Element, c: string) => e.getBoundingClientRect().top -
       e.closest(c)!.getBoundingClientRect().top;
@@ -271,7 +271,8 @@ test("every scene: the columns equal, the tree's first row level with the "
       const r = (q: string) => document.querySelector(q)!
         .getBoundingClientRect();
       return [r(".scols .words").width - r(".scols .storage").width,
-        r("#panel .view:not([hidden]) .rows > *").top -
+        // (the first dump's: a scene of two, the earlier's)
+        r("#panel .view .rows > *").top -
           r("#tree li .row").top].map((x) => Math.abs(x) <= 1);
     });
     expect(c, id).toEqual([true, true]);

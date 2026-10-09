@@ -15,26 +15,22 @@ const go = async (page: Page, hash: string) => {
 const view = (page: Page) => page.evaluate(() => ({
   ex: document.querySelector<HTMLElement>(
     '#picker [aria-checked="true"]')?.dataset.id,
-  mode: document.querySelector<HTMLElement>(
-    '#mode [aria-checked="true"]')?.dataset.mode,
   sel: (document.querySelector("#tree .row.sel")?.parentElement as
     HTMLElement | undefined)?.dataset.path,
-  insets: (document.querySelector("#insets") as HTMLInputElement).checked,
   hash: location.hash }));
 
-test("the hash restores the view, and keeps the memory keys",
-  async ({ page }) => {
+test("the hash restores the view, and keeps the memory keys (the old " +
+  "mode and insets keys go)", async ({ page }) => {
     await go(page, "ex=motd&mode=before&sel=playerList&mopt=2&mpt=mult&" +
       "mmode=before&msel=mult&insets=0");
     const hs = await view(page);
-    expect(hs).toMatchObject({ ex: "motd", mode: "before", sel: "playerList",
-      insets: false });
+    expect(hs).toMatchObject({ ex: "motd", sel: "playerList" });
     for (const k of ["ex=motd", "sel=playerList", "mopt=2", "mpt=mult",
-      "mmode=before", "msel=mult"]) expect(hs.hash).toContain(k);
-    await page.locator('#mode button[data-mode="after"]').click();
+      "msel=mult"]) expect(hs.hash).toContain(k);
+    for (const k of ["mode=", "insets="]) expect(hs.hash).not.toContain(k);
     await pick(page.locator('#tree li[data-path="totalScore"] > .row'));
     await expect.poll(() => page.evaluate(() => location.hash))
-      .toMatch(/mode=after.*sel=totalScore|sel=totalScore.*mode=after/);
+      .toMatch(/sel=totalScore/);
     // a cleared default selection stays cleared ("sel=")
     await pick(page.locator('#tree li[data-path="totalScore"] > .row'));
     await expect.poll(() => page.evaluate(() => location.hash))
@@ -51,18 +47,7 @@ test("a scene alone gives its defaults; a stale hash the first scene's",
     expect((await view(page)).sel).toBe(A);
     await go(page, "ex=nope&mode=compare&sel=zzz&mopt=7&mpt=x");
     const v = await view(page);
-    expect([v.ex, v.mode, v.sel]).toEqual(["mid", "after", A]);
-  });
-
-test("insets off goes into the hash, and on again out of it",
-  async ({ page }) => {
-    await go(page, "ex=alice");
-    await page.locator("#insets").uncheck();
-    await expect.poll(() => page.evaluate(() => location.hash))
-      .toContain("insets=0");
-    await page.locator("#insets").check();
-    await expect.poll(() => page.evaluate(() => location.hash))
-      .not.toContain("insets=");
+    expect([v.ex, v.sel]).toEqual(["mid", A]);
   });
 
 test("Escape clears the selection; a click on empty space too",

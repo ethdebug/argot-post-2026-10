@@ -1,9 +1,9 @@
 // The dumps' overlays (vanilla panel.js at d235617: paint's second half,
-// annotate, popFor, whatIn, whatHtml, fitWhat, place, block, fit, the
-// tray): drawn on the rendered dumps after each render, from what each
-// view lights (its Light and Layout, which the Dump puts on its element:
-// `ViewData`); the DOM gives only geometry and the cards' pictures. They
-// are overlays: nothing in the dumps moves for them.
+// annotate, popFor, whatIn, whatHtml, fitWhat, place): the slot popovers
+// and the byte ruler, drawn on the rendered dumps after each render,
+// from what each view lights (its Light and Layout, which the Dump puts
+// on its element: `ViewData`); the DOM gives only geometry. They are
+// overlays: nothing in the dumps moves for them.
 import type { Hex, Layout, Light, Location } from "../engine/types";
 import { byteKey } from "../engine/hex";
 import { relClass } from "../engine/related";
@@ -487,54 +487,6 @@ function popFor(root: El, rows: El[], more: number): Pop {
   return pop;
 }
 
-// A compare block for a run: a picture of the same rows in the OTHER
-// dump (cloned as drawn there), cropped to the words where a lit byte
-// differs; under the run in Before, over it in After
-function block(root: El, rows: El[], side: string, label: string) {
-  const other = side === "before" ? "after" : "before";
-  const twins = rows.map((r) => {
-    const t = root.querySelector<El>(`.view[data-side="${other}"] ` +
-      `.wrow[data-slot="${r.dataset.slot}"]`);
-    if (!t) return null;
-    const cells = (x: El) => all(x, ":scope > .word .b");
-    const [mine, theirs] = [cells(r), cells(t)];
-    const at = [...mine, ...theirs].filter((c) => byteLight(c).hl)
-      .map((c) => +c.dataset.i!);
-    return at.some((i) => mine[i]?.textContent !== theirs[i]?.textContent)
-      ? t : null;
-  }).filter(Boolean) as El[];
-  if (!twins.length) return null;
-  const el = document.createElement("div");
-  el.className = `cmp ${side}`;
-  el.dataset.label = label;
-  el.setAttribute("aria-hidden", "true");
-  el.innerHTML = `<span class="cmp-tag">${esc(label)}</span>` +
-    `<div class="cmp-frame"><div class="cmp-photo"></div></div>`;
-  const photo = el.querySelector(".cmp-photo")!;
-  for (const t of twins) {
-    const c = t.cloneNode(true) as El;
-    c.querySelectorAll(".pop, .cmp").forEach((x) => x.remove());
-    for (const x of [c, ...all(c, "*")]) {
-      for (const a of ["tabindex", "role", "aria-label", "title",
-        "data-slot", "data-side", "data-owners", "data-g", "data-name",
-        "data-facts", "data-full"]) x.removeAttribute(a);
-    }
-    c.dataset.of = t.dataset.slot; // which slot it pictures
-    photo.append(c);
-  }
-  return el;
-}
-
-// Size and place a block: whole words, from the gutter to the end of the
-// 32 bytes; the picture's columns stay on the run's columns
-function fit(el: El, rows: El[]) {
-  const row = rows[0].getBoundingClientRect();
-  el.querySelector<El>(".cmp-photo")!.style.width = `${row.width}px`;
-  // 6px of room left of the addresses (CSS), 3px right of the bytes
-  el.querySelector<El>(".cmp-frame")!.style.width = `${row.width + 9}px`;
-  el.style.left = "0px";
-}
-
 const overlaps = (a: Rect, b: Rect) => a.left < b.right - 0.5 &&
   b.left < a.right - 0.5 && a.top < b.bottom - 0.5 && b.top < a.bottom - 0.5;
 
@@ -559,27 +511,14 @@ const inside = (r: Rect, bs: Rect[]) => bs.every((b) =>
   r.top >= b.top - 0.5 && r.bottom <= b.bottom + 0.5 &&
   r.left >= b.left - 8 && r.right <= b.right + 0.5);
 // What an annotation covers on screen
-const rects = (el: El): Rect[] => all(el, ".cmp-frame, .cmp-tag")
-  .map((e) => e.getBoundingClientRect() as Rect)
-  .concat(el.classList.contains("pop") ? [el.getBoundingClientRect()] : []);
-
-export interface OverlayNames {
-  before: string; after: string;
-  dumps: { before: string; after: string };
-}
-const NAMES: OverlayNames = { before: "before", after: "after",
-  dumps: { before: "Before", after: "After" } };
+const rects = (el: El): Rect[] => [el.getBoundingClientRect()];
 
 // The annotations of one dump, per run of lit rows: the slot popover
-// (over the run in Before, under it in After; else the other way; never
-// over a lit row's address, lit bytes or another annotation), and the
-// compare block; one with no room goes, labelled, to the tray
-function annotate(root: El, v: El, compare: boolean, names: OverlayNames,
-  tray: El, taken: Rect[], room: Rect[], force?: Set<string>) {
+// (under the run; else over it; never over a lit row's address, lit
+// bytes or another annotation; none where there is no room)
+function annotate(root: El, v: El, taken: Rect[], room: Rect[]) {
   const runList = runs(v);
-  if (!runList.length) return [];
-  const side = v.dataset.side ?? "after";
-  const other = side === "before" ? "after" : "before";
+  if (!runList.length) return;
   const fits = (el: El) => {
     const rs = rects(el);
     if (rs.some((r) => taken.some((t) => overlaps(r, t)) ||
@@ -592,7 +531,6 @@ function annotate(root: El, v: El, compare: boolean, names: OverlayNames,
     return st.on || st.only || st.known;
   }).map((e) => ({ row: e.closest<El>(".wrow")!,
     r: e.getBoundingClientRect() }));
-  const pinned: { run: El[]; el: El }[] = [];
   // (step 0 of a walkthrough: its slots, no labels)
   const quiet = !!data(v)?.light.quiet;
   for (const run of runList) {
@@ -609,8 +547,7 @@ function annotate(root: El, v: El, compare: boolean, names: OverlayNames,
         slotOf(r)))) pop.classList.add("kept");
       // (a run the selection only consulted: the same light label)
       if (consulted(run[0])) pop.classList.add("kept", "related");
-      const ways = side === "before" ? ["over", "under"]
-        : ["under", "over"];
+      const ways = ["under", "over"];
       let placed = false;
       for (const way of ways) {
         const prow = way === "over" ? run[0] : run.at(-1)!;
@@ -651,74 +588,26 @@ function annotate(root: El, v: El, compare: boolean, names: OverlayNames,
       }
       if (!placed) pop.remove();
     }
-    const el = compare && block(root, run, side, names[other]);
-    if (!el) continue;
-    (side === "before" ? run.at(-1)! : run[0]).append(el);
-    fit(el, run);
-    if (run.some((r) => force?.has(r.dataset.slot!)) || !fits(el)) {
-      el.classList.add("pinned");
-      pinned.push({ run, el });
-    }
   }
-  for (const { run, el } of pinned) {
-    const card = document.createElement("div");
-    card.className = "pin";
-    card.dataset.side = side;
-    card.innerHTML = `<p class="pin-head">${esc(names.dumps[side as
-      "before"])} dump · ${esc(runName(run))} · ${el.classList.contains(
-      "pop") ? "how the slots were found" : `the bytes ${esc(names[other as
-      "before"])}`} (no room beside the lit rows)</p>`;
-    card.append(el);
-    tray.append(card);
-    if (el.classList.contains("cmp")) fit(el, run);
-  }
-  return pinned;
 }
 
 // Remove a dump's overlays
 export function clearOverlays(root: El) {
-  root.querySelectorAll(".pop, .cmp, .tray, .pin, .bruler").forEach((p) =>
+  root.querySelectorAll(".pop, .bruler").forEach((p) =>
     p.remove());
   root.querySelectorAll(".addr.popped, .addr.grp").forEach((a) =>
     a.classList.remove("popped", "grp", "grp-top", "grp-end"));
 }
 
-// Draw the overlays of a dumps box (vanilla paint, after the lighting):
-// `cards`: the other state's picture beside each lit run
-export function drawOverlays(root: El, o: { cards: boolean;
-  names?: Partial<OverlayNames> }) {
+// Draw the overlays of a dumps box (vanilla paint, after the lighting)
+export function drawOverlays(root: El) {
   clearOverlays(root);
   const views = all(root, ".view").filter((v) => !v.hidden);
-  const lit = () => all(root, ".view .rows .word .b[data-i]")
+  const taken = all(root, ".view .rows .word .b[data-i]")
     .filter((c) => byteLight(c).hl).map((c) =>
       c.getBoundingClientRect() as Rect);
-  const compare = o.cards && lit().length > 0;
-  const names = { ...NAMES, ...o.names };
-  // The tray is the same for Before and After: lay the hidden dump out
-  // for a moment, and note the runs whose cards would not fit there
-  const force = new Set<string>();
-  const hidden = all(root, ".view").filter((v) => v.hidden);
-  if (compare && hidden.length === 1) {
-    const hv = hidden[0];
-    hv.hidden = false;
-    const dry = annotate(root, hv, compare, names,
-      document.createElement("div"), lit(), bounds(root));
-    for (const { run, el } of dry) {
-      if (el.classList.contains("cmp")) {
-        for (const r of run) force.add(r.dataset.slot!);
-      }
-    }
-    clearOverlays(hv);
-    hv.hidden = true;
-  }
-  const tray = document.createElement("div");
-  tray.className = "tray";
-  const taken = lit();
   const room = bounds(root);
-  (root.querySelector(".views") ?? root).append(tray);
-  for (const v of views) {
-    annotate(root, v, compare, names, tray, taken, room, force);
-  }
+  for (const v of views) annotate(root, v, taken, room);
   // a walkthrough step about bytes in a slot: their positions, 0 to 31,
   // over that slot (an overlay, like a popover)
   for (const v of views) {
@@ -747,14 +636,5 @@ export function drawOverlays(root: El, o: { cards: boolean;
     if (taken.some((t) => overlaps(r, t)) || rows.some((t) =>
       overlaps(r, t))) el.remove();
     else taken.push(r);
-  }
-
-  if (!tray.childElementCount) tray.remove();
-  else {
-    // over the dumps' columns, at the bottom of the window
-    const r = root.getBoundingClientRect();
-    tray.style.left = `${Math.max(8, r.left)}px`;
-    tray.style.width = `${Math.min(r.width,
-      document.documentElement.clientWidth - 16)}px`;
   }
 }

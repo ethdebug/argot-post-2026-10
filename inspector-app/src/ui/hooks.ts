@@ -22,19 +22,19 @@ import { locked } from "../engine/target";
 import { byteKey } from "../engine/hex";
 import { regionBytes } from "../engine/layout";
 import type { Store } from "./store";
-import { pointOf } from "../engine/scene";
 import type {
-  DataAt, DataRef, LensSpec, LensState, LinkState, ViewState, ViewSpec,
+  DataAt, DataRef, LensSpec, LensState, LinkState, Moment, ViewState,
+  ViewSpec,
 } from "./types";
 
 export interface LensContextValue {
   spec: LensSpec; project: Project; store: Store<LensState>;
   // this mount's key: its views carry data-view="<key>:<view id>"
   key: string;
-  // show a bookmark (its points, side and selection); false when its
+  // show a scene (its moment and selection); false when its
   // data did not load (Lens.tsx)
-  show(id: string, view?: { mode?: "before" | "after";
-    sel?: string | null }): Promise<boolean>;
+  show(id: string, view?: { moment?: number; sel?: string | null }):
+    Promise<boolean>;
 }
 // The page's scenes of other lenses, for a lens inside it: the one shown
 // in place of this lens's own bookmark (null: none), and a way to show
@@ -73,35 +73,28 @@ export const NO_LINK: LinkState = { selection: null, hover: null,
   walk: null };
 export const NO_VIEW: ViewState = { collapsed: new Set() };
 
-// A DataRef in this lens's state: "$scene" is the bookmark's decoding; a
-// point slot is the point it holds ("$side": the side shown; "$other":
-// the other one of the pair)
-// A moment of the scene shown, as its point: the one shown (the side
-// shown, of a pair), the one before it, or the n-th
-function momentOf(m: "current" | "previous" | number, s: LensState):
+// A moment of the scene shown, as its point: the one shown, the one
+// before it (none at its first), or the n-th
+export function momentOf(m: Moment, s: LensState, p: Project):
   PointId | undefined {
-  if (!s.scene) return undefined;
-  const shown = s.points[s.side === "before" ? "a" : "b"];
-  const i = Number(shown?.slice(s.scene.length + 1));
-  const k = m === "current" ? i : m === "previous" ? i - 1 : m;
-  return Number.isInteger(k) && k >= 0 ? pointOf(s.scene, k) : undefined;
+  const points = p.bookmarks.find((b) => b.id === s.scene)?.points;
+  const k = m === "current" ? s.moment : m === "previous" ? s.moment - 1
+    : m;
+  return points?.[k];
 }
+
+// A DataRef in this lens's state: "$scene" is the scene's decoding
 
 export function resolveRef(ref: DataRef, s: LensState, p: Project):
   DataAt | undefined {
-  // ("$abi": the bookmark's call's calldata, when it names one)
-  const decoding = ref.decoding === "$scene"
-    ? p.bookmarks.find((b) => b.id === s.scene)?.decoding
+  // ("$abi": the scene's call's calldata, when it names one; "$rule":
+  // the other compiler's own reading of the scene's storage, if any)
+  const own = p.bookmarks.find((b) => b.id === s.scene)?.decoding;
+  const decoding = ref.decoding === "$scene" ? own
+    : ref.decoding === "$rule" ? own && p.decodings[own]?.foreign?.rule
     : ref.decoding === "$abi" ? (p.decodings[`abi:${s.scene}`]
       ? `abi:${s.scene}` : undefined) : ref.decoding;
-  if ("moment" in ref) {
-    const at = momentOf(ref.moment, s);
-    return decoding && at ? { decoding, point: at } : undefined;
-  }
-  const slot = typeof ref.point === "string" ? null : ref.point.slot;
-  const point = slot === null ? ref.point as string
-    : s.points[slot === "$side" ? (s.side === "before" ? "a" : "b")
-      : slot === "$other" ? (s.side === "before" ? "b" : "a") : slot];
+  const point = "moment" in ref ? momentOf(ref.moment, s, p) : ref.point;
   return decoding && point ? { decoding, point } : undefined;
 }
 
@@ -255,12 +248,11 @@ function useWalkInput(data: DataRef | undefined): WalkInput | undefined {
   const foreign = d && decodingOf(lens, d.decoding)?.foreign;
   const cd = useDecoded(foreign && d ? { decoding: foreign.rule,
     point: d.point } : undefined);
-  // (one side of a pair, named: when the two points' names differ; the
-  // memory section's two trace steps share one)
-  const pa = usePoint(data && { ...data, point: { slot: "a" } });
-  const pb = usePoint(data && { ...data, point: { slot: "b" } });
-  const pair = useLensState((s) => s.points.a !== s.points.b) &&
-    pa?.label !== pb?.label;
+  // (one moment of a scene's two, named: when the two moments' names
+  // differ; the memory section's two trace steps share one)
+  const pa = usePoint(data && { decoding: data.decoding, moment: 0 });
+  const pb = usePoint(data && { decoding: data.decoding, moment: 1 });
+  const pair = !!pb && pa?.label !== pb.label;
   return useMemo(() => {
     const dc = d && decodingOf(lens, d.decoding);
     if (!d || !point || !c || !dc || dc.variables === "abi") return;
@@ -341,10 +333,13 @@ export function useLight(id: string, filter?: Filter, at?: DataRef,
     // (a derivation's region step, pointed at: its bytes alone, over the
     // selection: vanilla mem.js forRegion)
     if (hover?.region) {
-      // (the side lit: the view's, or, for the pair's other point (`at`),
-      // the other side: its "only" rows)
-      const lit = v.kind === "dump" && v.side
-        ? at ? (v.side === "before" ? "after" : "before") : v.side : null;
+      // (the side lit: the view's (the earlier of two moments: before),
+      // or, for the pair's other point (`at`), the other side: its
+      // "only" rows)
+      const own = v.kind === "dump" && "moment" in v.data && v.compare
+        ? v.data.moment === "previous" ? "before" : "after" : null;
+      const lit = own && at ? (own === "before" ? "after" : "before")
+        : own;
       const other = !!hover.side && !!lit && lit !== hover.side;
       const bytes = new Set(regionBytes(hover.region).filter(() => !other &&
         hover.region!.location === l.location).map(([row, b]) =>
