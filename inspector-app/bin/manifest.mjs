@@ -83,7 +83,8 @@ function storage() {
   }
   // the calldata (motd only): `text`, then each ABI step pointed at
   {
-    const hash = hashOf([["ex", "motd"], ["sel", null]]);
+    // (on hold: drawn when the hash asks, calldata=1)
+    const hash = hashOf([["ex", "motd"], ["sel", null], ["calldata", "1"]]);
     out.push({ id: "motd-calldata-text", section: "storage", hash,
       actions: [{ click: '#ctree li[data-part="m"] > .row' }] });
     for (const part of ["selector", "m-offset", "m-length", "m-data"]) {
