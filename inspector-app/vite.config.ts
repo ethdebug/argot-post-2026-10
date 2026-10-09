@@ -1,7 +1,7 @@
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 import path from "node:path";
-import { isLibrary, loaderPage } from "./bin/vite-loader";
+import { isEvm, isLibrary, loaderPage } from "./bin/vite-loader";
 import { scenesPlugin } from "./bin/vite-scenes";
 
 // (the dev server's own port: 5180, or `--port`; the live-reload client
@@ -39,12 +39,15 @@ export default defineConfig(({ command }) => ({
   plugins: [react(), repin, loaderPage(), scenesPlugin()],
   server: { port: 5180, strictPort: true, fs: { allow: [".."] },
     hmr: { clientPort: port } },
+  // (the run's worker: a module, its EVM chunk split out)
+  worker: { format: "es" },
   build: {
     rollupOptions: { input: { index: "index.html", shell: "shell.html",
       embed: "embed.html" },
       // (the decoder bundle: one chunk the loader fetches with progress)
       output: {
-        manualChunks: (id) => isLibrary(id) ? "pointers" : undefined,
+        manualChunks: (id) => isLibrary(id) ? "pointers"
+          : isEvm(id) ? "evm" : undefined,
         chunkFileNames: (c) => c.name === "pointers" ? "vendor/pointers.js"
           : "assets/[name]-[hash].js" } },
   },

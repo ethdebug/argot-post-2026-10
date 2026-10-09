@@ -22,8 +22,14 @@ const STYLED = `<script>
   };
 </script>`;
 
-// the library's modules (and theirs): one chunk, vendor/pointers.js
-export const isLibrary = (id: string) =>
+// the library's modules (and theirs): one chunk, vendor/pointers.js; the
+// EVM's (@ethdebug/evm, ethereumjs and its curves), never the page's: a
+// chunk of their own, the runs' (isEvm)
+export const isEvm = (id: string) =>
+  /node_modules\/(@ethdebug\/evm|@ethereumjs|@noble\/curves)\//.test(id) ||
+  (/node_modules\/ethereum-cryptography\//.test(id) &&
+    !/ethereum-cryptography\/(esm\/)?(keccak|utils)\.js/.test(id));
+export const isLibrary = (id: string) => !isEvm(id) &&
   /node_modules\/(@ethdebug|ethereum-cryptography|@noble|yaml|json-schema-typed)\//
     .test(id);
 
