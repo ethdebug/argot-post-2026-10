@@ -3,26 +3,24 @@
 commit, so evm's pointers dependency is the app's copy (package.json
 overrides):
 
-commit 7a1f5531d74efcfb5e052fda9ad1840c754b9472
-branch evm-scenarios, PR ethdebug/format#375 ("evm: run multi-account
-scenarios with per-step state": E1-E8 of the timeline addendum), on
-main 889f1b92b; from a detached worktree (yarn install
---frozen-lockfile builds them). Earlier pins: d7cb421a3, ec7a81386.
+commit ba31f0a8177f73b82c3b08c3ec656cddf5c09ddf
+(ethdebug/format main: #375 merged, "evm: run multi-account scenarios
+with per-step state", E1-E8 of the timeline addendum; #374:
+programs-react takes React 19 and shiki 3); from a detached worktree
+(yarn install --frozen-lockfile builds them). Earlier pins: 7a1f5531d
+(#375's branch), d7cb421a3, ec7a81386.
 
 sha256:
+9ff7600cd25af38325b8cd86108097169219914d4f627a1f6bf8c5dec15aafc4  ethdebug-evm-0.1.0-preview.2.tgz
 cd943343e5a7a9a825880a5972fdcf61af7b20230d843e3df2563cb5a4f7ee03  ethdebug-format-0.1.0-draft.2.tgz
-1b527749f50cdfa1008671bf42703f323eca8fb77521b9ceef3910f212fca076  ethdebug-pointers-0.1.0-preview.2.tgz
-42e4eab81782fa5af3a75ba4dd55f2305421a42fc73f4fea13a1d12f7a4e65dd  ethdebug-evm-0.1.0-preview.2.tgz
-837ef27586c9e355b3da026a3fcbf54d79edfaa6e662760104fc263ce3431233  ethdebug-programs-react-0.1.0-preview.2.tgz
+98c8dac0053c1f3a2bdcee4762036e77c6f5d063095ac18ecc6329388b4ffb0d  ethdebug-pointers-0.1.0-preview.2.tgz
+32e384ebc7a3607ea1c19c78c9b8b9f47a4218d9877ff1dce7584cc46bdd0969  ethdebug-programs-react-0.1.0-preview.2.tgz
 
 programs-react: only its utils (dist/src/utils/effectiveContext.js,
-mockTrace.js), deep-imported by src/engine/run/annotate.ts. Its peers
-are React 18 (and it depends on shiki 2); package.json overrides its
-react and react-dom with the app's 19. TEMPORARY, until a release with
-programs-react's peers upgraded (React 19, shiki 3; gnidan 10-08).
+mockTrace.js), deep-imported by src/engine/run/annotate.ts.
 
 Re-pin: see timeline-phase-plan (Vendoring) and "To re-pin" below.
-After a preview release with #375: the file: entries become the
+After a preview release with #375 and #374: the file: entries become the
 released versions, the tarballs go, and this file says so.
 
 Decision (gnidan, 2026-10-07): the pin need not be byte-equal to

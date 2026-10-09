@@ -40,10 +40,6 @@
   },
   "overrides": {
     "@ethdebug/format": "file:vendor/ethdebug-format-0.1.0-draft.2.tgz",
-    "@ethdebug/pointers": "file:vendor/ethdebug-pointers-0.1.0-preview.2.tgz",
-    "@ethdebug/programs-react": {
-      "react": "$react",
-      "react-dom": "$react-dom"
-    }
+    "@ethdebug/pointers": "file:vendor/ethdebug-pointers-0.1.0-preview.2.tgz"
   }
 }

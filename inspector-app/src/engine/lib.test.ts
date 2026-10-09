@@ -12,7 +12,7 @@ it("the tarballs are the pinned ones", () => {
     expect(pin).toContain(createHash("sha256")
       .update(fs.readFileSync(`vendor/${f}`)).digest("hex"));
   }
-  expect(pin).toContain("7a1f5531d");
+  expect(pin).toContain("ba31f0a81");
 });
 
 it("dereferences a storage region", async () => {
