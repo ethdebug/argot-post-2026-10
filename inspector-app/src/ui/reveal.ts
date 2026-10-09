@@ -8,24 +8,38 @@
 import { useSyncExternalStore } from "react";
 import { createStore } from "./store";
 
-// The reveal's shape, in one place (to tune). Each panel takes its
-// `share` of the progress, in reading order (storage, then the stack,
-// then memory; the shares of the panels shown, scaled to 1). Its
-// values come one after another within it, each over a `slice` of the
-// progress (the last ending with the panel's share); within its slice,
-// its bytes light over the first `fill` of it (each byte up to `sweep`
-// later than the first, left to right) and its popover rises from
-// `popFrom` on. The toggle runs the progress over `toggleMs`; a popover
-// eases each change over `smoothMs` (raw.css reads --a-smooth; the
-// bytes follow the scroll as it is). Reduced motion: each value at
-// once, on or off, at the middle of its slice. The disclaimer: from
-// `afterAt` of the host's hold after the reveal (its `after`), or
-// `afterMs` after the progress reaches 1 (a host with no `after`, the
-// toggle).
+// The reveal's shape, in one place (to tune): the overture. One voice
+// alone, then another, then more and faster, mostly top to bottom: the
+// theme (slot 2, two values in one word), a call and its response
+// (carol's record, then memory's keccak input, key carol), bob, then
+// playerList, alice and motd closer together, and the tutti (the
+// stack's four in a cascade, memory's last under them). (On a phone the
+// order is also where each card is clear of the first beat's bubble,
+// mid-screen, as the figure scrolls under it: playerList's card only
+// from 0.47, motd's only from 0.65.) `score`: by
+// panel, each value's entrance in reading order (the panel's ranks,
+// ui/Dump.tsx), [start, length] in the progress; a rank past its
+// panel's list enters with the list's last; a panel not scored, its
+// values evenly over `rest`. Within its entrance, its bytes light over
+// all of it, eased in and out (each byte up to `sweep` later than the
+// first, left to right), and its popover rises from `popFrom` of it over
+// `popFor` of it, eased out. The toggle runs the progress over
+// `toggleMs`; a popover eases each change over `smoothMs` (raw.css reads
+// --a-smooth; the bytes follow the scroll as it is). Reduced motion:
+// each value at once, on or off, at the middle of its entrance. The
+// disclaimer: from `afterAt` of the host's hold after the reveal (its
+// `after`), or `afterMs` after the progress reaches 1 (a host with no
+// `after`, the toggle). (private/reveal-score.md: the score, in words)
 export const REVEAL = {
-  share: { storage: 0.55, stack: 0.2, memory: 0.25 } as Record<string,
-    number>,
-  slice: 0.14, fill: 0.6, sweep: 0.35, popFrom: 0.15, toggleMs: 1500,
+  score: {
+    // (playerList, motd, slot 2's two, carol, bob, alice)
+    storage: [[0.47, 0.09], [0.64, 0.08], [0, 0.18], [0, 0.18],
+      [0.24, 0.12], [0.38, 0.1], [0.54, 0.08]],
+    memory: [[0.3, 0.1], [0.3, 0.1], [0.8, 0.08]],
+    stack: [[0.7, 0.06], [0.73, 0.06], [0.76, 0.06], [0.79, 0.06]],
+  } as Record<string, [number, number][]>,
+  rest: [0.3, 0.9] as [number, number],
+  popFrom: 0.35, popFor: 0.65, sweep: 0.35, toggleMs: 1500,
   afterAt: 0.5, afterMs: 600,
   smoothMs: 80 };
 
@@ -81,36 +95,31 @@ export function setRevealed(on: boolean) {
 }
 
 const clamp = (x: number) => Math.max(0, Math.min(1, x));
-// value i of n, in a panel's window [a, a + w] of the progress, at
-// progress p: its fill and its popover, 0 to 1
-export function stage(i: number, n: number, p: number, a = 0, w = 1) {
-  const slice = Math.min(REVEAL.slice, w);
-  const start = a + (n > 1 ? i / (n - 1) : 0) * (w - slice);
-  const t = clamp((p - start) / slice);
+const inOut = (x: number) => x * x * (3 - 2 * x);
+const out = (x: number) => 1 - (1 - x) ** 3;
+// value r (its rank) of n in its panel (`loc`), at progress p: its
+// entrance, [start, length]
+export function entrance(loc: string, r: number, n: number) {
+  const mine = REVEAL.score[loc];
+  if (mine?.length) return mine[Math.min(r, mine.length - 1)];
+  const [a, b] = REVEAL.rest;
+  const len = Math.min(0.1, b - a);
+  return [a + (n > 1 ? r / (n - 1) : 0) * (b - a - len), len];
+}
+// ... and its fill and its popover, 0 to 1
+export function stage(loc: string, r: number, n: number, p: number) {
+  const [start, len] = entrance(loc, r, n);
+  const t = clamp((p - start) / len);
   if (still()) {
-    const on = p >= start + slice / 2 ? 1 : 0;
+    const on = p >= start + len / 2 ? 1 : 0;
     return { f: on, p: on };
   }
-  return { f: clamp(t / REVEAL.fill),
-    p: clamp((t - REVEAL.popFrom) / (1 - REVEAL.popFrom)) };
-}
-
-// each annotated panel's window of the progress, by its share
-function windows(all: HTMLElement[]) {
-  const share = (v: HTMLElement) => REVEAL.share[v.dataset.location ?? ""]
-    ?? 0.2;
-  const sum = all.reduce((m, v) => m + share(v), 0) || 1;
-  let a = 0;
-  return new Map(all.map((v) => {
-    const w = share(v) / sum;
-    const out = [a, w] as const;
-    a += w;
-    return [v, out];
-  }));
+  return { f: inOut(t),
+    p: out(clamp((t - REVEAL.popFrom) / REVEAL.popFor)) };
 }
 
 // Write the progress on the annotated panels of the page: on each value's
-// bytes (in its panel's reading order, in its panel's window) its --tf
+// bytes (by its rank, in its panel's score) its --tf
 // (fill), on its popover --tp; on the panel, --dim (the rest stepping
 // back, as its first value begins). Only what changed since the last write (`force`: all
 // of a panel, its elements new): a frame of scrolling restyles a value
@@ -120,12 +129,14 @@ const last = new WeakMap<HTMLElement, { f: string[]; p: string[];
 const views = () => typeof document === "undefined" ? []
   : [...document.querySelectorAll<HTMLElement>(".view.annot")];
 export function paintView(v: HTMLElement, force = false) {
-  const [a, w] = windows(views()).get(v) ?? [0, 1];
+  const loc = v.dataset.location ?? "";
   const k = Number(v.dataset.units ?? 0);
   const p = reveal.get().progress;
   const was = force ? undefined : last.get(v);
+  // (--dim: as the panel's first value to enter fills)
   const now = { f: [] as string[], p: [] as string[],
-    dim: stage(0, k, p, a, w).f.toFixed(3) };
+    dim: Math.max(0, ...Array.from({ length: k }, (_, r) =>
+      stage(loc, r, k, p).f)).toFixed(3) };
   // (the figure's disclaimer: in the host's hold after the reveal, from
   // REVEAL.afterAt; the toggle's, REVEAL.afterMs after its run)
   (v.closest<HTMLElement>(".lens") ?? v).style.setProperty("--hand",
@@ -136,7 +147,7 @@ export function paintView(v: HTMLElement, force = false) {
     v.style.setProperty("--a-sweep", String(REVEAL.sweep));
   }
   for (let r = 0; r < k; r++) {
-    const g = stage(r, k, p, a, w);
+    const g = stage(loc, r, k, p);
     now.f[r] = g.f.toFixed(3);
     now.p[r] = g.p.toFixed(3);
     if (now.f[r] !== was?.f[r]) {
