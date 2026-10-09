@@ -78,8 +78,8 @@ export interface Snapshot {             // known state only; unknown = absent
   calldata?: Uint8Array;
   transient?: ReadonlyMap<Hex, Hex>;
 }
-export interface TxFacts {
-  hash: Hex; from: Hex; to: Hex; input: Hex;
+export interface TxFacts {             // (no hash: a run has none)
+  from: Hex; to: Hex; input: Hex;
   reads: ReadonlySet<Hex>; writes: ReadonlySet<Hex>;   // SLOAD/SSTORE
   keccakInputs: Hex[][];                // mapping keys seen (trace provenance)
 }
