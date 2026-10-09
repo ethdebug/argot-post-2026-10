@@ -1,4 +1,4 @@
-// The pointer solc wrote, as YAML (vanilla main.js renderBox's #ptr,
+// The pointer the compiler wrote, as YAML (vanilla main.js renderBox's #ptr,
 // colourYaml, markAliases): one line each, nothing wraps; a step's lines
 // in a band (a run of lit lines is one block, rounded at its ends) and
 // the rest muted; the box scrolled inside itself so the band's top is a
@@ -9,7 +9,7 @@ import {
   useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode,
 } from "react";
 import { band as bandOf, pointerText } from "../engine/pointer-text";
-import { useCompilation } from "./hooks";
+import { useCompilation, useDecoded } from "./hooks";
 import { highlighter } from "./shiki";
 import type { DataRef } from "./types";
 
@@ -37,8 +37,14 @@ export function PointerYaml({ domId, data, variable, band, before, goal,
   band?: string[]; before?: ReactNode; goal?: boolean; shown?: boolean;
   notes?: { block: string; values: Record<string, string> } }) {
   const c = useCompilation(data);
+  // (its parts' ids, after its own: "ptr" → "pgo"; "mptr" → "mpgo")
+  const pre = domId?.replace(/ptr$/, "") ?? "";
+  // (a local's pointer, from its dereference graph: it is not one of the
+  // compilation's state variables)
+  const pointer = useDecoded(data)?.graphs.get(variable ?? "")?.pointer;
   const { lines, names } = useMemo(() => c && variable
-    ? pointerText(c, variable) : { lines: [], names: {} }, [c, variable]);
+    ? pointerText(c, variable, pointer) : { lines: [], names: {} },
+  [c, variable, pointer]);
   const text = lines.map((l) => l.text).join("\n");
   const [html, setHtml] = useState<{ text: string; lines: string[] }>();
   // (coloured once it is shown: the colouring loads then, not with the
@@ -157,7 +163,7 @@ export function PointerYaml({ domId, data, variable, band, before, goal,
       strokeLinejoin="round" /></svg>;
     return <div className={`pedge ${way}${on ? " on" : ""}`}
       aria-hidden={on ? "false" : "true"}>
-      <button type="button" id={domId ? `pedge-${way}` : undefined}
+      <button type="button" id={domId ? `${pre}pedge-${way}` : undefined}
         tabIndex={on ? 0 : -1} data-band={band ? "1" : ""}
         aria-label={band ? `Scroll the pointer ${way} to the step's lines`
           : `Scroll the pointer ${way}`} onClick={() => go(way)}>
@@ -229,7 +235,7 @@ export function PointerYaml({ domId, data, variable, band, before, goal,
   </div>{edge("up")}{edge("down")}
     {/* (at step 0, over the blurred pointer: the way on, with an arrow
       glyph toward ▶: vanilla goGlyph) */}
-    <p ref={pgo} id={domId ? "pgo" : undefined} className={`pgo${left
+    <p ref={pgo} id={domId ? `${pre}pgo` : undefined} className={`pgo${left
       ? " left" : ""}`} hidden={!goal}>{left && <span className="pglyph"
       aria-hidden="true">⤴</span>}<span className="ptext">Press ▶ to see how
       this data from the compiler finds these bytes</span>{!left && <span

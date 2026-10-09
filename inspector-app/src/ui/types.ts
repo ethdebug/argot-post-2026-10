@@ -111,7 +111,6 @@ export type ViewSpec = { id: ViewId; area: string; link?: LinkId;
       // (a side picker in a row of its own, hidden at one point)
       row?: string }
     // the memory section's (Locals.tsx)
-    | { kind: "details" | "derivation"; data: DataRef }
     | { kind: "source"; data: DataRef; part?: "legend" }
     // the contract's source, its selection's declaration marked
     | { kind: "contract"; data: DataRef }

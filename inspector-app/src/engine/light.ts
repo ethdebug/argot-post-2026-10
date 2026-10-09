@@ -146,8 +146,9 @@ export function forStep(d: Decoded, l: Layout, steps: Step[],
       if (r.location !== loc) continue;
       for (const [row, b] of regionBytes(r)) out.push(byteKey(loc, row, b));
     }
-    // (a whole slot: all of its bytes)
-    for (const s of p.slots ?? []) {
+    // (a whole row: all of its bytes; its location's, storage's when it
+    // names none)
+    for (const s of (p.at ?? "storage") === loc ? p.slots ?? [] : []) {
       for (let b = 0; b < 32; b++) out.push(byteKey(loc, s, b));
     }
     return out;

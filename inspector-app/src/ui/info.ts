@@ -6,6 +6,9 @@ import type {
 } from "../engine/types";
 import { regionBytes } from "../engine/layout";
 import { byteKey, short } from "../engine/hex";
+import {
+  addressing, rangeText, regionHex, rowBytes, rowName,
+} from "../engine/location";
 
 export type Part = string | { code: string };
 export type Info = [term: string, desc: Part[]][];
@@ -29,8 +32,11 @@ const slotName = (l: Layout, s: Hex) =>
   l.rows.find((r) => r.address === s)?.how ??
   (BigInt(s) < PLAIN ? `slot ${BigInt(s)}` : `slot ${short(s)}`);
 
-// "slot 2, bytes 16–31", or "slot …a723 (keccak(…)), byte 4"
+// "slot 2, bytes 16–31", or "slot …a723 (keccak(…)), byte 4"; in
+// another location, its own words ("memory 0x0080–0x009f", "stack item
+// 2")
 function regionText(l: Layout, r: ResolvedRegion): Part[] {
+  if (r.location !== "storage") return [placeOf(r)];
   const by = new Map<Hex, [number, number]>();
   for (const [s, i] of regionBytes(r)) {
     if (!by.has(s)) by.set(s, [i, i]);
@@ -48,6 +54,16 @@ function regionText(l: Layout, r: ResolvedRegion): Part[] {
     ...one(x)]) : [...one(all[0]), `, and ${all.length - 1} more slots`];
 }
 
+// a region outside storage, as every place names it
+const placeOf = (r: ResolvedRegion) => addressing(r.location) === "slot"
+  ? `${r.location === "stack" ? "stack item" : `${r.location} slot`} ${
+    r.slot ?? 0n}${r.offset === 0 && r.length === 32 ? ""
+    : `, bytes ${r.offset}–${r.offset + r.length - 1}`}`
+  : rangeText(r.location, r.offset, r.offset + Math.max(r.length, 1) - 1);
+// a region's bytes outside storage, as hex
+const regionHexText = (snap: Snapshot | undefined, r: ResolvedRegion) =>
+  regionHex(snap, r) ?? "—";
+
 const hexAt = (snap: Snapshot | undefined, s: Hex, from: number,
   to: number) => "0x" + pairs(snap?.storage.get(s)).slice(from, to + 1)
   .join("");
@@ -59,10 +75,18 @@ function stateText(d: Decoded, snap: Snapshot | undefined, path: string,
   if (!n) return ["none"];
   const rs = n.regions.filter((r) => (r.role === "length") === length &&
     r.location === "storage");
-  if (!rs.length) return ["none"];
   const t = length ? undefined : n.value?.text ??
     (n.children && n.regions.some((r) => r.role === "length")
       ? n.summary : undefined);
+  // (outside storage: its value and its bytes)
+  const other = n.regions.filter((r) => (r.role === "length") === length &&
+    r.location !== "storage");
+  if (!rs.length && other.length === 1) {
+    const h = regionHexText(snap, other[0]);
+    const hs = h.length > 18 ? `0x…${h.slice(-6)}` : h;
+    return t === undefined ? [{ code: hs }] : [`${t} (`, { code: hs }, ")"];
+  }
+  if (!rs.length) return ["none"];
   const b = rs.length === 1 ? regionBytes(rs[0]) : [];
   if (b.length && b.every(([s]) => s === b[0][0])) {
     const h = hexAt(snap, b[0][0], b[0][1], b.at(-1)![1]);
@@ -88,7 +112,7 @@ function ownerInfo(x: Sides, id: string): Info {
   const where = (d: Decoded) => {
     const m = d.byPath.get(path);
     return (m?.regions ?? []).filter((r) => (r.role === "length") ===
-      (length || composite) && r.location === "storage")
+      (length || composite))
       .flatMap((r, k) => [...(k ? ["; "] : []), ...regionText(x.l, r)]);
   };
   if (!x.pair) {
@@ -123,6 +147,41 @@ export function infoOf(x: Sides, t: Target | null): Info | null {
       (!n.children && n.regions.length))) return ownerInfo(x, t.path);
     return [["Value", [{ code: shortKeys(t.path) }, `, ${ids.length} value${
       ids.length === 1 ? "" : "s"} below`]]];
+  }
+  if (t.bytes && t.bytes.location !== "storage") {
+    // (another location's bytes: its own words for them)
+    const { row, from, to, location: loc } = t.bytes;
+    const ids = [...new Set(Array.from({ length: to - from + 1 }, (_, k) =>
+      l.cover.get(byteKey(loc, row, from + k)) ?? []).flat())];
+    const at = Number(BigInt(row));
+    const bytes: Part[] = [addressing(loc) === "offset"
+      ? rangeText(loc, at + from, at + to)
+      : `${from === to ? `byte ${from}` : `bytes ${from}–${to}`} of ${
+        rowName(loc, row)}`];
+    const hexOf = (snap?: Snapshot) => {
+      const bs = rowBytes(snap, loc, row).slice(from, to + 1);
+      return bs.every((b) => b !== undefined) ? `0x${bs.join("")}`
+        : `not in ${loc}`;
+    };
+    const hex: Info = x.pair
+      ? [["Before", [{ code: hexOf(x.pair.before.snap) }]],
+        ["After", [{ code: hexOf(x.pair.after.snap) }]]]
+      : [["Hex", [{ code: hexOf(x.snap) }]]];
+    if (!ids.length) {
+      return [["Value", ["none shown owns these bytes"]],
+        ["Bytes", bytes], ...hex];
+    }
+    if (ids.length === 1) {
+      return [...ownerInfo(x, ids[0]), ["Pointed at", bytes]];
+    }
+    return [["Values", [{ code: ids.map((id) => shortKeys(
+      id.replace(/#[a-z]+$/, ""))).join(", ") }]], ["Bytes", bytes], ...hex];
+  }
+  if (t.row && l.location !== "storage") {
+    const r = Number(BigInt(t.row));
+    return [["Row", [{ code: rowName(l.location, t.row as Hex) }]],
+      ...addressing(l.location) === "offset" ? [["Bytes", [rangeText(
+        l.location, r, r + 31)]] as [string, Part[]]] : []];
   }
   if (t.bytes) {
     const { row: s, from, to } = t.bytes;

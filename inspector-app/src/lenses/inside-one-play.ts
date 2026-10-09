@@ -2,7 +2,8 @@
 // port, compiled by bugc at O0 and O2, paused at three points; the
 // locals bugc lists there, in memory (and alice's record slot); a level
 // and a pause picker, Before | After at a two-step pause; the words, the
-// values, how one was found, the source. Its own link group and keys
+// values, how one was found (the storage section's walkthrough, over
+// bugc's pointers), the source. Its own link group and keys
 // (mopt, mpt, mmode, msel): the storage section's are not its own.
 import { panel } from "../ui/Panel";
 import type { LensSpec } from "../ui/types";
@@ -15,9 +16,8 @@ export const insideOnePlay: LensSpec = {
   bookmarks: ["O0/roll", "O0/mult", "O0/writes", "O2/roll", "O2/mult",
     "O2/writes"],
   grid: '"meta meta" "level level" "point point" "mode mode" ' +
-    '"viewing viewing" "note note" "rows tree" "dump tree" ' +
+    '"viewing viewing" "note note" "bar bar" "rows tree" "dump tree" ' +
     '"sdump tree" ' +
-    '"details how" ' +
     '"legend src" ". src"',
   links: ["mem"],
   views: [
@@ -54,10 +54,10 @@ export const insideOnePlay: LensSpec = {
     // (not lined up with the words: vanilla's memory section)
     { id: "tree", kind: "tree", area: "tree", link: "mem", domId: "mtree",
       data: at("$side"), align: [], plain: true },
-    { id: "details", kind: "details", area: "details", link: "mem",
-      domId: "mdetails", data: at("b") },
-    { id: "how", kind: "derivation", area: "how", link: "mem",
-      domId: "mhow", data: at("b") },
+    // the selection and how it was found: the walkthrough, as the
+    // storage section's
+    { id: "walk", kind: "walkthrough", area: "bar", link: "mem",
+      domId: "mdetails", data: at("$side") },
     { id: "legend", kind: "source", part: "legend", area: "legend",
       domId: "msrclegend", data: at("b") },
     { id: "src", kind: "source", area: "src", domId: "msrc",

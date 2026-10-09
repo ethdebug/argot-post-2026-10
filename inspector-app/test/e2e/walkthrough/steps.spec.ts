@@ -456,7 +456,7 @@ test("Vyper: Solidity's rule, then the misread: Vyper's own layout, "
       .replace(/\s+/g, " ");
     expect(cap).toContain("The misread: Vyper keeps players[0x7099…79c8].score " +
       "in slot …0446, where it is 30");
-    expect(await page.locator(".wpanel .rsrc").innerText()).toContain(
+    expect(await page.locator(".wpanel:has(> #details) .rsrc").innerText()).toContain(
       "from: Vyper's layout, hand-written for comparison (Vyper emits no " +
       "ethdebug)");
     expect(await page.locator("#details .rcount").innerText()).toBe("done");

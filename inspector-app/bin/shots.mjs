@@ -86,20 +86,14 @@ async function capture(ctx, s) {
     }
     const files = [];
     const walkFile = () => `${s.id}${files.length + 1}.png`;
-    if (s.section === "memory") {
-      const steps = page.locator("#mhow li[data-region]");
-      const n = await steps.count();
-      for (let k = 0; k < n; k++) {
-        await steps.nth(k).focus();
-        files.push(await shoot(page, s.section, walkFile()));
-      }
-      return files;
-    }
-    const start = page.locator('#details button[data-r="start"]');
+    // (each section's walkthrough: the storage section's bar, #details;
+    // the memory section's, #mdetails)
+    const bar = s.section === "memory" ? "#mdetails" : "#details";
+    const start = page.locator(`${bar} button[data-r="start"]`);
     if (!await start.count()) return files;
     await start.dispatchEvent("click");
     files.push(await shoot(page, s.section, walkFile()));
-    const next = page.locator('#details button[data-r="next"]');
+    const next = page.locator(`${bar} button[data-r="next"]`);
     while (await next.count() && !await next.isDisabled()) {
       await next.dispatchEvent("click");
       files.push(await shoot(page, s.section, walkFile()));
