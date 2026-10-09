@@ -2,3 +2,5 @@
 body { background: transparent; }
 #embed .lens.raw { padding: 0; max-width: none; }
 .embed-none { margin: 0; font: 14px system-ui, sans-serif; }
+/* (no box behind a panel's title: the host's page shows through) */
+#embed .view-head { background: transparent; position: static; }
