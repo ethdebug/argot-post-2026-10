@@ -11,7 +11,7 @@ it("by the tree: a record's member; a function's local", async () => {
   expect(parentIn(s.byPath, `${A}.score`)).toBe(A);
   expect(within(s.byPath, `${A}.score`, "players")).toBe(true);
   expect(within(s.byPath, "totalScore", "players")).toBe(false);
-  const m = await decode(p, p.decodings["mem:O0"], "O0/mult:0");
+  const m = await decode(p, p.decodings["bug-O0/scope"], "bug-O0:1");
   expect(parentIn(m.byPath, "points")).toBe("_applyCombo");
   expect(within(m.byPath, "mult", "_applyCombo")).toBe(true);
 });

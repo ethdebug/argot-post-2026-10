@@ -5,11 +5,11 @@
 import { describe, expect, it } from "vitest";
 import { annotate } from "./run/annotate";
 import { compilationOf } from "./run/build";
-import { decode, decodeLocals } from "./decode";
+import { decodeLocals } from "./decode";
+import { fromMemory } from "./fixtures/memory";
 import { lastRange, momentPoint } from "./moment";
 import type { Decoded, ValueNode } from "./types";
 import { arcade, runOf } from "../../test/run";
-import { testProject } from "../../test/project";
 import { fixture } from "../../test/io";
 
 const s = arcade();
@@ -26,7 +26,8 @@ const locals = (d: Decoded, names: string[]) =>
   Object.fromEntries(names.map((x) => [x, local(d.byPath.get(x))]));
 
 describe("bug runs at memory.json's paused trace steps", async () => {
-  const project = await testProject();
+  // (memory.json's own points, decoded as it was)
+  const fx = fromMemory(memory);
   for (const level of memory.levels) {
     const o = `O${level.optimize}`;
     const build = s.builds[`bug-${o}`];
@@ -46,8 +47,11 @@ describe("bug runs at memory.json's paused trace steps", async () => {
             length: r.length }).toEqual(at.range);
           const names = at.variables.map((v) => v.identifier);
           expect(point.locals!.map((v) => v.identifier)).toEqual(names);
-          const want = await decode(project, project.decodings[`mem:${o}`],
-            id);
+          const fp = fx.timelines.flatMap((t) => t.points)
+            .find((x) => x.id === id)!;
+          const want = await decodeLocals(fx.compilations.find((x) =>
+            x.id === `bug-${o}`)!, { ...fp, scope: undefined,
+            record: undefined });
           const got = await decodeLocals(c, point);
           expect(locals(got, names)).toEqual(locals(want, names));
         });

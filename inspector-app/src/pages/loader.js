@@ -150,7 +150,7 @@
       !!first?.hasAttribute("data-single"));
     const label = "the decoder and the data";
     for (const f of ["fixtures/index.json",
-      `snapshots/${first?.dataset.snapshot}.json`, "fixtures/memory.json",
+      `snapshots/${first?.dataset.snapshot}.json`,
       ...(other ? ["fixtures/raw.json"] : [])]) {
       // (the app loads them again, and shows a failure)
       load(f, { label }).catch(() => {});

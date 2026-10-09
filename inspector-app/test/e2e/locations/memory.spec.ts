@@ -3,6 +3,7 @@
 import { pick } from "../../pick";
 import type { Page } from "@playwright/test";
 import { test, expect, ready, type Win } from "../../page";
+import { A } from "../../expect";
 
 const at = async (page: Page, hash = "") => {
   await ready(page, { hash, width: 1280, memory: true });
@@ -85,8 +86,8 @@ test("one point: one dump, Memory; the roll: hit, its last byte",
     expect(v).toEqual([1, "Memory", 0, "paused here"]);
     expect(await msel(page)).toBe("hit");
     expect(await mlit(page)).toEqual({ "after 0x00c0": "31" });
-    // (no slot read at this pause: no storage panel)
-    await expect(page.locator("#mstore")).toBeHidden();
+    // (everything in scope: storage too, a dump of its own)
+    await expect(page.locator("#mstore")).toBeVisible();
   });
 
 test("inside _applyCombo: O0 a call with a frame; colours; both steps' "
@@ -143,7 +144,8 @@ test("inside _applyCombo, the later step: mult's offset from the frame",
         "mult = 3");
   });
 
-test("before the writes: gained, hit with no location, alice's record",
+test("before the writes: gained, hit with no location; alice's record, in "
+  + "storage",
   async ({ page }) => {
     await at(page);
     await mopt(page, "2");
@@ -151,14 +153,14 @@ test("before the writes: gained, hit with no location, alice's record",
     const t = await page.locator("#mtree").innerText();
     expect(t).toMatch(/gained[\s\S]*30/);
     expect(t).toMatch(/hit[\s\S]*no location at this point/);
-    await pick(mrow(page, "players[msg.sender]"));
+    await pick(mrow(page, A));
     const c = await mcol(page);
     const ms = ["score", "combo", "bestCombo", "plays", "hits",
-      "lastBlock"].map((x) => c.rows[`players[msg.sender].${x}`]);
+      "lastBlock"].map((x) => c.rows[`${A}.${x}`]);
     expect(new Set(ms).size).toBe(6);
     for (const x of ms) expect(x).toMatch(/^pk\d$/);
-    expect(c.rows["players[msg.sender]"]).toBe("hl");
-    await expect(mrow(page, "players[msg.sender].score").locator(".val"))
+    expect(c.rows[A]).toBe("hl");
+    await expect(mrow(page, `${A}.score`).locator(".val"))
       .toHaveText("30");
     // (each location its own panel: the record's slot in a storage
     // panel of its own, under memory's; one selection lights both)
@@ -169,13 +171,13 @@ test("before the writes: gained, hit with no location, alice's record",
       shown: !(document.querySelector("#mstore") as HTMLElement).hidden,
       inMem: !!document.querySelector("#mpanel .wrow[data-slot$='fb94']"),
       inStore: !!document.querySelector("#mspanel .wrow[data-slot$='fb94']"),
-      lit: document.querySelectorAll("#mspanel .view:not([hidden]) .b.hl")
-        .length }));
+      lit: document.querySelectorAll("#mspanel .view:not([hidden]) " +
+        ".wrow[data-slot$='fb94'] .b.hl").length }));
     expect(pan).toEqual({ mem: "Memory", store: "Storage", shown: true,
       inMem: false, inStore: true, lit: 32 });
-    await page.locator(
-      '#mspanel .b[data-owners="players[msg.sender].score"]').first().click();
-    expect(await msel(page)).toBe("players[msg.sender].score");
+    await page.locator(`#mspanel .b[data-owners="${A}.score"]`).first()
+      .click();
+    expect(await msel(page)).toBe(`${A}.score`);
   });
 
 test("click again clears; Enter selects; its step lights its byte; Escape",

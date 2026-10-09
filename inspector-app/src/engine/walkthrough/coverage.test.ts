@@ -1,7 +1,7 @@
 // The walkthrough's coverage of the pointer schema: every pointer
 // example in ethdebug/format's schemas, and every pointer in our builds
-// (solc's storage, the hand-written Vyper rule, bugc's locals at -O0 and
-// -O2, from the runs and from memory.json), is walked (deref/walk.ts,
+// (solc's storage, the hand-written Vyper rule, bugc's storage and
+// locals at -O0 and -O2, at the memory section's pauses), is walked (deref/walk.ts,
 // its regions the library's) and folded into steps: without an error,
 // each step lighting a region or naming a value, the steps' regions
 // together the resolved regions. The table of forms by location is
@@ -209,15 +209,15 @@ describe("every pointer in our builds", async () => {
     });
   }
   for (const o of ["O0", "O2"]) {
-    it(`bugc -${o}: memory.json's locals walk`, async () => {
-      const dc = p.decodings[`mem:${o}`];
+    it(`bugc -${o}: the memory section's scope walks`, async () => {
+      const dc = p.decodings[`bug-${o}/scope`];
       const t = await p.timeline(dc.timeline);
       const c = await p.compilation(dc.compilation);
       let n = 0;
       for (const pt of t.points) {
         const d = await decode(p, dc, pt.id);
         n += await walkAll({ d, c, snap: pt.snapshot, keys: dc.keys },
-          `bugc ${o} locals`);
+          `bugc ${o} scope`);
       }
       expect(n).toBeGreaterThan(0);
     });
@@ -277,7 +277,7 @@ describe("every pointer in our builds", async () => {
           check(w, [...node.regions, ...node.reads ?? []]);
           const g = d.graphs.get(v.identifier)!;
           note(formsOf(g.pointer), locationsOf(regionsOf(g)),
-            `bugc ${o} locals`);
+            `bugc ${o} scope`);
           n++;
         }
       }

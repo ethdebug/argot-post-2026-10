@@ -162,7 +162,7 @@ async function slowLink(browser) {
   });
   if (!(t.progress <= 1000)) out.push(`progress shown at ${t.progress} ms`);
   if (!(t.paint <= 1000)) out.push(`first paint at ${t.paint} ms`);
-  if (t.fixtures !== ["fixtures/index.json", "fixtures/memory.json",
+  if (t.fixtures !== ["fixtures/index.json",
     `snapshots/${FIRST}.json`].join()) {
     out.push(`fetched before usable: ${t.fixtures}`);
   }

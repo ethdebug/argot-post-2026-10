@@ -1,17 +1,20 @@
 // The memory dump's rows (vanilla mem.js build, renderDumps): the words
 // a local lives in at either step, and the words that changed between
-// them, by offset; then alice's record slot, in storage, last
+// them, by offset; and storage's, in a dump of its own
 import { it, expect } from "vitest";
 import { testProject } from "../../test/project";
 import { decode } from "./decode";
 import { layout, rowLabel } from "./layout";
-import { byteKey } from "./hex";
+import { byteKey, slotHex } from "./hex";
+import { A } from "../../test/expect";
 
+// (a pause: its group's moments, in the bug scene's scope decoding)
 const pair = async (o: string, pt: string, k = 1) => {
   const p = await testProject();
-  const d = p.decodings[`mem:${o}`];
+  const d = p.decodings[`bug-${o}/scope`];
   const t = await p.timeline(d.timeline);
-  const pts = t.points.filter((x) => x.id.startsWith(`${o}/${pt}`));
+  const ids = p.bookmarks.find((b) => b.id === `${o}/${pt}`)!.points;
+  const pts = t.points.filter((x) => ids.includes(x.id));
   const ds = await Promise.all(pts.map((x) => decode(p, d, x.id)));
   return { d: ds[k] ?? ds[0], other: ds.length > 1 ? ds[1 - k] : undefined,
     point: pts[k] ?? pts[0], otherPoint: pts.length > 1 ? pts[1 - k]
@@ -56,25 +59,25 @@ it("O2 inside _applyCombo: no frame word", async () => {
 });
 
 it("before the writes: gained's word in memory; alice's record slot, in "
-  + "storage, its own dump's, named by BUG's rule", async () => {
+  + "storage, its own dump's", async () => {
   const x = await pair("O0", "writes", 0);
   const l = layout(x.d, "memory", {}, { point: x.point });
   expect(l.rows.filter((r) => r.what.length).map((r) => r.how))
     .toEqual(["memory 0x00a0"]);
   const s = layout(x.d, "storage", {}, { point: x.point });
-  expect(s.rows).toEqual([expect.objectContaining({
-    address: x.point.record!.slot, how: "keccak(msg.sender, slot 4)" })]);
-  expect(s.cover.get(byteKey("storage", s.rows[0].address, 24)))
-    .toEqual(["players[msg.sender].score"]);
+  const slot = slotHex(x.d.byPath.get(`${A}.score`)!.regions[0].slot!);
+  expect(s.rows.map((r) => r.address)).toContain(slot);
+  expect(s.cover.get(byteKey("storage", slot, 24)))
+    .toEqual([`${A}.score`]);
 });
 
-it("the record selected: its six members in six child colours; "
+it("the record selected: its members in child colours; "
   + "_applyCombo: its frame word in the selection's own", async () => {
   const { forPath } = await import("./light");
   const x = await pair("O0", "writes", 0);
   const l = layout(x.d, "storage", {}, { point: x.point });
-  const g = forPath(x.d, l, "players[msg.sender]", { selection: true });
-  const ks = x.d.byPath.get("players[msg.sender]")!.children!.map((c) =>
+  const g = forPath(x.d, l, A, { selection: true });
+  const ks = x.d.byPath.get(A)!.children!.slice(0, 6).map((c) =>
     g.colours.get(c.path));
   expect(ks).toEqual([1, 2, 3, 4, 5, 6]);
   const y = await pair("O0", "mult");
