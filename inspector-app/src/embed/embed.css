@@ -44,6 +44,8 @@ html, body { margin: 0; overflow: hidden; background: transparent; }
     grid-template-areas: "contract" "pick" "time" "bar" "rows" "tree"
       "dump" !important; }
 }
+/* (All | Related alone, no "Rows" before it: the figure's one control) */
+#embed .relrow .modelabel { display: none; }
 /* (a composition narrower than its frame, the raw lens's: centred) */
 #embed .lens.raw { justify-content: center; }
 #embed .lens.raw { padding: 0; max-width: none; }

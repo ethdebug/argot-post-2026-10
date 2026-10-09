@@ -21,8 +21,11 @@ test("the shell's runs, in a worker: digests.json's digests",
     }
     // (the scene's values, from its run)
     for (const [path, , value] of expected.mid) {
-      await expect(page.locator(`#tree li[data-path="${path}"] > .row .val`),
-        path).toHaveText(value);
+      // (an address shown short: its whole value its title)
+      const val = page.locator(`#tree li[data-path="${path}"] > .row .val`);
+      await expect.poll(() => val.evaluate((e) => (e.querySelector(
+        "[title]") as HTMLElement | null)?.title ?? e.textContent), path)
+        .toBe(value);
     }
     // (the shell reads no snapshot: it runs)
     expect(await page.evaluate(() => performance.getEntriesByType(
