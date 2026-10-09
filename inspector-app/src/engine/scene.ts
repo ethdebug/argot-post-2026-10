@@ -23,6 +23,9 @@ export interface Scene {
   controls: "none" | "prev-next" | "scrub";   // reader mode (§3)
   initial?: { moment?: number; select?: Path;
               walk?: { step: number; focus?: Hex } };
+  // (its storage dumps' rows: "touched" adds the slots the moment's
+  // transaction read or wrote, owned by a value or not: unmapped rows)
+  rows?: "touched";
 }
 
 const CONTROLS = ["none", "prev-next", "scrub"];
@@ -59,6 +62,7 @@ export function sceneOf(json: unknown): Scene {
   timeline.forEach((m, k) => {
     if (k && order(timeline[k - 1]) >= order(m)) no("moments out of order");
   });
+  if (j.rows !== undefined && j.rows !== "touched") no(`rows ${j.rows}`);
   const n = j.initial?.moment;
   if (n !== undefined && !(n >= 0 && n < timeline.length)) {
     no(`initial moment ${n}`);
