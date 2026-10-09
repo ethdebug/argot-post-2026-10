@@ -49,6 +49,14 @@ describe("the arcade scenario", () => {
 });
 
 describe("scenarioOf", () => {
+  it("reads the builds it is given by buildOf", () => {
+    const vy = JSON.parse(fs.readFileSync(path.join(__dirname, "..", "..",
+      "..", "scenarios", "arcade", "builds", "vy", "build.json"), "utf8"));
+    expect(scenarioOf({ ...json, builds: { vy } }).builds.vy.compilation)
+      .toBe("arcade-vy-rule");
+    expect(() => scenarioOf({ ...json, builds: { vy: {} } }))
+      .toThrow(/build/);
+  });
   it("refuses a scenario with a missing part", () => {
     expect(() => scenarioOf({ ...json, transactions: undefined }))
       .toThrow(/transactions/);

@@ -17,6 +17,7 @@ import {
   storageState, mappingKeys, touchedSlots, decodeStorage, baseSlot,
   solcTilde,
 } from "../decode.js";
+import { solidity, vyper } from "../../../inspector-app/bin/compile.mjs";
 
 const root = path.dirname(path.dirname(fileURLToPath(import.meta.url)));
 const RPC = process.env.RPC_URL ?? "http://127.0.0.1:8555";
@@ -37,44 +38,11 @@ const hex = (n) => "0x" + n.toString(16);
 
 // ------------------------------------------------------------ compile
 
-const SOLC = process.env.SOLC ?? "solc";
-const solcVersion = execFileSync(SOLC, ["--version"], { encoding: "utf8" })
-  .match(/Version: (\S+)/)[1];
-
+// (the compilers: inspector-app/bin/compile.mjs, shared with the
+// scenario's builds)
 function compile(name) {
-  const file = `${name}.sol`;
-  const content = fs.readFileSync(path.join(root, "contracts", file), "utf8");
-  const input = {
-    language: "Solidity",
-    sources: { [file]: { content } },
-    settings: {
-      viaIR: true,
-      optimizer: { enabled: false },
-      experimental: true,
-      debug: { debugInfo: ["ethdebug", "ast-id"] },
-      outputSelection: {
-        "*": {
-          // selecting ethdebug.resources and ethdebug.compilation for
-          // contracts gives the global `ethdebug` output
-          // (resources.types, resources.pointers); the program for the
-          // deployed code has the program-level context (`variables`)
-          "*": ["evm.bytecode.object", "evm.deployedBytecode.ethdebug",
-            "ethdebug.resources", "ethdebug.compilation"],
-          "": ["ast"],
-        },
-      },
-    },
-  };
-  const out = JSON.parse(execFileSync(SOLC, ["--standard-json"], {
-    input: JSON.stringify(input), encoding: "utf8",
-    maxBuffer: 1 << 28,
-  }));
-  const errors = (out.errors ?? []).filter((e) => e.severity === "error");
-  if (errors.length) throw new Error(errors.map((e) => e.message).join("\n"));
-  if (!out.ethdebug?.resources) throw new Error("no ethdebug.resources");
-  const c = out.contracts[file][name];
-  const variables = c.evm.deployedBytecode.ethdebug?.context?.variables;
-  if (!variables) throw new Error(`${name}: no program-level variables`);
+  const c = solidity({ solc: process.env.SOLC,
+    file: path.join(root, "contracts", `${name}.sol`), name });
   // state variable declarations, by name, from the AST
   const declarations = {};
   const visit = (n) => {
@@ -88,17 +56,17 @@ function compile(name) {
       else if (v && typeof v === "object") visit(v);
     }
   };
-  visit(out.sources[file].ast);
+  visit(c.ast);
   return {
     name,
-    file,
-    source: content,
-    compiler: solcVersion,
-    bytecode: "0x" + c.evm.bytecode.object,
+    file: c.file,
+    source: c.source,
+    compiler: c.compiler,
+    bytecode: c.bytecode,
     // state variables: base slot, offset, type (program-level context)
-    variables,
-    types: out.ethdebug.resources.types,
-    pointers: out.ethdebug.resources.pointers,
+    variables: c.programs.runtime.context.variables,
+    types: c.resources.types,
+    pointers: c.resources.pointers,
     declarations,
   };
 }
@@ -342,16 +310,13 @@ const SOL_SLOT = BigInt(baseSlot(arcade.variables.find((v) =>
 // (from Arcade.sol's ethdebug output) to the Vyper contract's storage,
 // and keeps the slots Vyper itself uses for each player.
 {
-  const VYPER = process.env.VYPER ?? "vyper";
-  const vyVersion = execFileSync(VYPER, ["--version"], { encoding: "utf8" })
-    .trim();
-  const bytecode = execFileSync(VYPER, ["-f", "bytecode",
-    path.join(root, "contracts", "Arcade.vy")], { encoding: "utf8" }).trim();
-  const { receipt } = await send({ data: bytecode + ctor(MOTD[0]).slice(2) });
+  const vy = vyper({ vyper: process.env.VYPER,
+    file: path.join(root, "contracts", "Arcade.vy") });
+  const vyVersion = vy.compiler;
+  const { receipt } = await send({ data: vy.bytecode +
+    ctor(MOTD[0]).slice(2) });
   const address = receipt.contractAddress;
-  const VY_SLOT = BigInt(JSON.parse(execFileSync(VYPER, ["-f", "layout",
-    path.join(root, "contracts", "Arcade.vy")], { encoding: "utf8" }))
-    .storage_layout.players.slot);
+  const VY_SLOT = BigInt(vy.layout.players.slot);
   const combo = async (who) => BigInt(await word(address,
     add(keccak(VY_SLOT, who), 1)));
   await joinAll(address);

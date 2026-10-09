@@ -3,6 +3,7 @@
 import type { Hex } from "../types";
 import type { Scenario, TxSpec } from "./types";
 import { keccak } from "./abi";
+import { buildOf } from "./build";
 
 const word = (h: string) => BigInt(h).toString(16).padStart(64, "0");
 const big = (v: unknown, what: string): bigint => {
@@ -59,7 +60,8 @@ export function scenarioOf(json: unknown): Scenario {
     id: need(j.id as string, "id"),
     chain: { hardfork: "prague", chainId: big(chain.chainId, "chainId") },
     accounts,
-    builds: j.builds ?? {},
+    builds: Object.fromEntries(Object.entries(j.builds ?? {})
+      .map(([id, b]) => [id, buildOf(b)])),
     genesis: { number: big(genesis.number, "genesis number"),
       timestamp: big(genesis.timestamp, "genesis timestamp") },
     transactions,
