@@ -78,6 +78,9 @@ export interface Display {
   // composite, a short label in unlit space beside its bytes, shown
   // while the figure is revealed (ui/reveal.ts); the bytes stay put
   annotate?: boolean;
+  // (its fill, revealed: "active", every value lit as a selection's
+  // children are, with their caps (default); "hover", the plain fill)
+  annotateFill?: "active" | "hover";
 }
 
 // a view's data: a decoding (or "$scene", the scene's) at a moment of

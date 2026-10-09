@@ -1,40 +1,60 @@
-// The popovers' places: the one that hides the fewest bytes (a byte that
-// is not zero, the worst), never over another popover or out of bounds
+// The annotated figure's popovers: free places, the one that hides the
+// least; never over another popover or out of bounds; deterministic
 import { describe, it, expect } from "vitest";
-import { choose, type Cell, type Rect } from "./placement";
+import { place, REACH, type Cell, type Rect } from "./placement";
 
-const box = (l: number, t: number, w = 100, h = 10): Rect =>
+const box = (l: number, t: number, w: number, h: number): Rect =>
   ({ l, r: l + w, t, b: t + h });
-// a row of 10 cells, 10px each, at y: `spec` a char a cell ("." zero,
-// no unit; a digit: that unit's nonzero byte; a–j: unit 0–9's zero)
-const row = (t: number, spec: string): Cell[] => [...spec.padEnd(10, ".")]
-  .map((ch, i) => ({ ...box(i * 10, t, 10), unit: ch === "." ? null
+// a row of 20 cells, 10px each, 10px tall at y: `spec` a char a cell
+// ("." zero, no unit; a digit: that unit's digit; a–j: unit 0–9's zero)
+const row = (t: number, spec: string): Cell[] => [...spec.padEnd(20, ".")]
+  .map((ch, i) => ({ ...box(i * 10, t, 10, 10), unit: ch === "." ? null
     : /\d/.test(ch) ? +ch : ch.charCodeAt(0) - 97, zero: !/\d/.test(ch) }));
+const B = box(0, 0, 200, 200);
 
-describe("choose", () => {
-  it("the place over a gap rather than over bytes", () => {
-    const cells = [...row(0, "000"), ...row(10, "aaa111")];
-    // (under row 0: over row 1; over row 0, at y -10: nothing there)
-    expect(choose([{ units: [0], places: [box(0, 10), box(0, -10)] }],
-      cells)).toEqual([1]);
+describe("place", () => {
+  it("away from another value's digits: below, not over row 1", () => {
+    // unit 0's row at y 50; unit 1's digits just above it
+    const cells = [...row(30, "11111111111111111111"), ...row(50, "0000")];
+    const [s] = place([{ units: [0], shapes: [{ w: 60, h: 10 }],
+      targets: [{ x: 20, t: 50, b: 60 }] }], cells, B);
+    expect(s).toMatchObject({ way: "under", target: 0 });
+    expect(s!.box.t).toBe(60 + REACH);
+    // (its arrow on the target, inside the card)
+    expect(s!.box.l + s!.ax).toBe(20);
   });
-  it("zeros before digits; the first on a tie", () => {
-    const cells = [...row(10, "bbbbbbbbbb"), ...row(30, "1")];
-    expect(choose([{ units: [0], places: [box(0, 30), box(0, 10)] }],
-      cells)).toEqual([1]);
-    expect(choose([{ units: [0], places: [box(0, 50), box(0, 60)] }],
-      cells)).toEqual([0]);
+  it("the several-line shape unless the one-line hides less", () => {
+    const cells = row(70, "11111111111111111111");
+    const [a] = place([{ units: [0], shapes: [{ w: 60, h: 30 },
+      { w: 120, h: 10 }], targets: [{ x: 100, t: 50, b: 60 }] }], cells, B);
+    // (under, either shape would reach row 70's digits; over has room)
+    expect(a).toMatchObject({ shape: 0, way: "over" });
   });
-  it("never over another popover, nor out of bounds", () => {
-    const asks = [{ units: [0], places: [box(0, 0)] },
-      { units: [1], places: [box(50, 5), box(0, 40), box(0, 200)] }];
-    expect(choose(asks, [], box(0, 0, 400, 100))).toEqual([0, 1]);
-    expect(choose([{ units: [0], places: [box(0, 200)] }], [],
-      box(0, 0, 400, 100))).toEqual([-1]);
+  it("never over another popover; none where nothing fits", () => {
+    const ask = { units: [0], shapes: [{ w: 200, h: 90 }],
+      targets: [{ x: 100, t: 98, b: 108 }] };
+    const [a, b, c] = place([ask, ask, ask], [], box(0, 0, 200, 210));
+    // (under first, as the inspector's popovers; then over)
+    expect(a!.way).toBe("under");
+    expect(b!.way).toBe("over");
+    expect(c).toBeNull();
+  });
+  it("narrow: under the first run, the last shape; else " +
+    "another run", () => {
+    const [s] = place([{ units: [0], shapes: [{ w: 60, h: 30 },
+      { w: 150, h: 10 }], targets: [{ x: 120, t: 20, b: 30 },
+      { x: 50, t: 100, b: 110 }] }], [], B, { narrow: true });
+    expect(s).toMatchObject({ shape: 1, target: 0, way: "under" });
+    const [x, y] = place([{ units: [0], shapes: [{ w: 150, h: 10 }],
+      targets: [{ x: 50, t: 20, b: 30 }] }, { units: [1],
+      shapes: [{ w: 150, h: 10 }], targets: [{ x: 50, t: 20, b: 30 },
+        { x: 50, t: 100, b: 110 }] }], [], B, { narrow: true });
+    expect([x!.target, y!.target]).toEqual([0, 1]);
   });
   it("deterministic", () => {
-    const asks = [{ units: [0], places: [box(0, 0), box(0, 20)] }];
-    const cells = row(5, "1111");
-    expect(choose(asks, cells)).toEqual(choose(asks, cells));
+    const asks = [{ units: [0], shapes: [{ w: 50, h: 10 }],
+      targets: [{ x: 60, t: 40, b: 50 }] }];
+    const cells = row(60, "1111");
+    expect(place(asks, cells, B)).toEqual(place(asks, cells, B));
   });
 });

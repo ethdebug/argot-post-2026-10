@@ -74,14 +74,18 @@
 
 /* The annotated layer (Display `annotate`; engine/annotated.ts, ui/
    notes.ts): the inspector's own looks only. Raw until revealed; then
-   each value's bytes in its at-rest tint (style.css .t0…), and its
-   popover, faded in a value after another (--d), within 500ms */
-.view.annot :is(.b, .ab).an { transition: background-color 280ms ease
-  var(--d, 0ms); }
-.view.annot:not(.revealed) :is(.b, .ab).an { background: transparent; }
-.view.annot.revealed .ab.an { background: var(--tint); }
+   every value lit at once, as a selection's children are (style.css
+   .b.hl.pkN, its caps: .view.chosen), and its popover, placed freely,
+   faded in a value after another (--d), within 500ms */
+.view.annot { position: relative; }
+.view.annot > .notes { position: absolute; inset: 0; pointer-events: none;
+  z-index: 3; }
+.view.annot .notes .nanchor { position: absolute; left: 0; width: 0; }
+.view.annot :is(.b, .ab) { transition: background-color 280ms ease
+  var(--d, 0ms), box-shadow 280ms ease var(--d, 0ms), opacity 280ms ease,
+  filter 280ms ease; }
 .view.annot .pop.note { opacity: 0; transition: opacity 280ms ease
-  var(--d, 0ms); }
+  var(--d, 0ms), background-color 120ms; }
 .view.annot.revealed .pop.note { opacity: 1; }
 /* (written by hand: the hand-written compilation's badge, port.css) */
 .view.annot .view-head .handmade { margin: 0 0 0 6px; padding: 0 6px;
