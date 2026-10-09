@@ -63,6 +63,16 @@ for (const o of ["0", "2"]) {
   };
 }
 
+// (the stepper's: carol's join, its first moment, the name's length
+// read from the call: 34 bytes)
+for (const o of ["0", "2"]) {
+  checks[`stepper-O${o}`] = async (page) => {
+    await expect(page.locator(".tbar .tline"))
+      .toHaveText("the name's length, read from the call");
+    await expect(val(page, "len")).toHaveText("34");
+  };
+}
+
 test("every scene has its check", () => {
   expect(Object.keys(checks).sort()).toEqual([...ids].sort());
 });

@@ -10,6 +10,7 @@ import type { Project } from "./project";
 import { machineState } from "./snapshot";
 import { decodeValue, isValueType, summary, typeName } from "./values";
 import { keysFor } from "./keys";
+import { hoist } from "./run/build";
 import { abiTree } from "./calldata";
 import { walk as walkGraph } from "./deref/walk";
 import { regionsOf, sameAsLibrary } from "./deref/check";
@@ -185,6 +186,39 @@ const hex4 = (n: number) => "0x" + n.toString(16).padStart(4, "0");
 // scope), its locals are under one node for it, which owns the frame
 // pointer they are found from, if any. Then a storage slot the page
 // reads by its own rule (alice's record).
+// A composite local (bugc's: a struct copy, a string or bytes in memory,
+// a calldata reference), its type inline: walked as a storage value is,
+// its type by an id of its own (run/build.ts hoist), its regions by
+// their names (`player-score`, `name-data`); what the pointer reads to
+// find them (a reference's word, a frame pointer), its reads
+async function composite(c: Compilation, v: Local, node: ValueNode,
+  state: State, graphs: Map<string, DerefGraph>): Promise<ValueNode> {
+  try {
+    const id = v.identifier;
+    const types = { ...c.types } as Record<string, Format.Type>;
+    const typeId = hoist(v.type as Format.Type, `${id}@local`, types);
+    const c2 = { ...c, types } as Compilation;
+    const pointer = v.pointer as Pointer;
+    const ids = await graphOf(c, id, pointer, state, [], graphs,
+      async () => [...(await viewOf(pointer, state, c)).regions]);
+    const scope = await instantiate(pointer, state, c2, ids);
+    const n = await walk(c2, scope, typeId, id, { ...node, type: typeId });
+    const own = new Set<string>();
+    const visit = (x: ValueNode) => {
+      x.regions.forEach((r) => own.add(`${r.instance}`));
+      x.children?.forEach(visit);
+    };
+    visit(n);
+    const view = await viewOf(pointer, state, c);
+    const reads = ([...view.regions] as unknown as LibRegion[])
+      .map((r, i) => resolved(r, "value", ids[i]))
+      .filter((r) => !own.has(`${r.instance}`));
+    return { ...n, reads };
+  } catch (e) {
+    return { ...node, note: `not read here: ${(e as Error)?.message ?? e}` };
+  }
+}
+
 async function localsAt(c: Compilation, at: TimelinePoint, state: State,
   graphs: Map<string, DerefGraph>): Promise<ValueNode[]> {
   const out: ValueNode[] = [];
@@ -203,7 +237,7 @@ async function localsAt(c: Compilation, at: TimelinePoint, state: State,
     if (Object.entries(has).some(([l, x]) => !x &&
       json.includes(`"${l}"`))) continue;
     if (!isValueType(type, {})) {
-      out.push({ ...node, note: `a ${node.typeText}: not shown yet` });
+      out.push(await composite(c, v, node, state, graphs));
       continue;
     }
     try {

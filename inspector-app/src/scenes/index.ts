@@ -14,11 +14,14 @@ import alicePlays from "../../scenes/alice-plays.json";
 import vyperRules from "../../scenes/vyper-rules.json";
 import bugO0 from "../../scenes/bug-O0.json";
 import bugO2 from "../../scenes/bug-O2.json";
+import stepperO0 from "../../scenes/stepper-O0.json";
+import stepperO2 from "../../scenes/stepper-O2.json";
 
 // (in Vite, every scene file, the ones authoring adds too, after these;
 // Node, the snapshot build: these)
-const listed = [rawHero, rawAnnotated, rawNamed, mid, alice, motd, vyper, playersWalk,
-  alicePlays, vyperRules, bugO0, bugO2].map(sceneOf);
+const listed = [rawHero, rawAnnotated, rawNamed, mid, alice, motd, vyper,
+  playersWalk, alicePlays, vyperRules, bugO0, bugO2, stepperO0,
+  stepperO2].map(sceneOf);
 const files = typeof import.meta.glob === "function"
   ? Object.values(import.meta.glob<unknown>("../../scenes/*.json",
     { eager: true, import: "default" })).map(sceneOf) : [];

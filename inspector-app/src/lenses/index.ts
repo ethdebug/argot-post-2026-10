@@ -5,11 +5,12 @@ import { alicePlays } from "./alice-plays";
 import { vyper } from "./vyper";
 import { playersWalk } from "./players-walk";
 import { insideOnePlay } from "./inside-one-play";
+import { stepper } from "./stepper";
 import { rawAnnotated, rawLenses } from "./raw";
 
 // (Phase 1's page first; then lenses made of Phase 1 parts only, which
 // show the architecture fits Phase 2: spec §6b, §6c)
 // (what the maintainer reviews first; the shell's "dev" adds the rest)
 const dev = (l: LensSpec): LensSpec => ({ ...l, dev: true });
-export const lenses: LensSpec[] = [fullInspector, insideOnePlay,
+export const lenses: LensSpec[] = [fullInspector, insideOnePlay, stepper,
   ...rawLenses, rawAnnotated, dev(playersWalk), dev(alicePlays), dev(vyper)];
