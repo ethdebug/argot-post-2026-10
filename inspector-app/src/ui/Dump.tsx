@@ -424,7 +424,25 @@ export function Dump(p: { id: ViewId; location: Location; data: DataRef;
   };
 
   const me = useRef<HTMLDivElement>(null);
-  const rows = l?.rows ?? [];
+  // (all-zero rows folded into the gaps, when the display asks: a row
+  // after a folded one starts after a gap)
+  const rows = useMemo(() => {
+    const all = l?.rows ?? [];
+    if (!disp.foldZero) return all;
+    const zero = (r: (typeof all)[number]) => rowBytes(snap, p.location,
+      r.address).every((b) => b === undefined || b === "00");
+    const out: typeof all = [];
+    let folded = false;
+    for (const r of all) {
+      if (zero(r)) {
+        folded = true;
+        continue;
+      }
+      out.push(folded || r.gapBefore ? { ...r, gapBefore: true } : r);
+      folded = false;
+    }
+    return out;
+  }, [l, disp.foldZero, snap, p.location]);
   useFitDump(me, true, rows.length);
 
   // the overlays (popovers), over the dumps' box, once per render of any
