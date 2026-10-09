@@ -43,7 +43,8 @@ const all = lenses.map((l) => l.id === "raw-hero" && hash.get("moment")
 const root = document.getElementById("embed")!;
 
 // The content's height, to the host: { type: "ethdebug:height", height,
-// columns, width, reveal? }. (`reveal`: the figure has an annotated
+// columns, width, row?, reveal? }. (`row`: the storage dump's row pitch
+// in CSS px, for a host that measures in rows; no storage dump, none.) (`reveal`: the figure has an annotated
 // layer, raw until the host says { type: "ethdebug:reveal", on: true }
 // as the reader scrolls to it, and again whenever this reports ready.) Only once the scene is drawn (its data in, its
 // dumps laid out, the fonts in: `ready: true` on that first one), then
@@ -65,12 +66,29 @@ const measure = () => {
     parseFloat(getComputedStyle(root).paddingRight);
   const width = boxes.length ? Math.ceil(Math.max(...boxes.map((r) =>
     r.right)) - Math.min(...boxes.map((r) => r.left)) + pad) : 0;
-  return { height: Math.ceil(root.getBoundingClientRect().height), width };
+  return { height: Math.ceil(root.getBoundingClientRect().height), width,
+    ...rowPitch() };
+};
+// (`row`: the first storage dump's row pitch, one row's top to the
+// next's, in CSS px at this width: the nearest two rows' distance, or
+// with one row its height and the rows' gap; no storage dump, none)
+const rowPitch = (): { row?: number } => {
+  const dump = root.querySelector<HTMLElement>(
+    '.view[data-location="storage"]:not([hidden])');
+  const rows = dump ? [...dump.querySelectorAll<HTMLElement>(
+    ".rows .wrow[data-slot]")].map((r) => r.getBoundingClientRect()) : [];
+  if (!rows.length) return {};
+  const steps = rows.slice(1).map((r, k) => r.top - rows[k].top)
+    .filter((d) => d > 0);
+  const gap = parseFloat(getComputedStyle(dump!.querySelector(".rows")!)
+    .rowGap) || 0;
+  const row = steps.length ? Math.min(...steps) : rows[0].height + gap;
+  return { row: Math.round(row * 100) / 100 };
 };
 const post = () => {
   if (!ready) return;
   const m = measure();
-  const key = `${m.height}|${m.width}`;
+  const key = `${m.height}|${m.width}|${m.row}`;
   if (key === last) return;
   const first = !last;
   last = key;
@@ -84,12 +102,36 @@ new ResizeObserver(post).observe(root);
 // (timers, not animation frames: a frame out of view, as a host's
 // figures below the fold, gets no animation frames in some browsers)
 const frame = () => new Promise((r) => setTimeout(r, 20));
+// Drawn: every view of the lens has its rows (each dump its lines, each
+// tree its values; a hidden one aside), the fonts are in, and the
+// height has held still for STILL checks in a row (the fit pass and the
+// trees' alignment run on timers, and change it). An error, or no
+// scene, is drawn as it is. (After WAIT_ROWS ms, a view with no rows at
+// all is taken as empty, and only the height must hold.)
+const STILL = 6, WAIT_ROWS = 8000;
+const filled = () => {
+  const lens = root.querySelector(".lens");
+  if (!lens) return false;
+  return [...lens.querySelectorAll<HTMLElement>("[data-view]")]
+    .filter((v) => !v.closest("[hidden]"))
+    .every((v) => v.matches(".tree") ? !!v.querySelector("li[data-path]")
+      : !v.querySelector(".rows") || !!v.querySelector(".rows .wrow"));
+};
 async function whenDrawn() {
-  while (!root.querySelector(".view .wrow, .embed-none, .error")) {
+  const t0 = performance.now();
+  while (!root.querySelector(".embed-none, .error") &&
+    !(filled() || performance.now() - t0 > WAIT_ROWS)) {
     await frame();
   }
   await document.fonts?.ready;
-  for (let k = 0; k < 4; k++) await frame();
+  let h = -1, still = 0;
+  while (still < STILL) {
+    await frame();
+    const now = Math.ceil(root.getBoundingClientRect().height);
+    still = now === h && (filled() || performance.now() - t0 > WAIT_ROWS)
+      ? still + 1 : 0;
+    h = now;
+  }
   ready = true;
   post();
 }
