@@ -10,6 +10,17 @@ export function runner(worker: Worker | null):
   (s: Scenario, b: BuildId) => Promise<Run> {
   const runs = new Map<string, Promise<Run>>();
   let next = 0;
+  // (a page being left, a reload: the browser cancels the worker's
+  // loads, WebKit's import of the EVM "canceled", Firefox's an error,
+  // and the worker reports a failed run to the page still there, every
+  // view waiting for the run logging it. A run cut short by the page
+  // leaving is not a failed run: left unsettled. `beforeunload`: the
+  // first sign; pagehide comes after those reports)
+  let leaving = false;
+  if (worker && typeof addEventListener === "function") {
+    addEventListener("beforeunload", () => (leaving = true));
+    addEventListener("pageshow", () => (leaving = false));
+  }
   const viaWorker = (w: Worker, scenario: Scenario, build: BuildId) =>
     new Promise<Run>((resolve, reject) => {
       const id = next++;
@@ -18,7 +29,7 @@ export function runner(worker: Worker | null):
         if (data.id !== id) return;
         w.removeEventListener("message", on);
         if (data.run) resolve(runOf(data.run));
-        else reject(new Error(data.error));
+        else if (!leaving) reject(new Error(data.error));
       };
       w.addEventListener("message", on);
       w.postMessage({ id, scenario, build });
