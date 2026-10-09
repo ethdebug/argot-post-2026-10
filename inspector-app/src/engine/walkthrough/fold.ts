@@ -97,6 +97,10 @@ export const FOUND = true;
 // (under a step an annotator words, the pointer's formulas for it: one
 // switch, to try it; the maintainer's trial, 10-09)
 export const FORMULAS = true;
+// (step 0 for a selection that reads a region to find itself, in any
+// location: an array's item, its length; one switch, to try it; the
+// maintainer's trial, 10-09)
+export const GOAL_READS = true;
 // (a location's rows, by name: storage's slots, a segment's words)
 const NOUN: Record<string, [string, string]> = {
   storage: ["slot", "slots"], transient: ["transient slot",
@@ -795,7 +799,12 @@ export function walkthrough(x: WalkInput, path: Path, focus?: string):
   // steps find
   const ownR = leaves.filter((l) => inTarget(l.path))
     .flatMap((l) => l.regions);
-  const readR = node.reads ?? [];
+  // (the regions read to find it, not its own: a local's frame pointer;
+  // the regions the read steps read, an array's length: GOAL_READS)
+  const ownIds = new Set(ownR.map((r) => r.instance));
+  const readR = [...node.reads ?? [], ...!GOAL_READS ? [] : out
+    .filter((y) => y.phase === "read").flatMap((y) => y.parts.flatMap((p) =>
+      p.regions)).filter((r) => !ownIds.has(r.instance))];
   const byOrder = (a: Hex, b: Hex) => toBig(a) < toBig(b) ? -1 : 1;
   // (per location: the rows touched, its own, those read to find it)
   const locs = [...new Set([...ownR, ...readR].map((r) => r.location))];
