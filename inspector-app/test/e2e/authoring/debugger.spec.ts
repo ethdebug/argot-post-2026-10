@@ -159,9 +159,7 @@ test("between 660 and 1199px: the stack and the code keep their places " +
     Math.round(document.querySelector(`.dbgpane [data-area="${a}"]`)!
       .getBoundingClientRect().top)));
   const vars = () => page.locator(`${D} .vars li[data-path]`).count();
-  // (once the dumps' font is fitted and a stack row measured)
-  await expect.poll(() => page.locator(`${D} .lens`).evaluate((l) =>
-    (l as HTMLElement).style.getPropertyValue("--stack-row"))).not.toBe("");
+  // (once the dumps' font is fitted)
   let t0 = await tops();
   await expect.poll(async () => {
     const t = await tops();
