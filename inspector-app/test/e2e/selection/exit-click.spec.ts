@@ -240,3 +240,35 @@ test("a field selected: the groups that hold it are consulted in the "
   await row(page, A).click();
   expect(await selected(page)).toBe(A);
 });
+
+test("pointing at something consulted: it stands out; the rest of the "
+  + "consulted goes plain, the selection's colours step back; restored "
+  + "on leaving", async ({ page }) => {
+  await ready(page, { width: 1280 });
+  await select(page, "mid", A);
+  await page.mouse.move(1, 1);
+  const look = () => page.evaluate(() => ({
+    rel: [...document.querySelectorAll<HTMLElement>("#tree .row.rel")]
+      .map((r) => r.parentElement!.dataset.path),
+    relBytes: [...new Set([...document.querySelectorAll<HTMLElement>(
+      "#panel .view:not([hidden]) .b.rel")].map((b) => b.dataset.owners))],
+    mutedRows: document.querySelectorAll("#tree .row.hl.muted").length,
+    mutedBytes: document.querySelectorAll(
+      "#panel .view:not([hidden]) .b.hl.muted").length }));
+  const rest = await look();
+  expect(rest.rel).toEqual(expect.arrayContaining(["playerList[0]",
+    "players"]));
+  expect(rest.mutedRows).toBe(0);
+  await row(page, "playerList[0]").hover();
+  await settle(page);
+  const on = await look();
+  expect(on.rel).toEqual(["playerList[0]"]);
+  expect(on.relBytes).toEqual(["playerList[0]"]);
+  // (the record's fields, in their colours: muted)
+  expect(on.mutedRows).toBeGreaterThan(0);
+  expect(on.mutedBytes).toBeGreaterThan(0);
+  // (no move: the tint only)
+  await page.mouse.move(1, 1);
+  await settle(page);
+  expect(await look()).toEqual(rest);
+});
