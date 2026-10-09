@@ -67,6 +67,9 @@ export interface Display {
   bare?: boolean;
   // the byte ruler over the rows (default: shown, where rows are words)
   ruler?: boolean;
+  // rows whose bytes are all zero folded into the gaps (⋯; gaps that
+  // meet, one): a figure's storage, shorter
+  foldZero?: boolean;
 }
 
 // a view's data: a decoding (or "$scene", the scene's) at a moment of
