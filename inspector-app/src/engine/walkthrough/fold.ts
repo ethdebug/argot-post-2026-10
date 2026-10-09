@@ -355,6 +355,15 @@ export function walkthrough(x: WalkInput, path: Path, focus?: string):
       return `[${nm ? clip(nm) : short(h)}]`;
     });
   const whoShort = (i: string) => clip(who(i));
+  // (a key as a value: the key itself, its name a label beside it, for
+  // one instance; the key alone in a list, its instance named in its
+  // own column: 0x7099…79c8 ("alice"))
+  const keyText = (i: string, named = true) => {
+    const k = keyOf(i);
+    if (!k) return who(i);
+    const nm = nameOf(i);
+    return named && nm ? `${short(k)} (${nm})` : short(k);
+  };
 
   const out: Step[] = [];
   const step = (s: Partial<Step> & Pick<Step, "id" | "phase">): Step => {
@@ -402,7 +411,7 @@ export function walkthrough(x: WalkInput, path: Path, focus?: string):
     pointers, leaves, insts, f, every, order, out, declared, M, kOf, srcOf,
     kLeaf, who, whoAt, whoShort, keyOf, inputs, kindOf, tn, getAt, opOf,
     reads, entryPath, instOf, inTarget, w32, wordAt, tail, small, step,
-    pathName,
+    pathName, keyText,
     text, table, strip, pos,
     exact, defineBand, instRows, regionsOf };
   const recs = ask((h) => h.focus?.(cx)) ?? null;
@@ -471,7 +480,7 @@ export function walkthrough(x: WalkInput, path: Path, focus?: string):
     // (an input, by its instance's name: keccak(alice, 3))
     const named = (a: unknown) => typeof a !== "string" ||
       y.s.bindings?.[a] === undefined ? undefined
-      : inputNames.includes(a) ? who(y.inst) : small(y.s.bindings[a]);
+      : inputNames.includes(a) ? keyText(y.inst) : small(y.s.bindings[a]);
     const mid = exprText(e);
     const withVals = exprText(e, named, false, true);
     const val = small(v);
@@ -582,14 +591,15 @@ export function walkthrough(x: WalkInput, path: Path, focus?: string):
       const ks = (nd.s.expect ?? []) as string[];
       const vals = (k: string) => [...new Set(xs.map((y) =>
         y.s.inputs?.[k]?.hex))];
-      const valOf = (y: X, k: string) => inputNames.includes(k) ||
-        k === "key" ? who(y.inst) : small(y.s.inputs[k].hex);
+      const valOf = (y: X, k: string, named = true) =>
+        inputNames.includes(k) || k === "key" ? keyText(y.inst, named)
+          : small(y.s.inputs[k].hex);
       const what = (k: string) => {
         const vs = vals(k);
         if (vs.length === 1 && vs[0] !== undefined) {
           return `${k} = ${valOf(xs[0], k)}`;
         }
-        return `${k} = ${xs.map((y) => valOf(y, k)).join(" · ")}`;
+        return `${k} = ${xs.map((y) => valOf(y, k, false)).join(" · ")}`;
       };
       const fx = xs.find((y) => y.inst === f) ?? xs[0];
       step({ phase: "template", tkind: t?.kind, id: nd.k,
@@ -627,7 +637,7 @@ export function walkthrough(x: WalkInput, path: Path, focus?: string):
         step({ phase: "handoff", tkind: t?.kind, id: nd.k, band,
           notes: { block: nd.block, values: Object.fromEntries(Object
             .entries(fy.s.bindings ?? {}).map(([k, v]) => [k,
-              inputNames.includes(k) ? who(fy.inst) : small(v as Hex)])) },
+              inputNames.includes(k) ? keyText(fy.inst) : small(v as Hex)])) },
           cap: `\`${nd.s.id}\` = ${exprText(nd.s.expr)}; the template ` +
             `\`${tn(into.template)}\` takes it as its \`${nd.s.id}\``,
           form: many ? table(xs.map((y) => [[who(y.inst)], [formula(y)],
