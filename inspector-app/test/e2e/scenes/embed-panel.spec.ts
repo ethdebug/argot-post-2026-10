@@ -180,3 +180,92 @@ for (const stuck of [false, true]) {
     }
   });
 }
+
+// The post's own structure (argot.org's EthdebugFigure): the panel a
+// sticky child in the flow of a plain box that holds it and the figure;
+// the box ends RELEASE above the figure's end (the figure overhangs it
+// by margins), so the panel lets go first. No overlay, no measuring.
+const RELEASE = 360;
+const post = (base: string, scene: string) => `<body style="margin:0">
+  <div style="height:900px"></div>
+  <figure style="margin:0">
+    <div style="display:flow-root;margin-bottom:${RELEASE}px">
+      <div id="sentinel"></div>
+      <div style="position:sticky;top:0;z-index:10"><iframe class="panel"
+        src="${base}embed-panel.html#scene=${scene}&channel=p"
+        style="border:0;width:100%;height:40px;display:block"></iframe></div>
+      <div style="margin-bottom:-${RELEASE}px"><iframe class="figure"
+        src="${base}embed.html#scene=${scene}&panel=external&channel=p"
+        style="border:0;width:100%;height:40px;display:block"></iframe></div>
+    </div>
+  </figure>
+  <div style="height:1500px"></div>
+  <script>
+    const panel = document.querySelector(".panel");
+    const figure = document.querySelector(".figure");
+    const tell = (stuck) => panel.contentWindow.postMessage(
+      { type: "ethdebug:stuck", stuck }, "*");
+    let stuck = false;
+    new IntersectionObserver(([e]) => {
+      stuck = !e.isIntersecting && e.boundingClientRect.top < 0;
+      tell(stuck);
+    }).observe(document.getElementById("sentinel"));
+    addEventListener("message", (e) => {
+      const f = e.source === panel.contentWindow ? panel
+        : e.source === figure.contentWindow ? figure : null;
+      if (!f) return;
+      if (e.data?.type === "ethdebug:height") {
+        f.style.height = e.data.height + "px";
+        if (f === panel) tell(stuck);
+      }
+      if (e.data?.type === "ethdebug:scroll-to") {
+        const under = panel.getBoundingClientRect().bottom;
+        const top = figure.getBoundingClientRect().top;
+        if (top + e.data.y >= under + 8 &&
+          top + e.data.bottom <= innerHeight - 8) return;
+        scrollTo(0, scrollY + top + e.data.y - under - 16);
+      }
+    });
+  </script></body>`;
+
+test("the post's structure: stuck, scrolled by the wheel over the panel, " +
+  "five ▶ at one point each a step; it lets go before the figure's end",
+async ({ page, baseURL }) => {
+  await page.setViewportSize({ width: 1280, height: 900 });
+  await page.goto("./embed.html");
+  await page.setContent(post(baseURL!, "mid"));
+  const pf = page.frameLocator(".panel");
+  await expect(pf.locator('#details button[data-r="start"]')).toBeEnabled();
+  await expect.poll(() => page.locator(".figure").evaluate((f) =>
+    f.getBoundingClientRect().height)).toBeGreaterThan(600);
+  await pf.locator('#details button[data-r="start"]').click();
+  await expect(pf.locator("#details.replaying")).toHaveCount(1);
+  // (stuck: the figure's top above the view; then the wheel, over ▶)
+  await page.evaluate(() => scrollTo(0, scrollY +
+    document.querySelector("figure")!.getBoundingClientRect().top + 50));
+  const nb = (await pf.locator('#details button[data-r="next"]')
+    .boundingBox())!;
+  const [x, y] = [nb.x + nb.width / 2, nb.y + nb.height / 2];
+  await page.mouse.move(x, y);
+  for (let k = 0; k < 3; k++) await page.mouse.wheel(0, 120);
+  await expect.poll(() => page.locator(".panel").evaluate((f) =>
+    f.getBoundingClientRect().top)).toBe(0);
+  const place = async () => parseInt((await pf.locator("#details .rcount")
+    .textContent())!) || 0;
+  const n0 = await place();
+  for (let k = 1; k <= 5; k++) {
+    await page.mouse.click(x, y);
+    await expect(pf.locator("#details .rcount"), `click ${k}`)
+      .toHaveText(new RegExp(`^${n0 + k} /`));
+    await page.mouse.wheel(0, 100);
+  }
+  // (near the figure's end: the panel has let go RELEASE above it)
+  const g = await page.evaluate(() => {
+    const f = document.querySelector(".figure")!.getBoundingClientRect();
+    scrollTo(0, scrollY + f.bottom - 300);
+    const p = document.querySelector(".panel")!.getBoundingClientRect();
+    const f2 = document.querySelector(".figure")!.getBoundingClientRect();
+    return { panel: p.bottom, figure: f2.bottom };
+  });
+  expect(g.figure - g.panel).toBeGreaterThanOrEqual(RELEASE - 1);
+});
