@@ -239,3 +239,39 @@ test("embed.html#scene=vyper-rules: Solidity's rule 0, Vyper's layout " +
   await expect.poll(() => posted.at(-1)?.height).toBeLessThan(400);
   expect(posted.at(-1)!.columns).toBe(2);
 });
+
+// The height message carries the storage dump's row pitch (`row`: one
+// row's top to the next's, at the frame's width), and none for a scene
+// with no storage dump
+for (const [id, has] of [["mid", true], ["raw-hero", true],
+  ["vyper-rules", true], ["bug-O2", true]] as const) {
+  test(`embed.html#scene=${id}: its height message's row pitch`,
+    async ({ page }) => {
+      await page.setViewportSize({ width: 1024, height: 900 });
+      const posted: { ready?: boolean; row?: number }[] = [];
+      await page.exposeFunction("posted", (m: never) => posted.push(m));
+      await page.addInitScript(() => {
+        window.parent.postMessage = (m: unknown) =>
+          (window as never as { posted(m: unknown): void }).posted(m);
+      });
+      await page.goto(`./embed.html#scene=${id}`);
+      await expect.poll(() => posted.some((m) => m.ready),
+        { timeout: 20_000 }).toBe(true);
+      const last = posted.at(-1)!;
+      if (!has) return expect(last.row).toBeUndefined();
+      // (two rows next to each other: their tops' distance)
+      const want = await page.evaluate(() => {
+        const rs = [...document.querySelectorAll(
+          '.view[data-location="storage"] .rows .wrow[data-slot]')]
+          .map((r) => r.getBoundingClientRect());
+        const d = rs.slice(1).map((r, k) => r.top - rs[k].top)
+          .filter((x) => x > 0);
+        return d.length ? Math.min(...d) : rs[0].height;
+      });
+      expect(last.row).toBeGreaterThan(10);
+      expect(Math.abs(last.row! - want)).toBeLessThan(3);
+      // (a narrower frame: posted again, as laid out there)
+      await page.setViewportSize({ width: 390, height: 900 });
+      await expect.poll(() => posted.at(-1)!.row).not.toBe(last.row);
+    });
+}
