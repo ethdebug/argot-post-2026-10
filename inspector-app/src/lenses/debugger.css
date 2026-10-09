@@ -100,7 +100,15 @@
 .lens.soldb .srows .row { display: grid;
   grid-template-columns: max-content max-content minmax(0, 1fr);
   gap: 0 0.6em; align-items: baseline; }
-.lens.soldb .srows .val { text-align: right; overflow-wrap: anywhere; }
+.lens.soldb .srows .val { position: relative; min-width: 0;
+  text-align: right; }
+.lens.soldb .srows .val > span { display: block; overflow: hidden;
+  text-overflow: ellipsis; white-space: nowrap; }
+.lens.soldb .srows .row:is(:hover, :focus-visible) .val > span {
+  position: absolute; z-index: 2; right: 0; left: 0; top: 0;
+  white-space: normal; overflow-wrap: anywhere; background: var(--bg);
+  box-shadow: 0 2px 8px color-mix(in srgb, var(--fg) 18%, transparent);
+  padding: 0 0 4px; }
 
 .lens.soldb .sside p { margin: 0; }
 .lens.soldb .mat .error { color: var(--old); }
