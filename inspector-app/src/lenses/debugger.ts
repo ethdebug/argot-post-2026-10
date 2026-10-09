@@ -17,7 +17,7 @@ const dump = (location: Location, title: string, area: string,
 
 export const debuggerLens: LensSpec = {
   id: "debugger", title: "Debugger", timelines: [], decodings: [],
-  grid: "", layout: "dbg", links: ["dbg"],
+  grid: "", layout: "dbg", links: ["dbg"], columns: 2,
   areas: { wide: "dump dbg-col", narrow: "dbg-col", side: "dbg-col" },
   views: [
     { id: "moves", kind: "moves", area: "moves", domId: "dmoves" },

@@ -13,6 +13,7 @@ import { createRoot } from "react-dom/client";
 import { fetchIo } from "../engine/io";
 import { load } from "../engine/project";
 import { SceneHost } from "../ui/SceneHost";
+import { columnsOf } from "../ui/columns";
 import { lenses } from "../lenses";
 import { rawLens } from "../lenses/raw";
 import { builds, scenes } from "../scenes";
@@ -25,14 +26,18 @@ const all = lenses.map((l) => l.id === "raw-hero" && hash.get("moment")
   === "0" ? rawLens({ moment: false }) : l);
 const root = document.getElementById("embed")!;
 
-// the content's height, to the host, whenever it changes
+// the content's height, to the host, whenever it changes, with the
+// columns its lens lays out side by side (1 or 2: the host's figure
+// width; set once the scene is known)
 let last = -1;
-new ResizeObserver(() => {
+let columns: 1 | 2 = 1;
+const post = () => {
   const height = Math.ceil(root.getBoundingClientRect().height);
   if (height === last) return;
   last = height;
-  parent.postMessage({ type: "ethdebug:height", height }, "*");
-}).observe(root);
+  parent.postMessage({ type: "ethdebug:height", height, columns }, "*");
+};
+new ResizeObserver(post).observe(root);
 
 const project = await load(fetchIo(import.meta.env.BASE_URL),
   { scenes, builds });
@@ -43,6 +48,12 @@ const level = scene && project.bookmarks.find((b) =>
   b.decoding === `mem:${scene.run.build.replace(/^bug-/, "")}`);
 const only = all.map((l) => scene && level && l.id === scene.lens
   ? { ...l, initial: { ...l.initial, scene: level.id } } : l);
+const lens = scene && only.find((l) => l.id === scene.lens);
+if (lens) {
+  columns = columnsOf(lens);
+  last = -1;
+  post();
+}
 createRoot(root).render(scene
   ? <SceneHost scene={scene} project={project} lenses={only}
     mode="reader" />
