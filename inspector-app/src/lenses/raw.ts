@@ -37,8 +37,8 @@ const base = { timelines: [], decodings: [], links: [],
 export const MOMENT = "while carol plays: right after her combo resets";
 // the annotated figure's disclaimer: its stack and memory pointers are
 // the scene's, not solc's
-export const HAND = "Stack and memory: ethdebug data written by hand, " +
-  "not from solc";
+export const HAND = "Stack and memory ethdebug data written by hand " +
+  "until solc support lands";
 export const rawLens = (o: { moment?: string | false; memory?: boolean } =
   {}): LensSpec => ({
   ...base, id: "raw-hero", title: "Raw bytes",
@@ -67,14 +67,18 @@ export const rawHero = rawLens();
 const hand = { decoding: "$hand", moment: "current" } as const;
 export const annotated = (l: LensSpec): LensSpec => ({ ...l,
   id: "reveal", title: "Raw bytes, annotated",
-  // (raw-hero's layout as it is: "reveal", the class, is its toggle's)
+  // (raw-hero's layout, and a row under it for its disclaimer, across
+  // the figure: "annotated" (raw.css); "reveal", the class, is its
+  // toggle's)
+  layout: `${l.layout} annotated`,
+  areas: { ...l.areas, note: "raw-note" },
   initial: { scene: "reveal" },
   views: [...l.views.filter((v) => v.kind !== "moment").map((v): ViewSpec =>
     v.kind === "dump" ? { ...v, display: { ...v.display, annotate: true },
       ...v.location === "storage" ? {} : { data: hand } } : v),
-  // (where the moment was: what is written by hand, said in the
-  // hand-written badge's style; shown with the stack's values)
-  { id: "hand", kind: "moment", area: "moment", data, badge: true,
+  // (what is written by hand, said in the hand-written badge's style,
+  // under the figure; shown once the reveal is complete)
+  { id: "hand", kind: "moment", area: "note", data, badge: true,
     text: HAND },
   { id: "reveal", kind: "reveal", area: "moment" }] });
 export const reveal = annotated(rawHero);
