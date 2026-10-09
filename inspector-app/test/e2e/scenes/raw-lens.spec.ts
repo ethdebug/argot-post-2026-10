@@ -153,3 +153,27 @@ test("the raw storage dump is the inspector's at 1440px, in size",
       expect(raw.font).toBe(mid.font);
     }
   });
+
+// The figure's storage folds its all-zero rows into its gaps; the stack
+// keeps every item, memory every word; the inspector's storage keeps
+// its zero rows
+test("raw-hero folds storage's zero rows, nothing else's", async ({ page }) => {
+  await page.setViewportSize({ width: 1360, height: 900 });
+  await page.goto("./embed.html#scene=raw-hero");
+  const words = (v: string) => page.locator(`.view[data-view$=":${v}"] ` +
+    ".wrow[data-slot]").evaluateAll((rs) => rs.map((r) =>
+    [...r.querySelectorAll(".b, .ab")].map((b) => b.textContent).join("")));
+  await expect.poll(async () => (await words("stack")).length,
+    { timeout: 20_000 }).toBe(14);
+  const st = await words("storage");
+  expect(st.length).toBeGreaterThan(5);
+  expect(st.filter((w) => /^(00)+$/.test(w))).toEqual([]);
+  // (no two gaps in a row)
+  expect(await page.locator('.view[data-view$=":storage"] .gap + .gap')
+    .count()).toBe(0);
+  expect((await words("stack")).some((w) => w === "0x00")).toBe(true);
+  expect((await words("memory")).length).toBe(3);
+  await page.goto("./#ex=mid");
+  await expect(page.locator('#panel .view[data-side=after] ' +
+    '.wrow[data-slot$="0003"]')).toHaveCount(1);
+});
