@@ -168,11 +168,16 @@ test("16 bytes a line: 2px between a word's lines where two values meet; " +
   const two = await geo(rec, 0);
   expect([two.joined, two.fill]).toEqual([false, false]);
   // (the gap under a joined byte is the value's: its popover badged)
-  const c = (await page.locator(`${V} .wrow[data-slot$="0000"] .b[data-i="3"]`)
-    .boundingBox())!;
-  await page.mouse.move(c.x + c.width / 2, c.y + c.height + 1);
-  await page.evaluate(() => new Promise((r) =>
-    requestAnimationFrame(() => requestAnimationFrame(r))));
-  expect(await page.locator("#panel .pop .pbadge").allInnerTexts())
-    .toEqual(["length"]);
+  // (the pointer at the gap where the byte is NOW, measured again until
+  // its popover shows: at 844px the byte sat near the window's bottom,
+  // and on a slow runner the page above it was still laying out, so a
+  // pointer placed by an earlier measure missed it, or left the window)
+  const cell = page.locator(`${V} .wrow[data-slot$="0000"] .b[data-i="3"]`);
+  await expect(async () => {
+    await cell.evaluate((e) => e.scrollIntoView({ block: "center" }));
+    const c = (await cell.boundingBox())!;
+    await page.mouse.move(c.x + c.width / 2, c.y + c.height + 1);
+    await expect(page.locator("#panel .pop .pbadge")).toHaveText(
+      ["length"], { timeout: 1000 });
+  }).toPass();
 });
