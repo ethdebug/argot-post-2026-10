@@ -22,20 +22,27 @@ test("soldb steps Arcade's play() in Solidity and in Fe, the box holding " +
   // (while it loads: its progress, in the moves' line)
   await ready(page, "sol");
   const h = await height(page);
-  // the first line of the contract's own code, its range marked
+  // it opens inside play(), on a statement, where soldb knows the state
+  // it can: `totalHits += 1`, totalScore 170 and totalHits 7 read
   await expect(page.locator(`${F} .codehead .srcfile`))
     .toHaveText("Arcade.sol");
-  await expect(page.locator(`${F} .codesrc mark.rng`).first())
-    .toBeVisible();
-  // soldb's state(i): the state variables, by name
-  await expect(page.locator(`${F} .sstate li[data-path="totalScore"]`))
-    .toHaveCount(1);
+  const marked = () => page.locator(`${F} .codesrc mark.rng`)
+    .allTextContents().then((t) => t.join(""));
+  await expect.poll(marked).toBe("totalHits += 1");
+  const val = (p: string) => page.locator(
+    `${F} .sstate li[data-path="${p}"] .val`);
+  await expect(val("totalScore")).toHaveText("170");
+  await expect(val("totalHits")).toHaveText("7");
+  // (a long value: one line, cut short)
+  expect(await val("motd").evaluate((v) =>
+    Math.round(v.getBoundingClientRect().height) <= 2 *
+    parseFloat(getComputedStyle(v).lineHeight))).toBe(true);
   const s0 = Number(await step(page));
   for (let k = 0; k < 3; k++) {
-    await page.locator(`${F} [data-move="next-line"]`).click();
+    await page.locator(`${F} [data-move="prev-line"]`).click();
   }
   await expect.poll(async () => Number(await step(page)))
-    .toBeGreaterThan(s0);
+    .toBeLessThan(s0);
   await page.locator(`${F} [data-move="next"]`).click();
   await page.locator(`${F} [data-move="prev"]`).click();
   expect(await height(page)).toBe(h);
@@ -44,6 +51,8 @@ test("soldb steps Arcade's play() in Solidity and in Fe, the box holding " +
   await ready(page, "fe");
   await expect(page.locator(`${F} .codehead .srcfile`))
     .toHaveText("arcade.fe");
+  // (at the score's write)
+  await expect.poll(marked).toMatch(/^store\.scores\.set\(/);
   await expect(page.locator(`${F} .sside`))
     .toContainText("Fe's export has none");
   for (let k = 0; k < 3; k++) {
@@ -55,7 +64,7 @@ test("soldb steps Arcade's play() in Solidity and in Fe, the box holding " +
   // (back to Solidity: where it was)
   await page.locator(`${F} button[data-lang="sol"]`).click();
   await expect.poll(async () => Number(await step(page)))
-    .toBeGreaterThan(s0);
+    .toBeLessThan(s0);
 });
 
 test("the shell lists it as a scene; soldb is never in the app's code",
