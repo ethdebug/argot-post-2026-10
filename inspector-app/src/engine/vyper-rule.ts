@@ -12,7 +12,7 @@
 //   a slot of its own, then name, a String[64], as motd
 // Region names follow solc's templates (value-…, name-…, item), so the
 // same decoding reads both.
-import type { Compilation, Variable } from "../types";
+import type { Compilation, Variable } from "./types";
 
 const member = (name: string, k: number, size: number) => ({
   name, location: "storage", offset: `0x${(32 - size).toString(16)}`,

@@ -2,12 +2,12 @@ import { describe, expect, it } from "vitest";
 import { move } from "./moves";
 import { testProject } from "../../test/project";
 
-const src = async () => (await testProject()).source("run:bug-O0");
+const src = async () => (await testProject()).source("run:stepper-O0");
 // alice's third hit (transaction 12)
 const start = (s: Awaited<ReturnType<typeof src>>) =>
   s.moments.findIndex((m) => m.tx === 12);
 
-describe("move, over bug-O0's run", () => {
+describe("move, over the bug-O0 build's run", () => {
   it("steps by one, and to a transaction's ends", async () => {
     const s = await src();
     const i = start(s);

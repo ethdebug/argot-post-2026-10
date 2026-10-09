@@ -1,7 +1,7 @@
 // A scene's rows and tree rows are the union over its moments (addendum
 // §4): no row appears or goes as the moments change
 import { describe, expect, it } from "vitest";
-import { testProject } from "../../test/project";
+import { pauseOf, testProject } from "../../test/project";
 import { unionRows, unionTree } from "./union";
 import { decode } from "./decode";
 import { layout } from "./layout";
@@ -44,9 +44,11 @@ describe("unionTree", () => {
   });
   it("a path absent at one moment: kept in its place, muted", async () => {
     const p = await testProject();
-    // (moment 0, the roll: hit only; the writes' moment, gained too)
-    const [roll, writes] = await Promise.all(["bug-O0:0", "bug-O0:3"].map(
-      (id) => decode(p, p.decodings["bug-O0/scope"], id)));
+    // (the roll: hit, player; the writes' moment, gained too)
+    const [roll, writes] = await Promise.all([0, 3].map(async (k) => {
+      const at = await pauseOf(p, "O0", k);
+      return decode(p, at.decoding, at.point);
+    }));
     const u = unionTree(roll, [roll, writes]);
     const n = u.byPath.get("gained");
     expect(n?.absent).toBe(true);

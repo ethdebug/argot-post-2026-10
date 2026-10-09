@@ -4,7 +4,7 @@
 import { describe, expect, it } from "vitest";
 import { decode } from "./decode";
 import { layout } from "./layout";
-import { testProject } from "../../test/project";
+import { pauseOf, testProject } from "../../test/project";
 import { expected, lastBlock, A, B, C } from "../../test/expect";
 
 const at = async (scene: string, tx: number) => {
@@ -19,7 +19,7 @@ const text = (d: Awaited<ReturnType<typeof at>>, path: string) => {
   return n?.value?.text ?? n?.summary;
 };
 
-describe.each(["bug-O0", "bug-O2", "mid"])("%s's storage in scope",
+describe.each(["stepper-O0", "stepper-O2", "mid"])("%s's storage in scope",
   (scene) => {
     it("the middle of the game: test/expect.ts's values", async () => {
       const d = await at(scene, 11);
@@ -51,9 +51,10 @@ describe.each(["bug-O0", "bug-O2", "mid"])("%s's storage in scope",
 // and ~sum in its regions and keccaks, named as solc's templates are)
 it("bugc's storage rows are named as solc's", async () => {
   const p = await testProject();
-  const d = await decode(p, p.decodings["bug-O0/scope"], "bug-O0:3");
-  const t = await p.timeline("scene:bug-O0");
-  const l = layout(d, "storage", {}, { point: t.points[3] });
+  const at = await pauseOf(p, "O0", 3);
+  const d = await decode(p, at.decoding, at.point);
+  const l = layout(d, "storage", {}, { point: await p.point(
+    at.decoding.timeline, at.point) });
   const how = Object.fromEntries(l.rows.map((r) => [r.address.slice(-4),
     r.how]));
   expect(how).toMatchObject({ e563: "keccak(slot 0)",
@@ -66,7 +67,7 @@ it("bugc's storage rows are named as solc's", async () => {
 // memory, each its own region, `player-score` …; alice before her third
 // hit is written back: the middle of the game's record, plays already
 // counted)
-it.each([["bug-O0", 548], ["bug-O2", 402]] as const)(
+it.each([["stepper-O0", 548], ["stepper-O2", 402]] as const)(
   "%s: play()'s player, a struct in memory, field by field",
   async (b, step) => {
     const p = await testProject();

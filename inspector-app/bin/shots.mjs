@@ -29,7 +29,7 @@ const frames = (page) => page.evaluate(() => new Promise((r) =>
 // The part of the page each section is: in the vanilla page the
 // storage section (#storage) holds only the bookmarks, and its bar,
 // walkthrough details, dump and tree follow it, up to the end of .scols
-const SPAN = { storage: ["#storage", ".scols"], memory: ["#memory"] };
+const SPAN = { storage: ["#storage", ".scols"] };
 
 // The section's box on the page, with every scroll position in it (a
 // scroll or a resize after a click can take some frames)
@@ -73,7 +73,7 @@ async function capture(ctx, s) {
   try {
     await page.goto(`${PAGE}#${s.hash}`);
     await page.waitForFunction(() => window.results?.done &&
-      window.memResults?.done && !window.loading?.busy(), null,
+      !window.loading?.busy(), null,
     { timeout: 60000 });
     await page.evaluate(() => document.fonts.ready);
     for (const a of s.actions) {
@@ -86,9 +86,8 @@ async function capture(ctx, s) {
     }
     const files = [];
     const walkFile = () => `${s.id}${files.length + 1}.png`;
-    // (each section's walkthrough: the storage section's bar, #details;
-    // the memory section's, #mdetails)
-    const bar = s.section === "memory" ? "#mdetails" : "#details";
+    // (the walkthrough's bar, #details)
+    const bar = "#details";
     const start = page.locator(`${bar} button[data-r="start"]`);
     if (!await start.count()) return files;
     await start.dispatchEvent("click");

@@ -9,7 +9,7 @@ import type {
   BuildId, MomentRef, Scenario, ScenarioId, Timeline,
 } from "./run/types";
 import { compilationOf } from "./run/build";
-import { VY_PLAYERS, vyperRule } from "./fixtures/vyper-rule";
+import { VY_PLAYERS, vyperRule } from "./vyper-rule";
 import { slotHex } from "./hex";
 
 export type SceneId = string;
@@ -34,11 +34,6 @@ export interface Scene {
   variables?: "scope";
   // (its views' roots: the values it is about, the rest not shown)
   roots?: Path[];
-  // (named groups of its moments, each shown as one with its own first
-  // selection: the memory section's pauses, "O0/mult" its two steps;
-  // `scope`, the function its locals are in, a group of the tree)
-  groups?: { id: string; title: string; moments: number[];
-    select?: Path; scope?: string }[];
   // pointers written by hand for its one moment, to the stack and memory
   // words that mean something there (solc names no locals): each an
   // ethdebug variable, its type inline; dereferenced by the same code as
@@ -83,11 +78,6 @@ export function sceneOf(json: unknown): Scene {
   if (j.rows !== undefined && j.rows !== "touched") no(`rows ${j.rows}`);
   if (j.variables !== undefined && j.variables !== "scope") {
     no(`variables ${j.variables}`);
-  }
-  for (const g of j.groups ?? []) {
-    if (!g.moments.every((k) => k >= 0 && k < timeline.length)) {
-      no(`group ${g.id}'s moments`);
-    }
   }
   if (j.pointers !== undefined) {
     if (!Array.isArray(j.pointers) || timeline.length !== 1) {
@@ -211,8 +201,8 @@ function withTimeline(s: Scene, timeline: Scene["timeline"]): Scene {
 // A scene file's text: its keys in one order, two spaces, a newline
 export function sceneJson(s: Scene): string {
   const { id, title, caption, run, lens, timeline, controls, rows,
-    variables, initial, groups, pointers } = s;
+    variables, initial, pointers } = s;
   return JSON.stringify({ id, title, caption, run, lens, timeline,
-    controls, rows, variables, initial, groups, pointers }, null, 2) +
+    controls, rows, variables, initial, pointers }, null, 2) +
     "\n";
 }

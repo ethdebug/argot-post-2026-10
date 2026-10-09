@@ -1,14 +1,9 @@
 import fs from "node:fs/promises";
-import { readFileSync } from "node:fs";
 import path from "node:path";
 import type { Io } from "../src/engine/io";
 
-// The demo's directory, which holds the fixtures
+// The demo's directory, the page's static files
 const demo = path.join(__dirname, "..", "..", "demos", "inspector");
-
-// A fixture's JSON, as written (fixtures/<id>.json)
-export const fixture = <T = any>(id: string): T => JSON.parse(
-  readFileSync(path.join(demo, "fixtures", `${id}.json`), "utf8")) as T;
 
 // The engine's IO from the demo's files
 export function fsIo(): Io {

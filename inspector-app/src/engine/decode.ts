@@ -11,7 +11,6 @@ import { machineState } from "./snapshot";
 import { decodeValue, isValueType, summary, typeName } from "./values";
 import { keysFor } from "./keys";
 import { hoist } from "./run/build";
-import { abiTree } from "./calldata";
 import { walk as walkGraph } from "./deref/walk";
 import { regionsOf, sameAsLibrary } from "./deref/check";
 import { short, slotHex, toBig, toHex } from "./hex";
@@ -79,11 +78,6 @@ async function decodeAt(p: Project, d: Decoding, point: PointId):
   }
   if (d.variables === "locals") return decodeLocals(c, at, d.id);
   if (d.variables === "scope") return decodeScope(p, d, c, at);
-  if (d.variables === "abi") {
-    const tree = abiTree(at.snapshot.calldata ?? new Uint8Array(),
-      d.abi!.param);
-    return decoded(d.id, point, tree, new Map());
-  }
   const vars = c.stateVariables.filter((v) => {
     const q = v.pointer as { location?: string; define?: object };
     return q.location === "storage" || q.define !== undefined ||
@@ -115,7 +109,7 @@ async function decodeScope(p: Project, d: Decoding, c: Compilation,
   const named = new Set(c.stateVariables.map((v) => v.identifier));
   const typed = c.stateVariables.some((v) => c.types[typeIdOf(v)]);
   const st = typed ? await decodeAt(p, { ...d, variables: "state" }, at.id)
-    : await decodeLocals(c, { ...at, scope: undefined, record: undefined,
+    : await decodeLocals(c, { ...at,
       // (the program's own variables, whether the moment's context
       // lists them or not: a moment's locals leave them out)
       locals: c.stateVariables as unknown as Local[] });
@@ -182,10 +176,7 @@ const hex4 = (n: number) => "0x" + n.toString(16).padStart(4, "0");
 // the library against the point's state, in memory, on the stack, in
 // calldata (a pointer that reads a part the state lacks is left out: a
 // fixture's point has memory only); one listed with no pointer has no
-// location there; one that cannot be read there says why. Inside a function (the point's
-// scope), its locals are under one node for it, which owns the frame
-// pointer they are found from, if any. Then a storage slot the page
-// reads by its own rule (alice's record).
+// location there; one that cannot be read there says why.
 // A composite local (bugc's: a struct copy, a string or bytes in memory,
 // a calldata reference), its type inline: walked as a storage value is,
 // its type by an id of its own (run/build.ts hoist), its regions by
@@ -261,37 +252,7 @@ async function localsAt(c: Compilation, at: TimelinePoint, state: State,
   }
   // (those with no location after those with one: vanilla mem.js localsAt)
   out.sort((a, b) => Number(!!a.none) - Number(!!b.none));
-  let tree = out;
-  if (at.scope) {
-    const frame = out.flatMap((n) => n.reads ?? [])
-      .find((r) => r.name === "-frame");
-    const word = frame && at.snapshot.memory!.slice(frame.offset,
-      frame.offset + 32);
-    const addr = word && Number(toBig(toHex(word)));
-    tree = [{ path: at.scope, label: at.scope, root: at.scope, type: "",
-      typeText: "function", kind: "group", regions: frame ? [frame] : [],
-      value: { text: word ? `frame at ${hex4(addr!)}` : "inlined: no frame",
-        hex: word ? toHex(word) : "0x" }, children: out }];
-  }
-  const r = at.record;
-  if (r) {
-    const w = BigInt(at.snapshot.storage.get(r.slot)!);
-    let low = 0;
-    const children = r.members.map(([name, n]): ValueNode => {
-      const v = (w >> BigInt(8 * low)) & ((1n << BigInt(8 * n)) - 1n);
-      const offset = 32 - low - n;
-      low += n;
-      return { path: `${r.path}.${name}`, label: name, root: r.path,
-        type: "", typeText: `uint${8 * n}`,
-        value: { text: String(v), hex: `0x${v.toString(16)}` },
-        regions: [{ location: "storage", slot: BigInt(r.slot), offset,
-          length: n, role: "value", instance: "" }] };
-    });
-    tree = [...tree, { path: r.path, label: r.path, root: r.path,
-      type: "", typeText: "Player", kind: "record", regions: [],
-      value: { text: `slot ${short(r.slot)}`, hex: r.slot }, children }];
-  }
-  return tree;
+  return out;
 }
 
 // The graph of a variable's pointer (deref/walk), checked against the

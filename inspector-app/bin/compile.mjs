@@ -1,7 +1,6 @@
 // Arcade's compilers, one function each: Walnut's solc (walnuthq/solidity
 // PR #10) with ethdebug, vyper, and bugc at an optimization level. Used
-// by bin/build-arcade.mjs (the scenario's builds) and, until they go,
-// demos/inspector/bin/make-fixtures.mjs and make-memory-fixture.mjs.
+// by bin/build-arcade.mjs (the scenario's builds).
 import fs from "node:fs";
 import path from "node:path";
 import { execFileSync } from "node:child_process";

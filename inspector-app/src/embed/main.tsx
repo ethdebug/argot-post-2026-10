@@ -25,7 +25,7 @@ import { SceneHost } from "../ui/SceneHost";
 import { columnsOf } from "../ui/columns";
 import { lenses } from "../lenses";
 import { rawLens } from "../lenses/raw";
-import { builds, scenes } from "../scenes";
+import { builds, page, scenes } from "../scenes";
 import { PanelPort, channelName, figurePort } from "../ui/panel-port";
 import { setProgress, setRevealed } from "../ui/reveal";
 
@@ -39,7 +39,10 @@ addEventListener("message", (e) => {
   if (typeof e.data.progress === "number") setProgress(e.data.progress);
   else setRevealed(!!e.data.on);
 });
-const ALIAS: Record<string, string> = { raw: "raw-hero" };
+// (and the memory section's old scenes, the post's figure until it
+// names the stepper's: the stepper, at the same level)
+const ALIAS: Record<string, string> = { raw: "raw-hero",
+  "bug-O0": "stepper-O0", "bug-O2": "stepper-O2" };
 const id = ALIAS[hash.get("scene") ?? ""] ?? hash.get("scene") ?? "";
 // (every lens a scene may name; the raw lens with or without its moment)
 const all = lenses.map((l) => l.id === "raw-hero" && hash.get("moment")
@@ -141,11 +144,9 @@ async function whenDrawn() {
 }
 
 const project = await load(fetchIo(import.meta.env.BASE_URL),
-  { scenes, builds });
+  { scenes, builds, page });
 const scene = project.scenes.find((s) => s.id === id);
-// (a scene of groups, the memory section's: its first, SceneHost)
-const only = all;
-const lens = scene && only.find((l) => l.id === scene.lens);
+const lens = scene && all.find((l) => l.id === scene.lens);
 if (lens) columns = columnsOf(lens);
 reveals = !!lens?.views.some((v) => v.kind === "dump" &&
   v.display?.annotate);
@@ -154,6 +155,6 @@ const port = hash.get("panel") === "external"
   ? figurePort(channelName(id, hash.get("channel") ?? "")) : null;
 createRoot(root).render(scene
   ? <PanelPort.Provider value={port}><SceneHost scene={scene}
-    project={project} lenses={only} mode="reader" /></PanelPort.Provider>
+    project={project} lenses={all} mode="reader" /></PanelPort.Provider>
   : <p className="embed-none" role="alert">No scene “{id}” to embed
     {" "}(scenes: {project.scenes.map((s) => s.id).join(", ")}).</p>);

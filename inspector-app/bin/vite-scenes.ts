@@ -17,7 +17,7 @@ import type { Io } from "../src/engine/io";
 import { sceneSnapshot } from "../src/engine/snapshots";
 import { snapshotJson } from "../src/engine/source";
 import { sceneJson, sceneOf, type Scene } from "../src/engine/scene";
-import { builds, scenes as all } from "../src/scenes";
+import { builds, page, scenes as all } from "../src/scenes";
 
 const app = path.dirname(path.dirname(fileURLToPath(import.meta.url)));
 const read = (...p: string[]) =>
@@ -48,7 +48,7 @@ export function nodeRuns(): Runs {
   };
 }
 
-// (the demo's files: the page's index and the memory section's fixture)
+// (the demo's files)
 const demoIo = (): Io => {
   const at = (p: string) => path.join(app, "..", "demos", "inspector", p);
   return {
@@ -65,7 +65,7 @@ export function snapshotter(o: { scenes?: Scene[];
   const scenes = o.scenes ?? all;
   const digests = o.digests ??
     ((id: string) => read(app, "scenarios", id, "digests.json"));
-  const project = load(demoIo(), { scenes, builds, runs: nodeRuns() });
+  const project = load(demoIo(), { scenes, builds, page, runs: nodeRuns() });
   const files = new Map<string, Promise<string>>();
   return (id: string): Promise<string> => {
     if (!files.has(id)) {

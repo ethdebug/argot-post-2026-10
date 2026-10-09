@@ -137,23 +137,11 @@ li.same > .row .name, li.same > .row .type { opacity: 0.55; }
 .mode { gap: 0; }
 .moderow { display: flex; align-items: center; gap: 10px; margin: 10px 0 0; }
 .modelabel { font-size: var(--fs-meta); color: var(--muted); }
-.mpicks .moderow { margin: 0 0 6px; }
-.mpicks .modelabel { min-width: 1.2em; }
 /* All | Related: the rows a dump shows (its context box muted, not
    gone, with All: nothing moves) */
 .relrow { margin: 0 0 8px; }
 .relrow .chipcheck.off { opacity: 0.5; cursor: default; }
 .relrow .relhint { font-size: var(--fs-meta); }
-.how details { margin-top: 4px; }
-.how summary { cursor: pointer; color: var(--muted); font-size: var(--fs-meta); }
-.how pre {
-  max-height: 260px;
-  overflow: auto;
-  background: var(--code-bg);
-  padding: 8px;
-  border-radius: 4px;
-  font-size: var(--fs-label);
-}
 .hex.short { cursor: pointer; border-bottom: 1px dotted var(--muted); }
 .hex.full { overflow-wrap: anywhere; }
 
@@ -598,71 +586,11 @@ li.same > .row .name, li.same > .row .type { opacity: 0.55; }
   clip-path: polygon(0 0, calc(100% + 1px) 0, 0 calc(100% + 1px));
 }
 
-/* ------------------------------------------- memory, with BUG */
-
-/* Set apart from the storage demo above: a tinted band, its own
-   frame. */
-.ahead {
-  margin-top: 40px;
-  padding: 20px 20px 24px;
-  border: 1px solid var(--line);
-  border-top: 4px solid var(--plan-fg);
-  border-radius: 8px;
-  background: color-mix(in srgb, var(--plan-bg) 35%, var(--bg));
-}
-.ahead > h2 { margin: 0 0 8px; font-size: 1.3rem; }
-.tag.preview {
-  display: inline-block;
-  white-space: normal;
-  font-size: 0.75rem;
-  font-weight: 400;
-  vertical-align: middle;
-  border-color: var(--plan-fg);
-  color: var(--plan-fg);
-  background: var(--plan-bg);
-}
-.ahead .lede { max-width: 78ch; margin: 0 0 8px; }
-.ahead .dump .view-head,
-.ahead .wrow.head .addr { background: transparent; }
-.ahead .view-head {
-  background: color-mix(in srgb, var(--plan-bg) 35%, var(--bg));
-}
-.mpicks { margin: 12px 0 8px; }
-.mpickrow {
-  display: flex;
-  align-items: baseline;
-  gap: 10px;
-  margin: 0 0 6px;
-}
-.mpickrow .label {
-  font-weight: 700;
-  min-width: 1.2em;
-  color: var(--plan-fg);
-}
-.mpick button[disabled] { opacity: 0.4; cursor: not-allowed; }
-#mtree .row { cursor: pointer; border-radius: 4px; }
-#mtree .row.sel .val {
-  border-color: var(--accent); }
-#mtree .row:focus-visible { outline: 2px solid var(--accent);
-  outline-offset: 1px; }
 .b.past { color: var(--muted); opacity: 0.35; }
-#msrc mark.ma { background: var(--plan-bg); color: var(--plan-fg);
-  border-radius: 2px; }
-#msrc mark.mb, #msrc mark.mab { background: var(--mark); color: inherit;
-  border-radius: 2px; }
-#msrc mark.mab { box-shadow: 0 2px 0 var(--plan-fg); }
-.legend mark { padding: 0 6px; border-radius: 3px; }
-.legend mark.ma { background: var(--plan-bg); color: var(--plan-fg); }
-.legend mark.mb { background: var(--mark); color: inherit; }
-.mknown { margin: 16px 0 0; padding-left: 20px; max-width: 80ch; }
-.mknown li { margin: 4px 0; }
-/* the record's storage slot after memory, and a local with no location */
-#mtree .noloc { color: var(--muted); }
 /* a path its scene has at another moment, not this one: its row kept,
    muted ("not yet"; engine/union.ts) */
 .tree li.absent > .row { opacity: 0.55; }
 .tree .noloc { color: var(--muted); }
-.mpickrow .label { min-width: 5.5em; }
 
 /* Loading: gray lines where the values will be, and room kept for the
    lines that come with the data, so the layout does not move when it
@@ -682,25 +610,23 @@ li.same > .row .name, li.same > .row .type { opacity: 0.55; }
 @keyframes skel { to { opacity: 0.45; } }
 /* the lines that come with the data: two lines of meta and one of
    summary on a wide page, four and three on a phone */
-#meta, #mmeta { min-height: calc(2 * 1.5em); }
+#meta { min-height: calc(2 * 1.5em); }
 .summary { min-height: 1.5em; }
 @media (max-width: 759px) {
-  #meta, #mmeta { min-height: calc(4 * 1.5em); }
+  #meta { min-height: calc(4 * 1.5em); }
   .summary { min-height: calc(3 * 1.5em); }
 }
 /* the words: room for the smallest dump */
-#panel:empty, #mpanel:empty { min-height: 270px; }
+#panel:empty { min-height: 270px; }
 
 /* Scenes. A scene's intro sits under the picker. A scene with one
-   moment has no other state: no change legends (main[data-single]; the
-   memory section keeps its own) */
+   moment has no other state: no change legends (main[data-single]) */
 .intros p { max-width: 78ch; margin: 10px 0 0; }
 main[data-single] .walkzone > .cols :is(.chglegend, .legend .bchg,
   .intro .two) {
   display: none; }
-/* The contract, above the scenes; the calldata of setMotto, under its
-   scene's storage */
-.contract p, .calldata .lede { max-width: 78ch; }
+/* The contract, above the scenes */
+.contract p { max-width: 78ch; }
 .contract .src { max-height: 22em; }
 /* the contract's source, collapsed under a summary line */
 .srcbox {
@@ -728,13 +654,6 @@ main[data-single] .walkzone > .cols :is(.chglegend, .legend .bchg,
 :root[data-theme="dark"] #contract-src.coloured span { color: var(--shiki-dark); }
 .srcbox > .src { border: none; border-top: 1px solid var(--line);
   border-radius: 0 0 6px 6px; }
-.calldata { margin-top: 20px; }
-.calldata .lede { margin: 0 0 8px; }
-.cparts { display: grid; gap: 0 20px; margin-top: 10px;
-  grid-template-columns: minmax(0, 1fr); }
-@media (min-width: 760px) {
-  .cparts { grid-template-columns: minmax(0, 2fr) minmax(0, 3fr); }
-}
 
 /* A composite's children, each in its own colour when it is lit (pk1 …;
    the first colour is --mark). The same child has the same colour in
@@ -1207,7 +1126,7 @@ html { overflow-anchor: none; }
    only ends it: no pointer there (data-exits: ui/types.ts outside); an
    anchor's bytes, owned by none, select the variable it anchors */
 [data-exits] .b[data-owners]:not(.hl):not(.rel),
-:is(#tree, #mtree, .tree)[data-exits] .row:not(.hl):not(.rel) {
+:is(#tree, .tree)[data-exits] .row:not(.hl):not(.rel) {
   cursor: default; }
 [data-exits] .wrow.anchor .b { cursor: pointer; }
 /* during a walkthrough, the bar and its details stick to the top of the
@@ -1227,8 +1146,8 @@ html { overflow-anchor: none; }
 .walkzone:has(.wpanel.walking) .words .relrow {
   top: calc(var(--walk-top, 0px) + var(--walk-h, 0px) +
     var(--walk-head, 0px)); }
-/* (the memory section's words column, which sticks whole at rest, goes
-   with the page meanwhile, as the storage section's: its headers stick) */
+/* (a words column that sticks whole at rest goes with the page
+   meanwhile: its headers stick) */
 .walkzone:has(.wpanel.walking) .cols .words { position: static; }
 .lens > [data-area]:has(> .wpanel.walking) { position: sticky; top: 0;
   z-index: 8; align-self: start; }
@@ -1483,18 +1402,18 @@ main:not([data-lens]) #rawscene { display: none; }
 #timeline .tline { font-size: 11.9px; }
 /* The tree: a companion to its dump, at its cell size; rows in its
    units */
-:is(#tree, #mtree, #ctree, .tree) { font-size: var(--fs-cell); }
-:is(#tree, #mtree, #ctree, .tree) .name { font-size: var(--fs-name); }
-:is(#tree, #mtree, #ctree, .tree) :is(.type, .val.sum, .empty, .noloc) {
+:is(#tree, .tree) { font-size: var(--fs-cell); }
+:is(#tree, .tree) .name { font-size: var(--fs-name); }
+:is(#tree, .tree) :is(.type, .val.sum, .empty, .noloc) {
   font-size: var(--fs-meta); }
-:is(#tree, #mtree, #ctree, .tree) .val { font-size: var(--fs-value);
+:is(#tree, .tree) .val { font-size: var(--fs-value);
   padding: 0.1em 0.55em; }
-:is(#tree, #mtree, #ctree, .tree) .row { padding: 0.15em 0;
+:is(#tree, .tree) .row { padding: 0.15em 0;
   gap: 0.15em 0.7em; }
-:is(#tree, #mtree, #ctree, .tree) li.top { padding: 0.25em 0; }
-:is(#tree, #mtree, #ctree, .tree) ul { padding-left: 1.15em; }
-:is(#tree, #mtree, #ctree, .tree) > ul { padding-left: 0; }
-:is(#tree, #mtree, #ctree, .tree) li > .chev { width: 1.9em; height: 1.9em;
+:is(#tree, .tree) li.top { padding: 0.25em 0; }
+:is(#tree, .tree) ul { padding-left: 1.15em; }
+:is(#tree, .tree) > ul { padding-left: 0; }
+:is(#tree, .tree) li > .chev { width: 1.9em; height: 1.9em;
   font-size: 1em; }
-:is(#tree, #mtree, #ctree, .tree) li:has(> .chev) > .row {
+:is(#tree, .tree) li:has(> .chev) > .row {
   padding-right: calc(1.9em + 13px); }

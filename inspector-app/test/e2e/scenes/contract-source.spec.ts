@@ -46,5 +46,5 @@ test("the selection's declaration marked: a member, its struct",
     const mark = (await page.locator("#contract-src .line.decl")
       .allTextContents()).join("\n");
     expect(mark).toContain("struct Player");
-    expect(await page.locator("pre.src:not(#memory *)").count()).toBe(1);
+    expect(await page.locator("pre.src").count()).toBe(1);
   });
