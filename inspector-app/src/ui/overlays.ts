@@ -56,11 +56,12 @@ function byteLight(c: El) {
 const consulted = (r: El) => rowState(r).rel;
 type Rect = { top: number; left: number; bottom: number; right: number };
 // (WebKit on Linux, WPE/GTK: a view-transition-name nested in a named
-// element crashes it)
+// element crashes it. Its user agent says macOS, for sites' sake; its
+// platform does not)
 const nestedNamesCrash = typeof navigator !== "undefined" &&
   /AppleWebKit/.test(navigator.userAgent) &&
   !/Chrome|Chromium|Edg/.test(navigator.userAgent) &&
-  /Linux/.test(navigator.userAgent);
+  /Linux/.test(`${navigator.platform} ${navigator.userAgent}`);
 interface Item { text: string; k: string | null; muted: boolean;
   sep: string; seg?: number; id?: string; free?: boolean;
   // (a note about the bytes, not a value: "(unmapped)", "(anchor slot
