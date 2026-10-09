@@ -249,7 +249,8 @@ for (const [id, has] of [["mid", true], ["raw-hero", true],
   test(`embed.html#scene=${id}: its height message's row pitch`,
     async ({ page }) => {
       await page.setViewportSize({ width: 1024, height: 900 });
-      const posted: { ready?: boolean; row?: number }[] = [];
+      const posted: { ready?: boolean; row?: number;
+        storageBottom?: number }[] = [];
       await page.exposeFunction("posted", (m: never) => posted.push(m));
       await page.addInitScript(() => {
         window.parent.postMessage = (m: unknown) =>
@@ -259,7 +260,15 @@ for (const [id, has] of [["mid", true], ["raw-hero", true],
       await expect.poll(() => posted.some((m) => m.ready),
         { timeout: 20_000 }).toBe(true);
       const last = posted.at(-1)!;
-      if (!has) return expect(last.row).toBeUndefined();
+      if (!has) {
+        expect(last.storageBottom).toBeUndefined();
+        return expect(last.row).toBeUndefined();
+      }
+      // (and the storage dump's bottom edge, from the frame's top)
+      const bottom = await page.evaluate(() => document.querySelector(
+        '.view[data-location="storage"]')!.getBoundingClientRect().bottom -
+        document.getElementById("embed")!.getBoundingClientRect().top);
+      expect(Math.abs(last.storageBottom! - bottom)).toBeLessThan(1);
       // (two rows next to each other: their tops' distance)
       const want = await page.evaluate(() => {
         const rs = [...document.querySelectorAll(
@@ -274,6 +283,7 @@ for (const [id, has] of [["mid", true], ["raw-hero", true],
       // (a narrower frame: posted again, as laid out there)
       await page.setViewportSize({ width: 390, height: 900 });
       await expect.poll(() => posted.at(-1)!.row).not.toBe(last.row);
+      expect(posted.at(-1)!.storageBottom).not.toBe(last.storageBottom);
     });
 }
 

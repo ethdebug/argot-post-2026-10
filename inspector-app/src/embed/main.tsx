@@ -54,7 +54,9 @@ const all = lenses.map((l) => l.id === "raw-hero" && hash.get("moment")
 const root = document.getElementById("embed")!;
 
 // The content's height, to the host: { type: "ethdebug:height", height,
-// columns, width, row?, reveal? }. (`row`: the storage dump's row pitch
+// columns, width, row?, storageBottom?, reveal? }. (`storageBottom`: the
+// storage dump's bottom edge, CSS px from the frame's top; no storage
+// dump, none.) (`row`: the storage dump's row pitch
 // in CSS px, for a host that measures in rows; no storage dump, none.) (`reveal`: the figure has an annotated
 // layer, raw until the host says { type: "ethdebug:reveal", on: true }
 // as the reader scrolls to it, and again whenever this reports ready.) Only once the scene is drawn (its data in, its
@@ -78,7 +80,16 @@ const measure = () => {
   const width = boxes.length ? Math.ceil(Math.max(...boxes.map((r) =>
     r.right)) - Math.min(...boxes.map((r) => r.left)) + pad) : 0;
   return { height: Math.ceil(root.getBoundingClientRect().height), width,
-    ...rowPitch() };
+    ...rowPitch(), ...storageBottom() };
+};
+// (`storageBottom`: the first storage dump's bottom edge, in CSS px from
+// the frame's top, at this width; no storage dump, none)
+const storageBottom = (): { storageBottom?: number } => {
+  const dump = root.querySelector<HTMLElement>(
+    '.view[data-location="storage"]:not([hidden])');
+  if (!dump) return {};
+  return { storageBottom: Math.round((dump.getBoundingClientRect().bottom -
+    root.getBoundingClientRect().top) * 100) / 100 };
 };
 // (`row`: the first storage dump's row pitch, one row's top to the
 // next's, in CSS px at this width: the nearest two rows' distance, or
@@ -99,7 +110,7 @@ const rowPitch = (): { row?: number } => {
 const post = () => {
   if (!ready) return;
   const m = measure();
-  const key = `${m.height}|${m.width}|${m.row}`;
+  const key = `${m.height}|${m.width}|${m.row}|${m.storageBottom}`;
   if (key === last) return;
   const first = !last;
   last = key;
