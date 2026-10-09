@@ -10,6 +10,7 @@
 // the panel's model and acts on its intents (ui/panel-port.ts), and asks
 // the host to bring a step's lit rows into view: { type:
 // "ethdebug:scroll-to", y, bottom } (their top and bottom in this frame).
+import { followTheme } from "./theme";
 import "../../../shared/appendix.css";
 import "../style.css";
 import "../ui/port.css";
@@ -27,17 +28,7 @@ import { builds, scenes } from "../scenes";
 import { PanelPort, channelName, figurePort } from "../ui/panel-port";
 
 const hash = new URLSearchParams(location.hash.slice(1));
-// The host's theme (the hash's theme=light|dark, or its message
-// { type: "ethdebug:theme", theme }): over the OS's preference
-const theme = (t: unknown) => {
-  if (t !== "light" && t !== "dark") return;
-  document.documentElement.dataset.theme = t;
-  document.documentElement.style.colorScheme = t;
-};
-theme(hash.get("theme"));
-addEventListener("message", (e) => {
-  if (e.data?.type === "ethdebug:theme") theme(e.data.theme);
-});
+followTheme(hash);
 const ALIAS: Record<string, string> = { raw: "raw-hero" };
 const id = ALIAS[hash.get("scene") ?? ""] ?? hash.get("scene") ?? "";
 // (every lens a scene may name; the raw lens with or without its moment)
