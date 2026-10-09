@@ -173,18 +173,20 @@ export function PointerYaml({ domId, data, variable, band, before, goal,
     setAlias(`${a.textContent}\n${a.dataset.id}`);
   };
   const coloured = html?.text === text ? html.lines : null;
-  // the glyph: up and right when ▶ is right of it, else up and left
+  // the glyph points toward ▶, from where ▶ is: on the sentence's right,
+  // up and right, when ▶ is right of the sentence's middle; else on its
+  // left, the same arrow mirrored, up and left (one rule, measured)
   const pgo = useRef<HTMLParagraphElement>(null);
-  const [glyph, setGlyph] = useState("⤴");
+  const [left, setLeft] = useState(true);
   useLayoutEffect(() => {
     const aim = () => {
-      const g = pgo.current?.querySelector(".pglyph");
-      const next = pgo.current?.closest("[data-view]")?.querySelector(
+      const g = pgo.current;
+      const next = g?.closest("[data-view]")?.querySelector(
         'button[data-r="next"]');
       if (!goal || !g || !next) return;
       const gr = g.getBoundingClientRect();
       const n = next.getBoundingClientRect();
-      setGlyph(n.left + n.width / 2 >= gr.left - 4 ? "⤴" : "↖");
+      setLeft(n.left + n.width / 2 < gr.left + gr.width / 2);
     };
     const f = requestAnimationFrame(aim);
     addEventListener("resize", aim);
@@ -227,10 +229,11 @@ export function PointerYaml({ domId, data, variable, band, before, goal,
   </div>{edge("up")}{edge("down")}
     {/* (at step 0, over the blurred pointer: the way on, with an arrow
       glyph toward ▶: vanilla goGlyph) */}
-    <p ref={pgo} id={domId ? "pgo" : undefined} className="pgo"
-      hidden={!goal}><span className="ptext">Press ▶ to see how this data
-      from the compiler finds these bytes</span><span className="pglyph" aria-hidden="true">{glyph}
-      </span></p></div>;
+    <p ref={pgo} id={domId ? "pgo" : undefined} className={`pgo${left
+      ? " left" : ""}`} hidden={!goal}>{left && <span className="pglyph"
+      aria-hidden="true">⤴</span>}<span className="ptext">Press ▶ to see how
+      this data from the compiler finds these bytes</span>{!left && <span
+      className="pglyph" aria-hidden="true">⤴</span>}</p></div>;
 }
 
 // The values of the variables a line uses (an operand, not a key:
