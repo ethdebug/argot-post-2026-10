@@ -80,7 +80,10 @@ export async function load(io: Io, o: { scenes: Scene[];
     io.json("fixtures/memory.json")]);
   const mem = fromMemory(memJson);
   const scenes = o.scenes;
-  const shown = scenes.filter((s) => s.lens === "inspector");
+  // (the storage inspector's scenes the page shows: fixtures/index.json's;
+  // raw-named, an embed's, is not one)
+  const shown = scenes.filter((s) => s.lens === "inspector" &&
+    page.some((x) => x.id === s.id));
   // (every scene of one or two moments, until a lens shows moments
   // without Before | After: §8 step 4)
   const bookmarks = [...scenes.filter((s) => s.timeline.length <= 2)
