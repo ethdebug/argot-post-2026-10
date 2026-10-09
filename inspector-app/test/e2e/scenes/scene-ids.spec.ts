@@ -34,6 +34,12 @@ const checks: Record<string, (page: Page) => Promise<void>> = {
     await expect(val(page, `${A}.score`)).toHaveText("0");
   },
   // (carol's play, right after her combo resets: 140 points so far)
+  // (carol's record, its rows only)
+  "carol-record": async (page) => {
+    await expect(val(page,
+      "players[0x90f79bf6eb2c4f870365e785982e1f101e93b906].score"))
+      .toHaveText("100");
+  },
   "raw-named": async (page) => {
     await expect(val(page, "totalScore")).toHaveText("140");
   },
