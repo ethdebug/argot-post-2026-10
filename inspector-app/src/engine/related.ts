@@ -7,7 +7,7 @@
 // walkthrough, other values have none.
 import type {
   ByteKey, Colour, Decoded, Hex, Layout, Light, Location, Path,
-  ResolvedRegion, ValueNode,
+  ResolvedRegion, Target, ValueNode,
 } from "./types";
 import { regionBytes } from "./location";
 import { byteKey, slotHex, toBig } from "./hex";
@@ -183,4 +183,37 @@ export function relClass(light: Light, ids: string[]): string | null {
     .filter((k) => k !== undefined);
   if (!ks.length) return null;
   return `rel ${typeof ks[0] === "number" && ks[0] ? `pk${ks[0]}` : "pkn"}`;
+}
+
+// Pointing at something the selection consulted (its tree row, its bytes,
+// its row): that one keeps its consulted tint and the rest of the
+// consulted set goes plain; the selection's child colours step back to
+// their muted forms (focus "none"), so the pointed one's relation to the
+// selection stands out. Anything else pointed at: the light as it is.
+export function pointConsulted(light: Light, d: Decoded, l: Layout,
+  hover: Target | null): Light {
+  const rc = light.relColours;
+  if (!hover || !rc?.size) return light;
+  const owner = (k: ByteKey) => (l.cover.get(k) ?? []).map(ownerPath)
+    .find((q) => rc.has(q));
+  const at = hover.path && rc.has(hover.path) ? hover.path
+    : hover.bytes ? owner(byteKey(hover.bytes.location, hover.bytes.row,
+      hover.bytes.from)) : undefined;
+  const row = !at && hover.row && light.related?.has(hover.row)
+    ? hover.row : undefined;
+  if (!at && !row) return light;
+  const keep = (q: Path) => !!at && within(d.byPath, q, at);
+  const relColours = new Map([...rc].filter(([q]) => keep(q)));
+  const relBytes = new Set([...light.relBytes ?? []].filter((k) => row
+    ? k.split("|")[1] === row
+    : (l.cover.get(k) ?? []).some((o) => keep(ownerPath(o)))));
+  if (row) {
+    for (const k of relBytes) {
+      for (const o of l.cover.get(k) ?? []) {
+        const q = ownerPath(o);
+        if (rc.has(q)) relColours.set(q, rc.get(q)!);
+      }
+    }
+  }
+  return { ...light, relColours, relBytes, focus: "none" };
 }
