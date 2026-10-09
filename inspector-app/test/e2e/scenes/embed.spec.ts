@@ -37,6 +37,8 @@ for (const width of [1024, 390]) {
     expect(await frame.locator("body").evaluate((b) => [
       getComputedStyle(b).margin, getComputedStyle(b).backgroundColor]))
       .toEqual(["0px", "rgba(0, 0, 0, 0)"]);
+    expect(await frame.locator(".view-head").first().evaluate((h) =>
+      getComputedStyle(h).backgroundColor)).toBe("rgba(0, 0, 0, 0)");
   });
 }
 
