@@ -34,7 +34,7 @@ import { relClass } from "../engine/related";
 import { vtName } from "./transition";
 import { readWritten } from "../engine/timeline";
 import {
-  addressText, addressing, goesOn, hex4, rowBytes,
+  addressText, addressing, hex4, rowBytes,
 } from "../engine/location";
 import type { DataRef, Display, LinkId, ViewId } from "./types";
 import { exiting, outside } from "./types";
@@ -506,7 +506,7 @@ export function Dump(p: { id: ViewId; location: Location; data: DataRef;
         bare={bare} abbreviate={disp.abbreviate} />}
     </div>);
   });
-  if (goesOn(loc) && !flow) {
+  if (l?.more && !flow) {
     lines.push(<div key="end" className="gap" aria-hidden="true"
       data-vt={vt("end")}><span>⋯</span></div>);
   }

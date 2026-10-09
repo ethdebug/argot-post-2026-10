@@ -134,7 +134,9 @@ test("inside _applyCombo: O0 a call with a frame; colours; Before | After; "
   await expect(mrow(page, "_applyCombo").locator(".val"))
     .toHaveText("inlined: no frame");
   expect("0x0080" in (await mcol(page)).bytes).toBe(false);
-  await expect(page.locator("#mpanel .wrow[data-slot='0x0080']"))
+  // (the word is shown, as the whole segment is: no value owns it)
+  await expect(page.locator(
+    "#mpanel .view:not([hidden]) .wrow[data-slot='0x0080'] .b[data-owners]"))
     .toHaveCount(0);
 });
 
