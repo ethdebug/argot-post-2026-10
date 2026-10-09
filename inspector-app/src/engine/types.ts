@@ -92,6 +92,7 @@ export interface Bookmark {             // a handpicked view of 1 or 2 points
   points: [PointId] | [PointId, PointId];   // 2 = compare
   select?: Path;                        // selected first
   side?: "before" | "after";            // shown first (2 points)
+  moment?: number;                      // shown first (more points)
   calldata?: { signature: string; param: string };
   walk?: { step: number };              // its selection's, started
   collapse?: Path[];                    // its trees' groups shut first

@@ -61,3 +61,24 @@ it("bugc's storage rows are named as solc's", async () => {
     fb94: "keccak(0x7099…79c8, slot 4)",
     "15f1": "keccak(keccak(0x90f7…b906, slot 4) + 1)" });
 });
+
+// (a struct local, bugc's copy of the caller's record: its fields from
+// memory, each its own region, `player-score` …; alice before her third
+// hit is written back: the middle of the game's record, plays already
+// counted)
+it.each([["bug-O0", 548], ["bug-O2", 402]] as const)(
+  "%s: play()'s player, a struct in memory, field by field",
+  async (b, step) => {
+    const p = await testProject();
+    const run = `run:${b}`;
+    const src = await p.source(run);
+    const k = src.moments.findIndex((m) => m.tx === 12 && m.step === step);
+    const d = await decode(p, p.decodings[run], `${run}:${k}`);
+    const pl = d.byPath.get("player")!;
+    expect(pl.children!.map((c) => c.label)).toEqual(["score", "combo",
+      "bestCombo", "plays", "hits", "lastBlock", "name"]);
+    expect(text(d, "player.name")).toBe('"alice"');
+    expect(text(d, "player.score")).toBe("30");
+    expect(d.byPath.get("player.score")!.regions[0].location)
+      .toBe("memory");
+  });

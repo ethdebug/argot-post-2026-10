@@ -71,6 +71,8 @@ const bookmarkOf = (s: Scene, page?: PageScene): ProjectBookmark => ({
   ...(s.initial?.collapse ? { collapse: s.initial.collapse } : {}),
   ...(s.timeline.length === 2 ? { side: s.initial?.moment === 0 ? "before"
     : "after" } : {}),
+  // (more moments: the one it opens at, its first unless it says)
+  ...(s.timeline.length > 2 ? { moment: s.initial?.moment ?? 0 } : {}),
   ...(page?.calldata ? { calldata: page.calldata } : {}),
   timeline: timelineOf(s.id), decoding: s.id,
   ...(s.caption ? { summary: s.caption } : {}),
@@ -86,9 +88,8 @@ export async function load(io: Io, o: { scenes: Scene[];
   // raw-named, an embed's, is not one)
   const shown = scenes.filter((s) => s.lens === "inspector" &&
     page.some((x) => x.id === s.id));
-  // (every scene of one or two moments, until a lens shows moments
-  // without Before | After: §8 step 4)
-  const bookmarks = [...scenes.filter((s) => s.timeline.length <= 2)
+  // (every scene, but one of groups: its groups are, below)
+  const bookmarks = [...scenes.filter((s) => !s.groups)
     .map((s) => bookmarkOf(s, page.find((x) => x.id === s.id)))];
   const decodings: Record<DecodingId, Decoding> = {};
   // (the scenes whose decodings read a compilation)
