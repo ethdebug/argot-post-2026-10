@@ -3,78 +3,70 @@ import { fsIo } from "../../test/io";
 import type { Io } from "./io";
 import { load } from "./project";
 import { decode } from "./decode";
+import { builds, scenes } from "../scenes";
+import { readerProject } from "../../test/project";
 
-it("loads only the index and the memory pauses until a timeline is "
-  + "asked for", async () => {
+const A = "players[0x70997970c51812dc3a010c7d01b50e0d17dc79c8]";
+
+it("loads only the index and the memory pauses until a scene is asked "
+  + "for; then its snapshot, once", async () => {
   const seen: string[] = [];
   const io = { ...fsIo(), json: <T>(q: string) => (seen.push(q),
-    fsIo().json<T>(q)) };
-  const p = await load(io as Io);
+    q.startsWith("snapshots/") ? Promise.reject(new Error("HTTP 404"))
+      : fsIo().json<T>(q)) };
+  const p = await load(io as Io, { scenes, builds });
   expect(seen).toEqual(["fixtures/index.json", "fixtures/memory.json"]);
   expect(p.bookmarks.map((b) => b.id))
     .toEqual(["mid", "alice", "motd", "vyper", "O0/roll", "O0/mult",
       "O0/writes", "O2/roll", "O2/mult", "O2/writes"]);
-  await p.timeline("arcade-mid");
-  await p.timeline("arcade-mid");
-  expect(seen).toEqual(["fixtures/index.json", "fixtures/memory.json",
-    "fixtures/arcade-mid.json"]);
+  await expect(p.timeline("scene:mid")).rejects.toThrow("404");
+  // (a failed load is not kept: asked again, it loads again)
+  await expect(p.timeline("scene:mid")).rejects.toThrow("404");
+  expect(seen.slice(2)).toEqual(["snapshots/mid.json",
+    "snapshots/mid.json"]);
 });
 
-it("a failed timeline is not cached", async () => {
-  let fails = 1;
-  const io = { ...fsIo(), json: <T>(q: string) =>
-    q.endsWith("arcade-mid.json") && fails-- > 0
-      ? Promise.reject(new Error("HTTP 503")) : fsIo().json<T>(q) };
-  const p = await load(io as Io);
-  await expect(p.timeline("arcade-mid")).rejects.toThrow("503");
-  const t = await p.timeline("arcade-mid");
-  expect(t.points.map((x) => x.id))
-    .toEqual(["arcade-mid:before", "arcade-mid:after"]);
-});
-
-it("a bookmark names its points, timeline and decoding", async () => {
-  const p = await load(fsIo());
+it("a scene is a bookmark: its moments are the points", async () => {
+  const p = await readerProject();
   const [mid, alice] = p.bookmarks;
-  expect(mid).toMatchObject({ points: ["arcade-mid:after"],
-    timeline: "arcade-mid", decoding: "sol:arcade-mid",
-    select: "players[0x70997970c51812dc3a010c7d01b50e0d17dc79c8]" });
-  expect(alice).toMatchObject({ side: "after", points:
-    ["arcade-alice:before", "arcade-alice:after"] });
-  // (keys: as the fixture says, `keysIn`, once it is loaded)
-  await p.timeline("arcade-mid");
-  expect(p.decodings["sol:arcade-mid"]).toEqual({ id: "sol:arcade-mid",
-    compilation: "sol@arcade-mid", timeline: "arcade-mid", variables: "state",
+  expect(mid).toMatchObject({ points: ["mid:0"], timeline: "scene:mid",
+    decoding: "mid", select: A });
+  expect(alice).toMatchObject({ side: "after",
+    points: ["alice:0", "alice:1"] });
+  expect(p.decodings.mid).toEqual({ id: "mid", compilation: "arcade-sol",
+    timeline: "scene:mid", variables: "state",
     keys: { from: "list", path: "playerList" } });
-  await p.timeline("arcade-vyper");
-  // (Vyper's: the keys from the trace; solc's rule over another
-  // compiler's storage, with that compiler's own reading beside it)
-  expect(p.decodings.vyAsSol.keys).toEqual({ from: "trace" });
-  expect(p.decodings.vyAsSol.foreign).toEqual({ language: "vyper",
-    rule: "vyRule" });
+  // (Vyper's: solc's rule over another compiler's storage, its keys
+  // hashed with Vyper's slot, Vyper's own reading beside it)
+  expect(p.decodings.vyper.keys).toEqual({ from: "trace",
+    slot: `0x${"6c".padStart(64, "0")}` });
+  expect(p.decodings.vyper.foreign).toEqual({ language: "vyper",
+    rule: "vyper/rule" });
+  const t = await p.timeline("scene:alice");
+  expect(t.points.map((x) => [x.id, x.label])).toEqual([
+    ["alice:0", "in the middle of the game"],
+    ["alice:1", "after alice's third hit"]]);
 });
 
-it("a point's snapshot is that side's storage", async () => {
-  const p = await load(fsIo());
-  const t = await p.timeline("arcade-alice");
+it("a point's snapshot is that moment's storage", async () => {
+  const p = await readerProject();
+  const t = await p.timeline("scene:alice");
   const slot2 = ("0x" + "2".padStart(64, "0")) as `0x${string}`;
   expect(t.points[0].snapshot.storage.get(slot2)?.slice(-2)).toBe("8c");
   expect(t.points[1].snapshot.storage.get(slot2)?.slice(-2)).toBe("aa");
-  expect((await p.compilation("sol@arcade-alice")).stateVariables
+  expect((await p.compilation("arcade-sol")).stateVariables
     .map((v) => v.identifier))
     .toEqual(["playerList", "motd", "totalScore", "totalHits", "players"]);
 });
 
-it("each fixture's contract is its own compilation, whatever the fetch "
-  + "order", async () => {
-  const p = await load(fsIo());
-  await p.timeline("arcade-vyper");
-  expect((await p.compilation("sol@arcade-vyper")).stateVariables
+it("each scene's compilations, whatever the load order", async () => {
+  const p = await readerProject();
+  await p.timeline("scene:vyper");
+  expect((await p.compilation("arcade-sol-players")).stateVariables
     .map((v) => v.identifier)).toEqual(["players"]);
-  const d = await decode(p, p.decodings["sol:arcade-mid"],
-    "arcade-mid:after");
+  expect((await p.compilation("arcade-vy-rule")).provenance)
+    .toBe("hand-written");
+  const d = await decode(p, p.decodings.mid, "mid:0");
   expect(d.tree.map((n) => n.path))
-    .toEqual(["playerList", "motd", "totalScore", "totalHits", "players"]);
-  expect((await p.compilation("sol@arcade-mid")).stateVariables
-    .map((v) => v.identifier))
     .toEqual(["playerList", "motd", "totalScore", "totalHits", "players"]);
 });

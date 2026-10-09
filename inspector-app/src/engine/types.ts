@@ -53,8 +53,9 @@ export interface Timeline {
 export interface TimelinePoint {
   id: PointId;
   label: string;                        // "in the middle of the game"
-  at: { tx: Hex; side: "before" | "after" }   // handpicked (Phase 1)
-    | { tx: Hex; step: number };              // a trace step (later)
+  at: { tx: Hex; side: "before" | "after" }   // a fixture's (legacy)
+    | { tx: Hex; step: number }               // a fixture's paused step
+    | { tx: number; step: number | "end" };   // a moment (run/types)
   snapshot: Snapshot;
   transaction?: TxFacts;                // the tx this point is before/after
   locals?: Local[];                     // instruction context here (BUG memory)
@@ -113,8 +114,10 @@ export interface Decoding {             // "this rule over that storage"
   foreign?: { language: string; rule: DecodingId };
 }
 // (from: "list": a list in storage, e.g. playerList; its provenance)
+// (from: "trace": keys hashed with the variable's base slot, or with
+// `slot`: another compiler's slot for it, read by this rule)
 export type KeySource = { from: "list"; path: Path }   // roster (provenance)
-  | { from: "trace" };
+  | { from: "trace"; slot?: Hex };
 export type Provenance = "compiler" | "storage" | "trace" | "abi"
   | "hand-written" | { list: Path };
 

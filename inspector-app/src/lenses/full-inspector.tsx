@@ -10,13 +10,13 @@ export const calldataShown = () => typeof location !== "undefined" &&
   new URLSearchParams(location.hash.slice(1)).get("calldata") === "1";
 const CALLDATA = calldataShown();
 // (the Vyper scene's dump shows Vyper's own words: no value owns them)
-const VYPER = [{ decoding: "vyRule", who: "Vyper's" }];
+const VYPER = [{ decoding: "vyper/rule", who: "Vyper's" }];
 
 export const fullInspector: LensSpec = {
   id: "inspector", title: "Storage, by name",
-  timelines: ["arcade-mid", "arcade-alice", "arcade-motd", "arcade-vyper"],
-  decodings: ["sol:arcade-mid", "sol:arcade-alice", "sol:arcade-motd",
-    "vyAsSol", "vyRule"],
+  timelines: ["scene:mid", "scene:alice", "scene:motd", "scene:vyper"],
+  decodings: ["mid", "alice", "motd",
+    "vyper", "vyper/rule"],
   bookmarks: ["mid", "alice", "motd", "vyper"],
   grid: '"contract contract" "pick pick" "mode mode" "bar bar" ' +
     '"rows rows" "dump tree" "cdump ctree" "cdetails chow"',

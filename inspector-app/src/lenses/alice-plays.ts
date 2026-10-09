@@ -7,13 +7,13 @@ import type { LensSpec } from "../ui/types";
 const ALICE = "players[0x70997970c51812dc3a010c7d01b50e0d17dc79c8]";
 const roots: Filter = { roots: [ALICE, "totalScore", "totalHits"],
   rows: "touched" };
-const at = (point: string) => ({ decoding: "sol:arcade-alice", point });
-const BEFORE = at("arcade-alice:before");
-const AFTER = at("arcade-alice:after");
+const at = (point: string) => ({ decoding: "alice", point });
+const BEFORE = at("alice:0");
+const AFTER = at("alice:1");
 
 export const alicePlays: LensSpec = {
   id: "alice-plays", title: "Alice plays (two timeline points)",
-  timelines: ["arcade-alice"], decodings: ["sol:arcade-alice"],
+  timelines: ["scene:alice"], decodings: ["alice"],
   grid: '"before tree" "after tree"',
   links: ["s"],
   views: [

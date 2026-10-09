@@ -9,6 +9,7 @@ export declare namespace Format {
   type Program = import("../lib").Program;
   namespace Program {
     type Context = import("../lib").Program.Context;
+    type Instruction = import("../lib").Program.Instruction;
   }
   // (@ethdebug/format has no type for ethdebug/format/info/resources
   // yet: this is the part a build uses)

@@ -78,13 +78,13 @@ describe("with real data", () => {
   it("a lens brings its own decoding", async () => {
     const project = await testProject();
     const spec: LensSpec = {
-      id: "own", title: "Own", timelines: ["arcade-alice"], grid: '"t"',
-      decodings: [{ id: "mine", compilation: "sol@arcade-alice",
-        timeline: "arcade-alice", variables: "state",
+      id: "own", title: "Own", timelines: ["scene:alice"], grid: '"t"',
+      decodings: [{ id: "mine", compilation: "arcade-sol",
+        timeline: "scene:alice", variables: "state",
         keys: { from: "list", path: "playerList" } }],
       links: ["s"],
       views: [{ id: "t", kind: "tree", area: "t", link: "s",
-        data: { decoding: "mine", point: "arcade-alice:before" } }],
+        data: { decoding: "mine", point: "alice:0" } }],
     };
     expect(project.decodings.mine).toBeUndefined();
     const { container } = render(<Lens spec={spec} project={project} />);
@@ -94,16 +94,16 @@ describe("with real data", () => {
   it("two dumps at two literal points: both shown, neither a side",
     async () => {
       const project = await testProject();
-      const at = (point: string) => ({ decoding: "sol:arcade-alice",
+      const at = (point: string) => ({ decoding: "alice",
         point });
       const spec: LensSpec = {
-        id: "two", title: "Two", timelines: ["arcade-alice"],
-        decodings: ["sol:arcade-alice"], grid: '"a" "b"', links: ["s"],
+        id: "two", title: "Two", timelines: ["scene:alice"],
+        decodings: ["alice"], grid: '"a" "b"', links: ["s"],
         views: [
           { id: "a", kind: "dump", area: "a", location: "storage",
-            link: "s", data: at("arcade-alice:before") },
+            link: "s", data: at("alice:0") },
           { id: "b", kind: "dump", area: "b", location: "storage",
-            link: "s", data: at("arcade-alice:after") },
+            link: "s", data: at("alice:1") },
         ],
       };
       const { container } = render(<Lens spec={spec} project={project} />);

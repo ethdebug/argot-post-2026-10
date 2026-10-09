@@ -134,7 +134,7 @@
     const buttons = [...document.querySelectorAll("#picker button")];
     // (the storage scene the page loads, and the scene shown: another
     // lens's, "Raw bytes", when the hash names it)
-    const scenes = buttons.filter((b) => b.dataset.fixture);
+    const scenes = buttons.filter((b) => b.dataset.snapshot);
     const first = scenes.find((b) => b.dataset.id === ex) ?? scenes[0];
     const other = buttons.find((b) => b.dataset.lens &&
       b.dataset.id === hash.get("scene"));
@@ -150,7 +150,7 @@
       !!first?.hasAttribute("data-single"));
     const label = "the decoder and the data";
     for (const f of ["fixtures/index.json",
-      `fixtures/${first?.dataset.fixture}.json`, "fixtures/memory.json",
+      `snapshots/${first?.dataset.snapshot}.json`, "fixtures/memory.json",
       ...(other ? ["fixtures/raw.json"] : [])]) {
       // (the app loads them again, and shows a failure)
       load(f, { label }).catch(() => {});

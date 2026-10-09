@@ -7,11 +7,11 @@ import { regionsOf, sameAsLibrary } from "./check";
 
 it("throws when a region differs from the library's", async () => {
   const p = await testProject();
-  const d = await decode(p, p.decodings["sol:arcade-mid"],
-    "arcade-mid:after");
+  const d = await decode(p, p.decodings["mid"],
+    "mid:0");
   const g = d.graphs.get("totalScore")!;
-  const t = await p.timeline("arcade-mid");
-  const state = machineState(t.points[1].snapshot);
+  const t = await p.timeline("scene:mid");
+  const state = machineState(t.points[0].snapshot);
   const view = await (await dereference({ location: "storage",
     slot: "0x02", offset: "0x10", length: "0x10" } as never, { state }))
     .view(state);

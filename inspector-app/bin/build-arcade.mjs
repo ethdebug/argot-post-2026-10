@@ -31,9 +31,15 @@ const text = (b) => `{\n${Object.entries(b).map(([k, v]) =>
     .filter(([, p]) => p).map(([n, p]) =>
       `${JSON.stringify(n)}:\n${program(p)}`).join(",\n")}}`
     : JSON.stringify(v)}`).join(",\n")}\n}\n`;
+// (and builds.json: each build's language, compiler and compilation,
+// and whether it carries ethdebug: what the page knows before it loads
+// a build; src/engine/scene.ts)
+const index = {};
 const write = (id, b) => {
   fs.mkdirSync(path.join(out, id), { recursive: true });
   fs.writeFileSync(path.join(out, id, "build.json"), text(b));
+  index[id] = { language: b.language, compiler: b.compiler,
+    compilation: b.compilation, ethdebug: !!b.programs };
   console.log(id, b.compiler, `${(text(b).length / 1024).toFixed(0)} KB`);
 };
 
@@ -67,3 +73,6 @@ for (const level of [0, 2]) {
     compilation: `arcade-bug-O${level}`,
   });
 }
+
+fs.writeFileSync(path.join(out, "..", "builds.json"),
+  JSON.stringify(index, null, 2) + "\n");
