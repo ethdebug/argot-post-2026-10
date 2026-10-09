@@ -44,10 +44,11 @@ function text(type: Format.Type, bytes: Uint8Array, types: Types): string {
 export const decodeValue = (type: Format.Type, bytes: Uint8Array,
   types: Types) => ({ text: text(type, bytes, types), hex: toHex(bytes) });
 
-// A type's element type: by id (solc), or inline (bugc)
-const inner = (t: Any, types: Types): Format.Type =>
-  t.contains.type.id === undefined ? t.contains.type
-    : types[t.contains.type.id];
+// A type's element (key, value) type: by id (solc), or inline (bugc)
+const byRef = (r: { type: { id?: string } }, types: Types): Format.Type =>
+  r.type.id === undefined ? r.type as Format.Type : types[r.type.id];
+const inner = (t: Any, types: Types): Format.Type => byRef(t.contains,
+  types);
 
 // A short Solidity-like name for an ethdebug type
 export function typeName(type: Format.Type, types: Types): string {
@@ -65,8 +66,8 @@ export function typeName(type: Format.Type, types: Types): string {
     case "array":
       return `${typeName(inner(t, types), types)}[${t.count ?? ""}]`;
     case "mapping": {
-      const k = typeName(types[t.contains.key.type.id], types);
-      const v = typeName(types[t.contains.value.type.id], types);
+      const k = typeName(byRef(t.contains.key, types), types);
+      const v = typeName(byRef(t.contains.value, types), types);
       return `mapping(${k} => ${v})`;
     }
     default:

@@ -59,12 +59,11 @@ const baseSlot = (v: Variable): Hex => {
 
 async function decodeAt(p: Project, d: Decoding, point: PointId):
   Promise<Decoded> {
-  const timeline = await p.timeline(d.timeline);
+  const at = await p.point(d.timeline, point);
   const c = await p.compilation(d.compilation);
-  const at = timeline.points.find((x) => x.id === point);
-  if (!at) throw new Error(`no point ${point} in ${d.timeline}`);
   const state = machineState(at.snapshot);
   if (d.variables === "locals") return decodeLocals(c, at, d.id);
+  if (d.variables === "scope") return decodeScope(p, d, c, at);
   if (d.variables === "abi") {
     const tree = abiTree(at.snapshot.calldata ?? new Uint8Array(),
       d.abi!.param);
@@ -88,6 +87,30 @@ async function decodeAt(p: Project, d: Decoding, point: PointId):
     done.set(v, await variable(c, v, state, keys, graphs));
   }
   return decoded(d.id, point, vars.map((v) => done.get(v)!), graphs);
+}
+
+// Everything in scope at a moment (addendum §6): the storage variables
+// (by the compiler's types and templates, as "state"; a compiler whose
+// variables carry their types inline, bugc's: as its context lists them)
+// and the locals the moment's context lists, under one group each
+// ("@storage", "@locals")
+async function decodeScope(p: Project, d: Decoding, c: Compilation,
+  at: TimelinePoint): Promise<Decoded> {
+  const named = new Set(c.stateVariables.map((v) => v.identifier));
+  const typed = c.stateVariables.some((v) => c.types[typeIdOf(v)]);
+  const st = typed ? await decodeAt(p, { ...d, variables: "state" }, at.id)
+    : await decodeLocals(c, { ...at, scope: undefined, record: undefined,
+      locals: (at.locals ?? []).filter((v) => named.has(v.identifier)) });
+  const lo = await decodeLocals(c, { ...at, locals: (at.locals ?? [])
+    .filter((v) => !named.has(v.identifier)) });
+  const group = (path: string, label: string, children: ValueNode[]):
+    ValueNode => ({ path, label, root: path, type: "", typeText: "",
+    kind: "group", regions: [], children,
+    summary: `${children.length} ${children.length === 1 ? "variable"
+      : "variables"}` });
+  return decoded(d.id, at.id, [group("@storage", "storage", st.tree),
+    group("@locals", "locals", lo.tree)],
+  new Map([...st.graphs, ...lo.graphs]));
 }
 
 // a tree, indexed by path

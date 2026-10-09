@@ -1,9 +1,10 @@
 /* The shell's bar: fixed at the top, over the lens; the page below it */
-.shellbar { position: fixed; z-index: 40; top: 0; left: 0; right: 0;
+/* (sticky: it takes its own room, however many lines it wraps to) */
+.shellbar { position: sticky; z-index: 40; top: 0; left: 0; right: 0;
   display: flex; align-items: center; gap: 16px; padding: 6px 16px;
   font: 13px/1.4 system-ui, sans-serif; background: var(--panel);
   border-bottom: 1px solid var(--line); color: var(--fg); }
-.shellpage { padding: 48px 16px 16px; }
+.shellpage { padding: 16px; }
 .shellpick { position: relative; }
 .shellbar button { font: inherit; color: inherit; cursor: pointer;
   background: none; border: 1px solid var(--line); border-radius: 6px;

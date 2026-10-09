@@ -11,11 +11,12 @@ import { ContractSource } from "./ContractSource";
 import { Moment } from "./Moment";
 import { Code } from "./Code";
 import { Variables } from "./Variables";
+import { Moves } from "./Moves";
 
 export const viewKinds: Partial<Record<ViewKind, ComponentType<any>>> = {
   dump: Dump, tree: Tree, picker: Picker, walkthrough: WalkthroughPanel,
   abi: AbiView,
   source: Source,
   note: Note, contract: ContractSource, moment: Moment, code: Code,
-  variables: Variables,
+  variables: Variables, moves: Moves,
 };

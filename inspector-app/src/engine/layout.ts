@@ -155,7 +155,10 @@ export function layout(d: Decoded, location: Location, filter: Filter = {},
   // each variable's own slot (a mapping's holds none of its data; a
   // storage variable's: storage's rows only)
   const own = new Map<Hex, Path>();
-  for (const n of location === "storage" ? d.tree : []) {
+  // (a scope's groups, "@storage" and "@locals": their variables)
+  const roots0 = d.tree.flatMap((n) => n.kind === "group" &&
+    n.path.startsWith("@") ? n.children ?? [] : [n]);
+  for (const n of location === "storage" ? roots0 : []) {
     if (roots && !roots.includes(n.path)) continue;
     const g = d.graphs.get(n.root);
     const declared = g && [...g.nodes.values()].find((x) =>

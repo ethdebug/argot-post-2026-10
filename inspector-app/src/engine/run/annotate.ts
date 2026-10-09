@@ -44,34 +44,50 @@ export function locals(ctx: Context, build?: Build): Local[] {
   return all.filter((v) => !state.has(v.identifier));
 }
 
-export function annotate(run: Run, build: Build, ref: MomentRef |
-  Moment): Moment {
-  const t = run.txs[ref.tx];
-  if (!t) throw new Error(`no transaction ${ref.tx}`);
-  const { pc: _p, op: _o, depth: _d, range: _r, context: _c, ...m } =
-    ref as Moment;
-  if (ref.step === "end") return m;
-  const i = ref.step;
-  const frame = t.frames[t.frame[i]];
-  const out: Moment = { ...m, pc: t.pc[i], op: opName(t.op[i]),
-    depth: t.depth[i] };
-  // the program the frame runs: the build's create program (the
-  // creating transaction's first frame), or its runtime program
-  const create = t.input === build.create && t.frame[i] === 0;
-  const program = frame.codeAddress !== run.address && !create ? undefined
-    : create ? build.programs?.create : build.programs?.runtime;
-  if (!program) return out;
-  const byPc = new Map(program.instructions.map((x) => [x.offset, x]));
-  // (the trace before i, in this frame: the previous trace step of the
-  // same frame, or none at the frame's first)
-  const prev = i > frame.first ? i - 1 : -1;
-  const context = effectiveContextForStep({
-    programContext: program.context,
-    contextAtPc: (pc) => byPc.get(pc)?.context,
-    trace: prev >= 0 ? [{ pc: t.pc[prev] }] : [], stepIndex: prev >= 0 ? 1
-      : 0,
-  });
-  if (!context) return out;
-  const range = rangeOf(context as Ctx);
-  return { ...out, context, ...(range ? { range } : {}) };
+// One run's annotator: each program's instructions by pc, made once
+export function annotator(run: Run, build: Build):
+  (ref: MomentRef | Moment) => Moment {
+  const maps = new Map<Format.Program, Map<number,
+    Format.Program.Instruction>>();
+  const byPcOf = (p: Format.Program) => {
+    if (!maps.has(p)) {
+      maps.set(p, new Map(p.instructions.map((x) => [Number(x.offset), x])));
+    }
+    return maps.get(p)!;
+  };
+  return (ref) => {
+    const t = run.txs[ref.tx];
+    if (!t) throw new Error(`no transaction ${ref.tx}`);
+    const { pc: _p, op: _o, depth: _d, range: _r, context: _c, ...m } =
+      ref as Moment;
+    if (ref.step === "end") return m;
+    const i = ref.step;
+    const frame = t.frames[t.frame[i]];
+    const out: Moment = { ...m, pc: t.pc[i], op: opName(t.op[i]),
+      depth: t.depth[i] };
+    // the program the frame runs: the build's create program (the
+    // creating transaction's first frame), or its runtime program
+    const create = t.input === build.create && t.frame[i] === 0;
+    const program = frame.codeAddress !== run.address && !create
+      ? undefined : create ? build.programs?.create
+        : build.programs?.runtime;
+    if (!program) return out;
+    const byPc = byPcOf(program);
+    // (the trace before i, in this frame: the previous trace step of
+    // the same frame, or none at the frame's first)
+    const prev = i > frame.first ? i - 1 : -1;
+    const context = effectiveContextForStep({
+      programContext: program.context,
+      contextAtPc: (pc) => byPc.get(pc)?.context,
+      trace: prev >= 0 ? [{ pc: t.pc[prev] }] : [],
+      stepIndex: prev >= 0 ? 1 : 0,
+    });
+    if (!context) return out;
+    const range = rangeOf(context as Ctx);
+    return { ...out, context, ...(range ? { range } : {}) };
+  };
 }
+
+// (one moment: an annotator of its own)
+export const annotate = (run: Run, build: Build, ref: MomentRef |
+  Moment): Moment => annotator(run, build)(ref);

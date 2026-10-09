@@ -112,6 +112,8 @@ export type ViewSpec = { id: ViewId; area: string; link?: LinkId;
     // a moment's source, its range marked; the locals in scope there
     // (Code.tsx, Variables.tsx: addendum §6)
     | { kind: "code"; data: DataRef }
+    // the debugger's moves (Moves.tsx)
+    | { kind: "moves" }
     | { kind: "variables"; data: DataRef }
     | { kind: "note"; data: DataRef; part: "note" | "viewing" | "meta" }
     // the moment a point is, in a line, in plain words: `text`, or the

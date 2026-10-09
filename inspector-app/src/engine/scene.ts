@@ -127,3 +127,46 @@ export function compilationsOf(scene: Scene, s: Scenario): Compilation[] {
     { ...vyperRule({ compiler: b.compiler, base: VY_PLAYERS }),
       id: b.compilation }];
 }
+
+// ------------------------------------------------- authoring: pins
+
+const same = (a: MomentRef, b: MomentRef) => a.tx === b.tx &&
+  a.step === b.step;
+
+// A scene with a moment pinned (in order; a moment pinned again takes
+// the new label); its first moment shown stays the one it was
+export function pin(s: Scene, ref: MomentRef, label?: string): Scene {
+  const m = { tx: ref.tx, step: ref.step,
+    ...(label ? { label } : {}) };
+  const kept = s.timeline.filter((x) => !same(x, m));
+  const timeline = [...kept, m].sort((a, b) => order(a) - order(b))
+    .map((x) => ({ tx: x.tx, step: x.step,
+      ...(x.label !== undefined ? { label: x.label } : {}) }));
+  return withTimeline(s, timeline);
+}
+
+// … and one unpinned (a scene keeps one moment at least)
+export function unpin(s: Scene, i: number): Scene {
+  if (s.timeline.length <= 1) return s;
+  return withTimeline(s, s.timeline.filter((_, k) => k !== i));
+}
+
+function withTimeline(s: Scene, timeline: Scene["timeline"]): Scene {
+  const was = s.timeline[s.initial?.moment ?? 0];
+  const k = was ? timeline.findIndex((x) => same(x, was)) : -1;
+  const initial = { ...s.initial };
+  if (k > 0) initial.moment = k;
+  else delete initial.moment;
+  return { ...s, timeline,
+    controls: timeline.length === 1 ? "none" : s.controls === "none"
+      ? "prev-next" : s.controls,
+    ...Object.keys(initial).length ? { initial } : { initial: undefined } };
+}
+
+// A scene file's text: its keys in one order, two spaces, a newline
+export function sceneJson(s: Scene): string {
+  const { id, title, caption, run, lens, timeline, controls, rows,
+    initial } = s;
+  return JSON.stringify({ id, title, caption, run, lens, timeline,
+    controls, rows, initial }, null, 2) + "\n";
+}
