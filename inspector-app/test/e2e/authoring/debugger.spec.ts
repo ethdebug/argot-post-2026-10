@@ -163,3 +163,35 @@ test("pins: pin this moment, unpin, a new scene from here: each the " +
     lens: "inspector", timeline: [{ tx: 12, step: 40 }],
     controls: "none" });
 });
+
+test("a row is its location's: storage slot N and the stack's row N "
+  + "are not one row; pointing at one lights it alone", async ({ page }) => {
+  const [, mult] = pause("mult");
+  await open(page, "bug-O0", `12:${mult.step + 1}`);
+  // (a row address both locations show: hover each one's gutter)
+  const rows = (loc: string) => page.locator(
+    `${D} .view[data-view$=":${loc}"] .wrow[data-slot]`).evaluateAll(
+    (rs) => rs.map((r) => (r as HTMLElement).dataset.slot!));
+  const views = await page.locator(`${D} .view[data-view]`).evaluateAll(
+    (vs) => vs.map((v) => (v as HTMLElement).dataset.view!.split(":")
+      .at(-1)!));
+  const [a, b] = ["storage", "stack"].map((k) =>
+    views.find((v) => v.includes(k))!);
+  expect(a && b).toBeTruthy();
+  const ra = await rows(a);
+  const rb = await rows(b);
+  const both = ra.filter((x) => rb.some((y) => BigInt(y) === BigInt(x)));
+  expect(both.length).toBeGreaterThan(0);
+  const lit = () => page.evaluate((d) => [...document.querySelectorAll<
+    HTMLElement>(`${d} .view[data-view]`)].map((v) => [
+    v.dataset.view!.split(":").at(-1),
+    [...v.querySelectorAll<HTMLElement>(".wrow.on, .wrow:has(.b.at)")]
+      .map((r) => r.dataset.slot)]).filter(([, rs]) => rs!.length), D);
+  const n = BigInt(both[0]);
+  for (const [here, rs] of [[a, ra], [b, rb]] as const) {
+    const slot = rs.find((x) => BigInt(x) === n)!;
+    await page.locator(`${D} .view[data-view$=":${here}"] ` +
+      `.wrow[data-slot="${slot}"] > .addr`).hover();
+    await expect.poll(lit).toEqual([[here, [slot]]]);
+  }
+});
