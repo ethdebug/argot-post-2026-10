@@ -407,19 +407,20 @@ export function Tree(p: { id: ViewId; data: DataRef; filter?: Filter;
     };
     align();
     // (none in jsdom)
-    // (after this frame's layout: a re-align that resizes what it
-    // watches waits a frame, no resize loop)
+    // (after this layout: a re-align that resizes what it watches waits
+    // a task, no resize loop; a timer, as a frame out of view gets no
+    // animation frames)
     const seen = typeof ResizeObserver === "undefined" ? null
-      : new ResizeObserver(() => requestAnimationFrame(align));
+      : new ResizeObserver(() => setTimeout(align));
     for (const x of dumps()) seen?.observe(x.closest(".dump") ?? x);
     // (again once the dump's rows and the page's fonts are in)
-    const later = requestAnimationFrame(align);
+    const later = setTimeout(align);
     let live = true;
     document.fonts?.ready.then(() => live && align());
     addEventListener("resize", align);
     return () => {
       live = false;
-      cancelAnimationFrame(later);
+      clearTimeout(later);
       seen?.disconnect();
       removeEventListener("resize", align);
     };

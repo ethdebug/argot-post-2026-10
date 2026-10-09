@@ -76,7 +76,9 @@ const post = () => {
 new ResizeObserver(post).observe(root);
 // (drawn: a dump's rows, or the scene's error; then the fonts, and the
 // frames the views take to fit and line up)
-const frame = () => new Promise((r) => requestAnimationFrame(r));
+// (timers, not animation frames: a frame out of view, as a host's
+// figures below the fold, gets no animation frames in some browsers)
+const frame = () => new Promise((r) => setTimeout(r, 20));
 async function whenDrawn() {
   while (!root.querySelector(".view .wrow, .embed-none, .error")) {
     await frame();
