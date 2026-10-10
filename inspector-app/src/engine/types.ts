@@ -276,7 +276,12 @@ export interface Light {                // DERIVED per view, never stored
   related?: ReadonlySet<Hex>; relBytes?: ReadonlySet<ByteKey>;
   relColours?: ReadonlyMap<Path, Colour>;
   anchors?: ReadonlyMap<Hex, Path>; relReads?: ReadonlySet<Hex>;
+  // (why a read row was consulted, by the value that holds its bytes)
+  relWhy?: ReadonlyMap<Hex, RelWhy[]>;
 }
+// a consulted value's role for the selection: a key of its path (`of`:
+// the path up to that key), or the length of what holds one
+export interface RelWhy { name: Path; why: "key" | "length"; of: Path }
 export interface Filter {               // truncation, per view
   roots?: Path[];                       // only these subtrees
   // dump rows: the values' (and own slots); also the slots the point's
