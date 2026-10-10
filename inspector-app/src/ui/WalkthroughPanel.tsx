@@ -35,6 +35,7 @@ import {
 import { infoOf, type Info, type Part, type Sides } from "./info";
 import { PointerYaml, type YamlText } from "./PointerYaml";
 import { PanelPort, type Port } from "./panel-port";
+import { ResetButton, ResetContext } from "./Reset";
 import { intoView, scrollerOf, scrollBy, toTop } from "./scroll";
 import type { DataRef, LinkId, ViewId } from "./types";
 
@@ -172,11 +173,14 @@ export interface PanelModel {
     notes?: { block: string; values: Record<string, string> };
     piece: string; chain: string[] };
   exit?: boolean;                       // an exit asked for
+  // (a figure's ↺ Reset, in place of ✕ Exit: shown while the reader has
+  // changed the figure, ui/Reset.tsx)
+  reset?: { shown: boolean };
 }
 // What the reader does, for the controller to act on
 export type Intent = { type: "start" } | { type: "step"; to: number } |
   { type: "exit" } | { type: "exited" } | { type: "focus"; path: string } |
-  { type: "busy"; on: boolean };
+  { type: "busy"; on: boolean } | { type: "reset" };
 
 // -------------------------------------------------------- controller
 
@@ -212,9 +216,14 @@ export function useWalkModel(p: { id: ViewId; data: DataRef;
   const i = walk ? Math.max(0, Math.min(steps.length - 1, walk.step)) : -1;
   const st: Step | undefined = walk ? steps[i] : undefined;
   const key = `${lens.key}:${p.id}`;
+  // (the figure's Reset, where the figure has one: ui/Reset.tsx)
+  const rs = useContext(ResetContext);
 
   const act = (x: Intent) => {
     const busy = !!walk?.busy;
+    // (the figure's Reset: a reader's act here counts as one)
+    if (x.type === "reset") return void rs?.reset();
+    if (x.type !== "busy") rs?.touch();
     if (x.type === "start") {
       if (!sel || !w?.steps.length) return;
       setLink((s) => ({ ...s, hover: null, walk: { step: 0,
@@ -245,34 +254,39 @@ export function useWalkModel(p: { id: ViewId; data: DataRef;
   // panel is stuck at the top of its view, as the host has said: a
   // scroll then never moves the ▶ under the reader's pointer
   const shownKey = useRef<string | null>(null);
+  // (the rows the step before lit: a step's own are those it lights anew)
+  const wasLit = useRef(new Set<string>());
   useLayoutEffect(() => {
     const k = walk ? `${sel}|${i}|${w?.focus ?? ""}` : null;
     const was = shownKey.current;
     shownKey.current = k;
-    if (!k || !was || was === k) return;
+    if (!k || was === k) return;
     const dumps = lens.spec.views.filter((v) => v.kind === "dump" &&
       v.link === p.link).map((v) => `[data-view="${lens.key}:${v.id}"]` +
       ":not([hidden])");
     if (!dumps.length) return;
     const rows = [...document.querySelectorAll<HTMLElement>(dumps.map((q) =>
       `${q} .wrow:is(.on, .gut)`).join(", "))];
-    if (!rows.length) return;
+    const idOf = (r: HTMLElement) => `${r.closest("[data-view]")
+      ?.getAttribute("data-view")}|${r.dataset.slot}`;
+    const before = wasLit.current;
+    wasLit.current = new Set(rows.map(idOf));
+    if (!was || !rows.length) return;
     const rects = rows.map((r) => r.getBoundingClientRect());
     if (port) {
       if (port.stuck !== true) return;
-      // (and the rows' labels, the popovers, above or below them: drawn
-      // once the dump has laid out the step, a frame later)
-      const pops = () => [...document.querySelectorAll<HTMLElement>(
-        dumps.map((q) => `${q} .pop`).join(", "))].map((x) =>
-        x.getBoundingClientRect()).filter((r) => r.height > 0);
-      requestAnimationFrame(() => requestAnimationFrame(() => {
-        const all = [...rows.map((r) => r.getBoundingClientRect()),
-          ...pops()];
-        parent.postMessage({ type: "ethdebug:scroll-to",
-          y: Math.round(Math.min(...all.map((r) => r.top)) + scrollY),
-          bottom: Math.round(Math.max(...all.map((r) => r.bottom)) +
-            scrollY) }, "*");
-      }));
+      // (the rows this step lights anew, with room for their labels, a
+      // popover's height above and below: in the post, the host brings
+      // them under the panel; the rows earlier steps found stay as they
+      // are, so they are not the target. None new: no scroll)
+      const fresh = rows.filter((r) => !before.has(idOf(r)));
+      if (!fresh.length) return;
+      const ROOM = 32;
+      const rs = fresh.map((r) => r.getBoundingClientRect());
+      parent.postMessage({ type: "ethdebug:scroll-to",
+        y: Math.round(Math.min(...rs.map((r) => r.top)) - ROOM + scrollY),
+        bottom: Math.round(Math.max(...rs.map((r) => r.bottom)) + ROOM +
+          scrollY) }, "*");
       return;
     }
     const unit = document.querySelector(`.wpanel[data-view="${key}"]`);
@@ -375,22 +389,32 @@ export function useWalkModel(p: { id: ViewId; data: DataRef;
     wm = stepOf(i);
   } else rest = selRest();
   const model: PanelModel = { key, walking: !!walk, rest, walk: wm,
-    yaml: yamlOf(st), ...walk?.exit ? { exit: true } : {} };
+    yaml: yamlOf(st), ...walk?.exit ? { exit: true } : {},
+    ...rs ? { reset: { shown: rs.changed } } : {} };
   // (for a panel in a frame of its own: the panel at rest, the selection
   // shown, and at each of its steps, so it keeps the tallest's height)
   const variants = !port || !node || !sides || !w ? undefined : [
     { ...model, walking: false, walk: undefined, exit: undefined,
-      rest: selRest(), yaml: yamlOf(undefined) },
+      rest: selRest(), yaml: yamlOf(undefined),
+      ...rs ? { reset: { shown: false } } : {} },
     ...steps.map((s0, k): PanelModel => ({ key, walking: true,
-      walk: stepOf(k), yaml: yamlOf(s0) }))];
+      walk: stepOf(k), yaml: yamlOf(s0),
+      ...rs ? { reset: { shown: false } } : {} }))];
   return { model, act, variants };
 }
 
 // -------------------------------------------------------------- view
 
 // The panel, drawn from its model; the reader's intents to `act`
-export function PanelView({ model: m, act, domId }: { model: PanelModel;
-  act: (i: Intent) => void; domId?: string }) {
+// (`compact`: the post's panel, its own parts only, fewer: the controls
+// and the title on one line, the caption, the pointer; no worked values
+// (the dump's popovers say them), no construct line; on a phone the
+// pointer folded, as the contract's source is, opened by its summary)
+export function PanelView({ model: m, act, domId, compact }: {
+  model: PanelModel; act: (i: Intent) => void; domId?: string;
+  compact?: boolean }) {
+  const [phone] = useState(() => !!globalThis.matchMedia?.(
+    "(max-width: 759px)").matches);
   // (its parts' ids, after its own: "details" → "dtext"; "mdetails" →
   // "mdtext", for a second panel on the page)
   const idOf = (k: string) => domId ? `${domId.replace(/details$/,
@@ -564,11 +588,15 @@ export function PanelView({ model: m, act, domId }: { model: PanelModel;
       source}</span>{foot && <span className="fnotes"> · <a href={
       foot[1]} target="_blank" rel="noopener" title={foot[0]}>ⓘ {
       foot[0]}</a></span>}</span>;
-    barBody = <><span className="rline1"><span className="rtitle">How the
-      pointer finds <code>{wm.name}</code></span>{wm.scene && <span
-        className="rscene muted"> · {wm.scene}</span>}<span
-        className="rexit"><button type="button" className="btn"
-        data-r="exit">✕ Exit</button></span></span>
+    // (the way out: the figure's ↺ Reset, where it has one; else ✕ Exit)
+    const out = m.reset ? <ResetButton shown={m.reset.shown}
+      onReset={() => act({ type: "reset" })} />
+      : <button type="button" className="btn" data-r="exit">✕ Exit</button>;
+    const title = <span className="rtitle">How the pointer finds <code>{
+      wm.name}</code></span>;
+    barBody = <>{!compact && <span className="rline1">{title}{wm.scene &&
+      <span className="rscene muted"> · {wm.scene}</span>}<span
+        className="rexit">{out}</span></span>}
       <span className="rline2"><span className="rctl"><button type="button"
         className="btn" data-r="prev" aria-label="Previous step"
         disabled={!wm.i}>◀</button>
@@ -587,7 +615,8 @@ export function PanelView({ model: m, act, domId }: { model: PanelModel;
             aria-current={k === wm.i ? "step" : undefined}
             onClick={() => stepTo(k)} />)}</span>
         {wm.cue && <span key={wm.cue.n} className="rcue" aria-live="polite">
-          {wm.cue.text}</span>}</span>
+          {wm.cue.text}</span>}
+        {compact && <>{title}<span className="rexit">{out}</span></>}</span>
       <span className="rline3"><span className="rcap">{cap(wm.cap)}</span>
         {!KIND_UNDER_YAML && construct}</span></>;
     text = <p className="rform"><FormView f={wm.form} /></p>;
@@ -616,8 +645,13 @@ export function PanelView({ model: m, act, domId }: { model: PanelModel;
   }
 
   const focus = wm?.focus;
-  return <div ref={unit} className={`wpanel${walk ? " walking" : ""}`}
-    data-view={m.key}>
+  // (the pointer, and where its piece is)
+  const chain = <span className="pchain">{m.yaml.chain.join(" › ")}</span>;
+  const yaml = <PointerYaml domId={idOf("ptr")} text={m.yaml.text}
+    band={m.yaml.band} goal={m.yaml.goal} shown={walk}
+    notes={m.yaml.notes} piece={m.yaml.piece} />;
+  return <div ref={unit} className={`wpanel${walk ? " walking" : ""}${
+    compact ? " compact" : ""}`} data-view={m.key}>
     <div ref={bar} id={domId} className={`rbar${walk ? " replaying" : ""}`}
       aria-live="polite" tabIndex={0}
       aria-label="The selected value; how it was found"
@@ -625,7 +659,7 @@ export function PanelView({ model: m, act, domId }: { model: PanelModel;
       {/* (in a walkthrough, the step's worked values and the focus, in
         reading order under its caption, in room kept for the tallest:
         stepping moves nothing) */}
-      <div className="rdetail" hidden={!walk}>
+      {!compact && <div className="rdetail" hidden={!walk}>
         <div id={idOf("dtext")} className="dtext">{text}
         </div>
         <div id={idOf("dpick")} className="dpick">
@@ -642,23 +676,23 @@ export function PanelView({ model: m, act, domId }: { model: PanelModel;
           {!focus && wm?.formula && <span className="rformula"
             title={wm.formula.join("\n")}>{wm.formula.join("  ·  ")}
           </span>}</div>
-      </div></div>
+      </div>}</div>
     <div ref={wrap} id={idOf("dwrap")} className="dwrap" data-view={m.key}>
       <div ref={panel} id={idOf("dpanel")}
         className="dpanel" hidden={!walk}>
-        <div className="ptr" aria-label="Ethdebug data from the compiler">
+        {compact && phone ? <details className="srcbox ptr">
+          <summary><span className="srcfile">Ethdebug data from the
+            compiler</span> {chain}</summary>{yaml}</details>
+        : <div className="ptr" aria-label="Ethdebug data from the compiler">
           <p className="plabel"><span className="ptitle">Ethdebug data from
-            the compiler <span className="pnote">(as YAML; template names
-            shortened, yields folded)</span></span>
+            the compiler {!compact && <span className="pnote">(as YAML;
+            template names shortened, yields folded)</span>}</span>
             {/* (where the piece shown is: the variable and the templates
               entered to reach it) */}
-            <span className="pchain">{
-              m.yaml.chain.join(" › ")}</span></p>
-          <PointerYaml domId={idOf("ptr")} text={m.yaml.text}
-            band={m.yaml.band} goal={m.yaml.goal} shown={walk}
-            notes={m.yaml.notes} piece={m.yaml.piece} />
-          {KIND_UNDER_YAML && construct}
-        </div>
+            {chain}</p>
+          {yaml}
+          {KIND_UNDER_YAML && !compact && construct}
+        </div>}
       </div>
     </div>
   </div>;

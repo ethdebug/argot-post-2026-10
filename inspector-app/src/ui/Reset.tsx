@@ -2,7 +2,9 @@
 // lens.show), shown only while the reader has changed it (its selection,
 // rows, groups shut or opened, a walkthrough or its step, the moment);
 // its room always kept, so nothing moves when it shows (the embed's)
-import { useEffect, useRef, useState } from "react";
+import {
+  createContext, useEffect, useMemo, useRef, useState,
+} from "react";
 import type { LensContextValue } from "./hooks";
 import type { LensState } from "./types";
 
@@ -14,8 +16,15 @@ const keyOf = (s: LensState) => JSON.stringify({ scene: s.scene,
   views: Object.entries(s.views).map(([k, v]) => [k,
     [...v.collapsed].sort(), [...v.open ?? []].sort()]) });
 
-export function Reset(p: { lens: LensContextValue | null; scene: string;
-  ready: Promise<boolean> | null }) {
+// Whether the reader has changed the figure since it was first shown,
+// and the way back: the Reset's state. (`touch`: a reader's act the
+// figure's own document does not see, the panel frame's in the post)
+export interface ResetState { changed: boolean; reset(): void;
+  touch(): void }
+export const ResetContext = createContext<ResetState | null>(null);
+
+export function useReset(p: { lens: LensContextValue | null;
+  scene: string; ready: Promise<boolean> | null }): ResetState {
   const first = useRef<string | null>(null);
   // (whether the reader has acted since the figure was shown, or reset)
   const acted = useRef(false);
@@ -49,14 +58,22 @@ export function Reset(p: { lens: LensContextValue | null; scene: string;
       kinds.forEach((t) => removeEventListener(t, act, true));
     };
   }, [p.lens, p.ready]);
-  return <ResetButton shown={changed} onReset={() => {
-    if (!p.lens) return;
-    acted.current = false;
-    void p.lens.show(p.scene).then(() => {
-      first.current = keyOf(p.lens!.store.get());
-      setChanged(false);
-    });
-  }} />;
+  return useMemo(() => ({ changed,
+    touch: () => {
+      acted.current = true;
+    },
+    reset: () => {
+      if (!p.lens) return;
+      acted.current = false;
+      void p.lens.show(p.scene).then(() => {
+        first.current = keyOf(p.lens!.store.get());
+        setChanged(false);
+      });
+    } }), [changed, p.lens, p.scene]);
+}
+
+export function Reset(p: { state: ResetState }) {
+  return <ResetButton shown={p.state.changed} onReset={p.state.reset} />;
 }
 
 // The button alone, for a figure that keeps its own state (the real

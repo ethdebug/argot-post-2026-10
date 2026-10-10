@@ -7,8 +7,11 @@
 :root { color-scheme: light dark; }
 /* (its boxes opaque, as on the page: what scrolls under it never shows
    through; around their corners, the host's page) */
+/* (the host's theme over the OS's: theme.ts, as embed.css follows it) */
 #embed { --panel: #ffffff; }
-@media (prefers-color-scheme: dark) { #embed { --panel: #1c1f23; } }
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) #embed { --panel: #1c1f23; } }
+:root[data-theme="dark"] #embed { --panel: #1c1f23; }
 #embed .wpanel .rbar, #embed .wpanel .dpanel {
   transition: border-radius 120ms ease, border-top-width 120ms ease,
     box-shadow 120ms ease; }
@@ -24,7 +27,44 @@ html[data-stuck] #embed .wpanel .dpanel {
 /* (the panel at rest and at each step, drawn unseen at the frame's
    width, to keep the tallest's height: panel.tsx) */
 #embed { position: relative; }
+#embed .pmeasure .reset { visibility: hidden !important; }
 #embed .pmeasure { position: absolute; left: 0; right: 0; top: 0;
   visibility: hidden; pointer-events: none; height: 0; overflow: visible; }
 #embed .pshown { display: flow-root; }
 #embed .pshown > .wpanel { min-height: inherit; box-sizing: border-box; }
+/* The post's panel, compact (PanelView `compact`): the inspector's own
+   bar and pointer, fewer of their parts, at their own sizes: one line
+   for the controls, the title and ↺ Reset; the caption in two lines at
+   most; the pointer in about six (on a phone folded under its summary,
+   as the contract's source is). Its room the same at every step. */
+#embed .wpanel.compact .rbar.replaying { height: auto; gap: 2px;
+  padding: 4px 12px 6px; }
+#embed .wpanel.compact .rline2 { height: 2em; gap: 8px; }
+#embed .wpanel.compact .rline2 .rtitle { margin-left: auto; min-width: 0;
+  white-space: nowrap; font-size: var(--fs-meta); }
+#embed .wpanel.compact .rline2 .rexit { margin-left: 4px; }
+#embed .wpanel.compact .rline3 { gap: 0; }
+#embed .wpanel.compact .rcap { height: 2.7em; display: -webkit-box;
+  -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-clamp: 2;
+  overflow: hidden; font-size: var(--fs-cell); }
+#embed .wpanel.compact .dpanel { display: block; height: auto;
+  padding: 3px 12px 4px; }
+#embed .wpanel.compact .ptr { display: block; }
+#embed .wpanel.compact .ptr .plabel { margin: 0; }
+#embed .wpanel.compact .ptrbox { height: calc(6.4 * 1.5 *
+  var(--fs-label)); margin-top: 2px; }
+#embed .wpanel.compact .ptrlines { padding: 0.3em 0; }
+#embed .wpanel.compact .pids { display: none; }
+#embed .wpanel.compact details.ptr > summary { padding: 4px 0;
+  font-size: var(--fs-meta); }
+#embed .wpanel.compact details.ptr { border: 0; background: none;
+  max-width: none; }
+#embed .wpanel.compact details.ptr .pchain { margin-left: 6px;
+  color: var(--muted); }
+/* (its ↺ Reset, the figure's: in the bar's line, in the line's flow;
+   relative, so its finger room stays around it) */
+#embed .wpanel .reset { position: relative; top: auto; right: auto;
+  flex: none; }
+/* (the frame is the card: no page's room under it, the page's sticky
+   panel's, nor its backdrop) */
+#embed .wpanel.walking { padding-bottom: 0; background: none; }
