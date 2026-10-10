@@ -95,14 +95,6 @@
   .lens.soldb .shead { padding-right: 0; }
   .lens.soldb .shead .handmade { display: table; margin: 4px 0 0; }
   .lens.soldb .sload { margin-top: 6em; }
-  /* (long lines wrapped, each under its own indent and two more: the
-     lit range shows with its line's start, no scrolling across) */
-  .lens.soldb pre.src { white-space: pre-wrap; overflow-wrap: anywhere;
-    overflow-x: hidden; }
-  .lens.soldb pre.src .line { display: inline-block; width: 100%;
-    box-sizing: border-box; padding-left: calc(var(--ind, 0ch) + 2ch);
-    text-indent: calc(-1 * (var(--ind, 0ch) + 2ch)); min-height: 1lh;
-    vertical-align: top; }
 }
 .lens.soldb .sbar { grid-area: bar; display: flex; flex-wrap: wrap;
   align-items: center; gap: 8px 18px; }
@@ -115,6 +107,14 @@
     min-width: 44px; }
 }
 .lens.soldb .code { grid-area: code; }
+/* (long lines wrapped, each under its own indent and two more: the lit
+   range shows with its line's start, no scrolling across) */
+.lens.soldb pre.src { white-space: pre-wrap; overflow-wrap: anywhere;
+  overflow-x: hidden; }
+.lens.soldb pre.src .line { display: inline-block; width: 100%;
+  box-sizing: border-box; padding-left: calc(var(--ind, 0ch) + 2ch);
+  text-indent: calc(-1 * (var(--ind, 0ch) + 2ch)); min-height: 1lh;
+  vertical-align: top; }
 /* (soldb's progress, in the empty code panel) */
 .lens.soldb .sload { display: block; margin: 9em 1em 0; text-align: center;
   white-space: normal; font-family: system-ui, -apple-system, sans-serif; }
