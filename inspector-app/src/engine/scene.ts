@@ -20,7 +20,9 @@ export interface Scene {
   run: { scenario: ScenarioId; build: BuildId };
   lens: LensId;                    // the composition it draws
   timeline: Timeline;              // 1 moment = a static figure
-  controls: "none" | "prev-next" | "scrub";   // reader mode (§3)
+  // reader mode (§3); "none": no controls at all, the timeline's nor
+  // the lens's pickers (All | Related): the figure as the scene sets it
+  controls: "none" | "prev-next" | "scrub";
   initial?: { moment?: number; select?: Path;
               walk?: { step: number; focus?: Hex };
               // (its trees' groups shut when it opens: the values it is

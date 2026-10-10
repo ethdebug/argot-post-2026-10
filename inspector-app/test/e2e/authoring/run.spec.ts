@@ -21,10 +21,10 @@ test("the shell's runs, in a worker: digests.json's digests",
     }
     // (the scene's values, from its run)
     for (const [path, , value] of expected.mid) {
-      // (an address shown short: its whole value its title)
+      // (an address shown short: its whole value in data-full)
       const val = page.locator(`#tree li[data-path="${path}"] > .row .val`);
       await expect.poll(() => val.evaluate((e) => (e.querySelector(
-        "[title]") as HTMLElement | null)?.title ?? e.textContent), path)
+        "[data-full]") as HTMLElement | null)?.dataset.full ?? e.textContent), path)
         .toBe(value);
     }
     // (the shell reads no snapshot: it runs)

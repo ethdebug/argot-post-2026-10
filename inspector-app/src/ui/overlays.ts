@@ -67,7 +67,9 @@ export interface Item { text: string; k: string | null; muted: boolean;
   // (a note about the bytes, not a value: "(unmapped)", "(anchor slot
   // for playerList)": its prose italic, a name in it as names are; `fixed`:
   // never cut, an anchor's)
-  note?: Note; fixed?: boolean }
+  note?: Note; fixed?: boolean;
+  // (a fixed note's shorter form, where the whole does not fit)
+  alt?: Note }
 type Note = (string | { name: string })[];
 // a note, as an item (one builder for every note)
 const noteItem = (note: Note, sep: string, o: Partial<Item> = {}): Item =>
@@ -248,11 +250,16 @@ function whatIn(root: El, rowsIn: El[]): Item[] {
   // anchor's, never cut)
   const whys = r0 && !walk ? data(r0)?.light.relWhy?.get(slotOf(r0)) : null;
   if (whys?.length) {
+    // (a key by its name too: players[0x7099…79c8 ("alice")])
+    const keyed = (w: { of: string; who?: string }) => w.who
+      ? shortKeys(w.of).replace(/\]$/, ` ("${w.who}")]`) : shortKeys(w.of);
     const notes = whys.map((w, i): Item => noteItem(w.why === "key"
-      ? [{ name: shortKeys(w.name) }, " (key for ", { name: shortKeys(w.of) },
-        ")"]
+      ? [{ name: shortKeys(w.name) }, " (key for ", { name: keyed(w) }, ")"]
       : ["(length of ", { name: shortKeys(w.of) }, ")"],
-    i ? " · " : " · ", { fixed: true, seg: 0 }));
+    i ? " · " : " · ", { fixed: true, seg: 0,
+      // (short: "(key for alice's record)")
+      ...w.why === "key" && w.who ? { alt: [`(key for ${w.who}'s record)`] }
+        : {} }));
     return anchorNote ? [...notes, anchorNote] : notes;
   }
   if (!owners.length) {
@@ -514,8 +521,17 @@ export function fitWhat(pop: Pop) {
     keep.splice(Math.floor(keep.length / 2), 1);
     render();
   }
-  if (over() && keep.length) {
-    keep = [];
+  // (a fixed note's shorter form)
+  if (over() && items.some((x) => x.alt)) {
+    for (const x of items) {
+      if (!x.alt) continue;
+      x.note = x.alt;
+      x.text = x.alt.map((p) => typeof p === "string" ? p : p.name).join("");
+    }
+    render();
+  }
+  if (over() && keep.length && !keep.every((i) => items[i].fixed)) {
+    keep = keep.filter((i) => items[i].fixed);
     render();
   }
   if (over()) {
@@ -691,14 +707,15 @@ export function clearOverlays(root: El) {
 export function drawOverlays(root: El) {
   clearOverlays(root);
   const views = all(root, ".view").filter((v) => !v.hidden);
-  // (lit bytes; in a figure, every byte too, `soft`: a popover there
-  // covers none, but the one for a row the reader points at, which goes
-  // where it can)
+  // (lit bytes, and the bytes of what the selection consulted: a
+  // popover covers none of them; it may lie over bytes nothing lights,
+  // as the reveal's cards do)
   const bytes = all(root, ".view .rows .word .b[data-i]");
-  const taken = bytes.filter((c) => byteLight(c).hl).map((c) =>
-    c.getBoundingClientRect() as Rect);
-  const soft = root.closest("#embed") ? bytes.filter((c) =>
-    !byteLight(c).hl).map((c) => c.getBoundingClientRect() as Rect) : [];
+  const taken = bytes.filter((c) => {
+    const b = byteLight(c);
+    return b.hl || !!b.rel;
+  }).map((c) => c.getBoundingClientRect() as Rect);
+  const soft: Rect[] = [];
   const room = bounds(root);
   for (const v of views) annotate(root, v, taken, room, soft);
   // a walkthrough step about bytes in a slot: their positions, 0 to 31,
