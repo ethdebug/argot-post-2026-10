@@ -9,6 +9,7 @@ import type { KeyboardEvent, MouseEvent, PointerEvent } from "react";
 import type { Colour, Decoded, Filter, Light, ValueNode } from
   "../engine/types";
 import { changed } from "../engine/timeline";
+import { retint } from "../engine/light";
 import { blockOf } from "../engine/target";
 import { relClass } from "../engine/related";
 import { vtName } from "./transition";
@@ -140,13 +141,14 @@ function Row({ n, top, c, inBlk }: { n: ValueNode; top?: boolean; c: Ctx;
 export function Tree(p: { id: ViewId; data: DataRef; filter?: Filter;
   link?: LinkId; domId?: string; variant?: "tree" | "table";
   compare?: DataRef; align?: ViewId[];
-  title?: string;
+  title?: string; tint?: Colour; names?: DataRef;
   // (a row's name in a view transition: transition.ts)
   vt?: (path: string) => string }) {
   // (with the paths its scene's other moments have: engine/union.ts)
   const d = useUnionTree(p.data);
   const o = useDecoded(p.compare);
-  const light = useLight(p.id);
+  const light0 = useLight(p.id);
+  const light = useMemo(() => retint(light0, p.tint), [light0, p.tint]);
   const [link, setLink] = useLink(p.link);
   const [view, setView] = useView(p.id);
   // (a pair, earlier first: this moment and the one compared with)
@@ -185,7 +187,8 @@ export function Tree(p: { id: ViewId; data: DataRef; filter?: Filter;
     .map((x) => x.path) : [];
   const shut = new Set([...view.collapsed, ...auto]);
   const fewer = !!related;
-  const names = useMemo(() => onChainNames(d), [d]);
+  const named = useDecoded(p.names);
+  const names = useMemo(() => onChainNames(named ?? d), [named, d]);
   const c: Ctx = { light, selection: link.selection, pair, names,
     collapsed: new Set([...shut].filter((q) => !closing.has(q))),
     vt: (q) => vtName(lens.key, p.id, q) };

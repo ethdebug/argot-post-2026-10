@@ -2,7 +2,8 @@
 import type { ComponentType, ReactNode } from "react";
 import type { Project } from "../engine/project";
 import type {
-  Decoding, DecodingId, Filter, Location, Path, PointId, Target, TimelineId,
+  Colour, Decoding, DecodingId, Filter, Location, Path, PointId, Target,
+  TimelineId,
 } from "../engine/types";
 
 export type LinkId = string;
@@ -75,6 +76,13 @@ export interface Display {
   bare?: boolean;
   // the byte ruler over the rows (default: shown, where rows are words)
   ruler?: boolean;
+  // (the selection's light in child colour `tint`, not yellow; and a
+  // second reading of the same storage, its rows merged in, its lit
+  // bytes outlined in its own colour: one storage read two ways)
+  tint?: Colour;
+  second?: { data: DataRef; tint?: Colour };
+  // (no "⋯" before the first row nor after the last: a figure's few rows)
+  ends?: boolean;
   // a slot's popover as facts: each value by its own name and what it
   // holds ("score 30"), no "(unmapped)" (a figure's, about one value)
   facts?: boolean;
@@ -121,7 +129,10 @@ export type ViewSpec = { id: ViewId; area: string; link?: LinkId;
       // the dumps it lines up with (default: the lens's)
       align?: ViewId[];
       // (a heading over it: the rule it reads by)
-      title?: string }
+      title?: string;
+      // (its selection's light in child colour `tint`, not yellow; keys
+      // named by `names`'s on-chain names, another decoding's)
+      tint?: Colour; names?: DataRef }
     | { kind: "picker";
       of: "bookmarks" | "related" }
     // the contract's source, its selection's declaration marked

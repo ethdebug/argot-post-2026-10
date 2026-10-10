@@ -207,3 +207,18 @@ export function forStep(d: Decoded, l: Layout, steps: Step[],
     ...(st.ruler && store ? { ruler: st.ruler } : {}),
     ...(st.goal ? { quiet: true } : {}) };
 }
+
+// A light in one colour of its own: everything it lights, the
+// selection's yellow (0) and its children's colours alike, as child
+// colour `k` (a figure that reads one storage two ways: each reading
+// its colour)
+export function retint(light: Light, k: Colour | undefined): Light {
+  if (k === undefined) return light;
+  const to = (c: Colour) => typeof c === "number" ? k : c;
+  // (and every lit value with no colour of its own: the selection's)
+  const colours = new Map([...light.colours].map(([p, c]) => [p, to(c)]));
+  for (const p of light.rows) if (!colours.has(p)) colours.set(p, k);
+  return { ...light, colours,
+    ...light.byteColours ? { byteColours: new Map([...light.byteColours]
+      .map(([b, c]) => [b, to(c)])) } : {} };
+}

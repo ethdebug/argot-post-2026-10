@@ -15,7 +15,9 @@ type El = HTMLElement;
 export interface ViewData { light: Light; there?: Light; l: Layout;
   // (a figure's facts: a value's own name and what it holds)
   facts?: (path: string) => { label: string; value?: string } | undefined }
+// (a row's own, a second reading's, else its view's)
 const data = (e: Element | null): ViewData | undefined =>
+  (e?.closest(".wrow") as (El & { _data?: ViewData }) | null)?._data ??
   (e?.closest(".view") as (El & { _data?: ViewData }) | null)?._data;
 const slotOf = (r: El) => r.dataset.slot as Hex;
 const rowLit = (x: ViewData | undefined, l: Light | undefined, r: El) =>
