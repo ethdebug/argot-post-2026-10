@@ -73,20 +73,13 @@
 .pinbar input, .pinbar select { font: inherit; }
 
 /* The real debugger (figures/RealDebugger.tsx): its name, the language
-   and the moves over both columns; the code panel; beside it, soldb's
-   rows. Its box keeps its size from the first paint, whatever the
-   language or the step: the code panel's fixed height (code.css) sets
-   the row's; soldb's rows take that height (sized by it, not by them:
-   contain); on a phone, under the code, at least Solidity's rows'
-   height, no inner scroll. */
-.lens.soldb { display: grid; gap: 14px 28px; align-items: start;
+   and the moves, then the code panel, the frame's width. Its box keeps
+   its size from the first paint, whatever the language or the step: the
+   code panel's fixed height (code.css). */
+.lens.soldb { display: grid; gap: 14px; align-items: start;
   position: relative; grid-template-columns: minmax(0, 1fr);
-  grid-template-areas: "head" "bar" "code" "side"; }
+  grid-template-areas: "head" "bar" "code"; }
 .lens.soldb:focus { outline: none; }
-@media (min-width: 760px) {
-  .lens.soldb { grid-template-columns: minmax(0, 3fr) minmax(0, 2fr);
-    grid-template-areas: "head head" "bar bar" "code side"; }
-}
 /* (its name, a tree heading's, with its badge; room for the ↺ Reset) */
 .lens.soldb > .reset { position: absolute; top: 0; right: 0; }
 .lens.soldb .shead { grid-area: head; margin: 0; padding-right: 84px; }
@@ -118,34 +111,4 @@
 /* (soldb's progress, in the empty code panel) */
 .lens.soldb .sload { display: block; margin: 9em 1em 0; text-align: center;
   white-space: normal; font-family: system-ui, -apple-system, sans-serif; }
-.lens.soldb .sside { grid-area: side; display: flex;
-  flex-direction: column; gap: 8px; min-width: 0; min-height: 26em; }
-@media (min-width: 760px) {
-  .lens.soldb .sside { min-height: 0; align-self: stretch;
-    contain: size; }
-}
-.lens.soldb .sside section { min-width: 0; }
-.lens.soldb .sside .view-name { margin: 0 0 2px; }
-.lens.soldb .srows { list-style: none; margin: 0; padding: 0; }
-.lens.soldb .srows li { position: relative; }
-/* (a long type is cut before its value is: the value is soldb's answer) */
-.lens.soldb .srows .row { display: grid;
-  grid-template-columns: max-content minmax(0, 1fr) fit-content(70%);
-  gap: 0 0.6em; align-items: baseline; }
-.lens.soldb .srows :is(.type, .val > span) { display: block; min-width: 0;
-  overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.lens.soldb .srows .val { min-width: 0; text-align: right; }
-/* (a phone: no types, the values' room; a shortened value's popover
-   gives its type) */
-@media (max-width: 479.98px) {
-  .lens.soldb .srows .row > .type { display: none; }
-}
-/* (soldb's whole text, pointed at or focused: a popover under the row,
-   the column's width, over the rows below) */
-.lens.soldb .srows .sfull { display: none; left: 0; right: 0;
-  width: auto; --ax: 85%; }
-.lens.soldb .srows li:has(> .row:is(:hover, :focus-visible)) > .sfull {
-  display: block; }
-
-.lens.soldb .sside p { margin: 0; }
 .lens.soldb .mat .error { color: var(--old); }
