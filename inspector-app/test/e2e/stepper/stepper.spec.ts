@@ -29,3 +29,22 @@ for (const id of Object.values(STEPPER)) {
     await expect(page.locator(".rcap")).toContainText("name");
   });
 }
+
+// The figure fills its frame at every width a host gives it, nothing
+// past its right edge (the code's long lines wrap in their column)
+for (const id of Object.values(STEPPER)) {
+  for (const width of [358, 960, 1216]) {
+    test(`${id} at ${width}px: nothing wider than the frame`,
+      async ({ page }) => {
+        await page.setViewportSize({ width, height: 900 });
+        await page.goto(`./embed.html#scene=${id}`);
+        await expect(page.locator(".tbar .tmark.cur")).toHaveCount(1);
+        await expect(page.locator("pre.src .line").first()).toBeVisible();
+        const over = await page.evaluate(() => [...document
+          .querySelectorAll("#embed *")].filter((e) =>
+          e.getBoundingClientRect().right > innerWidth + 0.5)
+          .map((e) => `${e.tagName}.${e.className}`).slice(0, 5));
+        expect(over).toEqual([]);
+      });
+  }
+}
