@@ -5,10 +5,11 @@
    size whatever is shown: the three panes one fixed height (--xh), the
    list and the source scrolling inside. Wide: the three side by side;
    a phone: the source, the list and the entry, one under another. */
-.lens.xray { --xh: 318px; display: grid; gap: 12px 24px;
-  align-items: start; position: relative;
+.lens.xray { --xh: 318px; display: grid; align-items: start; position: relative;
   grid-template-columns: minmax(0, 1fr);
   grid-template-areas: "head" "bar" "code" "list" "entry"; }
+/* (its gaps, the embed's lens rule's too) */
+#embed .lens.xray, .lens.xray { gap: 12px 24px; }
 .lens.xray:focus { outline: none; }
 @media (min-width: 760px) {
   .lens.xray { grid-template-columns: minmax(0, 9fr) minmax(0, 10fr)
@@ -18,7 +19,7 @@
 .lens.xray > .reset { position: absolute; top: 0; right: 0; }
 .lens.xray .shead { grid-area: head; margin: 0; padding-right: 84px; }
 @media (max-width: 759.98px) {
-  .lens.xray { row-gap: 16px; }
+  #embed .lens.xray, .lens.xray { row-gap: 16px; }
   .lens.xray .shead .handmade { display: table; margin: 4px 0 0; }
 }
 .lens.xray .sbar { grid-area: bar; display: flex; flex-wrap: wrap;
