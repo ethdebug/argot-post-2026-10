@@ -5,10 +5,10 @@
 // and sends back the reader's intents (its buttons; ← → Home End while
 // it has the focus; its way out, the figure's ↺ Reset, no Exit). No engine, no data. It posts its
 // height to the host page: { type: "ethdebug:height", height }. The host
-// says whether it is stuck at the top of its view ({ type:
-// "ethdebug:stuck", stuck }): flush with the view's top then, a card
-// with its corners when not (data-stuck; panel.css); the figure hears
-// it too. It follows the host's theme, as the figure's frame does
+// says whether it is stuck to an edge of its view ({ type:
+// "ethdebug:stuck", stuck, edge: "top" | "bottom" }): flush with that
+// edge then, a card with its corners when not (data-stuck; panel.css);
+// the figure hears it too. It follows the host's theme, as the figure's frame does
 // (theme.ts).
 import "../../../shared/appendix.css";
 import "../style.css";
@@ -34,7 +34,10 @@ const root = document.getElementById("embed")!;
 addEventListener("message", (e) => {
   if (e.source !== parent || e.data?.type !== "ethdebug:stuck") return;
   const stuck = !!e.data.stuck;
-  document.documentElement.toggleAttribute("data-stuck", stuck);
+  // (at which edge of the host's screen: its top, or its bottom)
+  const edge = e.data.edge === "bottom" ? "bottom" : "top";
+  if (stuck) document.documentElement.dataset.stuck = edge;
+  else delete document.documentElement.dataset.stuck;
   bc.postMessage({ type: "stuck", stuck });
 });
 

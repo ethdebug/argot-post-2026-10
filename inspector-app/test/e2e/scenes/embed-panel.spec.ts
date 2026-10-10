@@ -271,3 +271,38 @@ async ({ page, baseURL }) => {
   });
   expect(g.figure - g.panel).toBeGreaterThanOrEqual(RELEASE - 1);
 });
+
+// (the post's host shows the panel, stuck to the screen's bottom, once
+// the figure's opening view is in sight: the figure says where that view
+// ends, `showAfter`, with its height; the panel told it is stuck at the
+// bottom is flush with it there)
+test("the figure's showAfter: its tree's selection's rows' bottom; the " +
+  "panel stuck at the bottom", async ({ page, baseURL }) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.goto("./embed.html");
+  await page.setContent(`<body style="margin:0">
+    <iframe id="p" src="${baseURL}embed-panel.html#scene=pointer-walkthrough&channel=s"
+      style="border:0;width:1216px;height:300px;display:block"></iframe>
+    <iframe id="f" src="${baseURL}embed.html#scene=pointer-walkthrough&panel=external&channel=s"
+      style="border:0;width:1216px;height:900px;display:block"></iframe>
+    <script>addEventListener("message", (e) => {
+      if (e.data?.type === "ethdebug:height" &&
+        e.source === document.getElementById("f").contentWindow) {
+        window.last = e.data;
+      }
+    });</script></body>`);
+  await expect.poll(() => page.evaluate(() => (window as unknown as
+    { last?: { showAfter?: number } }).last?.showAfter), { timeout: 30_000 })
+    .toBeGreaterThan(0);
+  const [after, rows] = await Promise.all([page.evaluate(() =>
+    (window as unknown as { last: { showAfter: number } }).last.showAfter),
+  page.frameLocator("#f").locator('.tree li[data-path="players"]')
+    .evaluate((li) => li.getBoundingClientRect().bottom)]);
+  expect(Math.abs(after - rows)).toBeLessThan(2);
+  const p = page.frameLocator("#p");
+  await expect(p.locator(".pshown .rbar")).toBeAttached();
+  await page.evaluate(() => (document.getElementById("p") as
+    HTMLIFrameElement).contentWindow!.postMessage({ type: "ethdebug:stuck",
+    stuck: true, edge: "bottom" }, "*"));
+  await expect(p.locator("html")).toHaveAttribute("data-stuck", "bottom");
+});
