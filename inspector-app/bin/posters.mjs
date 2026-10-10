@@ -8,14 +8,13 @@
 // hosts it (SHOWN): the reveal revealed (its payoff, for a reader who
 // can't scroll it), a walkthrough with its panel in a frame of its own
 // (panel=external; the panel itself has no poster). Its height is the
-// ready height: a poster is the space the frame takes (heights.json's,
-// where it has the width; else the same twice). At most MAX bytes: a
+// ready height: a poster is the space the frame takes (the same twice).
+// At most MAX bytes: a
 // lower quality first; then, for a very tall figure, its first screen
 // only (FIRST CSS pixels tall, from the top), the rest of the reserved
 // space empty until the frame is ready.
 // Usage: node bin/posters.mjs [<site>] (default ../_site, as
-// bin/site.sh assembles it; after bin/heights.mjs, whose heights it
-// checks)
+// bin/site.sh assembles it)
 import { chromium } from "playwright";
 import path from "node:path";
 import fs from "node:fs";
@@ -41,8 +40,6 @@ const site = siteOf(process.argv[2]);
 const dir = path.join(site, "demos", "inspector");
 const out = path.join(dir, "posters");
 fs.mkdirSync(out, { recursive: true });
-const heights = JSON.parse(fs.readFileSync(path.join(dir, "heights.json"),
-  "utf8"));
 const { base, close } = await serve(site);
 const browser = await chromium.launch();
 // (PNG to WebP by the browser's own encoder, lossy: at 0.85, text stays
@@ -78,23 +75,22 @@ async function encode(page, width, height) {
 }
 let bytes = 0;
 const wrong = [];
-for (const scene of scenes()) {
+// (a scene's posters; scenes AT_ONCE at a time)
+const AT_ONCE = 3;
+async function postersOf(scene) {
   const shown = SHOWN(scene);
   for (const width of WIDTHS) {
     for (const theme of THEMES) {
       const at = () => drawn(browser, base, scene, width,
         { hash: `${shown}&theme=${theme}`, context: {
           deviceScaleFactor: scaleAt(width), colorScheme: theme } });
-      // (its height: the manifest's, for a scene as drawn there; else a
-      // second drawing's)
-      let want = shown ? undefined : heights[scene]?.[width];
-      if (want === undefined) {
-        const { page, height } = await at();
-        await page.close();
-        want = height;
-      }
-      // (once more, if its ready height is not that: a rare early ready,
+      // (its height: a first drawing's, at the poster's scale (at twice
+      // the pixels, a few px off heights.json's, at once); the poster,
+      // a second's, and once more if that differs: a rare early ready,
       // seen once in about a hundred loads)
+      const first = await at();
+      await first.page.close();
+      const want = first.height;
       let { page, height } = await at();
       if (height !== want) {
         await page.close();
@@ -119,10 +115,13 @@ for (const scene of scenes()) {
   }
   console.log(scene);
 }
+const queue = scenes();
+await Promise.all(Array.from({ length: AT_ONCE }, async () => {
+  for (let scene; (scene = queue.shift());) await postersOf(scene);
+}));
 await browser.close();
 close();
 console.log(`posters: ${out}, ${Math.round(bytes / 1024)} KB`);
-// (a theme that changes the ready height: the host's reserve is wrong)
 if (wrong.length) {
   console.error(`heights differ:\n${wrong.join("\n")}`);
   process.exit(1);
