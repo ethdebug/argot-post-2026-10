@@ -390,16 +390,14 @@ export function useWalkModel(p: { id: ViewId; data: DataRef;
   } else rest = selRest();
   const model: PanelModel = { key, walking: !!walk, rest, walk: wm,
     yaml: yamlOf(st), ...walk?.exit ? { exit: true } : {},
-    ...rs ? { reset: { shown: rs.changed } } : {} };
+    ...rs && !port ? { reset: { shown: rs.changed } } : {} };
   // (for a panel in a frame of its own: the panel at rest, the selection
   // shown, and at each of its steps, so it keeps the tallest's height)
   const variants = !port || !node || !sides || !w ? undefined : [
     { ...model, walking: false, walk: undefined, exit: undefined,
-      rest: selRest(), yaml: yamlOf(undefined),
-      ...rs ? { reset: { shown: false } } : {} },
+      rest: selRest(), yaml: yamlOf(undefined) },
     ...steps.map((s0, k): PanelModel => ({ key, walking: true,
-      walk: stepOf(k), yaml: yamlOf(s0),
-      ...rs ? { reset: { shown: false } } : {} }))];
+      walk: stepOf(k), yaml: yamlOf(s0) }))];
   return { model, act, variants };
 }
 
@@ -616,7 +614,9 @@ export function PanelView({ model: m, act, domId, compact }: {
             onClick={() => stepTo(k)} />)}</span>
         {wm.cue && <span key={wm.cue.n} className="rcue" aria-live="polite">
           {wm.cue.text}</span>}
-        {compact && <>{title}<span className="rexit">{out}</span></>}</span>
+        {/* (compact, the post's: no way out here; the figure's own ↺
+          Reset, over the figure, ui/SceneHost.tsx) */}
+        {compact && title}</span>
       <span className="rline3"><span className="rcap">{cap(wm.cap)}</span>
         {!KIND_UNDER_YAML && construct}</span></>;
     text = <p className="rform"><FormView f={wm.form} /></p>;
