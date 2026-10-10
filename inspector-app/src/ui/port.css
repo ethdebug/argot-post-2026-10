@@ -168,11 +168,11 @@
 .lens.vyper .wrow.on:not(.second) .addr.grp::before {
   background: var(--pk2); }
 .lens.vyper .wrow.second.on .addr.grp::before { background: var(--pk1); }
-/* (the two headings' first lines level: the badge's line under
-   Vyper's, room for it under Solidity's) */
+/* (the two headings level: on one line, the badge inline after
+   Vyper's title) */
 @media (min-width: 660px) {
   .lens.vyper > [data-area^="t"] > .tree > .treehead {
-    align-self: stretch; }
+    align-self: stretch; white-space: nowrap; }
 }
 /* a replay playing (TimelineBar.tsx): no fades on what each step lights
    or mutes, its own flash alone */
