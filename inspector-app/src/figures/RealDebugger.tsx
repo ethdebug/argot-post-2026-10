@@ -6,14 +6,20 @@
 // function and call depth, and (Solidity) the contract's state as
 // soldb's state(i) reads it from solc's ethdebug; where soldb has
 // nothing, its engine's own words say why. No pointer of ours resolves
-// anything here. soldb loads on first view, from beside the app
-// (figures/soldb.ts), with its progress; its box keeps its size from
-// the first paint (data-ready, for the embed, once the first step is
-// drawn).
+// anything here. The reader moves a source range at a time, as in a
+// source debugger: each move goes to the next (or previous) step whose
+// range, in the contract's own source, is another one; no step of
+// compiler-generated code (no range) or of Fe's library. soldb loads
+// on first view, from beside the app (figures/soldb.ts), its progress
+// in the code panel; the box keeps its size from the first paint
+// (data-ready, for the embed, at once: the reader sees soldb load;
+// data-loaded once a step is drawn).
 import {
-  useEffect, useLayoutEffect, useRef, useState, type KeyboardEvent,
+  useEffect, useLayoutEffect, useMemo, useRef, useState,
+  type KeyboardEvent,
 } from "react";
-import { lines, useColoured } from "../ui/Code";
+import { intoView, lines, useColoured } from "../ui/Code";
+import { ResetButton } from "../ui/Reset";
 import {
   soldb, type Engine, type Loaded, type Progress, type Variable,
 } from "./soldb";
@@ -31,26 +37,46 @@ const OPEN: Record<Lang, number> = { sol: 2025, fe: 4249 };
 // (the grammar each source is coloured with: Fe's is not loaded, plain)
 const GRAMMAR: Record<Lang, string> = { sol: "solidity", fe: "" };
 
-type Move = "prev" | "next" | "prev-line" | "next-line" | "first" | "last";
+type Move = "prev" | "next" | "first" | "last";
 const KEYS: Record<string, Move> = { ArrowLeft: "prev", ArrowRight: "next",
-  ArrowUp: "prev-line", ArrowDown: "next-line", Home: "first", End: "last" };
+  ArrowUp: "prev", ArrowDown: "next", Home: "first", End: "last" };
 
-// the steps where the contract's own line changes (soldb's line
-// changes, less those in library code: Fe's builtin files)
-const ownLines = (d: Loaded) => d.steps.changes.filter((k) =>
-  !d.sources[d.steps.spans[3 * k]]?.lib);
+// The source steps: the first step of each run of steps with one range
+// of the contract's own source (a step of compiler-generated code, no
+// range, or of a library file, Fe's builtins, belongs to none: it
+// neither starts nor ends a run)
+function sourceSteps(d: Loaded): number[] {
+  const s = d.steps.spans;
+  const out: number[] = [];
+  let last = "";
+  for (let k = 0; k < d.steps.n; k++) {
+    if (s[3 * k] < 0 || d.sources[s[3 * k]]?.lib) continue;
+    const r = `${s[3 * k]}:${s[3 * k + 1]}:${s[3 * k + 2]}`;
+    if (r !== last) out.push(k);
+    last = r;
+  }
+  return out;
+}
 
-// the step a move goes to: a step back or on, the previous or next
-// change of the contract's own line, or an end
-function moveOf(d: Loaded, i: number, how: Move): number {
-  const { n } = d.steps;
-  const own = ownLines(d);
-  if (how === "prev") return Math.max(0, i - 1);
-  if (how === "next") return Math.min(n - 1, i + 1);
-  if (how === "first") return own[0] ?? 0;
-  if (how === "last") return n - 1;
-  if (how === "next-line") return own.find((k) => k > i) ?? n - 1;
-  return [...own].reverse().find((k) => k < i) ?? own[0] ?? 0;
+// the source step a step is in: the last that starts at or before it
+const runOf = (runs: number[], i: number) => {
+  let a = 0, b = runs.length - 1;
+  while (a < b) {
+    const m = (a + b + 1) >> 1;
+    if (runs[m] <= i) a = m;
+    else b = m - 1;
+  }
+  return a;
+};
+
+// the step a move goes to: the previous or next source step, or an end
+function moveOf(runs: number[], i: number, how: Move): number {
+  if (!runs.length) return i;
+  const k = runOf(runs, i);
+  if (how === "first") return runs[0];
+  if (how === "last") return runs[runs.length - 1];
+  if (how === "next") return runs[Math.min(runs.length - 1, k + 1)];
+  return runs[i > runs[k] ? k : Math.max(0, k - 1)];
 }
 
 // a step's range: its own, or (compiler-generated code) the last one
@@ -66,17 +92,33 @@ function rangeAt(d: Loaded, i: number) {
   return undefined;
 }
 
-const kb = (n: number) => `${Math.round(n / 1024)} KB`;
+const kb = (n: number) => `${Math.round(n / 1024).toLocaleString("en")
+} KB`;
 
-// the files' bytes so far, of their totals, and the phase after them
+// the files' bytes so far, of their totals (and the share), and the
+// phase after them
 function progressText(ps: Map<string, Progress>, phase?: string) {
   const all = [...ps.values()];
   const got = all.reduce((n, p) => n + (p.loaded ?? 0), 0);
-  const total = all.every((p) => p.total) ? all.reduce((n, p) =>
-    n + (p.total ?? 0), 0) : 0;
-  if (phase && all.every((p) => p.done)) return phase;
-  return `Loading soldb and the transaction: ${kb(got)}${total
-    ? ` of ${kb(total)}` : ""}`;
+  const total = all.length && all.every((p) => p.total) ? all.reduce(
+    (n, p) => n + (p.total ?? 0), 0) : 0;
+  if (phase && all.length && all.every((p) => p.done)) return `${phase}…`;
+  return `Loading soldb (WebAssembly) and the transaction: ${kb(got)}${
+    total ? ` of ${kb(total)} · ${Math.min(100, Math.floor(100 * got /
+      total))}%` : ""}`;
+}
+
+// soldb's words for a value it cannot give, shortened for its row (the
+// whole, in quotes, in the row's popover): its two kinds here; any other
+// value as soldb writes it
+function shortOf(value: string): string | undefined {
+  if (/^<unknown: .*has not been read or written yet>$/.test(value)) {
+    return "unknown: not read yet";
+  }
+  if (/^<mapping; index it with \[key\]>$/.test(value)) {
+    return "mapping: index it by key";
+  }
+  return undefined;
 }
 
 export function RealDebugger() {
@@ -89,6 +131,7 @@ export function RealDebugger() {
   const [error, setError] = useState<string>();
   const [why, setWhy] = useState<Engine["whyNot"]>({});
   const d = data[lang];
+  const runs = useMemo(() => d ? sourceSteps(d) : [], [d]);
   const i = at[lang] ?? (d ? Math.min(OPEN[lang], d.steps.n - 1) : 0);
 
   // soldb's data set for the language shown, once
@@ -97,6 +140,7 @@ export function RealDebugger() {
     let live = true;
     setError(undefined);
     const files = new Map<string, Progress>();
+    setLoading({ files });
     engine.then(async (e) => {
       setWhy(e.whyNot);
       const got = await e.load(lang, (p) => {
@@ -127,14 +171,24 @@ export function RealDebugger() {
 
   const go = (how: Move) => {
     if (!d) return;
-    setAt((x) => ({ ...x, [lang]: moveOf(d, i, how) }));
+    setAt((x) => ({ ...x, [lang]: moveOf(runs, i, how) }));
   };
+  // (the arrow keys anywhere in the figure, once the reader has clicked
+  // in it or tabbed to it)
   const onKey = (e: KeyboardEvent) => {
     const how = KEYS[e.key];
-    if (!how) return;
+    if (!how || e.altKey || e.metaKey || e.ctrlKey) return;
     e.preventDefault();
     go(how);
   };
+  // (back to the opening language and steps)
+  const reset = () => {
+    setLang("sol");
+    setAt({});
+  };
+  // (changed: another language, or a step the reader chose)
+  const changed = lang !== "sol" || Object.entries(at).some(([k, n]) =>
+    n !== OPEN[k as Lang]);
 
   const r = d && rangeAt(d, i);
   const src = d && (r ? d.sources[r.source] : d.sources[d.main]);
@@ -143,75 +197,80 @@ export function RealDebugger() {
   const mark = r && { from: r.from, to: r.to,
     className: r.last ? "rng last" : "rng" };
   const pre = useRef<HTMLPreElement>(null);
-  useLayoutEffect(() => {
-    const box = pre.current;
-    const m = box?.querySelector("mark");
-    if (!box || !m) return;
-    const top = m.getBoundingClientRect().top -
-      box.getBoundingClientRect().top + box.scrollTop;
-    if (top < box.scrollTop || top > box.scrollTop + box.clientHeight -
-      m.getBoundingClientRect().height) {
-      box.scrollTop = Math.max(0, top - box.clientHeight / 3);
-    }
-  }, [mark?.from, mark?.to, coloured, lang]);
+  useLayoutEffect(() => intoView(pre.current),
+    [mark?.from, mark?.to, coloured, lang, d]);
   const file = (r?.file ?? "").split("/").pop() ||
     (lang === "sol" ? "Arcade.sol" : "arcade.fe");
   const note = !d ? "" : !r ? "no source range yet"
     : r.last ? "compiler-generated code: the last range, muted"
       : src?.lib ? `library code (${src.lib})` : "";
-  // (ready: soldb loaded, the step drawn, and, with a state, its rows)
-  const ready = !!d && (!d.capabilities.state || state?.key === key);
-  // (the last step's, until this one's come: nothing moves)
-  const vars = state?.vars ?? [];
+  // (loaded: soldb loaded, the step drawn, and, with a state, its rows)
+  const loaded = !!d && (!d.capabilities.state || state?.key === key);
+  // (this language's last step's rows, until this one's come: nothing
+  // moves; never another language's)
+  const vars = state?.key.startsWith(`${lang}:`) ? state.vars : [];
   const w = why[lang] ?? {};
   const s = d?.steps;
-  // (a value on one line, cut short; pointed at or focused, whole, over
-  // the rows below: nothing moves)
-  const row = (name: string, value: string, type = "") =>
-    <li key={name} data-path={name}><div className="row" tabIndex={0}>
+  // (a value on one line: soldb's words for what it cannot give
+  // shortened, a long value cut; pointed at or focused, soldb's whole
+  // text in a popover under it, the column's width, over the rows
+  // below: nothing moves)
+  const row = (name: string, value: string, type = "") => {
+    const short = shortOf(value);
+    const full = !!short || value.length > 24;
+    return <li key={name} data-path={name}><div className="row"
+      tabIndex={0} aria-description={full ? `soldb: ${value}`
+        : undefined}>
       <span className="name">{name}</span>
       <span className="type">{type}</span>
-      <span className="val"><span>{value}</span></span></div></li>;
+      <span className={`val${short ? " muted" : ""}`}><span>{short ??
+        value}</span></span></div>
+      {full && <span className="pop under wrap sfull" aria-hidden="true">
+        <b>{name}</b>{type && <> {type}</>}: soldb says “{value}”</span>}
+    </li>;
+  };
 
   return <div className="lens soldb" data-figure="real-debugger"
-    data-ready={ready || undefined} data-lang={lang}>
+    data-ready data-loaded={loaded || undefined} data-lang={lang}
+    tabIndex={-1} onKeyDown={onKey}>
+    <ResetButton shown={changed} onReset={reset} />
+    <p className="view-name treehead shead">soldb · Walnut's debugger
+      <span className="handmade">running in this page, from ethdebug data
+        alone</span></p>
     <div className="sbar">
       <div className="picker" role="radiogroup" aria-label="Language">
         {LANGS.map(([k, t]) => <button key={k} type="button" role="radio"
           data-lang={k} aria-checked={k === lang ? "true" : "false"}
           onClick={() => setLang(k)}>{t}</button>)}
       </div>
-      <div className="moves" tabIndex={0} onKeyDown={onKey}
-        aria-label="soldb's steps">
+      <div className="moves" tabIndex={0} aria-label="soldb's steps">
         <span className="mctl">
-          {([["first", "The transaction's first line", "⏮"],
-            ["prev-line", "The contract's previous line", "«"],
-            ["prev", "The previous step", "◀"],
-            ["next", "The next step", "▶"],
-            ["next-line", "The contract's next line", "»"],
-            ["last", "The transaction's end", "⏭"]] as const).map(
-            ([how, label, t]) => <button key={how} type="button"
+          {([["first", "The transaction's first source range", "⏮"],
+            ["prev", "The previous source range", "◀ Back"],
+            ["next", "The next source range", "Step ▶"],
+            ["last", "The transaction's last source range", "⏭"]] as const)
+            .map(([how, label, t]) => <button key={how} type="button"
               className="btn" data-move={how} aria-label={label}
-              disabled={!d || moveOf(d, i, how) === i}
+              title={label} disabled={!d || moveOf(runs, i, how) === i}
               onClick={() => go(how)}>{t}</button>)}
         </span>
         <span className="mat" data-step={d ? i : ""}>{error
           ? <span className="error">{error}</span> : !s
-          ? <span className="muted">{progressText(loading.files,
-            loading.phase)}</span>
-          : <>step <b>{i}</b> of {s.n - 1} · <code>{s.ops[i]}</code>
-            {s.lineNo[i] > 0 && <> · line {s.lineNo[i]}</>}</>}</span>
+          ? <span className="muted">step – of –</span>
+          : <>step <b>{runOf(runs, i) + 1}</b> of {runs.length}</>}</span>
       </div>
     </div>
     <div className="code" data-area="code">
       <p className="codehead"><span className="srcfile">{file}</span>{" "}
         <span className="codenote">{note}</span></p>
       <pre ref={pre} className={`src codesrc${coloured ? " coloured"
-        : ""}`}>{d ? lines(text, coloured, mark ? { mark } : {}) : ""}</pre>
+        : ""}`}>{d ? lines(text, coloured, mark ? { mark } : {})
+        : !error && <span className="muted sload" role="status">{
+          progressText(loading.files, loading.phase)}</span>}</pre>
     </div>
     <div className="sside" data-area="side">
-      <section aria-label="soldb at this step">
-        <h3 className="view-name">soldb at this step</h3>
+      <section aria-label="At this step">
+        <h3 className="view-name">At this step</h3>
         <ul className="tree srows">{s ? <>
           {row("function", s.functions[i] ?? "none named")}
           {row("call depth", String(s.depths[i]))}

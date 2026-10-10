@@ -49,15 +49,20 @@ export function Reset(p: { lens: LensContextValue | null; scene: string;
       kinds.forEach((t) => removeEventListener(t, act, true));
     };
   }, [p.lens, p.ready]);
-  return <button type="button" className="btn reset" data-shown={changed
-    ? "" : undefined} aria-hidden={!changed} tabIndex={changed ? 0 : -1}
-    aria-label="Reset figure: back to the figure as first shown"
-    onClick={() => {
-      if (!p.lens) return;
-      acted.current = false;
-      void p.lens.show(p.scene).then(() => {
-        first.current = keyOf(p.lens!.store.get());
-        setChanged(false);
-      });
-    }}><span aria-hidden="true">↺</span> Reset</button>;
+  return <ResetButton shown={changed} onReset={() => {
+    if (!p.lens) return;
+    acted.current = false;
+    void p.lens.show(p.scene).then(() => {
+      first.current = keyOf(p.lens!.store.get());
+      setChanged(false);
+    });
+  }} />;
 }
+
+// The button alone, for a figure that keeps its own state (the real
+// debugger's): shown while `shown`, its room always kept
+export const ResetButton = (p: { shown: boolean; onReset(): void }) =>
+  <button type="button" className="btn reset" data-shown={p.shown
+    ? "" : undefined} aria-hidden={!p.shown} tabIndex={p.shown ? 0 : -1}
+    aria-label="Reset figure: back to the figure as first shown"
+    onClick={p.onReset}><span aria-hidden="true">↺</span> Reset</button>;
