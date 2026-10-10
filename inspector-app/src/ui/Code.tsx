@@ -7,7 +7,7 @@
 import {
   useEffect, useLayoutEffect, useRef, useState, type ReactNode,
 } from "react";
-import { highlighter } from "./shiki";
+import { highlighter, withLang } from "./shiki";
 import { useCompilation, useLens, usePoint } from "./hooks";
 import type { DataRef, ViewId } from "./types";
 
@@ -16,9 +16,10 @@ type Token = { content: string; offset: number;
 export type Coloured = Token[][];
 
 // the grammar a language's source is coloured with (BUG's: Solidity's,
-// which it looks like; Vyper's is not loaded: plain)
+// which it looks like; Fe's: Rust's, likewise; Vyper's is not loaded:
+// plain)
 const GRAMMAR: Record<string, string> = { solidity: "solidity",
-  bug: "solidity" };
+  bug: "solidity", fe: "rust" };
 
 // A text's lines as Shiki colours them, once `on` (null until then, or
 // with no grammar)
@@ -30,7 +31,7 @@ export function useColoured(text: string, language: string, on = true):
   useEffect(() => {
     if (!on || !text || !lang || done) return;
     let live = true;
-    highlighter().then((hl) => {
+    highlighter().then((hl) => withLang(hl, lang)).then((hl) => {
       if (live) {
         setGot({ text, lines: hl.codeToTokens(text, { lang,
           themes: { light: "github-light", dark: "github-dark" },
@@ -92,9 +93,16 @@ export function intoView(box: HTMLElement | null) {
   const top = r.top - b.top + box.scrollTop;
   if (top < box.scrollTop || top + r.height > box.scrollTop +
     box.clientHeight) {
-    const lh = parseFloat(getComputedStyle(box).lineHeight) || r.height;
-    box.scrollTop = Math.max(0, Math.round((top - box.clientHeight / 3) /
-      lh) * lh);
+    // (a line's box: its text's, less the half-leading, from the next
+    // line's distance; whole lines from the box's top edge)
+    const ln = m.closest(".line")?.getBoundingClientRect() ?? r;
+    const nx = (m.closest(".line")?.nextElementSibling ??
+      m.closest(".line")?.previousElementSibling)?.getBoundingClientRect();
+    const pitch = Math.abs((nx?.top ?? ln.top) - ln.top) ||
+      parseFloat(getComputedStyle(box).lineHeight) || r.height;
+    const at = ln.top - b.top + box.scrollTop - (pitch - ln.height) / 2;
+    box.scrollTop = Math.max(0, at - Math.round(box.clientHeight / 3 /
+      pitch) * pitch);
   }
   const left = r.left - b.left + box.scrollLeft, cw = box.clientWidth;
   if (left < box.scrollLeft || left + Math.min(r.width, cw / 2) >

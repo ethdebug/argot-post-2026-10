@@ -34,8 +34,8 @@ type Lang = typeof LANGS[number][0];
 // `store.scores.set(…)` (its export has no state: nothing to wait for).
 // (test/e2e/figures/real-debugger.spec.ts checks both.)
 const OPEN: Record<Lang, number> = { sol: 2025, fe: 4249 };
-// (the grammar each source is coloured with: Fe's is not loaded, plain)
-const GRAMMAR: Record<Lang, string> = { sol: "solidity", fe: "" };
+// (the grammar each source is coloured with: ui/Code.tsx's names)
+const GRAMMAR: Record<Lang, string> = { sol: "solidity", fe: "fe" };
 
 type Move = "prev" | "next" | "first" | "last";
 const KEYS: Record<string, Move> = { ArrowLeft: "prev", ArrowRight: "next",
