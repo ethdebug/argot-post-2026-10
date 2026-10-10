@@ -94,9 +94,12 @@
 }
 .lens.soldb .sbar { grid-area: bar; display: flex; flex-wrap: wrap;
   align-items: center; gap: 8px 18px; }
-/* (the count, on a line of its own wherever its longest would not fit
-   beside the buttons: the same lines loading as loaded) */
-.lens.soldb .mat { min-width: 9em; white-space: nowrap; }
+/* (the count, one width whatever it says, room for its longest (step
+   128 of 128 · pc 8238 · CALLDATASIZE): the controls wrap the same
+   loading as loaded, so the figure's height never depends on whether
+   soldb came first) */
+.lens.soldb .mat { flex: 0 0 auto; width: 22em; max-width: 100%;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 /* (a finger's size under 760px, a phone's or not: one height there) */
 @media (max-width: 759.98px) {
   .lens.soldb :is(.mctl .btn, .picker button) { min-height: 44px;
