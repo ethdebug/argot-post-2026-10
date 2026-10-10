@@ -11,7 +11,8 @@ import type { Colour, Decoded, Filter, Light, ValueNode } from
 import { changed } from "../engine/timeline";
 import { retint } from "../engine/light";
 import { blockOf } from "../engine/target";
-import { relClass } from "../engine/related";
+import { relClass, scopeOf } from "../engine/related";
+import { within } from "../engine/tree-paths";
 import { vtName } from "./transition";
 import { onChainNames } from "../engine/annotated";
 
@@ -297,7 +298,11 @@ export function Tree(p: { id: ViewId; data: DataRef; filter?: Filter;
       if (path === s.selection) {
         return { ...s, selection: null, hover: { path: at } };
       }
-      if (!keys && outside(s, light.rows.has(at),
+      // (a field of the selection's record, shown beside it, muted: a
+      // selection of its own, not a click outside)
+      const sibling = !!s.selection && !!d?.byPath.has(s.selection) &&
+        within(d.byPath, at, scopeOf(d, s.selection));
+      if (!keys && !sibling && outside(s, light.rows.has(at),
         !!light.relColours?.has(at))) {
         cleared = true;
         return { ...s, selection: null, hover: null };

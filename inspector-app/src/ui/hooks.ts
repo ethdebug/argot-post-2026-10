@@ -487,8 +487,21 @@ export function useLight(id: string, filter?: Filter, at?: DataRef,
       const lk = locked(hover, sel, d.byPath);
       const k = lk?.path && lk.path !== sel
         ? base.colours.get(lk.path) : undefined;
-      // (pointing at what it consulted: that one stands out)
-      const out = lk ? base : pointConsulted(base, d, l, hover);
+      // (a hover focuses its target alone: what the selection consulted
+      // shows at rest only; pointing at one of those, it alone)
+      const at = hover && !lk ? pointConsulted(base, d, l, hover) : null;
+      // (pointing elsewhere: the selection steps back, its colours too;
+      // at the selection's own row or bytes, it stays)
+      const own = !!lk || (hover?.row !== undefined && (hover.location ??
+        l.location) === l.location && [...base.bytes].some((b) =>
+        b.split("|")[1] === hover.row)) || (!!hover?.bytes &&
+        base.bytes.has(byteKey(hover.bytes.location, hover.bytes.row,
+          hover.bytes.from)));
+      const out = !hover ? base : at && at !== base ? at
+        : { ...forPath(d, l, sel, { ...o, selection: true }),
+          // (nor the slots its derivation went through: consulted too)
+          gutters: new Set<Hex>(),
+          ...own ? {} : { focus: "none" as const } };
       return { ...out, cap: new Set([sel]),
         ...(k !== undefined && k !== 0 ? { focus: k } : {}) };
     }

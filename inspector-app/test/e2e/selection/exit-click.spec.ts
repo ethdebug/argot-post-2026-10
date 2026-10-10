@@ -127,23 +127,27 @@ test("from the keyboard: Enter on a byte or a row selects it",
     expect(await selected(page)).toBe(`${A}.score`);
   });
 
-test("with a selection, pointing elsewhere changes nothing shown",
-  async ({ page }) => {
+test("with a selection, pointing elsewhere keeps what it lights; what " +
+  "it consulted shows at rest only", async ({ page }) => {
     await ready(page);
     await select(page, "alice", `${A}.combo`);
+    // (its own: the lit bytes, its own popover, the details)
     const look = () => page.evaluate(() => JSON.stringify([
       document.querySelectorAll("#panel .b.hl:not(.cmp *)").length,
-      [...document.querySelectorAll<HTMLElement>("#panel .pop")]
+      [...document.querySelectorAll<HTMLElement>("#panel .pop:not(.kept)")]
         .map((p) => p.innerText),
       document.querySelector("#details")!.textContent]));
+    const consulted = () => page.locator("#panel .pop.kept.related").count();
     await page.mouse.move(1, 1);
     const still = await look();
+    expect(await consulted()).toBeGreaterThan(0);
     // (an unrelated byte; then one of its own)
     for (const [f, i] of [["score", 30], ["combo", 23]] as const) {
       await page.locator(`#panel .word[data-side=after] ` +
         `.b[data-owners="${A}.${f}"][data-i="${i}"]`).hover();
       await settle(page);
       expect(await look(), f).toBe(still);
+      expect(await consulted(), f).toBe(0);
     }
   });
 
