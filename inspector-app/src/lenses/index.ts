@@ -3,7 +3,6 @@ import type { LensSpec } from "../ui/types";
 import { fullInspector } from "./full-inspector";
 import { alicePlays } from "./alice-plays";
 import { vyper } from "./vyper";
-import { pointerWalkthrough } from "./pointer-walkthrough";
 import { stepper } from "./stepper";
 import { realDebugger } from "./real-debugger";
 import { programXray } from "./program-xray";
@@ -15,4 +14,4 @@ import { reveal, rawLenses } from "./raw";
 const dev = (l: LensSpec): LensSpec => ({ ...l, dev: true });
 export const lenses: LensSpec[] = [fullInspector, stepper, realDebugger,
   programXray,
-  ...rawLenses, reveal, dev(pointerWalkthrough), dev(alicePlays), dev(vyper)];
+  ...rawLenses, reveal, dev(alicePlays), dev(vyper)];
