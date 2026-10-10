@@ -1,6 +1,6 @@
 // The hooks views use: their data, their link group's state, their own
 // state, and what they light
-import { createContext, useContext, useEffect, useMemo, useState,
+import { createContext, useContext, useEffect, useMemo, useRef, useState,
   useSyncExternalStore } from "react";
 import type { Project } from "../engine/project";
 import type {
@@ -22,6 +22,8 @@ import { locked } from "../engine/target";
 import { byteKey } from "../engine/hex";
 import { regionBytes } from "../engine/layout";
 import { unionRows, unionTree } from "../engine/union";
+import { unionRows as replayRows } from "../engine/replay";
+import { keep, peek } from "../engine/kept";
 import type { Store } from "./store";
 import type {
   DataAt, DataRef, LensSpec, LensState, LinkState, Moment, ViewState,
@@ -37,8 +39,10 @@ export interface LensContextValue {
   // (`walk`: a walkthrough to keep, of the selection kept: a move;
   // `step`: a step on the scene's timeline, from its moment shown, as one
   // transition: ui/transition.ts)
+  // (`play`: a step of a replay's play: no transition, the moment before
+  // it not decoded too)
   show(id: string, view?: { moment?: number; sel?: string | null;
-    walk?: LinkState["walk"]; step?: boolean }):
+    walk?: LinkState["walk"]; step?: boolean; play?: boolean }):
     Promise<boolean>;
 }
 // The page's scenes of other lenses, for a lens inside it: the one shown
@@ -117,8 +121,14 @@ export function useDecoded(ref: DataRef | undefined): Decoded | undefined {
   // (fetched again once a load that failed loads: Retry)
   const failed = useLensState((s) => !!s.error);
   const [got, setGot] = useState<{ key: string; d: Decoded }>();
+  // (decoded already, as a step's moment is before it shows: at once)
+  const now = useMemo(() => {
+    const [decoding, point] = key.split("\n");
+    const dc = key ? decodingOf(lens, decoding) : undefined;
+    return dc ? peek(decode(project, dc, point)) : undefined;
+  }, [lens, project, key]);
   useEffect(() => {
-    if (!key) return;
+    if (!key || now) return;
     const [decoding, point] = key.split("\n");
     let live = true;
     const dc = decodingOf(lens, decoding);
@@ -129,14 +139,14 @@ export function useDecoded(ref: DataRef | undefined): Decoded | undefined {
     return () => {
       live = false;
     };
-  }, [lens, project, key, failed]);
-  return got?.key === key ? got.d : undefined;
+  }, [lens, project, key, failed, now]);
+  return now ?? (got?.key === key ? got.d : undefined);
 }
 
 // Every moment of the scene a view shows, decoded with its decoding:
-// the union's inputs (engine/union.ts). None for a scene of one moment,
-// a run's (the debugger's: thousands), or a call's calldata by the ABI
-// (one call, at its moment)
+// the union's inputs (engine/union.ts); a replay's, its marks. None for
+// a scene of one moment, a run's (the debugger's: thousands), or a
+// call's calldata by the ABI (one call, at its moment)
 const UNION_MAX = 16;
 export function useMoments(ref: DataRef | undefined):
   { d: Decoded; p: TimelinePoint }[] | undefined {
@@ -145,9 +155,11 @@ export function useMoments(ref: DataRef | undefined):
   const key = useLensState((s) => {
     const at = ref && resolveRef(ref, s, project);
     const bm = project.bookmarks.find((b) => b.id === s.scene);
-    return at && bm && bm.points.length > 1 &&
-      bm.points.length <= UNION_MAX ? `${at.decoding}\n${bm.points
-        .join(" ")}` : "";
+    // (a replay's: its marks, the scene's own moments)
+    const ps = bm?.replay ? bm.marks!.map((k) => bm.points[k])
+      : bm?.points ?? [];
+    return at && bm && ps.length > 1 && ps.length <= UNION_MAX
+      ? `${at.decoding}\n${ps.join(" ")}` : "";
   });
   const failed = useLensState((s) => !!s.error);
   const [got, setGot] = useState<{ key: string;
@@ -241,17 +253,64 @@ export function useLayout(id: string, filter?: Filter, at?: DataRef,
   // (its scene's rows: the union over its moments, so none appears or
   // goes as the moments change; addendum §4)
   const ms = useMoments(data);
-  const union = useMemo(() => !ms || ms.length < 2 ? undefined
-    : unionRows(ms.map((m) => layout(m.d, location, f, { point: m.p }))),
-  [ms, location, f]);
+  const marks = useMemo(() => !ms || ms.length < 2 ? undefined
+    : ms.map((m) => layout(m.d, location, f, { point: m.p })), [ms,
+    location, f]);
+  const union = useMemo(() => marks && unionRows(marks), [marks]);
+  // (a replay's: every row the location has at any of its trace steps)
+  const replay = useReplayRows(data, location);
   const l = useMemo(() => {
-    if (!d || (mine[0] && !o1) || !ms) return undefined;
-    const g = union ? { ...f, rows: union } : f;
-    return layout(d, location, only ? { ...g, only } : g, { point,
+    // (a replay's rows still loading: no layout yet, not a smaller one)
+    if (!d || (mine[0] && !o1) || !ms || replay === undefined) {
+      return undefined;
+    }
+    // (a replay's: its marks' rows, and every row any step has)
+    const rows = replay ? [...new Set([...union ?? [], ...replay])]
+      .sort((a, b) => BigInt(a) < BigInt(b) ? -1 : BigInt(a) > BigInt(b)
+        ? 1 : 0) : union;
+    const g = rows ? { ...f, rows } : f;
+    const out = layout(d, location, only ? { ...g, only } : g, { point,
       ...(cmp ? { compare: cmp } : {}),
       others: o1 ? [{ d: o1, who: mine[0].who }] : [] });
-  }, [d, o1, point, location, f, mine[0]?.who, cmp, only, ms, union]);
+    if (!replay || location !== "storage") return out;
+    // (a replay's storage: room above a row hashed at one of its marks)
+    const hashed = new Set((marks ?? []).flatMap((x) => x.rows)
+      .filter((r) => !/^slot \d+$|\+ \d+$/.test(r.how))
+      .map((r) => r.address));
+    return { ...out, rows: out.rows.map((r) =>
+      ({ ...r, room: hashed.has(r.address) })) };
+  }, [d, o1, point, location, f, mine[0]?.who, cmp, only, ms, union,
+    replay, marks]);
   return { d, l };
+}
+
+// A replay's rows of a location (engine/replay.ts): every row it has at
+// any of the replay's trace steps, so its dump keeps them all as it
+// plays; null for a scene that is no replay, undefined while they load
+// (memoised per bookmark and location)
+export function useReplayRows(ref: DataRef | undefined, l: Location):
+  Hex[] | null | undefined {
+  const { project } = useLens();
+  const scene = useLensState((s) => s.scene);
+  const bm = project.bookmarks.find((b) => b.id === scene);
+  const on = !!ref && !!bm?.replay;
+  const key = on ? `replay|${bm!.id}|${l}` : "";
+  const memo = project.memo as Map<string, unknown>;
+  const [got, setGot] = useState<{ key: string; rows: Hex[] }>();
+  useEffect(() => {
+    if (!key) return;
+    if (memo.has(key)) return setGot({ key, rows: memo.get(key) as Hex[] });
+    let live = true;
+    void project.timeline(bm!.timeline).then((t) => {
+      const rows = replayRows(t.points.map((p) => p.snapshot), l);
+      memo.set(key, rows);
+      if (live) setGot({ key, rows });
+    }, quiet);
+    return () => {
+      live = false;
+    };
+  }, [key, project, bm, l, memo]);
+  return !key ? null : got?.key === key ? got.rows : undefined;
 }
 
 // The "Related" view's rows for a view (Filter.only): its link group's
@@ -495,23 +554,43 @@ export function usePointAt(ref: DataRef | undefined):
   const failed = useLensState((s) => !!s.error);
   const [got, setGot] = useState<{ key: string;
     at: { p: TimelinePoint; i: number } }>();
-  useEffect(() => {
-    if (!key) return;
+  // (the point, kept: at once once it is in; memoised per point)
+  const ask = useMemo(() => {
     const [decoding, point] = key.split("\n");
-    let live = true;
-    const dc = decodingOf(lens, decoding);
-    if (!dc) return;
+    const dc = key ? decodingOf(lens, decoding) : undefined;
+    if (!dc) return undefined;
     // (its place: in its scene's moments)
     const i = project.bookmarks.find((b) => b.points.includes(point))
       ?.points.indexOf(point) ?? -1;
-    project.point(dc.timeline, point).then((p) => {
-      if (live) setGot({ key, at: { p, i } });
+    const k = `point|${dc.timeline}|${point}`;
+    const memo = project.memo as Map<string, Promise<TimelinePoint>>;
+    if (!memo.has(k)) {
+      const p = keep(project.point(dc.timeline, point));
+      p.catch(() => memo.get(k) === p && memo.delete(k));
+      memo.set(k, p);
+    }
+    return { p: memo.get(k)!, i };
+  }, [lens, project, key, failed]);
+  const kept = peek(ask?.p);
+  const now = useMemo(() => kept && ask && { p: kept, i: ask.i },
+    [kept, ask]);
+  useEffect(() => {
+    if (!ask || now) return;
+    let live = true;
+    ask.p.then((p) => {
+      if (live) setGot({ key, at: { p, i: ask.i } });
     }, quiet);
     return () => {
       live = false;
     };
-  }, [lens, project, key, failed]);
-  return got?.key === key ? got.at : undefined;
+  }, [ask, now, key]);
+  // (a replay playing: the step before's, until this one's is in, a
+  // microtask on; never a step drawn with none)
+  const playing = useLensState((s) => !!s.playing);
+  const last = useRef<{ p: TimelinePoint; i: number }>(undefined);
+  const out = now ?? (got?.key === key ? got.at : undefined);
+  if (out) last.current = out;
+  return out ?? (playing ? last.current : undefined);
 }
 
 export const useSnapshot = (ref: DataRef | undefined): Snapshot | undefined =>

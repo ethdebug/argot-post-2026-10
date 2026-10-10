@@ -1,6 +1,7 @@
 // A decoding at one timeline point: the value tree, each value's bytes
 // from the library's dereference() (vanilla decode.js decodeStorage,
 // walk, walkMapping, instantiate's take and lengthParts)
+import { keep } from "./kept";
 import { dereference, Data, type Pointer } from "./lib";
 import type {
   Compilation, Decoded, Decoding, DerefGraph, Format, Hex, InputNode,
@@ -44,7 +45,7 @@ export function decode(p: Project, d: Decoding, point: PointId):
   Promise<Decoded> {
   const k = `decode|${d.id}|${point}`;
   if (!p.memo.has(k)) {
-    const run = decodeAt(p, d, point);
+    const run = keep(decodeAt(p, d, point));
     run.catch(() => p.memo.get(k) === run && p.memo.delete(k));
     p.memo.set(k, run);
   }

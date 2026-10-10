@@ -43,8 +43,10 @@ describe.each(scenes.map((s) => [s.id, s] as const))("%s", (_, scene) => {
       }
     }
   });
-  // (6 KB since play() copies alice's record, name too, into memory)
+  // (6 KB since play() copies alice's record, name too, into memory; a
+  // replay, every trace step its moment: replay.test.ts's budget)
   it("is under 6 KB gzip", async () => {
+    if (scene.replay) return;
     const file = await sceneSnapshot(await authoring, scene);
     const size = zlib.gzipSync(json(snapshotJson(file))).length;
     expect(size).toBeLessThan(6 * 1024);

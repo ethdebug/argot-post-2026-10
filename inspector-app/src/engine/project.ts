@@ -8,7 +8,8 @@ import type {
   TimelineId, TimelinePoint,
 } from "./types";
 import {
-  compilationsOf, decodingsOf, pointOf, timelineOf, type BuildInfo,
+  compilationsOf, decodingsOf, marksOf, pointOf, replayOf, timelineOf,
+  type BuildInfo,
   type Scene, type SceneId,
 } from "./scene";
 import {
@@ -27,7 +28,10 @@ export interface Runs {
 // A scene as a bookmark: its timeline, the decoding it shows, its
 // caption for the page's summary line
 export type ProjectBookmark = Bookmark &
-  { timeline: TimelineId; decoding: DecodingId; summary?: string };
+  { timeline: TimelineId; decoding: DecodingId; summary?: string;
+    // (a replay's: its points every trace step, once its source loads;
+    // `marks`, the indexes of the scene's own moments among them)
+    replay?: true; marks?: number[] };
 
 export interface Project {
   scenes: Scene[];
@@ -78,6 +82,8 @@ const bookmarkOf = (s: Scene): ProjectBookmark => ({
   ...(s.timeline.length > 2 ? { moment: s.initial?.moment ?? 0 } : {}),
   timeline: timelineOf(s.id), decoding: s.id,
   ...(s.caption ? { summary: s.caption } : {}),
+  ...(s.replay ? { replay: true as const,
+    marks: s.timeline.map((_, i) => i) } : {}),
 });
 
 export async function load(io: Io, o: { scenes: Scene[];
@@ -130,8 +136,9 @@ export async function load(io: Io, o: { scenes: Scene[];
     asked.add(id);
     if (!o.runs) {
       const file = snapshotOf(await io.json(`snapshots/${id}.json`));
-      return { src: fromSnapshot(file),
-        compilations: file.build.compilations };
+      const src = fromSnapshot(file);
+      if (s.replay) dense(s, src);
+      return { src, compilations: file.build.compilations };
     }
     // (its build, and for one with no ethdebug, solc's: its rule)
     const info = o.builds[s.run.scenario];
@@ -141,9 +148,20 @@ export async function load(io: Io, o: { scenes: Scene[];
     const run = await o.runs.run(scenario, s.run.build);
     // (the run's code: never on the reader's path)
     const { fromRun } = await import("./source-run");
-    return { src: fromRun(run, scenario.builds[s.run.build], s.timeline),
-      compilations: compilationsOf(s, scenario) };
+    const src = fromRun(run, scenario.builds[s.run.build], s.replay
+      ? replayOf(s, run.txs[s.timeline[0].tx].steps) : s.timeline);
+    if (s.replay) dense(s, src);
+    return { src, compilations: compilationsOf(s, scenario) };
   });
+  // (a replay's bookmark, once its source loads: every trace step a
+  // point, its own moments its marks, the one it opens at a mark)
+  const dense = (s: Scene, src: MomentSource) => {
+    const bm = bookmarks.find((b) => b.id === s.id)!;
+    (bm.points as string[]).splice(0, Infinity, ...src.moments.map((_, k) =>
+      pointOf(s.id, k)));
+    bm.marks = marksOf(s, src.moments);
+    bm.moment = bm.marks[s.initial?.moment ?? 0];
+  };
   // a run's moments, all of them (its bookmark's points, once it ran)
   const runOf = memoised(async (id): Promise<MomentSource> => {
     const s = scene(id.slice(RUN.length));

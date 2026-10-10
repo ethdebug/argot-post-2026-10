@@ -29,5 +29,6 @@
     }
   ],
   "controls": "prev-next",
-  "variables": "scope"
+  "variables": "scope",
+  "replay": true
 }

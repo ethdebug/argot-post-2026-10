@@ -11,7 +11,10 @@ describe.each(["stepper-O0", "optimized-locals"])("%s", (scene) => {
   it("everything in scope; the name, sliced from the call, is its " +
     "calldata bytes, NAME_C", async () => {
     const p = await testProject();
-    const d = await decode(p, p.decodings[scene], `${scene}:1`);
+    // (the scene's second moment, a mark of its replay)
+    await p.source(scene);
+    const k = p.bookmarks.find((b) => b.id === scene)!.marks![1];
+    const d = await decode(p, p.decodings[scene], `${scene}:${k}`);
     expect(d.tree.map((n) => n.path)).toEqual(["@storage", "@locals"]);
     const name = d.byPath.get("name")!;
     // (a string calldata reference: text)

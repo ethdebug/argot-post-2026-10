@@ -4,7 +4,8 @@
 // tree), how a selection was found, and a dump of storage (the storage
 // inspector's own), calldata and memory, linked. A local whose pointer
 // reads calldata (join's `name`) lights the call's bytes. The
-// debugger's layout (debugger.css), the timeline where its moves are.
+// debugger's layout (debugger.css), the timeline where its moves are;
+// its play steps through the transaction (TimelineBar.tsx).
 import { Children, type ReactNode } from "react";
 import type { Filter, Location } from "../engine/types";
 import { panel } from "../ui/Panel";
@@ -26,7 +27,7 @@ export const stepper: LensSpec = {
   id: "stepper", title: "Stepping through bugc's code", timelines: [],
   decodings: [], grid: "", layout: "dbg stepper", links: ["st"],
   columns: 2,
-  areas: { wide: "dump dbg-col", side: "dbg-col" },
+  areas: { wide: "dump dbg-col", narrow: "dbg-col", side: "dbg-col" },
   wrap: { wide: Wide },
   views: [
     { id: "time", kind: "timeline", area: "moves", domId: "stime" },
@@ -41,5 +42,8 @@ export const stepper: LensSpec = {
       link: "st", data: NOW },
     dump("calldata", "Calldata"),
     dump("memory", "Memory"),
+    // (the stack, narrow beside them, as the debugger's)
+    { ...dump("stack", "Stack"), area: "narrow",
+      display: { ruler: false, abbreviate: 2 } } as ViewSpec,
   ],
 };
