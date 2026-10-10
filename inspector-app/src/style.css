@@ -562,14 +562,26 @@ li.same > .row .name, li.same > .row .type { opacity: 0.55; }
 /* The tree side of a link */
 .row.hl { background: var(--mark); border-radius: 4px;
   box-shadow: -4px 0 0 var(--mark), 4px 0 0 var(--mark); }
-/* (the selection's edge: a bar 3px wide just left of the fill's reach,
-   drawn over the row's fill and its shadows, never by a shadow of its
-   own: a shadow of the rounded row showed through the fill's rounded
-   corners, wider there and cut in the middle) */
+/* (the selection's edge: the old shape, a crescent 3px wide just left
+   of the fill's reach: its outer corners the row's (4px), its inner
+   edge following the fill's rounded corners (4px); drawn over the
+   row's fill and its shadows, never by a shadow of its own, which the
+   fill covered) */
 .row.sel { position: relative; }
 .row.sel::before { content: ""; position: absolute; z-index: 1;
-  left: -7px; top: 0; bottom: 0; width: 3px; border-radius: 1.5px;
-  background: var(--accent); pointer-events: none; }
+  left: -7px; top: 0; bottom: 0; width: 7px;
+  border-radius: 4px 0 0 4px; background: var(--accent);
+  pointer-events: none;
+  --cut-t: radial-gradient(circle at 100% 100%, transparent 3.5px,
+    #000 4.25px);
+  --cut-b: radial-gradient(circle at 100% 0, transparent 3.5px,
+    #000 4.25px);
+  -webkit-mask: linear-gradient(#000 0 0) 0 0 / 3px 100% no-repeat,
+    var(--cut-t) 3px 0 / 4px 4px no-repeat,
+    var(--cut-b) 3px 100% / 4px 4px no-repeat;
+  mask: linear-gradient(#000 0 0) 0 0 / 3px 100% no-repeat,
+    var(--cut-t) 3px 0 / 4px 4px no-repeat,
+    var(--cut-b) 3px 100% / 4px 4px no-repeat; }
 
 .wrow { position: relative; }
 
