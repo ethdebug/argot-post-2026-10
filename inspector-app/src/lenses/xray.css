@@ -72,10 +72,14 @@
 .lens.xray .xentry .ptrlines code { display: block; padding: 0;
   background: none; border-radius: 0; font: inherit; }
 /* (the range's lines: the walkthrough's band, in the selection's
-   yellow, as the source range is: its text the page's colour) */
-.lens.xray .ptrlines .line.on { background: var(--mark);
+   yellow, as the source range is: its text the page's colour; the
+   post's walkthrough panel's band too, embed/panel.css) */
+.lens.xray .ptrlines .line.on,
+#embed .wpanel.compact .ptrlines .line.on { background: var(--mark);
   box-shadow: none; }
-.lens.xray .ptrlines .line.on span[style] { color: var(--fg) !important; }
+.lens.xray .ptrlines .line.on span[style],
+#embed .wpanel.compact .ptrlines .line.on span[style] {
+  color: var(--fg) !important; }
 .lens.xray .ptrlines span[style] { color: var(--shiki-light); }
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) .lens.xray .ptrlines span[style] {

@@ -13,6 +13,7 @@
 import "../../../shared/appendix.css";
 import "../style.css";
 import "../ui/code.css";
+import "../lenses/xray.css";
 import "./embed.css";
 import "./panel.css";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
