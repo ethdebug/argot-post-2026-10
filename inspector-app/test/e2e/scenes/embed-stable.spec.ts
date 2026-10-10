@@ -50,3 +50,47 @@ for (const width of [390, 1024]) {
       }
     });
 }
+
+// A frame fits its content after the reader acts (a collapse shrinks
+// it); a shrink of a few pixels no one caused keeps its room
+test("pitfall-nesting: the reader's All, Related, collapse: the frame " +
+  "fits; a spontaneous 2px shrink keeps its room", async ({ page }) => {
+  await page.setViewportSize({ width: 1024, height: 900 });
+  const posted: number[] = [];
+  await page.exposeFunction("posted", (h: number) => posted.push(h));
+  await page.addInitScript(() => {
+    window.parent.postMessage = (m: { height: number }) =>
+      (window as never as { posted(h: number): void }).posted(m.height);
+  });
+  await page.goto("./embed.html#scene=pitfall-nesting");
+  await expect.poll(() => posted.length, { timeout: 20_000 })
+    .toBeGreaterThan(0);
+  await page.waitForTimeout(1500);
+  const ready = posted.at(-1)!;
+  // (a spontaneous relayout: 2px more, then 2px less, no input)
+  await page.evaluate(() => {
+    const d = document.createElement("div");
+    d.id = "bump";
+    d.style.height = "2px";
+    document.querySelector(".lens")!.append(d);
+  });
+  await expect.poll(() => posted.at(-1)).toBe(ready + 2);
+  await page.waitForTimeout(1200);
+  await page.evaluate(() => document.getElementById("bump")!.remove());
+  await page.waitForTimeout(500);
+  expect(posted.at(-1)).toBe(ready + 2);
+  // (the reader shows All, then Related again: it grows, then shrinks
+  // to fit; and collapses alice's record: it fits that too)
+  await page.locator('button[data-rows="all"]').click();
+  await expect.poll(() => posted.at(-1)).toBeGreaterThan(ready + 100);
+  await page.locator('button[data-rows="related"]').click();
+  await expect.poll(() => posted.at(-1)).toBeLessThan(ready + 2);
+  const A = "players[0x70997970c51812dc3a010c7d01b50e0d17dc79c8]";
+  await page.locator(`.tree li[data-path="${A}"] > .chev`).click();
+  await page.waitForTimeout(600);
+  const fit = await page.locator("#embed").evaluate((e) => {
+    (e as HTMLElement).style.minHeight = "";
+    return Math.ceil(e.getBoundingClientRect().height);
+  });
+  expect(posted.at(-1)).toBe(fit);
+});

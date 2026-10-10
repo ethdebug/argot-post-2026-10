@@ -9,7 +9,7 @@ import type {
 } from "./types";
 import { byteKey, short, slotHex, toBig } from "./hex";
 import {
-  addressing, allRows, hex4, near, nextRow, regionBytes, rowName,
+  addressing, allRows, fillGaps, hex4, near, nextRow, regionBytes, rowName,
 } from "./location";
 
 const PLAIN = 1n << 32n; // below this, a slot is a plain number
@@ -272,8 +272,9 @@ export function layout(d: Decoded, location: Location, filter: Filter = {},
       ...(own.has(address) ? { role: "own-slot" as const } : {}) };
   });
   if (filter.only) {
-    const keep = near(addresses, filter.only.rows, filter.only.context ?? 0,
-      location);
+    // (and the short runs between them: a gap row there saves no room)
+    const keep = fillGaps(addresses, near(addresses, filter.only.rows,
+      filter.only.context ?? 0, location), location);
     rows = rows.filter((r) => keep.has(r.address));
   }
   if (filter.maxRows !== undefined) rows = rows.slice(0, filter.maxRows);

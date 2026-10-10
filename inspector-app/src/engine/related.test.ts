@@ -27,27 +27,33 @@ const mid = async () => {
 const ROSTER0 = "keccak(slot 0)";
 const RECORD = "keccak(0x7099…79c8, slot 3)";
 
+// (and playerList's length, slot 0: what holds its key, consulted too;
+// slots 1 and 2 between slot 0 and slot 3, shown: a gap row there saves
+// no room)
+const LOW = ["slot 0", "slot 1", "slot 2", "slot 3"];
+
 it("a packed field: the mapping's root, its key's slot, its record's",
   async () => {
     const { rows } = await mid();
-    expect(rows(`${A}.score`)).toEqual(["slot 3", ROSTER0, RECORD]);
+    expect(rows(`${A}.score`)).toEqual([...LOW, ROSTER0, RECORD]);
   });
 
 it("one row of context: each related row's neighbours that are rows",
   async () => {
     const { rows } = await mid();
-    expect(rows(`${A}.score`, 1)).toEqual(["slot 2", "slot 3", ROSTER0,
+    expect(rows(`${A}.score`, 1)).toEqual([...LOW, ROSTER0,
       `${ROSTER0} + 1`, RECORD, `${RECORD} + 1`]);
   });
 
-it("a value with a walkthrough of one step: its own slot", async () => {
+it("a value with a walkthrough of one step: its own slot (and slots 0 "
+  + "and 1 before it: a gap row would save no room)", async () => {
   const { rows } = await mid();
-  expect(rows("totalScore")).toEqual(["slot 2"]);
+  expect(rows("totalScore")).toEqual(["slot 0", "slot 1", "slot 2"]);
 });
 
 it("a string: its record's slots, its length and its data", async () => {
   const { rows } = await mid();
-  expect(rows(`${A}.name`)).toEqual(["slot 3", ROSTER0, RECORD,
+  expect(rows(`${A}.name`)).toEqual([...LOW, ROSTER0, RECORD,
     `${RECORD} + 1`]);
 });
 
@@ -86,9 +92,15 @@ it("what it consulted: each key in its record's colour; the anchor",
       { selection: true }).colours);
     // (a key that leads to the selection as a whole: neutral)
     const one = of(C);
-    // (and players, whose slot 3 it consulted as the anchor)
-    expect([...one.relColours!]).toEqual([["playerList[2]", 0],
-      ["players", 0]]);
+    // (and players, whose slot 3 it consulted as the anchor; and
+    // playerList, which holds its key: consulted too, its length read,
+    // and why)
+    expect(new Map(one.relColours!)).toEqual(new Map([["playerList[2]", 0],
+      ["playerList", 0], ["players", 0]]));
+    const s0 = `0x${"0".padStart(64, "0")}` as const;
+    expect(one.relReads!.has(s0)).toBe(true);
+    expect(one.relWhy!.get(s0)).toEqual([{ name: "playerList",
+      why: "length", of: "playerList" }]);
     expect(relClass(one, ["playerList[2]"])).toBe("rel pkn");
     expect(relClass(all, ["playerList[1]"])).toBe("rel pk2");
     expect(relClass(all, [`${A}.score`])).toBe(null);
