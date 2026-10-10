@@ -562,9 +562,14 @@ li.same > .row .name, li.same > .row .type { opacity: 0.55; }
 /* The tree side of a link */
 .row.hl { background: var(--mark); border-radius: 4px;
   box-shadow: -4px 0 0 var(--mark), 4px 0 0 var(--mark); }
-.row.sel { box-shadow: -7px 0 0 var(--accent); }
-.row.hl.sel { box-shadow: -4px 0 0 var(--mark), 4px 0 0 var(--mark),
-  -7px 0 0 var(--accent); }
+/* (the selection's edge: a bar 3px wide just left of the fill's reach,
+   drawn over the row's fill and its shadows, never by a shadow of its
+   own: a shadow of the rounded row showed through the fill's rounded
+   corners, wider there and cut in the middle) */
+.row.sel { position: relative; }
+.row.sel::before { content: ""; position: absolute; z-index: 1;
+  left: -7px; top: 0; bottom: 0; width: 3px; border-radius: 1.5px;
+  background: var(--accent); pointer-events: none; }
 
 .wrow { position: relative; }
 
@@ -711,9 +716,6 @@ main[data-single] .walkzone > .cols :is(.chglegend, .legend .bchg,
 .row.hl:is(.pk1, .pk2, .pk3, .pk4, .pk5, .pk6, .pk7, .pk8) {
   background: var(--pk); color: var(--pk-fg);
   box-shadow: -4px 0 0 var(--pk), 4px 0 0 var(--pk); }
-.row.hl.sel:is(.pk1, .pk2, .pk3, .pk4, .pk5, .pk6, .pk7, .pk8) {
-  box-shadow: -4px 0 0 var(--pk), 4px 0 0 var(--pk),
-    -7px 0 0 var(--accent); }
 .row.hl:is(.pk1, .pk2, .pk3, .pk4, .pk5, .pk6, .pk7, .pk8) :is(.type, .val) {
   color: inherit; }
 
