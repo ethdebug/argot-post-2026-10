@@ -9,7 +9,8 @@ import http from "node:http";
 
 export const app = path.dirname(path.dirname(fileURLToPath(
   import.meta.url)));
-export const WIDTHS = [390, 680, 1024, 1360];
+// (790: the host's "narrow" frame)
+export const WIDTHS = [390, 680, 790, 1024, 1360];
 // (and a phone's figure, its text column inside the page's gutters: an
 // iPhone's 390px less 2 × 16px, a 375px one's)
 export const PHONES = [343, 358];
