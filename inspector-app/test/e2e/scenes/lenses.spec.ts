@@ -46,6 +46,8 @@ for (const lens of ["alice-plays", "vyper"]) {
     });
 
   test(`${lens}: a chevron at its row's right end`, async ({ page }) => {
+    // (the compilers' pitfall has none: one path, both sides one)
+    test.skip(lens === "vyper", "no chevrons in the vyper lens");
     await open(page, lens);
     const g = await page.evaluate((a) => {
       const li = document.querySelector(`.tree li[data-path="${a}"]`)!;

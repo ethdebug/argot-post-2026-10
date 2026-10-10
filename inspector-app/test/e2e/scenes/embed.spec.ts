@@ -237,7 +237,16 @@ test("embed.html#scene=pitfall-compiler: Solidity's rule 0, Vyper's layout " +
   expect(b.left).toBeGreaterThan(a.right);
   // (one entry, one field: nothing else in the trees)
   await expect(page.locator(".tree li[data-path]")).toHaveCount(6);
-  await expect.poll(() => posted.at(-1)?.height).toBeLessThan(400);
+  // (and its line for the ↺ Reset: about 400px)
+  await expect.poll(() => posted.at(-1)?.height).toBeLessThan(420);
+  // (the two dumps, one over the other, a word a row; the facts at the
+  // nesting figure's size, 12px or more)
+  expect(await page.locator(".pop").first().evaluate((e) =>
+    parseFloat(getComputedStyle(e).fontSize))).toBeGreaterThanOrEqual(12);
+  await expect(page.locator(".pop")).toHaveText([
+    "keccak(0x7099…79c8, slot 3) : score 0 · empty: all zeros",
+    "keccak(slot 108, 0x7099…79c8) : score 30"]);
+  await expect(page.locator(".tree .chev:visible")).toHaveCount(0);
   expect(posted.at(-1)!.columns).toBe(2);
 });
 
@@ -271,8 +280,10 @@ for (const [id, has] of [["mid", true], ["raw-hero", true],
       expect(Math.abs(last.storageBottom! - bottom)).toBeLessThan(1);
       // (two rows next to each other: their tops' distance)
       const want = await page.evaluate(() => {
-        const rs = [...document.querySelectorAll(
-          '.view[data-location="storage"] .rows .wrow[data-slot]')]
+        // (the first storage dump's)
+        const rs = [...document.querySelector(
+          '.view[data-location="storage"]')!.querySelectorAll(
+          ".rows .wrow[data-slot]")]
           .map((r) => r.getBoundingClientRect());
         const d = rs.slice(1).map((r, k) => r.top - rs[k].top)
           .filter((x) => x > 0);
@@ -303,7 +314,7 @@ test("embed.html#scene=pitfall-compiler: the two hashes' arguments, badged; " +
   expect(sol.map(([t]) => t)).toEqual(["…79c8", "slot 3"]);
   expect(vy.map(([t]) => t)).toEqual(["slot 108", "…79c8"]);
   expect([sol[0][1], sol[1][1]]).toEqual([vy[1][1], vy[0][1]]);
-  await expect(pops.nth(0)).toContainText("(empty: all zeros)");
+  await expect(pops.nth(0)).toContainText("empty: all zeros");
   await expect(pops.nth(1)).not.toContainText("empty");
 });
 

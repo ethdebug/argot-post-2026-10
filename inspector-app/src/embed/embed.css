@@ -96,3 +96,6 @@ html, body { margin: 0; overflow: hidden; background: transparent; }
    walkthrough bar, whose ✕ Exit takes that corner) */
 #embed .tbar:not(.empty):not(.one) { padding-right: 84px; }
 #embed [data-mode="reader"]:has(.wpanel) > .reset { display: none; }
+/* (the compilers' pitfall: both columns' headings reach the right edge;
+   a line of its own for the ↺ Reset above them) */
+#embed .lens.vyper { padding-top: 28px; }
