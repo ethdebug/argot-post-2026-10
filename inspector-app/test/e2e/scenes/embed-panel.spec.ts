@@ -306,3 +306,32 @@ test("the figure's showAfter: its tree's selection's rows' bottom; the " +
     stuck: true, edge: "bottom" }, "*"));
   await expect(p.locator("html")).toHaveAttribute("data-stuck", "bottom");
 });
+
+// (the post's figure keeps its own ↺ Reset, over the figure, as the
+// other figures; the panel none: a step in the panel shows it, and it
+// takes both back to the start)
+test("the figure's Reset, not the panel's, takes both back",
+  async ({ page, baseURL }) => {
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await page.goto("./embed.html");
+    await page.setContent(`<body style="margin:0">
+    <iframe id="p" src="${baseURL}embed-panel.html#scene=pointer-walkthrough&channel=r"
+      style="border:0;width:1216px;height:300px;display:block"></iframe>
+    <iframe id="f" src="${baseURL}embed.html#scene=pointer-walkthrough&panel=external&channel=r"
+      style="border:0;width:1216px;height:900px;display:block"></iframe>
+    </body>`);
+    const p = page.frameLocator("#p");
+    const f = page.frameLocator("#f");
+    const count = p.locator(".pshown .rcount");
+    await expect(count).toBeVisible({ timeout: 30_000 });
+    const first = await count.textContent();
+    await expect(p.locator(".pshown .reset")).toHaveCount(0);
+    const reset = f.locator(".reset");
+    await expect(reset).not.toHaveAttribute("data-shown", "");
+    await p.locator('.pshown [data-r="next"]').click();
+    await expect(count).not.toHaveText(first!);
+    await expect(reset).toHaveAttribute("data-shown", "");
+    await reset.click();
+    await expect(count).toHaveText(first!);
+    await expect(reset).not.toHaveAttribute("data-shown", "");
+  });

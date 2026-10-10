@@ -3,13 +3,16 @@
 // snapshots, authoring's runs), the controls and the extra panels:
 // in authoring, the debugger over the scene's run, beside the scene
 // (a "Debugger | Scene" switch on a narrow page), and the pins.
-import { useCallback, useEffect, useMemo, useState } from "react";
+import {
+  useCallback, useContext, useEffect, useMemo, useState,
+} from "react";
 import type { Project } from "../engine/project";
 import type { Scene } from "../engine/scene";
 import type { MomentRef } from "../engine/run/types";
 import { debuggerLens } from "../lenses/debugger";
 import { Lens } from "./Lens";
 import { PinBar } from "./PinBar";
+import { PanelPort } from "./panel-port";
 import { Reset, ResetContext, useReset } from "./Reset";
 import type { LensContextValue } from "./hooks";
 import type { LensSpec } from "./types";
@@ -52,6 +55,7 @@ export function SceneHost(p: { scene: Scene; project: Project;
   const onReady = useCallback((lens: LensContextValue,
     ready: Promise<boolean>) => setLive((x) => x?.lens === lens &&
       x.ready === ready ? x : { lens, ready }), []);
+  const port = useContext(PanelPort);
   const reset = useReset({ lens: live?.lens ?? null,
     ready: live?.ready ?? null, scene: p.scene.id });
   if (!shown) return <p className="error">no lens {p.scene.lens}</p>;
@@ -59,8 +63,11 @@ export function SceneHost(p: { scene: Scene; project: Project;
     onReady={p.mode === "reader" ? onReady : undefined} />;
   if (p.mode === "reader") {
     // (a figure with a walkthrough: its Reset in the walkthrough's bar,
-    // where its Exit was; else its own, over the figure)
-    const walks = shown.views.some((v) => v.kind === "walkthrough");
+    // where its Exit was; else its own, over the figure; and a figure
+    // whose panel is a frame of its own, the post's: its own, over the
+    // figure, the panel without one)
+    const walks = !port &&
+      shown.views.some((v) => v.kind === "walkthrough");
     return <div data-scene={p.scene.id} data-mode={p.mode}
       style={{ display: "contents" }}>
       <ResetContext.Provider value={reset}>
