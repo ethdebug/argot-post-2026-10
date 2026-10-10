@@ -132,14 +132,12 @@
 /* (the related view's context rows, around the related ones: faded,
    plainer than the consulted rows) */
 .wrow.ctx > :is(.addr, .word) { opacity: 0.55; }
-/* The compilers' pitfall (lenses/vyper.ts): one storage read two ways.
-   The figure as wide as the storage inspector's dump column (790px at
-   most: the nesting figure's type), centred: the two readings side by
+/* The compilers' pitfall (lenses/vyper.ts): one storage read two ways,
+   filling its frame (the host sizes it): the two readings side by
    side, their headings one subgrid row (the hand-written badge may
    wrap, the score rows stay level), no chevrons (one path, both sides
    one); the one dump under them, a word a row. Narrower than 660px: the
    readings one over the other, Solidity's first, then the dump */
-.lens.vyper[style] { max-width: 790px; margin: 0 auto; width: 100%; }
 @media (min-width: 660px) {
   .lens.vyper[style] { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr)
     !important; grid-template-rows: auto auto auto !important;
