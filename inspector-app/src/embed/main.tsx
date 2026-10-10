@@ -107,18 +107,27 @@ const rowPitch = (): { row?: number } => {
   const row = steps.length ? Math.min(...steps) : rows[0].height + gap;
   return { row: Math.round(row * 100) / 100 };
 };
-// (once ready, at one frame width the height never shrinks: a late
-// relayout a pixel or two shorter leaves its room, and the host's page
-// never moves; a new width starts again)
+// (once ready, a shrink of a few pixels no reader caused, a late
+// relayout, keeps its room: the host's page never moves on its own. A
+// change after the reader acts in the frame, or in its panel's (a click,
+// a key, a step: in the last second), either way, is the content's: the
+// frame fits it. A new width starts again)
+const NOISE = 4;
+const ACTED = 1000;
+let acted = -Infinity;
+const act = () => { acted = performance.now(); };
+for (const t of ["pointerdown", "keydown", "click", "change"]) {
+  addEventListener(t, act, true);
+}
 let tallAt = { width: -1, height: 0 };
 const post = () => {
   if (!ready) return;
-  if (tallAt.width !== innerWidth) {
-    tallAt = { width: innerWidth, height: 0 };
-    root.style.minHeight = "";
-  }
+  root.style.minHeight = "";
   const m = measure();
-  m.height = tallAt.height = Math.max(tallAt.height, m.height);
+  const kept = tallAt.width === innerWidth ? tallAt.height : 0;
+  if (kept && m.height < kept && kept - m.height <= NOISE &&
+    performance.now() - acted > ACTED) m.height = kept;
+  tallAt = { width: innerWidth, height: m.height };
   root.style.minHeight = `${m.height}px`;
   const key = `${m.height}|${m.width}|${m.row}|${m.storageBottom}`;
   if (key === last) return;
@@ -128,7 +137,13 @@ const post = () => {
     ...first ? { ready: true } : {}, ...reveals ? { reveal: true } : {} },
   "*");
 };
-new ResizeObserver(post).observe(root);
+// (the root, and what it holds: the root keeps its min-height, so a
+// shrink shows only in its content)
+const ro = new ResizeObserver(post);
+ro.observe(root);
+new MutationObserver(() => {
+  for (const c of root.querySelectorAll(":scope > *, .lens")) ro.observe(c);
+}).observe(root, { childList: true, subtree: true });
 // (drawn: a dump's rows, or the scene's error; then the fonts, and the
 // frames the views take to fit and line up)
 // (timers, not animation frames: a frame out of view, as a host's
@@ -189,6 +204,8 @@ reveals = !!lens?.views.some((v) => v.kind === "dump" &&
 void whenDrawn();
 const port = hash.get("panel") === "external"
   ? figurePort(channelName(id, hash.get("channel") ?? "")) : null;
+// (a reader's step in the panel's frame: an act here too)
+port?.listen(act);
 createRoot(root).render(figure && lens?.page
   ? <lens.page spec={lens} project={project} />
   : scene

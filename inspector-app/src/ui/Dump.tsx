@@ -31,7 +31,7 @@ import type {
 } from "../engine/types";
 import { byteKey, short, wordShort } from "../engine/hex";
 import {
-  decodingOf, useDecoded, useLayout, useLens, useLight, useLink,
+  decodingOf, useDecoded, useLayout, useLens, useLensState, useLight, useLink,
   usePointAt, hush,
 } from "./hooks";
 import { blockOf, resolveTarget } from "../engine/target";
@@ -308,6 +308,7 @@ export function Dump(p: { id: ViewId; location: Location; data: DataRef;
   // it stays unlit meanwhile)
   const earlier = "moment" in p.data && p.data.moment === "previous";
   const light = bare || (earlier && walkLink.walk) ? noLight : lit0;
+  const relOn = useLensState((s) => s.related !== undefined);
   // what the compared point lights (a slot lit there only: "only"; none
   // in a walkthrough, which walks one side: vanilla panel.js)
   const there0 = useLight(p.id, p.filter, p.compare, p.data);
@@ -672,7 +673,10 @@ export function Dump(p: { id: ViewId; location: Location; data: DataRef;
     } else if (r.gapBefore) {
       lines.push(<div key={`g${k}`} className="gap" aria-hidden="true"
         data-vt={vt("gap", r.address)}><span>⋯</span></div>);
-    } else if (slots && !bare && !/^slot \d+$|\+ \d+$/.test(name)) {
+    } else if (slots && !bare && (!/^slot \d+$|\+ \d+$/.test(name) ||
+      // (in the related view, under a row the selection consulted: room
+      // for its light popover, as a hashed row has above it)
+      (relOn && k > 0 && !!light.related?.has(rows[k - 1].address)))) {
       lines.push(<div key={`r${k}`} className="gap room"
         aria-hidden="true" />);
     }

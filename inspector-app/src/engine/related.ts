@@ -14,6 +14,7 @@ import { byteKey, slotHex, toBig } from "./hex";
 import { ownerPath } from "./light";
 import { parentIn, within } from "./tree-paths";
 import { slotsOf, type Walkthrough } from "./walkthrough/fold";
+import type { RelWhy } from "./types";
 
 // What a selection's derivation does with each slot it consults, from
 // the dereference graph: the instances its own regions used, and
@@ -68,6 +69,26 @@ export function roles(d: Decoded, path: Path, location: Location):
   return { read, anchors };
 }
 
+// The parents of what a selection consulted, outside it: consulted too,
+// up to their variable (playerList, for playerList[0]); and their own
+// regions, a list's length (not the selection's own groups: its anchors
+// are theirs)
+export function consultedParents(d: Decoded, path: Path,
+  w: Walkthrough | null): { paths: Path[]; regions: ResolvedRegion[] } {
+  const paths = new Set<Path>();
+  for (const q of relatedValues(d, path, w)) {
+    if (q === path) continue;
+    for (let p = parentIn(d.byPath, q); p !== undefined && p !== "";
+      p = parentIn(d.byPath, p)) {
+      if (within(d.byPath, path, p)) break;
+      paths.add(p);
+    }
+  }
+  const regions = [...paths].flatMap((p) => (d.byPath.get(p)?.regions ??
+    []).filter((r) => r.role === "length"));
+  return { paths: [...paths], regions };
+}
+
 export function related(d: Decoded, path: Path, w: Walkthrough | null,
   location: Location): Hex[] {
   const n = d.byPath.get(path);
@@ -87,6 +108,11 @@ export function related(d: Decoded, path: Path, w: Walkthrough | null,
   visit(n);
   if (w && location === "storage") {
     slotsOf(w.steps).forEach((h) => out.add(h));
+  }
+  // (and the own regions of what holds what it consulted)
+  for (const x of consultedParents(d, path, w).regions) {
+    if (x.location !== location) continue;
+    for (const [row] of regionBytes(x)) out.add(row);
   }
   return [...out].sort((a, b) => BigInt(a) < BigInt(b) ? -1 : 1);
 }
@@ -141,9 +167,56 @@ export function withRelated(light: Light, d: Decoded, l: Layout,
     if (!relColours.has(ownerPath(id))) continue;
     for (const k of keys) if (!light.bytes.has(k)) relBytes.add(k);
   }
-  // (the bytes it read: tinted, neutral, and their owners' tree rows)
+  // (the bytes it read: tinted, neutral, and their owners' tree rows;
+  // and the parents of what it consulted, their own regions read too)
   const reads = new Set<Hex>();
-  for (const r of read) {
+  const parents = consultedParents(d, path, w);
+  for (const p of parents.paths) {
+    if (!light.rows.has(p) && !relColours.has(p)) relColours.set(p, 0);
+  }
+  // (why each read row was read: a key of the selection's path, or the
+  // length of what holds one; by the value that holds its bytes)
+  const why = new Map<Hex, RelWhy[]>();
+  // (the selection's entries by their key: a mapping selected whole)
+  const entries = new Map<string, Path>();
+  for (const x of d.byPath.keys()) {
+    const k = x.match(/\[(0x[0-9a-fA-F]+)\]$/);
+    if (k && x !== path && within(d.byPath, x, path)) {
+      entries.set(k[1].toLowerCase(), x);
+    }
+  }
+  const because = (row: Hex, w0: RelWhy) => {
+    const ws = why.get(row) ?? [];
+    if (!ws.some((x) => x.name === w0.name)) why.set(row, [...ws, w0]);
+  };
+  // (the regions it read, those of the values it consulted, and their
+  // parents' own)
+  const seen = [...read, ...values.flatMap((q) => d.byPath.get(q)?.regions
+    ?? []), ...parents.regions];
+  for (const r of seen) {
+    if (r.location !== l.location) continue;
+    for (const [row, b] of regionBytes(r)) {
+      for (const o of l.cover.get(byteKey(r.location, row, b)) ?? []) {
+        const q = ownerPath(o);
+        const n = d.byPath.get(q);
+        const v = n?.value?.text?.toLowerCase();
+        const at = v && /^0x[0-9a-f]+$/.test(v)
+          ? path.toLowerCase().indexOf(`[${v}]`) : -1;
+        // (a key of the selection's path, or of one of its entries: a
+        // mapping selected whole)
+        const entry = v ? entries.get(v) : undefined;
+        if (at >= 0) {
+          because(row, { name: q, why: "key",
+            of: path.slice(0, at + v!.length + 2) });
+        } else if (entry) {
+          because(row, { name: q, why: "key", of: entry });
+        } else if (/#length$/.test(o) || r.role === "length") {
+          because(row, { name: q, why: "length", of: q });
+        }
+      }
+    }
+  }
+  for (const r of [...read, ...parents.regions]) {
     for (const [row, b] of regionBytes(r)) {
       const k = byteKey(r.location, row, b);
       if (light.bytes.has(k)) continue;
@@ -172,7 +245,7 @@ export function withRelated(light: Light, d: Decoded, l: Layout,
     }
   }
   return { ...light, related: new Set(rows.filter((r) => !lit.has(r))),
-    relBytes, relColours, relReads: reads, anchors };
+    relBytes, relColours, relReads: reads, anchors, relWhy: why };
 }
 
 // The related treatment's classes for a consulted value's bytes, row or

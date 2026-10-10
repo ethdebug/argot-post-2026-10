@@ -243,6 +243,18 @@ function whatIn(root: El, rowsIn: El[]): Item[] {
   if (anchorNote && !data(r0!)?.light.relReads?.has(slotOf(r0!))) {
     return [anchorNote];
   }
+  // (a slot it read: why, by the values there, "playerList[0] (key for
+  // players[0x7099…79c8])", "(length of playerList)"; a note, as the
+  // anchor's, never cut)
+  const whys = r0 && !walk ? data(r0)?.light.relWhy?.get(slotOf(r0)) : null;
+  if (whys?.length) {
+    const notes = whys.map((w, i): Item => noteItem(w.why === "key"
+      ? [{ name: shortKeys(w.name) }, " (key for ", { name: shortKeys(w.of) },
+        ")"]
+      : ["(length of ", { name: shortKeys(w.of) }, ")"],
+    i ? " · " : " · ", { fixed: true, seg: 0 }));
+    return anchorNote ? [...notes, anchorNote] : notes;
+  }
   if (!owners.length) {
     if (anchorNote) return [anchorNote];
     // (a row no value owns, pointed at: its bytes one "(unmapped)" run,

@@ -22,8 +22,10 @@ const ROSTER0 = "keccak(slot 0)";
 const RECORD = "keccak(0x7099…79c8, slot 3)";
 
 // (the related view: the related rows, and a row around each, always)
-const SIX = ["slot 2", "slot 3", ROSTER0, `${ROSTER0} + 1`, RECORD,
-  `${RECORD} + 1`];
+// (and slot 0, playerList's length: what holds the key, consulted too;
+// slot 1 between: a gap row there would save no room)
+const SIX = ["slot 0", "slot 1", "slot 2", "slot 3", ROSTER0,
+  `${ROSTER0} + 1`, RECORD, `${RECORD} + 1`];
 
 test("All | Related: on, off; in the hash", async ({ page }) => {
   await open(page, `ex=mid&sel=${A}.score`);
@@ -82,8 +84,7 @@ test("a walkthrough in the related view: step 0 to found, the same rows",
   async ({ page }) => {
     await open(page, `ex=mid&sel=${A}&rel=0`);
     const shown = await rows(page);
-    expect(shown).toEqual(["slot 2", "slot 3", ROSTER0, `${ROSTER0} + 1`,
-      RECORD, `${RECORD} + 1`]);
+    expect(shown).toEqual(SIX);
     await page.locator('#details button[data-r="start"]').click();
     await expect(page.locator("#details .rcount")).toHaveText("start");
     // (step 0: the record's slots lit, in rows that are shown)
@@ -115,7 +116,13 @@ test("what a selection consulted: tinted in its record's colour, a light "
     await expect(page.locator(
       '#tree li[data-path="playerList[1]"] > .row')).toHaveClass(/rel pk2/);
     const pop = page.locator(".pop.kept.related");
-    await expect(pop.filter({ hasText: "keccak(slot 0)" })).toHaveCount(1);
+    // (All: the three keys' run, one popover; Related: room under each,
+    // each its own, why: a key)
+    await expect(pop.filter({ hasText: "keccak(slot 0)" }))
+      .toHaveCount(rel ? 3 : 1);
+    if (rel) {
+      await expect(pop.filter({ hasText: /^keccak\(slot 0\) : playerList\[0\] \(key for players\[0x7099…79c8\]\)$/ })).toHaveCount(1);
+    }
     await expect(pop.filter({ hasText: "slot 3 : (anchor slot for players)" }))
       .toHaveCount(1);
     // (the selection's own: as before, lit, a black popover)
@@ -145,7 +152,7 @@ test("a consulted slot's role: anchor (a note), read (its names), both",
     // the data's base (anchor): both)
     await open(page, "ex=mid&sel=playerList[0]");
     await expect(pop("slot 0")).toHaveText(
-      "slot 0 : length · (anchor slot for playerList)");
+      "slot 0 : (length of playerList) · (anchor slot for playerList)");
     // (playerList itself: slot 0 is its own length, lit, as before)
     await open(page, "ex=mid&sel=playerList");
     await expect(pop("slot 0")).not.toHaveClass(/related/);
@@ -175,7 +182,7 @@ test.describe("view transitions", () => {
       await page.locator('#related button[data-rows="related"]').click();
       await settle();
       expect(await n()).toBe(1);
-      await expect.poll(() => rows(page)).toHaveLength(6);
+      await expect.poll(() => rows(page)).toHaveLength(SIX.length);
       await page.locator('#tree li[data-path="playerList[0]"] > .row').hover();
       await settle();
       expect(await n()).toBe(1);
@@ -331,6 +338,6 @@ test.describe("view transitions", () => {
       await still(page);
       await expect(page.locator('#related button[data-rows="related"]'))
         .toHaveAttribute("aria-checked", "true");
-      await expect.poll(() => rows(page)).toHaveLength(6);
+      await expect.poll(() => rows(page)).toHaveLength(SIX.length);
     });
 });

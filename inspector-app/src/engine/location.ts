@@ -65,6 +65,34 @@ export function near(all: Hex[], rows: Iterable<Hex>, context: number,
   return keep;
 }
 
+// … and the rows a gap would hide for little room: a hidden run of at
+// most `most` rows (a gap row is about two rows tall) between two kept
+// rows, or before the first from the location's start, every row of it
+// next to the one before; kept too
+export function fillGaps(all: Hex[], keep: Set<Hex>, location: Location,
+  most = 2): Set<Hex> {
+  const out = new Set(keep);
+  let run: Hex[] = [];
+  let joined = true; // (the run so far follows on from a kept row, or 0)
+  let prev: Hex | null = null;
+  for (const a of all) {
+    const next = prev === null ? BigInt(a) === 0n
+      : nextRow(location, prev) === BigInt(a);
+    if (keep.has(a)) {
+      if (run.length && run.length <= most && joined && next) {
+        run.forEach((h) => out.add(h));
+      }
+      run = [];
+      joined = true;
+    } else {
+      if (!next) joined = false;
+      run.push(a);
+    }
+    prev = a;
+  }
+  return out;
+}
+
 // a row's name, for a location whose rows are not found by a rule: the
 // location and its offset ("memory 0x0080", "calldata 0x0020")
 export const rowName = (l: Location, row: Hex) =>
