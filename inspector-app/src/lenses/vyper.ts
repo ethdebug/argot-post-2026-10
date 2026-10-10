@@ -1,35 +1,35 @@
-// Phase 2's "Vyper vs Solidity" (spec §6c), with Phase 1 parts only:
-// the same storage read by solc's rule and by Vyper's own layout (a
-// hand-written pointer, badged so), linked by path
+// The compilers' pitfall (the post's figure; scene pitfall-compiler):
+// ONE storage, the Vyper contract's, read two ways: by solc's rule and
+// by Vyper's own layout (a hand-written pointer, badged so). The two
+// readings side by side, each in a colour of its own, over the one dump:
+// Vyper's reading lit where it lands, Solidity's outlined where it
+// lands (an empty slot); linked by path
 import type { LensSpec } from "../ui/types";
 
 const SOL = { decoding: "$scene", moment: "current" } as const;
 const VY = { decoding: "$rule", moment: "current" } as const;
 const players = { roots: ["players"], rows: "values" as const };
+// (each reading's colour: neither the selection's yellow, nor the hash
+// arguments' badges' (pk3, the key; pk6, the slot))
+const SOLC = 1, VYC = 2;
 
 export const vyper: LensSpec = {
   id: "vyper", title: "Vyper vs Solidity",
   timelines: [], decodings: [], initial: { scene: "pitfall-compiler" },
-  // (the two answers side by side, each over its own storage)
-  // (the dumps one over the other, each a word a row at the storage
-  // inspector's size: raw.css-like rules in port.css .lens.vyper)
-  grid: '"t1 t2" "d1 d2"', columns: 2, layout: "vyper",
+  grid: '"t1 t2" "d d"', columns: 2, layout: "vyper",
   links: ["v"],
   views: [
     { id: "t1", kind: "tree", area: "t1", link: "v", filter: players,
-      align: [], title: "Solidity's rule",
-      data: SOL },
-    { id: "d1", kind: "dump", area: "d1", link: "v", location: "storage",
-      filter: players, title: "Storage, by Solidity's rule",
-      display: { ruler: false, facts: true },
+      align: [], title: "Solidity's rule", tint: SOLC, names: VY,
       data: SOL },
     { id: "t2", kind: "tree", area: "t2", link: "v", filter: players,
-      align: [], title: "Vyper's layout",
+      align: [], title: "Vyper's layout", tint: VYC,
       data: VY },
-    { id: "d2", kind: "dump", area: "d2", link: "v", location: "storage",
-      filter: players, title: "Storage, by Vyper's layout",
-      display: { ruler: false, facts: true },
+    { id: "d", kind: "dump", area: "d", link: "v", location: "storage",
+      filter: players, title: "Storage",
+      display: { ruler: false, facts: true, tint: VYC, ends: false,
+        second: { data: SOL, tint: SOLC } },
       data: VY },
   ],
-  areas: { t1: "treebox", t2: "treebox", d1: "dump", d2: "dump" },
+  areas: { t1: "treebox", t2: "treebox", d: "dump" },
 };
