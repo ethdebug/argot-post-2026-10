@@ -29,6 +29,10 @@ jobs:
         working-directory: inspector-app
       - run: node bin/heights.mjs ../_site
         working-directory: inspector-app
+      # (and their posters, each scene at the post's frame widths, light and
+      # dark: posters/, for the post's readers without the live figures)
+      - run: node bin/posters.mjs ../_site
+        working-directory: inspector-app
       - uses: actions/configure-pages@v5
         if: github.ref == 'refs/heads/main'
       - uses: actions/upload-pages-artifact@v3
