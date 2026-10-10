@@ -526,9 +526,9 @@ export function Tree(p: { id: ViewId; data: DataRef; filter?: Filter;
       onPointerOver={point} onPointerMove={point} onFocus={point}
       onClick={onClick} onKeyDown={onKey}>
       {p.title && <p className="view-name treehead">{p.title}
+        {/* (on a heading's line: short, the language the heading's) */}
         {comp?.provenance === "hand-written" && <span className="handmade">
-          {" "}{lang[0]?.toUpperCase() + lang.slice(1)} doesn't emit
-          ethdebug, so we wrote this by hand</span>}</p>}
+          {" "}ethdebug data written by hand</span>}</p>}
       {!p.title && comp?.provenance === "hand-written" &&
         <p className="handmade">
         {lang[0]?.toUpperCase() + lang.slice(1)} doesn't emit ethdebug, so

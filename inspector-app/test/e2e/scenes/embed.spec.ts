@@ -230,7 +230,7 @@ test("embed.html#scene=pitfall-compiler: Solidity's rule 0, Vyper's layout " +
   await expect(val).toHaveText(["0", "30"], { timeout: 20_000 });
   await expect(page.locator(".tree .treehead")).toHaveText([
     "Solidity's rule",
-    /^Vyper's layout\s+Vyper doesn't emit ethdebug, so we wrote this by/i]);
+    /^Vyper's layout\s+ethdebug data written by hand$/i]);
   const [a, b] = await val.evaluateAll((v) => v.map((e) =>
     e.getBoundingClientRect()));
   expect(Math.abs(a.top - b.top)).toBeLessThan(30);
