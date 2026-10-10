@@ -42,8 +42,9 @@ addEventListener("message", (e) => {
 // walkthrough, at this width (each drawn, unseen, from the figure's
 // `variants`), so the frame never changes height as the reader steps,
 // nor as the panel loads; posted once known ({ ready: true }), then on a
-// change of width only. Until then, nothing: the host keeps the room
-// heights.json says.
+// change of width, or of the phone's fold: the tallest with the pointer
+// folded, or the tallest with it open, as the reader has it. Until then,
+// nothing: the host keeps the room heights.json says.
 let last = -1;
 let posted = false;
 const post = (height: number) => {
@@ -57,19 +58,41 @@ const post = (height: number) => {
 function Panel() {
   const [m, setM] = useState<PanelModel | null>(null);
   const [vs, setVs] = useState<PanelModel[] | undefined>();
-  const [tall, setTall] = useState(0);
+  // (the tallest with the pointer folded, and open: a phone's fold)
+  const [talls, setTalls] = useState({ shut: 0, open: 0 });
+  const [open, setOpen] = useState(false);
+  const tall = open ? talls.open : talls.shut;
   const measure = useRef<HTMLDivElement>(null);
   // (the variants drawn unseen, at this width: the tallest; again when
   // the width changes, or the fonts come in)
   useLayoutEffect(() => {
     const box = measure.current;
     if (!box) return;
+    // (a panel's height, folded and open: its own, not the room kept)
+    const both = (e: HTMLElement) => {
+      const ds = [...e.querySelectorAll<HTMLDetailsElement>("details.ptr")];
+      const was = ds.map((d) => d.open);
+      const min = e.style.minHeight;
+      e.style.minHeight = "0px";
+      const at = (o: boolean) => {
+        ds.forEach((d) => d.open = o);
+        return Math.ceil(e.scrollHeight);
+      };
+      const h = { shut: at(false), open: at(true) };
+      ds.forEach((d, k) => d.open = was[k]);
+      e.style.minHeight = min;
+      return h;
+    };
     const go = () => {
       // (and the panel shown, should it ever be taller: never cut)
-      const hs = [...box.querySelectorAll(":scope > .wpanel"),
-        ...document.querySelectorAll(".pshown > .wpanel")].map((e) =>
-        Math.ceil(e.scrollHeight));
-      if (hs.length) setTall((t) => Math.max(t, ...hs));
+      const hs = [...box.querySelectorAll<HTMLElement>(":scope > .wpanel"),
+        ...document.querySelectorAll<HTMLElement>(".pshown > .wpanel")]
+        .map(both);
+      if (hs.length) setTalls((t) => {
+        const n = { shut: Math.max(t.shut, ...hs.map((h) => h.shut)),
+          open: Math.max(t.open, ...hs.map((h) => h.open)) };
+        return n.shut === t.shut && n.open === t.open ? t : n;
+      });
     };
     go();
     void document.fonts?.ready.then(go);
@@ -80,7 +103,7 @@ function Panel() {
     const ro = new ResizeObserver(() => setTimeout(() => {
       if (innerWidth !== w) {
         w = innerWidth;
-        setTall(0);
+        setTalls({ shut: 0, open: 0 });
       }
       go();
     }));
@@ -91,6 +114,17 @@ function Panel() {
       ticks.forEach(clearTimeout);
     };
   }, [vs]);
+  // (the reader's fold: the shown panel's pointer opened or closed)
+  useEffect(() => {
+    const t = (e: Event) => {
+      const d = e.target as Element;
+      if (d.matches?.("details.ptr") && d.closest(".pshown")) {
+        setOpen((d as HTMLDetailsElement).open);
+      }
+    };
+    document.addEventListener("toggle", t, true);
+    return () => document.removeEventListener("toggle", t, true);
+  }, []);
   // (posted once it holds still: the steps' details unfold as they are
   // drawn, by an animation)
   useEffect(() => {
