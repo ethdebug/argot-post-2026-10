@@ -131,7 +131,7 @@ test("embed.html: raw-named is the raw moment, named: every score, " +
 
 // The columns each post scene lays out (the host's figure width)
 for (const [id, n] of [["raw-hero", 2], ["mid", 2], ["vyper", 2],
-  ["pointer-walkthrough", 1], ["optimized-locals", 2]] as const) {
+  ["pointer-walkthrough", 2], ["optimized-locals", 2]] as const) {
   test(`embed.html#scene=${id} posts columns: ${n}`, async ({ page }) => {
     const cols: number[] = [];
     await page.exposeFunction("postedCols", (c: number) => cols.push(c));
