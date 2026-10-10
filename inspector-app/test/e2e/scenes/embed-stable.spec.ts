@@ -5,7 +5,8 @@
 import { test, expect } from "../../page";
 
 const POST = ["reveal", "pitfall-nesting", "pitfall-compiler",
-  "real-debugger", "pointer-walkthrough", "optimized-locals"];
+  "real-debugger", "program-xray", "pointer-walkthrough",
+  "optimized-locals"];
 
 for (const width of [390, 1024]) {
   test(`the post's figures at ${width}px: one height from ready on`,

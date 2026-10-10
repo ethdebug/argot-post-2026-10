@@ -16,6 +16,7 @@ import vyperRules from "../../scenes/pitfall-compiler.json";
 import stepperO0 from "../../scenes/stepper-O0.json";
 import stepperO2 from "../../scenes/optimized-locals.json";
 import realDebugger from "../../scenes/real-debugger.json";
+import programXray from "../../scenes/program-xray.json";
 
 // (in Vite, every scene file, the ones authoring adds too, after these;
 // Node, the snapshot build: these)
@@ -45,6 +46,7 @@ export const page: { id: string; title: string; lens: string }[] = [
 // soldb's), each its id, title, caption and lens; no run, no moments
 export interface Figure { id: string; title: string; caption?: string;
   lens: string }
-export const figures: Figure[] = [realDebugger as Figure,
+const named = [realDebugger, programXray] as Figure[];
+export const figures: Figure[] = [...named,
   ...(globbed.filter(isFigure) as Figure[]).filter((f) =>
-    f.id !== realDebugger.id)];
+    !named.some((n) => n.id === f.id))];
