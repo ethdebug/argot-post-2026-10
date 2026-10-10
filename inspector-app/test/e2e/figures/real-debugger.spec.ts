@@ -40,19 +40,22 @@ async ({ page }) => {
   const h = await height(page);
   await loaded(page, "sol");
   expect(await height(page)).toBe(h);
-  // it opens inside play(), at `player.score`, before soldb has read
-  // the totals; six steps on, at `totalHits += 1`, it knows them:
+  // it opens inside play(), at `player.plays += 1`, before soldb has
+  // read the totals; stepping on, at `totalHits += 1`, it knows them:
   // totalScore 170 and totalHits 7
   await expect(page.locator(`${F} .codehead .srcfile`))
     .toHaveText("Arcade.sol");
   await expect.poll(async () => (await lit(page)).text)
-    .toBe("player.score");
+    .toBe("player.plays += 1");
   const val = (p: string) => page.locator(
     `${F} .sstate li[data-path="${p}"] .val`);
   await expect(val("totalScore")).toHaveText("unknown: not read yet");
   const open = Number(await step(page));
-  for (let k = 0; k < 6; k++) {
+  for (let k = 0; k < 120 && (await lit(page)).text !== "totalHits += 1";
+    k++) {
+    const was = await step(page);
     await page.locator(`${F} [data-move="next"]`).click();
+    await expect.poll(() => step(page)).not.toBe(was);
   }
   await expect.poll(async () => (await lit(page)).text)
     .toBe("totalHits += 1");

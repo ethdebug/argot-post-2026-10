@@ -113,8 +113,8 @@
   overflow-x: hidden; }
 .lens.soldb pre.src .line { display: inline-block; width: 100%;
   box-sizing: border-box; padding-left: calc(var(--ind, 0ch) + 2ch);
-  text-indent: calc(-1 * (var(--ind, 0ch) + 2ch)); min-height: 1lh;
-  vertical-align: top; }
+  text-indent: -2ch; min-height: 1lh; vertical-align: top; }
+.lens.soldb pre.src .line .ind { display: none; }
 /* (soldb's progress, in the empty code panel) */
 .lens.soldb .sload { display: block; margin: 9em 1em 0; text-align: center;
   white-space: normal; font-family: system-ui, -apple-system, sans-serif; }

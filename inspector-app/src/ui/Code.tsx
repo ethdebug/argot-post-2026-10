@@ -72,21 +72,28 @@ export function lines(text: string, coloured: Coloured | null,
     return t.htmlStyle ? <span key={k} style={t.htmlStyle}>{body}</span>
       : lit ? <mark key={k} className={m!.className}>{s}</mark> : s;
   };
-  // (each line's indent, --ind, for a wrapped line's hanging indent)
+  // (each line's indent, --ind, for a wrapped line's hanging indent;
+  // its leading spaces in a span.ind of their own, which that layout
+  // hides: the padding indents it, and a long first word never leaves
+  // the spaces alone on a row)
   const ind = (ts: Token[]) => ts.map((t) => t.content).join("")
     .match(/^ */)![0].length;
-  return rows.map((ts, k) => <span key={k} className={["line",
-    o.line?.(k)].filter(Boolean).join(" ")}
-    style={o.indent ? { "--ind": `${ind(ts)}ch` } as CSSProperties
-      : undefined}>{ts.flatMap((t,
-    j) => {
-    const end = t.offset + t.content.length;
-    const cuts = [t.offset, ...(m ? [m.from, m.to] : []), end]
-      .filter((x) => x >= t.offset && x <= end)
-      .sort((a, b) => a - b);
-    return cuts.slice(1).map((b, i) => [cuts[i], b] as const)
-      .filter(([a, b]) => b > a).map(([a, b]) => piece(t, a, b, `${j}.${a}`));
-  })}</span>).flatMap((x, k) => k ? ["\n", x] : [x]);
+  return rows.map((ts, k) => {
+    const n = o.indent ? ind(ts) : 0;
+    const lead = (ts[0]?.offset ?? 0) + n;
+    return <span key={k} className={["line", o.line?.(k)].filter(Boolean)
+      .join(" ")} style={o.indent ? { "--ind": `${n}ch` } as CSSProperties
+      : undefined}>{ts.flatMap((t, j) => {
+      const end = t.offset + t.content.length;
+      const cuts = [t.offset, ...(m ? [m.from, m.to] : []), ...n ? [lead]
+        : [], end].filter((x) => x >= t.offset && x <= end)
+        .sort((a, b) => a - b);
+      return cuts.slice(1).map((b, i) => [cuts[i], b] as const)
+        .filter(([a, b]) => b > a).map(([a, b]) => b <= lead && n
+          ? <span key={`${j}.${a}`} className="ind">{piece(t, a, b,
+            "p")}</span> : piece(t, a, b, `${j}.${a}`));
+    })}</span>;
+  }).flatMap((x, k) => k ? ["\n", x] : [x]);
 }
 
 // Scrolls a box so its first `mark` shows, moving nothing else: down,
@@ -95,7 +102,9 @@ export function lines(text: string, coloured: Coloured | null,
 // view: a phone's narrow panel): as little as shows it, a few
 // characters to spare, its line's start kept where it can be
 export function intoView(box: HTMLElement | null) {
-  const m = box?.querySelector("mark");
+  // (its first shown piece: not a hidden indent's)
+  const m = [...box?.querySelectorAll("mark") ?? []].find((x) =>
+    !x.closest(".ind"));
   if (!box || !m) return;
   const b = box.getBoundingClientRect(), r = m.getBoundingClientRect();
   const top = r.top - b.top + box.scrollTop;
