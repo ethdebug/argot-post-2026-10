@@ -2,17 +2,29 @@
    its size whatever the moment (mute, don't move): a fixed height that
    scrolls inside. The moment's range is in the walkthrough's tint (the
    plan colours), never the selection's yellow; the last range, when
-   the moment has none, the same, muted. */
+   the moment has none, a rule in the gutter beside its lines. */
 .code { min-width: 0; }
 .codehead { margin: 0 0 6px; font-size: var(--fs-meta); white-space: nowrap;
   overflow: hidden; text-overflow: ellipsis; }
 .codenote { color: var(--muted); }
 .code .codesrc { height: 26em; max-height: none; overflow: auto; }
-.code mark.rng { background: var(--plan-bg); color: inherit;
-  border-radius: 0; box-shadow: inset 0 -2px 0 var(--plan-fg); }
-.code mark.rng.last { background: color-mix(in srgb, var(--plan-bg) 45%,
-  transparent); box-shadow: inset 0 -1px 0 color-mix(in srgb,
-  var(--plan-fg) 45%, transparent); }
+/* (the range: a fill of the plan colour, its ink mixed in to read in
+   both themes, the text at full contrast; no underline, which reads as
+   a link) */
+.code mark.rng { background: none; color: inherit; border-radius: 0; }
+.code mark.rng:not(.last) { background: color-mix(in srgb, var(--plan-fg)
+  24%, var(--plan-bg)); }
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .code mark.rng:not(.last) {
+    background: color-mix(in srgb, var(--plan-fg) 34%, var(--plan-bg)); }
+}
+:root[data-theme="dark"] .code mark.rng:not(.last) {
+  background: color-mix(in srgb, var(--plan-fg) 34%, var(--plan-bg)); }
+/* (the last range, muted: no fill, one rule in the gutter along its
+   lines, not a mark on each) */
+.code .line:has(mark.rng.last) { display: inline-block; min-height: 1lh;
+  box-shadow: -4px 0 0 0 color-mix(in srgb, var(--plan-fg) 55%,
+  transparent); }
 /* the colouring: Shiki's two themes as CSS variables */
 .codesrc.coloured span[style] { color: var(--shiki-light); }
 @media (prefers-color-scheme: dark) {

@@ -80,18 +80,27 @@ export function lines(text: string, coloured: Coloured | null,
   })}</span>).flatMap((x, k) => k ? ["\n", x] : [x]);
 }
 
-// Scrolls a box so its first `mark` shows, a third of the way down
-// (when it is out of view), moving nothing else
-function intoView(box: HTMLElement | null) {
+// Scrolls a box so its first `mark` shows, moving nothing else: down,
+// a third of the way, on a whole line (when it is out of view), and
+// across (when its start, or the most of it the box can show, is out of
+// view: a phone's narrow panel): to its line's start where it is near
+// it, else to a few characters before it
+export function intoView(box: HTMLElement | null) {
   const m = box?.querySelector("mark");
   if (!box || !m) return;
-  const top = m.getBoundingClientRect().top - box.getBoundingClientRect()
-    .top + box.scrollTop;
-  const bottom = top + m.getBoundingClientRect().height;
-  if (top >= box.scrollTop && bottom <= box.scrollTop + box.clientHeight) {
-    return;
+  const b = box.getBoundingClientRect(), r = m.getBoundingClientRect();
+  const top = r.top - b.top + box.scrollTop;
+  if (top < box.scrollTop || top + r.height > box.scrollTop +
+    box.clientHeight) {
+    const lh = parseFloat(getComputedStyle(box).lineHeight) || r.height;
+    box.scrollTop = Math.max(0, Math.round((top - box.clientHeight / 3) /
+      lh) * lh);
   }
-  box.scrollTop = Math.max(0, top - box.clientHeight / 3);
+  const left = r.left - b.left + box.scrollLeft, cw = box.clientWidth;
+  if (left < box.scrollLeft || left + Math.min(r.width, cw / 2) >
+    box.scrollLeft + cw) {
+    box.scrollLeft = left < cw * 0.6 ? 0 : left - 24;
+  }
 }
 
 // The code panel: a moment's source, its range marked (Vyper's: no
