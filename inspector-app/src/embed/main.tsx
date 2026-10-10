@@ -55,7 +55,12 @@ const all = lenses.map((l) => l.id === "raw-hero" && hash.get("moment")
 const root = document.getElementById("embed")!;
 
 // The content's height, to the host: { type: "ethdebug:height", height,
-// columns, width, row?, storageBottom?, reveal? }. (`storageBottom`: the
+// columns, width, row?, storageBottom?, showAfter?, reveal? }.
+// (`showAfter`: the bottom of the figure's opening view, CSS px from
+// the frame's top: the tree's selected row and the rows under it, as
+// first shown; a host may wait until it is in sight to show the
+// figure's walkthrough panel. No selection in a tree, none.)
+// (`storageBottom`: the
 // storage dump's bottom edge, CSS px from the frame's top; no storage
 // dump, none.) (`row`: the storage dump's row pitch
 // in CSS px, for a host that measures in rows; no storage dump, none.) (`reveal`: the figure has an annotated
@@ -81,7 +86,7 @@ const measure = () => {
   const width = boxes.length ? Math.ceil(Math.max(...boxes.map((r) =>
     r.right)) - Math.min(...boxes.map((r) => r.left)) + pad) : 0;
   return { height: Math.ceil(root.getBoundingClientRect().height), width,
-    ...rowPitch(), ...storageBottom() };
+    ...rowPitch(), ...storageBottom(), ...showAfter() };
 };
 // (`storageBottom`: the first storage dump's bottom edge, in CSS px from
 // the frame's top, at this width; no storage dump, none)
@@ -90,6 +95,15 @@ const storageBottom = (): { storageBottom?: number } => {
     '.view[data-location="storage"]:not([hidden])');
   if (!dump) return {};
   return { storageBottom: Math.round((dump.getBoundingClientRect().bottom -
+    root.getBoundingClientRect().top) * 100) / 100 };
+};
+// (`showAfter`: the selected tree row's own item's bottom, its rows
+// under it with it, in CSS px from the frame's top, at this width)
+const showAfter = (): { showAfter?: number } => {
+  const li = root.querySelector<HTMLElement>(".tree .row.sel")
+    ?.closest<HTMLElement>("li[data-path]");
+  if (!li) return {};
+  return { showAfter: Math.round((li.getBoundingClientRect().bottom -
     root.getBoundingClientRect().top) * 100) / 100 };
 };
 // (`row`: the first storage dump's row pitch, one row's top to the
@@ -130,7 +144,8 @@ const post = () => {
     performance.now() - acted > ACTED) m.height = kept;
   tallAt = { width: innerWidth, height: m.height };
   root.style.minHeight = `${m.height}px`;
-  const key = `${m.height}|${m.width}|${m.row}|${m.storageBottom}`;
+  const key = `${m.height}|${m.width}|${m.row}|${m.storageBottom}|${
+    m.showAfter}`;
   if (key === last) return;
   const first = !last;
   last = key;
