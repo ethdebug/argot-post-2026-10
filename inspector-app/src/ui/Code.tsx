@@ -84,8 +84,8 @@ export function lines(text: string, coloured: Coloured | null,
 // Scrolls a box so its first `mark` shows, moving nothing else: down,
 // a third of the way, on a whole line (when it is out of view), and
 // across (when its start, or the most of it the box can show, is out of
-// view: a phone's narrow panel): to its line's start where it is near
-// it, else to a few characters before it
+// view: a phone's narrow panel): as little as shows it, a few
+// characters to spare, its line's start kept where it can be
 export function intoView(box: HTMLElement | null) {
   const m = box?.querySelector("mark");
   if (!box || !m) return;
@@ -107,7 +107,8 @@ export function intoView(box: HTMLElement | null) {
   const left = r.left - b.left + box.scrollLeft, cw = box.clientWidth;
   if (left < box.scrollLeft || left + Math.min(r.width, cw / 2) >
     box.scrollLeft + cw) {
-    box.scrollLeft = left < cw * 0.6 ? 0 : left - 24;
+    box.scrollLeft = Math.max(0, Math.min(left - 24, left +
+      Math.min(r.width, cw - 48) - cw + 48));
   }
 }
 
