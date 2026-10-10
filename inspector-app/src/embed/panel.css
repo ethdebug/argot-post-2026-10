@@ -1,8 +1,8 @@
 /* The panel's own frame in the post (embed-panel.html): a card with its
    corners while it scrolls with the page; stuck at the top of the view
    (the host's message: html[data-stuck="top"]), flush with it: square top
-   corners, no top border, a stronger edge at its foot over what scrolls
-   beneath. The frame is exactly the panel: nothing around it, and a
+   corners, no top border; stuck at the bottom, its bottom corners
+   square (html[data-stuck="bottom"]). No shade in any state. The frame is exactly the panel: nothing around it, and a
    transparent page in the frame's own colour scheme (no backdrop). */
 :root { color-scheme: light dark; }
 /* (its boxes opaque, as on the page: what scrolls under it never shows
@@ -13,14 +13,9 @@
   :root:not([data-theme="light"]) #embed { --panel: #1c1f23; } }
 :root[data-theme="dark"] #embed { --panel: #1c1f23; }
 #embed .wpanel .rbar, #embed .wpanel .dpanel {
-  transition: border-radius 120ms ease, border-top-width 120ms ease,
-    box-shadow 120ms ease; }
+  transition: border-radius 120ms ease, border-top-width 120ms ease; }
 html[data-stuck="top"] #embed .wpanel .rbar { border-top-left-radius: 0;
   border-top-right-radius: 0; border-top-width: 0; }
-/* (its foot: the bar at rest, the details in a walkthrough) */
-html[data-stuck="top"] #embed .wpanel .rbar:not(.replaying),
-html[data-stuck="top"] #embed .wpanel .dpanel {
-  box-shadow: inset 0 -3px 4px -3px rgb(0 0 0 / 0.35); }
 @media (prefers-reduced-motion: reduce) {
   #embed .wpanel .rbar, #embed .wpanel .dpanel { transition: none; }
 }
@@ -31,7 +26,6 @@ html[data-stuck="top"] #embed .wpanel .dpanel {
    room, embed.css, which showed as a strip of the page's colour each
    side of the stuck card, over the figure) */
 #embed { padding: 0; }
-#embed .pmeasure .reset { visibility: hidden !important; }
 #embed .pmeasure { position: absolute; left: 0; right: 0; top: 0;
   visibility: hidden; pointer-events: none; height: 0; overflow: visible; }
 #embed .pshown { display: flow-root; }
@@ -46,7 +40,6 @@ html[data-stuck="top"] #embed .wpanel .dpanel {
 #embed .wpanel.compact .rline2 { height: 2em; gap: 8px; }
 #embed .wpanel.compact .rline2 .rtitle { margin-left: auto; min-width: 0;
   white-space: nowrap; font-size: var(--fs-meta); }
-#embed .wpanel.compact .rline2 .rexit { margin-left: 4px; }
 #embed .wpanel.compact .rline3 { gap: 0; }
 #embed .wpanel.compact .rcap { height: 2.7em; display: -webkit-box;
   -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-clamp: 2;
@@ -65,10 +58,6 @@ html[data-stuck="top"] #embed .wpanel .dpanel {
   max-width: none; }
 #embed .wpanel.compact details.ptr .pchain { margin-left: 6px;
   color: var(--muted); }
-/* (its ↺ Reset, the figure's: in the bar's line, in the line's flow;
-   relative, so its finger room stays around it) */
-#embed .wpanel .reset { position: relative; top: auto; right: auto;
-  flex: none; }
 /* (the frame is the card: no page's room under it, the page's sticky
    panel's, nor its backdrop) */
 #embed .wpanel.walking { padding-bottom: 0; background: none; }
@@ -76,7 +65,6 @@ html[data-stuck="top"] #embed .wpanel .dpanel {
    pointer's place say what it walks) */
 @media (max-width: 559.98px) {
   #embed .wpanel.compact .rline2 .rtitle { display: none; }
-  #embed .wpanel.compact .rline2 .rexit { margin-left: auto; }
 }
 /* The post's panel in the post's figures' looks (the program x-ray's,
    the compilers' pitfall's): one light background, no edges; the
@@ -110,12 +98,12 @@ html[data-stuck="top"] #embed .wpanel .dpanel {
 #embed .wpanel.compact .pgo { left: calc(0.9 * var(--fs-label));
   transform: translateY(-50%); }
 /* (stuck to the screen's bottom: flush with it, square bottom corners,
-   no bottom border; the shade at its top edge, over what scrolls
-   beneath) */
+   no bottom border; no shade: its crown, the accent line at its top,
+   marks its edge over what scrolls beneath; at rest, a card, its four
+   corners round) */
 html[data-stuck="bottom"] #embed .wpanel .rbar:not(.replaying),
 html[data-stuck="bottom"] #embed .wpanel .dpanel {
   border-bottom-left-radius: 0; border-bottom-right-radius: 0;
   border-bottom-width: 0; }
-html[data-stuck="bottom"] #embed .wpanel .rbar.replaying {
-  box-shadow: inset 0 2px 0 var(--accent),
-    inset 0 6px 6px -4px rgb(0 0 0 / 0.3); }
+html[data-stuck="bottom"] #embed .wpanel.compact .rbar.replaying {
+  box-shadow: inset 0 2px 0 var(--accent); }
