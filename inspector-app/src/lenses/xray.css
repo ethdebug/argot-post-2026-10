@@ -14,6 +14,10 @@
   .lens.xray { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
   .lens.xray .shead { grid-column: 1 / -1; }
 }
+/* (a phone under 350px: solc's range on lines of its own) */
+@media (max-width: 349.98px) {
+  .lens.xray .xcol[data-lang="sol"] { --xe: 220px !important; }
+}
 /* (narrower columns: Fe's entry wraps to more lines) */
 @media (min-width: 640px) and (max-width: 759.98px) {
   .lens.xray { --xe: 300px; }
@@ -21,7 +25,7 @@
 @media (max-width: 639.98px) {
   /* (each its own: solc's entries are never more than 9 lines) */
   .lens.xray { --xe: 280px; }
-  .lens.xray .xcol[data-lang="sol"] { --xe: 220px; }
+  .lens.xray .xcol[data-lang="sol"] { --xe: 196px; }
   #embed .lens.xray, .lens.xray { row-gap: 22px; }
 }
 .lens.xray > .reset { position: absolute; top: 0; right: 0; }
