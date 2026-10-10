@@ -119,6 +119,11 @@
   margin-left: -8px; padding: 0; border-radius: 50%;
   border: 2px solid var(--muted); background: var(--bg); cursor: pointer; }
 .tbar .tmark.cur { border-color: var(--accent); background: var(--accent); }
+/* (a replay's playhead: the step shown, a thin line in the accent) */
+.tbar .thead { position: absolute; top: 6px; width: 2px; height: 22px;
+  margin-left: -1px; background: var(--accent); pointer-events: none; }
+.tbar .tplaybtn[aria-pressed="true"] { border-color: var(--accent);
+  color: var(--accent); }
 .tbar .tmark:focus-visible { outline: 2px solid var(--accent);
   outline-offset: 2px; }
 .tbar .tline { grid-area: line; margin: 0; color: var(--muted);
@@ -172,3 +177,10 @@
   .lens.vyper > [data-area^="t"] > .tree > .treehead {
     align-self: stretch; }
 }
+/* a replay playing (TimelineBar.tsx): no fades on what each step lights
+   or mutes, its own flash alone */
+.lens[data-playing] :is(.b, .ab, .tree .row) { transition: none; }
+/* (its trees' rows held at their heights, TimelineBar.tsx: a longer
+   value cut short) */
+.lens[data-held] .tree li > .row { box-sizing: border-box;
+  overflow: hidden; }

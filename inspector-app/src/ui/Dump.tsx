@@ -212,7 +212,9 @@ function Word({ l, ls, loc, row, mine, theirs, side, pair, name, light,
     return <div className="word" data-side={side} data-slot={row}>
       <span className={`ab${k >= 0 ? ` b${an(k)} gs ge` : ""}`}
         {...k >= 0 ? unit(k) : {}}>
-        {abbreviated(mine, abbreviate)}</span></div>;
+        {/* (a row past the stack's top, a replay's reserve: empty) */}
+        {mine.every((b) => b === undefined) ? "\u00a0"
+          : abbreviated(mine, abbreviate)}</span></div>;
   }
   if (bare) {
     return <div className={`word${half(mine) ? " half" : ""}`}
@@ -660,8 +662,10 @@ export function Dump(p: { id: ViewId; location: Location; data: DataRef;
   // the overlays (popovers), over the dumps' box, once per render of any
   // of its dumps; again on resize and once the fonts are in (the labels
   // are fitted in them)
+  // (a replay playing: none, until it stops, TimelineBar.tsx)
+  const playing = useLensState((x) => !!x.playing);
   useLayoutEffect(() => {
-    if (bare) return;
+    if (bare || playing) return;
     const v = me.current as (HTMLDivElement & { _data?: ViewData }) | null;
     if (v && l) {
       v._data = { light, there: p.compare ? there : undefined, l,
@@ -708,7 +712,8 @@ export function Dump(p: { id: ViewId; location: Location; data: DataRef;
     } else if (r.gapBefore) {
       lines.push(<div key={`g${k}`} className="gap" aria-hidden="true"
         data-vt={vt("gap", r.address)}><span>⋯</span></div>);
-    } else if (slots && !bare && (!/^slot \d+$|\+ \d+$/.test(name) ||
+    } else if (slots && !bare && ((r.room ?? !/^slot \d+$|\+ \d+$/
+      .test(name)) ||
       // (in the related view, under a row the selection consulted, when
       // this row has bytes its popover may not cover, lit or consulted:
       // room for it, as a hashed row has above it)

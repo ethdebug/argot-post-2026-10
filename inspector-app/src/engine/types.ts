@@ -177,6 +177,10 @@ export interface Row {
   what: { path: Path; name: string }[]; // byte order: "totalHits · totalScore"
   role?: "own-slot";          // a variable's slot with none of its data
   gapBefore?: boolean;
+  // (a line of room above it, whatever its name says: a replay's row,
+  // roomed when its name is a hashed one at one of the replay's marks,
+  // so none comes or goes as it plays; ui/hooks.ts useLayout)
+  room?: boolean;
 }
 
 // ------------------------------------------------- 1.5 Dereference graph

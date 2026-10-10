@@ -341,10 +341,12 @@ export function Tree(p: { id: ViewId; data: DataRef; filter?: Filter;
   // (not on a walkthrough's start: vanilla startReplay leaves the tree;
   // each step after it, stepTo, brings its row)
   const walking = useRef(false);
+  // (a replay playing: none of what only measures; again once it stops)
+  const playing = useLensState((x) => !!x.playing);
   useLayoutEffect(() => {
     const started = !!link.walk && !walking.current;
     walking.current = !!link.walk;
-    if (started) return;
+    if (started || playing) return;
     const bring = () => {
       const tree = box.current;
       const row = to && tree?.querySelector(`li[data-path="${
@@ -370,7 +372,7 @@ export function Tree(p: { id: ViewId; data: DataRef; filter?: Filter;
       cancelAnimationFrame(f1);
       cancelAnimationFrame(f2);
     };
-  }, [to, d]);
+  }, [to, d, playing]);
 
   // The tree's box and its dumps start at one height: its first row at
   // the height of their first line (a dump has its byte ruler above); on
@@ -383,7 +385,7 @@ export function Tree(p: { id: ViewId; data: DataRef; filter?: Filter;
   const alignKey = mine.join(" ");
   useLayoutEffect(() => {
     const tree = box.current;
-    if (!tree) return;
+    if (!tree || playing) return;
     const dumps = () => alignKey.split(" ").flatMap((id) => [
       ...document.querySelectorAll<HTMLElement>(
         `[data-view="${lens.key}:${id}"]:not([hidden])`)]);
@@ -453,7 +455,7 @@ export function Tree(p: { id: ViewId; data: DataRef; filter?: Filter;
       removeEventListener("resize", align);
     };
     // (when the tree is drawn anew, as vanilla's renderTree, and on resize)
-  }, [d, here, lens.key, alignKey, shows, fewer]);
+  }, [d, here, lens.key, alignKey, shows, fewer, playing]);
 
   // lit rows out of the box's view: a yellow circle button on the edge
   // past which they are (an overlay; a click scrolls to the first)
@@ -461,7 +463,7 @@ export function Tree(p: { id: ViewId; data: DataRef; filter?: Filter;
     { up: [], down: [] });
   useLayoutEffect(() => {
     const tree = box.current;
-    if (!tree) return;
+    if (!tree || playing) return;
     const measure = () => {
       const b = tree.getBoundingClientRect();
       const rows = [...tree.querySelectorAll<HTMLElement>(

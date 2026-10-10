@@ -39,6 +39,10 @@ export interface Scene {
   // (what its decoding shows: everything in scope at the moment, the
   // storage variables and the locals: the stepper's; else its storage)
   variables?: "scope";
+  // (its moments, every trace step of its transaction from its first
+  // moment to its last: a replay, its timeline's play; its own moments
+  // the marks; all in one transaction)
+  replay?: true;
   // (its views' roots: the values it is about, the rest not shown)
   roots?: Path[];
   // pointers written by hand for its one moment, to the stack and memory
@@ -85,6 +89,10 @@ export function sceneOf(json: unknown): Scene {
   if (j.rows !== undefined && j.rows !== "touched") no(`rows ${j.rows}`);
   if (j.variables !== undefined && j.variables !== "scope") {
     no(`variables ${j.variables}`);
+  }
+  if (j.replay !== undefined && (j.replay !== true ||
+    new Set(timeline.map((m) => m.tx)).size !== 1)) {
+    no("replay: true, its moments in one transaction");
   }
   if (j.pointers !== undefined) {
     if (!Array.isArray(j.pointers) || timeline.length !== 1) {
@@ -208,8 +216,35 @@ function withTimeline(s: Scene, timeline: Scene["timeline"]): Scene {
 // A scene file's text: its keys in one order, two spaces, a newline
 export function sceneJson(s: Scene): string {
   const { id, title, caption, run, lens, timeline, controls, rows,
-    variables, initial, pointers } = s;
+    variables, replay, initial, pointers } = s;
   return JSON.stringify({ id, title, caption, run, lens, timeline,
-    controls, rows, variables, initial, pointers }, null, 2) +
+    controls, rows, variables, replay, initial, pointers }, null, 2) +
     "\n";
 }
+
+// A replay's moments: every trace step of the scene's transaction from
+// its first moment to its last (`steps`: the transaction's trace step
+// count), its own moments' labels kept, and its end if a moment is it
+export function replayOf(s: Scene, steps: number): Timeline {
+  const [a, z] = [s.timeline[0], s.timeline[s.timeline.length - 1]];
+  const tx = a.tx;
+  const from = a.step === "end" ? steps : a.step;
+  const to = z.step === "end" ? steps - 1 : z.step;
+  const label = (step: number | "end") => s.timeline.find((m) =>
+    m.step === step)?.label;
+  const out: Timeline = [];
+  for (let k = from; k <= to; k++) {
+    const l = label(k);
+    out.push({ tx, step: k, ...l !== undefined ? { label: l } : {} });
+  }
+  if (z.step === "end") {
+    const l = label("end");
+    out.push({ tx, step: "end", ...l !== undefined ? { label: l } : {} });
+  }
+  return out;
+}
+
+// a replay's marks: the indexes of the scene's own moments in it
+export const marksOf = (s: Scene, moments: Timeline): number[] =>
+  s.timeline.map((m) => moments.findIndex((x) => x.tx === m.tx &&
+    x.step === m.step));

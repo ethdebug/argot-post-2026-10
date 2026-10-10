@@ -55,16 +55,20 @@ function shower(store: Store<LensState>, spec: LensSpec, project: Project,
     const ticket = ++wanted;
     const bm = project.bookmarks.find((b) => b.id === id);
     if (!bm) return false;
-    const asked = view?.moment;
-    const moment = asked !== undefined && asked >= 0 &&
-      asked < bm.points.length ? asked : firstMoment(bm);
     const dc = decodingOf({ spec, project } as LensContextValue,
       bm.decoding);
-    let tree;
+    let tree, moment = 0;
     try {
+      // (a replay's points: every trace step, once its source loads)
+      if (bm.replay) await project.source(bm.id);
+      const asked = view?.moment;
+      moment = asked !== undefined && asked >= 0 &&
+        asked < bm.points.length ? asked : firstMoment(bm);
       tree = await decode(project, dc!, bm.points[moment]);
       // (and the moment before it: a scene of two shows both)
-      if (moment > 0) await decode(project, dc!, bm.points[moment - 1]);
+      if (moment > 0 && !view?.play) {
+        await decode(project, dc!, bm.points[moment - 1]);
+      }
     } catch (e) {
       if (ticket !== wanted) return false;
       store.set((s) => ({ ...s, error: String((e as Error)?.message ?? e) }));
@@ -98,7 +102,7 @@ function shower(store: Store<LensState>, spec: LensSpec, project: Project,
           walk: !selection ? null : view?.walk ? { ...view.walk,
             busy: undefined, exit: undefined }
             : bm.walk ? { ...bm.walk } : null }])) }));
-    if (step) transition(apply);
+    if (step && !view?.play) transition(apply);
     else apply();
     return true;
   };
