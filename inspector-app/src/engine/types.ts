@@ -281,7 +281,9 @@ export interface Light {                // DERIVED per view, never stored
 }
 // a consulted value's role for the selection: a key of its path (`of`:
 // the path up to that key), or the length of what holds one
-export interface RelWhy { name: Path; why: "key" | "length"; of: Path }
+// (`who`: the key's on-chain name, "alice")
+export interface RelWhy { name: Path; why: "key" | "length"; of: Path;
+  who?: string }
 export interface Filter {               // truncation, per view
   roots?: Path[];                       // only these subtrees
   // dump rows: the values' (and own slots); also the slots the point's

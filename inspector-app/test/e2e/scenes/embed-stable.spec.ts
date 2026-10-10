@@ -53,8 +53,8 @@ for (const width of [390, 1024]) {
 
 // A frame fits its content after the reader acts (a collapse shrinks
 // it); a shrink of a few pixels no one caused keeps its room
-test("pitfall-nesting: the reader's All, Related, collapse: the frame " +
-  "fits; a spontaneous 2px shrink keeps its room", async ({ page }) => {
+test("pitfall-nesting: the reader's collapse: the frame fits; a " +
+  "spontaneous 2px shrink keeps its room", async ({ page }) => {
   await page.setViewportSize({ width: 1024, height: 900 });
   const posted: number[] = [];
   await page.exposeFunction("posted", (h: number) => posted.push(h));
@@ -79,14 +79,10 @@ test("pitfall-nesting: the reader's All, Related, collapse: the frame " +
   await page.evaluate(() => document.getElementById("bump")!.remove());
   await page.waitForTimeout(500);
   expect(posted.at(-1)).toBe(ready + 2);
-  // (the reader shows All, then Related again: it grows, then shrinks
-  // to fit; and collapses alice's record: it fits that too)
-  await page.locator('button[data-rows="all"]').click();
-  await expect.poll(() => posted.at(-1)).toBeGreaterThan(ready + 100);
-  await page.locator('button[data-rows="related"]').click();
-  await expect.poll(() => posted.at(-1)).toBeLessThan(ready + 2);
-  const A = "players[0x70997970c51812dc3a010c7d01b50e0d17dc79c8]";
-  await page.locator(`.tree li[data-path="${A}"] > .chev`).click();
+  // (the reader collapses players: it shrinks to fit; opens it again:
+  // it grows back)
+  await page.locator('.tree li[data-path="players"] > .chev').click();
+  await expect.poll(() => posted.at(-1)).toBeLessThan(ready - 20);
   await page.waitForTimeout(600);
   const fit = await page.locator("#embed").evaluate((e) => {
     (e as HTMLElement).style.minHeight = "";

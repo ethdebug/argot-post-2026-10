@@ -16,7 +16,7 @@ import {
   walkthrough, type WalkInput, type Walkthrough,
 } from "../engine/walkthrough/fold";
 import {
-  pointConsulted, related, relatedValues, withRelated,
+  pointConsulted, related, relatedValues, scopeOf, withRelated,
 } from "../engine/related";
 import { locked } from "../engine/target";
 import { byteKey } from "../engine/hex";
@@ -273,8 +273,14 @@ export function useRelated(id: string, location: Location,
   const sel = link.selection;
   const key = useMemo(() => {
     if (!on || !sel) return "";
-    const rows = new Set([a, b].flatMap((x) => x && x.d.byPath.has(sel)
-      ? related(x.d, sel, walkOf(project, x, sel), location) : []));
+    // (a record's field: its record's rows, the field lit among them)
+    const rows = new Set([a, b].flatMap((x) => {
+      if (!x || !x.d.byPath.has(sel)) return [];
+      const at = scopeOf(x.d, sel);
+      return [...related(x.d, sel, walkOf(project, x, sel), location),
+        ...at === sel ? [] : related(x.d, at, walkOf(project, x, at),
+          location)];
+    }));
     return [...rows].join(" ");
   }, [on, sel, a, b, project, location]);
   return useMemo(() => key ? { rows: key.split(" ") as Hex[], context }
@@ -293,9 +299,15 @@ export function useRelatedRoots(id: string): string[] | undefined {
   const x = useWalkInput("data" in v ? v.data : undefined);
   const d = useDecoded("data" in v ? v.data : undefined);
   const { project } = useLens();
-  const key = useMemo(() => !sel || !d?.byPath.has(sel) ? ""
-    : relatedValues(d, sel, x ? walkOf(project, x, sel) : null).join("\n"),
-  [sel, d, x, project]);
+  const key = useMemo(() => {
+    if (!sel || !d?.byPath.has(sel)) return "";
+    // (a record's field: its record's values too, its siblings muted)
+    const at = scopeOf(d, sel);
+    const of = (q: string) => relatedValues(d, q, x ? walkOf(project, x, q)
+      : null);
+    return [...new Set([...of(sel), ...at === sel ? [] : of(at)])]
+      .join("\n");
+  }, [sel, d, x, project]);
   return useMemo(() => key ? key.split("\n") : undefined, [key]);
 }
 

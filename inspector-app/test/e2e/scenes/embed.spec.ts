@@ -320,6 +320,17 @@ test("embed.html#scene=pitfall-nesting: alice's record, related rows " +
   await expect(page.locator(`.tree li[data-path="${A}"] > .row.sel`))
     .toHaveCount(1, { timeout: 20_000 });
   await expect(page.locator('[data-r="start"], .rbar')).toHaveCount(0);
+  // (no controls: "controls": "none", no All | Related)
+  await expect(page.locator("[data-rows]")).toHaveCount(0);
+  // (a field clicked: its record stays, its siblings muted; ↺ Reset)
+  await expect(page.locator(".reset[data-shown]")).toHaveCount(0);
+  await page.locator(`.tree li[data-path="${A}.score"] > .row`).click();
+  await expect(page.locator(".tree li[data-path]")).toHaveCount(11);
+  await expect(page.locator(".reset[data-shown]")).toHaveCount(1);
+  await page.locator(".reset").click();
+  await expect(page.locator(`.tree li[data-path="${A}"] > .row.sel`))
+    .toHaveCount(1);
+  await expect(page.locator(".reset[data-shown]")).toHaveCount(0);
   await expect(page.locator("input[data-context]")).toHaveCount(0);
   const rows = page.locator('.view[data-location="storage"] ' +
     ".wrow[data-slot]");
@@ -342,10 +353,10 @@ test("embed.html#scene=pitfall-nesting: alice's record, related rows " +
   // (the tree: keys and addresses short, by name; nothing wraps)
   await expect(page.locator(`.tree li[data-path="${A}"] > .row .name`))
     .toHaveText('[0x7099…79c8 ("alice")]');
-  // (no popover over any byte)
+  // (no popover over a lit or consulted byte: over the others, it may)
   const over = await page.evaluate(() => {
-    const bs = [...document.querySelectorAll(".rows .b")].map((b) =>
-      b.getBoundingClientRect());
+    const bs = [...document.querySelectorAll(".rows .b.hl, .rows .b.rel")]
+      .map((b) => b.getBoundingClientRect());
     return [...document.querySelectorAll(".pop")].some((p) => {
       const r = p.getBoundingClientRect();
       return bs.some((b) => b.left < r.right - 0.5 && r.left < b.right - 0.5

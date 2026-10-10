@@ -674,9 +674,12 @@ export function Dump(p: { id: ViewId; location: Location; data: DataRef;
       lines.push(<div key={`g${k}`} className="gap" aria-hidden="true"
         data-vt={vt("gap", r.address)}><span>⋯</span></div>);
     } else if (slots && !bare && (!/^slot \d+$|\+ \d+$/.test(name) ||
-      // (in the related view, under a row the selection consulted: room
-      // for its light popover, as a hashed row has above it)
-      (relOn && k > 0 && !!light.related?.has(rows[k - 1].address)))) {
+      // (in the related view, under a row the selection consulted, when
+      // this row has bytes its popover may not cover, lit or consulted:
+      // room for it, as a hashed row has above it)
+      (relOn && k > 0 && !!light.related?.has(rows[k - 1].address) &&
+        (light.related.has(r.address) || [...Array(32).keys()].some((i) =>
+          light.bytes.has(byteKey(loc, r.address, i))))))) {
       lines.push(<div key={`r${k}`} className="gap room"
         aria-hidden="true" />);
     }
@@ -709,7 +712,10 @@ export function Dump(p: { id: ViewId; location: Location; data: DataRef;
     const cls = ["wrow", same ? "same" : "", k % 2 ? "zb" : "",
       on ? "on" : "", only ? "only" : "", known ? "known" : "",
       gut ? "gut" : "", rel ? "rel" : "",
-      rel && light.anchors?.has(r.address) ? "anchor" : ""]
+      rel && light.anchors?.has(r.address) ? "anchor" : "",
+      // (in the related view, a row shown only as context: plainer than
+      // a consulted one)
+      relOn && !on && !only && !rel && !gut && !known ? "ctx" : ""]
       .filter(Boolean).join(" ");
     lines.push(<div key={r.address} className={cls} data-slot={r.address}
       data-name={name} data-facts={facts} data-vt-in={vt(r.address)}
