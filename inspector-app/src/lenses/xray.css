@@ -1,0 +1,102 @@
+/* The program x-ray (figures/ProgramXray.tsx), in the real debugger's
+   looks (debugger.css .lens.soldb): its name, the compiler and the
+   moves over the columns; the instructions, a tree's rows; the entry,
+   in a code panel's box; the source, the code panel. Its box keeps its
+   size whatever is shown: the three panes one fixed height (--xh), the
+   list and the source scrolling inside. Wide: the three side by side;
+   a phone: the source, the list and the entry, one under another. */
+.lens.xray { --xh: 318px; display: grid; gap: 12px 24px;
+  align-items: start; position: relative;
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-areas: "head" "bar" "code" "list" "entry"; }
+.lens.xray:focus { outline: none; }
+@media (min-width: 760px) {
+  .lens.xray { grid-template-columns: minmax(0, 9fr) minmax(0, 10fr)
+    minmax(0, 15fr); grid-template-areas: "head head head"
+      "bar bar bar" "list entry code"; }
+}
+.lens.xray > .reset { position: absolute; top: 0; right: 0; }
+.lens.xray .shead { grid-area: head; margin: 0; padding-right: 84px; }
+@media (max-width: 759.98px) {
+  .lens.xray { row-gap: 16px; }
+  .lens.xray .shead .handmade { display: table; margin: 4px 0 0; }
+}
+.lens.xray .sbar { grid-area: bar; display: flex; flex-wrap: wrap;
+  align-items: center; gap: 8px 18px; }
+.lens.xray .mat { min-width: 9em; white-space: nowrap; }
+@media (max-width: 759.98px) {
+  .lens.xray :is(.mctl .btn, .picker button) { min-height: 44px;
+    min-width: 44px; }
+}
+.lens.xray .xlist { grid-area: list; min-width: 0; }
+.lens.xray .xentry { grid-area: entry; min-width: 0; }
+.lens.xray .code { grid-area: code; }
+.lens.xray section .codehead { margin: 0 0 6px; }
+
+/* the instructions: a tree's rows, one line each (the offset, the
+   opcode and its bytes, the source in brief, cut), scrolling inside */
+#embed .lens.xray .xrows, .lens.xray .xrows { list-style: none; margin: 0;
+  padding: 0 6px 0 9px; height: var(--xh) !important;
+  overflow-y: auto !important; overflow-x: hidden !important;
+  scrollbar-gutter: stable; box-sizing: border-box;
+  font-family: var(--mono); font-size: var(--fs-meta); }
+.lens.xray .xrows:focus-visible { outline: 2px solid var(--accent);
+  outline-offset: 1px; border-radius: 4px; }
+.lens.xray .xrows .row { display: grid; flex-wrap: nowrap;
+  grid-template-columns: 4ch minmax(0, 12ch) minmax(0, 1fr);
+  gap: 0 1ch; padding: 1px 0; line-height: 1.5; cursor: pointer; }
+.lens.xray .xrows .row > span { min-width: 0; overflow: hidden;
+  text-overflow: ellipsis; white-space: nowrap; }
+.lens.xray .xrows .type { font-size: inherit; text-align: right; }
+:is(#tree, .tree).xrows { font-size: var(--fs-meta); }
+:is(#tree, .tree).xrows .row { padding: 1px 0; gap: 0 1ch; }
+:is(#tree, .tree).xrows .row > span { font-size: inherit;
+  line-height: inherit; padding: 0; }
+.lens.xray .xrows .name { font-weight: 600; }
+.lens.xray .xrows .val { margin: 0; padding: 0; border: 0;
+  text-align: left; color: var(--muted); }
+.lens.xray .xrows .row.hl .val { color: inherit; }
+
+/* the entry: the compiler's JSON, in a code panel's box, its lines
+   wrapped under their indent; nothing scrolls (the popovers reach out) */
+#embed .lens.xray pre.xjson, .lens.xray pre.xjson { height: var(--xh)
+  !important; overflow: visible !important; box-sizing: border-box;
+  max-height: none !important; white-space: pre-wrap;
+  overflow-wrap: anywhere; font-size: var(--fs-meta); }
+.lens.xray .xjson .line { display: inline-block; width: 100%;
+  box-sizing: border-box; padding-left: 4ch; text-indent: -4ch;
+  vertical-align: top; }
+.lens.xray .xkey { position: relative; text-indent: 0; }
+/* (the fields a compiler writes outside the format: a comment under
+   the entry, muted) */
+.lens.xray .xjson .xown { white-space: normal; padding-left: 2ch;
+  text-indent: -2ch; }
+.lens.xray .xname { cursor: help; border-bottom: 1px dotted var(--muted); }
+.lens.xray .xname:focus-visible { outline: 2px solid var(--accent);
+  outline-offset: 1px; }
+.lens.xray .xpop { display: none; width: max-content; max-width: 20em;
+  font-family: system-ui, -apple-system, sans-serif; --ax: 2em;
+  text-indent: 0; }
+.lens.xray .xkey:has(> .xname:is(:hover, :focus)) > .xpop {
+  display: block; }
+
+/* the source: the code panel, its height the panes', long lines
+   wrapped under their indent (the real debugger's) */
+#embed .lens.xray pre.codesrc, .lens.xray pre.codesrc { overflow: auto
+  !important; height: var(--xh) !important; white-space: pre-wrap;
+  overflow-wrap: anywhere; overflow-x: hidden !important;
+  font-size: var(--fs-meta); }
+.lens.xray pre.codesrc .line { display: inline-block; width: 100%;
+  box-sizing: border-box; padding-left: calc(var(--ind, 0ch) + 2ch);
+  text-indent: -2ch; min-height: 1lh; vertical-align: top; }
+.lens.xray pre.codesrc .line .ind { display: none; }
+/* (a phone: a shorter source, the list shorter still; the entry as tall
+   as its tallest) */
+@media (max-width: 759.98px) {
+  #embed .lens.xray pre.codesrc, .lens.xray pre.codesrc { height: 200px
+    !important; }
+  #embed .lens.xray .xrows, .lens.xray .xrows { height: 162px
+    !important; }
+  #embed .lens.xray pre.xjson, .lens.xray pre.xjson { height: auto
+    !important; min-height: 250px; }
+}

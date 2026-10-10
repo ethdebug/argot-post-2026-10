@@ -81,6 +81,12 @@ checks["real-debugger"] = async (page) => {
     .toHaveCount(1, { timeout: 90_000 });
 };
 
+// (the program x-ray: solc's entry at `player.plays += 1`)
+checks["program-xray"] = async (page) => {
+  await expect(page.locator("[data-figure=program-xray] .xjson"))
+    .toHaveAttribute("data-offset", "4432");
+};
+
 test("every scene has its check", () => {
   expect(Object.keys(checks).sort()).toEqual([...ids].sort());
 });

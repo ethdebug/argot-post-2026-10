@@ -6,6 +6,7 @@ import { vyper } from "./vyper";
 import { pointerWalkthrough } from "./pointer-walkthrough";
 import { stepper } from "./stepper";
 import { realDebugger } from "./real-debugger";
+import { programXray } from "./program-xray";
 import { reveal, rawLenses } from "./raw";
 
 // (Phase 1's page first; then lenses made of Phase 1 parts only, which
@@ -13,4 +14,5 @@ import { reveal, rawLenses } from "./raw";
 // (what the maintainer reviews first; the shell's "dev" adds the rest)
 const dev = (l: LensSpec): LensSpec => ({ ...l, dev: true });
 export const lenses: LensSpec[] = [fullInspector, stepper, realDebugger,
+  programXray,
   ...rawLenses, reveal, dev(pointerWalkthrough), dev(alicePlays), dev(vyper)];

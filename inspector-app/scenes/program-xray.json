@@ -1,0 +1,6 @@
+{
+  "id": "program-xray",
+  "title": "The program: each instruction, and what it means",
+  "caption": "Arcade's play(), as solc and Fe write it in their ethdebug programs: each instruction's entry, and the source range it names",
+  "lens": "program-xray"
+}
