@@ -297,7 +297,8 @@ test("the figure's showAfter: its tree's selection's rows' bottom; the " +
   const [after, rows] = await Promise.all([page.evaluate(() =>
     (window as unknown as { last: { showAfter: number } }).last.showAfter),
   page.frameLocator("#f").locator('.tree li[data-path="players"]')
-    .evaluate((li) => li.getBoundingClientRect().bottom)]);
+    .evaluate((li) => Math.max(...[...li.querySelectorAll(".row")]
+      .map((r) => r.getBoundingClientRect().bottom)))]);
   expect(Math.abs(after - rows)).toBeLessThan(2);
   const p = page.frameLocator("#p");
   await expect(p.locator(".pshown .rbar")).toBeAttached();

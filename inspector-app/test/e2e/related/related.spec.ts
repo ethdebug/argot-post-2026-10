@@ -98,7 +98,7 @@ test("a walkthrough in the related view: step 0 to found, the same rows",
     for (let i = 1; i <= 10; i++) {
       await page.keyboard.press("ArrowRight");
       await expect(page.locator("#details .rcount"))
-        .toHaveText(i === 10 ? "done" : new RegExp(`^${i}\\s*/\\s*9$`));
+        .toHaveText(new RegExp(`^${i}\\s*/\\s*10$`));
       expect(await rows(page)).toEqual(shown);
     }
   });

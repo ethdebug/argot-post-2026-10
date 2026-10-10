@@ -77,7 +77,10 @@ html[data-stuck="top"] #embed .wpanel .rbar { border-top-left-radius: 0;
    header's, between the step and the pointer */
 #embed .wpanel.compact .rbar, #embed .wpanel.compact .dpanel {
   border: 0; }
-#embed .wpanel.compact .rbar.replaying { box-shadow: none; }
+/* (its crown, the accent line at its top, in every state: riding in,
+   stuck, at rest) */
+#embed .wpanel.compact .rbar.replaying {
+  box-shadow: inset 0 2px 0 var(--accent); }
 #embed .wpanel.compact .rline2 .rtitle { font-weight: 400;
   color: var(--muted); }
 #embed .wpanel.compact :is(.rcap code.id, .rtitle code) {
@@ -105,5 +108,3 @@ html[data-stuck="bottom"] #embed .wpanel .rbar:not(.replaying),
 html[data-stuck="bottom"] #embed .wpanel .dpanel {
   border-bottom-left-radius: 0; border-bottom-right-radius: 0;
   border-bottom-width: 0; }
-html[data-stuck="bottom"] #embed .wpanel.compact .rbar.replaying {
-  box-shadow: inset 0 2px 0 var(--accent); }
