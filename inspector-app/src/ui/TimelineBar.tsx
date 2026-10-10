@@ -125,10 +125,15 @@ export function TimelineBar(p: { id: ViewId; domId?: string }) {
     let pos = lens.store.get().moment;
     if (pos >= n - 1) pos = mk[0];
     let asked = pos;
-    const mine = new Set([pos, lens.store.get().moment]);
     const sel = lens.store.get().links[spec.links[0]]?.selection ?? null;
+    // (another show, a key's or a mark's, clears the lens's playing:
+    // stopped, its next step never asked; Lens.tsx)
     const off = lens.store.subscribe(() => {
-      if (!mine.has(lens.store.get().moment)) setPlaying(false);
+      if (!lens.store.get().playing) {
+        live = false;
+        cancelAnimationFrame(raf);
+        setPlaying(false);
+      }
     });
     let last = t0;
     // (the clock read here: a frame's own timestamp is not always on
@@ -142,7 +147,6 @@ export function TimelineBar(p: { id: ViewId; domId?: string }) {
       if (!busy && want !== lens.store.get().moment) {
         busy = true;
         asked = want;
-        mine.add(want);
         void lens.show(bm.id, { moment: want, sel, walk: null, step: true,
           play: true }).finally(() => {
           busy = false;
@@ -237,8 +241,9 @@ export function TimelineBar(p: { id: ViewId; domId?: string }) {
   };
   // (focusable: its keys, Lens.tsx, with the focus here, as a button
   // that disables at an end drops it)
+  // (data-moment: the moment shown, its index in the bookmark's)
   return <div ref={me} id={p.domId} className="tbar" data-view={view}
-    tabIndex={0}
+    data-moment={i} tabIndex={0}
     aria-label="The scene's moments">
     <div className="tctl">
       <button type="button" className="btn" data-t="prev"
