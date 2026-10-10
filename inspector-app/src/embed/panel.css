@@ -105,3 +105,7 @@ html[data-stuck] #embed .wpanel .dpanel {
 #embed .wpanel.compact details.ptr .srcfile { font-family: inherit;
   font-weight: 700; font-size: var(--fs-label); text-transform: uppercase;
   letter-spacing: 0.06em; }
+/* (step 0's way on, over the blurred pointer: at the pointer's left, on
+   its lines' inset, not centred; its glyph up toward ▶) */
+#embed .wpanel.compact .pgo { left: calc(0.9 * var(--fs-label));
+  transform: translateY(-50%); }
