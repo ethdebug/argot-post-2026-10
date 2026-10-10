@@ -179,7 +179,9 @@ function Column(p: { lang: Lang; title: string; chosen: number;
   const box = useRef<HTMLPreElement>(null);
   const cols = useCols(box);
   const pre = useRef<HTMLPreElement>(null);
-  useLayoutEffect(() => intoView(pre.current),
+  // (the range a third of the way down, each time it changes: the
+  // panel is small, and a range at its edge reads as none)
+  useLayoutEffect(() => intoView(pre.current, true),
     [mark?.from, mark?.to, coloured]);
   // (the chosen row in its list's view: the list's box scrolls, never
   // the page)
@@ -236,8 +238,8 @@ function Column(p: { lang: Lang; title: string; chosen: number;
           <span className="val">{briefs[k] || "no context"}</span>
         </div></li>)}
     </ul>
-    <p className="codehead"><span className="srcfile">{prog.list.replace(
-      /^.*\./, "")}[{prog.at + i}]</span>{" "}<span className="codenote">
+    <p className="codehead"><span className="srcfile">{prog.list}[{
+      prog.at + i}]</span>{" "}<span className="codenote">
       its entry, as YAML</span></p>
     <pre ref={box} className="src xjson" data-offset={e?.offset}>{
       rows.map((l, k) => <span key={`${i}:${k}`} className="line">{l}

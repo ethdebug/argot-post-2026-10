@@ -101,14 +101,16 @@ export function lines(text: string, coloured: Coloured | null,
 // across (when its start, or the most of it the box can show, is out of
 // view: a phone's narrow panel): as little as shows it, a few
 // characters to spare, its line's start kept where it can be
-export function intoView(box: HTMLElement | null) {
+// (`always`: a third of the way down even when it shows already: a
+// small panel whose reader has just chosen it, the program x-ray's)
+export function intoView(box: HTMLElement | null, always = false) {
   // (its first shown piece: not a hidden indent's)
   const m = [...box?.querySelectorAll("mark") ?? []].find((x) =>
     !x.closest(".ind"));
   if (!box || !m) return;
   const b = box.getBoundingClientRect(), r = m.getBoundingClientRect();
   const top = r.top - b.top + box.scrollTop;
-  if (top < box.scrollTop || top + r.height > box.scrollTop +
+  if (always || top < box.scrollTop || top + r.height > box.scrollTop +
     box.clientHeight) {
     // (its row's top: the mark's text, less the half-leading; whole
     // rows from the box's top edge, a wrapped line's rows too)

@@ -12,6 +12,9 @@ const here = path.dirname(new URL(import.meta.url).pathname);
 const dbg = path.resolve(here, "../../demos/debugger");
 const read = (f) => fs.readFileSync(path.join(dbg, f), "utf8");
 
+// (each list named as in the program object itself: Fe's file holds
+// its programs in a list of its own, not the format's; the figure shows
+// the `call` one, as the real debugger does)
 // the instructions from the first to the last with a range of source 0
 // inside [from, to) (byte offsets of the function's text), and where
 // the first is in the program's list
@@ -42,7 +45,7 @@ const out = {
     ...window(solProgram.instructions, solText, "function play()",
       "function setMotd") },
   fe: { compiler: "Fe", file: "arcade.ethdebug.json",
-    list: `programs[${feIndex}].instructions`,
+    list: "instructions",
     source: { path: "arcade.fe", text: feText },
     ...window(feFile.programs[feIndex].instructions, feText, "Play uses",
       "SetMotd { text }") },

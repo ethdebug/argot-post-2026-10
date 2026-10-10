@@ -19,6 +19,18 @@ const yaml = (page: Page, lang: string) => entry(page, lang)
     c.querySelectorAll(".xpop").forEach((p) => p.remove());
     return c.textContent ?? "";
   });
+// (where the range's first row is in its code panel: out of view, in
+// its second quarter to its half, or elsewhere in view)
+const place = (page: Page, lang: string) => page.locator(
+  `${col(lang)} .codesrc`).evaluate((p) => {
+  const m = [...p.querySelectorAll("mark.rng")].find((x) =>
+    !x.closest(".ind"));
+  if (!m) return "none";
+  const b = p.getBoundingClientRect(), r = m.getBoundingClientRect();
+  const y = (r.top - b.top) / b.height;
+  return r.bottom < b.top || r.top > b.bottom ? "out"
+    : y >= 0.2 && y <= 0.55 ? "third" : "in";
+});
 const height = (page: Page) => page.locator(F).evaluate((e) =>
   Math.round(e.getBoundingClientRect().height));
 
@@ -62,10 +74,21 @@ for (const width of [790, 358]) {
     await expect.poll(() => yaml(page, "fe")).not.toContain("context:");
     await expect(page.locator(`${col("fe")} .codesrc mark.rng`))
       .toHaveCount(0);
+    // a range off the panel's screen, chosen: scrolled into view, about
+    // a third of the way down
+    const far = page.locator(`${col("sol")} .xrows li:not(.absent)`).last();
+    await far.scrollIntoViewIfNeeded();
+    // (the panel at the source's top: play()'s end far below it)
+    await page.locator(`${col("sol")} .codesrc`).evaluate((p) => {
+      p.scrollTop = 0;
+    });
+    expect(await place(page, "sol")).toBe("out");
+    await far.click();
+    await expect.poll(() => place(page, "sol")).toBe("third");
     // the keys move the choice in a focused list
     const was = await entry(page, "sol").getAttribute("data-offset");
     await page.locator(`${col("sol")} .xrows`).focus();
-    await page.keyboard.press("ArrowDown");
+    await page.keyboard.press("ArrowUp");
     await expect(entry(page, "sol")).not.toHaveAttribute("data-offset",
       was!);
     expect(await height(page)).toBe(h);
