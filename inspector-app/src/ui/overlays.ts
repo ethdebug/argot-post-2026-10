@@ -573,9 +573,16 @@ function popFor(root: El, rows: El[], more: number): Pop {
   pop.className = "pop";
   pop.setAttribute("role", "status");
   const what = whatIn(root, rows);
-  const named = (t: string) => light?.names?.size ? t.replace(
-    /0x[0-9a-f]{4}…[0-9a-f]{4}/g, (h) => light.names!.get(h) ?? h) : t;
-  for (const w of what) w.text = named(w.text);
+  // (a key is the address itself, in a hash's arguments and in a path:
+  // its name only a label beside it, as the tree writes a key,
+  // 0x90f7…b906 ("carol"))
+  const keyed = (t: string) => light?.names?.size ? t.replace(
+    /0x[0-9a-f]{4}…[0-9a-f]{4}/g, (h) => {
+      const n = light.names!.get(h);
+      return n ? `${h} ("${n.replace(/^"|"$/g, "").replace(/…$/, "")
+        .split(",")[0]}")` : h;
+    }) : t;
+  for (const w of what) w.text = keyed(w.text);
   pop._what = what;
   // (a run with one lit row names that row's values: "how : what")
   const one = rows.filter((r) => rowState(r).on).length === 1 &&
@@ -588,7 +595,7 @@ function popFor(root: El, rows: El[], more: number): Pop {
     !light?.wholes?.has(slotOf(r)));
   const shown = !light?.walk ? rows : readRows.length ? readRows
     : onRows.length ? onRows : rows;
-  const [, how0, n] = named(runName(shown)).match(/^(.*?)(, \d+ slots)?$/)!;
+  const [, how0, n] = keyed(runName(shown)).match(/^(.*?)(, \d+ slots)?$/)!;
   // (a figure's facts on a narrow dump: every hash's keys short, the same
   // in each popover, "…79c8"; never one short and one whole)
   const narrow = !!data(rows[0])?.facts && (rows[0].closest(".view")
@@ -603,7 +610,7 @@ function popFor(root: El, rows: El[], more: number): Pop {
     ? ' · <code class="pname pfree"><span class="pprose">' + (ofFacts
       ? "empty: all zeros" : "(empty: all zeros)") + "</span></code>" : "";
   pop.innerHTML = `<span class="pop-how"><span class="phow">${howHtml(
-    what.length ? how : named(runName(shown)))}</span>${what.length
+    what.length ? how : keyed(runName(shown)))}</span>${what.length
     ? ` : <span class="pwhat">${whatHtml(what, what.map((_, i) => i))
     }</span>${count ?? ""}` : ""}${empty}${facts.length
     ? ` · ${esc(facts.join(" / "))}` : ""}${more ? ` · +${more} more`

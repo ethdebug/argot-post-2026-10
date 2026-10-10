@@ -68,3 +68,9 @@ html[data-stuck] #embed .wpanel .dpanel {
 /* (the frame is the card: no page's room under it, the page's sticky
    panel's, nor its backdrop) */
 #embed .wpanel.walking { padding-bottom: 0; background: none; }
+/* (a narrow panel: no title, rather than a cut one; the caption and the
+   pointer's place say what it walks) */
+@media (max-width: 559.98px) {
+  #embed .wpanel.compact .rline2 .rtitle { display: none; }
+  #embed .wpanel.compact .rline2 .rexit { margin-left: auto; }
+}
