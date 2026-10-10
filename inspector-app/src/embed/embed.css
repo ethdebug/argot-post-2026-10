@@ -73,6 +73,10 @@ html, body { margin: 0; overflow: hidden; background: transparent; }
 #embed .lens.soldb pre.src { overflow: auto !important;
   height: 26em !important; }
 #embed .lens.soldb .sside .tree { overflow: visible !important; }
+/* (on a phone, a shorter code panel: soldb's rows nearer the moves) */
+@media (max-width: 759.98px) {
+  #embed .lens.soldb pre.src { height: 16em !important; }
+}
 .embed-none { margin: 0; font: 14px system-ui, sans-serif;
   color: #8a4b00; }
 /* (a figure's ↺ Reset, ui/Reset.tsx: the top right of its first line,
