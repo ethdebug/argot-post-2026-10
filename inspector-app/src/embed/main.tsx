@@ -139,7 +139,10 @@ const post = () => {
 };
 // (the root, and what it holds: the root keeps its min-height, so a
 // shrink shows only in its content)
-const ro = new ResizeObserver(post);
+// (posted after the observer's own delivery, by a timer: the post sets
+// the root's min-height, and a size change inside the callback is a
+// resize loop, which WebKit reports as an error)
+const ro = new ResizeObserver(() => setTimeout(post));
 ro.observe(root);
 new MutationObserver(() => {
   for (const c of root.querySelectorAll(":scope > *, .lens")) ro.observe(c);
