@@ -1,7 +1,7 @@
 // The walkthrough's words that are not a step's own: the construct a
 // step is about (one axis for every step: the bar's "construct: …"), the
 // spec page of it (a fixed label, no number), and the step's place
-// ("start", "3 / 9", "done")
+// ("start", "3 / 9", the last "9 / 9")
 import type { Step } from "./fold";
 
 const SPEC = "https://ethdebug.github.io/format/spec/pointer/";
@@ -33,13 +33,10 @@ const CONSTRUCT: Record<string, string> = {
 };
 export const constructOf = (st: Step) => CONSTRUCT[st.phase] ?? "";
 
-// A step's place, as the bar shows it: step 0 "start"; the last, when
-// it is found (or what follows it), "done"; the others counted
+// A step's place, as the bar shows it: step 0 "start"; the others
+// counted, the last (found, or what follows it) too: "11 / 11"
 export function placeOf(steps: Step[], i: number): string {
   const goal = steps[0]?.goal ? 1 : 0;
-  const end = steps.length > 1 && ["found", "external"].includes(
-    steps.at(-1)!.phase) ? 1 : 0;
   if (steps[i]?.goal) return "start";
-  if (end && i === steps.length - 1) return "done";
-  return `${i + 1 - goal} / ${steps.length - goal - end}`;
+  return `${i + 1 - goal} / ${steps.length - goal}`;
 }
