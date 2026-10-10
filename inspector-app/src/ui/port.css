@@ -159,10 +159,7 @@
   border-color: var(--accent); }
 /* (a facts popover's arguments: one width, so two hashes' arguments
    stand in the same columns, the swap read straight down) */
-@media (min-width: 660px) {
-  .lens.vyper .pop .parg { display: inline-block; min-width: 11ch;
-    text-align: center; }
-}
+
 
 /* (a record shown by one field: no count of its fields beside it) */
 .lens.vyper .tree .val.sum { display: none; }

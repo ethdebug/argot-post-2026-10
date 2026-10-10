@@ -522,7 +522,10 @@ export function fitWhat(pop: Pop) {
     render();
   }
   const how = pop.querySelector(".phow");
-  if (over() && how) {
+  // (a figure's facts: its hashes' arguments whole, as the other
+  // popovers beside it have them; it wraps instead)
+  const factual = items.some((x) => x.fixed && !x.free);
+  if (over() && how && !factual) {
     // (its text only: its badges stay)
     const walker = document.createTreeWalker(how, NodeFilter.SHOW_TEXT);
     for (let t = walker.nextNode(); t; t = walker.nextNode()) {
@@ -582,7 +585,13 @@ function popFor(root: El, rows: El[], more: number): Pop {
     !light?.wholes?.has(slotOf(r)));
   const shown = !light?.walk ? rows : readRows.length ? readRows
     : onRows.length ? onRows : rows;
-  const [, how, n] = named(runName(shown)).match(/^(.*?)(, \d+ slots)?$/)!;
+  const [, how0, n] = named(runName(shown)).match(/^(.*?)(, \d+ slots)?$/)!;
+  // (a figure's facts on a narrow dump: every hash's keys short, the same
+  // in each popover, "…79c8"; never one short and one whole)
+  const narrow = !!data(rows[0])?.facts && (rows[0].closest(".view")
+    ?.clientWidth ?? Infinity) < 560;
+  const how = narrow ? how0.replace(/0x[0-9a-f]+…([0-9a-f]{4})/g, "…$1")
+    : how0;
   const count = one ? "" : n;
   // (a rule over another compiler's storage, reading slots that hold
   // nothing, every byte zero: said so, as a note; it reads zeros)
