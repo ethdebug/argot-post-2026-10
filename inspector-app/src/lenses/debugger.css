@@ -56,7 +56,10 @@
 .moves select { font: inherit; }
 .moves .mat code { font-family: var(--mono); }
 /* the scene and the debugger, side by side, or one by a switch */
-.authoring { display: grid; gap: 18px 36px; }
+/* (one column, never wider than the page: a pane's widest row, in a
+   wider font than ours, makes no page scroll sideways) */
+.authoring { display: grid; gap: 18px 36px;
+  grid-template-columns: minmax(0, 1fr); }
 .authoring .dswitch { display: none; }
 .authoring .dopen { margin: 0; }
 @media (max-width: 1099px) {
@@ -70,7 +73,7 @@
 .pinbar .pins { margin: 0 0 8px; padding-left: 1.4em; }
 .pinbar .pinrow { display: flex; flex-wrap: wrap; gap: 6px; margin: 0 0 6px;
   align-items: center; }
-.pinbar input, .pinbar select { font: inherit; }
+.pinbar input, .pinbar select { font: inherit; max-width: 100%; }
 
 /* The real debugger (figures/RealDebugger.tsx): its name, the language
    and the moves, then the code panel, the frame's width. Its box keeps
