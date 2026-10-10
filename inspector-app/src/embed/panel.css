@@ -74,3 +74,30 @@ html[data-stuck] #embed .wpanel .dpanel {
   #embed .wpanel.compact .rline2 .rtitle { display: none; }
   #embed .wpanel.compact .rline2 .rexit { margin-left: auto; }
 }
+/* The post's panel in the post's figures' looks (the program x-ray's,
+   the compilers' pitfall's): one light background, no edges; the
+   pointer under the quiet header they use (.ptr .plabel: uppercase, a
+   hairline, no box), its band in the selection's yellow (xray.css, the
+   x-ray's range line); the type the figures' (--fs-*), names from the
+   code in the popovers' monospace and weight; the pointer scrolling
+   inside itself, as the code panels do, the step's lines kept in view
+   (PointerYaml), with no labels at its edges. The one hairline: the
+   header's, between the step and the pointer */
+#embed .wpanel.compact .rbar, #embed .wpanel.compact .dpanel {
+  border: 0; }
+#embed .wpanel.compact .rbar.replaying { box-shadow: none; }
+#embed .wpanel.compact .rline2 .rtitle { font-weight: 400;
+  color: var(--muted); }
+#embed .wpanel.compact :is(.rcap code.id, .rtitle code) {
+  font-family: var(--mono); font-weight: 600; color: var(--fg); }
+#embed .wpanel.compact .pchain { font: 400 var(--fs-label)/1.3
+  var(--mono); color: var(--muted); }
+#embed .wpanel.compact .ptrbox { padding: 0; }
+#embed .wpanel.compact .pedge { display: none; }
+#embed .wpanel.compact .ptrscroll { scrollbar-width: thin; }
+/* (a phone's folded pointer: its summary the same header) */
+#embed .wpanel.compact details.ptr > summary { color: var(--muted);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+#embed .wpanel.compact details.ptr .srcfile { font-family: inherit;
+  font-weight: 700; font-size: var(--fs-label); text-transform: uppercase;
+  letter-spacing: 0.06em; }
