@@ -151,6 +151,7 @@ export function Code(p: { id: ViewId; data: DataRef; domId?: string }) {
       .split("/").pop()}</span> <span className="codenote">{note}</span>
     </p>
     <pre ref={pre} className={`src codesrc${coloured ? " coloured" : ""}`}>
-      {lines(text, coloured, mark ? { mark } : {})}</pre>
+      {lines(text, coloured, { indent: true, ...mark ? { mark } : {} })}
+    </pre>
   </div>;
 }

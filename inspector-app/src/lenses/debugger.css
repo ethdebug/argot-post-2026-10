@@ -101,13 +101,15 @@
 }
 .lens.soldb .code { grid-area: code; }
 /* (long lines wrapped, each under its own indent and two more: the lit
-   range shows with its line's start, no scrolling across) */
-.lens.soldb pre.src { white-space: pre-wrap; overflow-wrap: anywhere;
-  overflow-x: hidden; }
-.lens.soldb pre.src .line { display: inline-block; width: 100%;
-  box-sizing: border-box; padding-left: calc(var(--ind, 0ch) + 2ch);
-  text-indent: -2ch; min-height: 1lh; vertical-align: top; }
-.lens.soldb pre.src .line .ind { display: none; }
+   range shows with its line's start, no scrolling across; the bugc
+   stepper's code too, within its column) */
+.lens:is(.soldb, .stepper) pre.src { white-space: pre-wrap;
+  overflow-wrap: anywhere; overflow-x: hidden; }
+.lens:is(.soldb, .stepper) pre.src .line { display: inline-block;
+  width: 100%; box-sizing: border-box;
+  padding-left: calc(var(--ind, 0ch) + 2ch); text-indent: -2ch;
+  min-height: 1lh; vertical-align: top; }
+.lens:is(.soldb, .stepper) pre.src .line .ind { display: none; }
 /* (soldb's progress, in the empty code panel) */
 .lens.soldb .sload { display: block; margin: 9em 1em 0; text-align: center;
   white-space: normal; font-family: system-ui, -apple-system, sans-serif; }
