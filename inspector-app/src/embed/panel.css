@@ -27,6 +27,10 @@ html[data-stuck] #embed .wpanel .dpanel {
 /* (the panel at rest and at each step, drawn unseen at the frame's
    width, to keep the tallest's height: panel.tsx) */
 #embed { position: relative; }
+/* (the card edge to edge of its frame: none of the figure frame's side
+   room, embed.css, which showed as a strip of the page's colour each
+   side of the stuck card, over the figure) */
+#embed { padding: 0; }
 #embed .pmeasure .reset { visibility: hidden !important; }
 #embed .pmeasure { position: absolute; left: 0; right: 0; top: 0;
   visibility: hidden; pointer-events: none; height: 0; overflow: visible; }
