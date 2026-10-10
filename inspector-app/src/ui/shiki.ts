@@ -12,3 +12,13 @@ export async function highlighter() {
     langs: [solidity.default, yaml.default],
     engine: createJavaScriptRegexEngine() });
 }
+
+// a grammar loaded only when a source needs it: Rust's, for Fe (whose
+// syntax it is close to; no Fe grammar exists), by the real debugger
+type Hl = Awaited<ReturnType<typeof highlighter>>;
+export async function withLang(hl: Hl, lang: string): Promise<Hl> {
+  if (lang === "rust" && !hl.getLoadedLanguages().includes("rust")) {
+    await hl.loadLanguage((await import("@shikijs/langs/rust")).default);
+  }
+  return hl;
+}

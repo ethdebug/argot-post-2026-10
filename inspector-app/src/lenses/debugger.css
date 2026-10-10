@@ -101,7 +101,8 @@
 /* (the count, on a line of its own wherever its longest would not fit
    beside the buttons: the same lines loading as loaded) */
 .lens.soldb .mat { min-width: 9em; white-space: nowrap; }
-@media (pointer: coarse) {
+/* (a finger's size under 760px, a phone's or not: one height there) */
+@media (max-width: 759.98px) {
   .lens.soldb :is(.mctl .btn, .picker button) { min-height: 44px;
     min-width: 44px; }
 }
@@ -129,7 +130,7 @@
 /* (a phone: no types, the values' room; a shortened value's popover
    gives its type) */
 @media (max-width: 479.98px) {
-  .lens.soldb .srows .type { display: none; }
+  .lens.soldb .srows .row > .type { display: none; }
 }
 /* (soldb's whole text, pointed at or focused: a popover under the row,
    the column's width, over the rows below) */
