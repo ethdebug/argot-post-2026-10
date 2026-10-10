@@ -32,3 +32,8 @@ it("a nested keccak and a sum: its innermost arguments badged, the text " +
   // (no keccak: as it is, escaped)
   expect(howHtml("slot 2 <x>")).toBe("slot 2 &lt;x&gt;");
 });
+
+it("a key by its name, a comma in it: one badge", () => {
+  expect(badges('keccak("carol, the un…", slot 3)').map(([t]) => t))
+    .toEqual(['"carol, the un…"', "slot 3"]);
+});
