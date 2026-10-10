@@ -35,12 +35,12 @@ import {
   usePointAt, hush,
 } from "./hooks";
 import { blockOf, resolveTarget } from "../engine/target";
-import { noLight } from "../engine/light";
+import { noLight, retint } from "../engine/light";
 import { relClass } from "../engine/related";
 import { afterTransition, vtName } from "./transition";
 import { readWritten } from "../engine/timeline";
 import {
-  addressText, addressing, hex4, rowBytes,
+  addressText, addressing, hex4, nextRow, rowBytes,
 } from "../engine/location";
 import type { DataRef, Display, LinkId, ViewId } from "./types";
 import { exiting, outside } from "./types";
@@ -302,12 +302,21 @@ export function Dump(p: { id: ViewId; location: Location; data: DataRef;
   const here = hereAt?.p;
   const snap = here?.snapshot;
   const otherPoint = thereAt?.p;
-  const lit0 = useLight(p.id, p.filter, undefined, p.compare);
+  const lit00 = useLight(p.id, p.filter, undefined, p.compare);
+  const lit0 = useMemo(() => retint(lit00, disp.tint), [lit00, disp.tint]);
+  // (a second reading of the same storage: its layout and its light, in
+  // its own colour; its rows merged in, its lit bytes outlined)
+  const { l: l2 } = useLayout(p.id, p.filter, disp.second?.data);
+  const lit2 = useLight(p.id, p.filter, disp.second?.data);
+  const d2 = useDecoded(disp.second?.data);
+  const light2 = useMemo(() => retint(lit2, disp.second?.tint),
+    [lit2, disp.second?.tint]);
   const [walkLink] = useLink(p.link);
   // (a walkthrough walks the moment shown: the dump of the one before
   // it stays unlit meanwhile)
   const earlier = "moment" in p.data && p.data.moment === "previous";
   const light = bare || (earlier && walkLink.walk) ? noLight : lit0;
+  const lightMain = light;
   const relOn = useLensState((s) => s.related !== undefined);
   // what the compared point lights (a slot lit there only: "only"; none
   // in a walkthrough, which walks one side: vanilla panel.js)
@@ -317,6 +326,7 @@ export function Dump(p: { id: ViewId; location: Location; data: DataRef;
   const d = useDecoded(p.data);
   const lens = useLens();
   const foreign = !!d && !!decodingOf(lens, d.decoding)?.foreign;
+  const foreign2 = !!d2 && !!decodingOf(lens, d2.decoding)?.foreign;
   const groupsOf = (id: string) => !!d?.byPath.get(id)?.children;
   const title = p.title ?? "Storage";
   const label = p.location[0].toUpperCase() + p.location.slice(1);
@@ -489,7 +499,20 @@ export function Dump(p: { id: ViewId; location: Location; data: DataRef;
   // (all-zero rows folded into the gaps, when the display asks: a row
   // after a folded one starts after a gap)
   const rows = useMemo(() => {
-    const all = l?.rows ?? [];
+    let all: (Row & { second?: boolean })[] = l?.rows ?? [];
+    if (disp.second && l2) {
+      const mine = new Set(all.map((r) => r.address));
+      all = [...all, ...l2.rows.filter((r) => !mine.has(r.address))
+        .map((r) => ({ ...r, second: true }))].sort((a, b) =>
+        BigInt(a.address) < BigInt(b.address) ? -1 : 1)
+        .map((r, k, xs) => ({ ...r, gapBefore: k === 0
+          ? BigInt(r.address) !== 0n
+          : BigInt(r.address) !== nextRow(p.location, xs[k - 1].address) }));
+    }
+    // (a figure's few rows: no "⋯" before the first)
+    if (disp.ends === false && all[0]?.gapBefore) {
+      all = [{ ...all[0], gapBefore: false }, ...all.slice(1)];
+    }
     if (!disp.foldZero) return all;
     const zero = (r: (typeof all)[number]) => rowBytes(snap, p.location,
       r.address).every((b) => b === undefined || b === "00");
@@ -504,7 +527,7 @@ export function Dump(p: { id: ViewId; location: Location; data: DataRef;
       folded = false;
     }
     return out;
-  }, [l, disp.foldZero, snap, p.location]);
+  }, [l, l2, disp.second, disp.ends, disp.foldZero, snap, p.location]);
   useFitDump(me, true, rows.length);
 
   // the annotated layer (display `annotate`): the values here, each in
@@ -629,6 +652,11 @@ export function Dump(p: { id: ViewId; location: Location; data: DataRef;
     if (me.current && layer) paintView(me.current, true);
   });
 
+  // (a figure's facts, by a decoding: a value's own name and value)
+  const factsOf = (x: typeof d) => disp.facts && x ? { facts: (q: string) => {
+    const n = x.byPath.get(q);
+    return n ? { label: n.label, value: n.value?.text } : undefined;
+  } } : {};
   // the overlays (popovers), over the dumps' box, once per render of any
   // of its dumps; again on resize and once the fonts are in (the labels
   // are fitted in them)
@@ -637,10 +665,7 @@ export function Dump(p: { id: ViewId; location: Location; data: DataRef;
     const v = me.current as (HTMLDivElement & { _data?: ViewData }) | null;
     if (v && l) {
       v._data = { light, there: p.compare ? there : undefined, l,
-        ...disp.facts && d ? { facts: (q: string) => {
-          const n = d.byPath.get(q);
-          return n ? { label: n.label, value: n.value?.text } : undefined;
-        } } : {} };
+        ...factsOf(d) };
     }
     const root = v?.closest<HTMLElement>(".panel") ?? v?.parentElement;
     if (root) schedule(root);
@@ -671,10 +696,14 @@ export function Dump(p: { id: ViewId; location: Location; data: DataRef;
   const slots = loc === "storage";
   // (a row's name in a view transition: transition.ts)
   const vt = (...x: string[]) => vtName(lens.key, p.id, p.location, ...x);
-  rows.forEach((r, k) => {
+  rows.forEach((r0, k) => {
+    // (a row of the second reading: its layout and light, outlined)
+    const r = r0 as Row & { second?: boolean };
+    const L = r.second && l2 ? l2 : l;
+    const light = r.second ? light2 : lightMain;
     const n = BigInt(r.address);
     const name = r.how;
-    if (k === 0 && n === 0n) {
+    if ((k === 0 && n === 0n) || (k === 0 && disp.ends === false)) {
       // row 0 at the top: no line before it
     } else if (r.gapBefore) {
       lines.push(<div key={`g${k}`} className="gap" aria-hidden="true"
@@ -723,11 +752,17 @@ export function Dump(p: { id: ViewId; location: Location; data: DataRef;
       // a consulted one)
       relOn && !on && !only && !rel && !gut && !known ? "ctx" : ""]
       .filter(Boolean).join(" ");
-    lines.push(<div key={r.address} className={cls} data-slot={r.address}
+    lines.push(<div key={r.address} className={r.second ? `${cls} second`
+      : cls} data-slot={r.address}
+      ref={r.second && L ? (el) => {
+        if (el) (el as HTMLElement & { _data?: ViewData })._data = {
+          light, l: L, ...factsOf(d2) };
+      } : undefined}
       data-name={name} data-facts={facts} data-vt-in={vt(r.address)}
       // (a rule read over another compiler's storage: a slot it reads
       // that holds nothing, every byte zero; the misread's cause)
-      data-empty={slots && foreign && snap && rowBytes(snap, loc,
+      data-empty={slots && (r.second ? foreign2 : foreign) && snap &&
+        rowBytes(snap, loc,
         r.address).every((b) => b === undefined || b === "00") ? ""
         : undefined}
       {...(name === slotRef(r.address) || !slots ? {}
@@ -736,7 +771,8 @@ export function Dump(p: { id: ViewId; location: Location; data: DataRef;
         aria-label={bare ? undefined : `${r.address}; ${what}`}>
         {ring && <span className="ring" aria-label="written, same value" />}
         <span className="a">{addressText(loc, r.address)}</span></span>
-      {l && <Word l={l} ls={tintOrder} loc={loc} row={r.address}
+      {L && <Word l={L} ls={r.second ? [L] : tintOrder} loc={loc}
+        row={r.address}
         mine={rowBytes(snap, loc, r.address)}
         theirs={rowBytes((p.compare ? otherPoint : here)?.snapshot, loc,
           r.address)}

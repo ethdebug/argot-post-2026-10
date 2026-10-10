@@ -8,5 +8,5 @@ it("one column: row by row, dumps first, a spanning area at its end",
     expect(narrowAreas(fullInspector.grid, fullInspector.areas)).toBe(
       '"contract" "pick" "time" "bar" "rows" "dump" "tree"');
     expect(narrowAreas(vyper.grid, vyper.areas))
-      .toBe('"t1" "t2" "d1" "d2"');
+      .toBe('"t1" "t2" "d"');
   });

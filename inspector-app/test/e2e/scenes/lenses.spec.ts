@@ -11,7 +11,9 @@ const open = async (page: Page, lens: string) => {
     .toBeAttached();
 };
 const look = (page: Page) => page.evaluate(() => {
-  const lit = [...document.querySelectorAll<HTMLElement>(".view .b.hl")];
+  // (a second reading's bytes are outlined, by a shadow: not caps)
+  const lit = [...document.querySelectorAll<HTMLElement>(
+    ".view .wrow:not(.second) .b.hl")];
   const rest = [...document.querySelectorAll<HTMLElement>(
     ".view:not([hidden]) .rows .b:not(.hl):not(.at)")];
   return { lit: lit.filter((b) => !b.classList.contains("chg")).length,
