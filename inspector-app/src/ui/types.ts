@@ -77,8 +77,8 @@ export interface Display {
   // the byte ruler over the rows (default: shown, where rows are words)
   ruler?: boolean;
   // (the selection's light in child colour `tint`, not yellow; and a
-  // second reading of the same storage, its rows merged in, its lit
-  // bytes outlined in its own colour: one storage read two ways)
+  // second reading of the same storage, its rows merged in, lit in its
+  // own colour: one storage read two ways)
   tint?: Colour;
   second?: { data: DataRef; tint?: Colour };
   // (no "⋯" before the first row nor after the last: a figure's few rows)

@@ -1,9 +1,8 @@
 // The compilers' pitfall (the post's figure; scene pitfall-compiler):
 // ONE storage, the Vyper contract's, read two ways: by solc's rule and
 // by Vyper's own layout (a hand-written pointer, badged so). The two
-// readings side by side, each in a colour of its own, over the one dump:
-// Vyper's reading lit where it lands, Solidity's outlined where it
-// lands (an empty slot); linked by path
+// readings side by side, each in a colour of its own, over the one dump,
+// each lit where it lands (Solidity's on an empty slot); linked by path
 import type { LensSpec } from "../ui/types";
 
 const SOL = { decoding: "$scene", moment: "current" } as const;
