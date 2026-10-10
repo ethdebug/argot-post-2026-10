@@ -394,11 +394,14 @@ export function howHtml(how: string): string {
       break;
     }
     out.push(esc(how.slice(i, at + 7)));
-    // (its arguments, split at its own commas; its closing paren)
-    let depth = 0, from = at + 7, j = from;
+    // (its arguments, split at its own commas, not a quoted string's (a
+    // name: "carol, the un…"); its closing paren)
+    let depth = 0, from = at + 7, j = from, quoted = false;
     const args: string[] = [];
     for (; j < how.length; j++) {
       const c = how[j];
+      if (c === '"') quoted = !quoted;
+      if (quoted) continue;
       if (c === "(") depth++;
       else if (c === ")" && depth-- === 0) break;
       else if (c === "," && depth === 0) {
