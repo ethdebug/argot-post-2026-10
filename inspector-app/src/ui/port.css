@@ -152,19 +152,6 @@
 /* (the facts stay boxed, selected or lit: 0 and 30) */
 .lens.vyper .tree .row.hl:not(:has(+ ul)) .val {
   border-color: var(--accent); }
-/* (the second reading's lit bytes: outlined in its colour, hollow, the
-   bytes they land on as they are; its row's address the same) */
-.wrow.second .b.hl { --ol: var(--pk-fg); background: none !important;
-  border-radius: 0; box-shadow: inset 0 1.5px 0 var(--ol),
-  inset 0 -1.5px 0 var(--ol) !important; }
-.wrow.second .b.hl.gs { border-radius: 4px 0 0 4px;
-  box-shadow: inset 1.5px 0 0 var(--ol), inset 0 1.5px 0 var(--ol),
-  inset 0 -1.5px 0 var(--ol) !important; }
-.wrow.second .b.hl.ge { border-radius: 0 4px 4px 0;
-  box-shadow: inset -1.5px 0 0 var(--ol), inset 0 1.5px 0 var(--ol),
-  inset 0 -1.5px 0 var(--ol) !important; }
-.wrow.second .b.hl.gs.ge { border-radius: 4px;
-  box-shadow: inset 0 0 0 1.5px var(--ol) !important; }
 /* (a facts popover's arguments: one width, so two hashes' arguments
    stand in the same columns, the swap read straight down) */
 @media (min-width: 660px) {
@@ -174,13 +161,11 @@
 
 /* (a record shown by one field: no count of its fields beside it) */
 .lens.vyper .tree .val.sum { display: none; }
-/* (each reading's slot, its address in the reading's colour: Vyper's
-   filled, Solidity's (the second reading's) outlined; no selection
-   yellow) */
+/* (each reading's slot, its address in the reading's colour, lit as
+   its bytes are; no selection yellow) */
 .lens.vyper .wrow.on:not(.second) .addr.grp::before {
   background: var(--pk2); }
-.lens.vyper .wrow.second.on .addr.grp::before { background: none;
-  box-shadow: inset 0 0 0 1.5px var(--pk1-fg); border-radius: 6px; }
+.lens.vyper .wrow.second.on .addr.grp::before { background: var(--pk1); }
 /* (the two headings' first lines level: the badge's line under
    Vyper's, room for it under Solidity's) */
 @media (min-width: 660px) {
