@@ -83,7 +83,7 @@ checks["real-debugger"] = async (page) => {
 
 // (the program x-ray: solc's entry at `player.plays += 1`)
 checks["program-xray"] = async (page) => {
-  await expect(page.locator("[data-figure=program-xray] .xjson").first())
+  await expect(page.locator("[data-figure=program-xray] .xentry pre"))
     .toHaveAttribute("data-offset", "4432");
 };
 

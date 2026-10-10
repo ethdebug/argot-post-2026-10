@@ -1,22 +1,27 @@
 // The program x-ray (the post's "underneath, the data soldb reads"): a
-// compiler's ethdebug program, as it wrote it, for Arcade's play(), from
-// solc and from Fe side by side (the files the real debugger loads;
-// bin/xray-data.mjs cuts play's instructions out, each entry
-// unchanged). Each column: the instructions, a row each (byte offset,
-// opcode, the source text in brief); the chosen one's entry, as YAML,
-// each field's name a popover saying what it is; under it, a small code
-// panel with its range lit. Pointing at a row shows its entry and lights
-// its range; a click (a tap) chooses it, and the arrow keys move the
-// choice in a focused list. Both open at the plays update. Nothing is
-// normalized: solc's PUSHes carry their bytes, Fe's do not; Fe writes
-// fields of its own, and instructions with no context (its rows muted);
-// each shows as written. The box keeps its size whatever is shown
-// (data-ready at once: its data is in the bundle).
+// compiler's ethdebug program for Arcade's play(), from solc or from Fe
+// (the picker, the real debugger's), from the files the real debugger
+// loads (bin/xray-data.mjs cuts play's instructions out, each entry
+// unchanged). The instructions, a row each (byte offset, opcode, the
+// source text in brief); beside them, the chosen one's entry, as YAML,
+// coloured as the walkthrough's pointer is (PointerYaml's colouring),
+// its `range` in the walkthrough's band, each field's name a popover
+// saying what it is; under both, a small code panel, the range lit (an
+// instruction with no context: the panel muted). Pointing at a row
+// shows its entry; a click (a tap) chooses it, the arrow keys move the
+// choice in a focused list. Both compilers open at the plays update,
+// and each keeps its own choice. The keys show in the format's order
+// (offset, operation, context) on both sides; the values, and which
+// keys there are, as written: solc's PUSHes carry their bytes, Fe's do
+// not; Fe's own fields are one line, "+3 Fe-specific fields", opened in
+// place, in room kept for them. The box keeps its size whatever is
+// shown (data-ready at once: its data is in the bundle).
 import {
-  useLayoutEffect, useMemo, useRef, useState, type KeyboardEvent,
-  type ReactNode,
+  useEffect, useLayoutEffect, useMemo, useRef, useState,
+  type KeyboardEvent, type MouseEvent,
 } from "react";
 import { charAt, intoView, lines, useColoured } from "../ui/Code";
+import { shiki, wrapRange, yamlLines } from "../ui/PointerYaml";
 import { ResetButton } from "../ui/Reset";
 import data from "./xray-data.json" with { type: "json" };
 
@@ -30,10 +35,10 @@ interface Program { compiler: string; file: string; list: string;
   source: { path: string; text: string }; at: number; total: number;
   instructions: Entry[] }
 
-const LANGS = [["sol", "Solidity", "solc"], ["fe", "Fe", "Fe"]] as const;
+const LANGS = [["sol", "Solidity"], ["fe", "Fe"]] as const;
 type Lang = typeof LANGS[number][0];
 const PROGRAMS = data as Record<Lang, Program>;
-// The instruction each column opens at: play()'s plays update, as the
+// The instruction each compiler opens at: play()'s plays update, as the
 // real debugger's (solc: the first of `player.plays += 1`; Fe: the
 // first of `store.plays.set(…)`)
 export const OPEN: Record<Lang, number> = { sol: 4432, fe: 6463 };
@@ -43,9 +48,14 @@ const KEYS: Record<string, (i: number, n: number) => number> = {
   ArrowUp: (i) => i - 1, ArrowLeft: (i) => i - 1,
   ArrowDown: (i) => i + 1, ArrowRight: (i) => i + 1,
   Home: () => 0, End: (_, n) => n - 1 };
+// The format's order of an instruction's keys, and of its parts' (the
+// display's order only; a key not here, a compiler's own, after them)
+const ORDER = ["offset", "operation", "mnemonic", "arguments", "context",
+  "code", "source", "id", "range", "length"];
+const TOP = ["offset", "operation", "context"];
 
-// What each field is, in a few words, by its path (an array's items
-// as "[]"); a field of a compiler's own, outside the format, says so
+// What each field is, in a few words, by its path; a field of a
+// compiler's own, outside the format, says so
 const FIELDS: Record<string, string> = {
   "offset": "where the instruction starts: its byte offset in the " +
     "bytecode",
@@ -82,54 +92,69 @@ function brief(text: string, from: number, to: number) {
 const scalar = (v: Json) => typeof v === "string" &&
   !/^[A-Za-z_][\w./-]*$/.test(v) || /^(true|false|null|~|yes|no|on|off)$/i
   .test(String(v)) ? JSON.stringify(v) : String(v);
-// (a flow collection's room: on one line when its scalars fit)
+// (a collection of scalars: in flow style where it fits)
 const flat = (v: Json) => v !== null && typeof v === "object" &&
   Object.values(v).every((x) => x === null || typeof x !== "object");
+// an object's keys, in the format's order
+const ordered = (v: Record<string, Json>) => Object.keys(v).sort((a, b) =>
+  (ORDER.indexOf(a) + 1 || 99) - (ORDER.indexOf(b) + 1 || 99));
 
-// One entry, as YAML (the compiler's JSON, its keys in its order): a
-// field a line, a collection of scalars in flow style where it fits in
-// `cols` characters; each field's name a popover's anchor
+// One line of an entry's YAML: its text; its field names (where, and
+// their paths); in the band (the range's lines); the toggle line;
+// a value cut to fit (its whole, for its field's popover)
+interface Line { text: string; keys: { from: number; to: number;
+  path: string }[]; band?: boolean; toggle?: boolean; full?: string }
+
+// An entry's fields as YAML lines (the format's order; `cols`
+// characters a line: a short collection on one line where it fits, a
+// long scalar cut with "…")
 function yaml(v: Record<string, Json>, path: string, ind: number,
-  out: ReactNode[][], cols: number) {
+  out: Line[], cols: number, band = false) {
   const pad = "  ".repeat(ind);
-  for (const [k, x] of Object.entries(v)) {
+  for (const k of ordered(v)) {
+    const x = v[k];
     const sub = path ? `${path}.${k}` : k;
-    const line: ReactNode[] = [pad, key(k, sub), ":"];
-    const fits = flat(x) && `${pad}${k}: { ${Object.entries(x as object)
-      .map(([j, y]) => `${j}: ${scalar(y)}`).join(", ")} }`.length <= cols;
-    if (x === null || typeof x !== "object") line.push(" ", scalar(x));
-    else if (Array.isArray(x) && fits) {
-      line.push(` [ ${x.map(scalar).join(", ")} ]`);
-    }
-    else if (Array.isArray(x)) {
-      out.push(line);
-      x.forEach((y) => out.push([`${pad}  - ${scalar(y)}`]));
+    const lit = band || sub === "context.code.range";
+    const keys = [{ from: pad.length, to: pad.length + k.length,
+      path: sub }];
+    let text = `${pad}${k}:`;
+    const pairs = flat(x) && !Array.isArray(x) ? ordered(x as Record<
+      string, Json>).map((j) => [j, scalar((x as Record<string, Json>)[j])])
+      : [];
+    const one = Array.isArray(x) ? `${text} [ ${x.map(scalar)
+      .join(", ")} ]` : `${text} { ${pairs.map(([j, y]) => `${j}: ${y}`)
+      .join(", ")} }`;
+    if (x === null || typeof x !== "object") {
+      const s = scalar(x);
+      const fits = text.length + 1 + s.length <= cols;
+      out.push({ text: fits ? `${text} ${s}` : `${text} ${s.slice(0,
+        Math.max(8, cols - text.length - 2))}…`, keys, band: lit,
+      full: fits ? undefined : s });
       continue;
     }
-    else if (fits) {
-      const ks = Object.keys(x);
-      line.push(" { ");
-      ks.forEach((j, n) => line.push(key(j, `${sub}.${j}`), ": ",
-        scalar(x[j]), n < ks.length - 1 ? ", " : ""));
-      line.push(" }");
+    // (the instruction's own parts a field a line, on both sides alike;
+    // a part's short parts, `source` and `range`, on one line)
+    if (flat(x) && one.length <= cols && (ind > 0 || Array.isArray(x))) {
+      if (!Array.isArray(x)) {
+        text += " { ";
+        pairs.forEach(([j, y], n) => {
+          keys.push({ from: text.length, to: text.length + j.length,
+            path: `${sub}.${j}` });
+          text += `${j}: ${y}${n < pairs.length - 1 ? ", " : " }"}`;
+        });
+      }
+      else text = one;
+      out.push({ text, keys, band: lit });
+      continue;
     }
-    out.push(line);
-    if (x !== null && typeof x === "object" && !fits &&
-      !Array.isArray(x)) yaml(x, sub, ind + 1, out, cols);
+    out.push({ text, keys, band: lit });
+    if (Array.isArray(x)) {
+      x.forEach((y) => out.push({ text: `${pad}  - ${scalar(y)}`,
+        keys: [], band: lit }));
+    }
+    else yaml(x, sub, ind + 1, out, cols, lit);
   }
 }
-
-// a field's name, and its popover (under it, over the lines below)
-function key(k: string, path: string) {
-  const what = FIELDS[path];
-  return <span key={path} className="xkey" data-field={path}>
-    <span className="xname" tabIndex={what ? 0 : undefined}
-      aria-description={what}>
-      {k}</span>
-    {what && <span className="pop under wrap xpop" aria-hidden="true">
-      {what}</span>}</span>;
-}
-
 
 // (how many characters a line of a box holds)
 function useCols(box: React.RefObject<HTMLElement | null>) {
@@ -146,7 +171,9 @@ function useCols(box: React.RefObject<HTMLElement | null>) {
       const cs = getComputedStyle(el);
       const w = el.clientWidth - parseFloat(cs.paddingLeft) -
         parseFloat(cs.paddingRight);
-      if (ch) setCols(Math.floor(w / ch));
+      // (a line's own padding, the band's room: 1.5em)
+      if (ch) setCols(Math.floor((w - 1.5 * parseFloat(cs.fontSize)) /
+        ch));
     };
     measure();
     const ro = new ResizeObserver(measure);
@@ -156,14 +183,20 @@ function useCols(box: React.RefObject<HTMLElement | null>) {
   return cols;
 }
 
-// One compiler's column: its instructions, the chosen one's entry, its
-// source with the range lit
-function Column(p: { lang: Lang; title: string; chosen: number;
-  choose(k: number): void }) {
-  const { lang } = p;
-  const prog = PROGRAMS[lang];
+const esc = (s: string) => s.replace(/[&<>]/g,
+  (c) => `&#${c.charCodeAt(0)};`);
+
+export function ProgramXray() {
+  const [lang, setLang] = useState<Lang>("sol");
+  const [at, setAt] = useState<Partial<Record<Lang, number>>>({});
   const [hover, setHover] = useState<number>();
-  const i = hover ?? p.chosen;
+  // (Fe's own fields: one line, or opened)
+  const [extra, setExtra] = useState(false);
+  const prog = PROGRAMS[lang];
+  const open = (l: Lang) => PROGRAMS[l].instructions.findIndex((e) =>
+    e.offset === OPEN[l]);
+  const chosen = at[lang] ?? open(lang);
+  const i = hover ?? chosen;
   const e = prog.instructions[i];
   const text = prog.source.text;
   const r = rangeOf(e);
@@ -176,100 +209,175 @@ function Column(p: { lang: Lang; title: string; chosen: number;
       q.offset + q.length)) : "";
   }), [prog, text]);
 
-  const box = useRef<HTMLPreElement>(null);
-  const cols = useCols(box);
+  // the code panel: the range a third of the way down, each time it
+  // changes (the panel is small: a range at its edge reads as none)
   const pre = useRef<HTMLPreElement>(null);
-  // (the range a third of the way down, each time it changes: the
-  // panel is small, and a range at its edge reads as none)
   useLayoutEffect(() => intoView(pre.current, true),
-    [mark?.from, mark?.to, coloured]);
-  // (the chosen row in its list's view: the list's box scrolls, never
-  // the page)
+    [mark?.from, mark?.to, coloured, lang]);
+  // (the chosen row in its list's view, a third of the way down on a
+  // whole row: the list's box scrolls, never the page)
   const list = useRef<HTMLUListElement>(null);
   useLayoutEffect(() => {
     const b = list.current;
-    const row = b?.querySelector<HTMLElement>(`li[data-k="${p.chosen}"]`);
-    if (!b || !row) return;
-    const top = row.offsetTop - b.offsetTop;
-    if (top < b.scrollTop || top + row.offsetHeight > b.scrollTop +
-      b.clientHeight) {
-      b.scrollTop = Math.max(0, top - Math.round(b.clientHeight / 3));
+    const rows = b?.querySelectorAll<HTMLElement>("li");
+    const row = rows?.[chosen];
+    if (!b || !rows?.length || !row) return;
+    const pitch = row.offsetHeight;
+    const top = row.offsetTop - rows[0].offsetTop;
+    if (top < b.scrollTop || top + pitch > b.scrollTop + b.clientHeight) {
+      b.scrollTop = Math.max(0, top - Math.floor(b.clientHeight / 3 /
+        pitch) * pitch);
     }
-  }, [p.chosen]);
+  }, [chosen, lang]);
+
+  // the entry's lines
+  const box = useRef<HTMLPreElement>(null);
+  const cols = useCols(box);
+  const entryLines = useMemo(() => {
+    const out: Line[] = [];
+    if (!e) return out;
+    const v = e as unknown as Record<string, Json>;
+    const own = Object.keys(v).filter((k) => !TOP.includes(k));
+    yaml(Object.fromEntries(TOP.filter((k) => k in v).map((k) =>
+      [k, v[k]])), "", 0, out, cols);
+    if (own.length) {
+      const t = `# ${extra ? "▾" : "▸"} +${own.length} ${prog.compiler}-` +
+        "specific fields";
+      out.push({ text: t, keys: [], toggle: true });
+      if (extra) {
+        yaml(Object.fromEntries(own.map((k) => [k, v[k]])), "", 0, out,
+          cols);
+      }
+    }
+    return out;
+  }, [e, cols, extra, prog.compiler]);
+  const yamlText = entryLines.map((l) => l.text).join("\n");
+  // (coloured as the walkthrough's pointer is: PointerYaml's Shiki call)
+  const [html, setHtml] = useState<{ text: string; lines: string[] }>();
+  useEffect(() => {
+    if (html?.text === yamlText) return;
+    let live = true;
+    shiki().then((hl) => {
+      if (hl && live) setHtml({ text: yamlText, lines: yamlLines(hl,
+        yamlText) });
+    });
+    return () => {
+      live = false;
+    };
+  }, [yamlText, html?.text]);
+  const shown = html?.text === yamlText ? html.lines : null;
+  // (each field's name: a button, PointerYaml's wrapRange, its popover
+  // over the line above it, never the lines after; the toggle line a
+  // button too)
+  const code = useRef<HTMLElement>(null);
+  useLayoutEffect(() => {
+    const root = code.current;
+    if (!root) return;
+    root.querySelectorAll<HTMLElement>(":scope > .line").forEach((el,
+      k) => {
+      const l = entryLines[k];
+      if (!l || el.querySelector(".xname, .xtoggle")) return;
+      if (l.toggle) {
+        wrapRange(el, 0, l.text.length, "toggle", "xtoggle");
+        el.querySelector(".xtoggle")?.setAttribute("aria-expanded",
+          String(extra));
+        return;
+      }
+      for (const key of [...l.keys].reverse()) {
+        const what = FIELDS[key.path];
+        if (!what) continue;
+        wrapRange(el, key.from, key.to, key.path, "xname");
+        const name = [...el.querySelectorAll<HTMLElement>(".xname")]
+          .find((n) => n.dataset.id === key.path)!;
+        const pop = document.createElement("span");
+        pop.className = "pop wrap xpop";
+        pop.setAttribute("aria-hidden", "true");
+        pop.textContent = l.full && key.from === l.keys[0].from
+          ? `${what}: ${l.full}` : what;
+        name.setAttribute("aria-description", what);
+        name.append(pop);
+      }
+    });
+  });
+  const onEntry = (ev: MouseEvent | KeyboardEvent) => {
+    const t = (ev.target as Element).closest(".xtoggle");
+    if (!t) return;
+    if ("key" in ev && ev.key !== "Enter" && ev.key !== " ") return;
+    ev.preventDefault();
+    setExtra((x) => !x);
+  };
+
   const onKey = (ev: KeyboardEvent) => {
     const to = KEYS[ev.key];
     if (!to || ev.altKey || ev.metaKey || ev.ctrlKey) return;
     ev.preventDefault();
     setHover(undefined);
     const n = prog.instructions.length;
-    p.choose(Math.max(0, Math.min(n - 1, to(p.chosen, n))));
+    setAt((x) => ({ ...x, [lang]: Math.max(0, Math.min(n - 1,
+      to(chosen, n))) }));
   };
-
-  const rows: ReactNode[][] = [];
-  if (e) yaml(e as unknown as Record<string, Json>, "", 0, rows, cols);
-  const own = e ? Object.keys(e).filter((k) =>
-    !["offset", "operation", "context"].includes(k)) : [];
+  const reset = () => {
+    setLang("sol");
+    setAt({});
+    setHover(undefined);
+    setExtra(false);
+  };
+  const changed = lang !== "sol" || extra || LANGS.some(([l]) =>
+    (at[l] ?? open(l)) !== open(l));
   const op = (x: Entry) => [x.operation?.mnemonic,
     ...x.operation?.arguments ?? []].join(" ");
 
-  return <section className="xcol" data-lang={lang}
-    aria-label={`${p.title}: ${prog.compiler}'s program`}>
-    <h3 className="view-name xtitle">{p.title}<span className="codenote">
-      {" "}· {prog.compiler}, {prog.file}</span></h3>
-    <p className="codehead"><span className="srcfile">{prog.list}</span>{" "}
-      <span className="codenote">{(prog.at + 1).toLocaleString("en")}–{(
-        prog.at + prog.instructions.length).toLocaleString("en")} of {
-        prog.total.toLocaleString("en")}: play()</span></p>
+  return <div className="lens xray" data-figure="program-xray" data-ready
+    data-lang={lang}>
+    <ResetButton shown={changed} onReset={reset} />
+    <p className="view-name treehead shead">Arcade's play(), as the
+      compiler's ethdebug program<span className="handmade">the values as
+        each compiler wrote them</span></p>
+    <div className="picker" role="radiogroup" aria-label="Compiler">
+      {LANGS.map(([k, t]) => <button key={k} type="button" role="radio"
+        data-lang={k} aria-checked={k === lang ? "true" : "false"}
+        onClick={() => {
+          setHover(undefined);
+          setLang(k);
+        }}>{t}</button>)}
+    </div>
     <ul ref={list} className="tree srows xrows" tabIndex={0}
       aria-label={`${prog.compiler}'s instructions for play()`}
       onKeyDown={onKey} onPointerLeave={() => setHover(undefined)}>
-      {prog.instructions.map((x, k) => <li key={k} data-k={k}
+      {prog.instructions.map((x, k) => <li key={`${lang}:${k}`}
         data-offset={x.offset} className={rangeOf(x) ? undefined
           : "absent"}
         onPointerEnter={(ev) => ev.pointerType === "mouse" && setHover(k)}
         onClick={() => {
           setHover(undefined);
-          p.choose(k);
+          setAt((y) => ({ ...y, [lang]: k }));
         }}>
-        <div className={`row${k === i ? " hl" : ""}${k === p.chosen
+        <div className={`row${k === i ? " hl" : ""}${k === chosen
           ? " sel" : ""}`}>
           <span className="type">{x.offset}</span>
           <span className="name">{op(x)}</span>
           <span className="val">{briefs[k] || "no context"}</span>
         </div></li>)}
     </ul>
-    <p className="codehead"><span className="srcfile">{prog.list}[{
-      prog.at + i}]</span>{" "}<span className="codenote">
-      its entry, as YAML</span></p>
-    <pre ref={box} className="src xjson" data-offset={e?.offset}>{
-      rows.map((l, k) => <span key={`${i}:${k}`} className="line">{l}
-      </span>).flatMap((x, k) => k ? ["\n", x] : [x])}
-      {own.length > 0 && <>{"\n"}<span className="line codenote xown">
-        # the last {own.length}: {prog.compiler}'s own, not the format's
-      </span></>}</pre>
-    <div className="code">
-      <p className="codehead"><span className="srcfile">{prog.source.path}
-      </span>{" "}<span className="codenote">{r ? ""
-        : "no context: no source range"}</span></p>
+    <div className="ptr xentry" aria-label="The instruction's entry">
+      <p className="plabel"><span className="ptitle">Instruction at {
+        e?.offset}</span> <span className="pnote">{r ? "its entry, as YAML"
+          : "its entry, as YAML: no context"}</span></p>
+      <div className="ptrbox"><div className="ptrscroll">
+        <pre ref={box} className="ptrlines" data-offset={e?.offset}
+          onClick={onEntry} onKeyDown={onEntry}><code ref={code}>
+          {entryLines.map((l, k) => <span key={`${yamlText}:${k}:${
+            !!shown}`} className={`line${l.band ? ` on${entryLines[k - 1]
+            ?.band ? "" : " on-top"}${entryLines[k + 1]?.band ? ""
+            : " on-end"}` : ""}${l.toggle ? " xtline" : ""}`}
+            dangerouslySetInnerHTML={{ __html: shown?.[k] ?? esc(l.text) }}
+          />)}</code></pre>
+      </div></div>
+    </div>
+    <div className="code" data-none={r ? undefined : ""}>
       <pre ref={pre} className={`src codesrc${coloured ? " coloured"
         : ""}`}>{lines(text, coloured, { indent: true,
           ...mark ? { mark } : {} })}</pre>
     </div>
-  </section>;
-}
-
-export function ProgramXray() {
-  const open = (l: Lang) => PROGRAMS[l].instructions.findIndex((e) =>
-    e.offset === OPEN[l]);
-  const [at, setAt] = useState<Partial<Record<Lang, number>>>({});
-  const changed = LANGS.some(([l]) => (at[l] ?? open(l)) !== open(l));
-  return <div className="lens xray" data-figure="program-xray" data-ready>
-    <ResetButton shown={changed} onReset={() => setAt({})} />
-    <p className="view-name treehead shead">Arcade's play(), in two
-      compilers' ethdebug programs<span className="handmade">each entry as
-        the compiler wrote it</span></p>
-    {LANGS.map(([l, title]) => <Column key={l} lang={l} title={title}
-      chosen={at[l] ?? open(l)} choose={(k) => setAt((x) => ({ ...x,
-        [l]: k }))} />)}
   </div>;
 }
