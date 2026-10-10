@@ -132,7 +132,7 @@ for (const width of [1360, 390]) {
 
 // The raw storage dump keeps a word a row (32 bytes, one row a slot)
 // wherever it is beside the stack and memory, from 910px; and alone,
-// under 910px, as wide as the inspector's (690px) where it fits
+// under 910px, its frame's width
 test("the raw storage dump: a word a row, beside the right column or " +
   "alone", async ({ page }) => {
     for (const width of [1440, 1280, 1024, 910, 760]) {
