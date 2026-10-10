@@ -197,8 +197,17 @@ export function RealDebugger() {
   const mark = r && { from: r.from, to: r.to,
     className: r.last ? "rng last" : "rng" };
   const pre = useRef<HTMLPreElement>(null);
-  useLayoutEffect(() => intoView(pre.current),
-    [mark?.from, mark?.to, coloured, lang, d]);
+  // (another language's text: placed from the top again, not from where
+  // the other's was)
+  const shown = useRef<string>(undefined);
+  useLayoutEffect(() => {
+    const box = pre.current;
+    if (box && d && shown.current !== lang) {
+      box.scrollTop = box.scrollLeft = 0;
+      shown.current = lang;
+    }
+    intoView(box);
+  }, [mark?.from, mark?.to, coloured, lang, d]);
   const file = (r?.file ?? "").split("/").pop() ||
     (lang === "sol" ? "Arcade.sol" : "arcade.fe");
   const note = !d ? "" : !r ? "no source range yet"
