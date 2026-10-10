@@ -26,16 +26,16 @@ import {
 
 const LANGS = [["sol", "Solidity"], ["fe", "Fe"]] as const;
 type Lang = typeof LANGS[number][0];
-// The step each language opens at: inside play(), early enough that
-// stepping on shows soldb learn. Solidity: `player.score` in
-// `player.score += gained`, six source ranges before `totalHits += 1`,
-// where soldb has read totalScore (170) and totalHits (7), the state it
-// comes to know (the transaction never reads playerList or motd, and
-// soldb lists a mapping without its entries); before then, both
-// unknown. Fe: the plays' write, `store.plays.set(…)`, play's second
-// statement (its export has no state: nothing to wait for).
+// The step each language opens at: the same operation in both, play()
+// counting the play, early in its body, so stepping on shows soldb
+// learn. Solidity: `player.plays += 1` (its first step there), long
+// before soldb reads totalScore (170) and totalHits (7) at
+// `totalHits += 1`, the state it comes to know (the transaction never
+// reads playerList or motd, and soldb lists a mapping without its
+// entries); until then, both unknown. Fe: the plays' write,
+// `store.plays.set(…)` (its export has no state: nothing to wait for).
 // (test/e2e/figures/real-debugger.spec.ts checks both.)
-const OPEN: Record<Lang, number> = { sol: 1692, fe: 740 };
+const OPEN: Record<Lang, number> = { sol: 252, fe: 740 };
 // (the grammar each source is coloured with: ui/Code.tsx's names)
 const GRAMMAR: Record<Lang, string> = { sol: "solidity", fe: "fe" };
 
