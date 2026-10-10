@@ -97,14 +97,17 @@ const storageBottom = (): { storageBottom?: number } => {
   return { storageBottom: Math.round((dump.getBoundingClientRect().bottom -
     root.getBoundingClientRect().top) * 100) / 100 };
 };
-// (`showAfter`: the selected tree row's own item's bottom, its rows
-// under it with it, in CSS px from the frame's top, at this width)
+// (`showAfter`: the bottom of the last row drawn of the selected tree
+// row and the rows under it, the row's own box, in CSS px from the
+// frame's top, at this width)
 const showAfter = (): { showAfter?: number } => {
   const li = root.querySelector<HTMLElement>(".tree .row.sel")
     ?.closest<HTMLElement>("li[data-path]");
-  if (!li) return {};
-  return { showAfter: Math.round((li.getBoundingClientRect().bottom -
-    root.getBoundingClientRect().top) * 100) / 100 };
+  const rows = li ? [...li.querySelectorAll<HTMLElement>(".row")]
+    .map((r) => r.getBoundingClientRect()).filter((r) => r.height) : [];
+  if (!rows.length) return {};
+  return { showAfter: Math.round((Math.max(...rows.map((r) => r.bottom)) +
+    scrollY) * 100) / 100 };
 };
 // (`row`: the first storage dump's row pitch, one row's top to the
 // next's, in CSS px at this width: the nearest two rows' distance, or

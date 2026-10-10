@@ -94,10 +94,9 @@ async function walk(page: Page, path: string) {
   await page.locator('#details button[data-r="exit"]').click();
   // (the controls' place while stepping; not after Exit, which takes the
   // page back to where the reader pressed Start, the bar with it)
-  // (the last step, "found", kept aside: "done"; the counts are the
-  // rule steps')
+  // (the last step, "found", kept aside: no construct, counted last)
   let found: St | undefined;
-  if (out.at(-1)?.count === "done") found = out.pop();
+  if (out.length > 1 && !out.at(-1)?.kind) found = out.pop();
   return { steps: out, goal, ctl: ctl.size, found };
 }
 // (within one piece of the pointer, the band only moves down)
@@ -157,7 +156,8 @@ test("players: step 0 and ten steps, their light, bands and chips",
       expect(x.litN, `${k + 1} lit`).toEqual(lit);
       expect(x.fullN, `${k + 1} full`).toEqual(lit);
       expect(x.dim).toBe(true);
-      expect(x.count).toBe(`${k + 1} / ${N}`);
+      // (the found step counted last)
+      expect(x.count).toBe(`${k + 1} / ${N + 1}`);
       expect(x.kind).toBeTruthy();
       expect([...x.gutN].sort(), `${k + 1} gut`).toEqual([...gut].sort());
       expect([...x.wholeN].sort(), `${k + 1} whole`)
@@ -209,7 +209,7 @@ test("step 0: no labels, no band; ⏮ and ◀ reach it; a re-target keeps it",
     // (the bar counts the found step too)
     expect((await stepNow(page)).count).toBe("start");
     await page.locator('#dots .dot:last-child').click();
-    expect((await stepNow(page)).count).toBe("done");
+    expect((await stepNow(page)).count).toBe("11 / 11");
     await page.locator('#dots .dot:first-child').click();
     expect((await stepNow(page)).count).toBe("start");
     await row(page, C).click();
@@ -297,23 +297,23 @@ test("the bar: entry, title, ◀ ▶ at the ends, the place, dots, keys, Exit",
     bs = await barNow();
     // (the title names the key by name, not by address)
     expect(bs).toMatchObject({ tint: true,
-      title: 'How the pointer finds players["bob"].plays', count: "1 / 5",
+      title: 'How the pointer finds players["bob"].plays', count: "1 / 6",
       off: "prev", dots: 6, exit: true });
     await page.locator("#dots .dot:last-child").click();
-    expect(await barNow()).toMatchObject({ count: "done", off: "next" });
+    expect(await barNow()).toMatchObject({ count: "6 / 6", off: "next" });
     await page.keyboard.press("ArrowRight");
-    expect((await barNow()).count).toBe("done");
+    expect((await barNow()).count).toBe("6 / 6");
     await page.locator("#dots .dot:first-child").click();
-    expect((await barNow()).count).toBe("1 / 5");
+    expect((await barNow()).count).toBe("1 / 6");
     await page.locator('#details button[data-r="next"]').click();
     await page.keyboard.press("ArrowRight");
-    expect((await barNow()).count).toBe("3 / 5");
+    expect((await barNow()).count).toBe("3 / 6");
     await page.evaluate(() => (document.activeElement as HTMLElement)
       ?.blur());
     await page.keyboard.press("Home");
-    expect((await barNow()).count).toBe("1 / 5");
+    expect((await barNow()).count).toBe("1 / 6");
     await page.keyboard.press("End");
-    expect((await barNow()).count).toBe("done");
+    expect((await barNow()).count).toBe("6 / 6");
     // (a dot's caption, on hover and for the screen reader)
     expect(await page.locator('#dots .dot[data-n="1"]').getAttribute(
       "title")).toBe("players is declared at slot 3; that slot holds nothing");
@@ -321,10 +321,10 @@ test("the bar: entry, title, ◀ ▶ at the ends, the place, dots, keys, Exit",
     expect((await barNow()).tint).toBe(false);
     await page.locator('#details button[data-r="start"]').click();
     await page.locator('#dots .dot[data-n="1"]').click();
-    expect((await stepNow(page)).count).toBe("2 / 5");
+    expect((await stepNow(page)).count).toBe("2 / 6");
     await page.locator("#details").focus();
     await page.keyboard.press("ArrowLeft");
-    expect((await stepNow(page)).count).toBe("1 / 5");
+    expect((await stepNow(page)).count).toBe("1 / 6");
     await page.keyboard.press("Escape");
     const st = await stepNow(page);
     expect(st.resolved).toBe(true);
@@ -453,7 +453,7 @@ test("Vyper: Solidity's rule, then the misread: Vyper's own layout, "
     await ready(page);
     await select(page, "vyper");
     await page.locator('#details button[data-r="start"]').click();
-    await expect(page.locator("#details .rcount")).toHaveText("1 / 6");
+    await expect(page.locator("#details .rcount")).toHaveText("1 / 7");
     // (no list of Vyper's words in the box of the compiler's data)
     await expect(page.locator(".ptr ol.vyper, #ptr .howside"))
       .toHaveCount(0);
@@ -466,7 +466,7 @@ test("Vyper: Solidity's rule, then the misread: Vyper's own layout, "
     expect(await page.locator(".wpanel:has(> #details) .rsrc").innerText()).toContain(
       "from: Vyper's layout, hand-written for comparison (Vyper emits no " +
       "ethdebug)");
-    expect(await page.locator("#details .rcount").innerText()).toBe("done");
+    expect(await page.locator("#details .rcount").innerText()).toBe("7 / 7");
     // (Vyper's word, lit in its own colour, beside Solidity's reading)
     const lit = await page.evaluate(() => [...document.querySelectorAll(
       "#panel .view[data-side=after] .b.hl.pk9")].map((c) =>
@@ -740,13 +740,14 @@ test("the last step, found: the selection's resting view",
     await page.locator('#dots .dot:last-child').click();
     await page.mouse.move(1, 1);
     expect(await view(), x).toBe(rest);
-    expect((await stepNow(page)).count, x).toBe("done");
+    // (the last step counted: "n / n")
+    expect((await stepNow(page)).count, x).toMatch(/^(\d+) \/ \1$/);
     if (x === C) {
       await row(page, `${C}.name`).click();
       const r = await stepNow(page);
       expect(r.cap).toBe("players[\"carol, the un…\"].name = \"carol, the unstoppable " +
         "combo queen\".");
-      expect(r.count).toBe("done");
+      expect(r.count).toMatch(/^(\d+) \/ \1$/);
     }
     await page.keyboard.press("Escape");
   }
@@ -821,10 +822,10 @@ test("a click mid-walk re-targets it, at the same step where the steps "
   // (carol's name → bob's: the same step; carol's record at its fields →
   // carol's name: the record's step; a name → totalScore: its one step)
   expect(await retarget(`${C}.name`, 4, `${B}.name`)).toEqual({
-    count: "5 / 8", sel: `${B}.name`, on: 1,
-    cue: 'now: players["bob"].name, 5 / 8' });
+    count: "5 / 9", sel: `${B}.name`, on: 1,
+    cue: 'now: players["bob"].name, 5 / 9' });
   expect(await retarget(C, 4, `${C}.name`)).toMatchObject({
-    sel: `${C}.name`, on: 1, cue: 'now: players["carol, the un…"].name, 4 / 8' });
+    sel: `${C}.name`, on: 1, cue: 'now: players["carol, the un…"].name, 4 / 9' });
   expect(await retarget(`${C}.name`, 4, "totalScore", "byte")).toEqual({
     count: "1 / 1", sel: "totalScore", on: 1,
     cue: "now: totalScore, 1 / 1" });
