@@ -1,6 +1,6 @@
 /* The panel's own frame in the post (embed-panel.html): a card with its
    corners while it scrolls with the page; stuck at the top of the view
-   (the host's message: html[data-stuck]), flush with it: square top
+   (the host's message: html[data-stuck="top"]), flush with it: square top
    corners, no top border, a stronger edge at its foot over what scrolls
    beneath. The frame is exactly the panel: nothing around it, and a
    transparent page in the frame's own colour scheme (no backdrop). */
@@ -15,11 +15,11 @@
 #embed .wpanel .rbar, #embed .wpanel .dpanel {
   transition: border-radius 120ms ease, border-top-width 120ms ease,
     box-shadow 120ms ease; }
-html[data-stuck] #embed .wpanel .rbar { border-top-left-radius: 0;
+html[data-stuck="top"] #embed .wpanel .rbar { border-top-left-radius: 0;
   border-top-right-radius: 0; border-top-width: 0; }
 /* (its foot: the bar at rest, the details in a walkthrough) */
-html[data-stuck] #embed .wpanel .rbar:not(.replaying),
-html[data-stuck] #embed .wpanel .dpanel {
+html[data-stuck="top"] #embed .wpanel .rbar:not(.replaying),
+html[data-stuck="top"] #embed .wpanel .dpanel {
   box-shadow: inset 0 -3px 4px -3px rgb(0 0 0 / 0.35); }
 @media (prefers-reduced-motion: reduce) {
   #embed .wpanel .rbar, #embed .wpanel .dpanel { transition: none; }
@@ -109,3 +109,13 @@ html[data-stuck] #embed .wpanel .dpanel {
    its lines' inset, not centred; its glyph up toward ▶) */
 #embed .wpanel.compact .pgo { left: calc(0.9 * var(--fs-label));
   transform: translateY(-50%); }
+/* (stuck to the screen's bottom: flush with it, square bottom corners,
+   no bottom border; the shade at its top edge, over what scrolls
+   beneath) */
+html[data-stuck="bottom"] #embed .wpanel .rbar:not(.replaying),
+html[data-stuck="bottom"] #embed .wpanel .dpanel {
+  border-bottom-left-radius: 0; border-bottom-right-radius: 0;
+  border-bottom-width: 0; }
+html[data-stuck="bottom"] #embed .wpanel .rbar.replaying {
+  box-shadow: inset 0 2px 0 var(--accent),
+    inset 0 6px 6px -4px rgb(0 0 0 / 0.3); }
