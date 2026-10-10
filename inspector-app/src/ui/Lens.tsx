@@ -53,6 +53,11 @@ function shower(store: Store<LensState>, spec: LensSpec, project: Project,
   let wanted = 0;
   const show: LensContextValue["show"] = async (id, view) => {
     const ticket = ++wanted;
+    // (any other show stops a replay's play at once, before it loads: no
+    // step of the play asked after it wins; TimelineBar.tsx)
+    if (!view?.play && store.get().playing) {
+      store.set((s) => ({ ...s, playing: undefined }));
+    }
     const bm = project.bookmarks.find((b) => b.id === id);
     if (!bm) return false;
     const dc = decodingOf({ spec, project } as LensContextValue,
@@ -77,6 +82,8 @@ function shower(store: Store<LensState>, spec: LensSpec, project: Project,
       return false;
     }
     if (ticket !== wanted) return true; // another was asked for since
+    // (a play's step that loaded after it stopped, ⏸: not shown)
+    if (view?.play && !store.get().playing) return false;
     const want = view && "sel" in view ? view.sel : bm.select;
     const selection = want && tree.byPath.has(want) ? want : null;
     // (a step on the timeline: the same scene, from its moment; the views
