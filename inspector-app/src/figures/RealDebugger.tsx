@@ -1,11 +1,9 @@
 // The real debugger (the post's "a real debugger runs on it, offline, in
 // your browser"): soldb itself, in a Web Worker, on the same transaction
 // compiled from Solidity and from Fe (Arcade, alice's second play()),
-// with the inspector's own views: the code panel, the moves, rows.
-// Everything shown is soldb's: each step's source range, line, op,
-// function and call depth, and (Solidity) the contract's state as
-// soldb's state(i) reads it from solc's ethdebug; where soldb has
-// nothing, its engine's own words say why. No pointer of ours resolves
+// with the inspector's own views: the code panel and the moves.
+// Everything shown is soldb's: each step's source range, and inline,
+// its pc and op. No pointer of ours resolves
 // anything here. The reader moves a source range at a time, as in a
 // source debugger: each move goes to the next (or previous) step whose
 // range, in the contract's own source, is another one; no step of
@@ -21,19 +19,14 @@ import {
 import { intoView, lines, useColoured } from "../ui/Code";
 import { ResetButton } from "../ui/Reset";
 import {
-  soldb, type Engine, type Loaded, type Progress, type Variable,
+  soldb, type Loaded, type Progress,
 } from "./soldb";
 
 const LANGS = [["sol", "Solidity"], ["fe", "Fe"]] as const;
 type Lang = typeof LANGS[number][0];
 // The step each language opens at: the same operation in both, play()
-// counting the play, early in its body, so stepping on shows soldb
-// learn. Solidity: `player.plays += 1` (its first step there), long
-// before soldb reads totalScore (170) and totalHits (7) at
-// `totalHits += 1`, the state it comes to know (the transaction never
-// reads playerList or motd, and soldb lists a mapping without its
-// entries); until then, both unknown. Fe: the plays' write,
-// `store.plays.set(…)` (its export has no state: nothing to wait for).
+// counting the play, early in its body: Solidity's `player.plays += 1`
+// (its first step there), Fe's `store.plays.set(…)`.
 // (test/e2e/figures/real-debugger.spec.ts checks both.)
 const OPEN: Record<Lang, number> = { sol: 252, fe: 740 };
 // (the grammar each source is coloured with: ui/Code.tsx's names)
@@ -110,19 +103,6 @@ function progressText(ps: Map<string, Progress>, phase?: string) {
       total))}%` : ""}`;
 }
 
-// soldb's words for a value it cannot give, shortened for its row (the
-// whole, in quotes, in the row's popover): its two kinds here; any other
-// value as soldb writes it
-function shortOf(value: string): string | undefined {
-  if (/^<unknown: .*has not been read or written yet>$/.test(value)) {
-    return "unknown: not read yet";
-  }
-  if (/^<mapping; index it with \[key\]>$/.test(value)) {
-    return "mapping: index it by key";
-  }
-  return undefined;
-}
-
 export function RealDebugger() {
   const [engine] = useState(() => soldb());
   const [lang, setLang] = useState<Lang>("sol");
@@ -131,7 +111,6 @@ export function RealDebugger() {
   const [loading, setLoading] = useState<{ files: Map<string, Progress>;
     phase?: string }>({ files: new Map() });
   const [error, setError] = useState<string>();
-  const [why, setWhy] = useState<Engine["whyNot"]>({});
   const d = data[lang];
   const runs = useMemo(() => d ? sourceSteps(d) : [], [d]);
   const i = at[lang] ?? (d ? Math.min(OPEN[lang], d.steps.n - 1) : 0);
@@ -144,7 +123,6 @@ export function RealDebugger() {
     const files = new Map<string, Progress>();
     setLoading({ files });
     engine.then(async (e) => {
-      setWhy(e.whyNot);
       const got = await e.load(lang, (p) => {
         if (!live) return;
         if (p.path) files.set(p.path, p);
@@ -156,20 +134,6 @@ export function RealDebugger() {
       live = false;
     };
   }, [engine, lang, data]);
-
-  // (Solidity) soldb's state(i): the contract's state at the step
-  const [state, setState] = useState<{ key: string; vars: Variable[] }>();
-  const key = d ? `${lang}:${i}` : "";
-  useEffect(() => {
-    if (!d?.capabilities.state) return;
-    let live = true;
-    engine.then((e) => e.state(lang, i)).then((vars) => {
-      if (live) setState({ key, vars });
-    }, (e) => live && setError(String((e as Error)?.message ?? e)));
-    return () => {
-      live = false;
-    };
-  }, [engine, d, lang, i, key]);
 
   const go = (how: Move) => {
     if (!d) return;
@@ -216,31 +180,9 @@ export function RealDebugger() {
   const note = !d ? "" : !r ? "no source range yet"
     : r.last ? "compiler-generated code: the last range, muted"
       : src?.lib ? `library code (${src.lib})` : "";
-  // (loaded: soldb loaded, the step drawn, and, with a state, its rows)
-  const loaded = !!d && (!d.capabilities.state || state?.key === key);
-  // (this language's last step's rows, until this one's come: nothing
-  // moves; never another language's)
-  const vars = state?.key.startsWith(`${lang}:`) ? state.vars : [];
-  const w = why[lang] ?? {};
+  // (loaded: soldb loaded, the step drawn)
+  const loaded = !!d;
   const s = d?.steps;
-  // (a value on one line: soldb's words for what it cannot give
-  // shortened, a long value cut; pointed at or focused, soldb's whole
-  // text in a popover under it, the column's width, over the rows
-  // below: nothing moves)
-  const row = (name: string, value: string, type = "") => {
-    const short = shortOf(value);
-    const full = !!short || value.length > 24;
-    return <li key={name} data-path={name}><div className="row"
-      tabIndex={0} aria-description={full ? `soldb: ${value}`
-        : undefined}>
-      <span className="name">{name}</span>
-      <span className="type">{type}</span>
-      <span className={`val${short ? " muted" : ""}`}><span>{short ??
-        value}</span></span></div>
-      {full && <span className="pop under wrap sfull" aria-hidden="true">
-        <b>{name}</b>{type && <> {type}</>}: soldb says “{value}”</span>}
-    </li>;
-  };
 
   return <div className="lens soldb" data-figure="real-debugger"
     data-ready data-loaded={loaded || undefined} data-lang={lang}
@@ -268,8 +210,9 @@ export function RealDebugger() {
         </span>
         <span className="mat" data-step={d ? i : ""}>{error
           ? <span className="error">{error}</span> : !s
-          ? <span className="muted">step – of –</span>
-          : <>step <b>{runOf(runs, i) + 1}</b> of {runs.length}</>}</span>
+          ? <span className="muted">step – of – · pc – · –</span>
+          : <>step <b>{runOf(runs, i) + 1}</b> of {runs.length} · pc{" "}
+            {s.pcs[i]} · <code>{s.ops[i]}</code></>}</span>
       </div>
     </div>
     <div className="code" data-area="code">
@@ -280,29 +223,6 @@ export function RealDebugger() {
           ...mark ? { mark } : {} })
         : !error && <span className="muted sload" role="status">{
           progressText(loading.files, loading.phase)}</span>}</pre>
-    </div>
-    <div className="sside" data-area="side">
-      <section aria-label="At this step">
-        <h3 className="view-name">At this step</h3>
-        <ul className="tree srows">{s ? <>
-          {row("function", s.functions[i] ?? "none named")}
-          {row("call depth", String(s.depths[i]))}
-          {row("pc", String(s.pcs[i]))}
-          {row("op", s.ops[i])}</> : null}</ul>
-      </section>
-      <section aria-label="State">
-        <h3 className="view-name">State</h3>
-        {d && !d.capabilities.state
-          ? <p className="muted small">{w.variables ??
-            "soldb reads no state here."}</p>
-          : <ul className="tree srows sstate">{vars.map((v) =>
-            row(v.name, v.value, v.type))}</ul>}
-        {d && w.locals && <p className="muted small">{w.locals}</p>}
-      </section>
-      <section aria-label="Call stack">
-        <h3 className="view-name">Call stack</h3>
-        <p className="muted small">{d ? w.callStack ?? "" : ""}</p>
-      </section>
     </div>
   </div>;
 }
