@@ -100,8 +100,13 @@ html, body { margin: 0; overflow: hidden; background: transparent; }
    walkthrough bar, whose ✕ Exit takes that corner) */
 #embed .tbar:not(.empty):not(.one) { padding-right: 84px; }
 #embed [data-mode="reader"]:has(.wpanel) > .reset { display: none; }
-/* (the compilers' pitfall: its ↺ Reset at the right end of the Vyper
-   heading's first line, its title's alone; the figure is centred, at
-   most 790px: the Reset at its edge, not the frame's) */
+/* (the compilers' pitfall: its ↺ Reset at the right end of the
+   Solidity heading's line, its column's edge: Vyper's heading holds its
+   badge; the figure is centred, at most 790px. A phone: one column, the
+   Reset at its right edge) */
 #embed:has(.lens.vyper) .reset {
   right: calc((100% - min(100% - 20px, 790px)) / 2 + 10px); }
+@media (min-width: 660px) {
+  #embed:has(.lens.vyper) .reset { right: calc(100% - (100% -
+    min(100% - 20px, 790px)) / 2 - (min(100% - 20px, 790px) - 28px) / 2); }
+}
