@@ -40,14 +40,22 @@ async ({ page }) => {
   const h = await height(page);
   await loaded(page, "sol");
   expect(await height(page)).toBe(h);
-  // it opens inside play(), on a statement, where soldb knows the state
-  // it can: `totalHits += 1`, totalScore 170 and totalHits 7 read
+  // it opens inside play(), at `player.score`, before soldb has read
+  // the totals; six steps on, at `totalHits += 1`, it knows them:
+  // totalScore 170 and totalHits 7
   await expect(page.locator(`${F} .codehead .srcfile`))
     .toHaveText("Arcade.sol");
   await expect.poll(async () => (await lit(page)).text)
-    .toBe("totalHits += 1");
+    .toBe("player.score");
   const val = (p: string) => page.locator(
     `${F} .sstate li[data-path="${p}"] .val`);
+  await expect(val("totalScore")).toHaveText("unknown: not read yet");
+  const open = Number(await step(page));
+  for (let k = 0; k < 6; k++) {
+    await page.locator(`${F} [data-move="next"]`).click();
+  }
+  await expect.poll(async () => (await lit(page)).text)
+    .toBe("totalHits += 1");
   await expect(val("totalScore")).toHaveText("170");
   await expect(val("totalHits")).toHaveText("7");
   // (what soldb cannot give: its words shortened in the row, whole in
@@ -96,9 +104,9 @@ async ({ page }) => {
   await loaded(page, "fe");
   await expect(page.locator(`${F} .codehead .srcfile`))
     .toHaveText("arcade.fe");
-  // (at the score's write)
+  // (at the plays' write)
   await expect.poll(async () => (await lit(page)).text)
-    .toMatch(/^store\.scores\.set\(/);
+    .toMatch(/^store\.plays\.set\(/);
   await expect(page.locator(`${F} .sside`))
     .toContainText("Fe's export has none");
   // (no move lands in Fe's library: every one in arcade.fe)
@@ -120,7 +128,7 @@ async ({ page }) => {
   await page.locator(`${F} button[data-lang="fe"]`).click();
   await page.locator(".reset").click();
   await expect(page.locator(`${F}[data-lang="sol"]`)).toHaveCount(1);
-  await expect.poll(async () => Number(await step(page))).toBe(s0);
+  await expect.poll(async () => Number(await step(page))).toBe(open);
   await expect(page.locator(".reset")).not.toHaveAttribute("data-shown");
 });
 

@@ -26,14 +26,16 @@ import {
 
 const LANGS = [["sol", "Solidity"], ["fe", "Fe"]] as const;
 type Lang = typeof LANGS[number][0];
-// The step each language opens at: inside play(), on a statement, where
-// soldb's view says the most. Solidity: `totalHits += 1`, the step
-// where soldb has read totalScore (170) and totalHits (7), the state
-// it knows (the transaction never reads playerList or motd, and soldb
-// lists a mapping without its entries). Fe: the score's write,
-// `store.scores.set(…)` (its export has no state: nothing to wait for).
+// The step each language opens at: inside play(), early enough that
+// stepping on shows soldb learn. Solidity: `player.score` in
+// `player.score += gained`, six source ranges before `totalHits += 1`,
+// where soldb has read totalScore (170) and totalHits (7), the state it
+// comes to know (the transaction never reads playerList or motd, and
+// soldb lists a mapping without its entries); before then, both
+// unknown. Fe: the plays' write, `store.plays.set(…)`, play's second
+// statement (its export has no state: nothing to wait for).
 // (test/e2e/figures/real-debugger.spec.ts checks both.)
-const OPEN: Record<Lang, number> = { sol: 2025, fe: 4249 };
+const OPEN: Record<Lang, number> = { sol: 1692, fe: 740 };
 // (the grammar each source is coloured with: ui/Code.tsx's names)
 const GRAMMAR: Record<Lang, string> = { sol: "solidity", fe: "fe" };
 
@@ -197,14 +199,15 @@ export function RealDebugger() {
   const mark = r && { from: r.from, to: r.to,
     className: r.last ? "rng last" : "rng" };
   const pre = useRef<HTMLPreElement>(null);
-  // (another language's text: placed from the top again, not from where
-  // the other's was)
+  // (another language's text, or its colouring come: placed from the
+  // top again, not from where the other's, or the plain text's, was)
   const shown = useRef<string>(undefined);
   useLayoutEffect(() => {
     const box = pre.current;
-    if (box && d && shown.current !== lang) {
+    const now = `${lang}:${!!coloured}`;
+    if (box && d && shown.current !== now) {
       box.scrollTop = box.scrollLeft = 0;
-      shown.current = lang;
+      shown.current = now;
     }
     intoView(box);
   }, [mark?.from, mark?.to, coloured, lang, d]);
@@ -273,7 +276,8 @@ export function RealDebugger() {
       <p className="codehead"><span className="srcfile">{file}</span>{" "}
         <span className="codenote">{note}</span></p>
       <pre ref={pre} className={`src codesrc${coloured ? " coloured"
-        : ""}`}>{d ? lines(text, coloured, mark ? { mark } : {})
+        : ""}`}>{d ? lines(text, coloured, { indent: true,
+          ...mark ? { mark } : {} })
         : !error && <span className="muted sload" role="status">{
           progressText(loading.files, loading.phase)}</span>}</pre>
     </div>

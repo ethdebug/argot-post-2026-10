@@ -5,7 +5,8 @@
 // keeps its size and scrolls on its own: the range is brought into view
 // there, never by moving the page.
 import {
-  useEffect, useLayoutEffect, useRef, useState, type ReactNode,
+  useEffect, useLayoutEffect, useRef, useState, type CSSProperties,
+  type ReactNode,
 } from "react";
 import { highlighter, withLang } from "./shiki";
 import { useCompilation, useLens, usePoint } from "./hooks";
@@ -51,10 +52,11 @@ export const charAt = (text: string, byte: number) => new TextDecoder()
   .decode(new TextEncoder().encode(text).slice(0, byte)).length;
 
 // The lines of a text (coloured, or plain), each a span.line, with the
-// characters [from, to) of `mark` in <mark>s; `line`: a line's class
+// characters [from, to) of `mark` in <mark>s; `line`: a line's class;
+// `indent`: each line's indent as --ind (a wrapped line's hanging indent)
 export function lines(text: string, coloured: Coloured | null,
   o: { mark?: { from: number; to: number; className: string };
-    line?: (k: number) => string } = {}): ReactNode[] {
+    line?: (k: number) => string; indent?: boolean } = {}): ReactNode[] {
   let at = 0;
   const rows: Token[][] = coloured ?? text.replace(/\n$/, "").split("\n")
     .map((l) => {
@@ -70,8 +72,14 @@ export function lines(text: string, coloured: Coloured | null,
     return t.htmlStyle ? <span key={k} style={t.htmlStyle}>{body}</span>
       : lit ? <mark key={k} className={m!.className}>{s}</mark> : s;
   };
+  // (each line's indent, --ind, for a wrapped line's hanging indent)
+  const ind = (ts: Token[]) => ts.map((t) => t.content).join("")
+    .match(/^ */)![0].length;
   return rows.map((ts, k) => <span key={k} className={["line",
-    o.line?.(k)].filter(Boolean).join(" ")}>{ts.flatMap((t, j) => {
+    o.line?.(k)].filter(Boolean).join(" ")}
+    style={o.indent ? { "--ind": `${ind(ts)}ch` } as CSSProperties
+      : undefined}>{ts.flatMap((t,
+    j) => {
     const end = t.offset + t.content.length;
     const cuts = [t.offset, ...(m ? [m.from, m.to] : []), end]
       .filter((x) => x >= t.offset && x <= end)
@@ -93,14 +101,10 @@ export function intoView(box: HTMLElement | null) {
   const top = r.top - b.top + box.scrollTop;
   if (top < box.scrollTop || top + r.height > box.scrollTop +
     box.clientHeight) {
-    // (a line's box: its text's, less the half-leading, from the next
-    // line's distance; whole lines from the box's top edge)
-    const ln = m.closest(".line")?.getBoundingClientRect() ?? r;
-    const nx = (m.closest(".line")?.nextElementSibling ??
-      m.closest(".line")?.previousElementSibling)?.getBoundingClientRect();
-    const pitch = Math.abs((nx?.top ?? ln.top) - ln.top) ||
-      parseFloat(getComputedStyle(box).lineHeight) || r.height;
-    const at = ln.top - b.top + box.scrollTop - (pitch - ln.height) / 2;
+    // (its row's top: the mark's text, less the half-leading; whole
+    // rows from the box's top edge, a wrapped line's rows too)
+    const pitch = parseFloat(getComputedStyle(box).lineHeight) || r.height;
+    const at = top - (pitch - r.height) / 2;
     box.scrollTop = Math.max(0, at - Math.round(box.clientHeight / 3 /
       pitch) * pitch);
   }
