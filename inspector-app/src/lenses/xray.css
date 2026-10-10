@@ -1,52 +1,46 @@
 /* The program x-ray (figures/ProgramXray.tsx), in the inspector's
-   looks: its name and badge (the real debugger's), then solc's and
-   Fe's columns side by side, each the same parts: the instructions, a
-   tree's rows; the chosen one's entry, in a code panel's box; a small
-   code panel. Its box keeps its size whatever is shown: every part one
-   fixed height, the list and the source scrolling inside. A phone: the
-   columns one under the other. */
+   looks: its name and badge, and the compiler's picker (the real
+   debugger's); the instructions, a tree's rows; beside them, the entry
+   under the walkthrough's YAML header (.ptr: uppercase, a hairline, no
+   box), coloured and banded as its pointer is; under both, a small code
+   panel, the one box. Its box keeps its size whatever is shown: the
+   list, the entry and the code one fixed height each, the list and
+   the code scrolling inside. A phone: the list, the entry and the code
+   one under another. */
 .lens.xray { display: grid; align-items: start; position: relative;
-  grid-template-columns: minmax(0, 1fr); --xl: 140px; --xe: 240px;
-  --xc: 110px; }
-/* (its gaps, the embed's lens rule's too) */
-#embed .lens.xray, .lens.xray { gap: 14px 24px; }
+  --xl: 238px; --xe: 248px; --xc: 110px;
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-areas: "head" "pick" "list" "entry" "code"; }
 @media (min-width: 640px) {
-  .lens.xray { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
-  .lens.xray .shead { grid-column: 1 / -1; }
-}
-/* (a phone under 350px: solc's range on lines of its own) */
-@media (max-width: 349.98px) {
-  .lens.xray .xcol[data-lang="sol"] { --xe: 220px !important; }
-}
-/* (narrower columns: Fe's entry wraps to more lines) */
-@media (min-width: 640px) and (max-width: 759.98px) {
-  .lens.xray { --xe: 300px; }
+  .lens.xray { grid-template-columns: minmax(0, 11fr) minmax(0, 12fr);
+    grid-template-areas: "head head" "pick pick" "list entry"
+      "code code"; }
 }
 @media (max-width: 639.98px) {
-  /* (each its own: solc's entries are never more than 9 lines) */
-  .lens.xray { --xe: 280px; }
-  .lens.xray .xcol[data-lang="sol"] { --xe: 196px; }
-  #embed .lens.xray, .lens.xray { row-gap: 22px; }
+  /* (the entry as tall as its tallest: Fe's, its own fields open) */
+  .lens.xray { --xl: 179px; --xe: 248px; }
 }
+/* (its gaps, the embed's lens rule's too) */
+#embed .lens.xray, .lens.xray { gap: 12px 28px; }
 .lens.xray > .reset { position: absolute; top: 0; right: 0; }
-.lens.xray .shead { margin: 0; padding-right: 84px; }
+.lens.xray .shead { grid-area: head; margin: 0; padding-right: 84px; }
 @media (max-width: 759.98px) {
   .lens.xray .shead .handmade { display: table; margin: 4px 0 0; }
 }
-.lens.xray .xcol { display: flex; flex-direction: column; gap: 6px;
-  min-width: 0; }
-.lens.xray .xtitle { margin: 0; }
-.lens.xray .xtitle .codenote { text-transform: none; letter-spacing: 0;
-  font-weight: 400; }
-.lens.xray .xcol .codehead { margin: 4px 0 0; }
+.lens.xray > .picker { grid-area: pick; }
+@media (max-width: 759.98px) {
+  .lens.xray > .picker button { min-height: 44px; min-width: 44px; }
+}
 
 /* the instructions: a tree's rows, one line each (the offset, the
-   opcode and its bytes, the source in brief, cut), scrolling inside */
-#embed .lens.xray .xrows, .lens.xray .xrows { list-style: none; margin: 0;
-  padding: 0 6px 0 9px; height: var(--xl) !important;
-  overflow-y: auto !important; overflow-x: hidden !important;
-  scrollbar-gutter: stable; box-sizing: border-box;
-  font-family: var(--mono); font-size: var(--fs-meta); }
+   opcode and its bytes, the source in brief, cut), scrolling inside,
+   whole rows */
+#embed .lens.xray .xrows, .lens.xray .xrows { grid-area: list;
+  list-style: none; margin: 0; padding: 0 6px 0 9px;
+  height: var(--xl) !important; overflow-y: auto !important;
+  overflow-x: hidden !important; scrollbar-gutter: stable;
+  box-sizing: border-box; font-family: var(--mono);
+  font-size: var(--fs-meta); }
 :is(#tree, .tree).xrows { font-size: var(--fs-meta); }
 :is(#tree, .tree).xrows .row { padding: 1px 0; gap: 0 1ch; }
 :is(#tree, .tree).xrows .row > span { font-size: inherit;
@@ -64,34 +58,52 @@
   color: var(--muted); }
 .lens.xray .xrows .row.hl .val { color: inherit; }
 
-/* the entry: the compiler's JSON as YAML, in a code panel's box, its
-   lines wrapped under their indent; nothing scrolls (the popovers reach
-   out) */
-#embed .lens.xray pre.xjson, .lens.xray pre.xjson { height: var(--xe)
-  !important; overflow: visible !important; box-sizing: border-box;
-  max-height: none !important; white-space: pre-wrap;
-  overflow-wrap: anywhere; font-size: var(--fs-meta); }
-.lens.xray .xjson .line { display: inline-block; width: 100%;
-  box-sizing: border-box; padding-left: 4ch; text-indent: -4ch;
-  vertical-align: top; }
-.lens.xray .xjson .xown { white-space: normal; padding-left: 2ch;
-  text-indent: -2ch; }
-.lens.xray .xkey { position: relative; text-indent: 0; }
-.lens.xray .xname { cursor: help; border-bottom: 1px dotted var(--muted); }
-.lens.xray .xname:focus-visible { outline: 2px solid var(--accent);
-  outline-offset: 1px; }
-.lens.xray .xpop { display: none; width: max-content; max-width: 20em;
-  font-family: system-ui, -apple-system, sans-serif; --ax: 2em;
-  text-indent: 0; }
-.lens.xray .xkey:has(> .xname:is(:hover, :focus)) > .xpop {
-  display: block; }
-
-/* the source: a small code panel, long lines wrapped under their
-   indent (the real debugger's) */
-#embed .lens.xray pre.codesrc, .lens.xray pre.codesrc { overflow: auto
-  !important; height: var(--xc) !important; white-space: pre-wrap;
-  overflow-wrap: anywhere; overflow-x: hidden !important;
+/* the entry: the walkthrough's YAML pane (its header and hairline, its
+   lines and band), as tall as the list; nothing scrolls, and the
+   popovers reach out over the line above their field */
+.lens.xray .xentry { grid-area: entry; height: var(--xe);
+  grid-template-rows: auto minmax(0, 1fr); }
+.lens.xray .xentry .plabel { display: block; margin: 0;
+  line-height: 1.5; }
+.lens.xray .xentry .ptrscroll { overflow: visible; -webkit-mask-image: none;
+  mask-image: none; }
+.lens.xray .xentry .ptrlines { padding: 0.6em 0;
   font-size: var(--fs-meta); }
+.lens.xray .xentry .ptrlines code { display: block; padding: 0;
+  background: none; border-radius: 0; font: inherit; }
+/* (the range's lines: the walkthrough's band, in the selection's
+   yellow, as the source range is: its text the page's colour) */
+.lens.xray .ptrlines .line.on { background: var(--mark);
+  box-shadow: none; }
+.lens.xray .ptrlines .line.on span[style] { color: var(--fg) !important; }
+.lens.xray .ptrlines span[style] { color: var(--shiki-light); }
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .lens.xray .ptrlines span[style] {
+    color: var(--shiki-dark); }
+}
+:root[data-theme="dark"] .lens.xray .ptrlines span[style] {
+  color: var(--shiki-dark); }
+.lens.xray .xname { position: relative; cursor: help;
+  border-bottom: 1px dotted var(--muted); }
+.lens.xray :is(.xname, .xtoggle):focus-visible {
+  outline: 2px solid var(--accent); outline-offset: 1px; }
+.lens.xray .xtoggle { cursor: pointer; }
+.lens.xray .xtoggle:hover { text-decoration: underline; }
+.lens.xray .xpop { display: none; max-width: 22em; left: -0.5em;
+  font-family: system-ui, -apple-system, sans-serif; --ax: 1.5em;
+  white-space: normal; overflow-wrap: anywhere; }
+.lens.xray .xname:is(:hover, :focus) > .xpop { display: block; }
+
+/* the source: a small code panel, the one box, long lines wrapped under
+   their indent (the real debugger's); no context: muted, as the
+   inspector mutes what is not lit */
+#embed .lens.xray .code pre.codesrc, .lens.xray .code pre.codesrc {
+  overflow: auto !important; height: var(--xc) !important;
+  white-space: pre-wrap; overflow-wrap: anywhere;
+  overflow-x: hidden !important; font-size: var(--fs-meta); }
+.lens.xray .code { grid-area: code; }
+.lens.xray .code[data-none] pre.codesrc { opacity: 0.45;
+  filter: saturate(0.2); }
 .lens.xray pre.codesrc .line { display: inline-block; width: 100%;
   box-sizing: border-box; padding-left: calc(var(--ind, 0ch) + 2ch);
   text-indent: -2ch; min-height: 1lh; vertical-align: top; }

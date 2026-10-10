@@ -19,8 +19,8 @@ const PIDS = <>Template names shortened for reading; solc writes ids like
   {" "}<code>t_array$_t_address_$dyn_storage</code>.</>;
 
 // The colouring: loaded once a page (kept on the window: one load, for
-// every lens on it)
-function shiki(): Shiki {
+// every lens on it; the program x-ray's too)
+export function shiki(): Shiki {
   const w = window as unknown as { inspectorShiki?: Shiki };
   return w.inspectorShiki ??= highlighter().then((h) => h as Highlighter)
     .catch((e) => {
@@ -28,6 +28,16 @@ function shiki(): Shiki {
       delete w.inspectorShiki;
       return null;
     });
+}
+
+// A YAML text's lines, coloured (each line's markup, as Shiki writes
+// it; the program x-ray's entries too)
+export function yamlLines(hl: Highlighter, text: string): string[] {
+  const t = document.createElement("template");
+  t.innerHTML = hl.codeToHtml(text, { lang: "yaml",
+    themes: { light: "github-light", dark: "github-dark" },
+    defaultColor: false });
+  return [...t.content.querySelectorAll(".line")].map((l) => l.innerHTML);
 }
 
 // The pointer's text, for a variable (pointer-text.ts): what the panel
@@ -60,12 +70,7 @@ export function PointerYaml({ domId, text: yaml, band, before, goal,
     let live = true;
     shiki().then((hl) => {
       if (!hl || !live) return;
-      const t = document.createElement("template");
-      t.innerHTML = hl.codeToHtml(text, { lang: "yaml",
-        themes: { light: "github-light", dark: "github-dark" },
-        defaultColor: false });
-      setHtml({ text, lines: [...t.content.querySelectorAll(".line")]
-        .map((l) => l.innerHTML) });
+      setHtml({ text, lines: yamlLines(hl, text) });
     });
     return () => {
       live = false;
@@ -267,7 +272,9 @@ function noteOf(l: { text: string; pos: string },
 }
 
 // a range of a line's text, wrapped in a button for its template's id
-function wrapRange(el: HTMLElement, a: number, b: number, id: string) {
+// (`cls`: the button's class; the program x-ray's field names too)
+export function wrapRange(el: HTMLElement, a: number, b: number,
+  id: string, cls = "alias") {
   const walker = document.createTreeWalker(el, NodeFilter.SHOW_TEXT);
   const range = document.createRange();
   let pos = 0;
@@ -282,7 +289,7 @@ function wrapRange(el: HTMLElement, a: number, b: number, id: string) {
     pos += len;
   }
   const span = document.createElement("span");
-  span.className = "alias";
+  span.className = cls;
   span.tabIndex = 0;
   span.setAttribute("role", "button");
   span.dataset.id = id;
