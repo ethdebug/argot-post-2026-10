@@ -8,18 +8,18 @@
   overflow: hidden; text-overflow: ellipsis; }
 .codenote { color: var(--muted); }
 .code .codesrc { height: 26em; max-height: none; overflow: auto; }
-/* (the range: a fill of the plan colour, its ink mixed in to read in
-   both themes, the text at full contrast; no underline, which reads as
-   a link) */
+/* (the range: the plan colour's ink as its fill, its text the panel's
+   own light (dark) colour over it, as a selection is: at least 3:1
+   against the panel in either theme, its text more) */
 .code mark.rng { background: none; color: inherit; border-radius: 0; }
 .code mark.rng:not(.last) { background: color-mix(in srgb, var(--plan-fg)
-  24%, var(--plan-bg)); }
+  85%, var(--plan-bg)); color: #fff; }
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) .code mark.rng:not(.last) {
-    background: color-mix(in srgb, var(--plan-fg) 34%, var(--plan-bg)); }
+    background: var(--plan-fg); color: #15171a; }
 }
 :root[data-theme="dark"] .code mark.rng:not(.last) {
-  background: color-mix(in srgb, var(--plan-fg) 34%, var(--plan-bg)); }
+  background: var(--plan-fg); color: #15171a; }
 /* (the last range, muted: no fill, one rule in the gutter along its
    lines, not a mark on each) */
 .code .line:has(mark.rng.last) { display: inline-block; min-height: 1lh;
