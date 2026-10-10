@@ -1,25 +1,17 @@
 /* The code panel (Code.tsx; the shell and embed entries import this). The panel keeps
    its size whatever the moment (mute, don't move): a fixed height that
-   scrolls inside. The moment's range is in the walkthrough's tint (the
-   plan colours), never the selection's yellow; the last range, when
-   the moment has none, a rule in the gutter beside its lines. */
+   scrolls inside. The moment's range is in the selection's yellow; the
+   last range, when the moment has none, a rule in the gutter beside
+   its lines. */
 .code { min-width: 0; }
 .codehead { margin: 0 0 6px; font-size: var(--fs-meta); white-space: nowrap;
   overflow: hidden; text-overflow: ellipsis; }
 .codenote { color: var(--muted); }
 .code .codesrc { height: 26em; max-height: none; overflow: auto; }
-/* (the range: the plan colour's ink as its fill, its text the panel's
-   own light (dark) colour over it, as a selection is: at least 3:1
-   against the panel in either theme, its text more) */
+/* (the range: the selection's yellow, as a lit tree row's, its text the
+   page's own colour over it, not the syntax colours) */
 .code mark.rng { background: none; color: inherit; border-radius: 0; }
-.code mark.rng:not(.last) { background: color-mix(in srgb, var(--plan-fg)
-  85%, var(--plan-bg)); color: #fff; }
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]) .code mark.rng:not(.last) {
-    background: var(--plan-fg); color: #15171a; }
-}
-:root[data-theme="dark"] .code mark.rng:not(.last) {
-  background: var(--plan-fg); color: #15171a; }
+.code mark.rng:not(.last) { background: var(--mark); color: var(--fg); }
 /* (the last range, muted: no fill, one rule in the gutter along its
    lines, not a mark on each) */
 .code .line:has(mark.rng.last) { display: inline-block; min-height: 1lh;
