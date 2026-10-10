@@ -72,7 +72,6 @@ html, body { margin: 0; overflow: hidden; background: transparent; }
    height holds as it steps through files of any length) */
 #embed .lens.soldb pre.src { overflow: auto !important;
   height: 26em !important; }
-#embed .lens.soldb .sside .tree { overflow: visible !important; }
 /* (on a phone, a shorter code panel: soldb's rows nearer the moves) */
 @media (max-width: 759.98px) {
   #embed .lens.soldb pre.src { height: 16em !important; }

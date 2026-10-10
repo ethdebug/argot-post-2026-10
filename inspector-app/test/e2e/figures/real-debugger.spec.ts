@@ -40,40 +40,16 @@ async ({ page }) => {
   const h = await height(page);
   await loaded(page, "sol");
   expect(await height(page)).toBe(h);
-  // it opens inside play(), at `player.plays += 1`, before soldb has
-  // read the totals; stepping on, at `totalHits += 1`, it knows them:
-  // totalScore 170 and totalHits 7
+  // it opens inside play(), at `player.plays += 1`: the code panel
+  // alone, the step's pc and op inline in the count
   await expect(page.locator(`${F} .codehead .srcfile`))
     .toHaveText("Arcade.sol");
   await expect.poll(async () => (await lit(page)).text)
     .toBe("player.plays += 1");
-  const val = (p: string) => page.locator(
-    `${F} .sstate li[data-path="${p}"] .val`);
-  await expect(val("totalScore")).toHaveText("unknown: not read yet");
+  await expect(page.locator(`${F} .mat`)).toHaveText(
+    /^step 20 of 128 · pc \d+ · [A-Z0-9]+$/);
+  await expect(page.locator(`${F} [data-area="side"]`)).toHaveCount(0);
   const open = Number(await step(page));
-  for (let k = 0; k < 120 && (await lit(page)).text !== "totalHits += 1";
-    k++) {
-    const was = await step(page);
-    await page.locator(`${F} [data-move="next"]`).click();
-    await expect.poll(() => step(page)).not.toBe(was);
-  }
-  await expect.poll(async () => (await lit(page)).text)
-    .toBe("totalHits += 1");
-  await expect(val("totalScore")).toHaveText("170");
-  await expect(val("totalHits")).toHaveText("7");
-  // (what soldb cannot give: its words shortened in the row, whole in
-  // the row's popover, the column's width)
-  await expect(val("motd")).toHaveText("unknown: not read yet");
-  const row = page.locator(`${F} .sstate li[data-path="playerList"]`);
-  await row.locator(".row").hover();
-  const pop = row.locator(".sfull");
-  await expect(pop).toBeVisible();
-  await expect(pop).toContainText(
-    "<unknown: slot 0x0 has not been read or written yet>");
-  const [pw, cw] = await Promise.all([pop, page.locator(`${F} .sstate`)]
-    .map((l) => l.evaluate((e) => Math.round(e.getBoundingClientRect()
-      .width))));
-  expect(pw).toBe(cw);
   // each move: another range (no step of compiler-generated code)
   const moves = async (how: string, k: number) => {
     for (let n = 0; n < k; n++) {
@@ -100,18 +76,16 @@ async ({ page }) => {
   await page.keyboard.press("ArrowRight");
   await expect.poll(() => step(page)).toBe(k0);
   expect(await height(page)).toBe(h);
-  // Fe: the same panels, soldb's words where its export has nothing,
-  // and none of Solidity's rows
+  // Fe: the same panels
   await page.locator(`${F} button[data-lang="fe"]`).click();
-  await expect(page.locator(`${F} .sstate li`)).toHaveCount(0);
   await loaded(page, "fe");
   await expect(page.locator(`${F} .codehead .srcfile`))
     .toHaveText("arcade.fe");
   // (at the plays' write)
   await expect.poll(async () => (await lit(page)).text)
     .toMatch(/^store\.plays\.set\(/);
-  await expect(page.locator(`${F} .sside`))
-    .toContainText("Fe's export has none");
+  await expect(page.locator(`${F} .mat`)).toHaveText(
+    /^step 7 of 45 · pc \d+ · [A-Z0-9]+$/);
   // (no move lands in Fe's library: every one in arcade.fe)
   for (const [how, k] of [["prev", 6], ["next", 8]] as const) {
     await moves(how, k);
