@@ -311,8 +311,5 @@ export function pointConsulted(light: Light, d: Decoded, l: Layout,
       }
     }
   }
-  // (nothing it consulted there, as for a row of another decoding's
-  // storage beside it: as it was)
-  if (!relColours.size && !relBytes.size) return light;
   return { ...light, relColours, relBytes, focus: "none" };
 }

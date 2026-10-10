@@ -8,8 +8,9 @@ afterEach(cleanup);
 
 // every element's place in the markup (boxes: the e2e bbox test; jsdom
 // has no layout)
-const shape = (root: Element) => [...root.querySelectorAll("*")].map((e) =>
-  `${e.tagName}#${e.id}`);
+// (not the popovers: overlays, and a hover shows only its target's)
+const shape = (root: Element) => [...root.querySelectorAll("*")]
+  .filter((e) => !e.closest(".pop")).map((e) => `${e.tagName}#${e.id}`);
 const slot2 = slotHex(2n);
 // (the full inspector's two dumps alone)
 const dumps = () => mount(inspector("before", "after"));

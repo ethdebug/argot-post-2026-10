@@ -386,3 +386,25 @@ test("embed.html#scene=pitfall-nesting: alice's record, related rows " +
     bs.map((b) => Math.round(b.getBoundingClientRect().top))).size))
     .toBe(1);
 });
+
+// In the related view, a field of the selection's record, clicked: a
+// selection of its own (its siblings shown, muted, are not "outside");
+// the popovers stay
+test("pitfall-nesting: clicking from one field to its sibling selects it",
+  async ({ page }) => {
+    await page.setViewportSize({ width: 1024, height: 900 });
+    await page.goto("./embed.html#scene=pitfall-nesting");
+    const A = "players[0x70997970c51812dc3a010c7d01b50e0d17dc79c8]";
+    const sel = () => page.locator(".tree li:has(> .row.sel)").first()
+      .getAttribute("data-path");
+    for (const f of ["score", "combo", "hits", "combo"]) {
+      await page.locator(`.tree li[data-path="${A}.${f}"] > .row`).click();
+      await expect.poll(sel).toBe(`${A}.${f}`);
+      // (at rest: its own popover, and the light ones of what it
+      // consulted)
+      await page.mouse.move(1, 1);
+      await expect(page.locator(".pop:not(.kept)")).toHaveCount(1);
+      await expect.poll(() => page.locator(".pop.kept").count())
+        .toBeGreaterThan(0);
+    }
+  });
