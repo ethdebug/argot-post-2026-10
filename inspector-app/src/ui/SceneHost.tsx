@@ -10,7 +10,7 @@ import type { MomentRef } from "../engine/run/types";
 import { debuggerLens } from "../lenses/debugger";
 import { Lens } from "./Lens";
 import { PinBar } from "./PinBar";
-import { Reset } from "./Reset";
+import { Reset, ResetContext, useReset } from "./Reset";
 import type { LensContextValue } from "./hooks";
 import type { LensSpec } from "./types";
 
@@ -52,14 +52,20 @@ export function SceneHost(p: { scene: Scene; project: Project;
   const onReady = useCallback((lens: LensContextValue,
     ready: Promise<boolean>) => setLive((x) => x?.lens === lens &&
       x.ready === ready ? x : { lens, ready }), []);
+  const reset = useReset({ lens: live?.lens ?? null,
+    ready: live?.ready ?? null, scene: p.scene.id });
   if (!shown) return <p className="error">no lens {p.scene.lens}</p>;
   const figure = <Lens spec={shown} project={p.project} hash={p.hash}
     onReady={p.mode === "reader" ? onReady : undefined} />;
   if (p.mode === "reader") {
+    // (a figure with a walkthrough: its Reset in the walkthrough's bar,
+    // where its Exit was; else its own, over the figure)
+    const walks = shown.views.some((v) => v.kind === "walkthrough");
     return <div data-scene={p.scene.id} data-mode={p.mode}
       style={{ display: "contents" }}>
-      <Reset lens={live?.lens ?? null} ready={live?.ready ?? null}
-        scene={p.scene.id} />{figure}</div>;
+      <ResetContext.Provider value={reset}>
+        {!walks && <Reset state={reset} />}{figure}
+      </ResetContext.Provider></div>;
   }
   return <Authoring {...p} figure={figure} />;
 }

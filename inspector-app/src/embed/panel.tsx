@@ -2,8 +2,8 @@
 // walkthrough panel alone, in a frame of its own beside the figure's
 // (embed.html#scene=<id>&panel=external&channel=<id>). A thin view: it
 // draws the model the figure sends over their channel (ui/panel-port.ts)
-// and sends back the reader's intents (its buttons; ← → Home End and
-// Escape while it has the focus). No engine, no data. It posts its
+// and sends back the reader's intents (its buttons; ← → Home End while
+// it has the focus; its way out, the figure's ↺ Reset, no Exit). No engine, no data. It posts its
 // height to the host page: { type: "ethdebug:height", height }. The host
 // says whether it is stuck at the top of its view ({ type:
 // "ethdebug:stuck", stuck }): flush with the view's top then, a card
@@ -116,8 +116,7 @@ function Panel() {
       const n = w.dots.length;
       const to = e.key === "ArrowRight" ? w.i + 1 : e.key === "ArrowLeft"
         ? w.i - 1 : e.key === "Home" ? 0 : e.key === "End" ? n - 1 : null;
-      if (e.key === "Escape") act({ type: "exit" });
-      else if (to !== null) act({ type: "step", to });
+      if (to !== null) act({ type: "step", to });
       else return;
       e.preventDefault();
     };
@@ -127,10 +126,10 @@ function Panel() {
   const none = () => {};
   return <>
     {m && <div className="pshown" style={{ minHeight: tall || undefined }}>
-      <PanelView model={m} act={act} domId="details" /></div>}
+      <PanelView model={m} act={act} domId="details" compact /></div>}
     <div ref={measure} className="pmeasure" aria-hidden="true" inert>
       {vs?.map((v, k) => <PanelView key={k} model={{ ...v, exit: undefined }}
-        act={none} />)}
+        act={none} compact />)}
     </div>
   </>;
 }
