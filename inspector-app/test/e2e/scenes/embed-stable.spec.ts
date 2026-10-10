@@ -51,6 +51,40 @@ for (const width of [390, 1024]) {
     });
 }
 
+// The stepper's play (TimelineBar.tsx): from the first trace step to
+// the last, the frame's posted height holds
+for (const width of [390, 1024]) {
+  test(`optimized-locals at ${width}px: a play run, one height`,
+    async ({ page, browserName }) => {
+      test.skip(browserName !== "chromium", "one browser: a timing run");
+      await page.setViewportSize({ width, height: 800 });
+      const posted: number[] = [];
+      await page.exposeFunction("posted", (h: number) => posted.push(h));
+      await page.addInitScript(() => {
+        window.parent.postMessage = (m: { height: number }) =>
+          (window as never as { posted(h: number): void }).posted(m.height);
+      });
+      await page.goto("./embed.html#scene=optimized-locals");
+      await expect.poll(() => posted.length, { timeout: 20_000 })
+        .toBeGreaterThan(0);
+      await page.waitForTimeout(1500);
+      const ready = posted.at(-1)!;
+      const from = posted.length;
+      const play = page.locator('.tbar [data-t="play"]');
+      await play.click();
+      await expect(play).toHaveAttribute("aria-pressed", "true");
+      await expect(play).toHaveAttribute("aria-pressed", "false",
+        { timeout: 20_000 });
+      await page.waitForTimeout(500);
+      expect([...new Set(posted.slice(from))].filter((h) => h !== ready),
+        `${ready}: ${posted.join(" ")}`)
+        .toEqual([]);
+      expect(await page.evaluate(() => Math.ceil(document.querySelector(
+        "#embed")!.getBoundingClientRect().height))).toBeLessThanOrEqual(
+        ready);
+    });
+}
+
 // A frame fits its content after the reader acts (a collapse shrinks
 // it); a shrink of a few pixels no one caused keeps its room
 test("pitfall-nesting: the reader's collapse: the frame fits; a " +

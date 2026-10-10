@@ -147,7 +147,9 @@ export function PointerYaml({ domId, text: yaml, band, before, goal,
       cancelAnimationFrame(later);
       root.removeEventListener("scroll", measure);
     };
-  });
+    // (again when what it draws changes: not on a render that changes
+    // none of it, a replay's step)
+  }, [yaml, band?.join("\n"), goal, shown, notes, piece]);
   const go = (way: "up" | "down") => {
     const root = box.current!;
     const on = root.querySelector<HTMLElement>(".line.on");
