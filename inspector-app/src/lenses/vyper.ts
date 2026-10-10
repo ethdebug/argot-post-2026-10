@@ -11,7 +11,9 @@ export const vyper: LensSpec = {
   id: "vyper", title: "Vyper vs Solidity",
   timelines: [], decodings: [], initial: { scene: "pitfall-compiler" },
   // (the two answers side by side, each over its own storage)
-  grid: '"t1 t2" "d1 d2"', columns: 2,
+  // (the dumps one over the other, each a word a row at the storage
+  // inspector's size: raw.css-like rules in port.css .lens.vyper)
+  grid: '"t1 t2" "d1 d2"', columns: 2, layout: "vyper",
   links: ["v"],
   views: [
     { id: "t1", kind: "tree", area: "t1", link: "v", filter: players,
@@ -19,14 +21,14 @@ export const vyper: LensSpec = {
       data: SOL },
     { id: "d1", kind: "dump", area: "d1", link: "v", location: "storage",
       filter: players, title: "Storage, by Solidity's rule",
-      display: { ruler: false },
+      display: { ruler: false, facts: true },
       data: SOL },
     { id: "t2", kind: "tree", area: "t2", link: "v", filter: players,
       align: [], title: "Vyper's layout",
       data: VY },
     { id: "d2", kind: "dump", area: "d2", link: "v", location: "storage",
       filter: players, title: "Storage, by Vyper's layout",
-      display: { ruler: false },
+      display: { ruler: false, facts: true },
       data: VY },
   ],
   areas: { t1: "treebox", t2: "treebox", d1: "dump", d2: "dump" },

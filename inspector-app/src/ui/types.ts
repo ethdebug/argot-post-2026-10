@@ -75,6 +75,9 @@ export interface Display {
   bare?: boolean;
   // the byte ruler over the rows (default: shown, where rows are words)
   ruler?: boolean;
+  // a slot's popover as facts: each value by its own name and what it
+  // holds ("score 30"), no "(unmapped)" (a figure's, about one value)
+  facts?: boolean;
   // rows whose bytes are all zero folded into the gaps (⋯; gaps that
   // meet, one): a figure's storage, shorter
   foldZero?: boolean;

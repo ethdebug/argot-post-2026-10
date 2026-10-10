@@ -127,3 +127,25 @@
 /* (the related view's context rows, around the related ones: faded,
    plainer than the consulted rows) */
 .wrow.ctx > :is(.addr, .word) { opacity: 0.55; }
+/* The compilers' pitfall (lenses/vyper.ts): the two trees side by side,
+   their headings one height (a subgrid row: the hand-written badge may
+   wrap, both trees' rows stay level), no chevrons (one path, both sides
+   one); the two storage dumps one over the other under them, each a
+   word a row at the storage inspector's size (as wide as its dump
+   column beside a tree: at most 790px) */
+@media (min-width: 660px) {
+  .lens.vyper[style] { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr)
+    !important; grid-template-rows: auto auto auto auto !important;
+    grid-template-areas: "t1 t2" "t1 t2" "d1 d1" "d2 d2" !important; }
+  .lens.vyper > [data-area="t1"], .lens.vyper > [data-area="t2"] {
+    grid-row: 1 / span 2; display: grid; grid-template-rows: subgrid; }
+  .lens.vyper > [data-area^="t"] > .tree { grid-row: 1 / span 2;
+    display: grid; grid-template-rows: subgrid; align-content: start; }
+  .lens.vyper > [data-area^="t"] > .tree > .treehead { align-self: end; }
+  .lens.vyper > [data-area^="d"] { width: 100%; max-width: 790px; }
+}
+.lens.vyper .tree .chev { display: none; }
+.lens.vyper .tree li:has(> .chev) > .row { padding-right: 0; }
+/* (the figure's facts stay boxed, selected or lit: 0 and 30) */
+.lens.vyper .tree .row.hl:not(:has(+ ul)) .val {
+  border-color: var(--accent); }

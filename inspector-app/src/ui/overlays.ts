@@ -12,7 +12,9 @@ import { addressing, rangeText } from "../engine/location";
 type El = HTMLElement;
 // what a dump view lights: its own Light, the compared point's (a slot
 // lit there only: "only"), its layout
-export interface ViewData { light: Light; there?: Light; l: Layout }
+export interface ViewData { light: Light; there?: Light; l: Layout;
+  // (a figure's facts: a value's own name and what it holds)
+  facts?: (path: string) => { label: string; value?: string } | undefined }
 const data = (e: Element | null): ViewData | undefined =>
   (e?.closest(".view") as (El & { _data?: ViewData }) | null)?._data;
 const slotOf = (r: El) => r.dataset.slot as Hex;
@@ -332,16 +334,25 @@ function whatIn(root: El, rowsIn: El[]): Item[] {
     if (o.id.endsWith("#length") || own) return `${named(p, one)}.length`;
     return named(p, one);
   };
+  // (a figure of facts: "score 30")
+  const factOf = (o: { id: string }) => {
+    const f = x0?.facts?.(path(o.id));
+    return f && !o.id.endsWith("#length") ? `${f.label}${f.value !==
+      undefined ? ` ${f.value}` : ""}` : null;
+  };
   const out: Item[] = [];
   perRow.forEach((os, r) => {
     os.forEach((o, n) => {
       const sep = n === 0 && r ? " / " : " · ";
-      // (no "(unmapped)" in a walkthrough: it is about where bytes are)
-      if (o.free && walk) return;
+      // (no "(unmapped)" in a walkthrough: it is about where bytes are;
+      // nor in a figure of facts)
+      if (o.free && (walk || x0?.facts)) return;
       const x = o.free ? noteItem(["(unmapped)"], sep, { k: o.cells.some(
         (c) => c.classList.contains("fl")) ? "pnone" : null })
-        : item(o.cells, label(o, owners.length === 1), sep);
+        : item(o.cells, factOf(o) ?? label(o, owners.length === 1), sep);
       x.seg = r;
+      // (a fact is never cut: the figure is about it)
+      if (x0?.facts && !o.free) x.fixed = true;
       // (a value running on into the next slot: named once)
       const prev = out.at(-1);
       if (prev && prev.id === o.id) return;
@@ -573,9 +584,10 @@ function popFor(root: El, rows: El[], more: number): Pop {
   const count = one ? "" : n;
   // (a rule over another compiler's storage, reading slots that hold
   // nothing, every byte zero: said so, as a note; it reads zeros)
+  const ofFacts = !!data(rows[0])?.facts;
   const empty = shown.every((r) => r.dataset.empty !== undefined)
-    ? ' · <code class="pname pfree"><span class="pprose">(empty: all ' +
-      "zeros)</span></code>" : "";
+    ? ' · <code class="pname pfree"><span class="pprose">' + (ofFacts
+      ? "empty: all zeros" : "(empty: all zeros)") + "</span></code>" : "";
   pop.innerHTML = `<span class="pop-how"><span class="phow">${howHtml(
     what.length ? how : named(runName(shown)))}</span>${what.length
     ? ` : <span class="pwhat">${whatHtml(what, what.map((_, i) => i))

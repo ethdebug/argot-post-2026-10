@@ -635,7 +635,13 @@ export function Dump(p: { id: ViewId; location: Location; data: DataRef;
   useLayoutEffect(() => {
     if (bare) return;
     const v = me.current as (HTMLDivElement & { _data?: ViewData }) | null;
-    if (v && l) v._data = { light, there: p.compare ? there : undefined, l };
+    if (v && l) {
+      v._data = { light, there: p.compare ? there : undefined, l,
+        ...disp.facts && d ? { facts: (q: string) => {
+          const n = d.byPath.get(q);
+          return n ? { label: n.label, value: n.value?.text } : undefined;
+        } } : {} };
+    }
     const root = v?.closest<HTMLElement>(".panel") ?? v?.parentElement;
     if (root) schedule(root);
   });
