@@ -14,7 +14,7 @@
 .lens.raw .view-name { letter-spacing: 0.12em; }
 .lens.raw .view.abbr { font-family: var(--mono);
   font-variant-numeric: tabular-nums; font-size: var(--cell-fs, 14px); }
-.lens.raw-hero { grid-template-columns: minmax(0, 690px);
+.lens.raw-hero { grid-template-columns: minmax(0, 1fr);
   grid-template-areas: "storage" "stack" "memory" "moment"; }
 /* (every panel spans its column) */
 .lens.raw-hero > [data-area] { justify-self: stretch; }
@@ -46,7 +46,8 @@
 /* (no memory: storage and the stack's column alone) */
 .lens.raw-hero.no-memory { grid-template-areas: "storage" "stack" "moment"; }
 @media (min-width: 860px) {
-  .lens.raw-hero.no-memory { grid-template-columns: 690px max-content;
+  .lens.raw-hero.no-memory { grid-template-columns: minmax(0, 1fr)
+    max-content;
     grid-template-rows: auto 1fr;
     grid-template-areas: "storage stack" "storage moment"; }
 }
