@@ -3,13 +3,14 @@
 // snapshots, authoring's runs), the controls and the extra panels:
 // in authoring, the debugger over the scene's run, beside the scene
 // (a "Debugger | Scene" switch on a narrow page), and the pins.
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import type { Project } from "../engine/project";
 import type { Scene } from "../engine/scene";
 import type { MomentRef } from "../engine/run/types";
 import { debuggerLens } from "../lenses/debugger";
 import { Lens } from "./Lens";
 import { PinBar } from "./PinBar";
+import { Reset } from "./Reset";
 import type { LensContextValue } from "./hooks";
 import type { LensSpec } from "./types";
 
@@ -31,21 +32,34 @@ export function SceneHost(p: { scene: Scene; project: Project;
   [lens, own, first]);
   // (the scene's rows: its storage dumps' filter, "touched")
   // (and its roots: every tree's and storage dump's)
-  // (and no walkthrough, its bar not drawn, where the scene says so)
+  // (and no walkthrough, its bar not drawn, where the scene says so;
+  // no controls, "controls": "none": no pickers either, its rows the
+  // scene's alone)
   const quiet = p.scene.initial?.walkthrough === false;
+  const bare = p.scene.controls === "none";
   const shown = useMemo(() => !spec || (!p.scene.rows && !p.scene.roots &&
-    !quiet) ? spec : { ...spec, views: spec.views.filter((v) => !quiet ||
-      v.kind !== "walkthrough").map((v) => (v.kind === "dump" &&
+    !quiet && !bare) ? spec : { ...spec, views: spec.views.filter((v) =>
+      (!quiet || v.kind !== "walkthrough") &&
+      (!bare || v.kind !== "picker")).map((v) => (v.kind === "dump" &&
       v.location === "storage") || v.kind === "tree" ? { ...v, filter: {
         ...v.filter, ...p.scene.rows && v.kind === "dump"
           ? { rows: p.scene.rows } : {},
         ...p.scene.roots ? { roots: p.scene.roots } : {} } } : v) },
-  [spec, p.scene.rows, p.scene.roots, quiet]);
+  [spec, p.scene.rows, p.scene.roots, quiet, bare]);
+  // (the reader's figure: its lens, for its Reset)
+  const [live, setLive] = useState<{ lens: LensContextValue;
+    ready: Promise<boolean> } | null>(null);
+  const onReady = useCallback((lens: LensContextValue,
+    ready: Promise<boolean>) => setLive((x) => x?.lens === lens &&
+      x.ready === ready ? x : { lens, ready }), []);
   if (!shown) return <p className="error">no lens {p.scene.lens}</p>;
-  const figure = <Lens spec={shown} project={p.project} hash={p.hash} />;
+  const figure = <Lens spec={shown} project={p.project} hash={p.hash}
+    onReady={p.mode === "reader" ? onReady : undefined} />;
   if (p.mode === "reader") {
     return <div data-scene={p.scene.id} data-mode={p.mode}
-      style={{ display: "contents" }}>{figure}</div>;
+      style={{ display: "contents" }}>
+      <Reset lens={live?.lens ?? null} ready={live?.ready ?? null}
+        scene={p.scene.id} />{figure}</div>;
   }
   return <Authoring {...p} figure={figure} />;
 }

@@ -33,16 +33,24 @@ html, body { margin: 0; overflow: hidden; background: transparent; }
   align-items: start; }
 /* (the storage inspector in a figure: its dump a word a row, 32 bytes,
    one row a slot. Side by side where the dump keeps 580px and the tree
-   at most 380px (a record is short); narrower, the tree over the dump,
-   each the frame's width; a phone: one column, as every lens) */
+   at most 380px (a record is short); narrower, the tree over the dump
+   (its names and colours, the key, first), each the frame's width) */
 @media (min-width: 910px) {
   #embed .lens.inspector { grid-template-columns: minmax(580px, 1fr)
     minmax(0, 380px) !important; }
 }
-@media (min-width: 660px) and (max-width: 909.98px) {
-  #embed .lens.inspector { grid-template-columns: minmax(0, 1fr) !important;
-    grid-template-areas: "contract" "pick" "time" "bar" "rows" "tree"
-      "dump" !important; }
+@media (max-width: 909.98px) {
+  #embed .lens.inspector[style] { grid-template-columns: minmax(0, 1fr)
+    !important; grid-template-areas: "contract" "pick" "time" "bar"
+      "rows" "tree" "dump" !important; row-gap: 0; }
+  /* (a line for the figure's ↺ Reset above the tree: its first row
+     reaches the right edge) */
+  #embed .lens.inspector { padding-top: 30px; }
+  /* (24px between the tree and the dump; none for the rows left empty) */
+  #embed .lens.inspector > [data-area="dump"] { margin-top: 24px; }
+  /* (the tree first, the colour key: no room kept to line it up with
+     the dump beside it, there is none) */
+  #embed .lens.inspector .treebox > .tree { padding-top: 0 !important; }
 }
 /* (All | Related alone, no "Rows" before it: the figure's one control) */
 #embed .relrow .modelabel { display: none; }
@@ -67,3 +75,24 @@ html, body { margin: 0; overflow: hidden; background: transparent; }
 #embed .lens.soldb .sside .tree { overflow: visible !important; }
 .embed-none { margin: 0; font: 14px system-ui, sans-serif;
   color: #8a4b00; }
+/* (a figure's ↺ Reset, ui/Reset.tsx: the top right of its first line,
+   its room always there; seen only once the reader has changed the
+   figure; an unchosen picker segment's looks) */
+#embed { position: relative; }
+#embed > [data-mode="reader"] > .reset, #embed .reset { position: absolute;
+  top: 0; right: 10px; z-index: 6; font-size: 0.75rem; line-height: 16px;
+  padding: 3px 10px; visibility: hidden; opacity: 0;
+  transition: opacity 150ms ease, visibility 0s linear 150ms; }
+#embed .reset[data-shown] { visibility: visible; opacity: 1;
+  transition: opacity 150ms ease; }
+@media (pointer: coarse) {
+  /* (a finger's room around it, unseen) */
+  #embed .reset::after { content: ""; position: absolute; inset: -10px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  #embed .reset { transition: none; }
+}
+/* (its room on a timeline bar's line; none where the figure has its own
+   walkthrough bar, whose ✕ Exit takes that corner) */
+#embed .tbar:not(.empty):not(.one) { padding-right: 84px; }
+#embed [data-mode="reader"]:has(.wpanel) > .reset { display: none; }

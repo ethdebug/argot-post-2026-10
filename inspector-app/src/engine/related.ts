@@ -89,6 +89,17 @@ export function consultedParents(d: Decoded, path: Path,
   return { paths: [...paths], regions };
 }
 
+// The value whose rows the related view shows for a selection: a
+// record's field, its record (its siblings stay, muted: the reader keeps
+// the context they came from); anything else, itself
+export function scopeOf(d: Decoded, path: Path): Path {
+  const p = parentIn(d.byPath, path);
+  const n = p !== undefined ? d.byPath.get(p) : undefined;
+  // (a record, or a struct: its summary counts fields)
+  return n && (n.kind === "record" || /fields?$/.test(n.summary ?? ""))
+    ? p! : path;
+}
+
 export function related(d: Decoded, path: Path, w: Walkthrough | null,
   location: Location): Hex[] {
   const n = d.byPath.get(path);
@@ -177,6 +188,16 @@ export function withRelated(light: Light, d: Decoded, l: Layout,
   // (why each read row was read: a key of the selection's path, or the
   // length of what holds one; by the value that holds its bytes)
   const why = new Map<Hex, RelWhy[]>();
+  // (keys by their on-chain names: a record's own name)
+  const names = new Map<string, string>();
+  for (const [p, n] of d.byPath) {
+    const m = p.match(/^[^.[\]]+\[(0x[0-9a-fA-F]{40})\]$/);
+    const t = m && d.byPath.get(`${p}.name`)?.value?.text;
+    if (m && t && t !== '""') {
+      names.set(m[1].toLowerCase(), JSON.parse(t).split(",")[0]);
+    }
+    void n;
+  }
   // (the selection's entries by their key: a mapping selected whole)
   const entries = new Map<string, Path>();
   for (const x of d.byPath.keys()) {
@@ -205,11 +226,13 @@ export function withRelated(light: Light, d: Decoded, l: Layout,
         // (a key of the selection's path, or of one of its entries: a
         // mapping selected whole)
         const entry = v ? entries.get(v) : undefined;
+        const who = v ? names.get(v) : undefined;
         if (at >= 0) {
           because(row, { name: q, why: "key",
-            of: path.slice(0, at + v!.length + 2) });
+            of: path.slice(0, at + v!.length + 2), ...who ? { who } : {} });
         } else if (entry) {
-          because(row, { name: q, why: "key", of: entry });
+          because(row, { name: q, why: "key", of: entry,
+            ...who ? { who } : {} });
         } else if (/#length$/.test(o) || r.role === "length") {
           because(row, { name: q, why: "length", of: q });
         }

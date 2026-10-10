@@ -107,7 +107,7 @@ function Row({ n, top, c, inBlk }: { n: ValueNode; top?: boolean; c: Ctx;
     <div className={cls} tabIndex={0} role="button"
       data-vt={c.vt?.(n.path)}
       aria-pressed={sel ? "true" : "false"}>
-      <span className="name" title={n.label === addrLabel(n.label,
+      <span className="name" data-full={n.label === addrLabel(n.label,
         c.names) ? undefined : n.label}>{addrLabel(n.label, c.names)}
       </span>
       <span className="type">{n.typeText}</span>
@@ -118,7 +118,7 @@ function Row({ n, top, c, inBlk }: { n: ValueNode; top?: boolean; c: Ctx;
         point</i></span></span>
         : n.value || own ? <span className={`val${!pair ? ""
         : valueChg || (own && chg) ? " chg" : " same"}`}>
-        <span title={ADDR.test(n.value?.text ?? "") ? n.value!.text
+        <span data-full={ADDR.test(n.value?.text ?? "") ? n.value!.text
           : undefined}>{addrLabel(n.value?.text ?? n.summary ?? "",
           c.names)}</span></span>
         : group ? <span className="val sum">{n.summary}</span>

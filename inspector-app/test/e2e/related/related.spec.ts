@@ -55,8 +55,10 @@ test("the hash: a reload keeps the view (an old link's rel=0 too)",
 test("the tree: the selection's path, and where its key came from",
   async ({ page }) => {
     await open(page, `ex=mid&sel=${A}.score&rel=0`);
+    // (a record's field: its record whole, the siblings muted, not gone)
     await expect.poll(() => tree(page)).toEqual(["playerList", "playerList[0]",
-      "players", A, `${A}.score`]);
+      "players", A, ...["score", "combo", "bestCombo", "plays", "hits",
+        "lastBlock", "name"].map((f) => `${A}.${f}`)]);
   });
 
 test("nothing selected: every row, and a hint", async ({ page }) => {
@@ -121,7 +123,7 @@ test("what a selection consulted: tinted in its record's colour, a light "
     await expect(pop.filter({ hasText: "keccak(slot 0)" }))
       .toHaveCount(rel ? 3 : 1);
     if (rel) {
-      await expect(pop.filter({ hasText: /^keccak\(slot 0\) : playerList\[0\] \(key for players\[0x7099…79c8\]\)$/ })).toHaveCount(1);
+      await expect(pop.filter({ hasText: /^keccak\(slot 0\) : playerList\[0\] \(key for (players\[0x7099…79c8 \("alice"\)\]|alice's record)\)$/ })).toHaveCount(1);
     }
     await expect(pop.filter({ hasText: "slot 3 : (anchor slot for players)" }))
       .toHaveCount(1);
