@@ -697,7 +697,7 @@ export function Dump(p: { id: ViewId; location: Location; data: DataRef;
   // (a row's name in a view transition: transition.ts)
   const vt = (...x: string[]) => vtName(lens.key, p.id, p.location, ...x);
   rows.forEach((r0, k) => {
-    // (a row of the second reading: its layout and light, outlined)
+    // (a row of the second reading: its layout and light)
     const r = r0 as Row & { second?: boolean };
     const L = r.second && l2 ? l2 : l;
     const light = r.second ? light2 : lightMain;
