@@ -5,7 +5,7 @@
     "scenario": "arcade",
     "build": "sol"
   },
-  "lens": "pointer-walkthrough",
+  "lens": "inspector",
   "timeline": [
     {
       "tx": 11,
@@ -15,6 +15,7 @@
   "controls": "none",
   "initial": {
     "select": "players",
+    "related": true,
     "walk": {
       "step": 0
     }
