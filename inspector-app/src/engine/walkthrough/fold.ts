@@ -970,9 +970,12 @@ function spanned(r: ResolvedRegion): Hex[] {
 // The step a walkthrough re-targeted to another selection keeps: the
 // steps aligned by their identities (longest common subsequence); the
 // one shown stays on its match, or the nearest earlier step that has
-// one, or the first. `moved`: the place moved.
+// one, or the first. `moved`: the place moved. From the start (step 0:
+// the goal, or the first step of a walk that has none), always the new
+// walk's start.
 export function retarget(from: Step[], at: number, to: Step[]):
   { at: number; moved: boolean } {
+  if (at === 0) return { at: 0, moved: false };
   const a = from.map((s) => s.id);
   const b = to.map((s) => s.id);
   const L = Array.from({ length: a.length + 1 }, () =>
