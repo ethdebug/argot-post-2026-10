@@ -215,6 +215,19 @@ describe("keys and clicks, per lens", () => {
     expect(r.link(1).walk!.step).toBe(0);
   });
 
+  it("⏮ goes back to the start, and is disabled there", async () => {
+    const r = await two();
+    walk(r, 1, { step: 3, n: 12 });
+    const first = () => r.at(1).querySelector<HTMLButtonElement>(
+      'button[data-r="first"]')!;
+    await waitFor(() => expect(first().disabled).toBe(false), slow);
+    expect(first().getAttribute("aria-label")).toBe("Back to the start");
+    act(() => void fireEvent.click(first()));
+    expect(r.link(1).walk!.step).toBe(0);
+    expect(first().disabled).toBe(true);
+    expect(r.link(0).walk).toBe(null);
+  });
+
   it("a bookmark change ends a walkthrough", async () => {
     const r = await two();
     walk(r, 0, { step: 3, n: 12 });
