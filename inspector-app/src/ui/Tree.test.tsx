@@ -62,8 +62,8 @@ it("players selected: its entries are blocks in their colours",
       .contains("sel")).toBe(true);
   });
 
-it("the related view: a gap row for the variables it hides; a click " +
-  "on it clears the selection", async () => {
+it("the related view: one gap row after the last row, counting the " +
+  "variables it hides; a click on it clears the selection", async () => {
     const { lens, container } = await mount("players");
     const gaps = () => [...container.querySelectorAll<HTMLButtonElement>(
       "#tree button.gap")];
@@ -77,6 +77,8 @@ it("the related view: a gap row for the variables it hides; a click " +
     await waitFor(() => expect(gaps()).toHaveLength(1), slow);
     const k = all - tops();
     expect(k).toBeGreaterThan(1);
+    expect(container.querySelector("#tree > ul > li:last-child .gap"))
+      .toBe(gaps()[0]);
     expect(gaps()[0].textContent).toBe(`${k} more variables`);
     expect(gaps()[0].getAttribute("aria-label"))
       .toBe(`Show ${k} more variables`);

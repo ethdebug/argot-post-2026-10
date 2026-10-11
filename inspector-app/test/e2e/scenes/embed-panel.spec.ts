@@ -276,8 +276,9 @@ async ({ page, baseURL }) => {
 // the figure's opening view is in sight: the figure says where that view
 // ends, `showAfter`, with its height; the panel told it is stuck at the
 // bottom is flush with it there)
-test("the figure's showAfter: its tree's selection's rows' bottom; the " +
-  "panel stuck at the bottom", async ({ page, baseURL }) => {
+test("the figure's showAfter: its tree's selection's rows' bottom, and " +
+  "its gap row's under them; the panel stuck at the bottom",
+async ({ page, baseURL }) => {
   await page.setViewportSize({ width: 1440, height: 900 });
   await page.goto("./embed.html");
   await page.setContent(`<body style="margin:0">
@@ -297,7 +298,8 @@ test("the figure's showAfter: its tree's selection's rows' bottom; the " +
   const [after, rows] = await Promise.all([page.evaluate(() =>
     (window as unknown as { last: { showAfter: number } }).last.showAfter),
   page.frameLocator("#f").locator('.tree li[data-path="players"]')
-    .evaluate((li) => Math.max(...[...li.querySelectorAll(".row")]
+    .evaluate((li) => Math.max(...[...li.querySelectorAll(".row"),
+      li.closest(".tree")!.querySelector(":scope > ul > li > .gap")!]
       .map((r) => r.getBoundingClientRect().bottom)))]);
   expect(Math.abs(after - rows)).toBeLessThan(2);
   const p = page.frameLocator("#p");
