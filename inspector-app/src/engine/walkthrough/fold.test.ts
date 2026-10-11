@@ -159,10 +159,10 @@ it("re-targeting keeps the step: same identity, or the nearest earlier",
     // (no match: the first step)
     const totalScore = rules(walkthrough(x, "totalScore")!).steps;
     expect(retarget(carolName, 3, totalScore)).toEqual({ at: 0, moved: true });
-    // (no match: the first step after the goal, as vanilla: totalScore ->
-    // players lands on step 1, the same number: no cue)
+    // (no match: the first step after the goal, as vanilla: totalScore's
+    // step 2 -> players lands on step 1)
     const players = rules(walkthrough(x, "players")!).steps;
-    expect(retarget(totalScore, 0, players)).toEqual({ at: 1, moved: false });
+    expect(retarget(totalScore, 1, players).at).toBe(1);
     // (the cue: when the step's number changes; playerList's step 2 ->
     // totalScore's step 1. Vanilla's cue compares off by one here; see the
     // M5 report)
@@ -171,6 +171,30 @@ it("re-targeting keeps the step: same identity, or the nearest earlier",
     const bob = rules(walkthrough(x, B)!).steps;
     expect(retarget(players, 5, bob)).toEqual({ at: 5, moved: false });
   });
+
+it("re-targeting from the start stays at the start: to a parent, a "
+  + "child, a sibling, an unrelated variable", async () => {
+  const x = await at();
+  const of = (p: string) => rules(walkthrough(x, p)!).steps;
+  const cases: [string, string][] = [
+    [`${C}.score`, C], [`${C}.score`, "players"], [C, `${C}.name`],
+    ["players", `${C}.score`], [`${C}.score`, `${C}.combo`],
+    [`${C}.name`, `${B}.name`], [`${C}.score`, "motd"],
+    ["totalScore", "players"], ["players", "totalScore"]];
+  for (const [a, b] of cases) {
+    expect(retarget(of(a), 0, of(b)), `${a} -> ${b}`)
+      .toEqual({ at: 0, moved: false });
+  }
+  // (mid-walk, as before: carol's record at its fields step -> carol's
+  // score: the nearest earlier match)
+  const rec = of(C);
+  const f = rec.findIndex((s) => s.phase === "fields");
+  const score = of(`${C}.score`);
+  const r = retarget(rec, f, score);
+  expect(r.at).toBeGreaterThan(0);
+  expect(score[r.at].id).toBe(rec.slice(0, f + 1).reverse()
+    .find((s) => score.some((t) => t.id === s.id))!.id);
+});
 
 it("step 0, as vanilla: the slots the steps touch, whole; the question",
   async () => {
