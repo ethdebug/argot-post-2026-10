@@ -809,11 +809,10 @@ export function walkthrough(x: WalkInput, path: Path, focus?: string):
       rows: sx.flatMap((y) => rowsOf(y.inst)) });
   }
 
-  // step 0, the goal (vanilla c62550a): when the selection takes more
-  // than one row or region (or reads one to find it), every row of its
-  // location the walkthrough touches (but its inputs'), whole, in the
-  // selection's yellow, with no label: which bytes are what is what the
-  // steps find
+  // step 0, the goal (vanilla c62550a), for every selection: every row
+  // of its location the walkthrough touches (but its inputs'), whole, in
+  // the selection's yellow, with no label: which bytes are what is what
+  // the steps find
   const ownR = leaves.filter((l) => inTarget(l.path))
     .flatMap((l) => l.regions);
   // (the regions read to find it, not its own: a local's frame pointer;
@@ -838,42 +837,40 @@ export function walkthrough(x: WalkInput, path: Path, focus?: string):
   const allS = per.flatMap((q) => q.all);
   const ownN = per.reduce((n, q) => n + q.own.size, 0);
   const sk = pathName(path);
-  if (ownN > 1 || ownR.length + readR.length > 1) {
-    const [{ l: loc, own: ownS }] = per;
-    // (scattered: the selection's own rows are not one run)
-    const mine = [...ownS].sort(byOrder);
-    const step1 = addressing(loc) === "slot" ? 1n : 32n;
-    const apart = mine.some((h, k) => k > 0 &&
-      toBig(h) - toBig(mine[k - 1]) > step1);
-    const none = per[0].all.filter((h) => !ownS.has(h)).length;
-    const n = allS.length;
-    // (one side of a pair: "After setMotd, this slot holds `motd`.")
-    const when = x.when ? `${x.when[0].toUpperCase()}${x.when.slice(1)}, `
-      : "";
-    const up = (t: string) => when ? t : t[0].toUpperCase() + t.slice(1);
-    // (rows of more than one location: places)
-    const nn = per.length > 1 ? n === 1 ? "place" : "places" : noun(loc, n);
-    // (rows read to find it, not its own: a local's frame pointer)
-    const k = per.reduce((m, q) => m + q.read.size, 0);
-    const cap = ask((h) => h.goal?.(cx, { when, up, n, noun: nn })) ??
-      (k ? `${when}${up(`these ${n} ${nn} find`)} \`${sk}\`: ${ownN === 1
-        ? "one holds it" : `${nWord(ownN)} hold it`}; ${k === 1
-        ? "one is read to find it" : `${nWord(k)} are read to find it`}.`
-        : undefined) ??
-      (per.length > 1 ? `${when}${up(`these ${n} ${nn} belong to`)} \`${
-        sk}\`, in ${locs.join(" and ")}.` : undefined) ??
-      `${when}${up(n === 1 ? `this ${nn} holds` : `these ${n} ${nn} belong to`)
-      } \`${sk}\`${apart ? `, scattered across ${loc}` : ""}${none
-        ? `; ${none === 1 ? "one of them holds" : `${nWord(none)} of them hold`
-        } none of its data` : ""}.`;
-    out.unshift({ id: "goal", phase: "goal", goal: true, cap,
-      form: text({ question: n === 1 ? "Which rules find it, and what does " +
-        "it mean?" : "Which rules find them, and what do they mean?" }),
-      constructs: [], source: "", chip: "", chipLabel: "",
-      parts: per.map((q) => ({ regions: [], rows: [path], slots: q.all,
-        ...q.l !== "storage" ? { at: q.l } : {} })),
-      rows: [path], gutters: [], band: [] });
-  }
+  const [{ l: loc, own: ownS }] = per;
+  // (scattered: the selection's own rows are not one run)
+  const mine = [...ownS].sort(byOrder);
+  const step1 = addressing(loc) === "slot" ? 1n : 32n;
+  const apart = mine.some((h, k) => k > 0 &&
+    toBig(h) - toBig(mine[k - 1]) > step1);
+  const none = per[0].all.filter((h) => !ownS.has(h)).length;
+  const n = allS.length;
+  // (one side of a pair: "After setMotd, this slot holds `motd`.")
+  const when = x.when ? `${x.when[0].toUpperCase()}${x.when.slice(1)}, `
+    : "";
+  const up = (t: string) => when ? t : t[0].toUpperCase() + t.slice(1);
+  // (rows of more than one location: places)
+  const nn = per.length > 1 ? n === 1 ? "place" : "places" : noun(loc, n);
+  // (rows read to find it, not its own: a local's frame pointer)
+  const k = per.reduce((m, q) => m + q.read.size, 0);
+  const cap = ask((h) => h.goal?.(cx, { when, up, n, noun: nn })) ??
+    (k ? `${when}${up(`these ${n} ${nn} find`)} \`${sk}\`: ${ownN === 1
+      ? "one holds it" : `${nWord(ownN)} hold it`}; ${k === 1
+      ? "one is read to find it" : `${nWord(k)} are read to find it`}.`
+      : undefined) ??
+    (per.length > 1 ? `${when}${up(`these ${n} ${nn} belong to`)} \`${
+      sk}\`, in ${locs.join(" and ")}.` : undefined) ??
+    `${when}${up(n === 1 ? `this ${nn} holds` : `these ${n} ${nn} belong to`)
+    } \`${sk}\`${apart ? `, scattered across ${loc}` : ""}${none
+      ? `; ${none === 1 ? "one of them holds" : `${nWord(none)} of them hold`
+      } none of its data` : ""}.`;
+  out.unshift({ id: "goal", phase: "goal", goal: true, cap,
+    form: text({ question: n === 1 ? "Which rules find it, and what does " +
+      "it mean?" : "Which rules find them, and what do they mean?" }),
+    constructs: [], source: "", chip: "", chipLabel: "",
+    parts: per.map((q) => ({ regions: [], rows: [path], slots: q.all,
+      ...q.l !== "storage" ? { at: q.l } : {} })),
+    rows: [path], gutters: [], band: [] });
   // the last step, "found": the selection as it rests, its colours and
   // labels (light.ts: the resting view); the bookend to step 0. Not
   // after a lone step: it would add a click and nothing else
@@ -970,12 +967,11 @@ function spanned(r: ResolvedRegion): Hex[] {
 // The step a walkthrough re-targeted to another selection keeps: the
 // steps aligned by their identities (longest common subsequence); the
 // one shown stays on its match, or the nearest earlier step that has
-// one, or the first. `moved`: the place moved. From the start (step 0:
-// the goal, or the first step of a walk that has none), always the new
-// walk's start.
+// one, or the first after the goal. Every walk opens on its goal, step
+// 0, and the goals match: from the start, the start. `moved`: the place
+// moved.
 export function retarget(from: Step[], at: number, to: Step[]):
   { at: number; moved: boolean } {
-  if (at === 0) return { at: 0, moved: false };
   const a = from.map((s) => s.id);
   const b = to.map((s) => s.id);
   const L = Array.from({ length: a.length + 1 }, () =>
@@ -992,16 +988,14 @@ export function retarget(from: Step[], at: number, to: Step[]):
     else if (L[i + 1][j] >= L[i][j + 1]) i++;
     else j++;
   }
-  // (no match: the first step after the goal; moved: the step's number,
-  // not counting the goal, changed: vanilla main.js retarget)
-  const oa = from[0]?.goal ? 1 : 0;
-  const ob = to[0]?.goal ? 1 : 0;
-  let k = Math.min(ob, to.length - 1);
-  for (let i = at; i >= 0; i--) {
+  // (past the start, no match but the goal's: the first step after the
+  // goal, as vanilla main.js retarget)
+  let k = at ? Math.min(1, to.length - 1) : 0;
+  for (let i = at; i > 0; i--) {
     if (match.has(i)) {
       k = match.get(i)!;
       break;
     }
   }
-  return { at: k, moved: k - ob !== at - oa };
+  return { at: k, moved: k !== at };
 }

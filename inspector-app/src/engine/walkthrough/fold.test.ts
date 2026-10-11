@@ -7,6 +7,7 @@ import { decode } from "../decode";
 import {
   walkthrough, retarget, type Form, type Step, type Tok,
 } from "./fold";
+import { placeOf } from "./words";
 
 const at = async (bm = "mid", side = "after") => {
   const p = await testProject();
@@ -108,14 +109,14 @@ it("carol's record: step 0 and the eleven steps", async () => {
   expect(w.focus).toBe(C);
 });
 
-it("one value: no step 0 when it is one region in one slot", async () => {
+it("one value in one slot: step 0 too", async () => {
   const x = await at();
   const w = rules(walkthrough(x, `${B}.plays`)!);
   expect(w.steps.map((s) => s.phase).join())
-    .toBe("input,declared,template,handoff,fields");
+    .toBe("goal,input,declared,template,handoff,fields");
   // (one rule step: no found after it, which would add nothing)
   expect(walkthrough(x, "totalScore")!.steps.map((s) => s.phase))
-    .toEqual(["declared"]);
+    .toEqual(["goal", "declared"]);
   const nm = rules(walkthrough(x, `${C}.name`)!);
   expect(nm.steps[0].goal).toBe(true);
   expect(nm.steps.slice(1).map((s) => s.phase).join())
@@ -156,18 +157,17 @@ it("re-targeting keeps the step: same identity, or the nearest earlier",
     const r2 = retarget(rec, f, carolName);
     expect(carolName[r2.at].chipLabel).toBe("record");
     expect(r2.moved).toBe(true);
-    // (no match: the first step)
+    // (no match but the goal's: the first step after it)
     const totalScore = rules(walkthrough(x, "totalScore")!).steps;
-    expect(retarget(carolName, 3, totalScore)).toEqual({ at: 0, moved: true });
+    expect(retarget(carolName, 3, totalScore)).toEqual({ at: 1, moved: true });
     // (no match: the first step after the goal, as vanilla: totalScore's
     // step 2 -> players lands on step 1)
     const players = rules(walkthrough(x, "players")!).steps;
     expect(retarget(totalScore, 1, players).at).toBe(1);
     // (the cue: when the step's number changes; playerList's step 2 ->
-    // totalScore's step 1. Vanilla's cue compares off by one here; see the
-    // M5 report)
+    // totalScore's step 1)
     const playerList = rules(walkthrough(x, "playerList")!).steps;
-    expect(retarget(playerList, 2, totalScore)).toEqual({ at: 0, moved: true });
+    expect(retarget(playerList, 2, totalScore)).toEqual({ at: 1, moved: true });
     const bob = rules(walkthrough(x, B)!).steps;
     expect(retarget(players, 5, bob)).toEqual({ at: 5, moved: false });
   });
@@ -205,9 +205,29 @@ it("step 0, as vanilla: the slots the steps touch, whole; the question",
     expect(formText(g.form)).toBe("Which rules find them, and what do they " +
       "mean?");
     expect(g.chip).toBe("");
-    // (bob's plays: one region in one slot: no step 0)
-    expect(rules(walkthrough(await at(), `${B}.plays`)!).steps[0].goal)
-      .toBeUndefined();
+    // (one region in one slot: the same step 0, in the singular)
+    const one = rules(walkthrough(await at(), "totalScore")!).steps[0];
+    expect(one.goal).toBe(true);
+    expect(plain(one.cap)).toBe("This slot holds totalScore.");
+    expect(formText(one.form)).toBe("Which rules find it, and what does " +
+      "it mean?");
+  });
+
+it("every variable's walk opens on step 0, the start, in every bookmark",
+  async () => {
+    const p = await testProject();
+    // (a bookmark with points: a moment to decode)
+    for (const b of p.bookmarks.filter((y) => y.points?.length)) {
+      const x = await at(b.id);
+      for (const path of x.d.byPath.keys()) {
+        const w = walkthrough(x, path);
+        if (!w) continue;
+        expect(w.steps[0].goal, `${b.id}: ${path}`).toBe(true);
+        expect(w.steps.filter((s) => s.goal).length, `${b.id}: ${path}`)
+          .toBe(1);
+        expect(placeOf(w.steps, 0)).toBe("start");
+      }
+    }
   });
 
 it("reads come from the graph's edges, not from the pointer's text: "
