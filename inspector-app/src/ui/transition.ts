@@ -1,7 +1,9 @@
 // A change of which groups of rows exist, animated, as one motion (the
 // one helper for every deliberate change of what the views show: the
-// related view's toggle, a selection there, and a timeline's moments:
-// `transition(change)`), with the browser's View Transitions. The unit
+// related view's toggle, a selection there or its clearing, a Reset,
+// and a timeline's moments: `transition(change)`), with the browser's
+// View Transitions. A walkthrough changes nothing of this: a reader's
+// act during one animates as at any other time. The unit
 // is a GROUP: in a dump, a run of adjacent rows between two "⋯" lines
 // (a .run, named by its first row); in a tree, a variable's subtree (its
 // li). A group that stays glides to its new place, its content cross-
@@ -10,8 +12,9 @@
 // rows are named too (they move inside it as its members are filtered:
 // a cross-fade would show both layouts). The popovers are part of their
 // row's group, so they travel with it. One duration, one easing for
-// all. No API, or reduced motion: at once. Hover and a walkthrough's
-// steps never change the groups, so never animate. Names are kept as
+// all. No API, or reduced motion: at once. Hover never changes the
+// groups, so never animates; a walkthrough's steps by the switch below
+// (STEPS_ANIMATE). Names are kept as
 // data-vt (`vtName`), set as view-transition-name only during a
 // transition, and only on what is wholly inside what clips it; a dump's
 // run that is not gives its rows (data-vt-in) their own names instead.
@@ -146,16 +149,27 @@ export function transition(change: () => void): void {
   }
 }
 
-// Whether a change of a lens's state changes which rows the related
-// view shows, deliberately: the view turned on or off, or (while it is
-// on, with no walkthrough, in the same bookmark's showing) a selection
+// Whether a walkthrough's steps animate. Off: a step changes only what
+// is lit, not which rows show; and steps come in quick runs (the arrow
+// keys, ▶), each of which would wait on a motion. On, to try it: each
+// step a transition, as any other change of rows.
+export const STEPS_ANIMATE = false;
+
+// Whether a change of a lens's state, a reader's act, changes which
+// rows the views show: within a scene once shown (not its first
+// showing, nor another scene: a figure of its own), the related view
+// turned on or off; while it is on, a selection or its clearing, by a
+// click or by the scene shown again (a Reset); and a walkthrough's step,
+// by its switch. (A scene shown again with the related view off: its
+// rows stay, so no motion)
 const rowsChange = (a: LensState, b: LensState) =>
-  a.scene === b.scene && a.shows === b.shows &&
+  a.scene === b.scene && !!a.shows &&
   ((a.related === undefined) !== (b.related === undefined) ||
-    (!!b.related && Object.keys(b.links).some((k) => {
+    Object.keys(b.links).some((k) => {
       const [x, y] = [a.links[k], b.links[k]];
-      return x?.selection !== y?.selection && !x?.walk && !y?.walk;
-    })));
+      return (!!b.related && x?.selection !== y?.selection) ||
+        (STEPS_ANIMATE && x?.walk?.step !== y?.walk?.step);
+    }));
 
 // A lens's store whose changes of the related view's rows animate. The
 // change waits for the transition's callback (the old rows are captured
