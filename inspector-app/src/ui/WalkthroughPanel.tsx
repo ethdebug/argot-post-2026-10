@@ -1,11 +1,12 @@
 // The bar over both columns and the details under it, as one unit
 // (vanilla main.js renderBox, startReplay, stepTo, endReplay, fold,
 // setFocus, retarget, cue; index.html #details, #dwrap). At rest: the
-// selection and "▸ Show how it was found" (with nothing selected, the
+// selection and "▶ How it was found" (with nothing selected, the
 // details of what is pointed at). In a walkthrough: the bar tinted,
-// "Walkthrough", ⏮ ◀ ▶ ⏭ (each disabled at its end), the count (step 0,
-// the goal, counts 0), the step's short caption and ✕ Exit; under it,
-// the pointer, the step in full, the focus picker and the chips. Every
+// "How the pointer finds …" and ✕ Exit (in the post: ↺ Reset); ⏮ ◀ ▶
+// (⏮ and ◀ disabled at the start, ▶ at the end), the place ("start",
+// "3 / 9"), the steps as dots (each a jump); the step's caption; under
+// it, the pointer, the step's values and the focus picker. Every
 // part keeps its slot, used or empty: nothing moves but the details'
 // unfolding at entry and exit (280 ms; none with reduced motion).
 //
@@ -565,6 +566,7 @@ export function PanelView({ model: m, act, domId, compact }: {
     }
     if (unfolding) return;
     if (k === "start") start({ x: e.clientX, y: e.clientY });
+    else if (k === "first") stepTo(0);
     else if (wm) stepTo(wm.i + (k === "next" ? 1 : -1));
   };
 
@@ -574,7 +576,7 @@ export function PanelView({ model: m, act, domId, compact }: {
   const r = m.rest;
   if (wm) {
     // The bar in a walkthrough, three lines: what the reader is doing
-    // and the way out; ◀ ▶, where they are, the steps as dots (each a
+    // and the way out; ⏮ ◀ ▶, where they are, the steps as dots (each a
     // jump; its caption on hover); the step, in its one wording, with
     // what it is about and where its facts come from
     const { kind, source, foot } = wm.construct;
@@ -596,6 +598,9 @@ export function PanelView({ model: m, act, domId, compact }: {
       <span className="rscene muted"> · {wm.scene}</span>}<span
         className="rexit">{out}</span></span>}
       <span className="rline2"><span className="rctl"><button type="button"
+        className="btn" data-r="first" aria-label="Back to the start"
+        disabled={!wm.i}>⏮</button>
+        <button type="button"
         className="btn" data-r="prev" aria-label="Previous step"
         disabled={!wm.i}>◀</button>
         {/* (at step 0, ▶ has a halo: the way on; vanilla 23c7c00) */}
