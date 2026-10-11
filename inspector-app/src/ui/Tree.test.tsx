@@ -79,9 +79,9 @@ it("the related view: one gap row after the last row, counting the " +
     expect(k).toBeGreaterThan(1);
     expect(container.querySelector("#tree > ul > li:last-child .gap"))
       .toBe(gaps()[0]);
-    expect(gaps()[0].textContent).toBe(`${k} more variables`);
+    expect(gaps()[0].textContent).toBe(`${k} variables not shown`);
     expect(gaps()[0].getAttribute("aria-label"))
-      .toBe(`Show ${k} more variables`);
+      .toBe(`${k} variables not shown; show all`);
     act(() => void fireEvent.click(gaps()[0]));
     expect(lens.store.get().links.storage.selection).toBe(null);
     await waitFor(() => expect(gaps()).toHaveLength(0), slow);
