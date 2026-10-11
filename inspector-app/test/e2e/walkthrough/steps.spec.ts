@@ -216,8 +216,9 @@ test("step 0: no labels, no band; ⏮ and ◀ reach it; a re-target keeps it",
     expect((await stepNow(page)).count).toBe("start");
     await page.keyboard.press("Escape");
     await select(page, "mid", null);
+    // (one value in one slot: a step 0 too)
     const t = await walk(page, "totalScore");
-    expect([t.goal, t.steps[0].count]).toEqual([undefined, "1 / 1"]);
+    expect([t.goal?.count, t.steps[0].count]).toEqual(["start", "1 / 1"]);
   });
 
 test("carol's record: eleven steps; bob's plays and carol's name",
@@ -272,7 +273,7 @@ test("carol's record: eleven steps; bob's plays and carol's name",
   });
 
 // (the review's redesign: one title, ◀ ▶, the place, the steps as dots,
-// the step's one wording; ⏮ ⏭ are Home and End and the dots)
+// the step's one wording; ⏮ is Home, the first dot)
 test("the bar: entry, title, ◀ ▶ at the ends, the place, dots, keys, Exit",
   async ({ page }) => {
     await ready(page);
@@ -297,21 +298,21 @@ test("the bar: entry, title, ◀ ▶ at the ends, the place, dots, keys, Exit",
     bs = await barNow();
     // (the title names the key by name, not by address)
     expect(bs).toMatchObject({ tint: true,
-      title: 'How the pointer finds players["bob"].plays', count: "1 / 6",
-      off: "prev", dots: 6, exit: true });
+      title: 'How the pointer finds players["bob"].plays', count: "start",
+      off: "prev", dots: 7, exit: true });
     await page.locator("#dots .dot:last-child").click();
     expect(await barNow()).toMatchObject({ count: "6 / 6", off: "next" });
     await page.keyboard.press("ArrowRight");
     expect((await barNow()).count).toBe("6 / 6");
     await page.locator("#dots .dot:first-child").click();
-    expect((await barNow()).count).toBe("1 / 6");
+    expect((await barNow()).count).toBe("start");
     await page.locator('#details button[data-r="next"]').click();
     await page.keyboard.press("ArrowRight");
-    expect((await barNow()).count).toBe("3 / 6");
+    expect((await barNow()).count).toBe("2 / 6");
     await page.evaluate(() => (document.activeElement as HTMLElement)
       ?.blur());
     await page.keyboard.press("Home");
-    expect((await barNow()).count).toBe("1 / 6");
+    expect((await barNow()).count).toBe("start");
     await page.keyboard.press("End");
     expect((await barNow()).count).toBe("6 / 6");
     // (a dot's caption, on hover and for the screen reader)
@@ -453,7 +454,7 @@ test("Vyper: Solidity's rule, then the misread: Vyper's own layout, "
     await ready(page);
     await select(page, "vyper");
     await page.locator('#details button[data-r="start"]').click();
-    await expect(page.locator("#details .rcount")).toHaveText("1 / 7");
+    await expect(page.locator("#details .rcount")).toHaveText("start");
     // (no list of Vyper's words in the box of the compiler's data)
     await expect(page.locator(".ptr ol.vyper, #ptr .howside"))
       .toHaveCount(0);

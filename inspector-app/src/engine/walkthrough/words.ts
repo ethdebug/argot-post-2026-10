@@ -36,7 +36,5 @@ export const constructOf = (st: Step) => CONSTRUCT[st.phase] ?? "";
 // A step's place, as the bar shows it: step 0 "start"; the others
 // counted, the last (found, or what follows it) too: "11 / 11"
 export function placeOf(steps: Step[], i: number): string {
-  const goal = steps[0]?.goal ? 1 : 0;
-  if (steps[i]?.goal) return "start";
-  return `${i + 1 - goal} / ${steps.length - goal}`;
+  return i ? `${i} / ${steps.length - 1}` : "start";
 }

@@ -213,7 +213,6 @@ export function useWalkModel(p: { id: ViewId; data: DataRef;
   const node = sel ? d!.byPath.get(sel) : undefined;
   const walk = link.walk;
   const steps = w?.steps ?? [];
-  const goal = steps[0]?.goal ? 1 : 0;
   const i = walk ? Math.max(0, Math.min(steps.length - 1, walk.step)) : -1;
   const st: Step | undefined = walk ? steps[i] : undefined;
   const key = `${lens.key}:${p.id}`;
@@ -353,7 +352,7 @@ export function useWalkModel(p: { id: ViewId; data: DataRef;
     return { name: w!.name, ...sceneTitle ? { scene: sceneTitle } : {},
       i: k, place: placeOf(steps, k), last: k === steps.length - 1,
       goal: !!s0.goal, dots: steps.map((s, j) => ({ cap: s.cap,
-        ...s.goal ? {} : { n: j - goal }, place: placeOf(steps, j) })),
+        ...s.goal ? {} : { n: j - 1 }, place: placeOf(steps, j) })),
       ...cue && k === i ? { cue } : {}, cap: s0.cap, form: s0.form,
       ...s0.formula ? { formula: s0.formula } : {},
       construct: { kind: constructOf(s0), source: s0.source,
