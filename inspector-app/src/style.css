@@ -441,6 +441,22 @@ li.same > .row .name, li.same > .row .type { opacity: 0.55; }
   --pk: var(--muted); --pk-fg: var(--muted);
   --parg-bg: color-mix(in srgb, var(--bg) 85%, var(--muted));
   background: color-mix(in srgb, var(--bg) 85%, var(--muted)); }
+/* (the Vyper figure: its hashes' arguments coloured, a key in one colour
+   and a slot in another, so the two rules' orders show at a glance) */
+.lens.vyper .pop .parg[data-arg="key"] { --pk: var(--pk3);
+  --pk-fg: var(--pk3-fg); }
+.lens.vyper .pop .parg[data-arg="slot"] { --pk: var(--pk6);
+  --pk-fg: var(--pk6-fg); }
+.lens.vyper .pop .parg[data-arg] {
+  --parg-bg: color-mix(in srgb, var(--pk) 35%, #fff);
+  color: var(--pk-fg); background: var(--parg-bg); }
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .lens.vyper .pop .parg[data-arg] {
+    color: var(--pk);
+    --parg-bg: color-mix(in srgb, var(--pk-fg) 40%, #fff); }
+}
+:root[data-theme="dark"] .lens.vyper .pop .parg[data-arg] { color: var(--pk);
+  --parg-bg: color-mix(in srgb, var(--pk-fg) 40%, #fff); }
 /* (unmapped bytes pointed at: no fill, one step darker; the popover's
    neutral badge says what is pointed at) */
 .b.free.fl { opacity: 0.7; filter: none; }

@@ -379,10 +379,10 @@ const noteHtml = (note: Note) => note.map((p) => typeof p === "string"
   : `<span class="pnm">${esc(p.name)}</span>`).join("");
 
 // A slot's "how", its keccaks' arguments as badges: neutral ones (no
-// colour, which names a variable), so two rules' hashes side by side
-// show their order ("keccak(0x7099…79c8, slot 3)" beside
-// "keccak(slot 108, 0x7099…79c8)"); a nested keccak, or a sum, as text
-// around its own
+// colour, which names a variable), each marked a key or a slot (the
+// Vyper figure colours them, so its two rules' hashes side by side show
+// their order: "keccak(0x7099…79c8, slot 3)" beside "keccak(slot 108,
+// 0x7099…79c8)"); a nested keccak, or a sum, as text around its own
 export function howHtml(how: string): string {
   const out: string[] = [];
   let i = 0;
@@ -413,7 +413,9 @@ export function howHtml(how: string): string {
       const t = a.trim();
       const pad = a.slice(0, a.length - a.trimStart().length);
       if (/keccak\(|\+/.test(t)) return pad + howHtml(t);
-      return `${pad}<span class="parg pnone">${esc(t)}</span>`;
+      const arg = /^slot \S+$/.test(t) ? "slot" : "key";
+      return `${pad}<span class="parg pnone" data-arg="${arg}">${esc(t)}` +
+        "</span>";
     }).join(","));
     out.push(esc(how.slice(j, j + 1)));
     i = j + 1;
