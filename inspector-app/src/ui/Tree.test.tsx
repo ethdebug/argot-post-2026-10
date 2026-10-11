@@ -3,6 +3,7 @@ import { it, expect, afterEach } from "vitest";
 import { fireEvent, cleanup, waitFor, act } from "@testing-library/react";
 import { inspector, mount as mountLens, slow } from "../../test/lens";
 import { A } from "../../test/expect";
+import { RELATED_CONTEXT } from "./types";
 
 afterEach(cleanup);
 
@@ -59,4 +60,28 @@ it("players selected: its entries are blocks in their colours",
     expect(li(A).classList.contains("pk1")).toBe(true);
     expect(li("players").querySelector(":scope > .row")!.classList
       .contains("sel")).toBe(true);
+  });
+
+it("the related view: a gap row for the variables it hides; a click " +
+  "on it clears the selection", async () => {
+    const { lens, container } = await mount("players");
+    const gaps = () => [...container.querySelectorAll<HTMLButtonElement>(
+      "#tree button.gap")];
+    const tops = () => container.querySelectorAll(
+      "#tree > ul > li[data-path]").length;
+    // (all the variables shown: none)
+    expect(gaps()).toHaveLength(0);
+    const all = tops();
+    act(() => lens.store.set((s) => ({ ...s,
+      related: { context: RELATED_CONTEXT } })));
+    await waitFor(() => expect(gaps()).toHaveLength(1), slow);
+    const k = all - tops();
+    expect(k).toBeGreaterThan(1);
+    expect(gaps()[0].textContent).toBe(`${k} more variables`);
+    expect(gaps()[0].getAttribute("aria-label"))
+      .toBe(`Show ${k} more variables`);
+    act(() => void fireEvent.click(gaps()[0]));
+    expect(lens.store.get().links.storage.selection).toBe(null);
+    await waitFor(() => expect(gaps()).toHaveLength(0), slow);
+    expect(tops()).toBe(all);
   });

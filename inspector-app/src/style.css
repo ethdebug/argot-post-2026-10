@@ -81,7 +81,7 @@ li.same > .row .name, li.same > .row .type { opacity: 0.55; }
 }
 /* A whole row selects its variable, changed or not */
 #tree .row { cursor: pointer; border-radius: 4px; }
-#tree .row:focus-visible { outline: 2px solid var(--accent);
+#tree :is(.row, .gap):focus-visible { outline: 2px solid var(--accent);
   outline-offset: 1px; }
 #tree .row.sel .val { border-color: var(--accent); }
 .val.same { opacity: 0.6; }
@@ -506,6 +506,15 @@ li.same > .row .name, li.same > .row .type { opacity: 0.55; }
   line-height: 1;
 }
 .gap::after { content: ""; border-top: 1px dashed var(--line); }
+/* (the related view's gap row in a tree, Tree.tsx: the same line, a
+   button, its label in a column of its own width, the tree's meta
+   size; on hover and focus at full colour, as a dump row's address,
+   and saying what a click does) */
+.tree .gap { grid-template-columns: max-content 1fr; width: 100%;
+  margin: 0; padding: 0; border: 0; background: none; font: inherit;
+  font-size: var(--fs-meta); cursor: pointer; }
+.tree .gap:is(:hover, :focus-visible) { color: var(--fg); opacity: 1; }
+.tree .gap:is(:hover, :focus-visible) span::after { content: " · show all"; }
 
 .bytes {
   display: flex;

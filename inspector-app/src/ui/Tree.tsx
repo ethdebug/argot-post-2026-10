@@ -44,6 +44,9 @@ const ARROW = (d: string) => <svg viewBox="0 0 16 16" aria-hidden="true">
   <path d={d} fill="none" stroke="currentColor" strokeWidth="2"
     strokeLinecap="round" strokeLinejoin="round" /></svg>;
 
+// (a gap row's label: "2 more variables")
+const more = (k: number) => `${k} more variable${k === 1 ? "" : "s"}`;
+
 // a path in a quoted attribute selector
 const esc = (p: string) => p.replace(/["\\]/g, "\\$&");
 const pk = (k: Colour | undefined) => k === undefined || k === 0 ? ""
@@ -205,6 +208,22 @@ export function Tree(p: { id: ViewId; data: DataRef; filter?: Filter;
   };
   const shown = d?.tree.map(keep).filter(Boolean) as ValueNode[]
     | undefined;
+  // (in the related view, each run of variables it hides: one gap row
+  // where they would be, as a dump's gap line; a click shows them all,
+  // as a click on the selection does)
+  const items: ({ n: ValueNode } | { hid: ValueNode[] })[] = [];
+  for (const n of d?.tree ?? []) {
+    const k = keep(n);
+    const last = items[items.length - 1];
+    if (k) items.push({ n: k });
+    else if (!related) continue;
+    else if (last && "hid" in last) last.hid.push(n);
+    else items.push({ hid: [n] });
+  }
+  const deselect = () => {
+    setLink((s) => ({ ...s, selection: null, hover: null }));
+    hush(lens.store);
+  };
 
   const rowOf = (el: EventTarget) => {
     // (a group's chevron is part of its row, for pointing)
@@ -543,7 +562,13 @@ export function Tree(p: { id: ViewId; data: DataRef; filter?: Filter;
         <button type="button" className="btn" onClick={() =>
           (window as { loading?: { retry(): void } }).loading?.retry()}>
           Retry</button></p>
-        : shown ? <ul>{shown.map((n) => <Row key={n.path} n={n} top c={c} />)}
+        : shown ? <ul>{items.map((x) => "n" in x
+          ? <Row key={x.n.path} n={x.n} top c={c} />
+          : <li key={`gap ${x.hid[0].path}`}
+            data-vt={c.vt?.(`tree gap ${x.hid[0].path}`)}>
+            <button type="button" className="gap" onClick={deselect}
+              aria-label={`Show ${more(x.hid.length)}`}>
+              <span>{more(x.hid.length)}</span></button></li>)}
       </ul> : <div className="skel" aria-hidden="true">
         {Array.from({ length: 8 }, (_, i) => <i key={i} />)}</div>}
     </div>
