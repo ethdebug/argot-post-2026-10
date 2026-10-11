@@ -669,8 +669,8 @@ function annotate(root: El, v: El, taken: Rect[], room: Rect[],
   const quiet = !!data(v)?.light.quiet;
   for (const run of runList) {
     // the run's addresses, tinted as one rounded group in the gutter
-    // (not at step 0, which has no labels: vanilla)
-    if (!quiet) run.forEach((r, k) => r.querySelector(":scope > .addr")!
+    // (step 0 too, though it has no labels)
+    run.forEach((r, k) => r.querySelector(":scope > .addr")!
       .classList.add("grp", ...(k === 0 ? ["grp-top"] : []),
         ...(k === run.length - 1 ? ["grp-end"] : [])));
     if (!quiet) {
