@@ -298,9 +298,8 @@ for (const [id, has] of [["mid", true], ["raw-hero", true],
     });
 }
 
-// The Vyper figure's two hashes: their arguments badged, the key and the
-// slot each one colour on both sides, the order flipped; Solidity's slot
-// empty, said so
+// The Vyper figure's two hashes: their arguments badged, neutral (no
+// colour), the order flipped; Solidity's slot empty, said so
 test("embed.html#scene=pitfall-compiler: the two hashes' arguments, badged; " +
   "Solidity's slot empty", async ({ page }) => {
   await page.setViewportSize({ width: 838, height: 700 });
@@ -309,11 +308,11 @@ test("embed.html#scene=pitfall-compiler: the two hashes' arguments, badged; " +
   await expect(pops).toHaveCount(2, { timeout: 20_000 });
   const args = (k: number) => pops.nth(k).locator(".parg")
     .evaluateAll((cs) => cs.map((c) => [c.textContent!.replace(/^.*…/, "…"),
-      c.className.match(/pk\d/)![0]]));
+      /\bpk\d/.test(c.className)]));
   const [sol, vy] = [await args(0), await args(1)];
   expect(sol.map(([t]) => t)).toEqual(["…79c8", "slot 3"]);
   expect(vy.map(([t]) => t)).toEqual(["slot 108", "…79c8"]);
-  expect([sol[0][1], sol[1][1]]).toEqual([vy[1][1], vy[0][1]]);
+  expect([...sol, ...vy].map(([, k]) => k)).toEqual(Array(4).fill(false));
   await expect(pops.nth(0)).toContainText("empty: all zeros");
   await expect(pops.nth(1)).not.toContainText("empty");
 });

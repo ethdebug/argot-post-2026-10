@@ -378,12 +378,11 @@ const noteHtml = (note: Note) => note.map((p) => typeof p === "string"
   ? `<span class="pprose">${esc(p)}</span>`
   : `<span class="pnm">${esc(p.name)}</span>`).join("");
 
-// A slot's "how", its keccaks' arguments as badges: a key in one colour,
-// a slot number ("slot 3") in another, the same in every popover, so two
-// rules' hashes side by side show their order and their slots at a
-// glance ("keccak(0x7099…79c8, slot 3)" beside "keccak(slot 108,
-// 0x7099…79c8)"); a nested keccak, or a sum, as text around its own
-const ARG = { slot: "pk6", key: "pk3" };
+// A slot's "how", its keccaks' arguments as badges: neutral ones (no
+// colour, which names a variable), so two rules' hashes side by side
+// show their order ("keccak(0x7099…79c8, slot 3)" beside
+// "keccak(slot 108, 0x7099…79c8)"); a nested keccak, or a sum, as text
+// around its own
 export function howHtml(how: string): string {
   const out: string[] = [];
   let i = 0;
@@ -414,8 +413,7 @@ export function howHtml(how: string): string {
       const t = a.trim();
       const pad = a.slice(0, a.length - a.trimStart().length);
       if (/keccak\(|\+/.test(t)) return pad + howHtml(t);
-      const k = /^slot \S+$/.test(t) ? ARG.slot : ARG.key;
-      return `${pad}<span class="parg ${k}">${esc(t)}</span>`;
+      return `${pad}<span class="parg pnone">${esc(t)}</span>`;
     }).join(","));
     out.push(esc(how.slice(j, j + 1)));
     i = j + 1;
