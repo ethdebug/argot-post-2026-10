@@ -192,28 +192,6 @@ export function PointerYaml({ domId, text: yaml, band, before, goal,
     setAlias(`${a.textContent}\n${a.dataset.id}`);
   };
   const coloured = html?.text === text ? html.lines : null;
-  // the glyph points toward ▶, from where ▶ is: on the sentence's right,
-  // up and right, when ▶ is right of the sentence's middle; else on its
-  // left, the same arrow mirrored, up and left (one rule, measured)
-  const pgo = useRef<HTMLParagraphElement>(null);
-  const [left, setLeft] = useState(true);
-  useLayoutEffect(() => {
-    const aim = () => {
-      const g = pgo.current;
-      const next = g?.closest("[data-view]")?.querySelector(
-        'button[data-r="next"]');
-      if (!goal || !g || !next) return;
-      const gr = g.getBoundingClientRect();
-      const n = next.getBoundingClientRect();
-      setLeft(n.left + n.width / 2 < gr.left + gr.width / 2);
-    };
-    const f = requestAnimationFrame(aim);
-    addEventListener("resize", aim);
-    return () => {
-      cancelAnimationFrame(f);
-      removeEventListener("resize", aim);
-    };
-  }, [goal]);
   return <div className="ptrbox"><div ref={box} id={domId} tabIndex={0}
     className={`ptrscroll${lit.size ? " lit" : ""}${goal ? " goal" : ""}${
       more.up ? " more-up" : ""}${more.down ? " more-down" : ""}`}
@@ -251,13 +229,10 @@ export function PointerYaml({ domId, text: yaml, band, before, goal,
         {alias ? <><code className="alias">{alias.split("\n")[0]}</code> =
           solc's <code>{alias.split("\n")[1]}</code></> : PIDS}</p>}</>}
   </div>{edge("up")}{edge("down")}
-    {/* (at step 0, over the blurred pointer: the way on, with an arrow
-      glyph toward ▶: vanilla goGlyph) */}
-    <p ref={pgo} id={domId ? `${pre}pgo` : undefined} className={`pgo${left
-      ? " left" : ""}`} hidden={!goal}>{left && <span className="pglyph"
-      aria-hidden="true">⤴</span>}<span className="ptext">Press ▶ to see how
-      this data from the compiler finds these bytes</span>{!left && <span
-      className="pglyph" aria-hidden="true">⤴</span>}</p></div>;
+    {/* (at step 0, over the blurred pointer: the way on) */}
+    <p id={domId ? `${pre}pgo` : undefined} className="pgo" hidden={!goal}>
+      <span className="ptext">Press ▶ to see how this data from the compiler
+      finds these bytes</span></p></div>;
 }
 
 // The values of the variables a line uses (an operand, not a key:

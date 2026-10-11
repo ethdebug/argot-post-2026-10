@@ -683,37 +683,22 @@ test("a step's own gutter rows keep a dark label (not muted, not dropped)",
     expect(bad).toEqual([]);
   });
 
-// (vanilla 23c7c00 run.mjs: at step 0, a plain label over the blurred
-// pointer, ending in an arrow glyph toward ▶, and a halo on ▶; none from
-// step 1 on)
-test("step 0: the way on, its glyph toward ▶, and ▶'s halo",
-  async ({ page }) => {
+// (at step 0, a plain label over the blurred pointer and a halo on ▶;
+// none from step 1 on)
+test("step 0: the way on, and ▶'s halo", async ({ page }) => {
   await ready(page);
   await select(page, "mid", "players");
   await page.locator('#details button[data-r="start"]').click();
   const go = () => page.evaluate(() => {
     const l = document.querySelector<HTMLElement>("#pgo")!;
     const n = document.querySelector('#details button[data-r="next"]')!;
-    // (the glyph on the side ▶ is, mirrored when it is on the left)
-    const g = l.querySelector<HTMLElement>(".pglyph");
-    const t = l.querySelector<HTMLElement>(".ptext");
-    const nr = n.getBoundingClientRect();
-    const toward = !!g && !!t && (nr.left + nr.width / 2 <
-      t.getBoundingClientRect().left
-      ? g.getBoundingClientRect().right <= t.getBoundingClientRect().left &&
-        getComputedStyle(g).transform !== "none"
-      : g.getBoundingClientRect().left >= t.getBoundingClientRect().right);
-    return { label: !l.hidden && l.tagName === "P" &&
-      l.textContent!.includes("⤴"), toward,
-    arrow: !!document.querySelector("svg#goarrow"),
-    halo: n.classList.contains("halo") };
+    return { label: !l.hidden && l.tagName === "P",
+      halo: n.classList.contains("halo") };
   });
-  expect(await go()).toEqual({ label: true, toward: true, arrow: false,
-    halo: true });
+  expect(await go()).toEqual({ label: true, halo: true });
   await page.locator('#details button[data-r="next"]').click();
   await expect(page.locator(".rcount")).toHaveText(/^1 \//);
-  expect(await go()).toMatchObject({ label: false, arrow: false,
-    halo: false });
+  expect(await go()).toEqual({ label: false, halo: false });
 });
 
 // (vanilla 6b1df3a run.mjs: the last step, "found", is the resting view:

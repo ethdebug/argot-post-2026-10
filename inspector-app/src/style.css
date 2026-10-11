@@ -837,7 +837,6 @@ main[data-single] .scols .view-name { display: none; }
   line-height: 1.4; pointer-events: none; }
 .pgo .ptext { display: inline-block; text-align: left; max-width: 22em;
   text-wrap: balance; }
-.pgo .pglyph { font-size: 1.4em; line-height: 1; font-weight: 400; }
 /* (on a phone, the pointer's box is a few lines: the sentence smaller,
    inside it) */
 @media (max-width: 759px) {
@@ -846,8 +845,6 @@ main[data-single] .scols .view-name { display: none; }
 }
 .pgo[hidden] { display: none; }
 /* (▶'s halo at step 0, in the selection's yellow) */
-.pgo .pglyph { font-family: system-ui, -apple-system, "Segoe UI",
-  "Segoe UI Symbol", sans-serif; }
 .rbar .btn.halo { box-shadow: 0 0 0 3px color-mix(in srgb, var(--mark)
   90%, transparent); animation: halo 1.4s ease-in-out 3; }
 @keyframes halo { 50% { box-shadow: 0 0 0 6px color-mix(in srgb,
@@ -1388,9 +1385,6 @@ main:not([data-lens]) #rawscene { display: none; }
   .ptr > .rsrc { display: none; }
   .dpanel { height: 9em; }
 }
-/* (the glyph on the sentence's left: the same arrow, mirrored, up and
-   left toward ▶) */
-.pgo.left .pglyph { display: inline-block; transform: scaleX(-1); }
 @media (max-width: 759px) {
   .rbar > .rdetail { grid-template-rows: 6.8rem 2.1em; }
   .rbar .dtext .rform { height: 6.8rem; }
