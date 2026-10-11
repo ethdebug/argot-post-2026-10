@@ -506,14 +506,15 @@ li.same > .row .name, li.same > .row .type { opacity: 0.55; }
   line-height: 1;
 }
 .gap::after { content: ""; border-top: 1px dashed var(--line); }
-/* (the related view's gap row in a tree, Tree.tsx: the same line, a
-   button, its label in a column of its own width, the tree's meta
-   size; on hover and focus at full colour, as a dump row's address,
-   and saying what a click does) */
+/* (the related view's gap row in a tree, Tree.tsx, after its last row:
+   the same line, a button, its label in a column of its own width, at
+   the rows' size in the type's muted colour, not faded; on hover and
+   focus at full colour, as a dump row's address, and saying what a
+   click does) */
 .tree .gap { grid-template-columns: max-content 1fr; width: 100%;
   margin: 0; padding: 0; border: 0; background: none; font: inherit;
-  font-size: var(--fs-meta); cursor: pointer; }
-.tree .gap:is(:hover, :focus-visible) { color: var(--fg); opacity: 1; }
+  opacity: 1; cursor: pointer; }
+.tree .gap:is(:hover, :focus-visible) { color: var(--fg); }
 .tree .gap:is(:hover, :focus-visible) span::after { content: " · show all"; }
 
 .bytes {

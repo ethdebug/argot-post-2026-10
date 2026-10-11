@@ -98,12 +98,16 @@ const storageBottom = (): { storageBottom?: number } => {
     root.getBoundingClientRect().top) * 100) / 100 };
 };
 // (`showAfter`: the bottom of the last row drawn of the selected tree
-// row and the rows under it, the row's own box, in CSS px from the
-// frame's top, at this width)
+// row and the rows under it, the row's own box, and of its tree's gap
+// row after them (the related view's), in CSS px from the frame's top,
+// at this width)
 const showAfter = (): { showAfter?: number } => {
   const li = root.querySelector<HTMLElement>(".tree .row.sel")
     ?.closest<HTMLElement>("li[data-path]");
-  const rows = li ? [...li.querySelectorAll<HTMLElement>(".row")]
+  const gap = li?.closest(".tree")?.querySelector<HTMLElement>(
+    ":scope > ul > li > .gap");
+  const rows = li ? [...li.querySelectorAll<HTMLElement>(".row"),
+    ...gap ? [gap] : []]
     .map((r) => r.getBoundingClientRect()).filter((r) => r.height) : [];
   if (!rows.length) return {};
   return { showAfter: Math.round((Math.max(...rows.map((r) => r.bottom)) +
