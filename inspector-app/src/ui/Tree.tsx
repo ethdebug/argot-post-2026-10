@@ -44,8 +44,8 @@ const ARROW = (d: string) => <svg viewBox="0 0 16 16" aria-hidden="true">
   <path d={d} fill="none" stroke="currentColor" strokeWidth="2"
     strokeLinecap="round" strokeLinejoin="round" /></svg>;
 
-// (a gap row's label: "2 more variables")
-const more = (k: number) => `${k} more variable${k === 1 ? "" : "s"}`;
+// (a gap row's label: "2 variables not shown")
+const more = (k: number) => `${k} variable${k === 1 ? "" : "s"} not shown`;
 
 // a path in a quoted attribute selector
 const esc = (p: string) => p.replace(/["\\]/g, "\\$&");
@@ -557,7 +557,7 @@ export function Tree(p: { id: ViewId; data: DataRef; filter?: Filter;
         : shown ? <ul>{shown.map((n) => <Row key={n.path} n={n} top c={c} />)}
         {hidden > 0 && <li data-vt={c.vt?.("tree gap")}>
           <button type="button" className="gap" onClick={deselect}
-            aria-label={`Show ${more(hidden)}`}>
+            aria-label={`${more(hidden)}; show all`}>
             <span>{more(hidden)}</span></button></li>}
       </ul> : <div className="skel" aria-hidden="true">
         {Array.from({ length: 8 }, (_, i) => <i key={i} />)}</div>}
