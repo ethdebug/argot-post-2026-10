@@ -1342,8 +1342,6 @@ html { overflow-anchor: none; }
     grid-template-rows: minmax(0, 1fr) auto; height: 16em; gap: 4px;
     padding: 6px 10px; overflow: hidden; }
   .dleft { grid-template-rows: auto 1.9em; }
-  .ptr .plabel { display: none; }
-  .ptr { grid-template-rows: minmax(0, 1fr); }
   .rform { font-size: var(--fs-meta); }
 }
 /* (the tree's edge buttons: smaller, hugging the box's edge, so they
@@ -1412,7 +1410,6 @@ main:not([data-lens]) #rawscene { display: none; }
 .rbar > .rdetail { grid-template-rows: 3.8rem 1.9em; }
 @media (max-width: 759px) {
   .rbar.replaying:not(:has(.rline3 .rsrc)) { height: 18.4em; }
-  .ptr { grid-template-rows: minmax(0, 1fr) auto; }
   .ptr > .rsrc { display: none; }
   .dpanel { height: 9em; }
 }
