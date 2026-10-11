@@ -412,9 +412,13 @@ li.same > .row .name, li.same > .row .type { opacity: 0.55; }
 .pop .pname.pbadge.pk0 { --pk: var(--mark); --pk-fg: var(--chg-fg); }
 /* (an argument's badge takes no room: its fill reaches out by a shadow,
    so the "how" is as wide as its text and no name after it is cut
-   sooner) */
+   sooner; 1px less above and below than to the sides: two more
+   shadows, a pixel either way, make up the sides) */
 .pop .parg { --parg-bg: color-mix(in srgb, var(--pk) 35%, #fff);
-  background: var(--parg-bg); box-shadow: 0 0 0 0.14em var(--parg-bg); }
+  --parg-out: calc(0.14em - 1px); background: var(--parg-bg);
+  box-shadow: 0 0 0 var(--parg-out) var(--parg-bg),
+    1px 0 0 var(--parg-out) var(--parg-bg),
+    -1px 0 0 var(--parg-out) var(--parg-bg); }
 /* (dark: the badge light, its text the colour's strong tone) */
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) .pop :is(.pname.pbadge, .parg) {
