@@ -37,7 +37,9 @@ export default defineConfig(({ command }) => ({
   base: command === "build" ? "./" : "/demos/inspector/",
   publicDir: command === "build" ? false : "../demos/inspector",
   plugins: [react(), repin, loaderPage(), scenesPlugin(), debuggerDemo()],
-  server: { port: 5180, strictPort: true, fs: { allow: [".."] },
+  // (every interface: the HMR socket is reached at the host the page
+  // came from, e.g. over a VPN)
+  server: { port: 5180, strictPort: true, host: true, fs: { allow: [".."] },
     hmr: { clientPort: port } },
   // (the run's worker: a module, its EVM chunk split out)
   worker: { format: "es" },
