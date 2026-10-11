@@ -833,7 +833,9 @@ export function Dump(p: { id: ViewId; location: Location; data: DataRef;
     // (lit: the rest steps back; a selection or a step: brown caps)
     className={["view", light.muted || annot ? "active" : "",
       link.selection || link.walk || active ? "chosen" : "",
-      light.walk ? "walking" : "", disp.shape === "strip" ? "strip" : "",
+      // (step 0, the selection's slots: its own yellow gutter group, not
+      // the neutral one the steps after it give the slots found)
+      light.walk && !light.quiet ? "walking" : "", disp.shape === "strip" ? "strip" : "",
       disp.abbreviate !== undefined ? "abbr" : "", flow ? "flow" : "",
       bare ? "bare" : "", annot ? "annot" : "", annot && revealed
         ? "revealed" : "", hand ? "hand" : ""].filter(Boolean).join(" ")}
