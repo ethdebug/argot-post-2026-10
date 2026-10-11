@@ -407,13 +407,10 @@ export function useWalkModel(p: { id: ViewId; data: DataRef;
 // The panel, drawn from its model; the reader's intents to `act`
 // (`compact`: the post's panel, its own parts only, fewer: the controls
 // and the title on one line, the caption, the pointer; no worked values
-// (the dump's popovers say them), no construct line; on a phone the
-// pointer folded, as the contract's source is, opened by its summary)
+// (the dump's popovers say them), no construct line)
 export function PanelView({ model: m, act, domId, compact }: {
   model: PanelModel; act: (i: Intent) => void; domId?: string;
   compact?: boolean }) {
-  const [phone] = useState(() => !!globalThis.matchMedia?.(
-    "(max-width: 759px)").matches);
   // (its parts' ids, after its own: "details" → "dtext"; "mdetails" →
   // "mdtext", for a second panel on the page)
   const idOf = (k: string) => domId ? `${domId.replace(/details$/,
@@ -685,10 +682,7 @@ export function PanelView({ model: m, act, domId, compact }: {
     <div ref={wrap} id={idOf("dwrap")} className="dwrap" data-view={m.key}>
       <div ref={panel} id={idOf("dpanel")}
         className="dpanel" hidden={!walk}>
-        {compact && phone ? <details className="srcbox ptr">
-          <summary><span className="srcfile">Ethdebug data from the
-            compiler</span> {chain}</summary>{yaml}</details>
-        : <div className="ptr" aria-label="Ethdebug data from the compiler">
+        <div className="ptr" aria-label="Ethdebug data from the compiler">
           <p className="plabel"><span className="ptitle">Ethdebug data from
             the compiler {!compact && <span className="pnote">(as YAML;
             template names shortened, yields folded)</span>}</span>
@@ -697,7 +691,7 @@ export function PanelView({ model: m, act, domId, compact }: {
             {chain}</p>
           {yaml}
           {KIND_UNDER_YAML && !compact && construct}
-        </div>}
+        </div>
       </div>
     </div>
   </div>;
