@@ -7,13 +7,14 @@ import { NAME_C } from "../../test/expect";
 
 const NAME_HEX = `0x${Buffer.from(NAME_C, "utf8").toString("hex")}`;
 
-describe.each(["stepper-O0", "optimized-locals"])("%s", (scene) => {
+// (the moment `name` is sliced from the call: a mark of each replay)
+describe.each([["stepper-O0", 1], ["optimized-locals", 0]] as const)(
+  "%s", (scene, mark) => {
   it("everything in scope; the name, sliced from the call, is its " +
     "calldata bytes, NAME_C", async () => {
     const p = await testProject();
-    // (the scene's second moment, a mark of its replay)
     await p.source(scene);
-    const k = p.bookmarks.find((b) => b.id === scene)!.marks![1];
+    const k = p.bookmarks.find((b) => b.id === scene)!.marks![mark];
     const d = await decode(p, p.decodings[scene], `${scene}:${k}`);
     expect(d.tree.map((n) => n.path)).toEqual(["@storage", "@locals"]);
     const name = d.byPath.get("name")!;

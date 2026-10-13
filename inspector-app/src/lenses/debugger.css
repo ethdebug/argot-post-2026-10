@@ -12,19 +12,20 @@
   min-width: 0; }
 .lens.dbg [data-area="narrow"] { align-items: flex-start;
   justify-self: start; }
-.lens.dbg .view.abbr { font-family: var(--mono);
+.lens:is(.dbg, .stepper) .view.abbr { font-family: var(--mono);
   font-variant-numeric: tabular-nums; font-size: var(--cell-fs, 14px); }
-.lens.dbg .view.abbr .word .ab { line-height: var(--cell-lh, 1.85); }
-.lens.dbg .view-name { letter-spacing: 0.12em; }
+.lens:is(.dbg, .stepper) .view.abbr .word .ab {
+  line-height: var(--cell-lh, 1.85); }
+.lens:is(.dbg, .stepper) .view-name { letter-spacing: 0.12em; }
 /* (the stack's column one width at every moment, its depth whatever:
    nothing beside it moves) */
 .lens.dbg { --stack-w: 9.5em; }
 /* (a stack row's height, set, not as its content draws it: the
    reservation above counts on it) */
-.lens.dbg [data-area="narrow"] { --stack-row: calc(var(--cell-lh, 1.85em)
-  + 6px); }
-.lens.dbg [data-area="narrow"] .wrow { height: var(--stack-row);
-  box-sizing: border-box; align-items: center; }
+.lens.dbg [data-area="narrow"], .lens.stepper .view.abbr {
+  --stack-row: calc(var(--cell-lh, 1.85em) + 6px); }
+.lens.dbg [data-area="narrow"] .wrow, .lens.stepper .view.abbr .wrow {
+  height: var(--stack-row); box-sizing: border-box; align-items: center; }
 .lens.dbg [data-area="narrow"] { width: var(--stack-w); }
 @media (min-width: 660px) and (max-width: 1199px) {
   /* (two columns: the dumps; the stack, then the code and the variables
@@ -120,3 +121,68 @@
 .lens.soldb .sload { display: block; margin: 9em 1em 0; text-align: center;
   white-space: normal; font-family: system-ui, -apple-system, sans-serif; }
 .lens.soldb .mat .error { color: var(--old); }
+
+/* The bugc stepper (lenses/stepper.tsx): the moments' bar; the pages
+   and the variables, side by side (one column on a phone: the pages
+   first); the code under them, the walkthrough's pointer box. Every box
+   one size at every moment: the pages as tall as their rows over the
+   scene (engine/replay.ts), to a cap, scrolling inside past it; the
+   variables' column as tall as the pages', the tree scrolling inside
+   it; the code pane a fixed number of lines. */
+.lens.stepper { display: grid; gap: 14px 28px; align-items: start;
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-areas: "moves" "wide" "side" "src"; }
+@media (min-width: 760px) {
+  /* (the pages at least 580px: a word one line of 32 bytes) */
+  .lens.stepper { grid-template-columns: minmax(580px, 5fr) minmax(0, 4fr);
+    grid-template-areas: "moves moves" "wide side" "src src"; }
+}
+/* (the pages: a box each, its location on a tab joined to its top; its
+   rows scroll inside it past its cap) */
+.lens.stepper .pages .views { row-gap: 8px; }
+.lens.stepper .pages .view-head { position: static; padding: 0;
+  background: none; }
+.lens.stepper .pages .view-name { display: inline-block; margin: 0;
+  padding: 2px 10px 1px; background: var(--panel);
+  border: 1px solid var(--line); border-bottom: 0;
+  border-radius: 6px 6px 0 0; }
+.lens.stepper .pages .rows { border-top-left-radius: 0;
+  box-sizing: border-box; overflow-y: auto; }
+/* (the variables: as tall as the pages, the tree scrolling inside) */
+.lens.stepper .sidecol { display: flex; flex-direction: column;
+  gap: 12px; min-width: 0; align-self: stretch; height: 29.2em;
+  contain: size; }
+@media (min-width: 760px) {
+  .lens.stepper .sidecol { height: auto; }
+}
+/* (the pointer's label in that narrow column: its title alone) */
+.lens.stepper .dpanel .pnote { display: none; }
+.lens.stepper .dpanel .plabel { min-width: 0; overflow: hidden; }
+/* (a walkthrough there: in its place, the column's height kept; not
+   stuck to the top, as the inspector's panel is) */
+.lens.stepper > .sidecol:has(> .wpanel.walking) { position: static;
+  align-self: stretch; }
+.lens.stepper .sidecol .vars { position: relative; min-height: 0;
+  flex: 1 1 0; }
+.lens.stepper .sidecol .vars > .tree { height: 100%; overflow-y: auto; }
+/* (the code: the pointer's box, 9 lines; 7 on a phone) */
+.lens.stepper .code.pane .ptrscroll { height: calc(9 * 1.5em + 1em);
+  font-size: var(--fs-label); line-height: 1.5; }
+@media (max-width: 759.98px) {
+  .lens.stepper .code.pane .ptrscroll { height: calc(7 * 1.5em + 1em); }
+}
+.lens.stepper .code.pane pre.src { height: auto; overflow: visible;
+  margin: 0; padding: 0.5em 0; font-size: inherit; line-height: inherit; }
+.lens.stepper .code.pane .line { box-sizing: border-box;
+  padding-right: 0.6em; }
+/* (the moments' bar: the walkthrough's, two lines, its controls and the
+   caption; the replay's button at the end of the first) */
+.rbar.mbar { height: auto; gap: 4px; padding: 6px 12px; }
+.rbar.mbar .rline2 { display: flex; height: auto; font-size: inherit;
+  color: inherit; }
+.rbar.mbar .rline3, .rbar.mbar .rcap { display: block; }
+.rbar.mbar .mplay { margin-left: auto; padding: 1px 10px; }
+.rbar.mbar .mplay[aria-pressed="true"] { border-color: var(--accent); }
+@media (max-width: 759.98px) {
+  .rbar.mbar .mlong { display: none; }
+}

@@ -52,8 +52,8 @@ for (const width of [390, 1024]) {
     });
 }
 
-// The stepper's play (TimelineBar.tsx): from the first trace step to
-// the last, the frame's posted height holds
+// The stepper's play (TimelineBar.tsx): from its first trace step to
+// its last, over its two transactions, the frame's posted height holds
 for (const width of [390, 1024]) {
   test(`optimized-locals at ${width}px: a play run, one height`,
     async ({ page, browserName }) => {
@@ -71,7 +71,7 @@ for (const width of [390, 1024]) {
       await page.waitForTimeout(1500);
       const ready = posted.at(-1)!;
       const from = posted.length;
-      const play = page.locator('.tbar [data-t="play"]');
+      const play = page.locator('.mbar [data-t="play"]');
       await play.click();
       await expect(play).toHaveAttribute("aria-pressed", "true");
       await expect(play).toHaveAttribute("aria-pressed", "false",

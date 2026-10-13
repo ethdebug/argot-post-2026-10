@@ -1,6 +1,6 @@
 {
   "id": "optimized-locals",
-  "title": "carol joins, stepped through, bugc -O 2",
+  "title": "carol joins, then alice plays, optimized",
   "run": {
     "scenario": "arcade",
     "build": "bug-O2"
@@ -9,26 +9,42 @@
   "timeline": [
     {
       "tx": 3,
-      "step": 126,
-      "label": "the name's length, read from the call"
-    },
-    {
-      "tx": 3,
       "step": 166,
-      "label": "the name, sliced from the call"
+      "label": "carol joins. `len` is a word on the stack. `name` has no copy: its place is the call's own bytes, found through a word in memory."
     },
     {
-      "tx": 3,
-      "step": 378,
-      "label": "the name, written to carol's record"
+      "tx": 12,
+      "step": 307,
+      "label": "alice plays. `player` gets a place: a copy of her record, in memory."
     },
     {
-      "tx": 3,
-      "step": "end",
-      "label": "after carol joins"
+      "tx": 12,
+      "step": 559,
+      "label": "The optimizer inlined `_applyCombo`. Inside it, only its own locals are in scope, and `mult` has no place yet."
+    },
+    {
+      "tx": 12,
+      "step": 564,
+      "label": "`mult` gets a place: 8 bytes of memory."
+    },
+    {
+      "tx": 12,
+      "step": 576,
+      "label": "`mult = combo` made no copy. `mult`'s place is now `combo`'s own bytes: one place, two names."
+    },
+    {
+      "tx": 12,
+      "step": 600,
+      "label": "Back in `play()`. `_applyCombo`'s locals are out of scope, and `gained` gets a place."
     }
   ],
   "controls": "prev-next",
   "variables": "scope",
+  "initial": {
+    "collapse": [
+      "@storage",
+      "player"
+    ]
+  },
   "replay": true
 }

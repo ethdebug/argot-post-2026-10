@@ -10,11 +10,14 @@ for (const id of Object.values(STEPPER)) {
   async ({ page }) => {
     await page.setViewportSize({ width: 1440, height: 1000 });
     await page.goto(`./embed.html#scene=${id}`);
-    await expect(page.locator(".tbar .tmark.cur")).toHaveAttribute(
+    await expect(page.locator(".mbar .dot.cur")).toHaveAttribute(
       "data-k", "0");
-    await page.locator('.tbar [data-t="next"]').click();
-    await expect(page.locator(".tbar .tline"))
-      .toHaveText("the name, sliced from the call");
+    // (-O 0: its second moment; -O 2: its first, carol's join)
+    if (id === STEPPER.O0) {
+      await page.locator('.mbar [data-t="next"]').click();
+      await expect(page.locator(".mbar .rcap"))
+        .toHaveText("the name, sliced from the call");
+    }
     await pick(page.locator('li[data-path="name"] > .row'));
     // (the call's bytes 68 to 101: NAME_C, lit in the calldata dump)
     const lit = await page.locator('[data-view$=":calldata"] .b.hl')
@@ -26,19 +29,19 @@ for (const id of Object.values(STEPPER)) {
     expect(lit).toEqual(Array.from({ length: n }, (_, k) => 68 + k));
     await page.locator('button[data-r="start"]').click();
     await page.locator(".rdots .dot").last().click();
-    await expect(page.locator(".rcap")).toContainText("name");
+    await expect(page.locator(".wpanel .rcap")).toContainText("name");
   });
 }
 
 // The figure fills its frame at every width a host gives it, nothing
-// past its right edge (the code's long lines wrap in their column)
+// past its right edge (the code's long lines wrap in their pane)
 for (const id of Object.values(STEPPER)) {
   for (const width of [358, 960, 1216]) {
     test(`${id} at ${width}px: nothing wider than the frame`,
       async ({ page }) => {
         await page.setViewportSize({ width, height: 900 });
         await page.goto(`./embed.html#scene=${id}`);
-        await expect(page.locator(".tbar .tmark.cur")).toHaveCount(1);
+        await expect(page.locator(".mbar .dot.cur")).toHaveCount(1);
         await expect(page.locator("pre.src .line").first()).toBeVisible();
         const over = await page.evaluate(() => [...document
           .querySelectorAll("#embed *")].filter((e) =>
