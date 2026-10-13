@@ -67,6 +67,8 @@ export const rawHero = rawLens();
 const hand = { decoding: "$hand", moment: "current" } as const;
 export const annotated = (l: LensSpec): LensSpec => ({ ...l,
   id: "reveal", title: "Raw bytes, annotated",
+  // (the host's scroll drives it: nothing under the pointer changes)
+  hover: false,
   // (raw-hero's layout as it is: "reveal", the class, is its toggle's)
   initial: { scene: "reveal" },
   views: [...l.views.filter((v) => v.kind !== "moment").map((v): ViewSpec =>

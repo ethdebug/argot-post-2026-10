@@ -225,7 +225,7 @@ export function Tree(p: { id: ViewId; data: DataRef; filter?: Filter;
       ?? null;
   };
   const point = (e: PointerEvent | { target: EventTarget }) => {
-    if (lens.store.get().hush) return;
+    if (lens.spec.hover === false || lens.store.get().hush) return;
     const at = rowOf(e.target);
     const path = at && d && blockOf(at, link.selection, d.byPath);
     setLink((s) => s.hover?.path === path && !s.hover?.bytes &&

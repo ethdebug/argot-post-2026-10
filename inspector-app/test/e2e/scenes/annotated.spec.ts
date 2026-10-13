@@ -3,8 +3,8 @@
 // inspector's own looks: every value lit at once in its child colour,
 // with its caps, and the inspector's popovers, each badged in its
 // value's colour. Every popover placed, none over another, over any
-// value's bytes or an address, nor out of its panel; nothing moves when they appear; a hover mutes
-// the others; the hand-written ones said so; the host's message
+// value's bytes or an address, nor out of its panel; nothing moves when they appear; a hover changes
+// nothing; the hand-written ones said so; the host's message
 // reveals it
 import type { Page } from "@playwright/test";
 import http from "node:http";
@@ -187,23 +187,27 @@ for (const width of [1360, 1024, 390]) {
     }
     // never cut: every value's parts named whole
     expect(await page.locator(".pop.note .pcut").count()).toBe(0);
-    // a hover on carol's bytes: the others muted, their popovers light
+    // a hover on carol's bytes, or her row: nothing changes (the host's
+    // scroll drives the figure; LensSpec hover false): no value muted,
+    // no popover kept light, no address lit, the page as it was
     const carol = page.locator(".pop.note").filter({ hasText:
       /^players\[carol\]/ });
     const u = (await carol.getAttribute("data-units"))!;
-    await page.locator(`.wrow[data-slot] .b[data-unit="${u}"]`).first()
-      .hover();
-    await expect(page.locator(`.view .b.hl.muted[data-unit="${u}"]`))
-      .toHaveCount(0);
-    expect(await page.locator(".view .b.hl.muted").count())
-      .toBeGreaterThan(0);
-    await expect(carol).not.toHaveClass(/\bkept\b/);
-    expect(await page.locator(".view[data-location=storage] .pop.note.kept")
-      .count()).toBe(5);
-    // (the pointer gone: none muted)
-    const far = await page.locator(".reveal").boundingBox();
-    await page.mouse.move(far!.x + far!.width + 40, far!.y + 4);
+    const byte = page.locator(`.wrow[data-slot] .b[data-unit="${u}"]`)
+      .first();
+    const row = byte.locator("xpath=ancestor::*[contains(@class, " +
+      "'wrow')][1]");
+    const look = () => page.evaluate(() => [document.querySelector(
+      ".lens")!.outerHTML, ...[...document.querySelectorAll(
+      ".wrow .addr")].map((a) => getComputedStyle(a).color)]);
+    const still = await look();
+    for (const at of [byte, row.locator(".addr"), carol]) {
+      await at.hover({ force: true });
+      await page.waitForTimeout(250);
+      expect(await look()).toEqual(still);
+    }
     await expect(page.locator(".view .b.hl.muted")).toHaveCount(0);
+    await expect(page.locator(".pop.note.kept")).toHaveCount(0);
     // carol's record, its popover with her score
     expect(on.pops.map((l) => l.text)).toContainEqual(
       expect.stringMatching(/^players\[carol\] : score 100 · /));
