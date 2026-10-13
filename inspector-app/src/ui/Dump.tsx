@@ -2,6 +2,7 @@
 // renderPanel, wordHtml, paint): one word a row, in address order, each
 // byte linked to the value that owns it
 import { useFitDump } from "./fit";
+import { useEdges } from "./PointerYaml";
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { drawOverlays, type ViewData } from "./overlays";
 import { drawNotes, hoverNotes } from "./notes";
@@ -820,28 +821,43 @@ export function Dump(p: { id: ViewId; location: Location; data: DataRef;
 
   // (into view inside the dump's rows' box, when it scrolls and they are
   // out of it: the lit rows whole where they fit, with a row above them
-  // where there is room; else the first at the top; nothing else moves)
+  // and a popover's line under them where there is room; else the first
+  // at the top; not while the pointer is in it, its rows under the
+  // pointer staying put; nothing lit, a stack shows its top: its live
+  // entries. Nothing else moves)
+  const rowsBox = useRef<HTMLDivElement>(null);
   const litKey = litRows.join(" ");
+  const top0 = p.location === "stack";
   useLayoutEffect(() => {
-    const v = me.current?.querySelector<HTMLElement>(":scope > .rows");
-    if (!v || !litKey || v.scrollHeight <= v.clientHeight ||
+    const v = rowsBox.current;
+    if (!v || v.scrollHeight <= v.clientHeight ||
       !/auto|scroll/.test(getComputedStyle(v).overflowY)) return;
+    if (!litKey) {
+      if (top0) v.scrollTop = 0;
+      return;
+    }
+    if (me.current?.matches(":hover")) return;
     const row = (a: string) => v.querySelector<HTMLElement>(
       `.wrow[data-slot="${a}"]`)?.getBoundingClientRect();
     const ks = litKey.split(" ");
     const [a, z] = [row(ks[0]), row(ks[ks.length - 1])];
     if (!a || !z) return;
     const cs = getComputedStyle(v);
-    const pad = parseFloat(cs.paddingTop) || 0;
     const b = v.getBoundingClientRect();
-    const top = b.top + v.clientTop + pad;
+    const top = b.top + v.clientTop + (parseFloat(cs.paddingTop) || 0);
     const bottom = b.top + v.clientTop + v.clientHeight -
       (parseFloat(cs.paddingBottom) || 0);
-    if (a.top >= top - 0.5 && z.bottom <= bottom + 0.5) return;
-    const room = bottom - top - (z.bottom - a.top);
+    // (a popover's line: about half a word's row)
+    const pop = Math.min(a.height, 1.8 * (parseFloat(cs.fontSize) || 12));
+    const need = z.bottom - a.top + pop;
+    if (a.top >= top - 0.5 && z.bottom + pop <= bottom + 0.5) return;
+    const room = bottom - top - need;
     v.scrollTop += a.top - top - (room >= a.height ? a.height
       : Math.max(0, room));
-  }, [litKey]);
+  }, [litKey, top0, snap]);
+  const { more, edge } = useEdges(rowsBox, !!disp.edges, [rows.length,
+    litKey, snap], { what: `the ${p.location}`, band: "its lit rows",
+    on: ".wrow.on" });
   // (nothing of this location to show here: no dump)
   if (l && !rows.length) return null;
   // (bare: the bytes only, nothing to point at or click)
@@ -877,9 +893,12 @@ export function Dump(p: { id: ViewId; location: Location; data: DataRef;
       {ruler && <div className="wrow head"><span className="addr" />
         <Ruler /></div>}
     </div>
-    <div className="rows" style={disp.scale ? { fontSize: `${disp.scale}em` }
-      : undefined}>{flow
+    {disp.edges ? <div className="pagebox"><div ref={rowsBox}
+      className={`rows${more.up ? " more-up" : ""}${more.down
+        ? " more-down" : ""}`}>{grouped}</div>{edge("up")}{edge("down")}
+    </div> : <div ref={rowsBox} className="rows" style={disp.scale
+      ? { fontSize: `${disp.scale}em` } : undefined}>{flow
         ? <Flow rows={rows} loc={loc} snap={snap}
-          per={disp.perLine ?? 16} annot={annotOf} /> : grouped}</div>
+          per={disp.perLine ?? 16} annot={annotOf} /> : grouped}</div>}
   </div>;
 }

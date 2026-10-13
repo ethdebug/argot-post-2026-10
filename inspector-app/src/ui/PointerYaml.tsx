@@ -189,17 +189,19 @@ export function PointerYaml({ domId, text: yaml, band, before, goal,
 // about a box's height (vanilla 00f6f8c ptrEdges, ptrGo). `can`: the
 // buttons shown at all; `deps`: what it draws (measured again when they
 // change: not on a render that changes none of it, a replay's step);
-// `o.id`: a button's id; `o.what`, `o.band`: their labels' words
+// `o.id`: a button's id; `o.what`, `o.band`: their labels' words; `o.on`:
+// what the band is (a dump's: its lit rows, .wrow.on)
 export function useEdges(box: RefObject<HTMLElement | null>, can: boolean,
   deps: unknown[], o: { id?: (way: "up" | "down") => string;
-    what: string; band: string }) {
+    what: string; band: string; on?: string }) {
+  const band = o.on ?? ".line.on";
   const [more, setMore] = useState({ up: false, down: false, bandUp: false,
     bandDown: false });
   useLayoutEffect(() => {
     const root = box.current;
     if (!root) return;
     const measure = () => {
-      const on = root.querySelector(".line.on")?.getBoundingClientRect();
+      const on = root.querySelector(band)?.getBoundingClientRect();
       const b = root.getBoundingClientRect();
       const m = { up: can && root.scrollTop > 1,
         down: can && root.scrollTop + root.clientHeight <
@@ -219,9 +221,11 @@ export function useEdges(box: RefObject<HTMLElement | null>, can: boolean,
   }, [can, ...deps]);
   const go = (way: "up" | "down") => {
     const root = box.current!;
-    const on = root.querySelector<HTMLElement>(".line.on");
-    const band = way === "up" ? more.bandUp : more.bandDown;
-    const top = band && on ? on.offsetTop - root.clientHeight / 3
+    const on = root.querySelector<HTMLElement>(band);
+    const toBand = way === "up" ? more.bandUp : more.bandDown;
+    const top = toBand && on ? on.getBoundingClientRect().top -
+      root.getBoundingClientRect().top + root.scrollTop -
+      root.clientHeight / 3
       : root.scrollTop + (way === "up" ? -1 : 1) * root.clientHeight * 0.85;
     const still = matchMedia?.("(prefers-reduced-motion: reduce)").matches;
     root.scrollTo({ top: Math.max(0, top), behavior: still ? "auto"

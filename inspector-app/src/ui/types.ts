@@ -92,6 +92,10 @@ export interface Display {
   // a slot's popover as facts: each value by its own name and what it
   // holds ("score 30"), no "(unmapped)" (a figure's, about one value)
   facts?: boolean;
+  // (its rows' box a page that scrolls inside itself, its height its
+  // owner's: no scrollbar shown, its edges fading, a button on an edge
+  // where there is more, as the pointer's box: PointerYaml.tsx useEdges)
+  edges?: boolean;
   // rows whose bytes are all zero folded into the gaps (⋯; gaps that
   // meet, one): a figure's storage, shorter
   foldZero?: boolean;
@@ -157,7 +161,9 @@ export type ViewSpec = { id: ViewId; area: string; link?: LinkId;
     // or ("moments") as the walkthrough's bar: ⏮ ◀ ▶, a dot a moment,
     // "n / N" and the moment's caption
     | { kind: "timeline"; bar?: "moments" }
-    | { kind: "variables"; data: DataRef }
+    // (`edges`: its tree scrolls inside its column, as the pointer's
+    // box does: no scrollbar, a button on an edge with more past it)
+    | { kind: "variables"; data: DataRef; edges?: boolean }
     // the moment a point is, in a line, in plain words: `text`, or the
     // point's label
     | { kind: "moment"; data: DataRef; text?: string;
