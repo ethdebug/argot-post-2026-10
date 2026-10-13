@@ -6,7 +6,13 @@ import {
   createContext, useEffect, useMemo, useRef, useState,
 } from "react";
 import type { LensContextValue } from "./hooks";
-import type { LensState } from "./types";
+import type { LensSpec, LensState } from "./types";
+
+// (a figure whose moments' bar is its top line, the stepper's: its
+// Reset is its own, at the top right, even with a walkthrough; the
+// walkthrough exits by ✕ Exit)
+export const resetsOwn = (spec: LensSpec) => spec.views.some((v) =>
+  v.kind === "timeline" && v.bar === "moments");
 
 // the state a reader changes (not a hover, nor what the lens counts)
 const keyOf = (s: LensState) => JSON.stringify({ scene: s.scene,

@@ -36,7 +36,7 @@ import {
 import { infoOf, type Info, type Part, type Sides } from "./info";
 import { PointerYaml, type YamlText } from "./PointerYaml";
 import { PanelPort, type Port } from "./panel-port";
-import { ResetButton, ResetContext } from "./Reset";
+import { resetsOwn, ResetButton, ResetContext } from "./Reset";
 import { intoView, scrollerOf, scrollBy, toTop } from "./scroll";
 import type { DataRef, LinkId, ViewId } from "./types";
 
@@ -61,8 +61,8 @@ const still = () =>
 const parts = (ps: Part[]) => ps.map((p, k) => typeof p === "string"
   ? <Fragment key={k}>{p}</Fragment> : <code key={k}>{p.code}</code>);
 // a caption's names from the code (in `backticks`), in monospace
-const plain = (t: string) => t.replace(/`/g, "");
-const cap = (t: string) => t.split(/`([^`]+)`/).map((x, k) => k % 2
+export const plain = (t: string) => t.replace(/`/g, "");
+export const cap = (t: string) => t.split(/`([^`]+)`/).map((x, k) => k % 2
   ? <code key={k} className="id">{x}</code>
   : <Fragment key={k}>{x}</Fragment>);
 const pk = (k: number | string | undefined) =>
@@ -390,7 +390,8 @@ export function useWalkModel(p: { id: ViewId; data: DataRef;
   } else rest = selRest();
   const model: PanelModel = { key, walking: !!walk, rest, walk: wm,
     yaml: yamlOf(st), ...walk?.exit ? { exit: true } : {},
-    ...rs && !port ? { reset: { shown: rs.changed } } : {} };
+    ...rs && !port && !resetsOwn(lens.spec)
+      ? { reset: { shown: rs.changed } } : {} };
   // (for a panel in a frame of its own: the panel at rest, the selection
   // shown, and at each of its steps, so it keeps the tallest's height)
   const variants = !port || !node || !sides || !w ? undefined : [

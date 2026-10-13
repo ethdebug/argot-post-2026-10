@@ -1,7 +1,8 @@
 // A scene's rows over its moments (addendum §4): a dump's rows and a
 // tree's rows are the union over the scene's moments, so none appears
 // or goes as the moments change. A tree path absent at a moment is kept
-// in its place, muted ("not yet").
+// in its place, muted ("not yet"; a local, "not in scope here"); the
+// locals in one order at every moment.
 import type { Decoded, Hex, Layout, ValueNode } from "./types";
 
 // every moment's rows, in address order
@@ -42,6 +43,15 @@ export function unionTree(d: Decoded, all: Decoded[]): Decoded {
     }
   }
   if (tree === d.tree) return d;
+  // (the locals in one order at every moment: as the moments first list
+  // them, in their order; a local out of scope keeps its row's place)
+  const firstSeen = new Map<string, number>();
+  all.forEach((o, m) => o.byPath.get("@locals")?.children?.forEach((x, k) => {
+    if (!firstSeen.has(x.path)) firstSeen.set(x.path, m * 1e4 + k);
+  }));
+  tree = tree.map((n) => n.path !== "@locals" || !n.children ? n
+    : { ...n, children: [...n.children].sort((a, b) =>
+      (firstSeen.get(a.path) ?? 0) - (firstSeen.get(b.path) ?? 0)) });
   const byPath = new Map<string, ValueNode>();
   const index = (n: ValueNode) => {
     byPath.set(n.path, n);

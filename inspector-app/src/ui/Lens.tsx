@@ -98,7 +98,8 @@ function shower(store: Store<LensState>, spec: LensSpec, project: Project,
         ? { related: { context: RELATED_CONTEXT } } : {},
       // (a scene that shuts groups first: its trees' collapsed, anew)
       ...bm.collapse && !view ? { views: { ...s.views, ...Object.fromEntries(
-        spec.views.filter((v) => v.kind === "tree").map((v) => [v.id,
+        spec.views.filter((v) => v.kind === "tree" ||
+          v.kind === "variables").map((v) => [v.id,
           { ...s.views[v.id], collapsed: new Set(bm.collapse) }])) } }
         : {},
       // (a link group of its own section starts with nothing selected:

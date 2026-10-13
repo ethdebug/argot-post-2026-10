@@ -13,7 +13,7 @@ import { debuggerLens } from "../lenses/debugger";
 import { Lens } from "./Lens";
 import { PinBar } from "./PinBar";
 import { PanelPort } from "./panel-port";
-import { Reset, ResetContext, useReset } from "./Reset";
+import { Reset, ResetContext, resetsOwn, useReset } from "./Reset";
 import type { LensContextValue } from "./hooks";
 import type { LensSpec } from "./types";
 
@@ -64,9 +64,10 @@ export function SceneHost(p: { scene: Scene; project: Project;
   if (p.mode === "reader") {
     // (a figure with a walkthrough: its Reset in the walkthrough's bar,
     // where its Exit was; else its own, over the figure; and a figure
-    // whose panel is a frame of its own, the post's: its own, over the
-    // figure, the panel without one)
-    const walks = !port &&
+    // whose panel is a frame of its own, the post's, or with a bar of
+    // its own on top, the moments' (resetsOwn): its own, over the
+    // figure, the walkthrough without one)
+    const walks = !port && !resetsOwn(shown) &&
       shown.views.some((v) => v.kind === "walkthrough");
     return <div data-scene={p.scene.id} data-mode={p.mode}
       style={{ display: "contents" }}>

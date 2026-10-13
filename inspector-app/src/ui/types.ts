@@ -141,15 +141,19 @@ export type ViewSpec = { id: ViewId; area: string; link?: LinkId;
     // the contract's source, its selection's declaration marked
     | { kind: "contract"; data: DataRef }
     // a moment's source, its range marked; the locals in scope there
-    // (Code.tsx, Variables.tsx: addendum §6)
-    | { kind: "code"; data: DataRef }
+    // (Code.tsx, Variables.tsx: addendum §6); ("pane": in the
+    // walkthrough's pointer box, PointerYaml.tsx: lines outside the
+    // range muted, a label over it, its edges' buttons)
+    | { kind: "code"; data: DataRef; pane?: boolean }
     // the debugger's moves (Moves.tsx)
     | { kind: "moves" }
     // the annotated layer's toggle, Raw | Annotated (ui/reveal.ts), when
     // the figure stands alone
     | { kind: "reveal" }
-    // the scene's moments on the run's transactions (TimelineBar.tsx)
-    | { kind: "timeline" }
+    // the scene's moments on the run's transactions (TimelineBar.tsx);
+    // or ("moments") as the walkthrough's bar: ⏮ ◀ ▶, a dot a moment,
+    // "n / N" and the moment's caption
+    | { kind: "timeline"; bar?: "moments" }
     | { kind: "variables"; data: DataRef }
     // the moment a point is, in a line, in plain words: `text`, or the
     // point's label
