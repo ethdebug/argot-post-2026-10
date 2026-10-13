@@ -79,9 +79,12 @@ for (const [id, views] of [["raw-named", 1], ["mid", 1], ["vyper", 1],
         "[data-area=contract] *", ".shellbar"]) {
         await expect(page.locator(`${q}:visible`)).toHaveCount(0);
       }
-      // (no box inside it scrolls; its last height is its content's)
+      // (no box inside it scrolls; its last height is its content's;
+      // but the stepper's pages, variables and code: each a fixed size,
+      // scrolling inside, lenses/debugger.css)
       expect(await page.evaluate(() => [...document.querySelectorAll(
-        "#embed *")].filter((e) => /auto|scroll/.test(
+        "#embed *")].filter((e) => !e.closest(".lens.stepper") &&
+        /auto|scroll/.test(
         getComputedStyle(e).overflowY) && e.scrollHeight >
         e.clientHeight + 1).length)).toBe(0);
       // (its height now: the views' type follows their cell size, set

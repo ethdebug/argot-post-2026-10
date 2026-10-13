@@ -63,8 +63,8 @@ const checks: Record<string, (page: Page) => Promise<void>> = {
 // read from the call: 34 bytes)
 for (const id of Object.values(STEPPER)) {
   checks[id] = async (page) => {
-    await expect(page.locator(".tbar .tline"))
-      .toHaveText("the name's length, read from the call");
+    await expect(page.locator(".mbar .rcap")).toHaveText(id === STEPPER.O0
+      ? "the name's length, read from the call" : /^carol joins\./);
     await expect(val(page, "len")).toHaveText("34");
   };
 }
