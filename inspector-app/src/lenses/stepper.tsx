@@ -14,7 +14,7 @@ import {
 } from "react";
 import type { Filter, Location } from "../engine/types";
 import { panel } from "../ui/Panel";
-import type { LensSpec, ViewSpec } from "../ui/types";
+import type { Display, LensSpec, ViewSpec } from "../ui/types";
 
 // each page's height, in rows: one height at every moment, whatever it
 // holds then (a taller page scrolls inside; its lit rows come into view,
@@ -41,12 +41,12 @@ function Wide({ children }: { children: ReactNode }) {
     const tallest = (q: string) => Math.max(0, ...[...root
       .querySelectorAll<HTMLElement>(q)].map((r) => r.offsetHeight));
     const fit = () => {
-      const pitch = { abbr: tallest(".view.abbr > .rows .wrow"),
-        word: tallest(".view:not(.abbr) > .rows .wrow") };
+      const pitch = { abbr: tallest(".view.abbr .rows .wrow"),
+        word: tallest(".view:not(.abbr) .rows .wrow") };
       for (const v of root.querySelectorAll<HTMLElement>(".view")) {
         const n = (phone() ? PHONE : ROWS)[v.dataset.location as
           Location];
-        const box = v.querySelector<HTMLElement>(":scope > .rows");
+        const box = v.querySelector<HTMLElement>(".rows");
         const row = pitch[v.classList.contains("abbr") ? "abbr" : "word"];
         if (!n || !box || !row) continue;
         const cs = getComputedStyle(box);
@@ -62,7 +62,7 @@ function Wide({ children }: { children: ReactNode }) {
     const ro = new ResizeObserver(() => setTimeout(fit));
     const watch = () => {
       ro.disconnect();
-      for (const r of root.querySelectorAll(".view > .rows .wrow:first-child"))
+      for (const r of root.querySelectorAll(".view .rows .wrow:first-child"))
         ro.observe(r);
       fit();
     };
@@ -88,8 +88,9 @@ const all: Filter = { rows: "all" };
 const page = (location: Location, title: string, filter: Filter,
   more: Partial<ViewSpec> = {}): ViewSpec => ({
   id: location, kind: "dump", area: "wide", location, link: "st",
-  data: NOW, filter, title, display: { ruler: false }, ...more } as
-  ViewSpec);
+  data: NOW, filter, title, ...more,
+  display: { ruler: false, edges: true,
+    ...(more as { display?: Display }).display } } as ViewSpec);
 
 export const stepper: LensSpec = {
   id: "stepper", title: "Stepping through bugc's code", timelines: [],
@@ -109,7 +110,7 @@ export const stepper: LensSpec = {
     { id: "walk", kind: "walkthrough", area: "side", link: "st",
       domId: "sdetails", data: NOW },
     { id: "vars", kind: "variables", area: "side", data: NOW, link: "st",
-      domId: "svars" },
+      domId: "svars", edges: true },
     { id: "code", kind: "code", area: "src", data: NOW, domId: "scode",
       pane: true },
   ],
