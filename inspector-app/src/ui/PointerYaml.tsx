@@ -7,6 +7,7 @@
 // a button: it shows solc's id.
 import {
   useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode,
+  type RefObject,
 } from "react";
 import { band as bandOf, type PointerLine } from "../engine/pointer-text";
 import { highlighter } from "./shiki";
@@ -125,64 +126,10 @@ export function PointerYaml({ domId, text: yaml, band, before, goal,
     root.scrollTo?.({ top, behavior: on && !still ? "smooth" : "auto" });
   }, [first, text, goal]);
 
-  // The box scrolls inside itself, with no scrollbar shown: a button on
-  // its top or bottom edge where there is more; it scrolls toward the
-  // step's band, when that is out of view that way, else by about a
-  // box's height (vanilla 00f6f8c ptrEdges, ptrGo)
-  const [more, setMore] = useState({ up: false, down: false, bandUp: false,
-    bandDown: false });
-  useLayoutEffect(() => {
-    const root = box.current;
-    if (!root) return;
-    const measure = () => {
-      const on = root.querySelector(".line.on")?.getBoundingClientRect();
-      const b = root.getBoundingClientRect();
-      const can = !!shown && !goal;
-      const m = { up: can && root.scrollTop > 1,
-        down: can && root.scrollTop + root.clientHeight <
-          root.scrollHeight - 1,
-        bandUp: !!on && on.bottom <= b.top + 1,
-        bandDown: !!on && on.top >= b.bottom - 1 };
-      setMore((x) => JSON.stringify(x) === JSON.stringify(m) ? x : m);
-    };
-    measure();
-    const later = requestAnimationFrame(measure);
-    root.addEventListener("scroll", measure);
-    return () => {
-      cancelAnimationFrame(later);
-      root.removeEventListener("scroll", measure);
-    };
-    // (again when what it draws changes: not on a render that changes
-    // none of it, a replay's step)
-  }, [yaml, band?.join("\n"), goal, shown, notes, piece]);
-  const go = (way: "up" | "down") => {
-    const root = box.current!;
-    const on = root.querySelector<HTMLElement>(".line.on");
-    const band = way === "up" ? more.bandUp : more.bandDown;
-    const top = band && on ? on.offsetTop - root.clientHeight / 3
-      : root.scrollTop + (way === "up" ? -1 : 1) * root.clientHeight * 0.85;
-    const still = matchMedia?.("(prefers-reduced-motion: reduce)").matches;
-    root.scrollTo({ top: Math.max(0, top), behavior: still ? "auto"
-      : "smooth" });
-  };
-  const edge = (way: "up" | "down") => {
-    const on = more[way];
-    const band = way === "up" ? more.bandUp : more.bandDown;
-    const text = `${band ? "current step" : "more"} ${way === "up" ? "above"
-      : "below"}`;
-    const icon = <svg viewBox="0 0 16 16" aria-hidden="true"><path
-      d={way === "up" ? "M4 10l4-4 4 4" : "M4 6l4 4 4-4"} fill="none"
-      stroke="currentColor" strokeWidth="2" strokeLinecap="round"
-      strokeLinejoin="round" /></svg>;
-    return <div className={`pedge ${way}${on ? " on" : ""}`}
-      aria-hidden={on ? "false" : "true"}>
-      <button type="button" id={domId ? `${pre}pedge-${way}` : undefined}
-        tabIndex={on ? 0 : -1} data-band={band ? "1" : ""}
-        aria-label={band ? `Scroll the pointer ${way} to the step's lines`
-          : `Scroll the pointer ${way}`} onClick={() => go(way)}>
-        {way === "up" ? <>{icon}<span>{text}</span></>
-          : <><span>{text}</span>{icon}</>}</button></div>;
-  };
+  const { more, edge } = useEdges(box, !!shown && !goal, [yaml,
+    band?.join("\n"), goal, shown, notes, piece], {
+    id: domId ? (way) => `${pre}pedge-${way}` : undefined,
+    what: "the pointer", band: "the step's lines" });
 
   const onAlias = (e: React.MouseEvent | React.KeyboardEvent) => {
     const a = (e.target as Element).closest<HTMLElement>(".alias");
@@ -233,6 +180,72 @@ export function PointerYaml({ domId, text: yaml, band, before, goal,
     <p id={domId ? `${pre}pgo` : undefined} className="pgo" hidden={!goal}>
       <span className="ptext">Press ▶ to see how this data from the compiler
       finds these bytes</span></p></div>;
+}
+
+// A box that scrolls inside itself, with no scrollbar shown (the
+// pointer's, and a figure's source pane, Code.tsx): a button on its top
+// or bottom edge where there is more; it scrolls toward the band (the
+// box's lines .line.on), when that is out of view that way, else by
+// about a box's height (vanilla 00f6f8c ptrEdges, ptrGo). `can`: the
+// buttons shown at all; `deps`: what it draws (measured again when they
+// change: not on a render that changes none of it, a replay's step);
+// `o.id`: a button's id; `o.what`, `o.band`: their labels' words
+export function useEdges(box: RefObject<HTMLElement | null>, can: boolean,
+  deps: unknown[], o: { id?: (way: "up" | "down") => string;
+    what: string; band: string }) {
+  const [more, setMore] = useState({ up: false, down: false, bandUp: false,
+    bandDown: false });
+  useLayoutEffect(() => {
+    const root = box.current;
+    if (!root) return;
+    const measure = () => {
+      const on = root.querySelector(".line.on")?.getBoundingClientRect();
+      const b = root.getBoundingClientRect();
+      const m = { up: can && root.scrollTop > 1,
+        down: can && root.scrollTop + root.clientHeight <
+          root.scrollHeight - 1,
+        bandUp: !!on && on.bottom <= b.top + 1,
+        bandDown: !!on && on.top >= b.bottom - 1 };
+      setMore((x) => JSON.stringify(x) === JSON.stringify(m) ? x : m);
+    };
+    measure();
+    const later = requestAnimationFrame(measure);
+    root.addEventListener("scroll", measure);
+    return () => {
+      cancelAnimationFrame(later);
+      root.removeEventListener("scroll", measure);
+    };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [can, ...deps]);
+  const go = (way: "up" | "down") => {
+    const root = box.current!;
+    const on = root.querySelector<HTMLElement>(".line.on");
+    const band = way === "up" ? more.bandUp : more.bandDown;
+    const top = band && on ? on.offsetTop - root.clientHeight / 3
+      : root.scrollTop + (way === "up" ? -1 : 1) * root.clientHeight * 0.85;
+    const still = matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+    root.scrollTo({ top: Math.max(0, top), behavior: still ? "auto"
+      : "smooth" });
+  };
+  const edge = (way: "up" | "down") => {
+    const on = more[way];
+    const band = way === "up" ? more.bandUp : more.bandDown;
+    const text = `${band ? "current step" : "more"} ${way === "up" ? "above"
+      : "below"}`;
+    const icon = <svg viewBox="0 0 16 16" aria-hidden="true"><path
+      d={way === "up" ? "M4 10l4-4 4 4" : "M4 6l4 4 4-4"} fill="none"
+      stroke="currentColor" strokeWidth="2" strokeLinecap="round"
+      strokeLinejoin="round" /></svg>;
+    return <div className={`pedge ${way}${on ? " on" : ""}`}
+      aria-hidden={on ? "false" : "true"}>
+      <button type="button" id={o.id?.(way)}
+        tabIndex={on ? 0 : -1} data-band={band ? "1" : ""}
+        aria-label={band ? `Scroll ${o.what} ${way} to ${o.band}`
+          : `Scroll ${o.what} ${way}`} onClick={() => go(way)}>
+        {way === "up" ? <>{icon}<span>{text}</span></>
+          : <><span>{text}</span>{icon}</>}</button></div>;
+  };
+  return { more, edge };
 }
 
 // The values of the variables a line uses (an operand, not a key:
