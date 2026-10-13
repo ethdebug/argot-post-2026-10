@@ -122,8 +122,6 @@
 /* (a replay's playhead: the step shown, a thin line in the accent) */
 .tbar .thead { position: absolute; top: 6px; width: 2px; height: 22px;
   margin-left: -1px; background: var(--accent); pointer-events: none; }
-.tbar .tplaybtn[aria-pressed="true"] { border-color: var(--accent);
-  color: var(--accent); }
 .tbar .tmark:focus-visible { outline: 2px solid var(--accent);
   outline-offset: 2px; }
 .tbar .tline { grid-area: line; margin: 0; color: var(--muted);
