@@ -186,6 +186,10 @@ export interface LensSpec {     // a composition for one post section
   // run.mjs contract), and its grid cell's class (vanilla's box)
   wrap?: Record<string, ComponentType<{ children: ReactNode }>>;
   areas?: Record<string, string>;
+  // (false: nothing changes under the pointer, a figure the host's
+  // scroll drives: no hover light, no hover popovers, no hover look;
+  // views class "no-hover". Default: hover as ever)
+  hover?: false;
   // a link group whose selection is its own part of the page: its
   // areas (Escape and a click on empty space there are its alone)
   scopes?: Record<string, LinkId>;
