@@ -51,6 +51,9 @@ export interface LensState {
   // (a replay playing, TimelineBar.tsx: what only measures, the trees'
   // line-up and edges, the dumps' popovers, waits until it stops)
   playing?: boolean;
+  // (the moment a move goes to, through the steps between: TimelineBar's
+  // aim; none when there is no move)
+  toward?: number;
   // (a click or Escape that cleared a selection from outside it: no
   // hover until the pointer moves past 3px from here: ui/hooks.ts hush)
   hush?: { x: number; y: number };

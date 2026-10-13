@@ -9,18 +9,18 @@
 // one moment, the line alone; no label then, nothing.
 //
 // A replay (scene `replay`: every trace step a point, its own moments
-// the marks): ◀ ▶ go mark to mark, ← → a trace step, and its play (▶,
-// ⏸ while it plays) steps through the transaction from the step shown
-// to its end, a tape spinning up (RATE), the bytes each step changed in
-// its dumps flashing (FLASH; none with reduced motion). A frame shows
-// the newest step decoded, its flash the union of the steps it passed.
-// Any other move stops it.
+// the marks): ◀ ▶ go mark to mark, ← → a trace step.
 //
 // Or (`bar: "moments"`) as the walkthrough's bar (WalkthroughPanel.tsx):
-// ⏮ ◀ ▶ mark to mark, "n / N", a dot a moment (each a jump), the
-// replay's "⏵ Play every step" (⏸ Pause while it plays), and under
-// them the moment's caption (between marks, while it plays: the
-// transaction and its step). No track: a figure of a few moments.
+// ⏮ ◀ ▶ mark to mark, "n / N", a dot a moment, and under them the
+// moment's caption (between marks: the transaction and its step). No
+// track: a figure of a few moments. In a replay, each of them (and ← →
+// Home End in the lens) moves through the trace steps between, back or
+// on, in SPAN (aim), the bytes each step changed flashing (FLASH); at
+// once with reduced motion. A new aim during a move goes from where it
+// is; a step from one transaction to the next is one step: a cut. A
+// frame shows the newest step decoded, its flash the union of the
+// steps it passed. Any other show stops it.
 import {
   useEffect, useMemo, useRef, useState, type PointerEvent,
 } from "react";
@@ -31,14 +31,14 @@ import { sceneOfTimeline } from "../engine/scene";
 import {
   cutMiddle, lineOf, nearest, placeOf, segments,
 } from "../engine/timeline-bar";
-import { useLens, useLensState } from "./hooks";
+import { useLens, useLensState, type LensContextValue } from "./hooks";
 import type { ViewId } from "./types";
 import { cap, plain } from "./WalkthroughPanel";
 
 const LABEL = 16;
-// a play's rate, trace steps a second, `t` ms after it starts: 20,
-// easing up to 120 over two seconds
-const RATE = (t: number) => 20 + 100 * Math.min(1, t / 2000) ** 2;
+// a move's length, ms, for a gap of `n` trace steps: 4 ms a step, at
+// least 300, at most 900 (a move, not a wait)
+const SPAN = (n: number) => Math.max(300, Math.min(900, 4 * n));
 // a changed byte's flash: the change marks' colour, fading out
 const FLASH = 250;
 const still = () =>
@@ -46,6 +46,25 @@ const still = () =>
 // (the track's share before the tail)
 const TRACK = 0.94;
 const pct = (x: number) => `${(x * TRACK * 100).toFixed(3)}%`;
+
+// Go to a moment of a replay, through the steps between (the moments'
+// bar; Lens.tsx's keys): a move toward it (TimelineBar's), or at once
+// with reduced motion or a walkthrough open (each step would end it)
+export function aim(lens: LensContextValue, k: number) {
+  const st = lens.store.get();
+  const bm = lens.project.bookmarks.find((b) => b.id === st.scene);
+  if (!bm || k < 0 || k >= bm.points.length) return;
+  const l = st.links[lens.spec.links[0]];
+  if (still() || l?.walk) {
+    if (k !== st.moment || st.toward !== undefined) {
+      void lens.show(bm.id, { moment: k, sel: l?.selection ?? null,
+        walk: l?.walk ?? null, step: true });
+    }
+    return;
+  }
+  lens.store.set((x) => x.toward === k ? x : { ...x,
+    toward: k === x.moment && x.toward === undefined ? undefined : k });
+}
 
 export function TimelineBar(p: { id: ViewId; domId?: string;
   bar?: "moments" }) {
@@ -78,24 +97,31 @@ export function TimelineBar(p: { id: ViewId; domId?: string;
   const replay = !!bm?.replay && !!s;
   const mk = useMemo(() => replay ? bm!.marks!
     : Array.from({ length: n }, (_, k) => k), [replay, bm, n]);
-  const [playing, setPlaying] = useState(false);
+  // (a move under way: the moment it goes to, the lens's; the marks
+  // around it, so a click during it goes on from where it is going)
+  const toward = useLensState((x) => x.toward);
+  const playing = toward !== undefined;
   const go = (k: number) => {
-    setPlaying(false);
-    if (!bm || k < 0 || k >= n || k === lens.store.get().moment) return;
+    if (!bm || k < 0 || k >= n) return;
+    if (p.bar === "moments" && replay) return void aim(lens, k);
+    if (k === lens.store.get().moment) return;
     const l = lens.store.get().links[spec.links[0]];
     void lens.show(bm.id, { moment: k, sel: l?.selection ?? null,
       walk: l?.walk ?? null, step: true });
   };
-  const prevMark = [...mk].reverse().find((k) => k < i);
-  const nextMark = mk.find((k) => k > i);
+  const aimAt = toward ?? i;
+  const prevMark = [...mk].reverse().find((k) => k < aimAt);
+  const nextMark = mk.find((k) => k > aimAt);
 
-  // the play: from the step shown (its end: from its first mark) to the
-  // transaction's end, a step a frame at most, the newest the rate has
-  // reached once the one before is decoded; any other move stops it
-  // (the lens's state says so: what only measures waits, types.ts; and
-  // its box, data-playing: no fades of its own on what each step lights)
+  // a move (the moments' bar): through every trace step from the one
+  // shown to the one it goes to, back or on, in SPAN, a step a frame at
+  // most, the newest reached once the one before is decoded; a new aim
+  // during it goes on from where it is, to there; any other show stops
+  // it (the lens's state says so: what only measures waits, types.ts;
+  // and its box, data-playing: no fades of its own on what each step
+  // lights)
   const me = useRef<HTMLDivElement>(null);
-  // (the change marks' colour: read once a play, a style read a step
+  // (the change marks' colour: read once a move, a style read a step
   // being a page's style worked out again)
   const colour = useRef("");
   useEffect(() => {
@@ -129,47 +155,47 @@ export function TimelineBar(p: { id: ViewId; domId?: string;
   useEffect(() => {
     if (!playing || !bm || !replay) return;
     let raf = 0, busy = false, live = true;
-    const t0 = performance.now();
     let pos = lens.store.get().moment;
-    if (pos >= n - 1) pos = mk[0];
-    let asked = pos;
+    // (the aim it set its pace for, and the pace: steps a ms)
+    let aimed = -1, pace = 0;
     const sel = lens.store.get().links[spec.links[0]]?.selection ?? null;
-    // (another show, a key's or a mark's, clears the lens's playing:
-    // stopped, its next step never asked; Lens.tsx)
-    const off = lens.store.subscribe(() => {
-      if (!lens.store.get().playing) {
-        live = false;
-        cancelAnimationFrame(raf);
-        setPlaying(false);
-      }
-    });
-    let last = t0;
+    let last = performance.now();
     // (the clock read here: a frame's own timestamp is not always on
     // performance.now()'s)
     const tick = () => {
-      if (!live) return;
+      const goal = lens.store.get().toward;
+      if (!live || goal === undefined) return;
       const t = performance.now();
-      pos += RATE(t - t0) * (t - last) / 1000;
+      if (goal !== aimed) {
+        aimed = goal;
+        pace = Math.abs(goal - pos) / SPAN(Math.abs(goal - pos));
+      }
+      const d = pace * (t - last);
       last = t;
-      const want = Math.min(n - 1, Math.floor(pos));
-      if (!busy && want !== lens.store.get().moment) {
+      pos = goal > pos ? Math.min(goal, pos + d) : Math.max(goal, pos - d);
+      const want = goal > pos ? Math.floor(pos) : Math.ceil(pos);
+      const shown = lens.store.get().moment;
+      if (!busy && want !== shown) {
         busy = true;
-        asked = want;
         void lens.show(bm.id, { moment: want, sel, walk: null, step: true,
           play: true }).finally(() => {
           busy = false;
         });
       }
-      if (asked >= n - 1 && !busy) return setPlaying(false);
+      // (there, and drawn: the move ends)
+      if (!busy && shown === goal && pos === goal) {
+        lens.store.set((x) => x.toward === goal ? { ...x,
+          toward: undefined } : x);
+        return;
+      }
       raf = requestAnimationFrame(tick);
     };
     raf = requestAnimationFrame(tick);
     return () => {
       live = false;
       cancelAnimationFrame(raf);
-      off();
     };
-  }, [playing, bm, replay, n, lens, spec, mk]);
+  }, [playing, bm, replay, lens, spec]);
 
   // the flash: the bytes the steps from the one drawn before changed,
   // in each dump (its rows: the replay's, engine/replay.ts)
@@ -188,7 +214,9 @@ export function TimelineBar(p: { id: ViewId; domId?: string;
       for (const v of dumps) {
         const l = (v as { location: Location }).location;
         const keys = new Set<string>();
-        for (let k = Math.max(from, 0) + 1; k <= i; k++) {
+        // (a move back: the same steps' changes)
+        const [a, z] = from < i ? [from, i] : [i, from];
+        for (let k = Math.max(a, 0) + 1; k <= z; k++) {
           for (const c of changed(all[k - 1], all[k], l, rows.get(l) as
             never)) keys.add(c);
         }
@@ -228,9 +256,9 @@ export function TimelineBar(p: { id: ViewId; domId?: string;
     // (the scene's own moments, its marks; their labels, the scene's,
     // known before its run loads: the bar keeps its form meanwhile)
     const labels = sc?.timeline.map((x) => x.label ?? "") ?? [];
-    const at = s ? mk.indexOf(i) : -1;
-    const passed = s ? mk.filter((k) => k <= i).length - 1 : 0;
-    const text = !m ? "" : at >= 0 ? m.label ?? "" : `${cutMiddle(
+    const onMark = s ? mk.indexOf(i) : -1;
+    const passed = s ? mk.filter((k) => k <= aimAt).length - 1 : 0;
+    const text = !m ? "" : onMark >= 0 ? m.label ?? "" : `${cutMiddle(
       s!.txs[m.tx]?.label ?? "", LABEL)} · ${m.step === "end"
       ? "after the transaction" : `step ${m.step}`}`;
     const first = mk[0];
@@ -252,18 +280,11 @@ export function TimelineBar(p: { id: ViewId; domId?: string;
           onClick={() => go(nextMark!)}>▶</button></span>
         <span className="rcount">{passed + 1} / {labels.length}</span>
         <span className="rdots">{labels.map((t, k) => <button key={k}
-          type="button" className={`dot ${!s ? "later" : mk[k] < i
-            ? "done" : mk[k] === i ? "cur" : "later"}`} data-k={k}
+          type="button" className={`dot ${!s ? "later" : mk[k] < aimAt
+            ? "done" : mk[k] === aimAt ? "cur" : "later"}`} data-k={k}
           title={plain(t)} aria-label={`Moment ${k + 1}: ${plain(t)}`}
-          aria-current={s && mk[k] === i ? "step" : undefined}
+          aria-current={s && mk[k] === aimAt ? "step" : undefined}
           disabled={!s} onClick={() => go(mk[k])} />)}</span>
-        {bm?.replay && <button type="button" className="btn mplay"
-          data-t="play" aria-pressed={playing} disabled={!s}
-          aria-label={playing ? "Pause" : "Play every step, from this " +
-            "moment to the last"}
-          onClick={() => setPlaying((x) => !x)}>
-          {playing ? "Pause" : <>Play<span className="mlong"> every
-            step</span></>}</button>}
       </span>
       <span className="rline3"><span className="rcap">{cap(text)}</span>
       </span>
@@ -305,11 +326,6 @@ export function TimelineBar(p: { id: ViewId; domId?: string;
       <button type="button" className="btn" data-t="next"
         aria-label="The next moment" disabled={nextMark === undefined}
         onClick={() => go(nextMark!)}>▶</button>
-      {replay && <button type="button" className="btn tplaybtn"
-        data-t="play" aria-pressed={playing}
-        aria-label={playing ? "Pause" : "Play the transaction, a step at " +
-          "a time"} onClick={() => setPlaying((x) => !x)}>
-        {playing ? "⏸" : "⏵"}</button>}
     </div>
     <div ref={track} className="ttrack"
       onPointerDown={(e) => {

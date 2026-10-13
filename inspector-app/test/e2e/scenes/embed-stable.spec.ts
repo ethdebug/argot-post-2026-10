@@ -52,12 +52,14 @@ for (const width of [390, 1024]) {
     });
 }
 
-// The stepper's play (TimelineBar.tsx): from its first trace step to
-// its last, over its two transactions, the frame's posted height holds
+// The stepper's moves (TimelineBar.tsx): from its first moment to its
+// last, through every trace step between, over its two transactions,
+// the frame's posted height holds
 for (const width of [390, 1024]) {
-  test(`optimized-locals at ${width}px: a play run, one height`,
+  test(`optimized-locals at ${width}px: its moves, one height`,
     async ({ page, browserName }) => {
       test.skip(browserName !== "chromium", "one browser: a timing run");
+      await page.emulateMedia({ reducedMotion: "no-preference" });
       await page.setViewportSize({ width, height: 800 });
       const posted: number[] = [];
       await page.exposeFunction("posted", (h: number) => posted.push(h));
@@ -71,11 +73,16 @@ for (const width of [390, 1024]) {
       await page.waitForTimeout(1500);
       const ready = posted.at(-1)!;
       const from = posted.length;
-      const play = page.locator('.mbar [data-t="play"]');
-      await play.click();
-      await expect(play).toHaveAttribute("aria-pressed", "true");
-      await expect(play).toHaveAttribute("aria-pressed", "false",
-        { timeout: 20_000 });
+      // (every moment, then back to the first: one move)
+      for (let k = 2; k <= 6; k++) {
+        await page.locator('.mbar [data-t="next"]').click();
+        await expect(page.locator(".mbar .rcount")).toHaveText(`${k} / 6`);
+        await expect(page.locator(".lens")).not.toHaveAttribute(
+          "data-playing", "", { timeout: 10_000 });
+      }
+      await page.locator('.mbar [data-t="first"]').click();
+      await expect(page.locator(".lens")).not.toHaveAttribute(
+        "data-playing", "", { timeout: 10_000 });
       await page.waitForTimeout(500);
       expect([...new Set(posted.slice(from))].filter((h) => h !== ready),
         `${ready}: ${posted.join(" ")}`)

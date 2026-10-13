@@ -19,6 +19,7 @@ import {
   type LensContextValue, hush, pointer,
 } from "./hooks";
 import { viewKinds } from "./views";
+import { aim } from "./TimelineBar";
 import {
   RELATED_CONTEXT, type DataRef, type LensSpec, type LensState,
   type ViewKind, type ViewSpec,
@@ -55,8 +56,9 @@ function shower(store: Store<LensState>, spec: LensSpec, project: Project,
     const ticket = ++wanted;
     // (any other show stops a replay's play at once, before it loads: no
     // step of the play asked after it wins; TimelineBar.tsx)
-    if (!view?.play && store.get().playing) {
-      store.set((s) => ({ ...s, playing: undefined }));
+    if (!view?.play && (store.get().playing ||
+      store.get().toward !== undefined)) {
+      store.set((s) => ({ ...s, playing: undefined, toward: undefined }));
     }
     const bm = project.bookmarks.find((b) => b.id === id);
     if (!bm) return false;
@@ -312,6 +314,18 @@ export function Lens(props: { spec: LensSpec; project: Project;
         if (!bm || bm.points.length < 2 ||
           !spec.views.some((v) => v.kind === "timeline")) return;
         e.preventDefault();
+        // (the moments' bar: mark to mark, a move, from where a move
+        // under way goes; TimelineBar's aim)
+        if (bm.replay && bm.marks && spec.views.some((v) =>
+          v.kind === "timeline" && v.bar === "moments")) {
+          const at = s.toward ?? s.moment;
+          const ms = bm.marks;
+          const to = e.key === "Home" ? ms[0] : e.key === "End" ? ms.at(-1)
+            : e.key === "ArrowLeft" ? [...ms].reverse().find((x) => x < at)
+              : ms.find((x) => x > at);
+          if (to !== undefined) aim(value, to);
+          return;
+        }
         const k = Math.max(0, Math.min(bm.points.length - 1,
           move(s.moment, bm.points.length)));
         if (k !== s.moment) void value.show(bm.id, { moment: k,

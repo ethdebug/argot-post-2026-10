@@ -176,13 +176,11 @@
 .lens.stepper .code.pane .line { box-sizing: border-box;
   padding-right: 0.6em; }
 /* (the moments' bar: the walkthrough's, two lines, its controls and the
-   caption; the replay's button at the end of the first) */
+   caption) */
 .rbar.mbar { height: auto; gap: 4px; padding: 6px 12px; }
 .rbar.mbar .rline2 { display: flex; height: auto; font-size: inherit;
   color: inherit; }
 .rbar.mbar .rline3, .rbar.mbar .rcap { display: block; }
-.rbar.mbar .mplay { margin-left: auto; padding: 1px 10px; }
-.rbar.mbar .mplay[aria-pressed="true"] { border-color: var(--accent); }
-@media (max-width: 759.98px) {
-  .rbar.mbar .mlong { display: none; }
-}
+/* (the walkthrough's hint at rest, whole: on two lines in this column) */
+.lens.stepper .rbar .rline1:has(> .rsel.muted) { height: auto;
+  white-space: normal; }

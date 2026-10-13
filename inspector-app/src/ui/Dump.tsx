@@ -819,21 +819,28 @@ export function Dump(p: { id: ViewId; location: Location; data: DataRef;
   close();
 
   // (into view inside the dump's rows' box, when it scrolls and they are
-  // out of it: the first lit row second from the top, a row above it
-  // where the box shows more than two; nothing else moves)
+  // out of it: the lit rows whole where they fit, with a row above them
+  // where there is room; else the first at the top; nothing else moves)
   const litKey = litRows.join(" ");
   useLayoutEffect(() => {
     const v = me.current?.querySelector<HTMLElement>(":scope > .rows");
     if (!v || !litKey || v.scrollHeight <= v.clientHeight ||
       !/auto|scroll/.test(getComputedStyle(v).overflowY)) return;
-    const r = v.querySelector<HTMLElement>(`.wrow[data-slot="${
-      litKey.split(" ")[0]}"]`);
-    if (!r) return;
-    const b = v.getBoundingClientRect(), a = r.getBoundingClientRect();
-    if (a.top >= b.top && a.bottom <= b.bottom) return;
-    const pad = parseFloat(getComputedStyle(v).paddingTop) || 0;
-    v.scrollTop += a.top - b.top - pad - (v.clientHeight > 2.5 * a.height
-      ? a.height : 0);
+    const row = (a: string) => v.querySelector<HTMLElement>(
+      `.wrow[data-slot="${a}"]`)?.getBoundingClientRect();
+    const ks = litKey.split(" ");
+    const [a, z] = [row(ks[0]), row(ks[ks.length - 1])];
+    if (!a || !z) return;
+    const cs = getComputedStyle(v);
+    const pad = parseFloat(cs.paddingTop) || 0;
+    const b = v.getBoundingClientRect();
+    const top = b.top + v.clientTop + pad;
+    const bottom = b.top + v.clientTop + v.clientHeight -
+      (parseFloat(cs.paddingBottom) || 0);
+    if (a.top >= top - 0.5 && z.bottom <= bottom + 0.5) return;
+    const room = bottom - top - (z.bottom - a.top);
+    v.scrollTop += a.top - top - (room >= a.height ? a.height
+      : Math.max(0, room));
   }, [litKey]);
   // (nothing of this location to show here: no dump)
   if (l && !rows.length) return null;
