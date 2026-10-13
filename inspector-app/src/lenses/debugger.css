@@ -134,7 +134,7 @@
   grid-template-areas: "moves" "wide" "side" "src"; }
 @media (min-width: 760px) {
   /* (the pages at least 580px: a word one line of 32 bytes) */
-  .lens.stepper { grid-template-columns: minmax(580px, 5fr) minmax(0, 4fr);
+  .lens.stepper { grid-template-columns: minmax(580px, 3fr) minmax(0, 2fr);
     grid-template-areas: "moves moves" "wide side" "src src"; }
 }
 /* (the pages: a box each, its location on a tab joined to its top; its
@@ -148,6 +148,22 @@
   border-radius: 6px 6px 0 0; }
 .lens.stepper .pages .rows { border-top-left-radius: 0;
   box-sizing: border-box; overflow-y: auto; }
+/* (a page, and the variables' tree, scroll as the pointer's box does,
+   PointerYaml.tsx: no scrollbar, so a page's rows keep the column's
+   width; the content fading toward an edge with more past it, a button
+   there) */
+.lens.stepper .pagebox { position: relative; }
+.lens.stepper :is(.pagebox > .rows, .vars > .tree) {
+  scrollbar-width: none; --mu: 0px; --md: 0px;
+  -webkit-mask-image: linear-gradient(to bottom, transparent 0,
+    #000 var(--mu), #000 calc(100% - var(--md)), transparent 100%);
+  mask-image: linear-gradient(to bottom, transparent 0, #000 var(--mu),
+    #000 calc(100% - var(--md)), transparent 100%); }
+.lens.stepper :is(.pagebox > .rows, .vars > .tree)::-webkit-scrollbar {
+  display: none; }
+.lens.stepper :is(.pagebox > .rows, .vars > .tree).more-up { --mu: 18px; }
+.lens.stepper :is(.pagebox > .rows, .vars > .tree).more-down {
+  --md: 18px; }
 /* (the variables: as tall as the pages, the tree scrolling inside) */
 .lens.stepper .sidecol { display: flex; flex-direction: column;
   gap: 12px; min-width: 0; align-self: stretch; height: 29.2em;
@@ -184,3 +200,6 @@
 /* (the walkthrough's hint at rest, whole: on two lines in this column) */
 .lens.stepper .rbar .rline1:has(> .rsel.muted) { height: auto;
   white-space: normal; }
+/* (the tree's edge labels at its right: the tree's own button for its
+   lit rows takes the middle) */
+.lens.stepper .vars > .pedge { place-items: center end; }
