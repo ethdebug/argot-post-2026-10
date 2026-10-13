@@ -489,7 +489,8 @@ li.same > .row .name, li.same > .row .type { opacity: 0.55; }
   transform: translateX(-50%) rotate(45deg);
   clip-path: polygon(100% -1px, 100% 100%, -1px 100%);
 }
-.wrow:hover .addr, .wrow.on .addr { color: var(--fg); }
+/* (a lens with no hover, LensSpec `hover`: its rows as they are) */
+.wrow:hover:not(.no-hover *) .addr, .wrow.on .addr { color: var(--fg); }
 .gap {
   display: grid;
   grid-template-columns: var(--gutter) 1fr;

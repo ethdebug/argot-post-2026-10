@@ -424,9 +424,10 @@ export function Dump(p: { id: ViewId; location: Location; data: DataRef;
       ? getComputedStyle(at).cursor : "";
     if (r.style.cursor !== c) r.style.cursor = c;
   };
+  const still = lens.spec.hover === false;
   const point = (e: PointerEvent | { target: EventTarget }) => {
     if ("clientX" in e) cursorAt(e);
-    if (lens.store.get().hush) return;
+    if (still || lens.store.get().hush) return;
     setLink((s) => {
       const t = target(e, s.selection);
       return JSON.stringify(s.hover) === JSON.stringify(t) ? s
@@ -586,7 +587,7 @@ export function Dump(p: { id: ViewId; location: Location; data: DataRef;
   useEffect(() => {
     if (!revealed) setHover(null);
   }, [revealed]);
-  const hovering = annot && revealed ? {
+  const hovering = annot && revealed && !still ? {
     onPointerOver: (e: PointerEvent) => {
       const t = e.target as Element;
       const u = t.closest<HTMLElement>("[data-unit]")?.dataset.unit ??
@@ -837,7 +838,7 @@ export function Dump(p: { id: ViewId; location: Location; data: DataRef;
       // the neutral one the steps after it give the slots found)
       light.walk && !light.quiet ? "walking" : "", disp.shape === "strip" ? "strip" : "",
       disp.abbreviate !== undefined ? "abbr" : "", flow ? "flow" : "",
-      bare ? "bare" : "", annot ? "annot" : "", annot && revealed
+      bare ? "bare" : "", annot ? "annot" : "", still ? "no-hover" : "", annot && revealed
         ? "revealed" : "", hand ? "hand" : ""].filter(Boolean).join(" ")}
     data-view={`${lens.key}:${p.id}`} data-point={l?.point}
     data-location={p.location}
