@@ -132,26 +132,28 @@ export function TimelineBar(p: { id: ViewId; domId?: string;
     colour.current = "";
     return () => box?.removeAttribute("data-playing");
   }, [playing, lens]);
-  // (and its trees' rows, each held at its height as the play starts,
-  // a longer value cut short (data-held): a value's lines come and go
-  // as it plays, the rows keep theirs; until the next move after it)
-  const held = useRef<{ at: number; rows: HTMLElement[] } | null>(null);
+  // (and its trees' rows, each held at its height while a move runs, a
+  // longer value cut short (data-held): a value's lines come and go as
+  // it moves, the rows keep theirs; released when it rests. Only the
+  // rows drawn: a shut group's are none, and held at no height they
+  // would open empty)
+  const held = useRef<HTMLElement[] | null>(null);
   useEffect(() => {
     const box = me.current?.closest(".lens");
     if (playing && box && !held.current) {
-      const rows = [...box.querySelectorAll<HTMLElement>(".tree li > .row")];
+      const rows = [...box.querySelectorAll<HTMLElement>(".tree li > .row")]
+        .filter((r) => r.offsetParent);
       const hs = rows.map((r) => r.getBoundingClientRect().height);
       rows.forEach((r, k) => r.style.setProperty("height", `${hs[k]}px`));
       box.setAttribute("data-held", "");
-      held.current = { at: i, rows };
+      held.current = rows;
     }
-    if (playing && held.current) held.current.at = i;
-    if (!playing && held.current && held.current.at !== i) {
-      for (const r of held.current.rows) r.style.removeProperty("height");
+    if (!playing && held.current) {
+      for (const r of held.current) r.style.removeProperty("height");
       box?.removeAttribute("data-held");
       held.current = null;
     }
-  }, [playing, i]);
+  }, [playing]);
   useEffect(() => {
     if (!playing || !bm || !replay) return;
     let raf = 0, busy = false, live = true;

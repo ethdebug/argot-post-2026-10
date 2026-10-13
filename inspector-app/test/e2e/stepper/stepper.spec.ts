@@ -51,3 +51,30 @@ for (const id of Object.values(STEPPER)) {
       });
   }
 }
+
+// After a move, a group shut while it ran opens whole: its rows drawn
+// with their names, at a row's height (TimelineBar.tsx held the rows it
+// drew during the move, a shut group's at no height, and kept them
+// after it)
+test("optimized-locals: after a move, storage opens with its rows",
+  async ({ page }) => {
+    await page.emulateMedia({ reducedMotion: "no-preference" });
+    await page.setViewportSize({ width: 1440, height: 1000 });
+    await page.goto("./embed.html#scene=optimized-locals");
+    await expect(page.locator(".mbar .dot.cur")).toHaveAttribute(
+      "data-k", "0");
+    const lens = page.locator(".lens");
+    for (const q of ["next", "first"]) {
+      await page.locator(`.mbar [data-t="${q}"]`).click();
+      await expect(lens).not.toHaveAttribute("data-playing", "",
+        { timeout: 10_000 });
+    }
+    await page.locator('li[data-path="@storage"] > .chev').click();
+    const row = page.locator('li[data-path="motd"] > .row');
+    await expect(row.locator(".name")).toBeVisible();
+    await expect(row.locator(".name")).toHaveText("motd");
+    const h = (await row.boundingBox())!.height;
+    expect(h).toBeGreaterThan(12);
+    expect(h).toBeLessThan(60);
+    await expect(lens).not.toHaveAttribute("data-held", "");
+  });
