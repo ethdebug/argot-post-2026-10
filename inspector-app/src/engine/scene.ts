@@ -39,9 +39,9 @@ export interface Scene {
   // (what its decoding shows: everything in scope at the moment, the
   // storage variables and the locals: the stepper's; else its storage)
   variables?: "scope";
-  // (its moments, every trace step of its transaction from its first
-  // moment to its last: a replay, its timeline's play; its own moments
-  // the marks; all in one transaction)
+  // (its moments, every trace step of each of its transactions from
+  // its first moment there to its last: a replay, its timeline's play;
+  // its own moments the marks)
   replay?: true;
   // (its views' roots: the values it is about, the rest not shown)
   roots?: Path[];
@@ -90,10 +90,7 @@ export function sceneOf(json: unknown): Scene {
   if (j.variables !== undefined && j.variables !== "scope") {
     no(`variables ${j.variables}`);
   }
-  if (j.replay !== undefined && (j.replay !== true ||
-    new Set(timeline.map((m) => m.tx)).size !== 1)) {
-    no("replay: true, its moments in one transaction");
-  }
+  if (j.replay !== undefined && j.replay !== true) no("replay: true");
   if (j.pointers !== undefined) {
     if (!Array.isArray(j.pointers) || timeline.length !== 1) {
       no("pointers: a list, for a scene of one moment");
@@ -222,24 +219,29 @@ export function sceneJson(s: Scene): string {
     "\n";
 }
 
-// A replay's moments: every trace step of the scene's transaction from
-// its first moment to its last (`steps`: the transaction's trace step
-// count), its own moments' labels kept, and its end if a moment is it
-export function replayOf(s: Scene, steps: number): Timeline {
-  const [a, z] = [s.timeline[0], s.timeline[s.timeline.length - 1]];
-  const tx = a.tx;
-  const from = a.step === "end" ? steps : a.step;
-  const to = z.step === "end" ? steps - 1 : z.step;
-  const label = (step: number | "end") => s.timeline.find((m) =>
-    m.step === step)?.label;
+// A replay's moments: every trace step of each of the scene's
+// transactions from its first moment there to its last (`steps`: a
+// transaction's trace step count), its own moments' labels kept, and a
+// transaction's end if a moment is it
+export function replayOf(s: Scene, steps: (tx: number) => number):
+  Timeline {
   const out: Timeline = [];
-  for (let k = from; k <= to; k++) {
-    const l = label(k);
-    out.push({ tx, step: k, ...l !== undefined ? { label: l } : {} });
-  }
-  if (z.step === "end") {
-    const l = label("end");
-    out.push({ tx, step: "end", ...l !== undefined ? { label: l } : {} });
+  for (const tx of [...new Set(s.timeline.map((m) => m.tx))]) {
+    const ms = s.timeline.filter((m) => m.tx === tx);
+    const [a, z] = [ms[0], ms[ms.length - 1]];
+    const n = steps(tx);
+    const from = a.step === "end" ? n : a.step;
+    const to = z.step === "end" ? n - 1 : z.step;
+    const label = (step: number | "end") => ms.find((m) =>
+      m.step === step)?.label;
+    for (let k = from; k <= to; k++) {
+      const l = label(k);
+      out.push({ tx, step: k, ...l !== undefined ? { label: l } : {} });
+    }
+    if (z.step === "end") {
+      const l = label("end");
+      out.push({ tx, step: "end", ...l !== undefined ? { label: l } : {} });
+    }
   }
   return out;
 }

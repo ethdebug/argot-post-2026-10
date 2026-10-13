@@ -149,7 +149,7 @@ export async function load(io: Io, o: { scenes: Scene[];
     // (the run's code: never on the reader's path)
     const { fromRun } = await import("./source-run");
     const src = fromRun(run, scenario.builds[s.run.build], s.replay
-      ? replayOf(s, run.txs[s.timeline[0].tx].steps) : s.timeline);
+      ? replayOf(s, (tx) => run.txs[tx].steps) : s.timeline);
     if (s.replay) dense(s, src);
     return { src, compilations: compilationsOf(s, scenario) };
   });
