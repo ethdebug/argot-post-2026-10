@@ -383,10 +383,12 @@ function useWalkInput(data: DataRef | undefined): WalkInput | undefined {
   const cd = useDecoded(foreign && d ? { decoding: foreign.rule,
     point: d.point } : undefined);
   // (one moment of a scene's two, named: when the two moments' names
-  // differ)
+  // differ; not a scene of more, whose labels are its moments' captions)
+  const two = useLensState((s) => lens.project.bookmarks.find((b) =>
+    b.id === s.scene)?.points.length === 2);
   const pa = usePoint(data && { decoding: data.decoding, moment: 0 });
   const pb = usePoint(data && { decoding: data.decoding, moment: 1 });
-  const pair = !!pb && pa?.label !== pb.label;
+  const pair = two && !!pb && pa?.label !== pb.label;
   return useMemo(() => {
     const dc = d && decodingOf(lens, d.decoding);
     if (!d || !point || !c || !dc) return;
