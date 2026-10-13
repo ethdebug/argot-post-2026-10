@@ -1,5 +1,6 @@
-// A replay (scene `replay`): every trace step of its transaction from
-// its first moment to its last, its own moments the marks; the same from
+// A replay (scene `replay`): every trace step of each of its
+// transactions from its first moment there to its last, its own moments
+// the marks; the same from
 // its run (authoring) as from its snapshot (the reader); small enough
 // to load with the figure
 import { describe, expect, it } from "vitest";
@@ -12,16 +13,22 @@ import { STEPPER } from "../../test/expect";
 
 describe.each(Object.values(STEPPER))("%s's replay", (id) => {
   const s = scenes.find((x) => x.id === id)!;
-  it("every trace step from its first moment to its end; its moments " +
-    "the marks; it opens at its first", async () => {
+  it("every trace step of each of its transactions from its first " +
+    "moment there to its last; its moments the marks; it opens at its " +
+    "first", async () => {
     for (const p of [await testProject(), await readerProject()]) {
       const src = await p.source(id);
       const bm = p.bookmarks.find((b) => b.id === id)!;
-      const first = s.timeline[0].step as number;
-      expect(src.moments[0]).toMatchObject({ tx: 3, step: first });
-      expect(src.moments.at(-1)).toMatchObject({ tx: 3, step: "end" });
-      expect(src.moments.slice(1, -1).every((m, k) =>
-        m.step === first + k + 1)).toBe(true);
+      const txs = [...new Set(s.timeline.map((m) => m.tx))];
+      expect([...new Set(src.moments.map((m) => m.tx))]).toEqual(txs);
+      for (const tx of txs) {
+        const mine = s.timeline.filter((m) => m.tx === tx);
+        const got = src.moments.filter((m) => m.tx === tx);
+        expect(got[0]).toMatchObject(mine[0]);
+        expect(got.at(-1)).toMatchObject({ step: mine.at(-1)!.step });
+        const steps = got.map((m) => m.step).filter((x) => x !== "end");
+        expect(steps.every((x, k) => x === steps[0] + k)).toBe(true);
+      }
       expect(bm.points.length).toBe(src.moments.length);
       expect(bm.marks!.map((k) => src.moments[k].label))
         .toEqual(s.timeline.map((m) => m.label));
