@@ -529,7 +529,8 @@ export function Dump(p: { id: ViewId; location: Location; data: DataRef;
       out.push(folded || r.gapBefore ? { ...r, gapBefore: true } : r);
       folded = false;
     }
-    return out;
+    // (every row zero: the first kept, so the dump keeps its box)
+    return out.length || !all.length ? out : [all[0]];
   }, [l, l2, disp.second, disp.ends, disp.foldZero, snap, p.location]);
   useFitDump(me, true, rows.length);
 
@@ -691,6 +692,9 @@ export function Dump(p: { id: ViewId; location: Location; data: DataRef;
     };
   }, [bare]);
   const lines: ReactElement[] = [];
+  // (the rows lit: a dump that scrolls inside itself, a figure's page,
+  // brings the first into view when they change)
+  const litRows: string[] = [];
   // (the pair's layouts, the earlier point's first, for the tints)
   const tintOrder = useMemo(() => !l ? [] : !lThere ? [l]
     : (hereAt?.i ?? 0) < (thereAt?.i ?? 0) ? [l, lThere] : [lThere, l],
@@ -743,6 +747,7 @@ export function Dump(p: { id: ViewId; location: Location; data: DataRef;
     const on = (light.at?.row === r.address && light.at.location === loc)
       || [...Array(32).keys()].some(
       (i) => light.bytes.has(byteKey(loc, r.address, i)));
+    if (on) litRows.push(r.address);
     const only = !on && !!p.compare && [...there.bytes].some((b) =>
       b.split("|")[1] === r.address);
     const gut = !on && !only && light.gutters.has(r.address);
@@ -813,6 +818,23 @@ export function Dump(p: { id: ViewId; location: Location; data: DataRef;
   }
   close();
 
+  // (into view inside the dump's rows' box, when it scrolls and they are
+  // out of it: the first lit row second from the top, a row above it
+  // where the box shows more than two; nothing else moves)
+  const litKey = litRows.join(" ");
+  useLayoutEffect(() => {
+    const v = me.current?.querySelector<HTMLElement>(":scope > .rows");
+    if (!v || !litKey || v.scrollHeight <= v.clientHeight ||
+      !/auto|scroll/.test(getComputedStyle(v).overflowY)) return;
+    const r = v.querySelector<HTMLElement>(`.wrow[data-slot="${
+      litKey.split(" ")[0]}"]`);
+    if (!r) return;
+    const b = v.getBoundingClientRect(), a = r.getBoundingClientRect();
+    if (a.top >= b.top && a.bottom <= b.bottom) return;
+    const pad = parseFloat(getComputedStyle(v).paddingTop) || 0;
+    v.scrollTop += a.top - b.top - pad - (v.clientHeight > 2.5 * a.height
+      ? a.height : 0);
+  }, [litKey]);
   // (nothing of this location to show here: no dump)
   if (l && !rows.length) return null;
   // (bare: the bytes only, nothing to point at or click)

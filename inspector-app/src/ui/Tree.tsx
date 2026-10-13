@@ -75,8 +75,10 @@ function litColours(c: Ctx, n: ValueNode, out = new Set<Colour>()) {
 const hasSel = (n: ValueNode, sel: string | null): boolean =>
   n.path === sel || !!n.children?.some((x) => hasSel(x, sel));
 
-function Row({ n, top, c, inBlk }: { n: ValueNode; top?: boolean; c: Ctx;
-  inBlk?: boolean }) {
+// (`local`: a row of the locals' group, "@locals": one absent here is
+// out of scope at this moment, not yet to come; drawn as one row)
+function Row({ n, top, c, inBlk, local }: { n: ValueNode; top?: boolean;
+  c: Ctx; inBlk?: boolean; local?: boolean }) {
   const { light, selection, pair } = c;
   const on = light.rows.has(n.path);
   const k = on ? colourOf(c, n) : undefined;
@@ -84,7 +86,7 @@ function Row({ n, top, c, inBlk }: { n: ValueNode; top?: boolean; c: Ctx;
   const own = n.summary !== undefined &&
     n.regions.some((r) => r.role === "length");
   const sel = n.path === selection;
-  const group = !!n.children?.length;
+  const group = !!n.children?.length && !(local && n.absent);
   const shut = group && c.collapsed.has(n.path);
   // the outermost lit group whose lit rows share one colour carries the
   // fill (not one holding the selected row, nor a collapsed one)
@@ -117,7 +119,8 @@ function Row({ n, top, c, inBlk }: { n: ValueNode; top?: boolean; c: Ctx;
       </span>
       <span className="type">{n.typeText}</span>
       {n.absent && !group ? <span className="val"><span><i
-        className="noloc">not yet</i></span></span>
+        className="noloc">{local ? "not in scope here" : "not yet"}</i>
+        </span></span>
         : n.none ? <span className={`val${!pair ? "" : chg ? " chg"
         : " same"}`}><span><i className="noloc">no location at this
         point</i></span></span>
@@ -135,8 +138,9 @@ function Row({ n, top, c, inBlk }: { n: ValueNode; top?: boolean; c: Ctx;
       aria-label={`${shut ? "Expand" : "Collapse"} ${n.label}`}>
       {CHEV}</button>}
     {group ? <ul>{n.children!.map((x) => <Row key={x.path} n={x} c={c}
-      inBlk={inBlk || blk} />)}</ul>
-      : n.children && !n.value && !own && !n.path.startsWith("@")
+      inBlk={inBlk || blk} local={local || n.path === "@locals"} />)}</ul>
+      : n.children && !(local && n.absent) && !n.value && !own &&
+        !n.path.startsWith("@")
         ? <p className="muted empty">no keys hashed in this transaction</p>
         : null}
   </li>;

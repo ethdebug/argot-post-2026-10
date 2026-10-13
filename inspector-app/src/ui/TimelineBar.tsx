@@ -15,6 +15,12 @@
 // its dumps flashing (FLASH; none with reduced motion). A frame shows
 // the newest step decoded, its flash the union of the steps it passed.
 // Any other move stops it.
+//
+// Or (`bar: "moments"`) as the walkthrough's bar (WalkthroughPanel.tsx):
+// ⏮ ◀ ▶ mark to mark, "n / N", a dot a moment (each a jump), the
+// replay's "⏵ Play every step" (⏸ Pause while it plays), and under
+// them the moment's caption (between marks, while it plays: the
+// transaction and its step). No track: a figure of a few moments.
 import {
   useEffect, useMemo, useRef, useState, type PointerEvent,
 } from "react";
@@ -27,6 +33,7 @@ import {
 } from "../engine/timeline-bar";
 import { useLens, useLensState } from "./hooks";
 import type { ViewId } from "./types";
+import { cap, plain } from "./WalkthroughPanel";
 
 const LABEL = 16;
 // a play's rate, trace steps a second, `t` ms after it starts: 20,
@@ -40,7 +47,8 @@ const still = () =>
 const TRACK = 0.94;
 const pct = (x: number) => `${(x * TRACK * 100).toFixed(3)}%`;
 
-export function TimelineBar(p: { id: ViewId; domId?: string }) {
+export function TimelineBar(p: { id: ViewId; domId?: string;
+  bar?: "moments" }) {
   const lens = useLens();
   const { project, spec } = lens;
   const scene = useLensState((s) => s.scene);
@@ -216,6 +224,51 @@ export function TimelineBar(p: { id: ViewId; domId?: string }) {
   const view = `${lens.key}:${p.id}`;
   const m = s && ks[i] !== undefined ? s.moment(ks[i]) : undefined;
   const line = m ? lineOf(m, s!.txs[m.tx]?.label ?? "") : "";
+  if (p.bar === "moments") {
+    // (the scene's own moments, its marks; their labels, the scene's,
+    // known before its run loads: the bar keeps its form meanwhile)
+    const labels = sc?.timeline.map((x) => x.label ?? "") ?? [];
+    const at = s ? mk.indexOf(i) : -1;
+    const passed = s ? mk.filter((k) => k <= i).length - 1 : 0;
+    const text = !m ? "" : at >= 0 ? m.label ?? "" : `${cutMiddle(
+      s!.txs[m.tx]?.label ?? "", LABEL)} · ${m.step === "end"
+      ? "after the transaction" : `step ${m.step}`}`;
+    const first = mk[0];
+    return <div ref={me} id={p.domId} className="rbar mbar"
+      data-view={view} data-moment={i} tabIndex={0}
+      aria-label="The figure's moments">
+      <span className="rline2"><span className="rctl">
+        <button type="button" className="btn" data-t="first"
+          aria-label="Back to the first moment"
+          disabled={!s || prevMark === undefined}
+          onClick={() => go(first)}>⏮</button>
+        <button type="button" className="btn" data-t="prev"
+          aria-label="The previous moment"
+          disabled={!s || prevMark === undefined}
+          onClick={() => go(prevMark!)}>◀</button>
+        <button type="button" className="btn rnext" data-t="next"
+          aria-label="The next moment"
+          disabled={!s || nextMark === undefined}
+          onClick={() => go(nextMark!)}>▶</button></span>
+        <span className="rcount">{passed + 1} / {labels.length}</span>
+        <span className="rdots">{labels.map((t, k) => <button key={k}
+          type="button" className={`dot ${!s ? "later" : mk[k] < i
+            ? "done" : mk[k] === i ? "cur" : "later"}`} data-k={k}
+          title={plain(t)} aria-label={`Moment ${k + 1}: ${plain(t)}`}
+          aria-current={s && mk[k] === i ? "step" : undefined}
+          disabled={!s} onClick={() => go(mk[k])} />)}</span>
+        {bm?.replay && <button type="button" className="btn mplay"
+          data-t="play" aria-pressed={playing} disabled={!s}
+          aria-label={playing ? "Pause" : "Play every step, from this " +
+            "moment to the last"}
+          onClick={() => setPlaying((x) => !x)}>
+          {playing ? "Pause" : <>Play<span className="mlong"> every
+            step</span></>}</button>}
+      </span>
+      <span className="rline3"><span className="rcap">{cap(text)}</span>
+      </span>
+    </div>;
+  }
   const one = n < 2 || sc?.controls === "none";
   // (its run still loading: its line's room kept, as the page's static
   // line keeps it, so nothing moves when the line comes)
