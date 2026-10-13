@@ -68,6 +68,10 @@ html, body { margin: 0; overflow: hidden; background: transparent; }
    as its text) */
 #embed .tree, #embed #tree, #embed pre.src { overflow: visible !important;
   height: auto !important; max-height: none !important; }
+/* (but the stepper's variables scroll inside their column, as tall as
+   its pages: lenses/debugger.css) */
+#embed .lens.stepper .sidecol .tree { overflow-y: auto !important;
+  height: 100% !important; }
 /* (but the real debugger's panes scroll, as a debugger's do: its
    height holds as it steps through files of any length) */
 #embed .lens.soldb pre.src { overflow: auto !important;
@@ -98,7 +102,16 @@ html, body { margin: 0; overflow: hidden; background: transparent; }
 /* (its room on a timeline bar's line; none where the figure has its own
    walkthrough bar, whose ✕ Exit takes that corner) */
 #embed .tbar:not(.empty):not(.one) { padding-right: 84px; }
-#embed [data-mode="reader"]:has(.wpanel) > .reset { display: none; }
+#embed [data-mode="reader"]:has(.wpanel):not(:has(.mbar)) > .reset {
+  display: none; }
+/* (the moments' bar: the Reset on its first line, at its right end;
+   room kept for it there) */
+#embed [data-mode="reader"]:has(.mbar) > .reset { top: 6px; right: 22px; }
+#embed .rbar.mbar .rline2 { padding-right: 84px; }
+@media (max-width: 759.98px) {
+  #embed [data-mode="reader"]:has(.mbar) > .reset { right: 16px; }
+  #embed .rbar.mbar .rline2 { padding-right: 70px; }
+}
 /* (the compilers' pitfall: its ↺ Reset at the right end of the
    Solidity heading's line, its column's edge: Vyper's heading holds its
    badge. A phone: one column, the Reset at its right edge) */

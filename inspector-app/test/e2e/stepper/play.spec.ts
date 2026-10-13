@@ -1,11 +1,13 @@
-// The stepper's play (TimelineBar.tsx): ▶ steps through the
-// transaction a trace step at a time, ⏸ while it plays; a second press,
-// or ←, stops it; the dumps' rows stay put from the first step to the
-// last (the frame's height: embed-stable.spec.ts); changed bytes flash
-// (Element.animate on a byte), none under reduced motion (the tests'
-// default). What it shows is recorded in the page as it plays (the
-// bar's data-moment, each change; the rows, each frame): the play runs
-// by the clock, a slow runner sees it end before a poll would
+// The stepper's play (TimelineBar.tsx): "Play every step" steps
+// through its transactions a trace step at a time, "Pause" while it
+// plays; a second press, or ←, stops it; the pages keep their heights,
+// and their rows (memory's zero words fold away as they come and go)
+// from the first step to the last (the frame's height:
+// embed-stable.spec.ts); changed bytes flash (Element.animate on a
+// byte), none under reduced motion (the tests' default). What it shows
+// is recorded in the page as it plays (the bar's data-moment, each
+// change; the rows, each frame): the play runs by the clock, a slow
+// runner sees it end before a poll would
 import type { Page } from "@playwright/test";
 import { test, expect } from "../../page";
 import { STEPPER } from "../../expect";
@@ -17,7 +19,7 @@ type Seen = { moments: number[]; rows: string[]; flashes: number;
 async function record(page: Page, then?: "pause" | "left") {
   await page.evaluate((then) => {
     const w = window as unknown as { seen: Seen };
-    const bar = document.querySelector<HTMLElement>(".tbar")!;
+    const bar = document.querySelector<HTMLElement>(".mbar")!;
     const play = bar.querySelector<HTMLElement>('[data-t="play"]')!;
     const seen: Seen = { moments: [], rows: [], flashes: 0, pressed: [] };
     w.seen = seen;
@@ -42,10 +44,13 @@ async function record(page: Page, then?: "pause" | "left") {
       if (this.matches(".b, .ab")) seen.flashes++;
       return animate.apply(this, a);
     };
+    // (each page's rows, but memory's, whose zero words fold away as
+    // they come and go; and every page's height, memory's too)
     const f = () => {
-      rows.add([...document.querySelectorAll(".dump .view, " +
-        "[data-view$=':stack']")].map((v) =>
-        v.querySelectorAll(".wrow").length).join());
+      rows.add([...document.querySelectorAll(".dump .view")].map((v) =>
+        `${v.matches("[data-location=memory]") ? ""
+          : v.querySelectorAll(".wrow").length}/${Math.round(
+          v.getBoundingClientRect().height)}`).join());
       seen.rows = [...rows];
       requestAnimationFrame(f);
     };
@@ -58,8 +63,9 @@ const seen = (page: Page) => page.evaluate(() =>
 const open = async (page: Page, id: string) => {
   await page.setViewportSize({ width: 1440, height: 1000 });
   await page.goto(`./embed.html#scene=${id}`);
-  await expect(page.locator(".tbar")).toHaveAttribute("data-moment", "0");
-  await expect(page.locator('.tbar [data-t="play"]')).toBeVisible();
+  await expect(page.locator(".mbar .dot.cur")).toHaveAttribute("data-k",
+    "0");
+  await expect(page.locator('.mbar [data-t="play"]')).toBeEnabled();
 };
 
 for (const id of Object.values(STEPPER)) {
@@ -68,14 +74,13 @@ for (const id of Object.values(STEPPER)) {
       await page.emulateMedia({ reducedMotion: "no-preference" });
       await open(page, id);
       await record(page);
-      const play = page.locator('.tbar [data-t="play"]');
+      const play = page.locator('.mbar [data-t="play"]');
       await play.click();
-      // (played, and stopped at its end)
+      // (played, and stopped at its end, its last moment)
       await expect.poll(async () => (await seen(page)).pressed,
         { timeout: 30_000 }).toEqual(["true", "false"]);
-      await expect(play).toHaveText("⏵");
-      await expect(page.locator(".tbar .tline")).toHaveText(
-        "after carol joins");
+      await expect(play).toHaveText("Play every step");
+      await expect(page.locator(".mbar .dot").last()).toHaveClass(/cur/);
       const s = await seen(page);
       // (steps between its start and its end, each later than the one
       // before; how many: the runner's frames, the newest each frame)
@@ -90,8 +95,8 @@ for (const id of Object.values(STEPPER)) {
 test("a second press pauses; ← steps and stops it; no flash under " +
   "reduced motion", async ({ page }) => {
   await open(page, STEPPER.O2);
-  const play = page.locator('.tbar [data-t="play"]');
-  const bar = page.locator(".tbar");
+  const play = page.locator('.mbar [data-t="play"]');
+  const bar = page.locator(".mbar");
   // (paused at its first step)
   await record(page, "pause");
   await play.click();
@@ -101,7 +106,7 @@ test("a second press pauses; ← steps and stops it; no flash under " +
   expect(at).toBeGreaterThan(0);
   await page.waitForTimeout(500);
   await expect(bar).toHaveAttribute("data-moment", String(at));
-  await expect(play).toHaveText("⏵");
+  await expect(play).toHaveText("Play every step");
   expect((await seen(page)).flashes).toBe(0);
   // (again; ← at its first step: a step back from there, stopped)
   await record(page, "left");
