@@ -31,7 +31,7 @@ import type {
   ByteKey, Colour, Filter, Hex, Layout, Light, Location, Row, Target,
   TimelinePoint,
 } from "../engine/types";
-import { byteKey, short, wordShort } from "../engine/hex";
+import { byteKey, short } from "../engine/hex";
 import {
   decodingOf, useDecoded, useLayout, useLens, useLensState, useLight, useLink,
   usePointAt, hush,
@@ -84,10 +84,63 @@ function Ruler() {
   </div></div>;
 }
 
-// a word abbreviated to its first byte and its last `n` bytes, padded
-// to 32 bytes first: 0x00…001420, 0x53…3aa80; every word the same width
-export const abbreviated = (bytes: (string | undefined)[], n: number) =>
-  wordShort(bytes.map((b) => b ?? "").join(""), n);
+// An abbreviated dump's words (Display `abbreviate`): each word's cells
+// on one line, its low end at the right; the cells past its left edge cut
+// (hidden), from the first, and a "…" cell in their place, in the light
+// of a lit byte it stands for (else a consulted one's, else a zero's):
+// no lit byte hidden. All read, then all written: one layout
+export function fitAbbr(v: HTMLElement) {
+  const words = [...v.querySelectorAll<HTMLElement>(".word > .bytes")]
+    .map((b) => ({ b, el: b.querySelector<HTMLElement>(":scope > .el"),
+      cells: [...b.querySelectorAll<HTMLElement>(".oct > .b")] }))
+    .filter((w) => w.el && w.cells.length);
+  for (const w of words) {
+    w.el!.hidden = true;
+    for (const c of w.cells) c.hidden = false;
+    // (and its reveal's part, ui/reveal.ts: none)
+    delete w.el!.dataset.r;
+    delete w.el!.dataset.unit;
+    w.el!.removeAttribute("style");
+  }
+  const cut = words.map((w) => {
+    const r = w.b.getBoundingClientRect();
+    const cw = w.cells[w.cells.length - 1].getBoundingClientRect().width;
+    // (all shown, the low end at the right: those whose left is past the
+    // room left for the "…" cell)
+    const first = w.cells[0].getBoundingClientRect().left;
+    if (first >= r.left - 0.5) return 0;
+    return w.cells.filter((c) => c.getBoundingClientRect().left <
+      r.left + cw - 0.5).length;
+  });
+  words.forEach((w, k) => {
+    const n = cut[k];
+    if (!n) return;
+    const gone = w.cells.slice(0, n);
+    gone.forEach((c) => c.hidden = true);
+    const has = (x: string) => gone.find((c) => c.classList.contains(x));
+    const like = has("hl") ?? has("rel") ?? gone[0];
+    // (its caps: a lit run that starts among them starts at it; one
+    // that ends among them, ends at it)
+    const lit = like.classList.contains("hl");
+    const caps = lit ? [gone.some((c) => c.classList.contains("hl") &&
+      c.classList.contains("gs")) ? "gs" : "", gone[n - 1].classList
+      .contains("ge") && gone[n - 1].classList.contains("hl") ? "ge" : ""]
+      : [];
+    w.el!.className = ["b", "el", ...[...like.classList].filter((x) =>
+      !/^(b|gs|ge|at|at-s|at-e|jd|chg)$/.test(x)), ...caps]
+      .filter(Boolean).join(" ");
+    // (an annotated value's: its unit, its place in the reveal, as the
+    // byte it stands for, so the reveal paints it with them)
+    if (lit && like.dataset.r !== undefined) {
+      w.el!.dataset.r = like.dataset.r;
+      if (like.dataset.unit !== undefined) {
+        w.el!.dataset.unit = like.dataset.unit;
+      }
+      w.el!.setAttribute("style", like.getAttribute("style") ?? "");
+    }
+    w.el!.hidden = false;
+  });
+}
 
 // The rows' bytes as one run, `per` bytes a line (Display "flow"): each
 // line's address, where the location is a segment (its offset)
@@ -209,29 +262,22 @@ function Word({ l, ls, loc, row, mine, theirs, side, pair, name, light,
   };
   const unit = (i: number) => annot?.cells[i] ? {
     "data-unit": annot.cells[i]!.unit, ...cellVars(annot.cells[i]!) } : {};
-  // (the word: its bytes, drawn as every word's are; abbreviated, after:
-  // its first byte, "…" for the bytes between, its last `abbreviate`;
-  // the "…" takes the light of a byte it stands for, a lit one first,
-  // so no lit byte is ever hidden)
+  // (the word: its bytes, drawn as every word's are; abbreviated, the
+  // same cells on one line, its low end at the right edge, the cells that
+  // do not fit cut from the left after layout, a "…" cell in their place
+  // that takes a cut lit byte's light: no lit byte hidden; fitAbbr)
   const word = (cells: ReactElement[]) => {
     if (abbreviate === undefined) {
       return <div className={`word${half(mine) ? " half" : ""}`}
         data-side={side} data-slot={row}>
         <div className="bytes"><Octets cells={cells} /></div></div>;
     }
-    const hidden = cells.slice(1, 32 - abbreviate);
-    const cls = (c: ReactElement) => String((c.props as
-      { className?: string }).className ?? "");
-    const like = hidden.find((c) => / hl( |$)/.test(cls(c))) ??
-      hidden.find((c) => / rel( |$)/.test(cls(c))) ?? hidden[0];
-    const el = cls(like).split(" ").filter((x) => !/^(gs|ge|at-s|at-e|jd)$/
-      .test(x)).join(" ");
     return <div className="word" data-side={side} data-slot={row}>
-      {/* (a row past the stack's top, a replay's reserve: empty) */}
-      <span className="ab">{mine.every((b) => b === undefined) ? "\u00a0"
-        : <>0x{cells[0]}<span className={`${el} el`}
-          aria-hidden="true">…</span>{cells.slice(32 - abbreviate)}</>}
-      </span></div>;
+      <div className="bytes">
+        {/* (a row past the stack's top, a replay's reserve: empty) */}
+        {mine.every((b) => b === undefined) ? "\u00a0" : <><span
+          className="b el" aria-hidden="true" hidden>…</span><Octets
+          cells={cells} /></>}</div></div>;
   };
   if (bare) {
     return word(mine.map((b, i) =>
@@ -867,6 +913,21 @@ export function Dump(p: { id: ViewId; location: Location; data: DataRef;
     v.scrollTop += a.top - top - (room >= a.height ? a.height
       : Math.max(0, room));
   }, [litKey, top0, snap]);
+  // (an abbreviated dump's words cut to what fits, after each layout)
+  useLayoutEffect(() => {
+    if (disp.abbreviate !== undefined && me.current) fitAbbr(me.current);
+  });
+  useEffect(() => {
+    const v = me.current;
+    if (disp.abbreviate === undefined || !v ||
+      typeof ResizeObserver === "undefined") return;
+    // (a new width, or a new cell size: its first cell's)
+    const ro = new ResizeObserver(() => fitAbbr(v));
+    ro.observe(v);
+    const c = v.querySelector(".word .oct > .b");
+    if (c) ro.observe(c);
+    return () => ro.disconnect();
+  }, [disp.abbreviate, rows.length]);
   const { more, edge } = useEdges(rowsBox, !!disp.edges, [rows.length,
     litKey, snap], { what: `the ${p.location}`, band: "its lit rows",
     on: ".wrow.on" });
