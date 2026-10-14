@@ -338,3 +338,61 @@ test("the figure's Reset, not the panel's, takes both back",
     await expect(count).toHaveText(first!);
     await expect(reset).not.toHaveAttribute("data-shown", "");
   });
+
+// On demand (panel=ondemand, the panel's ondemand=1): the figure keeps
+// its bar at rest, its way in and out; the panel's frame shows only
+// while a walkthrough runs, its height message `open` saying so (the
+// host's room for it 0 otherwise); the figure's own height never changes
+test("on demand: the panel opens with the walkthrough and closes with " +
+  "it; no room when shut; the figure holds still", async ({ page,
+  baseURL }) => {
+  await page.setViewportSize({ width: 1024, height: 900 });
+  await page.goto("./embed.html");
+  await page.setContent(`<body style="margin:0">
+    <iframe id="f" src="${baseURL}embed.html#scene=optimized-locals` +
+    `&panel=ondemand&channel=od" style="border:0;width:100%;height:50px;` +
+    `display:block"></iframe>
+    <iframe id="p" src="${baseURL}embed-panel.html#scene=optimized-locals` +
+    `&channel=od&ondemand=1" style="border:0;width:100%;height:0;` +
+    `display:block"></iframe>
+    <script>window.log = []; addEventListener("message", (e) => {
+      if (e.data?.type !== "ethdebug:height") return;
+      const f = [...document.querySelectorAll("iframe")].find((x) =>
+        x.contentWindow === e.source);
+      log.push([f.id, e.data.height, e.data.open]);
+      f.style.height = (f.id === "f" || e.data.open ? e.data.height : 0) +
+        "px";
+    });</script></body>`);
+  type Log = [string, number, boolean | undefined][];
+  const log = () => page.evaluate(() =>
+    (window as unknown as { log: Log }).log);
+  const fig = page.frameLocator("#f");
+  const panel = page.frameLocator("#p");
+  const room = () => page.locator("#p").evaluate((e) =>
+    e.getBoundingClientRect().height);
+  await expect.poll(async () => (await log()).some(([f]) => f === "f"),
+    { timeout: 20_000 }).toBe(true);
+  await page.waitForTimeout(1500);
+  const h = (await log()).filter(([f]) => f === "f").at(-1)![1];
+  // (shut: no room; the figure's bar its way in)
+  expect(await room()).toBe(0);
+  // (its first moment selects `name`)
+  await expect(fig.locator('li[data-path="name"] > .row.sel'))
+    .toBeVisible();
+  await fig.locator('button[data-r="start"]').click();
+  await expect.poll(async () => (await log()).filter(([f]) =>
+    f === "p").at(-1)?.[2]).toBe(true);
+  await expect(panel.locator(".pshown .rbar.replaying")).toBeVisible();
+  expect(await room()).toBeGreaterThan(100);
+  // (the figure: its way out where its way in was)
+  await expect(fig.locator('button[data-r="exit"]')).toBeVisible();
+  await panel.locator('.pshown button[data-r="next"]').click();
+  await fig.locator('button[data-r="exit"]').click();
+  await expect.poll(async () => (await log()).filter(([f]) =>
+    f === "p").at(-1)?.[2]).toBe(false);
+  await expect.poll(room).toBe(0);
+  await expect(fig.locator('button[data-r="start"]')).toBeVisible();
+  // (the figure never changed its height)
+  expect(new Set((await log()).filter(([f]) => f === "f").map(([, x]) =>
+    x))).toEqual(new Set([h]));
+});
