@@ -21,7 +21,9 @@ import {
   type KeyboardEvent, type MouseEvent,
 } from "react";
 import { charAt, intoView, lines, useColoured } from "../ui/Code";
-import { shiki, wrapRange, yamlLines } from "../ui/PointerYaml";
+import {
+  shiki, useEdges, wrapRange, yamlLines,
+} from "../ui/PointerYaml";
 import { ResetButton } from "../ui/Reset";
 import data from "./xray-data.json" with { type: "json" };
 
@@ -214,6 +216,9 @@ export function ProgramXray() {
   const pre = useRef<HTMLPreElement>(null);
   useLayoutEffect(() => intoView(pre.current, true),
     [mark?.from, mark?.to, coloured, lang]);
+  // (its edges' buttons, the stepper's code box's: ui/Code.tsx)
+  const { edge } = useEdges(pre, true, [mark?.from, mark?.to, coloured,
+    lang], { what: "the code", band: "the step's range", on: "mark.rng" });
   // (the chosen row in its list's view, a third of the way down on a
   // whole row: the list's box scrolls, never the page)
   const list = useRef<HTMLUListElement>(null);
@@ -375,9 +380,10 @@ export function ProgramXray() {
       </div></div>
     </div>
     <div className="code" data-none={r ? undefined : ""}>
-      <pre ref={pre} className={`src codesrc${coloured ? " coloured"
-        : ""}`}>{lines(text, coloured, { indent: true,
-          ...mark ? { mark } : {} })}</pre>
+      <div className="pbox"><pre ref={pre} className={`src codesrc${
+        coloured ? " coloured" : ""}`}>{lines(text, coloured, {
+          indent: true, ...mark ? { mark } : {} })}</pre>
+        {edge("up")}{edge("down")}</div>
     </div>
   </div>;
 }

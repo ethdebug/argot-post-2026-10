@@ -89,6 +89,12 @@ function Wide({ children }: { children: ReactNode }) {
     let tick = 0;
     const lately = new Map<string, number>();
     const needed = new Map<string, boolean>();
+    // (what this last wrote, and the pages the reader opened since)
+    let wrote: Record<string, boolean> = {};
+    const byHand = new Set<string>();
+    // (the pages' order, over the stack: their own, at first)
+    const RANK = ["calldata", "memory", "storage"];
+    let rank = [...RANK];
     // (the pages' places as last laid out, and which were open: a page
     // that opens or shuts moves to its new place from its old one)
     const places = new Map<Element, number>();
@@ -131,20 +137,46 @@ function Wide({ children }: { children: ReactNode }) {
       // rows come for one, its related rows a moment later)
       const moved = key !== seen;
       if (moved) tick++;
+      // (their order: those needed at a new moment or selection to the
+      // top, in the order they had; the rest after them, as they were; a
+      // show anew, the pages' own order)
+      if (fresh) rank = [...RANK];
+      // (a page the reader opened since: kept as one needed, until the
+      // next moment or selection)
+      if (moved || fresh) byHand.clear();
       for (const v of views) {
-        if (need(v) && (moved || !needed.get(loc(v)))) {
+        if (!fresh && s.pages![loc(v) as Location] && wrote[loc(v)] ===
+          false) {
+          byHand.add(loc(v));
+          lately.set(loc(v), tick);
+        }
+      }
+      const pulled = new Set<string>();
+      for (const v of views) {
+        if (need(v) && (moved || fresh || !needed.get(loc(v)))) {
           next[loc(v)] = true;
           lately.set(loc(v), tick);
+          pulled.add(loc(v));
         }
         needed.set(loc(v), need(v));
       }
+      // (and to the top, in the order they had)
+      rank = [...rank.filter((l) => pulled.has(l)),
+        ...rank.filter((l) => !pulled.has(l))];
       seen = key;
       const open = group.filter((v) => next[loc(v)]);
-      // (a page shut goes to the bottom, opened back to its place,
-      // debugger.css: from where it was, in the heights' time)
+      // (a page shut goes to the bottom, the open ones in their order
+      // over them: each to its place from where it was, in the heights'
+      // time)
       const pages = [...lens.querySelectorAll<HTMLElement>(
         ":scope > [data-area=wide] .view[data-open]")];
-      const now = pages.map((v) => v.dataset.open).join();
+      for (const v of pages) {
+        const k = rank.indexOf(loc(v));
+        const o = String(next[loc(v)] ? k : RANK.length + k);
+        if (v.style.order !== o) v.style.order = o;
+      }
+      const now = pages.map((v) => `${v.dataset.open}${v.style.order}`)
+        .join();
       if (was && now !== was && !still()) {
         for (const v of pages) {
           const from = places.get(v);
@@ -190,7 +222,8 @@ function Wide({ children }: { children: ReactNode }) {
       // shut, one by one, until the rest do)
       const avail = room - fixed;
       const fits = () => open.reduce((n, v) => n + needOf(v), 0) <= avail;
-      const spare = open.filter((v) => !need(v)).sort((a, b) =>
+      const spare = open.filter((v) => !need(v) && !byHand.has(loc(v)))
+        .sort((a, b) =>
         (lately.get(loc(a)) ?? 0) - (lately.get(loc(b)) ?? 0));
       while (!fits() && spare.length) {
         const v = spare.shift()!;
@@ -199,6 +232,7 @@ function Wide({ children }: { children: ReactNode }) {
       }
       if (fresh || views.some((v) => next[loc(v)] !==
         !!s.pages![loc(v) as Location])) {
+        wrote = { ...next };
         store.set((x) => ({ ...x, pages: next }));
         return;
       }

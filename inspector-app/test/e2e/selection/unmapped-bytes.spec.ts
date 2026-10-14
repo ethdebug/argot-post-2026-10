@@ -203,6 +203,11 @@ test("a row no value owns is one unmapped run: its gutter, gaps or bytes "
   await page.setViewportSize({ width: 1440, height: 900 });
   await page.goto("./embed.html#scene=stepper-O0");
   const M = '[data-view$=":memory"]';
+  // (its page open: shut when nothing of it is related here)
+  await expect(page.locator(`${M}[data-open]`)).toHaveCount(1);
+  if (await page.locator(`${M}`).getAttribute("data-open") === "false") {
+    await page.locator(`${M} .ptab`).click();
+  }
   await expect(page.locator(`${M} .wrow`).first()).toBeVisible();
   // (a memory word no local owns at this moment)
   const slot = await page.evaluate((m) => [...document.querySelectorAll<

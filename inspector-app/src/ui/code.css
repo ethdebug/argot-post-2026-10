@@ -26,3 +26,13 @@
 :root[data-theme="dark"] .codesrc.coloured span[style] {
   color: var(--shiki-dark); }
 .novars { margin: 0; }
+/* The small code box (the stepper's pane, the program x-ray's code): its
+   paper and edge on the box, the lines scrolling inside it with no
+   scrollbar, its edges' buttons in its padding, over and under them,
+   never on a line (PointerYaml.tsx useEdges). Its height, its owner's */
+.code .pbox { position: relative; background: var(--panel);
+  border: 1px solid var(--line); border-radius: 6px; padding: 16px 0; }
+.code .pbox > pre.codesrc { padding: 0 10px; border: 0; border-radius: 0;
+  background: none; overflow-y: auto; scrollbar-width: none;
+  font-size: var(--fs-meta); line-height: 1.45; }
+.code .pbox > pre.codesrc::-webkit-scrollbar { display: none; }

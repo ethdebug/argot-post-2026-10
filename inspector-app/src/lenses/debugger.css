@@ -131,9 +131,9 @@
    variables' column as tall, the tree scrolling inside it; the code
    pane a fixed number of lines. */
 .lens.stepper { display: grid; gap: 18px 28px; align-items: start;
-  --pages-h: 400px;
+  --pages-h: 457px;
   grid-template-columns: minmax(0, 1fr);
-  grid-template-areas: "moves" "narrow" "wide" "side" "src"; }
+  grid-template-areas: "moves" "src" "narrow" "wide" "side"; }
 @media (min-width: 760px) {
   /* (the stack a narrow column at the left, as tall as the pages beside
      it (--stack-w, --stack-tab); the pages 68% of the
@@ -147,14 +147,14 @@
      word one line of 32 bytes, and the room the stack frees the
      variables') */
   .lens.stepper { --stack-w: calc(var(--cell-fs, 14px) * 11.2 + 20px);
-    --stack-tab: 1.6em; --pages-h: 472px;
+    --stack-tab: 1.6em; --pages-h: 530px;
     /* (the pages' width as before the stack was this narrow: what the
        stack frees, the variables') */
     --pages-of: calc(100% - 12em - var(--stack-tab) - 56px);
     grid-template-columns: auto min(calc(var(--pages-of) * 0.68),
       calc(var(--pages-of) - 280px)) minmax(0, 1fr);
-    grid-template-areas: "moves moves moves" "narrow wide side"
-      "src src src"; }
+    grid-template-areas: "moves moves moves" "src src src"
+      "narrow wide side"; }
 }
 /* (the pages: a box each, its location on a tab joined to its top; its
    rows scroll inside it past its cap) */
@@ -252,18 +252,11 @@
 .lens.stepper .sidecol .vars { position: relative; min-height: 0;
   flex: 1 1 0; }
 .lens.stepper .sidecol .vars > .tree { height: 100%; overflow-y: auto; }
-/* (the code: the pointer's box, 9 lines; 7 on a phone; its padding the
-   pointer's lines': 0.9em over the first and under the last, 0.9em before
-   each line (the band's rule in it), 0.6em after) */
-.lens.stepper .code.pane .ptrscroll { height: calc(9 * 1.5em + 1.8em);
-  font-size: var(--fs-label); line-height: 1.5; }
+/* (the code: the small code box, ui/code.css, 7 lines; 5 on a phone) */
+.lens.stepper .code.pane pre.codesrc { height: calc(7 * 1.45em); }
 @media (max-width: 759.98px) {
-  .lens.stepper .code.pane .ptrscroll { height: calc(7 * 1.5em + 1.8em); }
+  .lens.stepper .code.pane pre.codesrc { height: calc(5 * 1.45em); }
 }
-.lens.stepper .code.pane pre.src { height: auto; overflow: visible;
-  margin: 0; padding: 0.9em 0; font-size: inherit; line-height: inherit; }
-.lens.stepper .code.pane pre.src .line { padding-right: 0.6em;
-  padding-left: calc(var(--ind, 0ch) + 2ch + 0.9em); }
 /* (the moments' bar: the walkthrough's lines, its controls and the
    caption, in no box: a plain row, as the debugger's moves) */
 .rbar.mbar { height: auto; gap: 4px; padding: 0; background: none;
