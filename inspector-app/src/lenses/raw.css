@@ -14,6 +14,10 @@
 .lens.raw .view-name { letter-spacing: 0.12em; }
 .lens.raw .view.abbr { font-family: var(--mono);
   font-variant-numeric: tabular-nums; font-size: var(--cell-fs, 14px); }
+/* (a stack item's low bytes, as many as its abbreviation showed before:
+   room beside them for the annotated layer's cards) */
+.lens.raw .view.abbr .word .bytes { max-width: calc(6 * var(--cell) +
+  1.3ch); }
 .lens.raw-hero { grid-template-columns: minmax(0, 1fr);
   grid-template-areas: "storage" "stack" "memory" "moment"; }
 /* (every panel spans its column) */
@@ -58,7 +62,7 @@
    panel: its title on one line of whole pixels, nothing drawn under it. No 8-byte
    groups: a word's 32 bytes one run, as memory's 16 are. */
 .lens.raw { --raw-lh: round(calc(var(--cell-fs, 14px) * 1.85), 1px); }
-.lens.raw .view :is(.word .bytes, .word .ab, .addr .a) {
+.lens.raw .view :is(.word .bytes, .addr .a) {
   line-height: var(--raw-lh); }
 .lens.raw .view .word { padding: 1px 0; }
 .lens.raw .view .gap { height: round(calc(var(--cell-fs, 14px) * 2.2),

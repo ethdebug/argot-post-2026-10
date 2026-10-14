@@ -200,7 +200,8 @@ export function drawNotes(v: El, notes: Note[], units: Unit[],
       // (beside: at the item's word, its middle; its right end, its last
       // byte's: an abbreviated word's bytes are cells as any word's)
       if (beside) {
-        const wb = own.map(wordBox);
+        // (its bytes shown: an abbreviated word's cut ones have no box)
+        const wb = own.filter((c) => !c.hidden).map(wordBox);
         const r = Math.max(...wb.map((x) => x.r));
         return { x: r, r, t: wb[0].t, b: wb[0].b };
       }
