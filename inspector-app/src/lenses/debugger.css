@@ -325,3 +325,51 @@
 @media (prefers-reduced-motion: reduce) {
   .lens.stepper > .stackcol { transition: none; }
 }
+
+/* (the code's row: the instructions' column at its left, shut to its
+   turned tab at first, the stack's; open, the program x-ray's list, the
+   code narrowing beside it. Not on a phone: no room beside the code) */
+.lens.stepper > .srcrow { display: flex; gap: 0 14px; min-width: 0;
+  align-items: stretch; }
+.lens.stepper > .srcrow > .code { flex: 1; min-width: 0; }
+.lens.stepper .instrs { display: flex; flex: none; width: 1.6em;
+  transition: width 420ms cubic-bezier(0.4, 0, 0.2, 1); overflow: hidden; }
+.lens.stepper .instrs[data-open="true"] { width: 26em; }
+.lens.stepper .instrs .view-head { order: 1; padding: 0; background: none;
+  position: static; }
+.lens.stepper .instrs .view-name { writing-mode: vertical-rl;
+  transform: rotate(180deg); align-self: flex-start; margin: 0;
+  padding: 10px 1px 10px 2px; background: var(--panel);
+  border: 1px solid var(--line); border-right: 0;
+  border-radius: 6px 0 0 6px; gap: 6px; }
+.lens.stepper .instrs .ibox { flex: 1; min-width: 0; display: flex; }
+.lens.stepper .instrs .xrows { flex: 1; margin: 0; padding: 4px 6px 4px 9px;
+  list-style: none; overflow-y: auto; overflow-x: hidden;
+  scrollbar-width: none; font-family: var(--mono); font-size: var(--fs-meta);
+  background: var(--panel); border: 1px solid var(--line);
+  border-radius: 6px 0 6px 6px; box-sizing: border-box;
+  height: calc(7 * 1.45em * 12 / 11 + 34px); }
+.lens.stepper .instrs .xrows::-webkit-scrollbar { display: none; }
+@media (prefers-reduced-motion: reduce) {
+  .lens.stepper .instrs { transition: none; }
+}
+@media (max-width: 759.98px) {
+  .lens.stepper .instrs { display: none; }
+}
+/* (the instruction's entry: a line under the variables, the tree's gap
+   row's, that opens a drawer under them; the tree gives it room) */
+.lens.stepper .sidecol .entrydrawer { flex: none; display: flex;
+  flex-direction: column; min-height: 0; }
+.lens.stepper .sidecol .entrydrawer[data-open="true"] { height: 16em; }
+@media (max-width: 759.98px) {
+  .lens.stepper .sidecol .entrydrawer[data-open="true"] { height: 12em; }
+}
+.lens.stepper .entrylink { display: grid; grid-template-columns:
+  max-content 1fr; column-gap: 1ch; width: 100%; height: 2.2em; margin: 0;
+  padding: 0; border: 0; background: none; font: inherit;
+  color: var(--muted); cursor: pointer; text-align: left; }
+.lens.stepper .entrylink:is(:hover, :focus-visible) { color: var(--fg); }
+.lens.stepper .entrydrawer .xentry { flex: 1; min-height: 0;
+  display: grid; grid-template-rows: auto minmax(0, 1fr); }
+.lens.stepper .entrydrawer .ptrbox { min-height: 0; }
+.lens.stepper .entrydrawer .ptrlines { font-size: var(--fs-meta); }

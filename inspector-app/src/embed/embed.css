@@ -75,6 +75,10 @@ html, body { margin: 0; overflow: hidden; background: transparent; }
    its pages: lenses/debugger.css) */
 #embed .lens.stepper .sidecol .tree { overflow-y: auto !important;
   height: 100% !important; }
+/* (and the stepper's instructions: the code's height, scrolling inside;
+   lenses/debugger.css) */
+#embed .lens.stepper .instrs .xrows { overflow-y: auto !important;
+  height: calc(7 * 1.45em * 12 / 11 + 34px) !important; }
 /* (and the stepper's code: its own box, a fixed height, scrolling;
    lenses/debugger.css) */
 #embed .lens.stepper .code.pane pre.src { overflow-y: auto !important;

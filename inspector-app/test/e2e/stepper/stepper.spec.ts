@@ -253,3 +253,41 @@ test("optimized-locals: the stack opening, its popover one line",
     expect(r.width).toBeGreaterThan(60);
     expect(r.height).toBeLessThan(2.5 * lh + 8);
   });
+
+// The program: the instructions' column shut at first, open by its tab,
+// the instruction at the moment lit, following a move; the instruction's
+// entry, as YAML, in a drawer under the variables; Reset shuts both; the
+// figure's height never changes
+test("optimized-locals: the instructions and the entry's drawer",
+  async ({ page }) => {
+    await page.setViewportSize({ width: 1216, height: 900 });
+    await page.goto("./embed.html#scene=optimized-locals");
+    const h = () => page.locator("#embed").evaluate((e) =>
+      Math.ceil(e.getBoundingClientRect().height));
+    await expect(page.locator(".mbar .dot.cur")).toBeVisible();
+    await page.waitForTimeout(800);
+    const h0 = await h();
+    const col = page.locator(".instrs");
+    await expect(col).toHaveAttribute("data-open", "false");
+    await col.locator(".ptab").click();
+    const lit = col.locator("li > .row.hl .type");
+    await expect(lit).toHaveCount(1);
+    const at = await lit.textContent();
+    await page.locator('.mbar [data-t="next"]').click();
+    await expect(page.locator(".lens")).not.toHaveAttribute("data-playing",
+      "", { timeout: 10_000 });
+    await expect(lit).not.toHaveText(at!);
+    // (the drawer: the instruction lit's entry)
+    await page.locator(".entrylink").click();
+    const title = page.locator(".entrydrawer .ptitle");
+    await expect(title).toHaveText(`Instruction at ${await lit
+      .textContent()}`);
+    await expect(page.locator(".entrydrawer .ptrlines")).toContainText(
+      "operation:");
+    expect(await h()).toBe(h0);
+    await page.locator(".reset").click();
+    await expect(col).toHaveAttribute("data-open", "false");
+    await expect(page.locator(".entrydrawer")).toHaveAttribute("data-open",
+      "false");
+    expect(await h()).toBe(h0);
+  });

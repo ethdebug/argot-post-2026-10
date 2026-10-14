@@ -310,7 +310,8 @@ export const stepper: LensSpec = {
   id: "stepper", title: "Stepping through bugc's code", timelines: [],
   decodings: [], grid: "", layout: "stepper", links: ["st"],
   columns: 2,
-  areas: { wide: "dump pages", narrow: "stackcol", side: "sidecol" },
+  areas: { wide: "dump pages", narrow: "stackcol", side: "sidecol",
+    src: "srcrow" },
   wrap: { wide: Wide },
   views: [
     { id: "time", kind: "timeline", area: "moves", domId: "stime",
@@ -326,7 +327,9 @@ export const stepper: LensSpec = {
       domId: "sdetails", data: NOW },
     { id: "vars", kind: "variables", area: "side", data: NOW, link: "st",
       domId: "svars", edges: true },
+    { id: "instrs", kind: "instructions", area: "src", data: NOW },
     { id: "code", kind: "code", area: "src", data: NOW, domId: "scode",
       pane: true },
+    { id: "entry", kind: "entry", area: "side", data: NOW },
   ],
 };

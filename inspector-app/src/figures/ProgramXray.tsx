@@ -27,7 +27,7 @@ import {
 import { ResetButton } from "../ui/Reset";
 import data from "./xray-data.json" with { type: "json" };
 
-type Json = null | boolean | number | string | Json[] |
+export type Json = null | boolean | number | string | Json[] |
   { [k: string]: Json };
 export interface Entry { offset: number; operation?: { mnemonic: string;
   arguments?: string[] }; context?: { code?: { source: { id: number };
@@ -83,7 +83,7 @@ const FIELDS: Record<string, string> = {
 const rangeOf = (e?: Entry) => e?.context?.code?.range;
 
 // a range's text in brief: its first line, its spaces closed up
-function brief(text: string, from: number, to: number) {
+export function brief(text: string, from: number, to: number) {
   const t = text.slice(from, to).trim();
   const first = t.split("\n")[0].replace(/\s+/g, " ");
   return first === t.replace(/\s+/g, " ") ? first : `${first} …`;
@@ -104,13 +104,13 @@ const ordered = (v: Record<string, Json>) => Object.keys(v).sort((a, b) =>
 // One line of an entry's YAML: its text; its field names (where, and
 // their paths); in the band (the range's lines); the toggle line;
 // a value cut to fit (its whole, for its field's popover)
-interface Line { text: string; keys: { from: number; to: number;
+export interface Line { text: string; keys: { from: number; to: number;
   path: string }[]; band?: boolean; toggle?: boolean; full?: string }
 
 // An entry's fields as YAML lines (the format's order; `cols`
 // characters a line: a short collection on one line where it fits, a
 // long scalar cut with "…")
-function yaml(v: Record<string, Json>, path: string, ind: number,
+export function yaml(v: Record<string, Json>, path: string, ind: number,
   out: Line[], cols: number, band = false) {
   const pad = "  ".repeat(ind);
   for (const k of ordered(v)) {
@@ -151,8 +151,26 @@ function yaml(v: Record<string, Json>, path: string, ind: number,
     }
     out.push({ text, keys, band: lit });
     if (Array.isArray(x)) {
-      x.forEach((y) => out.push({ text: `${pad}  - ${scalar(y)}`,
-        keys: [], band: lit }));
+      // (an item a line; an object item's fields under its "- ", as YAML)
+      x.forEach((y) => {
+        if (y === null || typeof y !== "object") {
+          out.push({ text: `${pad}  - ${scalar(y)}`, keys: [], band: lit });
+          return;
+        }
+        const under: Line[] = [];
+        if (Array.isArray(y)) {
+          under.push({ text: `${pad}    [ ${y.map(scalar).join(", ")} ]`,
+            keys: [], band: lit });
+        } else yaml(y, sub, ind + 2, under, cols, lit);
+        if (!under.length) return;
+        under[0] = { ...under[0], text: `${pad}  - ${under[0].text
+          .trimStart()}`, keys: under[0].keys.map((k) => ({ ...k,
+          from: k.from - (under[0].text.length - under[0].text
+            .trimStart().length) + pad.length + 4, to: k.to -
+            (under[0].text.length - under[0].text.trimStart().length) +
+            pad.length + 4 })) };
+        out.push(...under);
+      });
     }
     else yaml(x, sub, ind + 1, out, cols, lit);
   }
@@ -185,7 +203,7 @@ function useCols(box: React.RefObject<HTMLElement | null>) {
   return cols;
 }
 
-const esc = (s: string) => s.replace(/[&<>]/g,
+export const esc = (s: string) => s.replace(/[&<>]/g,
   (c) => `&#${c.charCodeAt(0)};`);
 
 export function ProgramXray() {
