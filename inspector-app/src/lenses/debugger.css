@@ -176,29 +176,29 @@
   .lens.stepper > [data-area="wide"] { transition: none; }
 }
 .lens.stepper .view[data-open="false"] .pedge { display: none; }
-/* (shut pages at the bottom, after the open ones, each in its order: a
-   pile of tabs, each over the one before by a little, as cards slid
-   to the back of a deck; their move, stepper.tsx) */
-.lens.stepper .pages .view[data-open="false"] { order: 1; }
+/* (shut pages at the bottom of the area, after the open ones and the
+   room they leave, each in its order: a pile of tabs, close together, as
+   cards slid to the back of a deck; their move, stepper.tsx) */
+@media (min-width: 760px) {
+  .lens.stepper .pages :is(.panel, .views) { height: 100%; }
+  .lens.stepper .pages .views { display: flex; flex-direction: column; }
+  .lens.stepper .pages .view[data-open="false"]:not(
+    .view[data-open="false"] ~ .view) { margin-top: auto; }
+}
+.lens.stepper .pages .view[data-open="false"] { order: 2; }
 .lens.stepper .pages .view[data-open="false"] ~ .view[data-open="false"] {
-  margin-top: -24px; margin-left: 6px; }
-.lens.stepper .pages .view[data-open="false"] ~ .view[data-open="false"]
-  ~ .view[data-open="false"] { margin-left: 12px; }
+  margin-top: -14px; }
 /* (a tab: a button, the tree's chevron its cue; shut, muted) */
 .lens.stepper .ptab { cursor: pointer;
   display: inline-flex; align-items: center; gap: 4px; }
 .lens.stepper .ptab .pchev svg { width: 1em; height: 1em; display: block;
   transition: transform 0.15s; }
-.lens.stepper :is(.ptab[aria-expanded="false"],
-  .ptab[aria-selected="false"]) { color: var(--muted); }
-/* (the transactions' tabs, over the moments' bar: the pages' tabs, a
-   row, the chosen one's open side on the bar) */
-.rbar.mbar .ttabs { display: flex; gap: 6px; }
+.lens.stepper .ptab[aria-expanded="false"] { color: var(--muted); }
 .lens.stepper .ptab[aria-expanded="false"] .pchev svg {
   transform: rotate(-90deg); }
 .lens.stepper :is(.pages, .stackcol) .view-head { position: static;
   padding: 0; background: none; }
-.lens.stepper :is(.pages, .stackcol, .ttabs) .view-name {
+.lens.stepper :is(.pages, .stackcol) .view-name {
   margin: 0; padding: 2px 10px 1px; background: var(--panel);
   border: 1px solid var(--line); border-bottom: 0;
   border-radius: 6px 6px 0 0; }
@@ -220,9 +220,11 @@
 .lens.stepper :is(.pagebox > .rows, .vars > .tree).more-up { --mu: 18px; }
 .lens.stepper :is(.pagebox > .rows, .vars > .tree).more-down {
   --md: 18px; }
-/* (the variables: as tall as the pages, the tree scrolling inside) */
+/* (the variables: as tall as the pages, the tree scrolling inside; on a
+   phone a fixed height, the walkthrough a panel of its own in the post,
+   on demand: no room kept for it here) */
 .lens.stepper .sidecol { display: flex; flex-direction: column;
-  gap: 18px; min-width: 0; align-self: stretch; height: 29.2em;
+  gap: 18px; min-width: 0; align-self: stretch; height: 23em;
   contain: size; }
 @media (min-width: 760px) {
   .lens.stepper .sidecol { height: auto; }
@@ -258,9 +260,11 @@
 @media (max-width: 759.98px) {
   .rbar.mbar .rcap { height: calc(5 * 1.35em); }
 }
-/* (the walkthrough's hint at rest, whole: on two lines in this column) */
-.lens.stepper .rbar .rline1:has(> .rsel.muted) { height: auto;
+/* (the walkthrough's bar at rest, whole: the hint, or the selection and
+   its value, on two lines in this column) */
+.lens.stepper .rbar:not(.mbar) .rline1:has(> .rsel) { height: auto;
   white-space: normal; }
+.lens.stepper .rbar:not(.mbar) .rsel { overflow-wrap: anywhere; }
 /* (the tree's edge labels at its right: the tree's own button for its
    lit rows takes the middle) */
 .lens.stepper .vars > .pedge { place-items: center end; }

@@ -86,7 +86,12 @@ function shower(store: Store<LensState>, spec: LensSpec, project: Project,
     if (ticket !== wanted) return true; // another was asked for since
     // (a play's step that loaded after it stopped, ⏸: not shown)
     if (view?.play && !store.get().playing) return false;
-    const want = view && "sel" in view ? view.sel : bm.select;
+    // (arriving at a moment that has a selection of its own: it, over the
+    // one held; the scene first shown, too)
+    const mark = bm.replay ? bm.marks?.indexOf(moment) ?? -1 : moment;
+    const arrive = !view || view.arrive || (view.step && !view.play);
+    const own = arrive ? bm.selects?.[mark] : undefined;
+    const want = own ?? (view && "sel" in view ? view.sel : bm.select);
     const selection = want && tree.byPath.has(want) ? want : null;
     // (a step on the timeline: the same scene, from its moment; the views
     // keep their place; one transition)
@@ -322,7 +327,7 @@ export function Lens(props: { spec: LensSpec; project: Project;
         if (bm.replay && bm.marks && spec.views.some((v) =>
           v.kind === "timeline" && v.bar === "moments")) {
           const at = s.toward ?? s.moment;
-          // (its tab's moments: one transaction's, TimelineBar.tsx)
+          // (the shown transaction's moments alone, TimelineBar.tsx)
           const txs = project.scenes.find((x) => x.id === bm.id)?.timeline
             .map((m) => m.tx) ?? [];
           const ms = txs.length === bm.marks.length

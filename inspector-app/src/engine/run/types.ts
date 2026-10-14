@@ -97,6 +97,9 @@ export interface MomentRef { tx: number; step: number | "end" }
 // "end": after the transaction, committed (storage only, no frame)
 export interface Moment extends MomentRef {
   label?: string;                         // "the middle of the game"
+  // (a scene's moment: what is selected on arriving there, written by
+  // hand; a reader's own selection holds until the next moment)
+  select?: string;
   // annotations: filled from the run (authoring) or the snapshot
   // (reader); never written by hand
   pc?: number; op?: string; depth?: number;

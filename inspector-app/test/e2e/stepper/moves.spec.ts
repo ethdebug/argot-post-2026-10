@@ -99,7 +99,7 @@ test("a click during a move goes on from where it is; ← → too; none " +
   await page.emulateMedia({ reducedMotion: "no-preference" });
   await open(page, STEPPER.O2);
   // (alice's play: five moments)
-  await page.locator('.ttabs [data-tx="12"]').click();
+  await page.locator('.mbar .picker [data-tx="12"]').click();
   await expect(page.locator(".mbar .rcount")).toHaveText("1 / 5");
   const next = page.locator('.mbar [data-t="next"]');
   // (three presses, the next two during the first's move)
@@ -116,35 +116,36 @@ test("a click during a move goes on from where it is; ← → too; none " +
   await expect(page.locator(".mbar .rcount")).toHaveText("3 / 5");
 });
 
-// The transactions are tabs: a tab, a cut to its first moment; the
-// moments' bar steps inside its tab alone, ◀ and ▶ stopping at its ends;
-// Reset, the first tab's first moment
-test("tabs: a transaction a tab; stepping stays inside it; Reset",
+// The transactions, one shown at a time (the real debugger's language
+// buttons): a button, a cut to its first moment; the moments' bar steps
+// inside the shown one alone, ◀ and ▶ stopping at its ends; Reset, the
+// first one's first moment
+test("transactions: one at a time; stepping stays inside it; Reset",
   async ({ page }) => {
     await page.emulateMedia({ reducedMotion: "no-preference" });
     await open(page, STEPPER.O2);
-    const tab = (tx: number) => page.locator(`.ttabs [data-tx="${tx}"]`);
+    const tx = (n: number) => page.locator(`.mbar .picker [data-tx="${n}"]`);
     const count = page.locator(".mbar .rcount");
     const next = page.locator('.mbar [data-t="next"]');
     const prev = page.locator('.mbar [data-t="prev"]');
-    await expect(tab(3)).toHaveAttribute("aria-selected", "true");
+    await expect(tx(3)).toHaveAttribute("aria-checked", "true");
     await expect(count).toHaveText("1 / 2");
     await expect(prev).toBeDisabled();
     await next.click();
     await still(page);
     await expect(count).toHaveText("2 / 2");
     await expect(next).toBeDisabled();
-    // (the arrow key at the end: no step into the next tab)
+    // (the arrow key at the end: no step into the next transaction)
     await page.locator(".mbar").focus();
     await page.keyboard.press("ArrowRight");
     await page.keyboard.press("End");
     await still(page);
-    await expect(tab(3)).toHaveAttribute("aria-selected", "true");
+    await expect(tx(3)).toHaveAttribute("aria-checked", "true");
     await expect(count).toHaveText("2 / 2");
-    // (the other tab: a cut, its first moment; ◀ disabled there)
+    // (the other transaction: a cut, its first moment; ◀ disabled)
     await record(page);
-    await tab(12).click();
-    await expect(tab(12)).toHaveAttribute("aria-selected", "true");
+    await tx(12).click();
+    await expect(tx(12)).toHaveAttribute("aria-checked", "true");
     await expect(count).toHaveText("1 / 5");
     await expect(prev).toBeDisabled();
     expect((await seen(page)).moments).toHaveLength(1);
@@ -155,19 +156,19 @@ test("tabs: a transaction a tab; stepping stays inside it; Reset",
     await page.keyboard.press("Home");
     await still(page);
     await expect(count).toHaveText("1 / 5");
-    await expect(tab(12)).toHaveAttribute("aria-selected", "true");
-    // (Reset: the first tab, its first moment)
+    await expect(tx(12)).toHaveAttribute("aria-checked", "true");
+    // (Reset: the first transaction, its first moment)
     await next.click();
     await still(page);
     await page.locator(".reset").click();
-    await expect(tab(3)).toHaveAttribute("aria-selected", "true");
+    await expect(tx(3)).toHaveAttribute("aria-checked", "true");
     await expect(count).toHaveText("1 / 2");
   });
 
 test("reduced motion: a move is a jump, no flash", async ({ page }) => {
   await open(page, STEPPER.O2);
   await record(page);
-  await page.locator('.ttabs [data-tx="12"]').click();
+  await page.locator('.mbar .picker [data-tx="12"]').click();
   await page.locator('.mbar [data-t="next"]').click();
   await page.locator('.mbar [data-t="next"]').click();
   await expect(page.locator(".mbar .rcount")).toHaveText("3 / 5");

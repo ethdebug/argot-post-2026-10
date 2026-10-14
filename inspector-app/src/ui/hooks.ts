@@ -42,7 +42,9 @@ export interface LensContextValue {
   // (`play`: a step of a replay's play: no transition, the moment before
   // it not decoded too)
   show(id: string, view?: { moment?: number; sel?: string | null;
-    walk?: LinkState["walk"]; step?: boolean; play?: boolean }):
+    walk?: LinkState["walk"]; step?: boolean; play?: boolean;
+    // (a move's last step: its moment reached, its selection applied)
+    arrive?: boolean }):
     Promise<boolean>;
 }
 // The page's scenes of other lenses, for a lens inside it: the one shown

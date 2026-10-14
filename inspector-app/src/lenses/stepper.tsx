@@ -114,25 +114,17 @@ function Wide({ children }: { children: ReactNode }) {
         }
       }
       was = now;
-      // (what the boxes have, the room less all else as it is laid out:
-      // the tabs, the gaps, the pile's overlaps; each area's pages from
-      // its top to the last one's bottom, less their boxes, as laid out,
-      // not as a page's move draws it, a transform)
-      const shift = (v: HTMLElement) => new DOMMatrix(getComputedStyle(v)
-        .transform === "none" ? "" : getComputedStyle(v).transform).m42;
-      const extent = (area: Element | null) => {
-        const vs = group.filter((v) => area?.contains(v));
-        if (!area || !vs.length) return 0;
-        const top = area.getBoundingClientRect().top;
-        const bottom = Math.max(...vs.map((v) =>
-          v.getBoundingClientRect().bottom - shift(v)));
-        return bottom - top - vs.reduce((n, v) => n + (box(v)
-          ?.getBoundingClientRect().height ?? 0), 0);
-      };
-      const areaOf = (n: string) => lens.querySelector(
-        `:scope > [data-area=${n}]`);
-      const fixed = extent(areaOf("wide")) + (stack && group.includes(stack)
-        ? extent(areaOf("narrow")) + gap : 0);
+      // (what the boxes have, the room less all else: each page's tab and
+      // edges (its height less its box's), the gaps between pages, a
+      // pile's overlaps; on a phone, the stack's area over the others and
+      // the gap between them. The room the pages leave, above the pile,
+      // is no part of it)
+      const own = (v: HTMLElement) => v.getBoundingClientRect().height -
+        (box(v)?.getBoundingClientRect().height ?? 0);
+      const overlap = (v: HTMLElement) => Math.min(0,
+        parseFloat(getComputedStyle(v).marginTop) || 0);
+      const fixed = group.reduce((n, v) => n + own(v) + overlap(v), 0) +
+        gap * Math.max(0, group.length - 1);
       void tabs;
       const rowsOf = (v: HTMLElement) => v.querySelector<HTMLElement>(
         ".rows");
