@@ -213,9 +213,16 @@ export function useEdges(box: RefObject<HTMLElement | null>, can: boolean,
     measure();
     const later = requestAnimationFrame(measure);
     root.addEventListener("scroll", measure);
+    // (and as the box or what it holds changes size: a page that grows
+    // to its rows has no more past its edge)
+    const ro = typeof ResizeObserver === "undefined" ? null
+      : new ResizeObserver(() => measure());
+    ro?.observe(root);
+    if (root.firstElementChild) ro?.observe(root.firstElementChild);
     return () => {
       cancelAnimationFrame(later);
       root.removeEventListener("scroll", measure);
+      ro?.disconnect();
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [can, ...deps]);

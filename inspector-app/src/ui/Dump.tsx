@@ -85,10 +85,10 @@ function Ruler() {
 }
 
 // An abbreviated dump's words (Display `abbreviate`): each word's cells
-// on one line, its low end at the right; the cells past its left edge cut
-// (hidden), from the first, and a "…" cell in their place, in the light
-// of a lit byte it stands for (else a consulted one's, else a zero's):
-// no lit byte hidden. All read, then all written: one layout
+// on one line, its first byte, a "…" cell, its last ABBR_LOW: the cells
+// between cut (hidden), the "…" in the light of a lit byte it stands for
+// (else a consulted one's, else a zero's): no lit byte hidden
+const ABBR_LOW = 4;
 export function fitAbbr(v: HTMLElement) {
   const words = [...v.querySelectorAll<HTMLElement>(".word > .bytes")]
     .map((b) => ({ b, el: b.querySelector<HTMLElement>(":scope > .el"),
@@ -102,20 +102,11 @@ export function fitAbbr(v: HTMLElement) {
     delete w.el!.dataset.unit;
     w.el!.removeAttribute("style");
   }
-  const cut = words.map((w) => {
-    const r = w.b.getBoundingClientRect();
-    const cw = w.cells[w.cells.length - 1].getBoundingClientRect().width;
-    // (all shown, the low end at the right: those whose left is past the
-    // room left for the "…" cell)
-    const first = w.cells[0].getBoundingClientRect().left;
-    if (first >= r.left - 0.5) return 0;
-    return w.cells.filter((c) => c.getBoundingClientRect().left <
-      r.left + cw - 0.5).length;
-  });
-  words.forEach((w, k) => {
-    const n = cut[k];
+  words.forEach((w) => {
+    // (its first byte and its last ABBR_LOW shown, the rest cut)
+    const gone = w.cells.slice(1, w.cells.length - ABBR_LOW);
+    const n = gone.length;
     if (!n) return;
-    const gone = w.cells.slice(0, n);
     gone.forEach((c) => c.hidden = true);
     const has = (x: string) => gone.find((c) => c.classList.contains(x));
     const like = has("hl") ?? has("rel") ?? gone[0];
@@ -979,16 +970,13 @@ export function Dump(p: { id: ViewId; location: Location; data: DataRef;
   const { more, edge } = useEdges(rowsBox, !!disp.edges, [rows.length,
     litKey, snap], { what: `the ${p.location}`, band: "its lit rows",
     on: ".wrow.on" });
-  // (a page, `edges`: open or shut to its tab. Open where something here
-  // is related at the moment (the related view's rows), or as the reader
-  // chose, until the next moment shown: LensState.pages)
-  // (held while a move runs: its steps would open and shut it by turns;
-  // laid out as the moment has it once it rests)
+  // (a page, `edges`: open or shut to its tab, as LensState.pages has it,
+  // its owner's (the stepper's: lenses/stepper.tsx); none yet, open where
+  // it is needed: something here related at the moment, drawn)
+  const needed = !only || (only.rows.length > 0 && rows.length > 0);
   const chosen = useLensState((s) => s.pages?.[p.location]);
-  // (a page with no rows to show here stays shut: none related, or
-  // none of those drawn)
-  const now = chosen ?? (!only || (only.rows.length > 0 && rows.length > 0));
-  const open = moving && was.current !== null ? was.current : now;
+  const open = chosen ?? needed;
+  // (its last: what a move holds, above)
   was.current = open;
   const toggle = () => lens.store.set((s) => ({ ...s, pages: {
     ...s.pages, [p.location]: !open } }));
@@ -1022,6 +1010,7 @@ export function Dump(p: { id: ViewId; location: Location; data: DataRef;
         ? "revealed" : "", hand ? "hand" : ""].filter(Boolean).join(" ")}
     data-view={`${lens.key}:${p.id}`} data-point={l?.point}
     data-open={disp.edges ? String(open) : undefined}
+    data-needed={disp.edges ? String(needed) : undefined}
     data-location={p.location}
     data-exits={exiting(link) || undefined} {...handlers} {...hovering}
     {...layer ? { "data-units": layer.units.length } : {}}>
