@@ -1069,6 +1069,10 @@ sup.fn { font-size: 0.7em; color: var(--accent); margin-left: 1px; }
 ::view-transition-group(root) { overflow: visible; }
 ::view-transition-old(root), ::view-transition-new(root) {
   height: 100%; width: 100%; object-fit: fill; }
+/* (the bugc stepper's page: no picture of the page as a whole. Its
+   pages fold and slide as they move (lenses/stepper.tsx), live; a
+   picture of the page over them would show both layouts at once) */
+:root:has(.lens.stepper) { view-transition-name: none; }
 /* (a click meanwhile reaches the page under it: it is never lost) */
 ::view-transition { pointer-events: none; }
 .vt-run :is(.tedge, .bruler) { visibility: hidden; }
