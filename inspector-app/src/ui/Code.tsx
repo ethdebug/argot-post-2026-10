@@ -9,7 +9,7 @@ import {
   type ReactNode,
 } from "react";
 import { highlighter, withLang } from "./shiki";
-import { useCompilation, useLens, usePoint } from "./hooks";
+import { useCompilation, useLens, useLensState, usePoint } from "./hooks";
 import { useEdges } from "./PointerYaml";
 import type { DataRef, ViewId } from "./types";
 
@@ -148,9 +148,13 @@ export function Code(p: { id: ViewId; data: DataRef; domId?: string;
     className: paused?.last ? "rng last" : "rng" } : undefined;
   const pre = useRef<HTMLPreElement>(null);
   const box = useRef<HTMLDivElement>(null);
-  useLayoutEffect(() => p.pane ? intoView(box.current, true)
+  // (a replay playing: the pane follows its steps only as their range
+  // leaves it, not a third of the way down at each: no jump a step)
+  const playing = useLensState((x) => !!x.playing);
+  useLayoutEffect(() => p.pane ? intoView(box.current, !playing)
     : intoView(pre.current),
-    [mark?.from, mark?.to, coloured, p.pane]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  [mark?.from, mark?.to, coloured, p.pane]);
   const note = !c ? "" : !ethdebug ? "no ethdebug: the source unmarked"
     : !r ? "no source range here" : paused?.last
       ? "no range of its own here: the last one, muted" : "";
