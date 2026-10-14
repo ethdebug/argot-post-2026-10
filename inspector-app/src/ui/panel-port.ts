@@ -17,6 +17,9 @@ import type { Intent, PanelModel } from "./WalkthroughPanel";
 
 export interface Port {
   publish(m: PanelModel, variants?: PanelModel[]): void;
+  // (on demand: the panel's frame open only during a walkthrough, the
+  // figure's own bar at rest, its way in and out)
+  onDemand?: boolean;
   // (whether the panel is stuck at the top of the host's view, as the
   // host last said; unknown until it does)
   stuck?: boolean;
@@ -29,12 +32,13 @@ export const channelName = (scene: string, channel: string) =>
   `ethdebug:${scene}:${channel}`;
 
 // The figure's side of the channel
-export function figurePort(name: string): Port {
+export function figurePort(name: string, onDemand = false): Port {
   const bc = new BroadcastChannel(name);
   let last = "";
   let model: PanelModel | null = null;
   let variants: PanelModel[] | undefined;
   const port: Port = {
+    onDemand,
     publish(m, vs) {
       const s = JSON.stringify([m, vs]);
       if (s === last) return;

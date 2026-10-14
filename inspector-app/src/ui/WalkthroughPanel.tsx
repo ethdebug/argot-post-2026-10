@@ -157,7 +157,10 @@ export interface PanelModel {
   // selection and the way in
   rest?: { info: Info | null } | { name: string; typeText: string;
     value?: string; parts?: string; side?: string; canStart: boolean;
-    line2: string };
+    line2: string;
+    // (its walkthrough open in a panel of its own, on demand: the way
+    // out here, ✕ Exit, in place of the way in)
+    open?: boolean };
   // in a walkthrough: its step
   walk?: { name: string; scene?: string; i: number; place: string;
     last: boolean; goal: boolean; dots: { cap: string; n?: number;
@@ -188,7 +191,7 @@ export type Intent = { type: "start" } | { type: "step"; to: number } |
 export function useWalkModel(p: { id: ViewId; data: DataRef;
   link?: LinkId; compare?: DataRef }, port: Port | null = null):
   { model: PanelModel; act: (i: Intent) => void;
-    variants?: PanelModel[] } {
+    variants?: PanelModel[]; local: PanelModel } {
   const { d, l } = useLayout(p.id);
   const o = useDecoded(p.compare);
   const here = usePoint(p.data);
@@ -399,7 +402,13 @@ export function useWalkModel(p: { id: ViewId; data: DataRef;
       rest: selRest(), yaml: yamlOf(undefined) },
     ...steps.map((s0, k): PanelModel => ({ key, walking: true,
       walk: stepOf(k), yaml: yamlOf(s0) }))];
-  return { model, act, variants };
+  // (the figure's own bar, its walkthrough in a panel on demand: at
+  // rest always, the selection shown, and its way out while one runs)
+  const r0 = walk ? selRest() : undefined;
+  const local: PanelModel = !walk ? model : { ...model, walking: false,
+    walk: undefined, exit: undefined, yaml: yamlOf(undefined),
+    rest: r0 && "canStart" in r0 ? { ...r0, open: true } : r0 };
+  return { model, act, variants, local };
 }
 
 // -------------------------------------------------------------- view
@@ -638,9 +647,10 @@ export function PanelView({ model: m, act, domId, compact }: {
       : r.parts ? <span className="rparts"> · <span className="muted">
         {r.parts}</span></span> : null}{r.side && <> <span
         className="muted">({r.side})</span></>}</span><span className="rctl">
-        <button type="button" className="btn rstart" data-r="start"
-          disabled={!r.canStart}><span className="rplay"
-          aria-hidden="true">▶</span> How it was found</button></span>
+        {r.open ? <button type="button" className="btn" data-r="exit">
+          ✕ Exit</button> : <button type="button" className="btn rstart"
+          data-r="start" disabled={!r.canStart}><span className="rplay"
+          aria-hidden="true">▶</span> How it was found</button>}</span>
       </span><span className="rline2 muted">{r.line2}
       </span></>;
     text = null;
@@ -706,12 +716,15 @@ export function WalkthroughPanel(p: { id: ViewId; data: DataRef;
   link?: LinkId; domId?: string; compare?: DataRef;
   others?: { decoding: string; who?: string }[] }) {
   const port = useContext(PanelPort);
-  const { model, act, variants } = useWalkModel(p, port);
+  const { model, act, variants, local } = useWalkModel(p, port);
   const latest = useRef(act);
   latest.current = act;
   const stable = useCallback((i: Intent) => latest.current(i), []);
   useEffect(() => port?.publish(model, variants));
   useEffect(() => port?.listen(stable), [port, stable]);
-  if (port) return null;
-  return <PanelView model={model} act={stable} domId={p.domId} />;
+  // (a panel of its own frame: nothing here; on demand, the bar at rest
+  // here, its walkthrough there)
+  if (port && !port.onDemand) return null;
+  return <PanelView model={port ? local : model} act={stable}
+    domId={p.domId} />;
 }

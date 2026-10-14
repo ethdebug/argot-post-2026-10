@@ -230,8 +230,12 @@ if (lens) columns = columnsOf(lens);
 reveals = !!lens?.views.some((v) => v.kind === "dump" &&
   v.display?.annotate);
 void whenDrawn();
-const port = hash.get("panel") === "external"
-  ? figurePort(channelName(id, hash.get("channel") ?? "")) : null;
+// (panel=ondemand: the same, its frame open only while a walkthrough
+// runs; the figure's own bar its way in and out)
+const panelMode = hash.get("panel");
+const port = panelMode === "external" || panelMode === "ondemand"
+  ? figurePort(channelName(id, hash.get("channel") ?? ""),
+    panelMode === "ondemand") : null;
 // (a reader's step in the panel's frame: an act here too)
 port?.listen(act);
 createRoot(root).render(figure && lens?.page
