@@ -78,3 +78,17 @@ test("optimized-locals: after a move, storage opens with its rows",
     expect(h).toBeLessThan(60);
     await expect(lens).not.toHaveAttribute("data-held", "");
   });
+
+// A stack word is drawn as every word is, then abbreviated: `len`
+// selected, its bytes lit, the "…" among them lit for the bytes it
+// stands for
+test("optimized-locals: len selected lights its stack bytes",
+  async ({ page }) => {
+    await page.setViewportSize({ width: 1024, height: 900 });
+    await page.goto("./embed.html#scene=optimized-locals");
+    await page.locator('li[data-path="len"] > .row').click();
+    const word = page.locator(".view[data-location=stack] .wrow.on .ab");
+    await expect(word).toHaveText(/^0x00…0+22$/);
+    expect(await word.locator(".b.hl").count()).toBeGreaterThan(1);
+    await expect(word.locator(".el")).toHaveClass(/\bhl\b/);
+  });
