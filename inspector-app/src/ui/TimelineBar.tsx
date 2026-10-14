@@ -298,7 +298,7 @@ export function TimelineBar(p: { id: ViewId; domId?: string;
       if (!bm || !s || t === tx) return;
       const l = lens.store.get().links[spec.links[0]];
       void lens.show(bm.id, { moment: mk[txs.indexOf(t)],
-        sel: l?.selection ?? null, walk: null, step: true });
+        sel: l?.selection ?? null, walk: null, step: true, cut: true });
     };
     return <div ref={me} id={p.domId} className="rbar mbar"
       data-view={view} data-moment={i} tabIndex={0}

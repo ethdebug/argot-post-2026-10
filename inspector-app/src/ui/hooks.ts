@@ -44,7 +44,9 @@ export interface LensContextValue {
   show(id: string, view?: { moment?: number; sel?: string | null;
     walk?: LinkState["walk"]; step?: boolean; play?: boolean;
     // (a move's last step: its moment reached, its selection applied)
-    arrive?: boolean }):
+    arrive?: boolean;
+    // (a cut: no transition, as to another transaction)
+    cut?: boolean }):
     Promise<boolean>;
 }
 // The page's scenes of other lenses, for a lens inside it: the one shown
@@ -381,7 +383,14 @@ export function useRelatedRoots(id: string): string[] | undefined {
     return [...new Set([...of(sel), ...at === sel ? [] : of(at)])]
       .join("\n");
   }, [sel, d, x, project]);
-  return useMemo(() => key ? key.split("\n") : undefined, [key]);
+  // (a replay playing, the selection held at a step where it has no
+  // location: the roots of the last step it had one, so the tree keeps
+  // its rows through the move; TimelineBar.tsx)
+  const playing = useLensState((s) => !!s.playing);
+  const last = useRef("");
+  const held = !key && playing && !!sel ? last.current : key;
+  last.current = held;
+  return useMemo(() => held ? held.split("\n") : undefined, [held]);
 }
 
 // What a walkthrough is computed from, for a view's data (state

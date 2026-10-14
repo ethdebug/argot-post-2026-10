@@ -13,7 +13,7 @@ import { decode } from "../engine/decode";
 import { fromHash, toHash } from "../engine/hash";
 import { readHash, writeHash, type Pending } from "./hash";
 import { createStore, type Store } from "./store";
-import { animated, transition } from "./transition";
+import { animated, cut, transition } from "./transition";
 import {
   decodingOf, LensContext, useLens, useLensState, resolveRef,
   type LensContextValue, hush, pointer,
@@ -94,7 +94,12 @@ function shower(store: Store<LensState>, spec: LensSpec, project: Project,
     const want = own ?? (view && "sel" in view ? view.sel : bm.select);
     const shut = arrive && bm.collapses ? bm.collapses[mark] ?? bm.collapse
       : !view ? bm.collapse : undefined;
-    const selection = want && tree.byPath.has(want) ? want : null;
+    // (a play's step between moments: the selection held, whether or not
+    // the variable has a location at the step, so the views keep their
+    // rows through the move; TimelineBar.tsx)
+    const held = !!view?.play && !view.arrive;
+    const selection = want && (held || tree.byPath.has(want)) ? want
+      : null;
     // (a step on the timeline: the same scene, from its moment; the views
     // keep their place; one transition)
     const was = store.get();
@@ -123,7 +128,8 @@ function shower(store: Store<LensState>, spec: LensSpec, project: Project,
           walk: !selection ? null : view?.walk ? { ...view.walk,
             busy: undefined, exit: undefined }
             : bm.walk ? { ...bm.walk } : null }])) }));
-    if (step && !view?.play) transition(apply);
+    if (view?.cut) cut(apply);
+    else if (step && !view?.play) transition(apply);
     else apply();
     return true;
   };
