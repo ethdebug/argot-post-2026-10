@@ -136,18 +136,20 @@
   grid-template-areas: "moves" "narrow" "wide" "side" "src"; }
 @media (min-width: 760px) {
   /* (the stack a narrow column at the left, as tall as the pages beside
-     it (--stack-w, --stack-tab); the pages three fifths of the
+     it (--stack-w, --stack-tab); the pages 68% of the
      rest, one width whether the stack is open or shut (their type, and
      so the figure's, follows their width: ui/fit.ts); the variables
      the rest) */
-  /* (the stack's width: about a word's low 8 bytes and the "…" cell,
-     with its addresses; in the page's type, not the cells': the cells'
-     size follows the pages' width, which follows this; its tab's
-     beside it) */
-  .lens.stepper { --stack-w: 14em; --stack-tab: 1.6em; --pages-h: 472px;
-    grid-template-columns: auto calc((100% - var(--stack-w) -
-      var(--stack-tab) -
-      56px) * 0.6) minmax(0, 1fr);
+  /* (the stack's width: a word's low bytes, about six, and the "…"
+     cell, with its addresses; in the page's type, not the cells': the
+     cells' size follows the pages' width, which follows this; its tab's
+     beside it. The pages 68% of what is left, the variables 280px at
+     least: at the post's widest frame, 1216px, 560px or more, a word
+     one line of 32 bytes) */
+  .lens.stepper { --stack-w: 12em; --stack-tab: 1.6em; --pages-h: 472px;
+    grid-template-columns: auto min(calc((100% - var(--stack-w) -
+      var(--stack-tab) - 56px) * 0.68), calc(100% - var(--stack-w) -
+      var(--stack-tab) - 56px - 280px)) minmax(0, 1fr);
     grid-template-areas: "moves moves moves" "narrow wide side"
       "src src src"; }
 }
