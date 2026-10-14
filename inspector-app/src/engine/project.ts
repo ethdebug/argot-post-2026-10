@@ -34,7 +34,9 @@ export type ProjectBookmark = Bookmark &
     replay?: true; marks?: number[];
     // (each of the scene's moments' selection on arriving there, by its
     // index among them: a replay's marks')
-    selects?: (string | undefined)[] };
+    selects?: (string | undefined)[];
+    // (and its groups shut there, likewise)
+    collapses?: (string[] | undefined)[] };
 
 export interface Project {
   scenes: Scene[];
@@ -78,6 +80,8 @@ const bookmarkOf = (s: Scene): ProjectBookmark => ({
   ...(s.initial?.select ? { select: s.initial.select } : {}),
   ...(s.timeline.some((m) => m.select) ? { selects: s.timeline.map((m) =>
     m.select) } : {}),
+  ...(s.timeline.some((m) => m.collapse) ? { collapses: s.timeline.map(
+    (m) => m.collapse) } : {}),
   ...(s.initial?.walk ? { walk: { step: s.initial.walk.step } } : {}),
   ...(s.initial?.collapse ? { collapse: s.initial.collapse } : {}),
   ...(s.initial?.related ? { related: true } : {}),

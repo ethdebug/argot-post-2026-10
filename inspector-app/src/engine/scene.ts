@@ -85,9 +85,14 @@ export function sceneOf(json: unknown): Scene {
     if (m.select !== undefined && typeof m.select !== "string") {
       no(`select ${m.select}`);
     }
+    if (m.collapse !== undefined && !(Array.isArray(m.collapse) &&
+      m.collapse.every((x) => typeof x === "string"))) {
+      no(`collapse ${m.collapse}`);
+    }
     return { tx: m.tx, step: m.step,
       ...(m.label !== undefined ? { label: m.label } : {}),
-      ...(m.select !== undefined ? { select: m.select } : {}) };
+      ...(m.select !== undefined ? { select: m.select } : {}),
+      ...(m.collapse !== undefined ? { collapse: m.collapse } : {}) };
   });
   timeline.forEach((m, k) => {
     if (k && order(timeline[k - 1]) >= order(m)) no("moments out of order");

@@ -53,6 +53,10 @@ const open = async (page: Page, id: string) => {
   await expect(page.locator(".mbar .dot.cur")).toHaveAttribute("data-k",
     "0");
   await expect(page.locator('.mbar [data-t="next"]')).toBeEnabled();
+  // (settled: its fonts in, its type fitted to them, as the embed waits
+  // before its first height)
+  await page.evaluate(() => document.fonts.ready);
+  await page.waitForTimeout(800);
 };
 const marks = (page: Page) => page.locator(".mbar .dot").count();
 
@@ -99,7 +103,7 @@ test("a click during a move goes on from where it is; ← → too; none " +
   await page.emulateMedia({ reducedMotion: "no-preference" });
   await open(page, STEPPER.O2);
   // (alice's play: five moments)
-  await page.locator('.mbar .picker [data-tx="12"]').click();
+  await page.locator('.mbar [role=tab][data-tx="12"]').click();
   await expect(page.locator(".mbar .rcount")).toHaveText("1 / 5");
   const next = page.locator('.mbar [data-t="next"]');
   // (three presses, the next two during the first's move)
@@ -116,19 +120,19 @@ test("a click during a move goes on from where it is; ← → too; none " +
   await expect(page.locator(".mbar .rcount")).toHaveText("3 / 5");
 });
 
-// The transactions, one shown at a time (the real debugger's language
-// buttons): a button, a cut to its first moment; the moments' bar steps
-// inside the shown one alone, ◀ and ▶ stopping at its ends; Reset, the
-// first one's first moment
-test("transactions: one at a time; stepping stays inside it; Reset",
+// The transactions, tabs across the figure's top: a tab, a cut to its
+// first moment, ← → between the tabs; the moments' bar steps inside the
+// shown one alone, ◀ and ▶ stopping at its ends; Reset, the first
+// one's first moment
+test("transactions: tabs; stepping stays inside one; Reset",
   async ({ page }) => {
     await page.emulateMedia({ reducedMotion: "no-preference" });
     await open(page, STEPPER.O2);
-    const tx = (n: number) => page.locator(`.mbar .picker [data-tx="${n}"]`);
+    const tx = (n: number) => page.locator(`.mbar [role=tab][data-tx="${n}"]`);
     const count = page.locator(".mbar .rcount");
     const next = page.locator('.mbar [data-t="next"]');
     const prev = page.locator('.mbar [data-t="prev"]');
-    await expect(tx(3)).toHaveAttribute("aria-checked", "true");
+    await expect(tx(3)).toHaveAttribute("aria-selected", "true");
     await expect(count).toHaveText("1 / 2");
     await expect(prev).toBeDisabled();
     await next.click();
@@ -140,12 +144,12 @@ test("transactions: one at a time; stepping stays inside it; Reset",
     await page.keyboard.press("ArrowRight");
     await page.keyboard.press("End");
     await still(page);
-    await expect(tx(3)).toHaveAttribute("aria-checked", "true");
+    await expect(tx(3)).toHaveAttribute("aria-selected", "true");
     await expect(count).toHaveText("2 / 2");
     // (the other transaction: a cut, its first moment; ◀ disabled)
     await record(page);
     await tx(12).click();
-    await expect(tx(12)).toHaveAttribute("aria-checked", "true");
+    await expect(tx(12)).toHaveAttribute("aria-selected", "true");
     await expect(count).toHaveText("1 / 5");
     await expect(prev).toBeDisabled();
     expect((await seen(page)).moments).toHaveLength(1);
@@ -156,19 +160,27 @@ test("transactions: one at a time; stepping stays inside it; Reset",
     await page.keyboard.press("Home");
     await still(page);
     await expect(count).toHaveText("1 / 5");
-    await expect(tx(12)).toHaveAttribute("aria-checked", "true");
+    await expect(tx(12)).toHaveAttribute("aria-selected", "true");
+    // (← → on the tabs: the other transaction)
+    await tx(12).focus();
+    await page.keyboard.press("ArrowLeft");
+    await expect(tx(3)).toHaveAttribute("aria-selected", "true");
+    await expect(count).toHaveText("1 / 2");
+    await page.keyboard.press("ArrowRight");
+    await expect(tx(12)).toHaveAttribute("aria-selected", "true");
+    await expect(count).toHaveText("1 / 5");
     // (Reset: the first transaction, its first moment)
     await next.click();
     await still(page);
     await page.locator(".reset").click();
-    await expect(tx(3)).toHaveAttribute("aria-checked", "true");
+    await expect(tx(3)).toHaveAttribute("aria-selected", "true");
     await expect(count).toHaveText("1 / 2");
   });
 
 test("reduced motion: a move is a jump, no flash", async ({ page }) => {
   await open(page, STEPPER.O2);
   await record(page);
-  await page.locator('.mbar .picker [data-tx="12"]').click();
+  await page.locator('.mbar [role=tab][data-tx="12"]').click();
   await page.locator('.mbar [data-t="next"]').click();
   await page.locator('.mbar [data-t="next"]').click();
   await expect(page.locator(".mbar .rcount")).toHaveText("3 / 5");

@@ -100,6 +100,8 @@ export interface Moment extends MomentRef {
   // (a scene's moment: what is selected on arriving there, written by
   // hand; a reader's own selection holds until the next moment)
   select?: string;
+  // (and its groups shut there, its trees' (default: the scene's))
+  collapse?: string[];
   // annotations: filled from the run (authoring) or the snapshot
   // (reader); never written by hand
   pc?: number; op?: string; depth?: number;

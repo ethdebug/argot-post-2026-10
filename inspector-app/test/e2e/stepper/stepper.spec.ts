@@ -89,9 +89,8 @@ test("optimized-locals: after a move, storage opens with its rows",
     await expect(lens).not.toHaveAttribute("data-held", "");
   });
 
-// A stack word is drawn as every word is, then abbreviated: `len`
-// selected, its bytes lit, the "…" among them lit for the bytes it
-// stands for
+// A stack word is drawn as every word is, then cut to what fits: `len`
+// selected, its bytes lit, the "…" for the bytes cut lit as they are
 test("optimized-locals: len selected lights its stack bytes",
   async ({ page }) => {
     await page.setViewportSize({ width: 1024, height: 900 });
@@ -102,8 +101,42 @@ test("optimized-locals: len selected lights its stack bytes",
     await page.locator(".mbar").focus();
     await page.keyboard.press("Escape");
     await page.locator('li[data-path="len"] > .row').click();
-    const word = page.locator(".view[data-location=stack] .wrow.on .ab");
-    await expect(word).toHaveText(/^0x00…0+22$/);
-    expect(await word.locator(".b.hl").count()).toBeGreaterThan(1);
+    // (its bytes: the same cells as every word's, the low ones shown at
+    // the row's right edge, "…" for the rest, lit as they are)
+    const word = page.locator(".view[data-location=stack] .wrow.on .bytes");
+    const shown = word.locator(".oct > .b:not([hidden])");
+    await expect(shown.last()).toHaveText("22");
+    await expect(shown.last()).toHaveClass(/\bhl\b/);
+    expect(await shown.count()).toBeGreaterThan(3);
+    expect(await shown.count()).toBeLessThan(32);
+    await expect(word.locator(".el")).toBeVisible();
     await expect(word.locator(".el")).toHaveClass(/\bhl\b/);
+    // (the row's right edge: no room left after its last byte)
+    const gap = await word.evaluate((b) => b.getBoundingClientRect().right -
+      [...b.querySelectorAll(".oct > .b:not([hidden])")].at(-1)!
+        .getBoundingClientRect().right);
+    expect(gap).toBeLessThan(12);
+  });
+
+// A moment's own groups shut or open on arriving there (alice's first
+// moment: `player` open, its fields' colours in memory); a group shut
+// colours its bytes as itself, never in its hidden fields' colours
+test("optimized-locals: player open on arriving; shut, one colour",
+  async ({ page }) => {
+    await page.setViewportSize({ width: 1440, height: 1000 });
+    await page.goto("./embed.html#scene=optimized-locals");
+    await page.locator('.mbar [role=tab][data-tx="12"]').click();
+    const player = page.locator('li[data-path="player"]');
+    await expect(player).not.toHaveClass(/collapsed/);
+    await expect(page.locator('li[data-path="player.score"] > .row'))
+      .toBeVisible();
+    const colours = () => page.locator(
+      ".view[data-location=memory] .b.hl").evaluateAll((bs) =>
+      [...new Set(bs.map((b) => b.className.match(/\bpk\d+\b/)?.[0] ??
+        "pk0"))].sort());
+    await expect.poll(async () => (await colours()).length)
+      .toBeGreaterThan(2);
+    await player.locator(":scope > .chev").click();
+    await expect(player).toHaveClass(/collapsed/);
+    await expect.poll(colours).toEqual(["pk0"]);
   });
