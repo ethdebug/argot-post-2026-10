@@ -176,6 +176,14 @@
   .lens.stepper > [data-area="wide"] { transition: none; }
 }
 .lens.stepper .view[data-open="false"] .pedge { display: none; }
+/* (shut pages at the bottom, after the open ones, each in its order: a
+   pile of tabs, each over the one before by a little, as cards slid
+   to the back of a deck; their move, stepper.tsx) */
+.lens.stepper .pages .view[data-open="false"] { order: 1; }
+.lens.stepper .pages .view[data-open="false"] ~ .view[data-open="false"] {
+  margin-top: -24px; margin-left: 6px; }
+.lens.stepper .pages .view[data-open="false"] ~ .view[data-open="false"]
+  ~ .view[data-open="false"] { margin-left: 12px; }
 /* (a tab: a button, the tree's chevron its cue; shut, muted) */
 .lens.stepper .ptab { cursor: pointer;
   display: inline-flex; align-items: center; gap: 4px; }
@@ -252,8 +260,8 @@
 /* (the tree's edge labels at its right: the tree's own button for its
    lit rows takes the middle) */
 .lens.stepper .vars > .pedge { place-items: center end; }
-/* (the stack's column, beside the pages: its view a row, its tab then
-   its box) */
+/* (the stack's column, beside the pages: its view a row, its box then
+   its tab, on the side facing the other pages) */
 @media (min-width: 760px) {
   .lens.stepper > .stackcol { contain: size;
     width: calc(var(--stack-w) + 1.6em);
@@ -263,13 +271,18 @@
   .lens.stepper .stackcol .view[data-open="false"] .pagebox {
     display: none; }
   .lens.stepper .stackcol .view { display: flex; height: 100%; }
+  .lens.stepper .stackcol .view-head { order: 1; }
   .lens.stepper .stackcol .pagebox { flex: 1; min-width: 0; }
   .lens.stepper .stackcol .pagebox > .rows { height: 100%; }
-  /* (its tab along its left edge, reading upward, at its top: the
+  /* (its tab along its right edge, reading upward, at its top: the
      other tabs' box, turned; one day the column's handle) */
   .lens.stepper .stackcol .view-name { writing-mode: vertical-rl;
     transform: rotate(180deg); align-self: flex-start;
-    padding: 10px 2px 10px 1px; border: 1px solid var(--line);
-    border-left: 0; border-radius: 0 6px 6px 0; gap: 6px; }
-  .lens.stepper .stackcol .rows { border-top-left-radius: 0; }
+    padding: 10px 1px 10px 2px; border: 1px solid var(--line);
+    border-right: 0; border-radius: 6px 0 0 6px; gap: 6px; }
+  .lens.stepper .stackcol .rows { border-top-left-radius: 6px;
+    border-top-right-radius: 0; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .lens.stepper > .stackcol { transition: none; }
 }

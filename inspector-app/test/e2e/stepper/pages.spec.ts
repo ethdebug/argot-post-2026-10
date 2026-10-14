@@ -60,6 +60,11 @@ for (const width of [1024, 390]) {
       calldata: false, memory: true, storage: false });
     await page.waitForTimeout(800);
     expect(await height(page)).toBe(h);
+    // (the shut ones at the bottom, under the open one: a pile)
+    const top = (l: string) => page.locator(`.view[data-location=${l}]`)
+      .evaluate((e) => e.getBoundingClientRect().top);
+    expect(await top("memory")).toBeLessThan(await top("calldata"));
+    expect(await top("calldata")).toBeLessThan(await top("storage"));
     // (a choice, then Reset: the first moment, as it has them)
     await tab(page, "calldata").click();
     await expect(tab(page, "calldata")).toHaveAttribute("aria-expanded",
