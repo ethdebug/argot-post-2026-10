@@ -85,7 +85,11 @@ test("optimized-locals: after a move, storage opens with its rows",
     await expect(row.locator(".name")).toHaveText("motd");
     const h = (await row.boundingBox())!.height;
     expect(h).toBeGreaterThan(12);
-    expect(h).toBeLessThan(60);
+    // (a row as tall as what it draws, a long value's lines too: not
+    // held at another height)
+    expect(await row.evaluate((e) => e.style.height)).toBe("");
+    expect(await row.evaluate((e) => e.scrollHeight <= e.clientHeight + 1))
+      .toBe(true);
     await expect(lens).not.toHaveAttribute("data-held", "");
   });
 
