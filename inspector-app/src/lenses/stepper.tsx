@@ -21,7 +21,7 @@ import type { Display, LensSpec, ViewSpec } from "../ui/types";
 // under another. A page is open, or shut to its tab (Dump.tsx): the
 // open ones share what the tabs leave, each as much as its rows need
 // while that is less than an equal share, the rest split among the
-// others; room left over, split among them all. Its height animates
+// others; room none needs stays at the bottom of the area. Its height animates
 // (debugger.css). Measured anew as rows come, as the shut ones change,
 // and on resize; held while a move runs (a move's steps would open and
 // shut them by turns), laid out once it rests.
@@ -36,22 +36,16 @@ const need = (box: HTMLElement) => {
     parseFloat(cs.borderTopWidth) + parseFloat(cs.borderBottomWidth);
 };
 // share `room` among `needs`: each its need, to an equal share of what is
-// left; what is over, split among them all
+// left (whole pixels); what none needs stays under them, the area's
 export function share(room: number, needs: number[]): number[] {
   const out = needs.map(() => 0);
   let left = Math.max(0, room);
   const order = needs.map((_, k) => k).sort((a, b) => needs[a] - needs[b]);
   order.forEach((k, j) => {
-    out[k] = Math.min(needs[k], left / (order.length - j));
+    out[k] = Math.floor(Math.min(needs[k], left / (order.length - j)));
     left -= out[k];
   });
-  // (whole pixels, summing to the room: what the rounding leaves, a
-  // pixel each to the first)
-  const hs = out.map((h) => h + left / Math.max(1, needs.length));
-  const whole = hs.map(Math.floor);
-  let rest = Math.round(hs.reduce((a, b) => a + b, 0) -
-    whole.reduce((a, b) => a + b, 0));
-  return whole.map((h) => rest-- > 0 ? h + 1 : h);
+  return out;
 }
 
 const Pages = panel("spanel", "st");
@@ -60,6 +54,13 @@ function Wide({ children }: { children: ReactNode }) {
   useLayoutEffect(() => {
     const lens = me.current?.closest<HTMLElement>(".lens");
     if (!lens) return;
+    // (the pages' places as last laid out, and which were open: a page
+    // that opens or shuts moves to its new place from its old one)
+    const places = new Map<Element, number>();
+    let was = "";
+    let settle: ReturnType<typeof setTimeout> | undefined;
+    const still = () =>
+      matchMedia("(prefers-reduced-motion: reduce)").matches;
     const fit = () => {
       if (lens.hasAttribute("data-playing")) return;
       const room = parseFloat(getComputedStyle(lens)
@@ -83,6 +84,25 @@ function Wide({ children }: { children: ReactNode }) {
       const gap = parseFloat(getComputedStyle(lens.querySelector(
         ".pages .views") ?? lens).rowGap) || 0;
       const open = group.filter((v) => v.dataset.open === "true");
+      // (a page shut goes to the bottom, opened back to its place,
+      // debugger.css: from where it was, in the heights' time)
+      const pages = [...lens.querySelectorAll<HTMLElement>(
+        ":scope > [data-area=wide] .view[data-open]")];
+      const now = pages.map((v) => v.dataset.open).join();
+      if (was && now !== was && !still()) {
+        for (const v of pages) {
+          const from = places.get(v);
+          const dy = from === undefined ? 0 : from -
+            v.getBoundingClientRect().top;
+          if (!dy) continue;
+          v.style.transition = "none";
+          v.style.transform = `translateY(${dy}px)`;
+          void v.offsetHeight;
+          v.style.transition = "transform 420ms cubic-bezier(0.4, 0, 0.2, 1)";
+          v.style.transform = "";
+        }
+      }
+      was = now;
       // (a phone's stack, in an area of its own over the others: the
       // area's gap to them too)
       const between = gap * Math.max(0, group.length - 1);
@@ -96,6 +116,11 @@ function Wide({ children }: { children: ReactNode }) {
         const h = `${k < 0 ? 0 : hs[k]}px`;
         if (b && b.style.height !== h) b.style.height = h;
       }
+      // (their places once laid out: after the heights' move)
+      clearTimeout(settle);
+      settle = setTimeout(() => {
+        for (const v of pages) places.set(v, v.getBoundingClientRect().top);
+      }, still() ? 0 : 450);
       // (the stack's column, beside them: its own height, the room)
       if (stack && !group.includes(stack)) box(stack)?.style
         .removeProperty("height");
@@ -130,6 +155,7 @@ function Wide({ children }: { children: ReactNode }) {
     return () => {
       ro.disconnect();
       mo.disconnect();
+      clearTimeout(settle);
       removeEventListener("resize", fit);
     };
   }, []);
