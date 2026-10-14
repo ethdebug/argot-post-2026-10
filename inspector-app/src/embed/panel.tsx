@@ -9,7 +9,8 @@
 // "ethdebug:stuck", stuck, edge: "top" | "bottom" }): flush with that
 // edge then, a card with its corners when not (data-stuck; panel.css);
 // the figure hears it too. It follows the host's theme, as the figure's frame does
-// (theme.ts).
+// (theme.ts). With ondemand=1 (the figure's panel=ondemand), it shows only
+// while a walkthrough runs, and its height message says whether (`open`).
 import "../../../shared/appendix.css";
 import "../style.css";
 import "../ui/code.css";
@@ -46,12 +47,17 @@ addEventListener("message", (e) => {
 // `variants`), so the frame never changes height as the reader steps,
 // nor as the panel loads; posted once known ({ ready: true }), then on a
 // change of width. Until then, nothing: the host keeps the room heights.json says.
-let last = -1;
+// (ondemand=1: shown only while a walkthrough runs; its height message
+// says so, `open`, the host's room for it 0 meanwhile)
+const onDemand = hash.get("ondemand") === "1";
+let last = "";
 let posted = false;
-const post = (height: number) => {
-  if (height === last || height <= 0) return;
-  last = height;
+const post = (height: number, open?: boolean) => {
+  const key = `${height}|${open}`;
+  if (key === last || height <= 0) return;
+  last = key;
   parent.postMessage({ type: "ethdebug:height", height,
+    ...onDemand ? { open: !!open } : {},
     ...posted ? {} : { ready: true } }, "*");
   posted = true;
 };
@@ -103,11 +109,16 @@ function Panel() {
   }, [vs]);
   // (posted once it holds still: the steps' details unfold as they are
   // drawn, by an animation)
+  const open = !!m?.walking;
   useEffect(() => {
     if (!tall) return;
-    const t = setTimeout(() => post(tall), 400);
+    const t = setTimeout(() => post(tall, open), 400);
     return () => clearTimeout(t);
-  }, [tall]);
+  }, [tall, open]);
+  // (on demand, opened or closed: said at once)
+  useEffect(() => {
+    if (onDemand && tall) post(tall, open);
+  }, [open, tall]);
   useEffect(() => {
     const h = (e: MessageEvent) => {
       if (e.data?.type === "model") {
@@ -136,7 +147,8 @@ function Panel() {
   }, [m]);
   const none = () => {};
   return <>
-    {m && <div className="pshown" style={{ minHeight: tall || undefined }}>
+    {m && (!onDemand || m.walking) && <div className="pshown"
+      style={{ minHeight: tall || undefined }}>
       <PanelView model={m} act={act} domId="details" compact /></div>}
     <div ref={measure} className="pmeasure" aria-hidden="true" inert>
       {vs?.map((v, k) => <PanelView key={k} model={{ ...v, exit: undefined }}
