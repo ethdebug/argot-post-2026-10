@@ -32,19 +32,30 @@ const need = (box: HTMLElement) => {
   const kids = [...box.children] as HTMLElement[];
   const body = kids.length ? kids[kids.length - 1].getBoundingClientRect()
     .bottom - kids[0].getBoundingClientRect().top : 0;
-  return body + parseFloat(cs.paddingTop) + parseFloat(cs.paddingBottom) +
-    parseFloat(cs.borderTopWidth) + parseFloat(cs.borderBottomWidth);
+  return Math.ceil(body + parseFloat(cs.paddingTop) +
+    parseFloat(cs.paddingBottom) + parseFloat(cs.borderTopWidth) +
+    parseFloat(cs.borderBottomWidth));
 };
-// share `room` among `needs`: each its need, to an equal share of what is
-// left (whole pixels); what none needs stays under them, the area's
-export function share(room: number, needs: number[]): number[] {
-  const out = needs.map(() => 0);
-  let left = Math.max(0, room);
-  const order = needs.map((_, k) => k).sort((a, b) => needs[a] - needs[b]);
-  order.forEach((k, j) => {
-    out[k] = Math.floor(Math.min(needs[k], left / (order.length - j)));
-    left -= out[k];
-  });
+// share `room` among `needs`: each its need, when they all fit (what
+// none needs stays under them, the area's); else each a part of the
+// room as its need is of theirs, whole pixels, at least `least` (or its
+// need, if less): their lit rows scroll into view (ui/Dump.tsx)
+export function share(room: number, needs: number[], least = 0): number[] {
+  const all = needs.reduce((a, b) => a + b, 0);
+  room = Math.max(0, Math.floor(room));
+  if (all <= room) return needs.map((n) => Math.ceil(n));
+  const min = needs.map((n) => Math.min(n, least));
+  const over = Math.max(0, room - min.reduce((a, b) => a + b, 0));
+  const extra = needs.map((n, k) => n - min[k]);
+  const sum = extra.reduce((a, b) => a + b, 0) || 1;
+  const out = needs.map((_, k) => min[k] + Math.floor(over * extra[k] / sum));
+  // (the pixels the rounding leaves: to the neediest)
+  let rest = room - out.reduce((a, b) => a + b, 0);
+  const order = needs.map((_, k) => k).sort((a, b) => extra[b] - extra[a]);
+  for (let j = 0; rest > 0 && order.length; j = (j + 1) % order.length) {
+    out[order[j]]++;
+    rest--;
+  }
   return out;
 }
 
@@ -103,13 +114,34 @@ function Wide({ children }: { children: ReactNode }) {
         }
       }
       was = now;
-      // (a phone's stack, in an area of its own over the others: the
-      // area's gap to them too)
-      const between = gap * Math.max(0, group.length - 1);
+      // (what the boxes have, the room less all else as it is laid out:
+      // the tabs, the gaps, the pile's overlaps; each area's pages from
+      // its top to the last one's bottom, less their boxes, as laid out,
+      // not as a page's move draws it, a transform)
+      const shift = (v: HTMLElement) => new DOMMatrix(getComputedStyle(v)
+        .transform === "none" ? "" : getComputedStyle(v).transform).m42;
+      const extent = (area: Element | null) => {
+        const vs = group.filter((v) => area?.contains(v));
+        if (!area || !vs.length) return 0;
+        const top = area.getBoundingClientRect().top;
+        const bottom = Math.max(...vs.map((v) =>
+          v.getBoundingClientRect().bottom - shift(v)));
+        return bottom - top - vs.reduce((n, v) => n + (box(v)
+          ?.getBoundingClientRect().height ?? 0), 0);
+      };
+      const areaOf = (n: string) => lens.querySelector(
+        `:scope > [data-area=${n}]`);
+      const fixed = extent(areaOf("wide")) + (stack && group.includes(stack)
+        ? extent(areaOf("narrow")) + gap : 0);
+      void tabs;
       const rowsOf = (v: HTMLElement) => v.querySelector<HTMLElement>(
         ".rows");
-      const hs = share(room - tabs - between, open.map((v) =>
-        rowsOf(v) ? need(rowsOf(v)!) : 0));
+      // (when they cannot all have their rows: each at least two of its
+      // rows' height, about)
+      const least = 2 * Math.max(0, ...[...lens.querySelectorAll<
+        HTMLElement>(".pages .rows .wrow")].map((r) => r.offsetHeight));
+      const hs = share(room - fixed, open.map((v) =>
+        rowsOf(v) ? need(rowsOf(v)!) : 0), least);
       for (const v of group) {
         const b = box(v);
         const k = open.indexOf(v);
