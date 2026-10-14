@@ -27,9 +27,9 @@ for (const width of [1024, 390]) {
     await page.goto("./embed.html#scene=optimized-locals");
     await expect(page.locator(".mbar .dot.cur, .mbar .rcount").first())
       .toBeVisible();
-    // (carol's join, `name` selected: the call and memory hold it; the
-    // stack and storage nothing of it)
-    await expect.poll(() => open(page)).toEqual({ stack: false,
+    // (carol's join, her locals selected: the stack holds `len`, the
+    // call and memory `name`; storage nothing of them)
+    await expect.poll(() => open(page)).toEqual({ stack: true,
       calldata: true, memory: true, storage: false });
     await page.waitForTimeout(800);
     const h = await height(page);
@@ -46,7 +46,7 @@ for (const width of [1024, 390]) {
     expect(await box(page, "memory")).toBeLessThanOrEqual(before);
     expect(await height(page)).toBe(h);
     // (every page shut: the tabs alone, the height kept)
-    for (const l of ["calldata", "memory", "storage"]) {
+    for (const l of ["stack", "calldata", "memory", "storage"]) {
       await tab(page, l).click();
     }
     await expect.poll(() => open(page)).toEqual({ stack: false,
@@ -71,7 +71,7 @@ for (const width of [1024, 390]) {
     await expect(tab(page, "calldata")).toHaveAttribute("aria-expanded",
       "true");
     await page.locator(".reset").click();
-    await expect.poll(() => open(page)).toEqual({ stack: false,
+    await expect.poll(() => open(page)).toEqual({ stack: true,
       calldata: true, memory: true, storage: false });
     await page.waitForTimeout(800);
     expect(await height(page)).toBe(h);
