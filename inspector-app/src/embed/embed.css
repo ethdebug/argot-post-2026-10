@@ -68,6 +68,9 @@ html, body { margin: 0; overflow: hidden; background: transparent; }
    as its text) */
 #embed .tree, #embed #tree, #embed pre.src { overflow: visible !important;
   height: auto !important; max-height: none !important; }
+/* (the stepper's blocks: the debugger lens's gap between them,
+   lenses/debugger.css) */
+#embed .lens.stepper { row-gap: 18px; }
 /* (but the stepper's variables scroll inside their column, as tall as
    its pages: lenses/debugger.css) */
 #embed .lens.stepper .sidecol .tree { overflow-y: auto !important;

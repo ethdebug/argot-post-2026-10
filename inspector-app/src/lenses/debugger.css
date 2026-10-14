@@ -122,31 +122,75 @@
   white-space: normal; font-family: system-ui, -apple-system, sans-serif; }
 .lens.soldb .mat .error { color: var(--old); }
 
-/* The bugc stepper (lenses/stepper.tsx): the moments' bar; the pages
-   and the variables, side by side (one column on a phone: the pages
-   first); the code under them, the walkthrough's pointer box. Every box
-   one size at every moment: the pages as tall as their rows over the
-   scene (engine/replay.ts), to a cap, scrolling inside past it; the
-   variables' column as tall as the pages', the tree scrolling inside
-   it; the code pane a fixed number of lines. */
-.lens.stepper { display: grid; gap: 14px 28px; align-items: start;
+/* The bugc stepper (lenses/stepper.tsx): the moments' bar, a plain row;
+   the stack's column, the pages and the variables, side by side (one
+   column on a phone: the stack a page over the others); the code under
+   them, the walkthrough's pointer box. The debugger lens's gaps, 18px
+   and 28px, between every block. Every box one size at every moment:
+   the pages share one room (--pages-h), open or shut to their tabs; the
+   variables' column as tall, the tree scrolling inside it; the code
+   pane a fixed number of lines. */
+.lens.stepper { display: grid; gap: 18px 28px; align-items: start;
+  --pages-h: 400px;
   grid-template-columns: minmax(0, 1fr);
-  grid-template-areas: "moves" "wide" "side" "src"; }
+  grid-template-areas: "moves" "narrow" "wide" "side" "src"; }
 @media (min-width: 760px) {
-  /* (the pages at least 580px: a word one line of 32 bytes) */
-  .lens.stepper { grid-template-columns: minmax(580px, 3fr) minmax(0, 2fr);
-    grid-template-areas: "moves moves" "wide side" "src src"; }
+  /* (the stack a narrow column at the left, as tall as the pages beside
+     it, the debugger's width (--stack-w); the pages three fifths of the
+     rest, one width whether the stack is open or shut (their type, and
+     so the figure's, follows their width: ui/fit.ts); the variables
+     the rest) */
+  .lens.stepper { --stack-w: 9.5em; --pages-h: 458px;
+    grid-template-columns: auto calc((100% - var(--stack-w) - 1.6em -
+      56px) * 0.6) minmax(0, 1fr);
+    grid-template-areas: "moves moves moves" "narrow wide side"
+      "src src src"; }
 }
 /* (the pages: a box each, its location on a tab joined to its top; its
    rows scroll inside it past its cap) */
-.lens.stepper .pages .views { row-gap: 8px; }
-.lens.stepper .pages .view-head { position: static; padding: 0;
-  background: none; }
-.lens.stepper .pages .view-name { display: inline-block; margin: 0;
-  padding: 2px 10px 1px; background: var(--panel);
+.lens.stepper .pages .views { row-gap: 18px; padding-bottom: 0; }
+@media (min-width: 760px) {
+  .lens.stepper > :is([data-area="wide"], .stackcol) {
+    height: var(--pages-h); }
+}
+/* (a page's height: set, shared, ui/../stepper.tsx; it moves as the
+   rows' changes do, ui/transition.ts's duration and easing; shut: its
+   tab alone) */
+.lens.stepper .pages .pagebox { overflow: hidden;
+  transition: height 420ms cubic-bezier(0.4, 0, 0.2, 1); }
+.lens.stepper :is(.pages, .stackcol) .pagebox > .rows { height: 100%; }
+@media (max-width: 759.98px) {
+  .lens.stepper .stackcol .pagebox { overflow: hidden;
+    transition: height 420ms cubic-bezier(0.4, 0, 0.2, 1); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .lens.stepper :is(.pages, .stackcol) .pagebox { transition: none; }
+}
+/* (a phone: the pages' area, its height what the stack's leaves, moving
+   with it: together one height throughout) */
+@media (max-width: 759.98px) {
+  .lens.stepper > [data-area="wide"] {
+    transition: height 420ms cubic-bezier(0.4, 0, 0.2, 1); }
+}
+@media (max-width: 759.98px) and (prefers-reduced-motion: reduce) {
+  .lens.stepper > [data-area="wide"] { transition: none; }
+}
+.lens.stepper .view[data-open="false"] .pedge { display: none; }
+/* (a tab: a button, the tree's chevron its cue; shut, muted) */
+.lens.stepper .ptab { cursor: pointer;
+  display: inline-flex; align-items: center; gap: 4px; }
+.lens.stepper .ptab .pchev svg { width: 1em; height: 1em; display: block;
+  transition: transform 0.15s; }
+.lens.stepper .ptab[aria-expanded="false"] { color: var(--muted); }
+.lens.stepper .ptab[aria-expanded="false"] .pchev svg {
+  transform: rotate(-90deg); }
+.lens.stepper :is(.pages, .stackcol) .view-head { position: static;
+  padding: 0; background: none; }
+.lens.stepper :is(.pages, .stackcol) .view-name {
+  margin: 0; padding: 2px 10px 1px; background: var(--panel);
   border: 1px solid var(--line); border-bottom: 0;
   border-radius: 6px 6px 0 0; }
-.lens.stepper .pages .rows { border-top-left-radius: 0;
+.lens.stepper :is(.pages, .stackcol) .rows { border-top-left-radius: 0;
   box-sizing: border-box; overflow-y: auto; }
 /* (a page, and the variables' tree, scroll as the pointer's box does,
    PointerYaml.tsx: no scrollbar, so a page's rows keep the column's
@@ -166,7 +210,7 @@
   --md: 18px; }
 /* (the variables: as tall as the pages, the tree scrolling inside) */
 .lens.stepper .sidecol { display: flex; flex-direction: column;
-  gap: 12px; min-width: 0; align-self: stretch; height: 29.2em;
+  gap: 18px; min-width: 0; align-self: stretch; height: 29.2em;
   contain: size; }
 @media (min-width: 760px) {
   .lens.stepper .sidecol { height: auto; }
@@ -191,15 +235,41 @@
   margin: 0; padding: 0.5em 0; font-size: inherit; line-height: inherit; }
 .lens.stepper .code.pane .line { box-sizing: border-box;
   padding-right: 0.6em; }
-/* (the moments' bar: the walkthrough's, two lines, its controls and the
-   caption) */
-.rbar.mbar { height: auto; gap: 4px; padding: 6px 12px; }
+/* (the moments' bar: the walkthrough's lines, its controls and the
+   caption, in no box: a plain row, as the debugger's moves) */
+.rbar.mbar { height: auto; gap: 4px; padding: 0; background: none;
+  border: 0; border-radius: 0; }
 .rbar.mbar .rline2 { display: flex; height: auto; font-size: inherit;
   color: inherit; }
 .rbar.mbar .rline3, .rbar.mbar .rcap { display: block; }
+/* (a phone: room for the longest caption, five lines at 358px) */
+@media (max-width: 759.98px) {
+  .rbar.mbar .rcap { height: calc(5 * 1.35em); }
+}
 /* (the walkthrough's hint at rest, whole: on two lines in this column) */
 .lens.stepper .rbar .rline1:has(> .rsel.muted) { height: auto;
   white-space: normal; }
 /* (the tree's edge labels at its right: the tree's own button for its
    lit rows takes the middle) */
 .lens.stepper .vars > .pedge { place-items: center end; }
+/* (the stack's column, beside the pages: its view a row, its tab then
+   its box) */
+@media (min-width: 760px) {
+  .lens.stepper > .stackcol { contain: size;
+    width: calc(var(--stack-w) + 1.6em);
+    transition: width 420ms cubic-bezier(0.4, 0, 0.2, 1); }
+  /* (shut: the column its tab alone) */
+  .lens.stepper > .stackcol:has(.view[data-open="false"]) { width: 1.6em; }
+  .lens.stepper .stackcol .view[data-open="false"] .pagebox {
+    display: none; }
+  .lens.stepper .stackcol .view { display: flex; height: 100%; }
+  .lens.stepper .stackcol .pagebox { flex: 1; min-width: 0; }
+  .lens.stepper .stackcol .pagebox > .rows { height: 100%; }
+  /* (its tab along its left edge, reading upward, at its top: the
+     other tabs' box, turned; one day the column's handle) */
+  .lens.stepper .stackcol .view-name { writing-mode: vertical-rl;
+    transform: rotate(180deg); align-self: flex-start;
+    padding: 10px 2px 10px 1px; border: 1px solid var(--line);
+    border-left: 0; border-radius: 0 6px 6px 0; gap: 6px; }
+  .lens.stepper .stackcol .rows { border-top-left-radius: 0; }
+}

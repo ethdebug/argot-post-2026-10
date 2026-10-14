@@ -256,8 +256,10 @@ test("embed.html#scene=pitfall-compiler: Solidity's rule 0, Vyper's layout " +
 // The height message carries the storage dump's row pitch (`row`: one
 // row's top to the next's, at the frame's width), and none for a scene
 // with no storage dump
+// (not optimized-locals: its storage page is shut at its first moment,
+// no local reading storage there; no rows, no pitch)
 for (const [id, has] of [["mid", true], ["raw-hero", true],
-  ["pitfall-compiler", true], ["optimized-locals", true]] as const) {
+  ["pitfall-compiler", true]] as const) {
   test(`embed.html#scene=${id}: its height message's row pitch`,
     async ({ page }) => {
       await page.setViewportSize({ width: 1024, height: 900 });

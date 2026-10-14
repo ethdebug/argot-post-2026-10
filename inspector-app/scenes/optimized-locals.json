@@ -10,32 +10,32 @@
     {
       "tx": 3,
       "step": 166,
-      "label": "carol joins. `len` is a word on the stack. `name` has no copy: its place is the call's own bytes, found through a word in memory."
+      "label": "Carol joins the game. `len`, the length of her name, sits on the stack. `name` isn't copied anywhere. The compiler's data points straight at the name's bytes in the call data, using an offset saved in memory."
     },
     {
       "tx": 12,
       "step": 307,
-      "label": "alice plays. `player` gets a place: a copy of her record, in memory."
+      "label": "Alice plays. The code copies her player record from storage into memory, and `player` now lives there."
     },
     {
       "tx": 12,
       "step": 559,
-      "label": "The optimizer inlined `_applyCombo`. Inside it, only its own locals are in scope, and `mult` has no place yet."
+      "label": "The optimizer has inlined `_applyCombo`: its code runs right here, with no real call. The compiler's data still marks where the call begins, so only `_applyCombo`'s own variables are listed. `mult` has no location yet."
     },
     {
       "tx": 12,
       "step": 564,
-      "label": "`mult` gets a place: 8 bytes of memory."
+      "label": "`mult` now has a location: 8 bytes of memory."
     },
     {
       "tx": 12,
       "step": 576,
-      "label": "`mult = combo` made no copy. `mult`'s place is now `combo`'s own bytes: one place, two names."
+      "label": "`mult = combo` doesn't copy anything. The compiler's data now points `mult` at `combo`'s own bytes, so the two variables share one location."
     },
     {
       "tx": 12,
       "step": 600,
-      "label": "Back in `play()`. `_applyCombo`'s locals are out of scope, and `gained` gets a place."
+      "label": "Back in `play()`. `_applyCombo`'s variables are gone, and `gained`, the result it returned, now has a location in memory."
     }
   ],
   "controls": "prev-next",
@@ -44,7 +44,8 @@
     "collapse": [
       "@storage",
       "player"
-    ]
+    ],
+    "related": true
   },
   "replay": true
 }
