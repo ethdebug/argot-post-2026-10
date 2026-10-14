@@ -138,7 +138,11 @@ function Wide({ children }: { children: ReactNode }) {
         const b = box(v);
         const k = open.indexOf(v);
         const h = `${k < 0 ? 0 : hs[k]}px`;
-        if (b && b.style.height !== h) b.style.height = h;
+        if (b && b.style.height !== h) {
+          b.style.height = h;
+          // (its lit rows into view for the height it moves to: Dump.tsx)
+          v.dispatchEvent(new Event("ethdebug:fit"));
+        }
       }
       // (their places once laid out: after the heights' move)
       clearTimeout(settle);

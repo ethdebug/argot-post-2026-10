@@ -886,10 +886,25 @@ export function Dump(p: { id: ViewId; location: Location; data: DataRef;
   const rowsBox = useRef<HTMLDivElement>(null);
   const litKey = litRows.join(" ");
   const top0 = p.location === "stack";
-  useLayoutEffect(() => {
+  // (a page's rows' box, its height set and moving to it (its page box's,
+  // lenses/stepper.tsx, which says "ethdebug:fit" when it sets one): the
+  // scroll for the box as it will be, so its rows do not slide as it
+  // grows; a page shut, its box no height: none, until it opens)
+  const bring = () => {
     const v = rowsBox.current;
-    if (!v || v.scrollHeight <= v.clientHeight ||
-      !/auto|scroll/.test(getComputedStyle(v).overflowY)) return;
+    if (!v || !/auto|scroll/.test(getComputedStyle(v).overflowY)) return;
+    const set = v.parentElement?.classList.contains("pagebox")
+      ? parseFloat(v.parentElement.style.height) : NaN;
+    const to = Number.isNaN(set) ? undefined : set;
+    const h = to === undefined ? v.clientHeight
+      : Math.max(0, to - (v.offsetHeight - v.clientHeight));
+    if (!h) return;
+    // (no further down than the box as it will be lets it: the browser
+    // would bring it back up as the box grows, a slide)
+    if (to !== undefined && v.scrollTop > v.scrollHeight - h) {
+      v.scrollTop = Math.max(0, v.scrollHeight - h);
+    }
+    if (v.scrollHeight <= h) return;
     if (!litKey) {
       if (top0) v.scrollTop = 0;
       return;
@@ -903,16 +918,29 @@ export function Dump(p: { id: ViewId; location: Location; data: DataRef;
     const cs = getComputedStyle(v);
     const b = v.getBoundingClientRect();
     const top = b.top + v.clientTop + (parseFloat(cs.paddingTop) || 0);
-    const bottom = b.top + v.clientTop + v.clientHeight -
+    const bottom = b.top + v.clientTop + h -
       (parseFloat(cs.paddingBottom) || 0);
     // (a popover's line: about half a word's row)
     const pop = Math.min(a.height, 1.8 * (parseFloat(cs.fontSize) || 12));
     const need = z.bottom - a.top + pop;
     if (a.top >= top - 0.5 && z.bottom + pop <= bottom + 0.5) return;
     const room = bottom - top - need;
-    v.scrollTop += a.top - top - (room >= a.height ? a.height
+    const want = v.scrollTop + a.top - top - (room >= a.height ? a.height
       : Math.max(0, room));
-  }, [litKey, top0, snap]);
+    v.scrollTop = to === undefined ? want
+      : Math.min(want, Math.max(0, v.scrollHeight - h));
+  };
+  const bringRef = useRef(bring);
+  bringRef.current = bring;
+  useLayoutEffect(() => bring(), [litKey, top0, snap]);
+  useEffect(() => {
+    const v = me.current;
+    if (!v) return;
+    const on = () => bringRef.current();
+    v.addEventListener("ethdebug:fit", on);
+    return () => v.removeEventListener("ethdebug:fit", on);
+  // (its box, once drawn: the first render may have none)
+  }, [me.current]);
   // (an abbreviated dump's words cut to what fits, after each layout)
   useLayoutEffect(() => {
     if (disp.abbreviate !== undefined && me.current) fitAbbr(me.current);
