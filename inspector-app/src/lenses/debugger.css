@@ -189,12 +189,16 @@
   display: inline-flex; align-items: center; gap: 4px; }
 .lens.stepper .ptab .pchev svg { width: 1em; height: 1em; display: block;
   transition: transform 0.15s; }
-.lens.stepper .ptab[aria-expanded="false"] { color: var(--muted); }
+.lens.stepper :is(.ptab[aria-expanded="false"],
+  .ptab[aria-selected="false"]) { color: var(--muted); }
+/* (the transactions' tabs, over the moments' bar: the pages' tabs, a
+   row, the chosen one's open side on the bar) */
+.rbar.mbar .ttabs { display: flex; gap: 6px; }
 .lens.stepper .ptab[aria-expanded="false"] .pchev svg {
   transform: rotate(-90deg); }
 .lens.stepper :is(.pages, .stackcol) .view-head { position: static;
   padding: 0; background: none; }
-.lens.stepper :is(.pages, .stackcol) .view-name {
+.lens.stepper :is(.pages, .stackcol, .ttabs) .view-name {
   margin: 0; padding: 2px 10px 1px; background: var(--panel);
   border: 1px solid var(--line); border-bottom: 0;
   border-radius: 6px 6px 0 0; }
