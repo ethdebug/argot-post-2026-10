@@ -82,8 +82,12 @@ export function sceneOf(json: unknown): Scene {
     }
     const hand = ANNOTATIONS.find((k) => k in m);
     if (hand) no(`${hand} is filled from the run, not written`);
+    if (m.select !== undefined && typeof m.select !== "string") {
+      no(`select ${m.select}`);
+    }
     return { tx: m.tx, step: m.step,
-      ...(m.label !== undefined ? { label: m.label } : {}) };
+      ...(m.label !== undefined ? { label: m.label } : {}),
+      ...(m.select !== undefined ? { select: m.select } : {}) };
   });
   timeline.forEach((m, k) => {
     if (k && order(timeline[k - 1]) >= order(m)) no("moments out of order");

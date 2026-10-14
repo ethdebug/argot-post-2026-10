@@ -18,7 +18,14 @@ for (const id of Object.values(STEPPER)) {
       await expect(page.locator(".mbar .rcap"))
         .toHaveText("the name, sliced from the call");
     }
-    await pick(page.locator('li[data-path="name"] > .row'));
+    // (-O 2: its first moment selects `name` itself)
+    if (id === STEPPER.O0) {
+      await pick(page.locator('li[data-path="name"] > .row'));
+    }
+    else {
+      await expect(page.locator('li[data-path="name"] > .row.sel'))
+        .toBeVisible();
+    }
     // (the call's bytes 68 to 101: NAME_C, lit in the calldata dump)
     const lit = await page.locator('[data-view$=":calldata"] .b.hl')
       .evaluateAll((bs) => bs.map((b) => {
@@ -69,6 +76,9 @@ test("optimized-locals: after a move, storage opens with its rows",
       await expect(lens).not.toHaveAttribute("data-playing", "",
         { timeout: 10_000 });
     }
+    // (the moment's selection cleared: every value shown)
+    await page.locator(".mbar").focus();
+    await page.keyboard.press("Escape");
     await page.locator('li[data-path="@storage"] > .chev').click();
     const row = page.locator('li[data-path="motd"] > .row');
     await expect(row.locator(".name")).toBeVisible();
@@ -86,6 +96,11 @@ test("optimized-locals: len selected lights its stack bytes",
   async ({ page }) => {
     await page.setViewportSize({ width: 1024, height: 900 });
     await page.goto("./embed.html#scene=optimized-locals");
+    // (its first moment selects `name`: cleared, every local shown)
+    await expect(page.locator('li[data-path="name"] > .row.sel'))
+      .toBeVisible();
+    await page.locator(".mbar").focus();
+    await page.keyboard.press("Escape");
     await page.locator('li[data-path="len"] > .row').click();
     const word = page.locator(".view[data-location=stack] .wrow.on .ab");
     await expect(word).toHaveText(/^0x00…0+22$/);

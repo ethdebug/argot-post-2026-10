@@ -27,9 +27,9 @@ for (const width of [1024, 390]) {
     await page.goto("./embed.html#scene=optimized-locals");
     await expect(page.locator(".mbar .dot.cur, .mbar .rcount").first())
       .toBeVisible();
-    // (carol's join: the stack, the call and memory hold her locals;
-    // no local reads storage)
-    await expect.poll(() => open(page)).toEqual({ stack: true,
+    // (carol's join, `name` selected: the call and memory hold it; the
+    // stack and storage nothing of it)
+    await expect.poll(() => open(page)).toEqual({ stack: false,
       calldata: true, memory: true, storage: false });
     await page.waitForTimeout(800);
     const h = await height(page);
@@ -46,16 +46,16 @@ for (const width of [1024, 390]) {
     expect(await box(page, "memory")).toBeLessThanOrEqual(before);
     expect(await height(page)).toBe(h);
     // (every page shut: the tabs alone, the height kept)
-    for (const l of ["stack", "calldata", "memory", "storage"]) {
+    for (const l of ["calldata", "memory", "storage"]) {
       await tab(page, l).click();
     }
     await expect.poll(() => open(page)).toEqual({ stack: false,
       calldata: false, memory: false, storage: false });
     await page.waitForTimeout(800);
     expect(await height(page)).toBe(h);
-    // (the other tab: as its first moment has them, alice's play,
+    // (the other transaction: as its first moment has them, alice's play,
     // memory alone)
-    await page.locator('.ttabs [data-tx="12"]').click();
+    await page.locator('.mbar .picker [data-tx="12"]').click();
     await rest(page);
     await expect.poll(() => open(page)).toEqual({ stack: false,
       calldata: false, memory: true, storage: false });
@@ -71,7 +71,7 @@ for (const width of [1024, 390]) {
     await expect(tab(page, "calldata")).toHaveAttribute("aria-expanded",
       "true");
     await page.locator(".reset").click();
-    await expect.poll(() => open(page)).toEqual({ stack: true,
+    await expect.poll(() => open(page)).toEqual({ stack: false,
       calldata: true, memory: true, storage: false });
     await page.waitForTimeout(800);
     expect(await height(page)).toBe(h);

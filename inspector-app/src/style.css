@@ -878,11 +878,13 @@ main[data-single] .scols .view-name { display: none; }
 }
 .pgo[hidden] { display: none; }
 /* (▶'s halo at step 0, in the selection's yellow) */
-.rbar .btn.halo { box-shadow: 0 0 0 3px color-mix(in srgb, var(--mark)
-  90%, transparent); animation: halo 1.4s ease-in-out 3; }
+.rbar :is(.btn, .picker button).halo { box-shadow: 0 0 0 3px
+  color-mix(in srgb, var(--mark) 90%, transparent);
+  animation: halo 1.4s ease-in-out 3; }
 @keyframes halo { 50% { box-shadow: 0 0 0 6px color-mix(in srgb,
   var(--mark) 45%, transparent); } }
-@media (prefers-reduced-motion: reduce) { .rbar .btn.halo { animation: none; } }
+@media (prefers-reduced-motion: reduce) {
+  .rbar :is(.btn, .picker button).halo { animation: none; } }
 #ptr code { background: none; padding: 0; border: 0; font-size: inherit; }
 /* (where the piece shown is, in the label's line, at its end: the
    variable and the templates entered; a new piece fades in, in the same
@@ -1230,8 +1232,8 @@ html { overflow-anchor: none; }
     transparent); }
 /* (step 0's halo on ▶, and the tree's edge buttons: not the selection's
    yellow) */
-.rbar .btn.halo { box-shadow: 0 0 0 3px color-mix(in srgb, var(--pknt-edge)
-  70%, transparent); }
+.rbar :is(.btn, .picker button).halo { box-shadow: 0 0 0 3px
+  color-mix(in srgb, var(--pknt-edge) 70%, transparent); }
 @keyframes halo { 50% { box-shadow: 0 0 0 6px color-mix(in srgb,
   var(--pknt-edge) 35%, transparent); } }
 .tedge { background: var(--panel); color: var(--fg); }

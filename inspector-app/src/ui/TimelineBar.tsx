@@ -47,7 +47,7 @@ const still = () =>
 const TRACK = 0.94;
 const pct = (x: number) => `${(x * TRACK * 100).toFixed(3)}%`;
 
-// A replay's transactions, its tabs (the moments' bar): each mark's
+// A replay's transactions (the moments' bar shows one at a time): each mark's
 // transaction, the scene's moment's; a trace step's, the last mark's at
 // or before it (its steps run from a transaction's first mark to its
 // last, then the next one's)
@@ -58,7 +58,7 @@ export function tabOf(marks: number[], txs: number[], k: number): number {
   });
   return txs[j];
 }
-// (the marks of the transaction `k` is in)
+// (the marks of the transaction `k` is in: the moments shown with it)
 export const tabMarks = (marks: number[], txs: number[], k: number) => {
   const tx = tabOf(marks, txs, k);
   return marks.filter((_, x) => txs[x] === tx);
@@ -127,8 +127,8 @@ export function TimelineBar(p: { id: ViewId; domId?: string;
       walk: l?.walk ?? null, step: true });
   };
   const aimAt = toward ?? i;
-  // (the moments' bar, a replay of transactions: its tab's marks alone;
-  // a tab is a transaction, its moments' first to last, no stepping out)
+  // (the moments' bar, a replay of transactions: the shown one's marks
+  // alone, its moments' first to last, no stepping out of it)
   const txs = sc?.timeline.map((x) => x.tx) ?? [];
   const tabbed = p.bar === "moments" && replay &&
     new Set(txs).size > 1;
@@ -203,7 +203,7 @@ export function TimelineBar(p: { id: ViewId; domId?: string;
       if (!busy && want !== shown) {
         busy = true;
         void lens.show(bm.id, { moment: want, sel, walk: null, step: true,
-          play: true }).finally(() => {
+          play: true, arrive: want === goal }).finally(() => {
           busy = false;
         });
       }
@@ -282,8 +282,8 @@ export function TimelineBar(p: { id: ViewId; domId?: string;
     // known before its run loads: the bar keeps its form meanwhile)
     const labels = sc?.timeline.map((x) => x.label ?? "") ?? [];
     const onMark = s ? mk.indexOf(i) : -1;
-    // (the tab's moments: their indexes among the scene's; before its
-    // run loads, the first transaction's)
+    // (the shown transaction's moments: their indexes among the scene's;
+    // before its run loads, the first transaction's)
     const tx = s && tabbed ? tabOf(mk, txs, aimAt) : txs[0];
     const mine = labels.map((_, k) => k).filter((k) => !tabbed ||
       txs[k] === tx);
@@ -296,20 +296,26 @@ export function TimelineBar(p: { id: ViewId; domId?: string;
     return <div ref={me} id={p.domId} className="rbar mbar"
       data-view={view} data-moment={i} tabIndex={0}
       aria-label="The figure's moments">
-      {/* (its transactions, a tab each: a cut to its first moment) */}
-      {tabbed && <span className="ttabs" role="tablist"
-        aria-label="Transactions">{tabs.map((t) => <button key={t}
-        type="button" role="tab" className="view-name ptab" data-tx={t}
-        aria-selected={t === tx} tabIndex={t === tx ? 0 : -1}
-        disabled={!s} onClick={() => {
-          const k = mk[txs.indexOf(t)];
-          if (!bm || t === tx) return;
-          const l = lens.store.get().links[spec.links[0]];
-          void lens.show(bm.id, { moment: k, sel: l?.selection ?? null,
-            walk: null, step: true });
-        }}>{sc?.transactions?.[t] ?? s?.txs[t]?.label ?? `tx ${t}`}
-      </button>)}</span>}
-      <span className="rline2"><span className="rctl">
+      <span className="rline2">
+        {/* (its transactions, the real debugger's language picker's
+          buttons: one shown at a time, a cut to its first moment) */}
+        {tabbed && <span className="picker" role="radiogroup"
+          aria-label="Transaction">{tabs.map((t) => <button key={t}
+          type="button" role="radio" data-tx={t}
+          aria-checked={t === tx ? "true" : "false"} disabled={!s}
+          // (at the shown one's last moment, ▶ disabled: the next one's
+          // button the way on, with the walkthrough's halo on ▶)
+          className={s && nextMark === undefined && toward === undefined &&
+            t === tabs[tabs.indexOf(tx) + 1] ? "halo" : undefined}
+          onClick={() => {
+            const k = mk[txs.indexOf(t)];
+            if (!bm || t === tx) return;
+            const l = lens.store.get().links[spec.links[0]];
+            void lens.show(bm.id, { moment: k, sel: l?.selection ?? null,
+              walk: null, step: true });
+          }}>{sc?.transactions?.[t] ?? s?.txs[t]?.label ?? `tx ${t}`}
+        </button>)}</span>}
+        <span className="rctl">
         <button type="button" className="btn" data-t="first"
           aria-label="Back to the first moment"
           disabled={!s || prevMark === undefined}
