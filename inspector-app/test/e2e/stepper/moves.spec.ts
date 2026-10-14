@@ -1,8 +1,9 @@
 // The stepper's moves (TimelineBar.tsx, the moments' bar): ◀ ▶ ⏮, a
 // dot, or ← → in the lens move through the trace steps between two
 // moments, back or on, then rest on the moment; a click during a move
-// goes on from where it is (none lost); the pages keep their heights,
-// and their rows (memory's zero words fold away as they come and go);
+// goes on from where it is (none lost); the figure keeps its height,
+// and the pages their room together (they fold and open, memory's zero
+// words fold away, as they come and go);
 // changed bytes flash (Element.animate on a byte); with reduced motion
 // (the tests' default) a move is a jump, no flash. What it shows is
 // recorded in the page (the bar's data-moment, each change; the rows,
@@ -29,12 +30,12 @@ async function record(page: Page) {
       if (this.matches(".b, .ab")) seen.flashes++;
       return animate.apply(this, a);
     };
-    // (each page's rows, but memory's; and every page's height)
+    // (the figure's height, and the pages' together: the room they
+    // share as they fold and open)
     const f = () => {
-      rows.add([...document.querySelectorAll(".dump .view")].map((v) =>
-        `${v.matches("[data-location=memory]") ? ""
-          : v.querySelectorAll(".wrow").length}/${Math.round(
-          v.getBoundingClientRect().height)}`).join());
+      rows.add([document.querySelector("#embed"), document.querySelector(
+        ".lens > [data-area=wide]")].map((v) => Math.round(v!
+        .getBoundingClientRect().height)).join());
       seen.rows = [...rows];
       requestAnimationFrame(f);
     };
