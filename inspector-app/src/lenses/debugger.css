@@ -140,7 +140,7 @@
      rest, one width whether the stack is open or shut (their type, and
      so the figure's, follows their width: ui/fit.ts); the variables
      the rest) */
-  .lens.stepper { --stack-w: 9.5em; --pages-h: 458px;
+  .lens.stepper { --stack-w: 9.5em; --pages-h: 472px;
     grid-template-columns: auto calc((100% - var(--stack-w) - 1.6em -
       56px) * 0.6) minmax(0, 1fr);
     grid-template-areas: "moves moves moves" "narrow wide side"
