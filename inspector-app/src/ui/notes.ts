@@ -197,10 +197,12 @@ export function drawNotes(v: El, notes: Note[], units: Unit[],
       const xs = (digits.length ? digits : own).map((c) =>
         rel(c.getBoundingClientRect(), vb));
       const ys = all.map((c) => rel(lineOf(c).getBoundingClientRect(), vb));
-      // (beside: at the item's word, its middle)
+      // (beside: at the item's word, its middle; its right end, its last
+      // byte's: an abbreviated word's bytes are cells as any word's)
       if (beside) {
         const wb = own.map(wordBox);
-        return { x: wb[0].r, r: wb[0].r, t: wb[0].t, b: wb[0].b };
+        const r = Math.max(...wb.map((x) => x.r));
+        return { x: r, r, t: wb[0].t, b: wb[0].b };
       }
       return { x: (Math.min(...xs.map((r) => r.l)) +
         Math.max(...xs.map((r) => r.r))) / 2,
