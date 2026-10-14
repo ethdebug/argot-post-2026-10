@@ -209,22 +209,35 @@ function Word({ l, ls, loc, row, mine, theirs, side, pair, name, light,
   };
   const unit = (i: number) => annot?.cells[i] ? {
     "data-unit": annot.cells[i]!.unit, ...cellVars(annot.cells[i]!) } : {};
-  if (abbreviate !== undefined) {
-    const k = annot?.cells.findIndex(Boolean) ?? -1;
+  // (the word: its bytes, drawn as every word's are; abbreviated, after:
+  // its first byte, "…" for the bytes between, its last `abbreviate`;
+  // the "…" takes the light of a byte it stands for, a lit one first,
+  // so no lit byte is ever hidden)
+  const word = (cells: ReactElement[]) => {
+    if (abbreviate === undefined) {
+      return <div className={`word${half(mine) ? " half" : ""}`}
+        data-side={side} data-slot={row}>
+        <div className="bytes"><Octets cells={cells} /></div></div>;
+    }
+    const hidden = cells.slice(1, 32 - abbreviate);
+    const cls = (c: ReactElement) => String((c.props as
+      { className?: string }).className ?? "");
+    const like = hidden.find((c) => / hl( |$)/.test(cls(c))) ??
+      hidden.find((c) => / rel( |$)/.test(cls(c))) ?? hidden[0];
+    const el = cls(like).split(" ").filter((x) => !/^(gs|ge|at-s|at-e|jd)$/
+      .test(x)).join(" ");
     return <div className="word" data-side={side} data-slot={row}>
-      <span className={`ab${k >= 0 ? ` b${an(k)} gs ge` : ""}`}
-        {...k >= 0 ? unit(k) : {}}>
-        {/* (a row past the stack's top, a replay's reserve: empty) */}
-        {mine.every((b) => b === undefined) ? "\u00a0"
-          : abbreviated(mine, abbreviate)}</span></div>;
-  }
+      {/* (a row past the stack's top, a replay's reserve: empty) */}
+      <span className="ab">{mine.every((b) => b === undefined) ? "\u00a0"
+        : <>0x{cells[0]}<span className={`${el} el`}
+          aria-hidden="true">…</span>{cells.slice(32 - abbreviate)}</>}
+      </span></div>;
+  };
   if (bare) {
-    return <div className={`word${half(mine) ? " half" : ""}`}
-      data-side={side} data-slot={row}>
-      <div className="bytes"><Octets cells={mine.map((b, i) =>
-        <span key={i} className={`b${b === undefined ? " past"
-          : b === "00" ? " z" : ""}${an(i)}`} {...unit(i)}>{b ?? "··"}
-        </span>)} /></div></div>;
+    return word(mine.map((b, i) =>
+      <span key={i} className={`b${b === undefined ? " past"
+        : b === "00" ? " z" : ""}${an(i)}`} {...unit(i)}>{b ?? "··"}
+      </span>));
   }
   const ownersIn = (x: Layout) => Array.from({ length: 32 }, (_, i) =>
     x.cover.get(byteKey(loc, row, i)) ?? []);
@@ -285,9 +298,7 @@ function Word({ l, ls, loc, row, mine, theirs, side, pair, name, light,
         {mine[i] ?? "··"}</span>);
     }
   }
-  return <div className={`word${half(mine) ? " half" : ""}`}
-    data-side={side} data-slot={row}>
-    <div className="bytes"><Octets cells={cells} /></div></div>;
+  return word(cells);
 }
 
 // `title`, `when` (its moment's label), `compare` (another moment:
