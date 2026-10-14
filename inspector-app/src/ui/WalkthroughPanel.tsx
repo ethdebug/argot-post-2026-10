@@ -54,7 +54,8 @@ const shortKeys = (path: string) =>
 const partsWord = (typeText: string, n: number) =>
   (typeText.startsWith("mapping(") ? ["entry", "entries"]
     : /\[\d*\]$/.test(typeText) ? ["item", "items"]
-      : typeText ? ["field", "fields"] : ["part", "parts"])[n === 1 ? 0 : 1];
+      : typeText ? ["field", "fields"]
+        : ["variable", "variables"])[n === 1 ? 0 : 1];
 const still = () =>
   !!globalThis.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
 
@@ -374,7 +375,9 @@ export function useWalkModel(p: { id: ViewId; data: DataRef;
     const v = node.value?.text ?? (own ? node.summary : undefined);
     const n = node.children?.length ?? 0;
     const otherText = o?.byPath.get(node.path)?.value?.text;
-    return { name: w?.name ?? shortKeys(sel!), typeText: node.typeText,
+    // (a group, "@locals": the tree's own name for it, "locals")
+    return { name: w?.name ?? (sel!.startsWith("@") ? node.label
+      : shortKeys(sel!)), typeText: node.typeText,
       ...v !== undefined ? { value: v } : node.children
         ? { parts: `${n} ${partsWord(node.typeText, n)}` } : {},
       ...!single ? { side } : {}, canStart: !!w?.steps.length,

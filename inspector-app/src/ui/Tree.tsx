@@ -53,6 +53,8 @@ const pk = (k: Colour | undefined) => k === undefined || k === 0 ? ""
   : `pk${k}`;
 
 interface Ctx { light: Light; selection: string | null;
+  // (the related view's top groups it leaves out: a row each, muted)
+  aside?: ReadonlySet<string>;
   // (addresses by their on-chain names: a key, 0x7099…79c8 ("alice"))
   names: ReadonlyMap<string, string>;
   collapsed: ReadonlySet<string>; pair?: [Decoded, Decoded];
@@ -108,6 +110,7 @@ function Row({ n, top, c, inBlk, local }: { n: ValueNode; top?: boolean;
   const li = [pair ? (chg ? "chg" : "same") : "", top ? "top" : "",
     n.none ? "none" : "", n.absent ? "absent" : "",
     shut ? "collapsed" : "", blk ? "blk" : "", blk ? pk(blkK) : "",
+    c.aside?.has(n.path) ? "aside" : "",
     blk && mutedRow(c, n) ? "muted" : ""].filter(Boolean).join(" ");
   return <li className={li || undefined} data-path={n.path}
     data-vt={top ? c.vt?.(`tree ${n.path}`) : undefined}>
@@ -190,14 +193,23 @@ export function Tree(p: { id: ViewId; data: DataRef; filter?: Filter;
   // groups shut, unless the reader opened them)
   const related = useRelatedRoots(p.id);
   const sel = link.selection;
-  const auto = related && sel ? (d?.byPath.get(sel)?.children ?? [])
+  // (and the top groups it leaves out, "@storage", "@locals": each shown
+  // as its own row, shut and muted; the reader may open it)
+  const roots0 = related ?? p.filter?.roots;
+  const holds = (n: ValueNode): boolean => roots0!.some((r) =>
+    n.path === r || n.path.startsWith(r + ".") || n.path.startsWith(r +
+      "[")) || !!n.children?.some(holds);
+  const aside = related && d ? d.tree.filter((n) => n.path.startsWith("@") &&
+    n.children?.length && !holds(n)).map((n) => n.path) : [];
+  const auto = [...related && sel ? (d?.byPath.get(sel)?.children ?? [])
     .filter((x) => x.children?.length && !view.open?.has(x.path))
-    .map((x) => x.path) : [];
+    .map((x) => x.path) : [], ...aside.filter((q) => !view.open?.has(q))];
   const shut = new Set([...view.collapsed, ...auto]);
   const fewer = !!related;
   const named = useDecoded(p.names);
   const names = useMemo(() => onChainNames(named ?? d), [named, d]);
   const c: Ctx = { light, selection: link.selection, pair, names,
+    aside: new Set(aside),
     collapsed: new Set([...shut].filter((q) => !closing.has(q))),
     vt: (q) => vtName(lens.key, p.id, q) };
   // only the filter's roots (the related view's), and the groups that
@@ -210,11 +222,11 @@ export function Tree(p: { id: ViewId; data: DataRef; filter?: Filter;
       ValueNode[];
     return kids.length ? { ...n, children: kids } : null;
   };
-  const shown = d?.tree.map(keep).filter(Boolean) as ValueNode[]
-    | undefined;
+  const shown = d?.tree.map((n) => keep(n) ?? (aside.includes(n.path) ? n
+    : null)).filter(Boolean) as ValueNode[] | undefined;
   // (in the related view, the variables it hides: one gap row after the
   // last row, as a dump's gap line; a click shows them all, as a click
-  // on the selection does)
+  // on the selection does; a group it leaves out is a row of its own)
   const hidden = related && shown ? d!.tree.length - shown.length : 0;
   const deselect = () => {
     setLink((s) => ({ ...s, selection: null, hover: null }));

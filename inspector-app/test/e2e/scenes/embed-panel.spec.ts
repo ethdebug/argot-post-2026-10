@@ -376,7 +376,10 @@ test("on demand: the panel opens with the walkthrough and closes with " +
   const h = (await log()).filter(([f]) => f === "f").at(-1)![1];
   // (shut: no room; the figure's bar its way in)
   expect(await room()).toBe(0);
-  // (its first moment selects `name`)
+  // (its first moment selects the locals; then `name`, a walkthrough's)
+  await expect(fig.locator('li[data-path="@locals"] > .row.sel'))
+    .toBeVisible();
+  await fig.locator('li[data-path="name"] > .row').click();
   await expect(fig.locator('li[data-path="name"] > .row.sel'))
     .toBeVisible();
   await fig.locator('button[data-r="start"]').click();
