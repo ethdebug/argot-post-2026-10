@@ -45,18 +45,18 @@
 :is(#tree, .tree).xrows .row { padding: 1px 0; gap: 0 1ch; }
 :is(#tree, .tree).xrows .row > span { font-size: inherit;
   line-height: inherit; padding: 0; }
-.lens.xray .xrows .name { font-weight: 600; }
-.lens.xray .xrows:focus-visible { outline: 2px solid var(--accent);
+.lens:is(.xray, .stepper) .xrows .name { font-weight: 600; }
+.lens:is(.xray, .stepper) .xrows:focus-visible { outline: 2px solid var(--accent);
   outline-offset: 1px; border-radius: 4px; }
-.lens.xray .xrows .row { display: grid; flex-wrap: nowrap;
+.lens:is(.xray, .stepper) .xrows .row { display: grid; flex-wrap: nowrap;
   grid-template-columns: 4ch minmax(0, 12ch) minmax(0, 1fr);
   line-height: 1.5; cursor: pointer; }
-.lens.xray .xrows .row > span { min-width: 0; overflow: hidden;
+.lens:is(.xray, .stepper) .xrows .row > span { min-width: 0; overflow: hidden;
   text-overflow: ellipsis; white-space: nowrap; }
-.lens.xray .xrows .type { text-align: right; }
-.lens.xray .xrows .val { margin: 0; border: 0; text-align: left;
+.lens:is(.xray, .stepper) .xrows .type { text-align: right; }
+.lens:is(.xray, .stepper) .xrows .val { margin: 0; border: 0; text-align: left;
   color: var(--muted); }
-.lens.xray .xrows .row.hl .val { color: inherit; }
+.lens:is(.xray, .stepper) .xrows .row.hl .val { color: inherit; }
 
 /* the entry: the walkthrough's YAML pane (its header and hairline, its
    lines and band), as tall as the list; nothing scrolls, and the
@@ -80,12 +80,12 @@
 .lens.xray .ptrlines .line.on span[style],
 #embed .wpanel.compact .ptrlines .line.on span[style] {
   color: var(--fg) !important; }
-.lens.xray .ptrlines span[style] { color: var(--shiki-light); }
+.lens:is(.xray, .stepper) .ptrlines span[style] { color: var(--shiki-light); }
 @media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]) .lens.xray .ptrlines span[style] {
+  :root:not([data-theme="light"]) .lens:is(.xray, .stepper) .ptrlines span[style] {
     color: var(--shiki-dark); }
 }
-:root[data-theme="dark"] .lens.xray .ptrlines span[style] {
+:root[data-theme="dark"] .lens:is(.xray, .stepper) .ptrlines span[style] {
   color: var(--shiki-dark); }
 .lens.xray .xname { position: relative; cursor: help;
   border-bottom: 1px dotted var(--muted); }
