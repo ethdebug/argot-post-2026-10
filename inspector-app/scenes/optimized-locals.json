@@ -13,6 +13,11 @@
       "label": "Carol joins the game. `len`, the length of her name, sits on the stack. `name` isn't copied anywhere. The compiler's data points straight at the name's bytes in the call data, using its offset and length, saved in memory."
     },
     {
+      "tx": 3,
+      "step": 357,
+      "label": "The name is written to storage, into Carol's record. On the way, the code copies its bytes from the call data into memory, then stores them a word at a time."
+    },
+    {
       "tx": 12,
       "step": 307,
       "label": "Alice plays. The code copies her player record from storage into memory, and `player` now lives there."
@@ -40,12 +45,16 @@
   ],
   "controls": "prev-next",
   "variables": "scope",
+  "replay": true,
+  "transactions": {
+    "3": "carol joins",
+    "12": "alice plays"
+  },
   "initial": {
     "collapse": [
       "@storage",
       "player"
     ],
     "related": true
-  },
-  "replay": true
+  }
 }

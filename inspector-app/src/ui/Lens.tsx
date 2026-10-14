@@ -19,7 +19,7 @@ import {
   type LensContextValue, hush, pointer,
 } from "./hooks";
 import { viewKinds } from "./views";
-import { aim } from "./TimelineBar";
+import { aim, tabMarks } from "./TimelineBar";
 import {
   RELATED_CONTEXT, type DataRef, type LensSpec, type LensState,
   type ViewKind, type ViewSpec,
@@ -322,7 +322,11 @@ export function Lens(props: { spec: LensSpec; project: Project;
         if (bm.replay && bm.marks && spec.views.some((v) =>
           v.kind === "timeline" && v.bar === "moments")) {
           const at = s.toward ?? s.moment;
-          const ms = bm.marks;
+          // (its tab's moments: one transaction's, TimelineBar.tsx)
+          const txs = project.scenes.find((x) => x.id === bm.id)?.timeline
+            .map((m) => m.tx) ?? [];
+          const ms = txs.length === bm.marks.length
+            ? tabMarks(bm.marks, txs, at) : bm.marks;
           const to = e.key === "Home" ? ms[0] : e.key === "End" ? ms.at(-1)
             : e.key === "ArrowLeft" ? [...ms].reverse().find((x) => x < at)
               : ms.find((x) => x > at);
