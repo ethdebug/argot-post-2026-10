@@ -133,7 +133,7 @@ for (const width of [1360, 1024, 390]) {
       " .b.hl")).toBe(6);
     expect(await segs(`.view[data-location=storage] .word[data-slot="0x${
       "2".padStart(64, "0")}"] .b.hl`)).toBe(2);
-    expect(await segs(".view[data-location=stack] .ab.hl")).toBe(4);
+    expect(await segs(".view[data-location=stack] .b.hl")).toBe(4);
     // every arrow's tip on its target: a card under or over, at its
     // run's centre; a card beside (a stack item's), at its middle
     const tips = await page.evaluate(() => [...document.querySelectorAll<
