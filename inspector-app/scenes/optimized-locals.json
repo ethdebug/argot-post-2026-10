@@ -23,7 +23,10 @@
       "tx": 12,
       "step": 307,
       "label": "Alice plays. The code copies her player record from storage into memory, and `player` now lives there.",
-      "select": "player"
+      "select": "player",
+      "collapse": [
+        "@storage"
+      ]
     },
     {
       "tx": 12,
@@ -47,7 +50,10 @@
       "tx": 12,
       "step": 600,
       "label": "Back in `play()`. `_applyCombo`'s variables are gone, and `gained`, the result it returned, now has a location in memory.",
-      "select": "gained"
+      "select": "gained",
+      "collapse": [
+        "@storage"
+      ]
     }
   ],
   "controls": "prev-next",

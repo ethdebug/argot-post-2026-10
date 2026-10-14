@@ -77,7 +77,7 @@ for (const width of [390, 1024]) {
       const rest = () => expect(page.locator(".lens")).not
         .toHaveAttribute("data-playing", "", { timeout: 10_000 });
       for (const [tx, n] of [[3, 2], [12, 5]] as const) {
-        await page.locator(`.mbar .picker [data-tx="${tx}"]`).click();
+        await page.locator(`.mbar [role=tab][data-tx="${tx}"]`).click();
         await expect(page.locator(".mbar .rcount")).toHaveText(`1 / ${n}`);
         await rest();
         for (let k = 2; k <= n; k++) {

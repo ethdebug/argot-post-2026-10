@@ -428,8 +428,9 @@ function walkOf(project: Project, x: WalkInput, sel: string,
 // what every linked view lights: vanilla legend)
 export function useCollapsed(link: string | undefined): ReadonlySet<string> {
   const { spec } = useLens();
-  const trees = spec.views.filter((v) => v.kind === "tree" &&
-    v.link === link).map((v) => v.id);
+  // (a tree, or the variables: one Tree)
+  const trees = spec.views.filter((v) => (v.kind === "tree" ||
+    v.kind === "variables") && v.link === link).map((v) => v.id);
   const key = useLensState((s) => trees.map((t) =>
     [...(s.views[t]?.collapsed ?? [])].join("\n")).join("\t"));
   return useMemo(() => new Set(key.split(/[\t\n]/).filter(Boolean)),

@@ -14,7 +14,7 @@
   justify-self: start; }
 .lens:is(.dbg, .stepper) .view.abbr { font-family: var(--mono);
   font-variant-numeric: tabular-nums; font-size: var(--cell-fs, 14px); }
-.lens:is(.dbg, .stepper) .view.abbr .word .ab {
+.lens:is(.dbg, .stepper) .view.abbr .word .bytes {
   line-height: var(--cell-lh, 1.85); }
 .lens:is(.dbg, .stepper) .view-name { letter-spacing: 0.12em; }
 /* (the stack's column one width at every moment, its depth whatever:
@@ -136,12 +136,17 @@
   grid-template-areas: "moves" "narrow" "wide" "side" "src"; }
 @media (min-width: 760px) {
   /* (the stack a narrow column at the left, as tall as the pages beside
-     it, the debugger's width (--stack-w); the pages three fifths of the
+     it (--stack-w, --stack-tab); the pages three fifths of the
      rest, one width whether the stack is open or shut (their type, and
      so the figure's, follows their width: ui/fit.ts); the variables
      the rest) */
-  .lens.stepper { --stack-w: 9.5em; --pages-h: 472px;
-    grid-template-columns: auto calc((100% - var(--stack-w) - 1.6em -
+  /* (the stack's width: about a word's low 8 bytes and the "…" cell,
+     with its addresses; in the page's type, not the cells': the cells'
+     size follows the pages' width, which follows this; its tab's
+     beside it) */
+  .lens.stepper { --stack-w: 14em; --stack-tab: 1.6em; --pages-h: 472px;
+    grid-template-columns: auto calc((100% - var(--stack-w) -
+      var(--stack-tab) -
       56px) * 0.6) minmax(0, 1fr);
     grid-template-areas: "moves moves moves" "narrow wide side"
       "src src src"; }
@@ -239,23 +244,43 @@
 .lens.stepper .sidecol .vars { position: relative; min-height: 0;
   flex: 1 1 0; }
 .lens.stepper .sidecol .vars > .tree { height: 100%; overflow-y: auto; }
-/* (the code: the pointer's box, 9 lines; 7 on a phone) */
-.lens.stepper .code.pane .ptrscroll { height: calc(9 * 1.5em + 1em);
+/* (the code: the pointer's box, 9 lines; 7 on a phone; its padding the
+   pointer's lines': 0.9em over the first and under the last, 0.9em before
+   each line (the band's rule in it), 0.6em after) */
+.lens.stepper .code.pane .ptrscroll { height: calc(9 * 1.5em + 1.8em);
   font-size: var(--fs-label); line-height: 1.5; }
 @media (max-width: 759.98px) {
-  .lens.stepper .code.pane .ptrscroll { height: calc(7 * 1.5em + 1em); }
+  .lens.stepper .code.pane .ptrscroll { height: calc(7 * 1.5em + 1.8em); }
 }
 .lens.stepper .code.pane pre.src { height: auto; overflow: visible;
-  margin: 0; padding: 0.5em 0; font-size: inherit; line-height: inherit; }
-.lens.stepper .code.pane .line { box-sizing: border-box;
-  padding-right: 0.6em; }
+  margin: 0; padding: 0.9em 0; font-size: inherit; line-height: inherit; }
+.lens.stepper .code.pane pre.src .line { padding-right: 0.6em;
+  padding-left: calc(var(--ind, 0ch) + 2ch + 0.9em); }
 /* (the moments' bar: the walkthrough's lines, its controls and the
    caption, in no box: a plain row, as the debugger's moves) */
 .rbar.mbar { height: auto; gap: 4px; padding: 0; background: none;
   border: 0; border-radius: 0; }
 .rbar.mbar .rline2 { display: flex; height: auto; font-size: inherit;
   color: inherit; }
-.rbar.mbar .rline3, .rbar.mbar .rcap { display: block; }
+.rbar.mbar .rline3, .rbar.mbar .rcap { display: block;
+  white-space: normal; }
+/* (its transactions: tabs across its top, the chosen one open onto the
+   moments under it, the other behind it, muted; larger than a page's
+   tab, the row's rule under the others and on to its end: the tabs' one
+   style of their own) */
+.rbar.mbar .xpanel { display: contents; }
+.rbar.mbar .xtabs { display: flex; align-items: flex-end;
+  margin-bottom: 8px; }
+.rbar.mbar .xtabs::after { content: ""; flex: 1; align-self: stretch;
+  border-bottom: 1px solid var(--line); }
+.rbar.mbar .xtabs [role="tab"] { font: inherit; font-weight: 600;
+  padding: 6px 14px; cursor: pointer; color: var(--muted);
+  background: none; border: 1px solid transparent;
+  border-bottom-color: var(--line); border-radius: 6px 6px 0 0; }
+.rbar.mbar .xtabs [role="tab"][aria-selected="true"] { color: var(--fg);
+  border-color: var(--line); border-bottom-color: transparent; }
+.rbar.mbar .xtabs [role="tab"]:focus-visible {
+  outline: 2px solid var(--accent); outline-offset: -2px; }
 /* (a phone: room for the longest caption, five lines at 358px) */
 @media (max-width: 759.98px) {
   .rbar.mbar .rcap { height: calc(5 * 1.35em); }
@@ -272,10 +297,11 @@
    its tab, on the side facing the other pages) */
 @media (min-width: 760px) {
   .lens.stepper > .stackcol { contain: size;
-    width: calc(var(--stack-w) + 1.6em);
+    width: calc(var(--stack-w) + var(--stack-tab));
     transition: width 420ms cubic-bezier(0.4, 0, 0.2, 1); }
   /* (shut: the column its tab alone) */
-  .lens.stepper > .stackcol:has(.view[data-open="false"]) { width: 1.6em; }
+  .lens.stepper > .stackcol:has(.view[data-open="false"]) {
+    width: var(--stack-tab); }
   .lens.stepper .stackcol .view[data-open="false"] .pagebox {
     display: none; }
   .lens.stepper .stackcol .view { display: flex; height: 100%; }
