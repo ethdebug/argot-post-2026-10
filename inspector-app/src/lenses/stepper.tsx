@@ -192,11 +192,8 @@ function Wide({ children }: { children: ReactNode }) {
 }
 
 const NOW = { decoding: "$scene", moment: "current" } as const;
-// (a page's rows: the scene's, every one the location has at any step,
-// storage's those that hold something: engine/replay.ts; the values'
-// own besides; memory's, large, those that hold something here, the
-// zeros folded into gaps)
-const values: Filter = { rows: "values" };
+// (a page's rows: every one the location has, as any dump's; which show
+// is the related view's alone, a gap row between runs: ui/hooks.ts)
 const all: Filter = { rows: "all" };
 const page = (location: Location, title: string, filter: Filter,
   more: Partial<ViewSpec> = {}): ViewSpec => ({
@@ -219,9 +216,8 @@ export const stepper: LensSpec = {
     page("stack", "Stack", all, { area: "narrow", display: { ruler: false,
       abbreviate: 2 } } as Partial<ViewSpec>),
     page("calldata", "Calldata", all),
-    page("memory", "Memory", values, { display: { ruler: false,
-      foldZero: true } } as Partial<ViewSpec>),
-    page("storage", "Storage", values),
+    page("memory", "Memory", all),
+    page("storage", "Storage", all),
     { id: "walk", kind: "walkthrough", area: "side", link: "st",
       domId: "sdetails", data: NOW },
     { id: "vars", kind: "variables", area: "side", data: NOW, link: "st",
