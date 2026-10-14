@@ -10,7 +10,7 @@
     {
       "tx": 3,
       "step": 166,
-      "label": "Carol joins the game. `len`, the length of her name, sits on the stack. `name` isn't copied anywhere. The compiler's data points straight at the name's bytes in the call data, using an offset saved in memory."
+      "label": "Carol joins the game. `len`, the length of her name, sits on the stack. `name` isn't copied anywhere. The compiler's data points straight at the name's bytes in the call data, using its offset and length, saved in memory."
     },
     {
       "tx": 12,
