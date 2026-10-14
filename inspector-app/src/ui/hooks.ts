@@ -233,7 +233,7 @@ export function useViewSpec(id: string): ViewSpec {
 // (`at`: another point or decoding than the view's own: what it
 // compares with)
 export function useLayout(id: string, filter?: Filter, at?: DataRef,
-  compare?: DataRef): { d?: Decoded; l?: Layout } {
+  compare?: DataRef): { d?: Decoded; l?: Layout; only?: Filter["only"] } {
   const v = useViewSpec(id);
   const lens = useLens();
   const data = at ?? ("data" in v ? v.data : undefined);
@@ -281,7 +281,7 @@ export function useLayout(id: string, filter?: Filter, at?: DataRef,
       ({ ...r, room: hashed.has(r.address) })) };
   }, [d, o1, point, location, f, mine[0]?.who, cmp, only, ms, union,
     replay, marks]);
-  return { d, l };
+  return { d, l, only };
 }
 
 // A replay's rows of a location (engine/replay.ts): every row it has at
@@ -325,13 +325,22 @@ export function useRelated(id: string, location: Location,
   const v = useViewSpec(id);
   const context = useLensState((s) => s.related?.context);
   const [link] = useLink(v.link);
-  const on = context !== undefined && !!link.selection;
   const a = useWalkInput(data);
   const b = useWalkInput(compare);
   const { project } = useLens();
   const sel = link.selection;
+  // (nothing selected, at a moment of everything in scope: the locals in
+  // scope then, each as if it were the selection; a scope, not a value)
+  const scoped = !!a?.d.byPath.get("@locals");
+  const scope = !sel && scoped;
+  const on = context !== undefined && (!!sel || scope);
   const key = useMemo(() => {
-    if (!on || !sel) return "";
+    if (!on) return "";
+    if (!sel) {
+      const ls = a?.d.byPath.get("@locals")?.children ?? [];
+      return [...new Set(ls.flatMap((n) => related(a!.d, n.path,
+        walkOf(project, a!, n.path), location)))].join(" ");
+    }
     // (a record's field: its record's rows, the field lit among them)
     const rows = new Set([a, b].flatMap((x) => {
       if (!x || !x.d.byPath.has(sel)) return [];
@@ -342,8 +351,11 @@ export function useRelated(id: string, location: Location,
     }));
     return [...rows].join(" ");
   }, [on, sel, a, b, project, location]);
+  // (at a moment of a scope, nothing related here: no rows, not every
+  // row; a location its values are not in is no part of them)
   return useMemo(() => key ? { rows: key.split(" ") as Hex[], context }
-    : undefined, [key, context]);
+    : on && scoped ? { rows: [], context } : undefined,
+  [on, scoped, key, context]);
 }
 
 // The related view's values for a tree (Filter.roots): the selection

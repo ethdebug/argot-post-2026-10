@@ -37,7 +37,7 @@ import { exiting, outside } from "./types";
 import { viewUnder } from "./scroll";
 
 // a chevron, pointing down (open); CSS turns it right when closed
-const CHEV = <svg viewBox="0 0 16 16" aria-hidden="true"><path
+export const CHEV = <svg viewBox="0 0 16 16" aria-hidden="true"><path
   d="M3.5 6 8 10.5 12.5 6" fill="none" stroke="currentColor"
   strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" /></svg>;
 const ARROW = (d: string) => <svg viewBox="0 0 16 16" aria-hidden="true">

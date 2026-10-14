@@ -190,7 +190,9 @@ const filled = () => {
   return [...lens.querySelectorAll<HTMLElement>("[data-view]")]
     .filter((v) => !v.closest("[hidden]"))
     .every((v) => v.matches(".tree") ? !!v.querySelector("li[data-path]")
-      : !v.querySelector(".rows") || !!v.querySelector(".rows .wrow"));
+      // (a page with nothing at the moment: its gap row, drawn)
+      : !v.querySelector(".rows") || !!v.querySelector(".rows .wrow, " +
+        ".rows > .gap"));
 };
 async function whenDrawn() {
   const t0 = performance.now();

@@ -92,7 +92,10 @@ function shower(store: Store<LensState>, spec: LensSpec, project: Project,
     // keep their place; one transition)
     const was = store.get();
     const step = !!view?.step && was.scene === id && was.moment !== moment;
+    // (and the pages as the moment has them: a reader's choice holds
+    // until the next moment shown, or a Reset)
     const apply = () => store.set((s) => ({ ...s, scene: id, moment,
+      pages: undefined,
       error: undefined, from: step ? s.moment : undefined,
       shows: (s.shows ?? 0) + (step ? 0 : 1),
       // (a scene with the related view on first)

@@ -3,6 +3,7 @@
 // byte linked to the value that owns it
 import { useFitDump } from "./fit";
 import { useEdges } from "./PointerYaml";
+import { CHEV } from "./Tree";
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { drawOverlays, type ViewData } from "./overlays";
 import { drawNotes, hoverNotes } from "./notes";
@@ -297,7 +298,7 @@ export function Dump(p: { id: ViewId; location: Location; data: DataRef;
   const disp = p.display ?? {};
   const bare = !!disp.bare;
   const flow = disp.density === "flow";
-  const { l } = useLayout(p.id, p.filter, undefined, p.compare);
+  const { l, only } = useLayout(p.id, p.filter, undefined, p.compare);
   const { l: lThere0 } = useLayout(p.id, p.filter, p.compare, p.data);
   const lThere = p.compare ? lThere0 : undefined;
   const hereAt = usePointAt(p.data);
@@ -858,8 +859,22 @@ export function Dump(p: { id: ViewId; location: Location; data: DataRef;
   const { more, edge } = useEdges(rowsBox, !!disp.edges, [rows.length,
     litKey, snap], { what: `the ${p.location}`, band: "its lit rows",
     on: ".wrow.on" });
-  // (nothing of this location to show here: no dump)
-  if (l && !rows.length) return null;
+  // (a page, `edges`: open or shut to its tab. Open where something here
+  // is related at the moment (the related view's rows), or as the reader
+  // chose, until the next moment shown: LensState.pages)
+  // (held while a move runs: its steps would open and shut it by turns;
+  // laid out as the moment has it once it rests)
+  const chosen = useLensState((s) => s.pages?.[p.location]);
+  const moving = useLensState((s) => !!s.playing);
+  const was = useRef<boolean | null>(null);
+  const now = chosen ?? (!only || only.rows.length > 0);
+  const open = moving && was.current !== null ? was.current : now;
+  was.current = open;
+  const toggle = () => lens.store.set((s) => ({ ...s, pages: {
+    ...s.pages, [p.location]: !open } }));
+  // (nothing of this location to show here: no dump; a page keeps its
+  // tab and a gap row)
+  if (l && !rows.length && !disp.edges) return null;
   // (bare: the bytes only, nothing to point at or click)
   const handlers = bare ? {} : {
     onPointerOver: point, onPointerMove: point, onFocus: point,
@@ -886,16 +901,23 @@ export function Dump(p: { id: ViewId; location: Location; data: DataRef;
       bare ? "bare" : "", annot ? "annot" : "", still ? "no-hover" : "", annot && revealed
         ? "revealed" : "", hand ? "hand" : ""].filter(Boolean).join(" ")}
     data-view={`${lens.key}:${p.id}`} data-point={l?.point}
+    data-open={disp.edges ? String(open) : undefined}
     data-location={p.location}
     data-exits={exiting(link) || undefined} {...handlers} {...hovering}
     {...layer ? { "data-units": layer.units.length } : {}}>
-    <div className="view-head"><span className="view-name">{title}</span>
+    <div className="view-head">{disp.edges ? <button type="button"
+      className="view-name ptab" aria-expanded={open} onClick={toggle}
+      aria-label={`${title}: ${open ? "fold" : "open"} its page`}>{title}
+      <span className="pchev">{CHEV}</span></button>
+      : <span className="view-name">{title}</span>}
       {ruler && <div className="wrow head"><span className="addr" />
         <Ruler /></div>}
     </div>
     {disp.edges ? <div className="pagebox"><div ref={rowsBox}
       className={`rows${more.up ? " more-up" : ""}${more.down
-        ? " more-down" : ""}`}>{grouped}</div>{edge("up")}{edge("down")}
+        ? " more-down" : ""}`}>{grouped.length ? grouped
+        : <div className="gap" aria-hidden="true"><span>⋯</span></div>}
+      </div>{edge("up")}{edge("down")}
     </div> : <div ref={rowsBox} className="rows" style={disp.scale
       ? { fontSize: `${disp.scale}em` } : undefined}>{flow
         ? <Flow rows={rows} loc={loc} snap={snap}
