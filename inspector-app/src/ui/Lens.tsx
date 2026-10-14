@@ -92,6 +92,8 @@ function shower(store: Store<LensState>, spec: LensSpec, project: Project,
     const arrive = !view || view.arrive || (view.step && !view.play);
     const own = arrive ? bm.selects?.[mark] : undefined;
     const want = own ?? (view && "sel" in view ? view.sel : bm.select);
+    const shut = arrive && bm.collapses ? bm.collapses[mark] ?? bm.collapse
+      : !view ? bm.collapse : undefined;
     const selection = want && tree.byPath.has(want) ? want : null;
     // (a step on the timeline: the same scene, from its moment; the views
     // keep their place; one transition)
@@ -106,11 +108,12 @@ function shower(store: Store<LensState>, spec: LensSpec, project: Project,
       // (a scene with the related view on first)
       ...bm.related && !view
         ? { related: { context: RELATED_CONTEXT } } : {},
-      // (a scene that shuts groups first: its trees' collapsed, anew)
-      ...bm.collapse && !view ? { views: { ...s.views, ...Object.fromEntries(
+      // (a scene that shuts groups first: its trees' collapsed, anew; one
+      // whose moments shut their own, on arriving at each, or the scene's)
+      ...shut ? { views: { ...s.views, ...Object.fromEntries(
         spec.views.filter((v) => v.kind === "tree" ||
           v.kind === "variables").map((v) => [v.id,
-          { ...s.views[v.id], collapsed: new Set(bm.collapse) }])) } }
+          { ...s.views[v.id], collapsed: new Set(shut) }])) } }
         : {},
       // (a link group of its own section starts with nothing selected:
       // the scene's selection is the others')
@@ -313,7 +316,7 @@ export function Lens(props: { spec: LensSpec; project: Project;
         Home: () => 0, End: (_, n) => n - 1 };
       const move = moves[e.key];
       if (!move || (e.target as Element).closest?.(
-        "input, textarea, select, .moves")) return;
+        "input, textarea, select, .moves, [role=tablist]")) return;
       // (no walkthrough: the timeline's moments, if the lens has one;
       // TimelineBar.tsx)
       if (!Object.values(store.get().links).some((l) => l.walk)) {

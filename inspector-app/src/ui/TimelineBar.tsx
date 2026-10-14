@@ -293,28 +293,36 @@ export function TimelineBar(p: { id: ViewId; domId?: string;
       s!.txs[m.tx]?.label ?? "", LABEL)} · ${m.step === "end"
       ? "after the transaction" : `step ${m.step}`}`;
     const first = mk[mine[0]] ?? mk[0];
+    // (another transaction: a cut to its first moment)
+    const toTx = (t: number) => {
+      if (!bm || !s || t === tx) return;
+      const l = lens.store.get().links[spec.links[0]];
+      void lens.show(bm.id, { moment: mk[txs.indexOf(t)],
+        sel: l?.selection ?? null, walk: null, step: true });
+    };
     return <div ref={me} id={p.domId} className="rbar mbar"
       data-view={view} data-moment={i} tabIndex={0}
       aria-label="The figure's moments">
+      {/* (its transactions, tabs across its top: a tab, a cut to its first
+        moment; ← → between them; the moments' controls its panel) */}
+      {tabbed && <div className="xtabs" role="tablist"
+        aria-label="Transactions" onKeyDown={(e) => {
+          const k = tabs.indexOf(tx) + (e.key === "ArrowRight" ? 1
+            : e.key === "ArrowLeft" ? -1 : 0);
+          if (k === tabs.indexOf(tx) || k < 0 || k >= tabs.length) return;
+          e.preventDefault();
+          e.stopPropagation();
+          toTx(tabs[k]);
+          (e.currentTarget.children[k] as HTMLElement | undefined)?.focus();
+        }}>{tabs.map((t, k) => <button key={t} type="button" role="tab"
+        id={`${view}-tx-${t}`} data-tx={t} aria-selected={t === tx}
+        aria-controls={`${view}-txp`} tabIndex={t === tx ? 0 : -1}
+        disabled={!s} onClick={() => toTx(t)}>Transaction {k + 1}
+        {sc?.transactions?.[t] ? ` · ${sc.transactions[t]}` : ""}
+      </button>)}</div>}
+      <div className="xpanel" {...tabbed ? { role: "tabpanel",
+        id: `${view}-txp`, "aria-labelledby": `${view}-tx-${tx}` } : {}}>
       <span className="rline2">
-        {/* (its transactions, the real debugger's language picker's
-          buttons: one shown at a time, a cut to its first moment) */}
-        {tabbed && <span className="picker" role="radiogroup"
-          aria-label="Transaction">{tabs.map((t) => <button key={t}
-          type="button" role="radio" data-tx={t}
-          aria-checked={t === tx ? "true" : "false"} disabled={!s}
-          // (at the shown one's last moment, ▶ disabled: the next one's
-          // button the way on, with the walkthrough's halo on ▶)
-          className={s && nextMark === undefined && toward === undefined &&
-            t === tabs[tabs.indexOf(tx) + 1] ? "halo" : undefined}
-          onClick={() => {
-            const k = mk[txs.indexOf(t)];
-            if (!bm || t === tx) return;
-            const l = lens.store.get().links[spec.links[0]];
-            void lens.show(bm.id, { moment: k, sel: l?.selection ?? null,
-              walk: null, step: true });
-          }}>{sc?.transactions?.[t] ?? s?.txs[t]?.label ?? `tx ${t}`}
-        </button>)}</span>}
         <span className="rctl">
         <button type="button" className="btn" data-t="first"
           aria-label="Back to the first moment"
@@ -339,7 +347,7 @@ export function TimelineBar(p: { id: ViewId; domId?: string;
           disabled={!s} onClick={() => go(mk[k])} />)}</span>
       </span>
       <span className="rline3"><span className="rcap">{cap(text)}</span>
-      </span>
+      </span></div>
     </div>;
   }
   const one = n < 2 || sc?.controls === "none";

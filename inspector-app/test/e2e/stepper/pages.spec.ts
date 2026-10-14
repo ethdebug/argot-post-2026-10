@@ -55,7 +55,7 @@ for (const width of [1024, 390]) {
     expect(await height(page)).toBe(h);
     // (the other transaction: as its first moment has them, alice's play,
     // memory alone)
-    await page.locator('.mbar .picker [data-tx="12"]').click();
+    await page.locator('.mbar [role=tab][data-tx="12"]').click();
     await rest(page);
     await expect.poll(() => open(page)).toEqual({ stack: false,
       calldata: false, memory: true, storage: false });

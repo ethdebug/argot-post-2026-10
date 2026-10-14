@@ -110,10 +110,12 @@ html, body { margin: 0; overflow: hidden; background: transparent; }
 /* (the moments' bar: the Reset on its first line, at its right end;
    room kept for it there) */
 #embed [data-mode="reader"]:has(.mbar) > .reset { top: 6px; right: 22px; }
-#embed .rbar.mbar .rline2 { padding-right: 84px; }
+#embed .rbar.mbar :is(.xtabs, .xpanel:first-child > .rline2) {
+  padding-right: 84px; }
 @media (max-width: 759.98px) {
   #embed [data-mode="reader"]:has(.mbar) > .reset { right: 16px; }
-  #embed .rbar.mbar .rline2 { padding-right: 70px; }
+  #embed .rbar.mbar :is(.xtabs, .xpanel:first-child > .rline2) {
+    padding-right: 70px; }
 }
 /* (the compilers' pitfall: its ↺ Reset at the right end of the
    Solidity heading's line, its column's edge: Vyper's heading holds its
