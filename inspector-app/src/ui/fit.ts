@@ -20,7 +20,12 @@ export function useFitDump(me: RefObject<HTMLElement | null>,
       const fs = parseFloat(getComputedStyle(row).fontSize);
       const w = row.querySelector(".word")!.getBoundingClientRect().right -
         row.getBoundingClientRect().left;
-      if (w > 0) d.style.setProperty(key, (w / fs).toFixed(4));
+      if (w > 0) {
+        d.style.setProperty(key, (w / fs).toFixed(4));
+        // (the font changes with the measure, the box's width not: no
+        // observer round says so; the lens's cell size again)
+        setTimeout(() => publish(false));
+      }
     };
     fit();
     let live = true;
@@ -29,6 +34,9 @@ export function useFitDump(me: RefObject<HTMLElement | null>,
       // (only a shown view measures again: a hidden one's would clear
       // the box's measure and take none)
       if (!live || !d || !shown) return;
+      // (nor one with no rows to measure, a page with nothing here: it
+      // would clear its box's measure and set none)
+      if (!me.current?.querySelector(".rows > .run > .wrow")) return;
       d.style.removeProperty("--k32");
       d.style.removeProperty("--k16");
       fit();
@@ -62,6 +70,13 @@ export function useFitDump(me: RefObject<HTMLElement | null>,
       const v = me.current;
       if (!v || !v.isConnected || !key || !d0 || !shown) return;
       sizes.set(v, parseFloat(getComputedStyle(v).fontSize));
+      // (the others' as they are now: one measure may have changed them
+      // all, their box's shared --k32 / --k16, but only one asks)
+      for (const x of views()) {
+        if (x !== v && sizes.has(x)) {
+          sizes.set(x, parseFloat(getComputedStyle(x).fontSize));
+        }
+      }
       const all = views().filter((x) => x.closest(".dump") &&
         x.classList.contains("view")).map((x) => sizes.get(x))
         .filter((x): x is number => !!x);
