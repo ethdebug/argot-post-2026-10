@@ -129,10 +129,10 @@ export function intoView(box: HTMLElement | null, always = false) {
 }
 
 // The code panel: a moment's source, its range marked (Vyper's: no
-// ethdebug, the source unmarked). As a pane (`pane`), the walkthrough's
-// pointer box (PointerYaml.tsx): a hairline label over it, the range's
-// lines a band and the rest muted, its edges' buttons; the box scrolls,
-// the range brought into view
+// ethdebug, the source unmarked). As a pane (`pane`), the program
+// x-ray's small code box (lenses/xray.css), a fixed number of lines,
+// the range brought a third of the way down; its edges' buttons where
+// there is more (PointerYaml.tsx useEdges)
 export function Code(p: { id: ViewId; data: DataRef; domId?: string;
   pane?: boolean }) {
   const lens = useLens();
@@ -147,40 +147,31 @@ export function Code(p: { id: ViewId; data: DataRef; domId?: string;
     from: charAt(text, r.offset), to: charAt(text, r.offset + r.length),
     className: paused?.last ? "rng last" : "rng" } : undefined;
   const pre = useRef<HTMLPreElement>(null);
-  const box = useRef<HTMLDivElement>(null);
   // (a replay playing: the pane follows its steps only as their range
   // leaves it, not a third of the way down at each: no jump a step)
   const playing = useLensState((x) => !!x.playing);
-  useLayoutEffect(() => p.pane ? intoView(box.current, !playing)
+  useLayoutEffect(() => p.pane ? intoView(pre.current, !playing)
     : intoView(pre.current),
   // eslint-disable-next-line react-hooks/exhaustive-deps
   [mark?.from, mark?.to, coloured, p.pane]);
   const note = !c ? "" : !ethdebug ? "no ethdebug: the source unmarked"
     : !r ? "no source range here" : paused?.last
       ? "no range of its own here: the last one, muted" : "";
-  // (a pane's band: the lines the range is on, its first to its last)
-  const lineAt = (x: number) => text.slice(0, x).split("\n").length - 1;
-  const [a, z] = mark ? [lineAt(mark.from), lineAt(Math.max(mark.from,
-    mark.to - 1))] : [-1, -1];
-  const band = (k: number) => k < a || k > z ? "" : `on${k === a
-    ? " on-top" : ""}${k === z ? " on-end" : ""}`;
-  const { more, edge } = useEdges(box, !!p.pane, [mark?.from, mark?.to,
-    text, coloured], { what: "the code", band: "the step's lines" });
+  const { edge } = useEdges(pre, !!p.pane, [mark?.from, mark?.to,
+    text, coloured], { what: "the code", band: "the step's range",
+    on: "mark.rng" });
   const file = src?.path.split("/").pop();
   const body = <pre ref={pre} className={`src codesrc${coloured
     ? " coloured" : ""}`}>
     {lines(text, coloured, { indent: true, ...mark ? { mark } : {},
-      ...p.pane ? { line: band } : {} })}
+    })}
   </pre>;
   if (p.pane) {
-    return <div id={p.domId} className="code ptr pane" data-view={`${
+    return <div id={p.domId} className="code pane" data-view={`${
       lens.key}:${p.id}`}>
-      <p className="plabel"><span className="ptitle">{file} · the code at
-        this step</span> <span className="pnote codenote">{note}</span></p>
-      <div className="ptrbox"><div ref={box} tabIndex={0}
-        className={`ptrscroll${mark ? " lit" : ""}${more.up ? " more-up"
-          : ""}${more.down ? " more-down" : ""}`}>{body}</div>
-        {edge("up")}{edge("down")}</div>
+      <p className="codehead"><span className="srcfile">{file}</span> <span
+        className="codenote">{note}</span></p>
+      <div className="pbox">{body}{edge("up")}{edge("down")}</div>
     </div>;
   }
   return <div id={p.domId} className="code" data-view={`${lens.key}:${

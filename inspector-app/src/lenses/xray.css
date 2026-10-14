@@ -102,9 +102,9 @@
    their indent (the real debugger's); no context: muted, as the
    inspector mutes what is not lit */
 #embed .lens.xray .code pre.codesrc, .lens.xray .code pre.codesrc {
-  overflow: auto !important; height: var(--xc) !important;
+  overflow-y: auto !important; height: var(--xc) !important;
   white-space: pre-wrap; overflow-wrap: anywhere;
-  overflow-x: hidden !important; font-size: var(--fs-meta); }
+  overflow-x: hidden !important; }
 .lens.xray .code { grid-area: code; }
 .lens.xray .code[data-none] pre.codesrc { opacity: 0.45;
   filter: saturate(0.2); }

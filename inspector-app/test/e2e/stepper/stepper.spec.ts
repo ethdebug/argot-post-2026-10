@@ -226,3 +226,30 @@ test("optimized-locals: the bar's lines at one place at every moment",
     }
     expect([...tops]).toHaveLength(1);
   });
+
+// A popover in a column that opens is laid out for the width it comes
+// to: the stack shut by hand, then `len` selected, the stack open again,
+// its popover one line, not a sliver
+test("optimized-locals: the stack opening, its popover one line",
+  async ({ page }) => {
+    await page.emulateMedia({ reducedMotion: "no-preference" });
+    await page.setViewportSize({ width: 1216, height: 900 });
+    await page.goto("./embed.html#scene=optimized-locals");
+    const stack = page.locator(".view[data-location=stack]");
+    await expect(stack).toHaveAttribute("data-open", "true");
+    await stack.locator(".ptab").click();
+    await expect(stack).toHaveAttribute("data-open", "false");
+    await page.waitForTimeout(600);
+    await page.locator(".mbar").focus();
+    await page.keyboard.press("Escape");
+    await page.locator('li[data-path="len"] > .row').click();
+    await expect(stack).toHaveAttribute("data-open", "true");
+    await page.waitForTimeout(900);
+    const pop = stack.locator(".pop").first();
+    await expect(pop).toBeVisible();
+    const r = (await pop.boundingBox())!;
+    const lh = await pop.evaluate((e) =>
+      parseFloat(getComputedStyle(e).lineHeight) || 16);
+    expect(r.width).toBeGreaterThan(60);
+    expect(r.height).toBeLessThan(2.5 * lh + 8);
+  });

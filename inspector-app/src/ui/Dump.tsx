@@ -754,10 +754,22 @@ export function Dump(p: { id: ViewId; location: Location; data: DataRef;
       if (root) schedule(root);
     };
     addEventListener("resize", again);
+    // (and as its box changes width, a column opening or shutting: its
+    // popovers laid out for the width it comes to, never a sliver)
+    let w = me.current?.getBoundingClientRect().width ?? 0;
+    const ro = typeof ResizeObserver === "undefined" ? null
+      : new ResizeObserver(() => {
+        const now = me.current?.getBoundingClientRect().width ?? 0;
+        if (Math.abs(now - w) < 0.5) return;
+        w = now;
+        setTimeout(again);
+      });
+    if (me.current) ro?.observe(me.current);
     let live = true;
     document.fonts?.ready.then(() => live && again());
     return () => {
       live = false;
+      ro?.disconnect();
       removeEventListener("resize", again);
     };
   }, [bare]);
@@ -972,8 +984,11 @@ export function Dump(p: { id: ViewId; location: Location; data: DataRef;
     on: ".wrow.on" });
   // (a page, `edges`: open or shut to its tab, as LensState.pages has it,
   // its owner's (the stepper's: lenses/stepper.tsx); none yet, open where
-  // it is needed: something here related at the moment, drawn)
-  const needed = !only || (only.rows.length > 0 && rows.length > 0);
+  // it is needed: something here related at the moment, drawn, in the
+  // related view)
+  // (none while the related rows are not known: not every page needed
+  // for an instant, as a moment's data comes)
+  const needed = !!only && only.rows.length > 0 && rows.length > 0;
   const chosen = useLensState((s) => s.pages?.[p.location]);
   const open = chosen ?? needed;
   // (its last: what a move holds, above)

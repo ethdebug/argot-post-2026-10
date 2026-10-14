@@ -75,6 +75,14 @@ html, body { margin: 0; overflow: hidden; background: transparent; }
    its pages: lenses/debugger.css) */
 #embed .lens.stepper .sidecol .tree { overflow-y: auto !important;
   height: 100% !important; }
+/* (and the stepper's code: its own box, a fixed height, scrolling;
+   lenses/debugger.css) */
+#embed .lens.stepper .code.pane pre.src { overflow-y: auto !important;
+  height: calc(7 * 1.45em) !important; }
+@media (max-width: 759.98px) {
+  #embed .lens.stepper .code.pane pre.src {
+    height: calc(5 * 1.45em) !important; }
+}
 /* (but the real debugger's panes scroll, as a debugger's do: its
    height holds as it steps through files of any length) */
 #embed .lens.soldb pre.src { overflow: auto !important;
