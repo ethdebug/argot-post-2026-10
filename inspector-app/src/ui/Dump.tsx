@@ -588,8 +588,7 @@ export function Dump(p: { id: ViewId; location: Location; data: DataRef;
       out.push(folded || r.gapBefore ? { ...r, gapBefore: true } : r);
       folded = false;
     }
-    // (every row zero: the first kept, so the dump keeps its box)
-    return out.length || !all.length ? out : [all[0]];
+    return out;
   }, [l, l2, disp.second, disp.ends, disp.foldZero, snap, p.location]);
   useFitDump(me, true, rows.length);
 

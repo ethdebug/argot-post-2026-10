@@ -77,3 +77,24 @@ for (const width of [1024, 390]) {
     expect(await height(page)).toBe(h);
   });
 }
+
+// A page's rows are the related view's alone: `storage` selected at the
+// first moment, the storage page open with its slots, the others shut
+test("optimized-locals: storage selected shows its slots", async ({
+  page }) => {
+  await page.setViewportSize({ width: 1216, height: 900 });
+  await page.goto("./embed.html#scene=optimized-locals");
+  await expect(page.locator('li[data-path="@locals"] > .row.sel'))
+    .toBeVisible();
+  await page.locator(".mbar").focus();
+  await page.keyboard.press("Escape");
+  await page.locator('li[data-path="@storage"] > .row').click();
+  await expect(page.locator('li[data-path="@storage"] > .row.sel'))
+    .toBeVisible();
+  await expect.poll(() => open(page)).toEqual({ stack: false,
+    calldata: false, memory: false, storage: true });
+  const slots = page.locator(".view[data-location=storage] .wrow[data-slot]");
+  await expect.poll(() => slots.count()).toBeGreaterThan(5);
+  expect(await page.locator(".view[data-location=storage] .b.hl").count())
+    .toBeGreaterThan(0);
+});

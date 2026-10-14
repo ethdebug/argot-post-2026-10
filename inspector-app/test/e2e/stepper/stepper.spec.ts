@@ -164,8 +164,12 @@ test("optimized-locals: a move, no transition; its selection held",
         if (document.documentElement.classList.contains("vt-run")) {
           w.seen.push("vt");
         }
+        // (storage as a group the related view leaves out, a shut row,
+        // is no part of it: shown, not every variable)
         if (l?.hasAttribute("data-playing") && document.querySelector(
-          '.tree li[data-path="@storage"]')) w.seen.push("storage");
+          '.tree li[data-path="@storage"]:not(.aside)')) {
+          w.seen.push("storage");
+        }
         if (w.seen.length < 50) requestAnimationFrame(f);
       };
       requestAnimationFrame(f);
