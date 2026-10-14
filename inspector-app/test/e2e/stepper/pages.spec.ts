@@ -8,8 +8,9 @@ import type { Page } from "@playwright/test";
 import { test, expect } from "../../page";
 
 const open = (page: Page) => page.evaluate(() => Object.fromEntries([
-  ...document.querySelectorAll<HTMLElement>(".view[data-open]")].map((v) =>
-  [v.dataset.location, v.dataset.open === "true"])));
+  ...document.querySelectorAll<HTMLElement>(
+    ".view[data-location][data-open]")].map((v) =>
+    [v.dataset.location, v.dataset.open === "true"])));
 const height = (page: Page) => page.locator("#embed").evaluate((e) =>
   Math.ceil(e.getBoundingClientRect().height));
 const tab = (page: Page, loc: string) => page.locator(
@@ -17,7 +18,7 @@ const tab = (page: Page, loc: string) => page.locator(
 // (the pages over the stack, top to bottom, as laid out: not as a move
 // draws them)
 const order = (page: Page) => page.evaluate(() => [...document
-  .querySelectorAll<HTMLElement>(".pages .view[data-open]")].sort((a, b) =>
+  .querySelectorAll<HTMLElement>(".pages .view[data-location][data-open]")].sort((a, b) =>
   Number(a.style.order) - Number(b.style.order)).map((v) =>
   v.dataset.location));
 const rest = async (page: Page) => {

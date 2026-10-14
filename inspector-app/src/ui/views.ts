@@ -12,10 +12,12 @@ import { Variables } from "./Variables";
 import { Moves } from "./Moves";
 import { Reveal } from "./RevealToggle";
 import { TimelineBar } from "./TimelineBar";
+import { InstructionEntry, Instructions } from "./Instructions";
 
 export const viewKinds: Partial<Record<ViewKind, ComponentType<any>>> = {
   dump: Dump, tree: Tree, picker: Picker, walkthrough: WalkthroughPanel,
   contract: ContractSource, moment: Moment, code: Code,
   variables: Variables, moves: Moves, reveal: Reveal,
-  timeline: TimelineBar,
+  timeline: TimelineBar, instructions: Instructions,
+  entry: InstructionEntry,
 };
