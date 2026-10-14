@@ -47,6 +47,23 @@ const still = () =>
 const TRACK = 0.94;
 const pct = (x: number) => `${(x * TRACK * 100).toFixed(3)}%`;
 
+// A replay's transactions, its tabs (the moments' bar): each mark's
+// transaction, the scene's moment's; a trace step's, the last mark's at
+// or before it (its steps run from a transaction's first mark to its
+// last, then the next one's)
+export function tabOf(marks: number[], txs: number[], k: number): number {
+  let j = 0;
+  marks.forEach((m, x) => {
+    if (m <= k) j = x;
+  });
+  return txs[j];
+}
+// (the marks of the transaction `k` is in)
+export const tabMarks = (marks: number[], txs: number[], k: number) => {
+  const tx = tabOf(marks, txs, k);
+  return marks.filter((_, x) => txs[x] === tx);
+};
+
 // Go to a moment of a replay, through the steps between (the moments'
 // bar; Lens.tsx's keys): a move toward it (TimelineBar's), or at once
 // with reduced motion or a walkthrough open (each step would end it)
@@ -110,8 +127,14 @@ export function TimelineBar(p: { id: ViewId; domId?: string;
       walk: l?.walk ?? null, step: true });
   };
   const aimAt = toward ?? i;
-  const prevMark = [...mk].reverse().find((k) => k < aimAt);
-  const nextMark = mk.find((k) => k > aimAt);
+  // (the moments' bar, a replay of transactions: its tab's marks alone;
+  // a tab is a transaction, its moments' first to last, no stepping out)
+  const txs = sc?.timeline.map((x) => x.tx) ?? [];
+  const tabbed = p.bar === "moments" && replay &&
+    new Set(txs).size > 1;
+  const inTab = tabbed ? tabMarks(mk, txs, aimAt) : mk;
+  const prevMark = [...inTab].reverse().find((k) => k < aimAt);
+  const nextMark = inTab.find((k) => k > aimAt);
 
   // a move (the moments' bar): through every trace step from the one
   // shown to the one it goes to, back or on, in SPAN, a step a frame at
@@ -259,14 +282,33 @@ export function TimelineBar(p: { id: ViewId; domId?: string;
     // known before its run loads: the bar keeps its form meanwhile)
     const labels = sc?.timeline.map((x) => x.label ?? "") ?? [];
     const onMark = s ? mk.indexOf(i) : -1;
-    const passed = s ? mk.filter((k) => k <= aimAt).length - 1 : 0;
+    // (the tab's moments: their indexes among the scene's; before its
+    // run loads, the first transaction's)
+    const tx = s && tabbed ? tabOf(mk, txs, aimAt) : txs[0];
+    const mine = labels.map((_, k) => k).filter((k) => !tabbed ||
+      txs[k] === tx);
+    const passed = s ? mine.filter((k) => mk[k] <= aimAt).length - 1 : 0;
+    const tabs = [...new Set(txs)];
     const text = !m ? "" : onMark >= 0 ? m.label ?? "" : `${cutMiddle(
       s!.txs[m.tx]?.label ?? "", LABEL)} · ${m.step === "end"
       ? "after the transaction" : `step ${m.step}`}`;
-    const first = mk[0];
+    const first = mk[mine[0]] ?? mk[0];
     return <div ref={me} id={p.domId} className="rbar mbar"
       data-view={view} data-moment={i} tabIndex={0}
       aria-label="The figure's moments">
+      {/* (its transactions, a tab each: a cut to its first moment) */}
+      {tabbed && <span className="ttabs" role="tablist"
+        aria-label="Transactions">{tabs.map((t) => <button key={t}
+        type="button" role="tab" className="view-name ptab" data-tx={t}
+        aria-selected={t === tx} tabIndex={t === tx ? 0 : -1}
+        disabled={!s} onClick={() => {
+          const k = mk[txs.indexOf(t)];
+          if (!bm || t === tx) return;
+          const l = lens.store.get().links[spec.links[0]];
+          void lens.show(bm.id, { moment: k, sel: l?.selection ?? null,
+            walk: null, step: true });
+        }}>{sc?.transactions?.[t] ?? s?.txs[t]?.label ?? `tx ${t}`}
+      </button>)}</span>}
       <span className="rline2"><span className="rctl">
         <button type="button" className="btn" data-t="first"
           aria-label="Back to the first moment"
@@ -280,11 +322,13 @@ export function TimelineBar(p: { id: ViewId; domId?: string;
           aria-label="The next moment"
           disabled={!s || nextMark === undefined}
           onClick={() => go(nextMark!)}>▶</button></span>
-        <span className="rcount">{passed + 1} / {labels.length}</span>
-        <span className="rdots">{labels.map((t, k) => <button key={k}
+        <span className="rcount">{passed + 1} / {mine.length}</span>
+        <span className="rdots">{mine.map((k) => [labels[k], k] as const)
+          .map(([t, k]) => <button key={k}
           type="button" className={`dot ${!s ? "later" : mk[k] < aimAt
             ? "done" : mk[k] === aimAt ? "cur" : "later"}`} data-k={k}
-          title={plain(t)} aria-label={`Moment ${k + 1}: ${plain(t)}`}
+          title={plain(t)} aria-label={`Moment ${mine.indexOf(k) + 1}: ${
+            plain(t)}`}
           aria-current={s && mk[k] === aimAt ? "step" : undefined}
           disabled={!s} onClick={() => go(mk[k])} />)}</span>
       </span>

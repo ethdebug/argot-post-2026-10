@@ -35,10 +35,12 @@ describe.each(Object.values(STEPPER))("%s's replay", (id) => {
       expect(bm.moment).toBe(bm.marks![0]);
     }
   });
-  it("its snapshot: under 80 KB gzipped", async () => {
+  // (optimized-locals's two transactions' steps, carol's join to its
+  // name's storage writes: 88 KB)
+  it("its snapshot: under 96 KB gzipped", async () => {
     const file = await sceneSnapshot(await testProject(), s);
     const gz = zlib.gzipSync(JSON.stringify(snapshotJson(file))).length;
-    expect(gz).toBeLessThan(80 * 1024);
+    expect(gz).toBeLessThan(96 * 1024);
   }, 120_000);
 });
 

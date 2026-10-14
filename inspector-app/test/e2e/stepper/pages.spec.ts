@@ -53,8 +53,9 @@ for (const width of [1024, 390]) {
       calldata: false, memory: false, storage: false });
     await page.waitForTimeout(800);
     expect(await height(page)).toBe(h);
-    // (the next moment: as it has them, alice's play, memory alone)
-    await page.locator('.mbar [data-t="next"]').click();
+    // (the other tab: as its first moment has them, alice's play,
+    // memory alone)
+    await page.locator('.ttabs [data-tx="12"]').click();
     await rest(page);
     await expect.poll(() => open(page)).toEqual({ stack: false,
       calldata: false, memory: true, storage: false });

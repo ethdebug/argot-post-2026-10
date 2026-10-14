@@ -43,6 +43,8 @@ export interface Scene {
   // its first moment there to its last: a replay, its timeline's play;
   // its own moments the marks)
   replay?: true;
+  // (its transactions' names, by their index: a replay's tabs)
+  transactions?: Record<number, string>;
   // (its views' roots: the values it is about, the rest not shown)
   roots?: Path[];
   // pointers written by hand for its one moment, to the stack and memory
@@ -213,9 +215,10 @@ function withTimeline(s: Scene, timeline: Scene["timeline"]): Scene {
 // A scene file's text: its keys in one order, two spaces, a newline
 export function sceneJson(s: Scene): string {
   const { id, title, caption, run, lens, timeline, controls, rows,
-    variables, replay, initial, pointers } = s;
+    variables, replay, transactions, initial, pointers } = s;
   return JSON.stringify({ id, title, caption, run, lens, timeline,
-    controls, rows, variables, replay, initial, pointers }, null, 2) +
+    controls, rows, variables, replay, transactions, initial, pointers },
+  null, 2) +
     "\n";
 }
 
