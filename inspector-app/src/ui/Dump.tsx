@@ -34,7 +34,7 @@ import type {
 import { byteKey, short } from "../engine/hex";
 import {
   decodingOf, useDecoded, useLayout, useLens, useLensState, useLight, useLink,
-  usePointAt, hush,
+  usePointAt, hush, resolveRef,
 } from "./hooks";
 import { blockOf, resolveTarget } from "../engine/target";
 import { noLight, retint } from "../engine/light";
@@ -44,7 +44,7 @@ import { readWritten } from "../engine/timeline";
 import {
   addressText, addressing, hex4, nextRow, rowBytes,
 } from "../engine/location";
-import type { DataRef, Display, LinkId, ViewId } from "./types";
+import type { DataAt, DataRef, Display, LinkId, ViewId } from "./types";
 import { exiting, outside } from "./types";
 
 const TINTS = 5;
@@ -355,15 +355,36 @@ export function Dump(p: { id: ViewId; location: Location; data: DataRef;
   const disp = p.display ?? {};
   const bare = !!disp.bare;
   const flow = disp.density === "flow";
-  const { l, only } = useLayout(p.id, p.filter, undefined, p.compare);
-  const { l: lThere0 } = useLayout(p.id, p.filter, p.compare, p.data);
+  // (a page shut while a move runs, held so (below): its rows as at the
+  // step it was shut on, not laid out again at each step; laid out as
+  // the moment has them once the move rests)
+  const { project: proj } = useLens();
+  const was = useRef<boolean | null>(null);
+  const moving = useLensState((s) => !!s.playing);
+  const resolved = useLensState((s) => {
+    const a = resolveRef(p.data, s, proj);
+    return a ? `${a.decoding}\n${a.point}` : "";
+  });
+  const frozen = useRef<DataAt | undefined>(undefined);
+  const hold = !!disp.edges && moving && was.current === false &&
+    !!frozen.current;
+  if (!hold && resolved && `${frozen.current?.decoding}\n${
+    frozen.current?.point}` !== resolved) {
+    const [decoding, point] = resolved.split("\n");
+    frozen.current = { decoding, point };
+  }
+  const data: DataRef = hold ? frozen.current! : p.data;
+  const { l, only } = useLayout(p.id, p.filter, hold ? data : undefined,
+    p.compare);
+  const { l: lThere0 } = useLayout(p.id, p.filter, p.compare, data);
   const lThere = p.compare ? lThere0 : undefined;
-  const hereAt = usePointAt(p.data);
+  const hereAt = usePointAt(data);
   const thereAt = usePointAt(p.compare);
   const here = hereAt?.p;
   const snap = here?.snapshot;
   const otherPoint = thereAt?.p;
-  const lit00 = useLight(p.id, p.filter, undefined, p.compare);
+  const lit00 = useLight(p.id, p.filter, hold ? data : undefined,
+    p.compare);
   const lit0 = useMemo(() => retint(lit00, disp.tint), [lit00, disp.tint]);
   // (a second reading of the same storage: its layout and its light, in
   // its own colour; its rows merged in, its lit bytes outlined)
@@ -381,10 +402,10 @@ export function Dump(p: { id: ViewId; location: Location; data: DataRef;
   const relOn = useLensState((s) => s.related !== undefined);
   // what the compared point lights (a slot lit there only: "only"; none
   // in a walkthrough, which walks one side: vanilla panel.js)
-  const there0 = useLight(p.id, p.filter, p.compare, p.data);
+  const there0 = useLight(p.id, p.filter, p.compare, data);
   const there = walkLink.walk && !lit0.rest ? noLight : there0;
   const [link, setLink] = useLink(p.link);
-  const d = useDecoded(p.data);
+  const d = useDecoded(data);
   const lens = useLens();
   const foreign = !!d && !!decodingOf(lens, d.decoding)?.foreign;
   const foreign2 = !!d2 && !!decodingOf(lens, d2.decoding)?.foreign;
@@ -964,8 +985,6 @@ export function Dump(p: { id: ViewId; location: Location; data: DataRef;
   // (held while a move runs: its steps would open and shut it by turns;
   // laid out as the moment has it once it rests)
   const chosen = useLensState((s) => s.pages?.[p.location]);
-  const moving = useLensState((s) => !!s.playing);
-  const was = useRef<boolean | null>(null);
   // (a page with no rows to show here stays shut: none related, or
   // none of those drawn)
   const now = chosen ?? (!only || (only.rows.length > 0 && rows.length > 0));
