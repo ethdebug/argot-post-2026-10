@@ -4,7 +4,6 @@
 import { it, expect, afterEach } from "vitest";
 import { render, fireEvent, cleanup, waitFor } from "@testing-library/react";
 import { Lens } from "../ui/Lens";
-import { abbreviated } from "../ui/Dump";
 import { testProject } from "../../test/project";
 import { rawLenses } from "./raw";
 import type { LensSpec } from "../ui/types";
@@ -38,8 +37,11 @@ for (const spec of rawLenses) {
     const addrs = [...st.querySelectorAll(".wrow .addr .a")]
       .map((a) => a.textContent);
     expect(addrs).toEqual(json.stack.map((_: string, k: number) => `${k}`));
-    expect(st.querySelector(".wrow .ab")!.textContent)
-      .toBe(abbreviated(json.stack.at(-1)!.slice(2).match(/../g)!, 3));
+    // (its word's 32 bytes, cells as every word's; cut to what fits on a
+    // page, ui/Dump.tsx fitAbbr)
+    expect([...st.querySelectorAll(".wrow .word .oct > .b")].slice(0, 32)
+      .map((b) => b.textContent).join(""))
+      .toBe(json.stack.at(-1)!.slice(2).padStart(64, "0"));
     // the others the same dump: words of 32 bytes; no ruler anywhere
     // (memory: one run of bytes, 16 a line, each line its offset)
     const mem = view(c, "memory")!;
@@ -78,17 +80,6 @@ for (const spec of rawLenses) {
     expect(c.querySelector(".hl, .on, .chosen, .active, .pop")).toBeNull();
   });
 }
-
-it("abbreviation: a word's first and last bytes, padded to 32: one width",
-  () => {
-  const w = (h: string) => h.padStart(64, "0").match(/../g)!;
-  expect(abbreviated(w("53c8a5ff9979"), 3)).toBe("0x00…ff9979");
-  expect(abbreviated(w("1420"), 3)).toBe("0x00…001420");
-  expect(abbreviated(w("22"), 3)).toBe("0x00…000022");
-  expect(abbreviated(w("ab".repeat(32)), 3)).toBe("0xab…ababab");
-  // (a short word, its bytes the low end's)
-  expect(abbreviated(["14", "20"], 3)).toBe("0x00…001420");
-});
 
 it("the display parameters: scale, perLine, rows shape", async () => {
   const project = await testProject();

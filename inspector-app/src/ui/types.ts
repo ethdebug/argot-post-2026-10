@@ -73,9 +73,9 @@ export interface Display {
   // "strip": a tall, narrow column (a word's four groups of eight one
   // under another; with `abbreviate`, a line a word)
   shape?: "rows" | "strip";
-  // a word as its first byte and its last `abbreviate` bytes,
-  // "0x00…001420"
-  // (padded to 32 bytes: every word the same width)
+  // (set: a word's cells on one line, its low end at the right, cut from
+  // the left to what fits, a "…" cell for those cut: ui/Dump.tsx
+  // fitAbbr; the number is not read)
   abbreviate?: number;
   // "flow": the rows' bytes as one run, `perLine` bytes a line (default
   // 16), words going on one into the next: no gap rows, tighter type
