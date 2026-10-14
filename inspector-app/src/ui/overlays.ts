@@ -250,8 +250,9 @@ function whatIn(root: El, rowsIn: El[]): Item[] {
     return [anchorNote];
   }
   // (a slot it read: why, by the values there, "playerList[0] (key for
-  // players[0x7099…79c8])", "(length of playerList)"; a note, as the
-  // anchor's, never cut)
+  // players[0x7099…79c8])", "(length of playerList)"; or a record's
+  // first slot it used for its number, "(start of players[0x90f7…b906])";
+  // a note, as the anchor's, never cut)
   const whys = r0 && !walk ? data(r0)?.light.relWhy?.get(slotOf(r0)) : null;
   if (whys?.length) {
     // (a key by its name too: players[0x7099…79c8 ("alice")])
@@ -259,11 +260,13 @@ function whatIn(root: El, rowsIn: El[]): Item[] {
       ? shortKeys(w.of).replace(/\]$/, ` ("${w.who}")]`) : shortKeys(w.of);
     const notes = whys.map((w, i): Item => noteItem(w.why === "key"
       ? [{ name: shortKeys(w.name) }, " (key for ", { name: keyed(w) }, ")"]
+      : w.why === "start" ? ["(start of ", { name: keyed(w) }, ")"]
       : ["(length of ", { name: shortKeys(w.of) }, ")"],
     i ? " · " : " · ", { fixed: true, seg: 0,
-      // (short: "(key for alice's record)")
-      ...w.why === "key" && w.who ? { alt: [`(key for ${w.who}'s record)`] }
-        : {} }));
+      // (short: "(key for alice's record)", "(start of carol's record)")
+      ...w.why !== "length" && w.who
+        ? { alt: [`(${w.why === "key" ? "key for" : "start of"} ${w.who}'s `
+          + "record)"] } : {} }));
     return anchorNote ? [...notes, anchorNote] : notes;
   }
   if (!owners.length) {

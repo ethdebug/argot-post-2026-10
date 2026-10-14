@@ -120,3 +120,24 @@ it("a slot's role: read (its bytes), anchor (its number), or both",
     expect(p.read).toEqual([]);
     expect(p.anchors.get(S3)).toBe("players");
   });
+
+it("a record's first slot, used for its number: its record's start, "
+  + "not the mapping's anchor; the mapping's own slot: its anchor",
+  async () => {
+    // (carol's join, done, optimized: her name's slot is found from her
+    // record's first slot, keccak(0x90f7…b906, slot 4))
+    const p = await testProject();
+    const d = await decode(p, p.decodings["optimized-locals"],
+      "optimized-locals:252");
+    const l = layout(d, "storage");
+    const S4 = `0x${"4".padStart(64, "0")}` as const;
+    const rec = l.rows.find((r) => r.how === "keccak(0x90f7…b906, slot 4)")!
+      .address;
+    const name = withRelated(forPath(d, l, `${C}.name`,
+      { selection: true }), d, l, `${C}.name`, null);
+    expect(name.related!.has(rec)).toBe(true);
+    expect(name.anchors!.get(S4)).toBe("players");
+    expect(name.anchors!.has(rec)).toBe(false);
+    expect(name.relWhy!.get(rec)).toEqual([{ name: C, why: "start", of: C,
+      who: "carol" }]);
+  });
