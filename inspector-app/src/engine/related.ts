@@ -23,13 +23,33 @@ import type { RelWhy } from "./types";
 // template's input, a hash's argument, a region's base) is an ANCHOR:
 // only its number. A slot may be both (playerList's slot 0, for playerList[i]:
 // its length bounds the list, and its number is the data's base).
+// A value used as a slot where a group that holds the selection starts
+// is not the variable's anchor: it is that group's START (a record's
+// first slot, for a field after it: players[0x90f7…b906], for its
+// .name), by the group.
 export function roles(d: Decoded, path: Path, location: Location):
-  { read: ResolvedRegion[]; anchors: Map<Hex, Path> } {
+  { read: ResolvedRegion[]; anchors: Map<Hex, Path>;
+    starts: Map<Hex, Path> } {
   const n = d.byPath.get(path);
   const g = n && d.graphs.get(n.root);
   const read: ResolvedRegion[] = [];
   const anchors = new Map<Hex, Path>();
-  if (!n || !g) return { read, anchors };
+  const starts = new Map<Hex, Path>();
+  if (!n || !g) return { read, anchors, starts };
+  // (the groups that hold the selection, below its variable, by the
+  // first slot of their storage)
+  const first = (x: ValueNode): bigint | undefined => [
+    ...x.regions.filter((r) => r.location === "storage")
+      .map((r) => r.slot),
+    ...(x.children ?? []).map(first)]
+    .reduce<bigint | undefined>((a, b) =>
+      b === undefined || (a !== undefined && a <= b) ? a : b, undefined);
+  const groups = new Map<bigint, Path>();
+  for (let q = parentIn(d.byPath, path); q !== undefined && q !== "" &&
+    q !== n.root; q = parentIn(d.byPath, q)) {
+    const s = first(d.byPath.get(q)!);
+    if (s !== undefined && !groups.has(s)) groups.set(s, q);
+  }
   const byId = new Map([...g.nodes.values()].flatMap((x) => x.instances)
     .map((i) => [i.id, i] as const));
   const own = new Set<string>();
@@ -64,9 +84,11 @@ export function roles(d: Decoded, path: Path, location: Location):
           ?.["~keccak256"] ||
         (c.region?.slot !== undefined && c.region.slot >= v &&
           c.region.slot - v < PLAIN)));
-    if (asSlot) anchors.set(slotHex(v), n.root);
+    if (!asSlot) continue;
+    if (groups.has(v)) starts.set(slotHex(v), groups.get(v)!);
+    else anchors.set(slotHex(v), n.root);
   }
-  return { read, anchors };
+  return { read, anchors, starts };
 }
 
 // The parents of what a selection consulted, outside it: consulted too,
@@ -109,6 +131,7 @@ export function related(d: Decoded, path: Path, w: Walkthrough | null,
   const r = roles(d, path, location);
   for (const x of r.read) for (const [row] of regionBytes(x)) out.add(row);
   r.anchors.forEach((_, h) => out.add(h));
+  r.starts.forEach((_, h) => out.add(h));
   const visit = (x: ValueNode) => {
     for (const r of [...x.regions, ...x.reads ?? []]) {
       if (r.location !== location) continue;
@@ -172,7 +195,7 @@ export function withRelated(light: Light, d: Decoded, l: Layout,
     const v = values.find((x) => within(d.byPath, q, x));
     if (v !== undefined) relColours.set(q, leads.get(v) ?? 0);
   }
-  const { read, anchors } = roles(d, path, l.location);
+  const { read, anchors, starts } = roles(d, path, l.location);
   const relBytes = new Set<ByteKey>();
   for (const [id, keys] of l.owned) {
     if (!relColours.has(ownerPath(id))) continue;
@@ -252,6 +275,14 @@ export function withRelated(light: Light, d: Decoded, l: Layout,
     }
   }
   const lit = new Set([...light.bytes].map((k) => k.split("|")[1]));
+  // (a group's start it used for its number, not its own: why, by the
+  // group, "(start of players[0x90f7…b906])")
+  for (const [h, q] of starts) {
+    if (lit.has(h)) continue;
+    const k = q.match(/\[(0x[0-9a-fA-F]{40})\]$/);
+    const who = k ? names.get(k[1].toLowerCase()) : undefined;
+    because(h, { name: q, why: "start", of: q, ...who ? { who } : {} });
+  }
   // (an anchor the selection lights is its own: no note)
   for (const h of [...anchors.keys()]) if (lit.has(h)) anchors.delete(h);
   // (the variable whose slot it consulted, as an anchor or read: its
