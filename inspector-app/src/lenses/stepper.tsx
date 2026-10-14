@@ -14,6 +14,7 @@ import {
 } from "react";
 import type { Filter, Location } from "../engine/types";
 import { panel } from "../ui/Panel";
+import { useLens } from "../ui/hooks";
 import type { Display, LensSpec, ViewSpec } from "../ui/types";
 
 // The pages share one fixed room (debugger.css --pages-h): the stack's
@@ -27,7 +28,7 @@ import type { Display, LensSpec, ViewSpec } from "../ui/types";
 // shut them by turns), laid out once it rests.
 const phone = () => matchMedia("(max-width: 759.98px)").matches;
 // a page's rows' height: its content's, its box's padding and border
-const need = (box: HTMLElement) => {
+const needRows = (box: HTMLElement) => {
   const cs = getComputedStyle(box);
   const kids = [...box.children] as HTMLElement[];
   const body = kids.length ? kids[kids.length - 1].getBoundingClientRect()
@@ -36,14 +37,24 @@ const need = (box: HTMLElement) => {
     parseFloat(cs.paddingBottom) + parseFloat(cs.borderTopWidth) +
     parseFloat(cs.borderBottomWidth));
 };
-// share `room` among `needs`: each its need, when they all fit (what
-// none needs stays under them, the area's); else each a part of the
-// room as its need is of theirs, whole pixels, at least `least` (or its
-// need, if less): their lit rows scroll into view (ui/Dump.tsx)
+// share `room` among `needs`: each its need, when they all fit, and what
+// none needs split among them, the pages filling the room (their rows at
+// their tops, their paper under them); else each a part of the room as
+// its need is of theirs, whole pixels, at least `least` (or its need, if
+// less): their lit rows scroll into view (ui/Dump.tsx)
 export function share(room: number, needs: number[], least = 0): number[] {
   const all = needs.reduce((a, b) => a + b, 0);
   room = Math.max(0, Math.floor(room));
-  if (all <= room) return needs.map((n) => Math.ceil(n));
+  if (all <= room) {
+    const out = needs.map((n) => Math.ceil(n));
+    let rest = room - out.reduce((a, b) => a + b, 0);
+    const each = needs.length ? Math.floor(rest / needs.length) : 0;
+    return out.map((h) => {
+      const x = h + each + (rest - each * needs.length > 0 ? 1 : 0);
+      rest -= x - h;
+      return x;
+    });
+  }
   const min = needs.map((n) => Math.min(n, least));
   const over = Math.max(0, room - min.reduce((a, b) => a + b, 0));
   const extra = needs.map((n, k) => n - min[k]);
@@ -62,9 +73,22 @@ export function share(room: number, needs: number[], least = 0): number[] {
 const Pages = panel("spanel", "st");
 function Wide({ children }: { children: ReactNode }) {
   const me = useRef<HTMLDivElement>(null);
+  const { store } = useLens();
   useLayoutEffect(() => {
     const lens = me.current?.closest<HTMLElement>(".lens");
     if (!lens) return;
+    // Which pages are open (LensState.pages): a page needed (Dump.tsx
+    // data-needed) opens when the moment or the selection changes, and
+    // none shuts then; one shuts only when the open ones no longer fit
+    // the room, the least lately needed of those not needed now first
+    // (never one needed now, unless those alone do not fit: then they
+    // share the room by need). A reader's own opening or shutting holds
+    // the same way. A show of the scene anew, a Reset, starts over: the
+    // pages needed then, open.
+    let seen = "";
+    let tick = 0;
+    const lately = new Map<string, number>();
+    const needed = new Map<string, boolean>();
     // (the pages' places as last laid out, and which were open: a page
     // that opens or shuts moves to its new place from its old one)
     const places = new Map<Element, number>();
@@ -94,7 +118,28 @@ function Wide({ children }: { children: ReactNode }) {
       // its areas, one value: debugger.css)
       const gap = parseFloat(getComputedStyle(lens.querySelector(
         ".pages .views") ?? lens).rowGap) || 0;
-      const open = group.filter((v) => v.dataset.open === "true");
+      // (the pages open now, by the rule above; written to the lens if
+      // that changes them, which lays them out again)
+      const s = store.get();
+      const loc = (v: HTMLElement) => v.dataset.location!;
+      const need = (v: HTMLElement) => v.dataset.needed === "true";
+      const key = `${s.scene}|${s.moment}|${s.links.st?.selection ?? ""}`;
+      const fresh = !s.pages;
+      const next: Record<string, boolean> = Object.fromEntries(views.map(
+        (v) => [loc(v), fresh ? need(v) : !!s.pages![loc(v) as Location]]));
+      // (a page needed anew: on a new moment or selection, or as its
+      // rows come for one, its related rows a moment later)
+      const moved = key !== seen;
+      if (moved) tick++;
+      for (const v of views) {
+        if (need(v) && (moved || !needed.get(loc(v)))) {
+          next[loc(v)] = true;
+          lately.set(loc(v), tick);
+        }
+        needed.set(loc(v), need(v));
+      }
+      seen = key;
+      const open = group.filter((v) => next[loc(v)]);
       // (a page shut goes to the bottom, opened back to its place,
       // debugger.css: from where it was, in the heights' time)
       const pages = [...lens.querySelectorAll<HTMLElement>(
@@ -123,8 +168,15 @@ function Wide({ children }: { children: ReactNode }) {
         (box(v)?.getBoundingClientRect().height ?? 0);
       const overlap = (v: HTMLElement) => Math.min(0,
         parseFloat(getComputedStyle(v).marginTop) || 0);
+      // (a phone's stack in an area of its own, over the others: the
+      // space between the two areas, as laid out)
+      const narrowA = lens.querySelector(":scope > [data-area=narrow]");
+      const wideA = lens.querySelector(":scope > [data-area=wide]");
+      const between = stack && group.includes(stack) && narrowA && wideA
+        ? wideA.getBoundingClientRect().top -
+          narrowA.getBoundingClientRect().bottom : 0;
       const fixed = group.reduce((n, v) => n + own(v) + overlap(v), 0) +
-        gap * Math.max(0, group.length - 1);
+        gap * Math.max(0, group.length - 1 - (between ? 1 : 0)) + between;
       void tabs;
       const rowsOf = (v: HTMLElement) => v.querySelector<HTMLElement>(
         ".rows");
@@ -132,8 +184,25 @@ function Wide({ children }: { children: ReactNode }) {
       // rows' height, about)
       const least = 2 * Math.max(0, ...[...lens.querySelectorAll<
         HTMLElement>(".pages .rows .wrow")].map((r) => r.offsetHeight));
-      const hs = share(room - fixed, open.map((v) =>
-        rowsOf(v) ? need(rowsOf(v)!) : 0), least);
+      const needOf = (v: HTMLElement) => rowsOf(v) ? needRows(rowsOf(v)!)
+        : 0;
+      // (too many to fit: the least lately needed of those not needed now
+      // shut, one by one, until the rest do)
+      const avail = room - fixed;
+      const fits = () => open.reduce((n, v) => n + needOf(v), 0) <= avail;
+      const spare = open.filter((v) => !need(v)).sort((a, b) =>
+        (lately.get(loc(a)) ?? 0) - (lately.get(loc(b)) ?? 0));
+      while (!fits() && spare.length) {
+        const v = spare.shift()!;
+        open.splice(open.indexOf(v), 1);
+        next[loc(v)] = false;
+      }
+      if (fresh || views.some((v) => next[loc(v)] !==
+        !!s.pages![loc(v) as Location])) {
+        store.set((x) => ({ ...x, pages: next }));
+        return;
+      }
+      const hs = share(avail, open.map(needOf), least);
       for (const v of group) {
         const b = box(v);
         const k = open.indexOf(v);
@@ -161,7 +230,7 @@ function Wide({ children }: { children: ReactNode }) {
       if (wide && narrow) {
         const sh = stack && group.includes(stack) ? tab(stack) + (stack
           .dataset.open === "true" ? hs[open.indexOf(stack)] ?? 0 : 0) : 0;
-        const h = group.includes(stack!) ? `${room - sh - gap}px` : "";
+        const h = group.includes(stack!) ? `${room - sh - between}px` : "";
         if (wide.style.height !== h) wide.style.height = h;
       }
     };
@@ -177,7 +246,8 @@ function Wide({ children }: { children: ReactNode }) {
     const mo = new MutationObserver(watch);
     for (const a of lens.querySelectorAll(":scope > :is([data-area=wide], " +
       "[data-area=narrow])")) mo.observe(a, { childList: true,
-      subtree: true, attributes: true, attributeFilter: ["data-open"] });
+      subtree: true, attributes: true,
+      attributeFilter: ["data-open", "data-needed"] });
     mo.observe(lens, { attributes: true, attributeFilter: ["data-playing"] });
     addEventListener("resize", fit);
     return () => {

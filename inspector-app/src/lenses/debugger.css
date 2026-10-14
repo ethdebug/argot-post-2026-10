@@ -140,22 +140,32 @@
      rest, one width whether the stack is open or shut (their type, and
      so the figure's, follows their width: ui/fit.ts); the variables
      the rest) */
-  /* (the stack's width: a word's low bytes, about six, and the "…"
-     cell, with its addresses; in the page's type, not the cells': the
-     cells' size follows the pages' width, which follows this; its tab's
-     beside it. The pages 68% of what is left, the variables 280px at
-     least: at the post's widest frame, 1216px, 560px or more, a word
-     one line of 32 bytes) */
-  .lens.stepper { --stack-w: 12em; --stack-tab: 1.6em; --pages-h: 472px;
-    grid-template-columns: auto min(calc((100% - var(--stack-w) -
-      var(--stack-tab) - 56px) * 0.68), calc(100% - var(--stack-w) -
-      var(--stack-tab) - 56px - 280px)) minmax(0, 1fr);
+  /* (the stack's width: its slot numbers, a word's first byte, the "…"
+     cell and its last four, in its cells' type; its tab's beside it.
+     The pages 68% of what is left beside a stack of 12em, the variables
+     280px at least: at the post's widest frame, 1216px, 560px or more, a
+     word one line of 32 bytes, and the room the stack frees the
+     variables') */
+  .lens.stepper { --stack-w: calc(var(--cell-fs, 14px) * 11.2 + 20px);
+    --stack-tab: 1.6em; --pages-h: 472px;
+    /* (the pages' width as before the stack was this narrow: what the
+       stack frees, the variables') */
+    --pages-of: calc(100% - 12em - var(--stack-tab) - 56px);
+    grid-template-columns: auto min(calc(var(--pages-of) * 0.68),
+      calc(var(--pages-of) - 280px)) minmax(0, 1fr);
     grid-template-areas: "moves moves moves" "narrow wide side"
       "src src src"; }
 }
 /* (the pages: a box each, its location on a tab joined to its top; its
    rows scroll inside it past its cap) */
-.lens.stepper .pages .views { row-gap: 18px; padding-bottom: 0; }
+/* (the pages a stack of sheets: none apart, each one's tab on the edge
+   of the one above, sharing its line; the room theirs, top to bottom,
+   stepper.tsx) */
+.lens.stepper .pages .views { row-gap: 0; padding-bottom: 0; }
+.lens.stepper .pages .view + .view { margin-top: -1px; }
+@media (max-width: 759.98px) {
+  .lens.stepper > .stackcol { margin-bottom: -19px; }
+}
 @media (min-width: 760px) {
   .lens.stepper > :is([data-area="wide"], .stackcol) {
     height: var(--pages-h); }
@@ -183,18 +193,14 @@
   .lens.stepper > [data-area="wide"] { transition: none; }
 }
 .lens.stepper .view[data-open="false"] .pedge { display: none; }
-/* (shut pages at the bottom of the area, after the open ones and the
-   room they leave, each in its order: a pile of tabs, close together, as
-   cards slid to the back of a deck; their move, stepper.tsx) */
+/* (shut pages under the open ones, each in its order: a pile of tabs at
+   the bottom of the stack, as sheets slid to the back of it; their move,
+   stepper.tsx) */
 @media (min-width: 760px) {
   .lens.stepper .pages :is(.panel, .views) { height: 100%; }
   .lens.stepper .pages .views { display: flex; flex-direction: column; }
-  .lens.stepper .pages .view[data-open="false"]:not(
-    .view[data-open="false"] ~ .view) { margin-top: auto; }
 }
 .lens.stepper .pages .view[data-open="false"] { order: 2; }
-.lens.stepper .pages .view[data-open="false"] ~ .view[data-open="false"] {
-  margin-top: -14px; }
 /* (a tab: a button, the tree's chevron its cue; shut, muted) */
 .lens.stepper .ptab { cursor: pointer;
   display: inline-flex; align-items: center; gap: 4px; }
