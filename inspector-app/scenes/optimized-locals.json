@@ -10,14 +10,17 @@
     {
       "tx": 3,
       "step": 166,
-      "label": "Carol joins the game. `len`, the length of her name, sits on the stack. `name` isn't copied anywhere. The compiler's data points straight at the name's bytes in the call data, using its offset and length, saved in memory.",
-      "select": "name"
+      "label": "Carol joins the game. `len`, the length of her name, sits on the stack. `name` isn't copied anywhere. The compiler's data points straight at the name's bytes in the call data, using their offset and length, saved in memory.",
+      "select": "@locals"
     },
     {
       "tx": 3,
-      "step": 357,
-      "label": "The name is written to storage, into Carol's record. On the way, the code copies its bytes from the call data into memory, then stores them a word at a time.",
-      "select": "players[0x90f79bf6eb2c4f870365e785982e1f101e93b906].name"
+      "step": 418,
+      "label": "Carol's join is done. Her name is in her record in storage: one slot holds its length, two hold its bytes.",
+      "select": "players[0x90f79bf6eb2c4f870365e785982e1f101e93b906].name",
+      "collapse": [
+        "player"
+      ]
     },
     {
       "tx": 12,
