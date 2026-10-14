@@ -288,10 +288,14 @@
   .rbar.mbar .rcap { height: calc(5 * 1.35em); }
 }
 /* (the walkthrough's bar at rest, whole: the hint, or the selection and
-   its value, on two lines in this column) */
+   its value, on two lines in this column; two lines' room kept, the
+   selection cut to them, so the tree under it never moves as one comes
+   or goes) */
 .lens.stepper .rbar:not(.mbar) .rline1:has(> .rsel) { height: auto;
-  white-space: normal; }
+  min-height: 2lh; white-space: normal; }
 .lens.stepper .rbar:not(.mbar) .rsel { overflow-wrap: anywhere; }
+.lens.stepper .rbar:not(.mbar) .rsel:not(.muted) { display: -webkit-box;
+  -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-clamp: 2; }
 /* (the tree's edge labels at its right: the tree's own button for its
    lit rows takes the middle) */
 .lens.stepper .vars > .pedge { place-items: center end; }

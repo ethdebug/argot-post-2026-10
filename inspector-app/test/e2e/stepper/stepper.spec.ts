@@ -198,3 +198,31 @@ test("optimized-locals: a move, no transition; its selection held",
     await expect(page.locator('li[data-path="combo"] > .row.sel'))
       .toBeVisible();
   });
+
+// The panel's bar keeps two lines' room, the selection cut to them: its
+// second line starts at one place at every moment, under a long
+// selection (carol's record's name) or a short one
+test("optimized-locals: the bar's lines at one place at every moment",
+  async ({ page }) => {
+    await page.setViewportSize({ width: 1440, height: 1000 });
+    await page.goto("./embed.html#scene=optimized-locals");
+    const lens = page.locator(".lens");
+    const tops = new Set<number>();
+    const top = async () => tops.add(Math.round(await page.locator(
+      ".sidecol .wpanel .rline2").evaluate((t) =>
+      t.getBoundingClientRect().top)));
+    for (const tx of ["3", "12"]) {
+      await page.locator(`.mbar [role=tab][data-tx="${tx}"]`).click();
+      await page.waitForTimeout(300);
+      await top();
+      while (await page.locator('.mbar [data-t="next"]').isEnabled()) {
+        const at = await page.locator(".mbar .rcount").textContent();
+        await page.locator('.mbar [data-t="next"]').click();
+        await expect(page.locator(".mbar .rcount")).not.toHaveText(at!);
+        await expect(lens).not.toHaveAttribute("data-playing", "");
+        await page.waitForTimeout(300);
+        await top();
+      }
+    }
+    expect([...tops]).toHaveLength(1);
+  });
