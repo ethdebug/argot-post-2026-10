@@ -52,9 +52,9 @@ for (const width of [390, 1024]) {
     });
 }
 
-// The stepper's moves (TimelineBar.tsx): each tab's moments, first to
-// last, through every trace step between, and from tab to tab, the
-// frame's posted height holds
+// The stepper's moves (TimelineBar.tsx): each transaction's moments,
+// first to last, through every trace step between, and from one
+// transaction to the other, the frame's posted height holds
 for (const width of [390, 1024]) {
   test(`optimized-locals at ${width}px: its moves, one height`,
     async ({ page, browserName }) => {
@@ -73,11 +73,11 @@ for (const width of [390, 1024]) {
       await page.waitForTimeout(1500);
       const ready = posted.at(-1)!;
       const from = posted.length;
-      // (every moment of each tab, then back to the first: one move)
+      // (every moment of each transaction, then back to the first)
       const rest = () => expect(page.locator(".lens")).not
         .toHaveAttribute("data-playing", "", { timeout: 10_000 });
       for (const [tx, n] of [[3, 2], [12, 5]] as const) {
-        await page.locator(`.ttabs [data-tx="${tx}"]`).click();
+        await page.locator(`.mbar .picker [data-tx="${tx}"]`).click();
         await expect(page.locator(".mbar .rcount")).toHaveText(`1 / ${n}`);
         await rest();
         for (let k = 2; k <= n; k++) {

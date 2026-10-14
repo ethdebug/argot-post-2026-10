@@ -31,7 +31,10 @@ export type ProjectBookmark = Bookmark &
   { timeline: TimelineId; decoding: DecodingId; summary?: string;
     // (a replay's: its points every trace step, once its source loads;
     // `marks`, the indexes of the scene's own moments among them)
-    replay?: true; marks?: number[] };
+    replay?: true; marks?: number[];
+    // (each of the scene's moments' selection on arriving there, by its
+    // index among them: a replay's marks')
+    selects?: (string | undefined)[] };
 
 export interface Project {
   scenes: Scene[];
@@ -73,6 +76,8 @@ const bookmarkOf = (s: Scene): ProjectBookmark => ({
   points: s.timeline.map((_, i) => pointOf(s.id, i)) as
     [string] | [string, string],
   ...(s.initial?.select ? { select: s.initial.select } : {}),
+  ...(s.timeline.some((m) => m.select) ? { selects: s.timeline.map((m) =>
+    m.select) } : {}),
   ...(s.initial?.walk ? { walk: { step: s.initial.walk.step } } : {}),
   ...(s.initial?.collapse ? { collapse: s.initial.collapse } : {}),
   ...(s.initial?.related ? { related: true } : {}),

@@ -65,6 +65,12 @@ for (const id of Object.values(STEPPER)) {
   checks[id] = async (page) => {
     await expect(page.locator(".mbar .rcap")).toHaveText(id === STEPPER.O0
       ? "the name's length, read from the call" : /^Carol joins the game\./);
+    // (-O 2: its first moment selects `name`; Escape shows every local)
+    if (id === STEPPER.O2) {
+      await expect(val(page, "name")).toBeVisible();
+      await page.locator(".mbar").focus();
+      await page.keyboard.press("Escape");
+    }
     await expect(val(page, "len")).toHaveText("34");
   };
 }

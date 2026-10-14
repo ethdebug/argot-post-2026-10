@@ -10,37 +10,44 @@
     {
       "tx": 3,
       "step": 166,
-      "label": "Carol joins the game. `len`, the length of her name, sits on the stack. `name` isn't copied anywhere. The compiler's data points straight at the name's bytes in the call data, using its offset and length, saved in memory."
+      "label": "Carol joins the game. `len`, the length of her name, sits on the stack. `name` isn't copied anywhere. The compiler's data points straight at the name's bytes in the call data, using its offset and length, saved in memory.",
+      "select": "name"
     },
     {
       "tx": 3,
       "step": 357,
-      "label": "The name is written to storage, into Carol's record. On the way, the code copies its bytes from the call data into memory, then stores them a word at a time."
+      "label": "The name is written to storage, into Carol's record. On the way, the code copies its bytes from the call data into memory, then stores them a word at a time.",
+      "select": "players[0x90f79bf6eb2c4f870365e785982e1f101e93b906].name"
     },
     {
       "tx": 12,
       "step": 307,
-      "label": "Alice plays. The code copies her player record from storage into memory, and `player` now lives there."
+      "label": "Alice plays. The code copies her player record from storage into memory, and `player` now lives there.",
+      "select": "player"
     },
     {
       "tx": 12,
       "step": 559,
-      "label": "The optimizer has inlined `_applyCombo`: its code runs right here, with no real call. The compiler's data still marks where the call begins, so only `_applyCombo`'s own variables are listed. `mult` has no location yet."
+      "label": "The optimizer has inlined `_applyCombo`: its code runs right here, with no real call. The compiler's data still marks where the call begins, so only `_applyCombo`'s own variables are listed. `mult` has no location yet.",
+      "select": "combo"
     },
     {
       "tx": 12,
       "step": 564,
-      "label": "`mult` now has a location: 8 bytes of memory."
+      "label": "`mult` now has a location: 8 bytes of memory.",
+      "select": "mult"
     },
     {
       "tx": 12,
       "step": 576,
-      "label": "`mult = combo` doesn't copy anything. The compiler's data now points `mult` at `combo`'s own bytes, so the two variables share one location."
+      "label": "`mult = combo` doesn't copy anything. The compiler's data points `mult` at the same memory word as `combo`: `combo` uses the word's last 4 bytes, and `mult`, a wider type, uses its last 8.",
+      "select": "mult"
     },
     {
       "tx": 12,
       "step": 600,
-      "label": "Back in `play()`. `_applyCombo`'s variables are gone, and `gained`, the result it returned, now has a location in memory."
+      "label": "Back in `play()`. `_applyCombo`'s variables are gone, and `gained`, the result it returned, now has a location in memory.",
+      "select": "gained"
     }
   ],
   "controls": "prev-next",

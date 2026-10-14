@@ -878,7 +878,9 @@ export function Dump(p: { id: ViewId; location: Location; data: DataRef;
   const chosen = useLensState((s) => s.pages?.[p.location]);
   const moving = useLensState((s) => !!s.playing);
   const was = useRef<boolean | null>(null);
-  const now = chosen ?? (!only || only.rows.length > 0);
+  // (a page with no rows to show here stays shut: none related, or
+  // none of those drawn)
+  const now = chosen ?? (!only || (only.rows.length > 0 && rows.length > 0));
   const open = moving && was.current !== null ? was.current : now;
   was.current = open;
   const toggle = () => lens.store.set((s) => ({ ...s, pages: {

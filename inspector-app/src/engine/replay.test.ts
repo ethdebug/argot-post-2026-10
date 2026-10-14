@@ -24,7 +24,7 @@ describe.each(Object.values(STEPPER))("%s's replay", (id) => {
       for (const tx of txs) {
         const mine = s.timeline.filter((m) => m.tx === tx);
         const got = src.moments.filter((m) => m.tx === tx);
-        expect(got[0]).toMatchObject(mine[0]);
+        expect(got[0]).toMatchObject({ tx, step: mine[0].step });
         expect(got.at(-1)).toMatchObject({ step: mine.at(-1)!.step });
         const steps = got.map((m) => m.step).filter((x) => x !== "end");
         expect(steps.every((x, k) => x === steps[0] + k)).toBe(true);
