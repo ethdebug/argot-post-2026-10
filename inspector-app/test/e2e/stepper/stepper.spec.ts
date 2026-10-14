@@ -146,7 +146,8 @@ test("optimized-locals: player open on arriving; shut, one colour",
 // A move is its own motion: no view transition during it or on its
 // arrival, and the selection held through its steps where the variable
 // has no location (alice's moments 1 to 2: `player` none for a few): the
-// tree keeps its rows, never every variable, storage's first
+// tree keeps its rows in their places (the locals' row never moves), and
+// the panel's bar its selection, never the hint for none
 test("optimized-locals: a move, no transition; its selection held",
   async ({ page }) => {
     await page.emulateMedia({ reducedMotion: "no-preference" });
@@ -169,6 +170,19 @@ test("optimized-locals: a move, no transition; its selection held",
         if (l?.hasAttribute("data-playing") && document.querySelector(
           '.tree li[data-path="@storage"]:not(.aside)')) {
           w.seen.push("storage");
+        }
+        if (l?.hasAttribute("data-playing")) {
+          const top = document.querySelector('.tree li[data-path="@locals"]' +
+            " > .row")?.getBoundingClientRect().top;
+          if (top !== undefined) {
+            (w as unknown as { top?: number }).top ??= top;
+            if (Math.abs(top - (w as unknown as { top: number }).top) > 1) {
+              w.seen.push(`locals moved ${top}`);
+            }
+          }
+          if (document.querySelector(".sidecol .rsel.muted")) {
+            w.seen.push("no selection");
+          }
         }
         if (w.seen.length < 50) requestAnimationFrame(f);
       };
