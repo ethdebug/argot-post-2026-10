@@ -68,17 +68,16 @@
 /* (abbreviated: a word's cells on one line, its low end at the row's
    right edge; those that do not fit cut from the left, a "…" cell in
    their place, ui/Dump.tsx fitAbbr) */
-.view.abbr { --cell: 2.4ch; }
+.view.abbr { --cell: 2.4ch; --gutter: calc(3.5ch + 9px); }
 .view.abbr .word { min-width: 0; }
 .view.abbr .word .bytes { display: flex; justify-content: flex-end;
-  overflow: hidden; width: auto; padding-right: 0.5ch; }
+  overflow: hidden; width: auto; padding-right: 0.5ch; gap: 0; }
 .view.abbr .word .oct { display: contents; }
 .view.abbr .word :is(.oct > .b, .el) { flex: none; width: var(--cell); }
 .view.abbr .word .oct + .oct > .b:first-child { margin-left: 0.8ch; }
 .view.abbr .word .el { color: var(--muted); }
 .view.abbr .rows, .view.strip .rows { width: auto; }
-.view.abbr .wrow { grid-template-columns: max-content minmax(0, 1fr); }
-.view.abbr .addr { width: 2.5ch; box-sizing: content-box; }
+.view.abbr .wrow { grid-template-columns: var(--gutter) minmax(0, 1fr); }
 .view.flow .rows { letter-spacing: -0.02em; padding-top: 3px;
   padding-bottom: 3px; }
 .view.flow .wrow { --gutter: 7.5ch; column-gap: 0.6ch; }
