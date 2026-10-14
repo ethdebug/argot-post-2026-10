@@ -17,6 +17,7 @@ export const resetsOwn = (spec: LensSpec) => spec.views.some((v) =>
 // the state a reader changes (not a hover, nor what the lens counts)
 const keyOf = (s: LensState) => JSON.stringify({ scene: s.scene,
   moment: s.moment, related: s.related?.context ?? null,
+  pages: s.pages ?? null,
   links: Object.entries(s.links).map(([k, l]) => [k, l.selection,
     l.walk ? [l.walk.step, l.walk.focus ?? null] : null]),
   views: Object.entries(s.views).map(([k, v]) => [k,

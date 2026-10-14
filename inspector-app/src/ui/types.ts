@@ -54,6 +54,10 @@ export interface LensState {
   // (the moment a move goes to, through the steps between: TimelineBar's
   // aim; none when there is no move)
   toward?: number;
+  // (a figure's pages, open or shut to their tabs, as the reader chose
+  // them, each by its location: until the next moment shown; else as
+  // the moment has them, Dump.tsx)
+  pages?: Partial<Record<Location, boolean>>;
   // (a click or Escape that cleared a selection from outside it: no
   // hover until the pointer moves past 3px from here: ui/hooks.ts hush)
   hush?: { x: number; y: number };
