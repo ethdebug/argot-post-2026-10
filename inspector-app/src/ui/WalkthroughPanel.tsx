@@ -214,6 +214,10 @@ export function useWalkModel(p: { id: ViewId; data: DataRef;
         after: { d, snap: here?.snapshot } } } : {}) } : undefined;
   const sel = link.selection && d?.byPath.has(link.selection)
     ? link.selection : null;
+  // (a replay playing, the selection held at a step where it has no
+  // location: the bar as at the last step it had one; TimelineBar.tsx)
+  const playing = useLensState((x) => !!x.playing);
+  const heldRest = useRef<PanelModel["rest"]>(undefined);
   const node = sel ? d!.byPath.get(sel) : undefined;
   const walk = link.walk;
   const steps = w?.steps ?? [];
@@ -388,12 +392,15 @@ export function useWalkModel(p: { id: ViewId; data: DataRef;
   };
   let rest: PanelModel["rest"];
   let wm: PanelModel["walk"];
-  if (!node || !sides) {
+  if ((!node || !sides) && playing && link.selection && heldRest.current) {
+    rest = heldRest.current;
+  } else if (!node || !sides) {
     const t = sides && locked(link.hover, null, sides.d.byPath);
     rest = { info: sides ? infoOf(sides, t ?? null) : null };
   } else if (st && w) {
     wm = stepOf(i);
   } else rest = selRest();
+  heldRest.current = rest && "canStart" in rest ? rest : undefined;
   const model: PanelModel = { key, walking: !!walk, rest, walk: wm,
     yaml: yamlOf(st), ...walk?.exit ? { exit: true } : {},
     ...rs && !port && !resetsOwn(lens.spec)

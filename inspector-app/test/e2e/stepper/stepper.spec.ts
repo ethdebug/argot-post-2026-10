@@ -142,3 +142,41 @@ test("optimized-locals: player open on arriving; shut, one colour",
     await expect(player).toHaveClass(/collapsed/);
     await expect.poll(colours).toEqual(["pk0"]);
   });
+
+// A move is its own motion: no view transition during it or on its
+// arrival, and the selection held through its steps where the variable
+// has no location (alice's moments 1 to 2: `player` none for a few): the
+// tree keeps its rows, never every variable, storage's first
+test("optimized-locals: a move, no transition; its selection held",
+  async ({ page }) => {
+    await page.emulateMedia({ reducedMotion: "no-preference" });
+    await page.setViewportSize({ width: 1440, height: 1000 });
+    await page.goto("./embed.html#scene=optimized-locals");
+    await page.locator('.mbar [role=tab][data-tx="12"]').click();
+    await expect(page.locator('li[data-path="player"] > .row.sel'))
+      .toBeVisible();
+    const lens = page.locator(".lens");
+    await page.evaluate(() => {
+      const w = window as unknown as { seen: string[] };
+      w.seen = [];
+      const f = () => {
+        const l = document.querySelector(".lens");
+        if (document.documentElement.classList.contains("vt-run")) {
+          w.seen.push("vt");
+        }
+        if (l?.hasAttribute("data-playing") && document.querySelector(
+          '.tree li[data-path="@storage"]')) w.seen.push("storage");
+        if (w.seen.length < 50) requestAnimationFrame(f);
+      };
+      requestAnimationFrame(f);
+    });
+    await page.locator('.mbar [data-t="next"]').click();
+    await expect(lens).toHaveAttribute("data-playing", "");
+    await expect(lens).not.toHaveAttribute("data-playing", "",
+      { timeout: 10_000 });
+    await page.waitForTimeout(500);
+    expect(await page.evaluate(() =>
+      (window as unknown as { seen: string[] }).seen)).toEqual([]);
+    await expect(page.locator('li[data-path="combo"] > .row.sel'))
+      .toBeVisible();
+  });

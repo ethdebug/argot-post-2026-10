@@ -161,9 +161,12 @@ export const STEPS_ANIMATE = false;
 // turned on or off; while it is on, a selection or its clearing, by a
 // click or by the scene shown again (a Reset); and a walkthrough's step,
 // by its switch. (A scene shown again with the related view off: its
-// rows stay, so no motion)
+// rows stay, so no motion.) Not during a move, a replay's play, nor on
+// its arrival: the play is the motion, and its pages fold as it rests
+// (lenses/stepper.tsx); a picture of the page over them would show both
 const rowsChange = (a: LensState, b: LensState) =>
-  a.scene === b.scene && !!a.shows &&
+  a.scene === b.scene && !!a.shows && !a.playing && !b.playing &&
+  a.toward === undefined && b.toward === undefined &&
   ((a.related === undefined) !== (b.related === undefined) ||
     Object.keys(b.links).some((k) => {
       const [x, y] = [a.links[k], b.links[k]];
@@ -175,6 +178,17 @@ const rowsChange = (a: LensState, b: LensState) =>
 // change waits for the transition's callback (the old rows are captured
 // first); meanwhile every other change composes onto it, so a click
 // then is never lost, and lands with it.
+// (`cut`: a change made at once, whatever it changes: a cut, as to
+// another transaction, TimelineBar.tsx)
+let cutting = false;
+export function cut(change: () => void): void {
+  cutting = true;
+  try {
+    change();
+  } finally {
+    cutting = false;
+  }
+}
 export function animated(store: Store<LensState>): Store<LensState> {
   let pending: LensState | null = null;
   return { ...store, set(f) {
@@ -185,7 +199,7 @@ export function animated(store: Store<LensState>): Store<LensState> {
       pending = next;
       return;
     }
-    if (!rowsChange(prev, next)) return store.set(() => next);
+    if (cutting || !rowsChange(prev, next)) return store.set(() => next);
     pending = next;
     transition(() => {
       const s = pending!;
