@@ -119,7 +119,9 @@ export function place(pop: El, a: El, beside = false,
     }
   }
   if (within) clip = within;
-  pop.style.maxWidth = `${clip.right - clip.left - 8}px`;
+  // (never a sliver: a box still opening has no room yet; at least a
+  // short card's, its names cut to it, fitWhat)
+  pop.style.maxWidth = `${Math.max(140, clip.right - clip.left - 8)}px`;
   const at = a.getBoundingClientRect();
   const box = pop.parentElement!.getBoundingClientRect();
   const w = pop.offsetWidth;
