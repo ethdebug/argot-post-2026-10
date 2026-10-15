@@ -620,5 +620,6 @@ export const stepper: LensSpec = {
     { id: "instrs", kind: "instructions", area: "src", data: NOW },
     { id: "code", kind: "code", area: "src", data: NOW, domId: "scode",
       pane: true },
+    { id: "calls", kind: "callstack", area: "src", data: NOW },
   ],
 };

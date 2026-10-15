@@ -534,6 +534,40 @@
 .lens.stepper > .srcrow { display: flex; gap: 0 14px; min-width: 0;
   align-items: stretch; }
 .lens.stepper > .srcrow > .code { flex: 1; min-width: 0; }
+/* (the call stack: beside the code, as wide as the variables' column
+   (CallStack.tsx --side-w), as tall as the code's box; its frames a
+   line, broken between them; a phone: under the code, two lines' room) */
+.lens.stepper > .srcrow > .callstack { flex: none;
+  width: var(--side-w, 30%); display: flex; flex-direction: column;
+  min-width: 0; }
+.lens.stepper .callstack .cbox { flex: 1; padding: 10px 12px;
+  box-sizing: border-box; min-height: 0; overflow: hidden;
+  background: var(--panel); border: 1px solid var(--line);
+  border-radius: 6px; }
+.lens.stepper .callstack .cline { margin: 0; display: flex;
+  flex-wrap: wrap; gap: 4px 0; font-size: var(--fs-meta);
+  line-height: 1.6; }
+.lens.stepper .callstack .cunit { white-space: nowrap; }
+.lens.stepper .callstack .csep { margin: 0 0.5em; color: var(--muted); }
+.lens.stepper .callstack .cframe { font: inherit; padding: 0 4px;
+  border: 1px solid transparent; border-radius: 4px; background: none;
+  color: var(--fg); cursor: pointer; }
+.lens.stepper .callstack .cframe:disabled { cursor: default; }
+.lens.stepper .callstack .cframe:not(:disabled):hover,
+.lens.stepper .callstack .cframe[aria-pressed="true"] {
+  border-color: var(--accent); }
+.lens.stepper .callstack .cframe code { background: none; padding: 0;
+  font-weight: 600; }
+.lens.stepper .callstack .cinl { color: var(--muted); font-style: italic; }
+/* (a call's site, its frame chosen: in the consulted grey, not the
+   step's yellow) */
+.lens.stepper .code mark.rng.site { background: var(--rel-grey); }
+@media (max-width: 759.98px) {
+  .lens.stepper > .srcrow { flex-wrap: wrap; }
+  .lens.stepper > .srcrow > .callstack { width: 100%; margin-top: 10px; }
+  .lens.stepper .callstack .cbox { flex: none;
+    height: calc(2 * 1.6 * var(--fs-meta) + 4px + 20px); }
+}
 .lens.stepper .instrs { display: flex; flex: none; width: 1.6em;
   transition: width 420ms cubic-bezier(0.4, 0, 0.2, 1); overflow: hidden; }
 .lens.stepper .instrs[data-open="true"] { width: min(56%, 46em); }
