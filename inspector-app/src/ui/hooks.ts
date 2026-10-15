@@ -510,6 +510,14 @@ export function useLight(id: string, filter?: Filter, at?: DataRef,
     // muted; only the bytes' own look and their "(unmapped)" popover)
     const base0 = sel ? withRelated(forPath(d, l, sel, { ...o,
       selection: true }), d, l, sel, w) : noLight;
+    // (a row the selection consulted, or bytes there no value owns,
+    // pointed at: as at rest, its consulted look and its note kept)
+    const consulted = (hover?.bytes ?? hover)?.row;
+    if (sel && hover && !hover.path && consulted !== undefined &&
+      ((hover.bytes?.location ?? hover.location ?? l.location) ===
+        l.location) && base0.related?.has(consulted as Hex)) {
+      return { ...base0, cap: new Set([sel]) };
+    }
     if (hover?.bytes && !hover.path) {
       const rest = sel ? { ...base0, cap: new Set([sel]) } : noLight;
       return hover.bytes.location === l.location

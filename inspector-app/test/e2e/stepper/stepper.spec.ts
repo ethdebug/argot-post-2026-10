@@ -342,3 +342,26 @@ test("optimized-locals: the entry's YAML folds", async ({ page }) => {
     { timeout: 10_000 });
   await expect(chev("context")).toHaveAttribute("aria-expanded", "true");
 });
+
+// What `name`'s pointer reads to find it, memory 0xa0's 32 bytes (its
+// offset and length in the call), consulted: those bytes, no others;
+// pointed at, its look and note as at rest
+test("optimized-locals: name's offset and length word consulted",
+  async ({ page }) => {
+    await page.setViewportSize({ width: 1216, height: 900 });
+    await page.goto("./embed.html#scene=optimized-locals");
+    await page.locator('li[data-path="name"] > .row').click();
+    const M = ".view[data-location=memory]";
+    const rel = () => page.locator(`${M} .b.rel`).evaluateAll((bs) =>
+      bs.map((b) => `${(b.closest(".wrow") as HTMLElement).dataset.slot}:${
+        (b as HTMLElement).dataset.i}`));
+    await expect.poll(rel).toEqual(Array.from({ length: 32 },
+      (_, i) => `0x00a0:${i}`));
+    const note = page.locator(`${M} .pop`);
+    await expect(note).toContainText("(read to find name)");
+    await page.locator(`${M} .wrow[data-slot="0x00a0"] .b[data-i="31"]`)
+      .hover();
+    await page.waitForTimeout(400);
+    expect(await rel()).toHaveLength(32);
+    await expect(note).toContainText("(read to find name)");
+  });
