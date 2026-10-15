@@ -24,9 +24,12 @@ import {
 } from "../ui/WalkthroughPanel";
 import { channelName } from "../ui/panel-port";
 import { followTheme } from "./theme";
+import { followPointerOut } from "../ui/unhover";
 
 const hash = new URLSearchParams(location.hash.slice(1));
 followTheme(hash);
+// (the pointer out of the frame, or the host says so: every hover ends)
+followPointerOut();
 const bc = new BroadcastChannel(channelName(hash.get("scene") ?? "",
   hash.get("channel") ?? ""));
 const act = (intent: Intent) => bc.postMessage({ type: "intent", intent });
