@@ -28,7 +28,8 @@ define {
 
   // one turn: a miss resets the combo, a hit scores
   function _turn(player: Player) -> Player {
-    if (!_rolledHit()) {
+    let hit = _rolledHit();
+    if (!hit) {
       return _resetCombo(player);
     }
     player.combo = player.combo + 1;

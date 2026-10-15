@@ -80,8 +80,8 @@ export const PAUSE_STEPS = { O0: [652, 927, 928, 1011],
 // (the stepper's scene at each level)
 export const STEPPER = { O0: "stepper-O0", O2: "optimized-locals" } as const;
 export const pauses: { range?: string; locals: string[] }[] = [
-  { range: "!_rolledHit()", locals: ["player"] },
+  { range: "!hit", locals: ["player", "hit"] },
   { locals: ["points", "combo", "mult"] },
   { range: "if (combo < 5) {\n      mult = combo;\n    }",
     locals: ["points", "combo", "mult"] },
-  { range: "totalScore", locals: ["player", "gained"] }];
+  { range: "totalScore", locals: ["player", "hit", "gained"] }];

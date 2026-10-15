@@ -199,15 +199,15 @@ test("optimized-locals: a move, no transition; its selection held",
     await page.waitForTimeout(500);
     expect(await page.evaluate(() =>
       (window as unknown as { seen: string[] }).seen)).toEqual([]);
-    await expect(page.locator('li[data-path="player"] > .row.sel'))
+    await expect(page.locator('li[data-path="hit"] > .row.sel'))
       .toBeVisible();
   });
 
 // No selection box: the way in is a button at the foot of the variables,
-// "▶ Find <name>", for one value selected, none for a group of them;
-// open, "✕ Exit" in its place; its room kept below the list, so the
-// tree's box never moves, at any moment, with any selection, and nothing
-// of the list is under it
+// "▶ Find <name>", for one value selected, none for a group of them or
+// for a value with no location; open, "✕ Exit" in its place; its room
+// kept below the list, so the tree's box never moves, at any moment,
+// with any selection, and nothing of the list is under it
 test("optimized-locals: the walkthrough's button at the foot of the " +
   "variables", async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 1000 });
@@ -229,7 +229,10 @@ test("optimized-locals: the walkthrough's button at the foot of the " +
       const sel = page.locator(".sidecol .row.sel").first();
       const path = await sel.evaluate((r) =>
         (r.closest("li") as HTMLElement).dataset.path!).catch(() => null);
-      if (path?.startsWith("@")) await expect(go).toHaveCount(0);
+      // (a value with no location here: nothing to find, no button)
+      const none = path ? await page.locator(`li[data-path="${path}"] > ` +
+        ".row .noloc").count() > 0 : false;
+      if (path?.startsWith("@") || none) await expect(go).toHaveCount(0);
       else if (path) {
         await expect(go).toContainText("Find");
       }
