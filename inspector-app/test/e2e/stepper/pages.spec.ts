@@ -137,3 +137,40 @@ test("optimized-locals: a long string lights its length and data slots",
         `.wrow[data-slot="${s}"] .b.hl`).first()).toBeAttached();
     }
   });
+
+// "How it was found": the pages with nothing of the selection's shut,
+// the stack too; the others keep their rows and heights through its
+// steps; closed, every page as before it, folds, heights and scrolls
+for (const width of [1216, 390]) {
+  test(`optimized-locals at ${width}px: a walkthrough folds what holds ` +
+    "nothing of it, and restores all as it closes", async ({ page }) => {
+    await page.setViewportSize({ width, height: 900 });
+    await page.goto("./embed.html#scene=optimized-locals");
+    await page.locator(".lens[data-settled]").waitFor();
+    await page.locator('li[data-path="@locals"] li[data-path="name"] > .row')
+      .click();
+    await page.waitForTimeout(1200);
+    const state = () => page.evaluate(() => [...document.querySelectorAll<
+      HTMLElement>(".view[data-location]")].map((v) => [v.dataset.location,
+      v.dataset.open, v.querySelector<HTMLElement>(".pagebox")?.style.height,
+      v.querySelector(".rows")?.scrollTop].join(":")));
+    const before = await state();
+    await page.locator('button[data-r="start"]').click();
+    await expect(page.locator('.view[data-location="stack"]'))
+      .toHaveAttribute("data-open", "false");
+    await expect(page.locator('.view[data-location="calldata"]'))
+      .toHaveAttribute("data-open", "true");
+    await page.waitForTimeout(800);
+    const walking = await state();
+    const next = page.locator('.rbar:not(.mbar) button[data-r="next"]')
+      .first();
+    while (await next.isEnabled()) {
+      await next.click();
+      await page.waitForTimeout(500);
+      expect((await state()).map((x) => x.split(":").slice(0, 3)))
+        .toEqual(walking.map((x) => x.split(":").slice(0, 3)));
+    }
+    await page.locator('button[data-r="exit"]').click();
+    await expect.poll(state, { timeout: 5000 }).toEqual(before);
+  });
+}
