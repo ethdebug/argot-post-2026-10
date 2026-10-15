@@ -92,15 +92,15 @@ function Wide({ children }: { children: ReactNode }) {
     // (what this last wrote, and the pages the reader opened since)
     let wrote: Record<string, boolean> = {};
     const byHand = new Set<string>();
-    // (a walkthrough ("How it was found") open: the pages as they were
-    // when it opened, kept: those with nothing of the selection's, the
-    // stack too, shut; the others' needs fixed, so its steps move
-    // nothing; as it closes, all as before it, folds and scrolls)
-    let walk: { pages: Record<string, boolean>; keep: Set<string>;
-      scroll: Map<string, number>; byHand: Set<string>;
-      hs?: Map<string, number> } | null = null;
-    // (the pages needed while no walkthrough is open: the selection's)
-    const before = new Map<string, boolean>();
+    // (the related view on: a page with related rows open, one with none
+    // shut, the stack too; each its rows' height, whatever a step of a
+    // walkthrough lights. As it comes on, the pages as they were kept;
+    // as it goes off, put back: folds and scrolls)
+    type Held = { pages: Record<string, boolean>;
+      scroll: Map<string, number>; byHand: Set<string> };
+    let held: Held | null = null;
+    // (each page's box's padding and edges, as last seen open)
+    const seenEdges = new Map<string, number>();
     // (the pages' order, over the stack: their own, at first)
     const RANK = ["calldata", "memory", "storage"];
     let rank = [...RANK];
@@ -137,42 +137,30 @@ function Wide({ children }: { children: ReactNode }) {
       // that changes them, which lays them out again)
       const s = store.get();
       const loc = (v: HTMLElement) => v.dataset.location!;
-      const walking = !!s.links.st?.walk;
+      const related = s.related !== undefined;
       const rowsAt = (v: HTMLElement) => v.querySelector<HTMLElement>(
         ".rows");
-      if (walking && !walk) {
-        const keep = new Set(views.filter((v) => before.get(loc(v)))
-          .map(loc));
-        walk = { pages: Object.fromEntries(views.map((v) => [loc(v),
-          v.dataset.open === "true"])), keep,
-        scroll: new Map(views.map((v) => [loc(v),
-          rowsAt(v)?.scrollTop ?? 0])), byHand: new Set(byHand) };
-        const pages = Object.fromEntries(views.map((v) => [loc(v),
-          keep.has(loc(v))]));
-        wrote = { ...pages };
-        store.set((x) => ({ ...x, pages }));
+      // (its rows not in yet: nothing to decide)
+      if (related && views.some((v) => v.dataset.related === undefined))
         return;
-      }
-      if (!walking && walk) {
-        const w = walk;
-        walk = null;
+      if (!related && held) {
+        const w = held;
+        held = null;
         byHand.clear();
         w.byHand.forEach((l) => byHand.add(l));
         wrote = { ...w.pages };
+        seen = `${s.scene}|${s.moment}|${s.links.st?.selection ?? ""}`;
         // (its pages' places and scrolls as before, once their heights
         // have come back)
-        setTimeout(() => {
-          for (const v of views) {
-            const r = rowsAt(v);
-            if (r) r.scrollTop = w.scroll.get(loc(v)) ?? r.scrollTop;
-          }
-        }, still() ? 50 : 500);
+        // (each page's scroll as it was, once its rows are back: Dump.tsx)
+        for (const v of views) {
+          v.dataset.restore = String(w.scroll.get(loc(v)) ?? 0);
+        }
         store.set((x) => ({ ...x, pages: w.pages }));
         return;
       }
-      const need = (v: HTMLElement) => walk ? walk.keep.has(loc(v))
-        : v.dataset.needed === "true";
-      if (!walk) for (const v of views) before.set(loc(v), need(v));
+      const need = (v: HTMLElement) => related
+        ? v.dataset.related === "true" : v.dataset.needed === "true";
       const key = `${s.scene}|${s.moment}|${s.links.st?.selection ?? ""}`;
       const fresh = !s.pages;
       const next: Record<string, boolean> = Object.fromEntries(views.map(
@@ -194,6 +182,14 @@ function Wide({ children }: { children: ReactNode }) {
           byHand.add(loc(v));
           lately.set(loc(v), tick);
         }
+      }
+      // (the related view: its pages exactly; none of the pages but the
+      // stack's with any of it, the pages as they were)
+      if (related && views.some((v) => loc(v) !== "stack" && need(v))) {
+        for (const v of views) next[loc(v)] = need(v);
+      } else if (related) {
+        const stack0 = views.find((v) => loc(v) === "stack");
+        if (stack0) next.stack = need(stack0);
       }
       const pulled = new Set<string>();
       for (const v of views) {
@@ -272,13 +268,21 @@ function Wide({ children }: { children: ReactNode }) {
         HTMLElement>(".pages .rows .wrow")].map((r) => r.offsetHeight));
       // (a page's need: its rows', and its box's padding and edge, where
       // its edges' buttons are)
-      const edges = (v: HTMLElement) => {
+      // (as it is open: a shut page's box has none, and one just opened
+      // may not be drawn open yet; the last seen open, or another's)
+      const edgeOf = (v: HTMLElement) => {
         const b = box(v);
-        if (!b) return 0;
+        if (!b || v.dataset.open !== "true") return undefined;
         const cs = getComputedStyle(b);
         return parseFloat(cs.paddingTop) + parseFloat(cs.paddingBottom) +
           parseFloat(cs.borderTopWidth) + parseFloat(cs.borderBottomWidth);
       };
+      for (const v of group) {
+        const e = edgeOf(v);
+        if (e) seenEdges.set(loc(v), e);
+      }
+      const edges = (v: HTMLElement) => seenEdges.get(loc(v)) ??
+        Math.max(0, ...seenEdges.values());
       const needOf = (v: HTMLElement) => rowsOf(v) ? needRows(rowsOf(v)!) +
         edges(v) : 0;
       // (too many to fit: the least lately needed of those not needed now
@@ -326,14 +330,15 @@ function Wide({ children }: { children: ReactNode }) {
       // the others the rest by need; when not, each what shows its lit
       // rows at least, the rest by need beyond that; when not even that,
       // in proportion to it)
-      const lit = open.filter(need);
+      // (the related view: each page is its rows, by need alone)
+      const lit = related ? [] : open.filter(need);
       const needs = open.map(needOf);
       const hs = !lit.length || needs.reduce((a, b) => a + b, 0) <= avail
         ? share(avail, needs, least)
         : (() => {
           const others = open.filter((v) => !need(v));
-          const left = Math.max(0, avail - others.reduce((a, v) =>
-            a + floor(v), 0));
+          const left = Math.max(0, Math.floor(avail - others.reduce(
+            (a, v) => a + floor(v), 0)));
           const want = lit.map((v) => Math.ceil(needOf(v)));
           const keep = lit.map((v, k) => Math.min(want[k],
             Math.ceil(litWant(v))));
@@ -357,20 +362,15 @@ function Wide({ children }: { children: ReactNode }) {
           }
           // (the others: at least their least, edges and all)
           const lo = others.length ? least + edges(others[0]) : 0;
-          const ho = share(avail - sum(hl), others.map(needOf), lo);
+          const ho = share(Math.floor(avail) - sum(hl), others.map(needOf),
+            lo);
           return open.map((v) => need(v) ? hl[lit.indexOf(v)]
             : ho[others.indexOf(v)]);
         })();
-      // (a walkthrough's steps: the heights its first step had, kept)
-      if (walk && !walk.hs) {
-        walk.hs = new Map(group.map((v) => [loc(v),
-          open.indexOf(v) < 0 ? 0 : hs[open.indexOf(v)]]));
-      }
       for (const v of group) {
         const b = box(v);
         const k = open.indexOf(v);
-        const h = `${walk?.hs ? walk.hs.get(loc(v)) ?? 0
-          : k < 0 ? 0 : hs[k]}px`;
+        const h = `${k < 0 ? 0 : Math.floor(hs[k])}px`;
         if (b && b.style.height !== h) {
           b.style.height = h;
           // (its lit rows into view for the height it moves to: Dump.tsx)
@@ -424,14 +424,37 @@ function Wide({ children }: { children: ReactNode }) {
     for (const a of lens.querySelectorAll(":scope > :is([data-area=wide], " +
       "[data-area=narrow])")) mo.observe(a, { childList: true,
       subtree: true, attributes: true,
-      attributeFilter: ["data-open", "data-needed", "data-lit"] });
+      attributeFilter: ["data-open", "data-needed", "data-lit",
+        "data-related"] });
     mo.observe(lens, { attributes: true, attributeFilter: ["data-playing"] });
-    // (and a walkthrough opening or closing)
-    let walked = !!store.get().links.st?.walk;
+    // (and the related view coming on or going off)
+    let rel = store.get().related !== undefined;
+    let walked = false;
+    // (the pages as they are: their folds and scrolls)
+    const now = () => {
+      const views = [...lens.querySelectorAll<HTMLElement>(
+        ".view[data-location][data-open]")];
+      return { pages: Object.fromEntries(views.map((v) => [
+        v.dataset.location!, v.dataset.open === "true"])),
+      scroll: new Map(views.map((v) => [v.dataset.location!,
+        v.querySelector(".rows")?.scrollTop ?? 0])),
+      byHand: new Set(byHand) };
+    };
+    // (as a walkthrough opens, before its steps scroll anything: what
+    // the related view, if it comes on with it, puts back)
+    let pre: Held | null = null;
     const unsub = store.subscribe(() => {
-      const now = !!store.get().links.st?.walk;
-      if (now === walked) return;
-      walked = now;
+      const s = store.get();
+      const w = Object.values(s.links).some((l) => !!l?.walk);
+      if (w !== walked) {
+        walked = w;
+        pre = w && !rel ? now() : null;
+      }
+      const on = s.related !== undefined;
+      if (on === rel) return;
+      rel = on;
+      // (as it comes on: the pages as they are, before their rows go)
+      if (on && !held) held = pre ?? now();
       fit();
     });
     addEventListener("resize", fit);

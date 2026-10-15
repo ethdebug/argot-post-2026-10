@@ -137,6 +137,13 @@ function ease(t: number): number {
 }
 const going = new WeakMap<Element, { to: number; frame: number }>();
 
+// A box's glide stopped where it is
+export function stopGlide(box: Element) {
+  const now = going.get(box);
+  if (now) cancelAnimationFrame(now.frame);
+  going.delete(box);
+}
+
 // A box's scroll to `to`, in the transitions' time and easing (at once
 // under reduced motion, or `instant`); a scroll already on its way there
 // left alone, one elsewhere retargeted

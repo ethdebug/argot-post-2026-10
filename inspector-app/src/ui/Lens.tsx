@@ -205,6 +205,21 @@ export function Lens(props: { spec: LensSpec; project: Project;
   const [store] = useState(() => animated(createStore(initialState(spec,
     project))));
   const key = useId();
+  // (a scene whose related view is on while a walkthrough is open: on
+  // as one opens, off again as it closes)
+  useEffect(() => {
+    let was = false;
+    return store.subscribe(() => {
+      const s = store.get();
+      const bm = project.bookmarks.find((b) => b.id === s.scene);
+      const now = Object.values(s.links).some((l) => !!l?.walk);
+      if (now === was) return;
+      was = now;
+      if (!bm?.walkRelated) return;
+      store.set((x) => ({ ...x, related: now ? { context: RELATED_CONTEXT }
+        : undefined }));
+    });
+  }, [store, project]);
   const value = useMemo(() => ({ spec, project, store, key,
     show: shower(store, spec, project, props.onFail) }),
   [spec, project, store, key, props.onFail]);
