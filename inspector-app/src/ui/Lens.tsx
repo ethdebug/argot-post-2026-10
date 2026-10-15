@@ -19,6 +19,7 @@ import {
   type LensContextValue, hush, pointer,
 } from "./hooks";
 import { viewKinds } from "./views";
+import { touch, UNHOVER } from "./unhover";
 import { aim, tabMarks } from "./TimelineBar";
 import {
   RELATED_CONTEXT, type DataRef, type LensSpec, type LensState,
@@ -206,15 +207,34 @@ export function Lens(props: { spec: LensSpec; project: Project;
   // pointing anywhere but at this lens's views (or a tree's edge button,
   // which is for what is lit) ends its hovers (vanilla onOver)
   useEffect(() => {
+    const drop = () => store.set((s) => Object.values(s.links).some((l) =>
+      l.hover) ? { ...s, links: Object.fromEntries(Object.entries(s.links)
+      .map(([k, l]) => [k, l.hover ? { ...l, hover: null } : l])) } : s);
     const over = (e: Event) => {
       const t = e.target as Element;
       const v = t.closest?.("[data-view]")?.getAttribute("data-view");
       if (v?.startsWith(key + ":") || t.closest?.(".tedge, .tray")) return;
-      store.set((s) => Object.values(s.links).some((l) => l.hover)
-        ? { ...s, links: Object.fromEntries(Object.entries(s.links)
-          .map(([k, l]) => [k, l.hover ? { ...l, hover: null } : l])) }
-        : s);
+      drop();
     };
+    // (the pointer out of the page, the window's blur, the host's word:
+    // unhover.ts)
+    addEventListener(UNHOVER, drop);
+    // (a touch's pointer: no hover, whatever set it (a tap's focus, a
+    // click's rehover); a mouse's, a pen's, or a key: hover as ever)
+    const kind = (e: PointerEvent) => {
+      touch.on = e.pointerType === "touch";
+      if (touch.on) drop();
+    };
+    const keyed = () => {
+      touch.on = false;
+    };
+    const unsub = store.subscribe(() => {
+      if (touch.on) drop();
+    });
+    for (const t of ["pointerover", "pointerdown", "pointermove"] as const) {
+      document.addEventListener(t, kind, true);
+    }
+    document.addEventListener("keydown", keyed, true);
     // (and focus leaving its views, to nothing or elsewhere: vanilla)
     const out = (e: FocusEvent) => {
       const to = e.relatedTarget as Element | null;
@@ -224,6 +244,12 @@ export function Lens(props: { spec: LensSpec; project: Project;
     document.addEventListener("pointerover", over);
     document.addEventListener("focusout", out);
     return () => {
+      removeEventListener(UNHOVER, drop);
+      unsub();
+      for (const t of ["pointerover", "pointerdown", "pointermove"] as const) {
+        document.removeEventListener(t, kind, true);
+      }
+      document.removeEventListener("keydown", keyed, true);
       document.removeEventListener("pointerover", over);
       document.removeEventListener("focusout", out);
     };

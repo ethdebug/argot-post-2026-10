@@ -14,6 +14,7 @@ import { blockOf } from "../engine/target";
 import { relClass, scopeOf } from "../engine/related";
 import { within } from "../engine/tree-paths";
 import { vtName } from "./transition";
+import { touch } from "./unhover";
 import { onChainNames } from "../engine/annotated";
 
 // An address, short, with its on-chain name: 0x7099…79c8 ("alice"); a
@@ -241,7 +242,8 @@ export function Tree(p: { id: ViewId; data: DataRef; filter?: Filter;
       ?? null;
   };
   const point = (e: PointerEvent | { target: EventTarget }) => {
-    if (lens.spec.hover === false || lens.store.get().hush) return;
+    if (lens.spec.hover === false || lens.store.get().hush ||
+      touch.on) return;
     const at = rowOf(e.target);
     const path = at && d && blockOf(at, link.selection, d.byPath);
     setLink((s) => s.hover?.path === path && !s.hover?.bytes &&

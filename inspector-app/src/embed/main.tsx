@@ -10,6 +10,8 @@
 // the panel's model and acts on its intents (ui/panel-port.ts), and asks
 // the host to bring a step's lit rows into view: { type:
 // "ethdebug:scroll-to", y, bottom } (their top and bottom in this frame).
+// The host's { type: "ethdebug:pointer-out" }, on its pointerleave of the
+// frame, ends every hover (ui/unhover.ts), as the pointer leaving does.
 import { followTheme } from "./theme";
 import "../../../shared/appendix.css";
 import "../style.css";
@@ -29,9 +31,12 @@ import { rawLens } from "../lenses/raw";
 import { builds, figures, page, scenes } from "../scenes";
 import { PanelPort, channelName, figurePort } from "../ui/panel-port";
 import { setProgress, setRevealed } from "../ui/reveal";
+import { followPointerOut } from "../ui/unhover";
 
 const hash = new URLSearchParams(location.hash.slice(1));
 followTheme(hash);
+// (the pointer out of the frame, or the host says so: every hover ends)
+followPointerOut();
 // (an annotated figure's reveal, from the host's scroll: { type:
 // "ethdebug:reveal", on, progress, after }: the progress, 0 to 1, each
 // frame, and the hold after it, 0 to 1 (`after`, if the host has one);
