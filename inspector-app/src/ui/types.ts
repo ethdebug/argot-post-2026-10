@@ -181,7 +181,10 @@ export type ViewSpec = { id: ViewId; area: string; link?: LinkId;
       // annotated figure's disclaimer)
       badge?: boolean }
     | { kind: "walkthrough"; data: DataRef; compare?: DataRef;
-      others?: { decoding: DecodingId; who?: string }[] });
+      others?: { decoding: DecodingId; who?: string }[];
+      // (no bar at rest: its way in, and out, a button at the foot of
+      // the variables, ui/Variables.tsx, for one value selected)
+      button?: boolean });
 export type ViewKind = ViewSpec["kind"];
 
 export interface LensSpec {     // a composition for one post section

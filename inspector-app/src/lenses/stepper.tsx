@@ -526,6 +526,7 @@ export const stepper: LensSpec = {
     page("memory", "Memory", all),
     page("storage", "Storage", all),
     { id: "walk", kind: "walkthrough", area: "side", link: "st",
+      button: true,
       domId: "sdetails", data: NOW },
     { id: "vars", kind: "variables", area: "side", data: NOW, link: "st",
       domId: "svars", edges: true },

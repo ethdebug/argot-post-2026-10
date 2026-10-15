@@ -340,7 +340,27 @@
   align-self: stretch; }
 .lens.stepper .sidecol .vars { position: relative; min-height: 0;
   flex: 1 1 0; }
-.lens.stepper .sidecol .vars > .tree { height: 100%; overflow-y: auto; }
+.lens.stepper .sidecol .vars { display: flex; flex-direction: column; }
+.lens.stepper .sidecol .vars > .tree { flex: 1 1 0; min-height: 0;
+  overflow-y: auto; }
+/* (the walkthrough's way in and out, at the foot of the variables: its
+   room kept, one line or two, empty or not, so the list never moves; the
+   name cut, never "How … is found") */
+.lens.stepper .vars > .wslot { flex: none; display: flex;
+  align-items: flex-end; height: calc(2 * 1.5em + 10px); padding-top: 6px;
+  box-sizing: border-box; }
+.lens.stepper .vars > .wslot .wgo { display: inline-block; max-width: 100%;
+  padding: 3px 12px; font-weight: 600; color: var(--bg);
+  background: var(--accent); border-color: var(--accent); text-align: left;
+  line-height: 1.5; white-space: normal; overflow: hidden;
+  display: -webkit-box; -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2; line-clamp: 2; }
+.lens.stepper .vars > .wslot .wgo:hover { filter: brightness(1.1); }
+.lens.stepper .vars > .wslot .wgo .rplay { font-size: 0.85em; }
+/* ("How" and "is found" whole; the name broken anywhere it must) */
+.lens.stepper .vars > .wslot .wgo .wgo-how { white-space: nowrap; }
+.lens.stepper .vars > .wslot .wgo .wgo-name { overflow-wrap: anywhere;
+  background: none; color: inherit; padding: 0; font-size: 0.95em; }
 /* (the code: the small code box, ui/code.css, 7 lines; 5 on a phone) */
 .lens.stepper .code.pane pre.codesrc { height: calc(7 * 1.45em); }
 @media (max-width: 759.98px) {
