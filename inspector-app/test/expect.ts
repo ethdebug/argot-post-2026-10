@@ -45,6 +45,9 @@ export const expected: Record<string, Row[]> = {
   motd: [
     ["motd", `"${MOTD[0]}"`, `"${MOTD[1]}"`],
     [`${A}.score`, "60", "60"],
+    // (bob's miss, transaction 13, just before: his combo back to 0)
+    [`${B}.combo`, "0", "0"],
+    [`${B}.plays`, "2", "2"],
     [`${C}.name`, `"${NAME_C}"`, `"${NAME_C}"`],
     ["totalScore", "170", "170"],
     ["totalHits", "8", "8"],
