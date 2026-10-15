@@ -274,21 +274,43 @@ function Wide({ children }: { children: ReactNode }) {
         store.set((x) => ({ ...x, pages: next }));
         return;
       }
-      // (pages lit: those not lit their least, the rest the lit ones',
-      // in equal parts when two or more, else the one's as it needs;
-      // what is left, the others', by need. None lit: each by need)
+      // (all fit: each its need, the spare shared. Else the pages lit
+      // first: each its need when theirs fit beside the others' least,
+      // the others the rest by need; when not, each what shows its lit
+      // rows at least, the rest by need beyond that; when not even that,
+      // in proportion to it)
       const lit = open.filter(need);
-      const hs = !lit.length ? share(avail, open.map(needOf), least)
+      const needs = open.map(needOf);
+      const hs = !lit.length || needs.reduce((a, b) => a + b, 0) <= avail
+        ? share(avail, needs, least)
         : (() => {
           const others = open.filter((v) => !need(v));
           const left = Math.max(0, avail - others.reduce((a, v) =>
             a + floor(v), 0));
-          const each = lit.length > 1 ? Math.floor(left / lit.length)
-            : Math.min(Math.ceil(needOf(lit[0])), left);
-          let odd = lit.length > 1 ? left - each * lit.length : 0;
-          const hl = lit.map(() => each + (odd-- > 0 ? 1 : 0));
-          const ho = share(avail - hl.reduce((a, b) => a + b, 0),
-            others.map(needOf), least);
+          const want = lit.map((v) => Math.ceil(needOf(v)));
+          const keep = lit.map((v, k) => Math.min(want[k],
+            Math.ceil(litWant(v))));
+          const sum = (xs: number[]) => xs.reduce((a, b) => a + b, 0);
+          let hl: number[];
+          if (sum(want) <= left) hl = want;
+          else if (sum(keep) <= left) {
+            const over = left - sum(keep);
+            const more = want.map((w, k) => w - keep[k]);
+            const all = sum(more) || 1;
+            hl = keep.map((x, k) => x + Math.floor(over * more[k] / all));
+            let odd = left - sum(hl);
+            for (let k = 0; odd > 0; k = (k + 1) % hl.length, odd--) hl[k]++;
+          } else {
+            // (each in proportion to what shows its lit rows: the nearest
+            // to showing them all)
+            const all = sum(keep) || 1;
+            hl = keep.map((x) => Math.floor(left * x / all));
+            let odd = left - sum(hl);
+            for (let k = 0; odd > 0; k = (k + 1) % hl.length, odd--) hl[k]++;
+          }
+          // (the others: at least their least, edges and all)
+          const lo = others.length ? least + edges(others[0]) : 0;
+          const ho = share(avail - sum(hl), others.map(needOf), lo);
           return open.map((v) => need(v) ? hl[lit.indexOf(v)]
             : ho[others.indexOf(v)]);
         })();

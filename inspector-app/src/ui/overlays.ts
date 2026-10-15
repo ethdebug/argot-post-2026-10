@@ -263,6 +263,7 @@ function whatIn(root: El, rowsIn: El[]): Item[] {
     const notes = whys.map((w, i): Item => noteItem(w.why === "key"
       ? [{ name: shortKeys(w.name) }, " (key for ", { name: keyed(w) }, ")"]
       : w.why === "start" ? ["(start of ", { name: keyed(w) }, ")"]
+      : w.why === "read" ? ["(read to find ", { name: shortKeys(w.of) }, ")"]
       : ["(length of ", { name: shortKeys(w.of) }, ")"],
     i ? " · " : " · ", { fixed: true, seg: 0,
       // (short: "(key for alice's record)", "(start of carol's record)")

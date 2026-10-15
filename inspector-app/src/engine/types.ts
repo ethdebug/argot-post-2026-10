@@ -287,7 +287,10 @@ export interface Light {                // DERIVED per view, never stored
 // the path up to that key), the length of what holds one, or the first
 // slot of a group that holds it, used for its number (`of`: the group)
 // (`who`: the key's on-chain name, "alice")
-export interface RelWhy { name: Path; why: "key" | "length" | "start";
+// ("read": a region read to find `of` that is no key, length or start:
+// a local's frame pointer, a reference's offset and length)
+export interface RelWhy { name: Path; why: "key" | "length" | "start"
+  | "read";
   of: Path;
   who?: string }
 export interface Filter {               // truncation, per view
