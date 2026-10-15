@@ -13,6 +13,8 @@ const authoring = testProject();
 const reader = readerProject();
 
 describe.each(scenes.map((s) => [s.id, s] as const))("%s", (_, scene) => {
+  // (the first to ask for a replay's file waits for it made: every trace
+  // step decoded, over 15s on a busy machine)
   it("its snapshot reads back as its run", async () => {
     const p = await authoring;
     const back = fromSnapshot(snapshotOf(JSON.parse(await snapshotText(
@@ -28,7 +30,7 @@ describe.each(scenes.map((s) => [s.id, s] as const))("%s", (_, scene) => {
       }
       expect({ ...a, storage: 0 }).toEqual({ ...b, storage: 0 });
     }
-  });
+  }, 60_000);
   it("decodes the same from its snapshot as from its run", async () => {
     const [p, q] = [await authoring, await reader];
     const ds = Object.values(p.decodings).filter((d) =>
