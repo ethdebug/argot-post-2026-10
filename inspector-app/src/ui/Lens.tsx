@@ -99,8 +99,12 @@ function shower(store: Store<LensState>, spec: LensSpec, project: Project,
     // the variable has a location at the step, so the views keep their
     // rows through the move; TimelineBar.tsx)
     const held = !!view?.play && !view.arrive;
-    const selection = want && (held || tree.byPath.has(want)) ? want
-      : null;
+    // (one out of scope here, or with no row: the moment's own, or the
+    // scene's, where it has one; none asked for, none)
+    const dflt = [bm.selects?.[mark], bm.select].find((x) => x &&
+      tree.byPath.has(x)) ?? null;
+    const selection = !want ? null : held || tree.byPath.has(want) ? want
+      : dflt;
     // (a step on the timeline: the same scene, from its moment; the views
     // keep their place; one transition)
     const was = store.get();

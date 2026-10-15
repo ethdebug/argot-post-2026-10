@@ -786,6 +786,7 @@ export function Dump(p: { id: ViewId; location: Location; data: DataRef;
   // (the rows lit: a dump that scrolls inside itself, a figure's page,
   // brings the first into view when they change)
   const litRows: string[] = [];
+  const relRows: string[] = [];
   // (the pair's layouts, the earlier point's first, for the tints)
   const tintOrder = useMemo(() => !l ? [] : !lThere ? [l]
     : (hereAt?.i ?? 0) < (thereAt?.i ?? 0) ? [l, lThere] : [lThere, l],
@@ -839,6 +840,9 @@ export function Dump(p: { id: ViewId; location: Location; data: DataRef;
       || [...Array(32).keys()].some(
       (i) => light.bytes.has(byteKey(loc, r.address, i)));
     if (on) litRows.push(r.address);
+    // (consulted by the selection: its frame pointer, its offset and
+    // length word, a key's slot)
+    else if (light.related?.has(r.address)) relRows.push(r.address);
     const only = !on && !!p.compare && [...there.bytes].some((b) =>
       b.split("|")[1] === r.address);
     const gut = !on && !only && light.gutters.has(r.address);
@@ -916,7 +920,9 @@ export function Dump(p: { id: ViewId; location: Location; data: DataRef;
   // pointer staying put; nothing lit, a stack shows its top: its live
   // entries. Nothing else moves)
   const rowsBox = useRef<HTMLDivElement>(null);
-  const litKey = litRows.join(" ");
+  // (none lit here: the rows it consulted, as lit ones)
+  const litKey = (litRows.length ? litRows : relRows).join(" ");
+  const litSel = litRows.length ? ".wrow.on" : ".wrow.rel";
   const top0 = p.location === "stack";
   // (a page's rows' box, its height set and moving to it (its page box's,
   // lenses/stepper.tsx, which says "ethdebug:fit" when it sets one): the
@@ -958,7 +964,7 @@ export function Dump(p: { id: ViewId; location: Location; data: DataRef;
     const runs: { top: number; bottom: number }[] = [];
     let open = false;
     for (const r of v.querySelectorAll<HTMLElement>(".wrow")) {
-      if (!r.classList.contains("on")) {
+      if (!r.matches(litSel)) {
         open = false;
         continue;
       }
@@ -1045,7 +1051,9 @@ export function Dump(p: { id: ViewId; location: Location; data: DataRef;
   // or off, a page whose bytes the selection lights, as drawn. A hover
   // changes nothing: its light is not the selection's)
   const selLit = useRef(false);
-  if (!link.hover) selLit.current = !!link.selection && litRows.length > 0;
+  // (where the selection's bytes are, or what it consulted to find them)
+  if (!link.hover) selLit.current = !!link.selection &&
+    litRows.length + relRows.length > 0;
   const needed = (!!only && only.rows.length > 0 && rows.length > 0) ||
     selLit.current;
   const chosen = useLensState((s) => s.pages?.[p.location]);

@@ -175,6 +175,17 @@ function Wide({ children }: { children: ReactNode }) {
         const o = String(next[loc(v)] ? k : RANK.length + k);
         if (v.style.order !== o) v.style.order = o;
       }
+      // (the top page, its tab on the area's top; the top shut one, its
+      // tab on the last open page's strip: debugger.css)
+      const laid = [...pages].sort((a, b) => Number(a.style.order) -
+        Number(b.style.order));
+      const pile = laid.find((v) => !next[loc(v)]);
+      for (const v of laid) {
+        const top = String(v === laid[0]);
+        const pt = String(v === pile && v !== laid[0]);
+        if (v.dataset.top !== top) v.dataset.top = top;
+        if (v.dataset.pileTop !== pt) v.dataset.pileTop = pt;
+      }
       const now = pages.map((v) => `${v.dataset.open}${v.style.order}`)
         .join();
       if (was && now !== was && !still()) {

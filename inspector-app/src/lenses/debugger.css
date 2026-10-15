@@ -158,11 +158,18 @@
 }
 /* (the pages: a box each, its location on a tab joined to its top; its
    rows scroll inside it past its cap) */
-/* (the pages a stack of sheets: none apart, each one's tab on the edge
-   of the one above, sharing its line; the room theirs, top to bottom,
-   stepper.tsx) */
+/* (the pages a stack of sheets: none apart, each one's tab standing on
+   the bottom of the one above, over a strip there that holds nothing;
+   the top one's on the area's top; a shut one's on the shut one above
+   it, a line's overlap, as a pile (stepper.tsx marks the top ones); the
+   room theirs, top to bottom, stepper.tsx) */
+.lens.stepper { --tab-h: 22px; --tab-in: 12px;
+  --tab-shadow: 0 -1px 3px rgb(0 0 0 / 0.08); }
 .lens.stepper .pages .views { row-gap: 0; padding-bottom: 0; }
-.lens.stepper .pages .view + .view { margin-top: -1px; }
+.lens.stepper .pages .view { margin-top: calc(-1 * var(--tab-h)); }
+.lens.stepper .pages .view:is([data-top="true"]) { margin-top: 0; }
+.lens.stepper .pages .view[data-open="false"]:not([data-pile-top="true"],
+  [data-top="true"]) { margin-top: -1px; }
 @media (max-width: 759.98px) {
   .lens.stepper > .stackcol { margin-bottom: -19px; }
 }
@@ -215,6 +222,17 @@
   margin: 0; padding: 2px 10px 1px; background: var(--panel);
   border: 1px solid var(--line); border-bottom: 0;
   border-radius: 6px 6px 0 0; }
+/* (a page's tab: in from the sheet's corner, a light shadow, its foot
+   over the sheet's edge, joined to it) */
+.lens.stepper :is(.pages, .stackcol) .view-head { height: var(--tab-h);
+  display: flex; align-items: flex-end; }
+.lens.stepper :is(.pages, .stackcol) .view-name { position: relative;
+  z-index: 1;
+  margin: 0 0 -1px var(--tab-in); box-sizing: border-box;
+  height: calc(var(--tab-h) + 1px); box-shadow: var(--tab-shadow); }
+.lens.stepper :is(.pages, .stackcol) .view[data-open="false"] .view-name {
+  margin-bottom: 0; height: var(--tab-h); border-bottom: 1px solid
+  var(--line); border-radius: 6px; }
 .lens.stepper :is(.pages, .stackcol) .rows { border-top-left-radius: 0;
   box-sizing: border-box; overflow-y: auto; }
 /* (a page, and the variables' tree, scroll as the pointer's box does,
@@ -226,12 +244,14 @@
    buttons over the rows' faded edge where there is more, moving no row;
    shut, the tab alone) */
 .lens.stepper .pagebox { position: relative; background: var(--panel);
-  border: 1px solid var(--line); border-radius: 0 6px 6px 6px;
-  padding: 4px 0; box-sizing: border-box; }
+  border: 1px solid var(--line); border-radius: 6px;
+  padding: 4px 0; box-sizing: border-box; box-shadow: var(--tab-shadow); }
+/* (a page's strip at its bottom, for the tab of the one under it) */
+.lens.stepper .pages .pagebox { padding-bottom: calc(4px + var(--tab-h)); }
 .lens.stepper .pagebox > .rows { border: 0; border-radius: 0;
   background: none; padding-top: 0; padding-bottom: 0; }
 .lens.stepper .view[data-open="false"] .pagebox { padding: 0;
-  border-width: 0; }
+  border-width: 0; box-shadow: none; }
 .lens.stepper .view[data-open="false"] .pagebox { padding: 0;
   border-width: 0; }
 .lens.stepper :is(.pagebox > .rows, .vars > .tree) {
@@ -327,10 +347,16 @@
   .lens.stepper .stackcol .pagebox > .rows { height: 100%; }
   /* (its tab along its right edge, reading upward, at its top: the
      other tabs' box, turned; one day the column's handle) */
+  .lens.stepper .stackcol .view-head { height: auto; display: block; }
   .lens.stepper .stackcol .view-name { writing-mode: vertical-rl;
     transform: rotate(180deg); align-self: flex-start;
     padding: 10px 1px 10px 2px; border: 1px solid var(--line);
-    border-right: 0; border-radius: 6px 0 0 6px; gap: 6px; }
+    border-right: 0; border-radius: 6px 0 0 6px; gap: 6px;
+    height: auto; margin: var(--tab-in) 0 0 -1px;
+    box-shadow: 1px 0 3px rgb(0 0 0 / 0.08); }
+  .lens.stepper .stackcol .view[data-open="false"] .view-name {
+    margin-left: 0; border: 1px solid var(--line); border-right: 0;
+    border-radius: 6px 0 0 6px; height: auto; }
   .lens.stepper .stackcol .rows { border-top-left-radius: 6px;
     border-top-right-radius: 0; }
 }
@@ -360,7 +386,8 @@
   background: var(--panel); border: 1px solid var(--line);
   border-radius: 6px 0 6px 6px; box-sizing: border-box;
   font-size: var(--fs-meta); height: calc(7 * 1.45em * 12 / 11 + 34px); }
-.lens.stepper .instrs[data-open="false"] .ibox { border-width: 0; }
+/* (shut: its tab alone, no box) */
+.lens.stepper .instrs[data-open="false"] .ibox { display: none; }
 .lens.stepper .instrs .xrows { flex: none; width: 17em; margin: 0;
   padding: 4px 0 4px 9px; list-style: none; overflow: hidden;
   font-family: var(--mono); font-size: var(--fs-meta); }
@@ -369,17 +396,32 @@
 .lens.stepper .instrs .xrows .row { cursor: default;
   grid-template-columns: 4ch minmax(0, 1fr); color: var(--muted); }
 .lens.stepper .instrs .xrows .row:hover { background: none; }
-/* (the one at the moment: its fill reaching the entry's edge, joined to
-   it, a tab on it) */
-.lens.stepper .instrs .xrows .row.hl { color: var(--fg);
-  background: var(--mark); border-radius: 4px 0 0 4px;
+/* (the one at the moment: its fill reaching the entry's box, one
+   shape with it, curving into it above and below) */
+.lens.stepper .instrs .xrows .row.hl { position: relative;
+  color: var(--fg); background: var(--mark); border-radius: 4px 0 0 4px;
   box-shadow: -4px 0 0 var(--mark); }
-/* (its entry: a rounded box in the selection's yellow, the moment's
-   instruction close up; its YAML scrolling inside) */
-.lens.stepper .instrs .icall { flex: 1; min-width: 0; margin: 6px 6px 6px 0;
-  display: grid; grid-template-rows: minmax(0, 1fr);
-  border: 1px solid var(--mark); border-radius: 6px; }
-.lens.stepper .instrs .icall .ptrbox { margin: 0; border: 0; }
+.lens.stepper .instrs .xrows .row.hl::before,
+.lens.stepper .instrs .xrows .row.hl::after { content: "";
+  position: absolute; right: 0; width: 6px; height: 6px;
+  pointer-events: none; }
+.lens.stepper .instrs .xrows .row.hl::before { bottom: 100%;
+  background: radial-gradient(circle at 0 0, transparent 5.5px,
+    var(--mark) 6px); }
+.lens.stepper .instrs .xrows .row.hl::after { top: 100%;
+  background: radial-gradient(circle at 0 100%, transparent 5.5px,
+    var(--mark) 6px); }
+/* (its entry: the row's yellow, close up; in it, the YAML on the
+   panel's paper, under a label saying what it is, scrolling inside) */
+.lens.stepper .instrs .icall { flex: 1; min-width: 0;
+  margin: 6px 6px 6px 0; padding: 4px 6px 6px;
+  display: grid; grid-template-rows: auto minmax(0, 1fr);
+  background: var(--mark); border-radius: 8px; }
+.lens.stepper .instrs .icall .plabel { margin: 0 0 4px 2px;
+  color: var(--fg); opacity: 0.75; }
+.lens.stepper .instrs .icall .ptrbox { margin: 0; border: 0;
+  background: linear-gradient(var(--panel), var(--panel)), var(--bg);
+  border-radius: 5px; overflow: hidden; }
 .lens.stepper .instrs .icall .ptrlines { margin: 0; padding: 0 10px;
   font-size: var(--fs-meta); }
 .lens.stepper .instrs .icall .ptrlines code { display: block; padding: 0;
