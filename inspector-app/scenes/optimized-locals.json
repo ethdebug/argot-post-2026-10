@@ -49,7 +49,7 @@
     {
       "tx": 12,
       "step": 499,
-      "label": "`play()` has counted this play and called `_turn` with its copy of the record. The roll gives a hit, and `hit` now has a location.",
+      "label": "`play()` has counted this play and called `_turn` with its copy of the record. The roll gives a hit, and `hit` now holds it in memory.",
       "select": "hit",
       "collapse": [
         "@storage"
