@@ -52,14 +52,18 @@ export function roles(d: Decoded, path: Path, location: Location):
   }
   const byId = new Map([...g.nodes.values()].flatMap((x) => x.instances)
     .map((i) => [i.id, i] as const));
+  // (its own: its regions; the regions read to find them (a local's
+  // frame pointer) are not, but read)
   const own = new Set<string>();
+  const found = new Set<string>();
   const visit = (x: ValueNode) => {
-    for (const r of [...x.regions, ...x.reads ?? []]) own.add(r.instance);
+    for (const r of x.regions) own.add(r.instance);
+    for (const r of x.reads ?? []) found.add(r.instance);
     x.children?.forEach(visit);
   };
   visit(n);
   const seen = new Set<string>();
-  const todo = [...own];
+  const todo = [...own, ...found];
   while (todo.length) {
     const id = todo.pop()!;
     if (seen.has(id)) continue;
@@ -71,6 +75,15 @@ export function roles(d: Decoded, path: Path, location: Location):
     const i = byId.get(id)!;
     if (i.region && !own.has(id) && i.region.location === location) {
       read.push(i.region);
+    }
+    if (!i.region && found.has(id)) {
+      for (const x of [n, ...[...d.byPath.values()].filter((y) =>
+        within(d.byPath, y.path, path))]) {
+        for (const r of x.reads ?? []) {
+          if (r.instance === id && r.location === location &&
+            !read.includes(r)) read.push(r);
+        }
+      }
     }
     if (i.value === undefined || location !== "storage") continue;
     const v = toBig(i.value);

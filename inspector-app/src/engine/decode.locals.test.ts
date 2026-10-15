@@ -4,8 +4,12 @@
 import { it, expect } from "vitest";
 import { pauseOf, testProject } from "../../test/project";
 import { decode } from "./decode";
-import type { ValueNode } from "./types";
+import type { Hex, ValueNode } from "./types";
 import { A } from "../../test/expect";
+import { layout } from "./layout";
+import { forPath } from "./light";
+import { withRelated } from "./related";
+import { byteKey } from "./hex";
 
 // (the pauses; their locals, the scope's "@locals" group; and storage,
 // its "@storage")
@@ -86,3 +90,22 @@ it("O0, after mult = combo: mult's bytes are in combo's word", async () => {
   };
   expect(word("mult")).toBe(word("combo"));
 });
+
+// (a local's frame pointer is read to find it, not its own: selected,
+// the word at 0x80 is consulted, its own bytes lit, the related view on
+// or off: the light is one)
+for (const o of ["O0", "O2"] as const) {
+  it(`${o}: points selected: the frame pointer consulted, not its own`,
+    async () => {
+      const d = await at(o, "mult:0");
+      const l = layout(d, "memory", {});
+      const g = withRelated(forPath(d, l, "points", { selection: true }),
+        d, l, "points", null);
+      const fp = [...Array(32).keys()].map((i) =>
+        byteKey("memory", "0x0080" as Hex, i));
+      expect(fp.some((k) => g.bytes.has(k))).toBe(false);
+      expect(fp.every((k) => g.relBytes!.has(k))).toBe(true);
+      expect(g.related!.has("0x0080" as Hex)).toBe(true);
+      expect([...g.bytes]).toEqual([...l.owned.get("points")!]);
+    });
+}

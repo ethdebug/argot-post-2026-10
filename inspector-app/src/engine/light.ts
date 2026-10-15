@@ -96,15 +96,9 @@ export function forPath(d: Decoded, l: Layout, path: Path,
       gutters.add(r.address);
     }
   }
-  // (and the regions read to find them: a local's frame pointer)
+  // (its own bytes alone: the regions read to find them, a local's frame
+  // pointer, are consulted, engine/related.ts)
   const bytes = lit(l, owners);
-  for (const q of below) {
-    for (const r of d.byPath.get(q)?.reads ?? []) {
-      for (const [row, i] of regionBytes(r)) {
-        bytes.add(byteKey(r.location, row, i));
-      }
-    }
-  }
   return { ...noLight, bytes, rows: new Set(rows), colours, gutters,
     muted: true };
 }
