@@ -76,7 +76,7 @@ for (const width of [390, 1024]) {
       // (every moment of each transaction, then back to the first)
       const rest = () => expect(page.locator(".lens")).not
         .toHaveAttribute("data-playing", "", { timeout: 10_000 });
-      for (const [tx, n] of [[3, 2], [12, 5]] as const) {
+      for (const [tx, n] of [[3, 3], [12, 7], [13, 5]] as const) {
         await page.locator(`.mbar [role=tab][data-tx="${tx}"]`).click();
         await expect(page.locator(".mbar .rcount")).toHaveText(`1 / ${n}`);
         await rest();
