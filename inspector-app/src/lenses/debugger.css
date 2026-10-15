@@ -385,14 +385,15 @@
   .lens.stepper .stackcol .view-head { order: 1; }
   .lens.stepper .stackcol .pagebox { flex: 1; min-width: 0; }
   .lens.stepper .stackcol .pagebox > .rows { height: 100%; }
-  /* (its tab along its right edge, reading upward, at its top: the
+  /* (its tab along its right edge, reading upward, at its bottom: the
      other tabs' box, turned; one day the column's handle) */
-  .lens.stepper .stackcol .view-head { height: auto; display: block; }
+  .lens.stepper .stackcol .view-head { height: auto; display: flex;
+    flex-direction: column; justify-content: flex-end; }
   .lens.stepper .stackcol .view-name { writing-mode: vertical-rl;
-    transform: rotate(180deg); align-self: flex-start;
+    transform: rotate(180deg);
     padding: 10px 1px 10px 2px; border: 1px solid var(--line);
     border-right: 0; border-radius: 6px 0 0 6px; gap: 6px;
-    height: auto; margin: var(--tab-in) 0 0 -1px;
+    height: auto; margin: 0 0 var(--tab-in) -1px;
     box-shadow: 1px 0 3px rgb(0 0 0 / 0.08); }
   .lens.stepper .stackcol .view[data-open="false"] .view-name {
     margin-left: 0; border: 1px solid var(--line); border-right: 0;
