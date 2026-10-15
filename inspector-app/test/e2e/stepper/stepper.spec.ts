@@ -308,8 +308,8 @@ test("optimized-locals: the locals in scope alone", async ({ page }) => {
 });
 
 // The entry's YAML folds: context open, its code folded, its variables
-// open, each one's pointer folded; a chevron toggles; the next
-// instruction starts from the defaults again
+// open, each one folded (its pointer too, opened); a chevron toggles;
+// the next instruction starts from the defaults again
 test("optimized-locals: the entry's YAML folds", async ({ page }) => {
   await page.setViewportSize({ width: 1216, height: 900 });
   await page.goto("./embed.html#scene=optimized-locals");
@@ -323,6 +323,11 @@ test("optimized-locals: the entry's YAML folds", async ({ page }) => {
   await expect(chev("context")).toHaveAttribute("aria-expanded", "true");
   await expect(chev("context.variables")).toHaveAttribute("aria-expanded",
     "true");
+  await expect(chev("context.variables[0]")).toHaveAttribute(
+    "aria-expanded", "false");
+  await expect(chev("context.variables[1]")).toHaveAttribute(
+    "aria-expanded", "false");
+  await chev("context.variables[0]").click();
   await expect(chev("context.variables[0].pointer"))
     .toHaveAttribute("aria-expanded", "false");
   await expect(page.locator('.icall .line[data-path$=".code"]').first()
