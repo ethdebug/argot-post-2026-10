@@ -317,8 +317,8 @@ export function TimelineBar(p: { id: ViewId; domId?: string;
         }}>{tabs.map((t, k) => <button key={t} type="button" role="tab"
         id={`${view}-tx-${t}`} data-tx={t} aria-selected={t === tx}
         aria-controls={`${view}-txp`} tabIndex={t === tx ? 0 : -1}
-        disabled={!s} onClick={() => toTx(t)}>Transaction {k + 1}
-        {sc?.transactions?.[t] ? ` · ${sc.transactions[t]}` : ""}
+        disabled={!s} onClick={() => toTx(t)}>
+        {sc?.transactions?.[t] ?? `Transaction ${k + 1}`}
       </button>)}</div>}
       <div className="xpanel" {...tabbed ? { role: "tabpanel",
         id: `${view}-txp`, "aria-labelledby": `${view}-tx-${tx}` } : {}}>
