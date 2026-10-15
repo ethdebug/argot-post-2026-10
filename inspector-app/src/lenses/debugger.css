@@ -306,7 +306,11 @@
 /* (a page's strip at its bottom, for the tab of the one under it) */
 .lens.stepper .pages .pagebox { padding-bottom: calc(4px + var(--tab-h)); }
 .lens.stepper .pagebox > .rows { border: 0; border-radius: 0;
-  background: none; padding-top: 0; padding-bottom: 0; }
+  background: none; padding-top: 0; padding-bottom: 0;
+  padding-right: 0; }
+/* (a row's zebra to the sheet's edge: the rows' right padding its rows'
+   own, inside their stripe) */
+.lens.stepper .pagebox > .rows :is(.wrow, .gap) { padding-right: 8px; }
 .lens.stepper .view[data-open="false"] .pagebox { padding: 0;
   border-width: 0; box-shadow: none; }
 .lens.stepper .view[data-open="false"] .pagebox { padding: 0;
@@ -421,6 +425,10 @@
   .lens.stepper .stackcol .view { display: flex; height: 100%; }
   .lens.stepper .stackcol .view-head { order: 1; }
   .lens.stepper .stackcol .pagebox { flex: 1; min-width: 0; }
+  /* (its rows, and the gutter above them, the box's whole height: no
+     strip of paper at its top or bottom) */
+  .lens.stepper .stackcol .view[data-open="true"] .pagebox {
+    padding-top: 0; padding-bottom: 0; }
   .lens.stepper .stackcol .pagebox > .rows { height: 100%; }
   /* (its tab along its right edge, reading upward, at its bottom: the
      other tabs' box, turned; one day the column's handle) */
