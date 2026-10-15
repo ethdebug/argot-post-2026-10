@@ -365,3 +365,55 @@ test("optimized-locals: name's offset and length word consulted",
     expect(await rel()).toHaveLength(32);
     await expect(note).toContainText("(read to find name)");
   });
+
+// A pointer in a dump changes nothing but its own: a player's record
+// selected, over bytes no value owns, and over a value's bytes, no
+// consulted mark or popover changes, no pane scrolls, no page moves
+test("optimized-locals: a pointer in a dump moves nothing", async ({
+  page }) => {
+  await page.setViewportSize({ width: 1216, height: 900 });
+  await page.goto("./embed.html#scene=optimized-locals");
+  await page.locator('.mbar [data-t="next"]').click();
+  await expect(page.locator(".mbar")).toContainText("2 / 2",
+    { timeout: 10_000 });
+  await page.locator(".lens[data-settled]").waitFor();
+  await page.locator('li[data-path^="players[0x90f7"]:not([data-path*="."])' +
+    " > .row").click();
+  await page.waitForTimeout(1200);
+  const S = ".view[data-location=storage]";
+  const state = () => page.evaluate((s) => ({
+    rel: [...document.querySelectorAll(`${s} .wrow.rel, ${s} .b.rel`)]
+      .length,
+    pops: [...document.querySelectorAll(`${s} .pop`)].map((p) =>
+      p.textContent!.trim()).filter((t) => !t.includes("(unmapped)")),
+    scroll: [...document.querySelectorAll(".rows, pre.src")].map((r) =>
+      r.scrollTop),
+    heights: [...document.querySelectorAll(".pagebox")].map((b) =>
+      (b as HTMLElement).style.height) }), S);
+  const rest = await state();
+  // (an unmapped byte, and a value's, in view)
+  const pick = (owned: boolean) => page.evaluate(([s, o]) => {
+    const b = [...document.querySelectorAll<HTMLElement>(`${s} .wrow .b`)]
+      .find((x) => {
+        const rb = x.closest(".rows")!.getBoundingClientRect();
+        const r = x.getBoundingClientRect();
+        const w = x.closest(".wrow")!;
+        return !!x.dataset.owners === o && r.height && r.top > rb.top + 4 &&
+          r.bottom < rb.bottom - 4 && !w.classList.contains("on") &&
+          !w.classList.contains("rel");
+      })!;
+    b.id = o ? "owned-b" : "free-b";
+  }, [S, owned] as const);
+  for (const owned of [false, true]) {
+    await pick(owned);
+    await page.locator(owned ? "#owned-b" : "#free-b").hover();
+    await page.waitForTimeout(700);
+    const now = await state();
+    expect(now.scroll).toEqual(rest.scroll);
+    expect(now.heights).toEqual(rest.heights);
+    if (!owned) {
+      expect(now.rel).toBe(rest.rel);
+      expect(now.pops).toEqual(rest.pops);
+    }
+  }
+});
