@@ -44,7 +44,8 @@ async ({ page }) => {
 });
 
 test("everything in scope: the storage variables and the locals; a " +
-  "local lights its memory bytes: its own and the frame pointer's",
+  "local lights its own memory bytes; selected, the frame pointer's word " +
+  "consulted",
 async ({ page }) => {
   const lit = (sel: string) => page.locator(sel).evaluateAll((bs) =>
     bs.map((b) => `${(b.closest(".word") as HTMLElement).dataset.slot} ${
@@ -61,9 +62,15 @@ async ({ page }) => {
     '"players[0x70997970c51812dc3a010c7d01b50e0d17dc79c8].name"] .val'))
     .toHaveText('"alice"');
   await page.locator(`${D} li[data-path="points"] > .row`).hover();
-  // (points' 8 bytes, and the frame pointer's word it is found from)
+  // (points' 8 bytes; selected, the frame pointer's word it is found
+  // from consulted, not its own)
   await expect.poll(async () => (await lit(
-    `${D} [data-view$=":memory"] .b.hl`)).length).toBe(8 + 32);
+    `${D} [data-view$=":memory"] .b.hl`)).length).toBe(8);
+  await page.locator(`${D} li[data-path="points"] > .row`).click();
+  await page.mouse.move(0, 0);
+  await expect.poll(async () => (await lit(
+    `${D} [data-view$=":memory"] .b.rel`)).length).toBe(32);
+  expect((await lit(`${D} [data-view$=":memory"] .b.hl`)).length).toBe(8);
   // (a solc scene: its storage, no locals, solc's word for it)
   await page.goto("about:blank");
   await open(page, "mid");

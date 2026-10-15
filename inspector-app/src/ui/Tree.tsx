@@ -60,7 +60,10 @@ interface Ctx { light: Light; selection: string | null;
   names: ReadonlyMap<string, string>;
   collapsed: ReadonlySet<string>; pair?: [Decoded, Decoded];
   // (a row's name in a view transition: transition.ts)
-  vt?: (path: string) => string }
+  vt?: (path: string) => string;
+  // (the locals in scope: the moment's; through a move, the last
+  // moment's, held until it rests)
+  scope: ReadonlySet<string> }
 
 // a row's colour when lit (0: the selection's yellow)
 const colourOf = (c: Ctx, n: ValueNode) => c.light.colours.get(n.path) ?? 0;
@@ -79,7 +82,7 @@ const hasSel = (n: ValueNode, sel: string | null): boolean =>
   n.path === sel || !!n.children?.some((x) => hasSel(x, sel));
 
 // (`local`: a row of the locals' group, "@locals": one absent here is
-// out of scope at this moment, not yet to come; drawn as one row)
+// out of scope at this moment, not drawn)
 function Row({ n, top, c, inBlk, local }: { n: ValueNode; top?: boolean;
   c: Ctx; inBlk?: boolean; local?: boolean }) {
   const { light, selection, pair } = c;
@@ -123,7 +126,7 @@ function Row({ n, top, c, inBlk, local }: { n: ValueNode; top?: boolean;
       </span>
       <span className="type">{n.typeText}</span>
       {n.absent && !group ? <span className="val"><span><i
-        className="noloc">{local ? "not in scope here" : "not yet"}</i>
+        className="noloc">not yet</i>
         </span></span>
         : n.none ? <span className={`val${!pair ? "" : chg ? " chg"
         : " same"}`}><span><i className="noloc">no location at this
@@ -133,7 +136,9 @@ function Row({ n, top, c, inBlk, local }: { n: ValueNode; top?: boolean;
         <span data-full={ADDR.test(n.value?.text ?? "") ? n.value!.text
           : undefined}>{addrLabel(n.value?.text ?? n.summary ?? "",
           c.names)}</span></span>
-        : group ? <span className="val sum">{n.summary}</span>
+        : group ? <span className="val sum">{n.path === "@locals"
+          ? `${c.scope.size} ${c.scope.size === 1 ? "variable"
+            : "variables"}` : n.summary}</span>
           : n.note ? <span className="muted">{n.note}</span> : null}
     </div>
     {group && <button type="button" className="chev"
@@ -141,7 +146,9 @@ function Row({ n, top, c, inBlk, local }: { n: ValueNode; top?: boolean;
       aria-expanded={shut ? "false" : "true"}
       aria-label={`${shut ? "Expand" : "Collapse"} ${n.label}`}>
       {CHEV}</button>}
-    {group ? <ul>{n.children!.map((x) => <Row key={x.path} n={x} c={c}
+    {/* (the locals: those in scope here alone, in one order) */}
+    {group ? <ul>{n.children!.filter((x) => n.path !== "@locals" ||
+      c.scope.has(x.path)).map((x) => <Row key={x.path} n={x} c={c}
       inBlk={inBlk || blk} local={local || n.path === "@locals"} />)}</ul>
       : n.children && !(local && n.absent) && !n.value && !own &&
         !n.path.startsWith("@")
@@ -209,7 +216,16 @@ export function Tree(p: { id: ViewId; data: DataRef; filter?: Filter;
   const fewer = !!related;
   const named = useDecoded(p.names);
   const names = useMemo(() => onChainNames(named ?? d), [named, d]);
-  const c: Ctx = { light, selection: link.selection, pair, names,
+  const scopeNow = (d?.byPath.get("@locals")?.children ?? [])
+    .filter((x) => !x.absent).map((x) => x.path).join(" ");
+  const moving = useLensState((x) => !!x.playing);
+  const scopeHeld = useRef(scopeNow);
+  if (!moving) scopeHeld.current = scopeNow;
+  const scope = useMemo(() => new Set(scopeHeld.current.split(" ")
+    .filter(Boolean)),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [scopeHeld.current]);
+  const c: Ctx = { light, selection: link.selection, pair, names, scope,
     aside: new Set(aside),
     collapsed: new Set([...shut].filter((q) => !closing.has(q))),
     vt: (q) => vtName(lens.key, p.id, q) };

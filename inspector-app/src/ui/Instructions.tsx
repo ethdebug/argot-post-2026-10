@@ -144,8 +144,8 @@ export function Instructions(p: { id: ViewId; data: DataRef;
     data-view={`${lens.key}:${p.id}`}>
     <div className="view-head"><button type="button"
       className="view-name ptab" aria-expanded={open} onClick={toggle}
-      aria-label={`Instructions: ${open ? "fold" : "open"} the list`}>
-      Instructions<span className="pchev">{CHEV}</span></button></div>
+      aria-label={`Raw ethdebug: ${open ? "fold" : "open"} the program`}>
+      Raw ethdebug<span className="pchev">{CHEV}</span></button></div>
     <div className="ibox">{open && <>
       <ul ref={box} className="tree srows xrows"
         aria-label="The program's instructions">
@@ -156,6 +156,7 @@ export function Instructions(p: { id: ViewId; data: DataRef;
           </div></li>)}</ul>
       <div className="ptr xentry icall"
         aria-label={`The entry of the instruction at ${pc ?? "none"}`}>
+        <p className="plabel">ethdebug data for this instruction</p>
         <div className="ptrbox"><div ref={ebox} className={`ptrscroll${
           more.up ? " more-up" : ""}${more.down ? " more-down" : ""}`}>
           <pre className="ptrlines"><code>{lines.map((l, k) =>
