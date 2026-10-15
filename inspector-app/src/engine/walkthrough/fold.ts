@@ -825,17 +825,37 @@ export function walkthrough(x: WalkInput, path: Path, focus?: string):
   // (per location: the rows touched, its own, those read to find it)
   const locs = [...new Set([...ownR, ...readR].map((r) => r.location))];
   if (!locs.length) locs.push("storage");
+  // (the places, counted as the pointer's regions are: in a location of
+  // bytes by offset (memory, calldata), each run of bytes one place,
+  // however many rows it crosses; in one of slots, each slot)
+  const offs = (l: Location) => addressing(l) === "offset";
+  const runs = (rs: ResolvedRegion[]) => {
+    const xs = rs.map((r) => [r.offset, r.offset + r.length])
+      .sort((a, b) => a[0] - b[0]);
+    let n = 0, end = -Infinity;
+    for (const [a, b] of xs) {
+      if (a > end) n++;
+      end = Math.max(end, b);
+    }
+    return n;
+  };
   const per = locs.map((l) => {
     const own = new Set(ownR.filter((r) => r.location === l)
       .flatMap(spanned));
-    return { l, own,
-      all: [...slotsOf(out.filter((y) => y.phase !== "input"), l)]
-        .sort(byOrder),
-      read: new Set(readR.filter((r) => r.location === l).flatMap(spanned)
-        .filter((h) => !own.has(h))) };
+    const read = new Set(readR.filter((r) => r.location === l)
+      .flatMap(spanned).filter((h) => !own.has(h)));
+    const all = [...slotsOf(out.filter((y) => y.phase !== "input"), l)]
+      .sort(byOrder);
+    const ownRs = ownR.filter((r) => r.location === l);
+    const readRs = readR.filter((r) => r.location === l);
+    return { l, own, all, read,
+      ownN: offs(l) ? runs(ownRs) : own.size,
+      readN: offs(l) ? runs(readRs) : read.size,
+      n: offs(l) && ownRs.length + readRs.length
+        ? runs(ownRs) + runs(readRs) : all.length };
   });
   const allS = per.flatMap((q) => q.all);
-  const ownN = per.reduce((n, q) => n + q.own.size, 0);
+  const ownN = per.reduce((n, q) => n + q.ownN, 0);
   const sk = pathName(path);
   const [{ l: loc, own: ownS }] = per;
   // (scattered: the selection's own rows are not one run)
@@ -843,16 +863,18 @@ export function walkthrough(x: WalkInput, path: Path, focus?: string):
   const step1 = addressing(loc) === "slot" ? 1n : 32n;
   const apart = mine.some((h, k) => k > 0 &&
     toBig(h) - toBig(mine[k - 1]) > step1);
-  const none = per[0].all.filter((h) => !ownS.has(h)).length;
-  const n = allS.length;
+  const none = offs(loc) ? 0 : per[0].all.filter((h) => !ownS.has(h))
+    .length;
+  const n = per.reduce((m, q) => m + q.n, 0);
   // (one side of a pair: "After setMotd, this slot holds `motd`.")
   const when = x.when ? `${x.when[0].toUpperCase()}${x.when.slice(1)}, `
     : "";
   const up = (t: string) => when ? t : t[0].toUpperCase() + t.slice(1);
-  // (rows of more than one location: places)
-  const nn = per.length > 1 ? n === 1 ? "place" : "places" : noun(loc, n);
-  // (rows read to find it, not its own: a local's frame pointer)
-  const k = per.reduce((m, q) => m + q.read.size, 0);
+  // (rows of more than one location, or runs of bytes: places)
+  const nn = per.length > 1 || offs(loc) ? n === 1 ? "place" : "places"
+    : noun(loc, n);
+  // (places read to find it, not its own: a local's frame pointer)
+  const k = per.reduce((m, q) => m + q.readN, 0);
   const cap = ask((h) => h.goal?.(cx, { when, up, n, noun: nn })) ??
     (k ? `${when}${up(`these ${n} ${nn} find`)} \`${sk}\`: ${ownN === 1
       ? "one holds it" : `${nWord(ownN)} hold it`}; ${k === 1

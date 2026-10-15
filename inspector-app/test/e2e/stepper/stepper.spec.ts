@@ -441,3 +441,17 @@ test("optimized-locals: the locals' consulted bytes", async ({ page }) => {
   await expect(page.locator(`${M} .pop`)).toContainText(
     "memory 0x00a0–0x00bf : (read to find name)");
 });
+
+// How it was found counts places as the pointer's regions: a run of
+// bytes in memory or calldata is one place, whatever rows it crosses
+// (name's offset and length, one word; its bytes in the call)
+test("optimized-locals: name's walkthrough counts its places",
+  async ({ page }) => {
+    await page.setViewportSize({ width: 1216, height: 900 });
+    await page.goto("./embed.html#scene=optimized-locals");
+    await page.locator('li[data-path="@locals"] li[data-path="name"] > .row')
+      .click();
+    await page.locator('button[data-r="start"]').click();
+    await expect(page.locator(".sidecol .rbar:not(.mbar)")).toContainText(
+      "These 2 places find name: one holds it; one is read to find it.");
+  });
