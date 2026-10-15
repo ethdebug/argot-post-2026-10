@@ -170,22 +170,45 @@
 .lens.stepper .pages .view:is([data-top="true"]) { margin-top: 0; }
 .lens.stepper .pages .view[data-open="false"]:not([data-pile-top="true"],
   [data-top="true"]) { margin-top: -1px; }
+/* (a phone: the stack's sheet the first, then the pages', in one cell
+   of the room's height (--pages-h): the stack's area at its top, the
+   pages' at its bottom, their heights its own (stepper.tsx), so the
+   figure's height is the room's whatever they do as they move; the
+   stack's strip for the tab of the top page, which stands on it,
+   reaching up out of its area) */
 @media (max-width: 759.98px) {
-  .lens.stepper > .stackcol { margin-bottom: -19px; }
+  .lens.stepper { grid-template-rows: auto auto var(--pages-h) auto;
+    grid-template-areas: "moves" "src" "narrow" "side"; }
+  .lens.stepper > .stackcol { align-self: start; }
+  .lens.stepper > [data-area="wide"] { grid-area: narrow !important;
+    align-self: end; }
+  .lens.stepper .stackcol .view[data-open="true"] .pagebox {
+    padding-bottom: calc(4px + var(--tab-h)); }
+  .lens.stepper .pages .view[data-top="true"] {
+    margin-top: calc(-1 * var(--tab-h)); }
 }
 @media (min-width: 760px) {
   .lens.stepper > :is([data-area="wide"], .stackcol) {
     height: var(--pages-h); }
 }
 /* (a page's height: set, shared, ui/../stepper.tsx; it moves as the
-   rows' changes do, ui/transition.ts's duration and easing; shut: its
-   tab alone) */
-.lens.stepper .pages .pagebox { overflow: hidden;
-  transition: height 420ms cubic-bezier(0.4, 0, 0.2, 1); }
+   rows' changes do, ui/transition.ts's duration and easing, once the
+   figure has first settled (data-settled, stepper.tsx): its first
+   heights at once, so its first height is one; shut: its tab alone) */
+.lens.stepper .pages .pagebox { overflow: hidden; }
+/* (its padding and edge move with its height, so a page opening or
+   shutting is never taller than its height says: the area's sum one) */
+.lens.stepper[data-settled] .pages .pagebox {
+  transition: height 420ms cubic-bezier(0.4, 0, 0.2, 1),
+    padding 420ms cubic-bezier(0.4, 0, 0.2, 1),
+    border-width 420ms cubic-bezier(0.4, 0, 0.2, 1); }
 .lens.stepper :is(.pages, .stackcol) .pagebox > .rows { height: 100%; }
 @media (max-width: 759.98px) {
-  .lens.stepper .stackcol .pagebox { overflow: hidden;
-    transition: height 420ms cubic-bezier(0.4, 0, 0.2, 1); }
+  .lens.stepper .stackcol .pagebox { overflow: hidden; }
+  .lens.stepper[data-settled] .stackcol .pagebox {
+    transition: height 420ms cubic-bezier(0.4, 0, 0.2, 1),
+      padding 420ms cubic-bezier(0.4, 0, 0.2, 1),
+      border-width 420ms cubic-bezier(0.4, 0, 0.2, 1); }
 }
 @media (prefers-reduced-motion: reduce) {
   .lens.stepper :is(.pages, .stackcol) .pagebox { transition: none; }
@@ -193,7 +216,7 @@
 /* (a phone: the pages' area, its height what the stack's leaves, moving
    with it: together one height throughout) */
 @media (max-width: 759.98px) {
-  .lens.stepper > [data-area="wide"] {
+  .lens.stepper[data-settled] > [data-area="wide"] {
     transition: height 420ms cubic-bezier(0.4, 0, 0.2, 1); }
 }
 @media (max-width: 759.98px) and (prefers-reduced-motion: reduce) {
