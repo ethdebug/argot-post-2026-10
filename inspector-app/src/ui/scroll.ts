@@ -119,3 +119,67 @@ export function moveFor(b: Span, v: Span, gap: number): number {
   return b.bottom - b.top > room || b.top < v.top ? b.top - v.top - gap
     : b.bottom - v.bottom + gap;
 }
+
+// (the transitions' easing, ui/transition.ts and the CSS's:
+// cubic-bezier(0.4, 0, 0.2, 1), over their 420ms)
+const EASE_MS = 420;
+function ease(t: number): number {
+  // (x(s) = t for s, by bisection; then y(s))
+  const bz = (s: number, a: number, b: number) =>
+    3 * a * s * (1 - s) ** 2 + 3 * b * s * s * (1 - s) + s ** 3;
+  let lo = 0, hi = 1;
+  for (let k = 0; k < 20; k++) {
+    const m = (lo + hi) / 2;
+    if (bz(m, 0.4, 0.2) < t) lo = m;
+    else hi = m;
+  }
+  return bz((lo + hi) / 2, 0, 1);
+}
+const going = new WeakMap<Element, { to: number; frame: number }>();
+
+// A box's scroll to `to`, in the transitions' time and easing (at once
+// under reduced motion, or `instant`); a scroll already on its way there
+// left alone, one elsewhere retargeted
+export function glide(box: Element, to: number, instant = still()) {
+  to = Math.round(Math.max(0, Math.min(to, box.scrollHeight -
+    box.clientHeight)));
+  const now = going.get(box);
+  if (now && Math.abs(now.to - to) < 1) return;
+  if (now) cancelAnimationFrame(now.frame);
+  going.delete(box);
+  const from = box.scrollTop;
+  if (Math.abs(to - from) < 1) return;
+  if (instant) {
+    box.scrollTop = to;
+    return;
+  }
+  const t0 = performance.now();
+  const tick = () => {
+    const t = Math.min(1, (performance.now() - t0) / EASE_MS);
+    box.scrollTop = from + (to - from) * ease(t);
+    if (t < 1) going.set(box, { to, frame: requestAnimationFrame(tick) });
+    else going.delete(box);
+  };
+  going.set(box, { to, frame: requestAnimationFrame(tick) });
+}
+
+// Where a box's scroll brings a run of its content (`top`..`bottom`, from
+// its content's top) to the middle of its view (`h` tall, the box's as
+// it is or will be); a run too tall for it clear of its edges, its top a
+// `row` below the view's top. None (undefined) when the run is already in view and
+// clear of its edges by `clear` (an edge with nothing past it needs no
+// room)
+export function centring(box: Element, run: { top: number;
+  bottom: number }, o: { row: number; clear: number; h?: number }):
+  number | undefined {
+  const h = o.h ?? box.clientHeight;
+  const max = Math.max(0, box.scrollHeight - h);
+  const y = Math.min(box.scrollTop, max);
+  const topOk = run.top >= y + o.clear || (y <= 0 && run.top >= 0);
+  const botOk = run.bottom <= y + h - o.clear ||
+    (y >= max - 0.5 && run.bottom <= y + h);
+  if (topOk && botOk) return undefined;
+  const to = run.bottom - run.top <= h - 2 * o.clear
+    ? (run.top + run.bottom) / 2 - h / 2 : run.top - o.row;
+  return Math.max(0, Math.min(max, Math.round(to)));
+}

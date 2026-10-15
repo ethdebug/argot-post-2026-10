@@ -5,6 +5,7 @@
 // third of the way down. Coloured by Shiki (./shiki.ts), loaded the
 // first time a pointer shows. A shortened template name is
 // a button: it shows solc's id.
+import { glide } from "./scroll";
 import {
   useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode,
   type RefObject,
@@ -204,7 +205,9 @@ export function useEdges(box: RefObject<HTMLElement | null>, can: boolean,
     const root = box.current;
     if (!root) return;
     const measure = () => {
-      const on = root.querySelector(band)?.getBoundingClientRect();
+      // (any of the band's pieces past an edge: a value's far rows too)
+      const ons = [...root.querySelectorAll(band)].map((e) =>
+        e.getBoundingClientRect());
       const b = root.getBoundingClientRect();
       const ends = o.end ? root.querySelectorAll(o.end) : null;
       const last = ends?.[ends.length - 1]?.getBoundingClientRect();
@@ -212,8 +215,8 @@ export function useEdges(box: RefObject<HTMLElement | null>, can: boolean,
         down: can && (ends ? !!last && last.bottom > b.top +
           root.clientTop + root.clientHeight + 1
           : root.scrollTop + root.clientHeight < root.scrollHeight - 1),
-        bandUp: !!on && on.bottom <= b.top + 1,
-        bandDown: !!on && on.top >= b.bottom - 1 };
+        bandUp: ons.some((on) => on.bottom <= b.top + 1),
+        bandDown: ons.some((on) => on.top >= b.bottom - 1) };
       setMore((x) => JSON.stringify(x) === JSON.stringify(m) ? x : m);
     };
     measure();
@@ -234,15 +237,17 @@ export function useEdges(box: RefObject<HTMLElement | null>, can: boolean,
   }, [can, ...deps]);
   const go = (way: "up" | "down") => {
     const root = box.current!;
-    const on = root.querySelector<HTMLElement>(band);
+    const rb = root.getBoundingClientRect();
+    // (to the nearest of the band's pieces past that edge, in the middle)
+    const past = [...root.querySelectorAll<HTMLElement>(band)].map((e) =>
+      e.getBoundingClientRect()).filter((r) => way === "up"
+      ? r.bottom <= rb.top + 1 : r.top >= rb.bottom - 1);
+    const on = way === "up" ? past[past.length - 1] : past[0];
     const toBand = way === "up" ? more.bandUp : more.bandDown;
-    const top = toBand && on ? on.getBoundingClientRect().top -
-      root.getBoundingClientRect().top + root.scrollTop -
-      root.clientHeight / 3
+    const top = toBand && on ? on.top - rb.top + root.scrollTop -
+      (root.clientHeight - on.height) / 2
       : root.scrollTop + (way === "up" ? -1 : 1) * root.clientHeight * 0.85;
-    const still = matchMedia?.("(prefers-reduced-motion: reduce)").matches;
-    root.scrollTo({ top: Math.max(0, top), behavior: still ? "auto"
-      : "smooth" });
+    glide(root, top);
   };
   const edge = (way: "up" | "down") => {
     const on = more[way];

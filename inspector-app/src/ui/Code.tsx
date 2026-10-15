@@ -4,12 +4,13 @@
 // at the moment, or the last one before it, muted). The panel's box
 // keeps its size and scrolls on its own: the range is brought into view
 // there, never by moving the page.
+import { centring, glide } from "./scroll";
 import {
   useEffect, useLayoutEffect, useRef, useState, type CSSProperties,
   type ReactNode,
 } from "react";
 import { highlighter, withLang } from "./shiki";
-import { useCompilation, useLens, useLensState, usePoint } from "./hooks";
+import { useCompilation, useLens, usePoint } from "./hooks";
 import { useEdges } from "./PointerYaml";
 import type { DataRef, ViewId } from "./types";
 
@@ -104,22 +105,24 @@ export function lines(text: string, coloured: Coloured | null,
 // characters to spare, its line's start kept where it can be
 // (`always`: a third of the way down even when it shows already: a
 // small panel whose reader has just chosen it, the program x-ray's)
-export function intoView(box: HTMLElement | null, always = false) {
+export function intoView(box: HTMLElement | null, instant = true) {
   // (its first shown piece: not a hidden indent's)
   const m = [...box?.querySelectorAll("mark") ?? []].find((x) =>
     !x.closest(".ind"));
   if (!box || !m) return;
   const b = box.getBoundingClientRect(), r = m.getBoundingClientRect();
-  const top = r.top - b.top + box.scrollTop;
-  if (always || top < box.scrollTop || top + r.height > box.scrollTop +
-    box.clientHeight) {
-    // (its row's top: the mark's text, less the half-leading; whole
-    // rows from the box's top edge, a wrapped line's rows too)
-    const pitch = parseFloat(getComputedStyle(box).lineHeight) || r.height;
-    const at = top - (pitch - r.height) / 2;
-    box.scrollTop = Math.max(0, at - Math.round(box.clientHeight / 3 /
-      pitch) * pitch);
-  }
+  // (its marks, all: the range's lines, in the middle of the box, when
+  // not in view clear of its edges; at once when `always`, a figure's
+  // first look and a full figure's code, else in the transitions' time)
+  const ms = [...box.querySelectorAll("mark")].filter((x) =>
+    !x.closest(".ind")).map((x) => x.getBoundingClientRect());
+  const pitch = parseFloat(getComputedStyle(box).lineHeight) || r.height;
+  const run = { top: Math.min(...ms.map((x) => x.top)) - b.top -
+    box.clientTop + box.scrollTop, bottom: Math.max(...ms.map((x) =>
+    x.bottom)) - b.top - box.clientTop + box.scrollTop };
+  const y = centring(box, run, { row: pitch, clear: Math.max(pitch / 2,
+    18) });
+  if (y !== undefined) glide(box, y, instant || undefined);
   const left = r.left - b.left + box.scrollLeft, cw = box.clientWidth;
   if (left < box.scrollLeft || left + Math.min(r.width, cw / 2) >
     box.scrollLeft + cw) {
@@ -147,11 +150,9 @@ export function Code(p: { id: ViewId; data: DataRef; domId?: string;
     from: charAt(text, r.offset), to: charAt(text, r.offset + r.length),
     className: paused?.last ? "rng last" : "rng" } : undefined;
   const pre = useRef<HTMLPreElement>(null);
-  // (a replay playing: the pane follows its steps only as their range
-  // leaves it, not a third of the way down at each: no jump a step)
-  const playing = useLensState((x) => !!x.playing);
-  useLayoutEffect(() => p.pane ? intoView(pre.current, !playing)
-    : intoView(pre.current),
+  // (the range in the middle of the box as it leaves it; a pane's in the
+  // transitions' time, following a replay's steps so)
+  useLayoutEffect(() => intoView(pre.current, !p.pane),
   // eslint-disable-next-line react-hooks/exhaustive-deps
   [mark?.from, mark?.to, coloured, p.pane]);
   const note = !c ? "" : !ethdebug ? "no ethdebug: the source unmarked"
