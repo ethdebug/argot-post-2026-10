@@ -196,9 +196,10 @@ test("optimized-locals: a move, no transition; its selection held",
   });
 
 // No selection box: the way in is a button at the foot of the variables,
-// "▶ How <name> is found", for one value selected, none for a group of
-// them; open, "✕ Exit" in its place; its room kept, so the tree's box
-// never moves, at any moment, with any selection
+// "▶ Find <name>", for one value selected, none for a group of them;
+// open, "✕ Exit" in its place; its room kept below the list, so the
+// tree's box never moves, at any moment, with any selection, and nothing
+// of the list is under it
 test("optimized-locals: the walkthrough's button at the foot of the " +
   "variables", async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 1000 });
@@ -222,8 +223,7 @@ test("optimized-locals: the walkthrough's button at the foot of the " +
         (r.closest("li") as HTMLElement).dataset.path!).catch(() => null);
       if (path?.startsWith("@")) await expect(go).toHaveCount(0);
       else if (path) {
-        await expect(go).toContainText("How");
-        await expect(go).toContainText("is found");
+        await expect(go).toContainText("Find");
       }
       const next = page.locator('.mbar [data-t="next"]');
       if (!await next.isEnabled()) break;
@@ -241,14 +241,17 @@ test("optimized-locals: the walkthrough's button at the foot of the " +
     await page.locator("li[data-path='@locals'] > ul > li > .row:visible")
       .first().click();
   }
-  await expect(go).toContainText("is found");
+  await expect(go).toContainText("Find");
   await box();
   await go.click();
   await expect(go).toHaveText("✕ Exit");
   await go.click();
-  await expect(go).toContainText("is found");
+  await expect(go).toContainText("Find");
   await box();
   expect([...boxes]).toHaveLength(1);
+  const [t, g] = await Promise.all([page.locator(".vars > .tree"),
+    go].map((x) => x.boundingBox()));
+  expect(g!.y).toBeGreaterThanOrEqual(t!.y + t!.height - 0.5);
 });
 
 // A popover in a column that opens is laid out for the width it comes

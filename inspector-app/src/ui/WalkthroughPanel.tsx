@@ -721,11 +721,11 @@ export function PanelView({ model: m, act, domId, compact, button }: {
       onClick={() => act({ type: "exit" })}>✕ Exit</button>
     : r1 && r1.canStart && !r1.group
       ? <button type="button" className="btn rstart wgo" data-r="start"
-        onClick={(e) => start({ x: e.clientX, y: e.clientY })}><span
+        onClick={(e) => start({ x: e.clientX, y: e.clientY })}
+        aria-label={`Find ${r1.name}: how the pointer finds it`}><span
           className="rplay" aria-hidden="true">▶</span> <span
-          className="wgo-how">How</span> <code className="wgo-name">{
-          r1.name}</code> <span className="wgo-how">is found</span>
-        </button> : null, slot) : null;
+          className="wgo-how">Find</span> <code className="wgo-name">{
+          r1.name}</code></button> : null, slot) : null;
   // (at rest, with the button: no bar at all)
   if (button && !walk) return <span ref={anchor} hidden>{own}</span>;
   const focus = wm?.focus;
