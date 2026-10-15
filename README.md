@@ -5,9 +5,6 @@ Supporting material for an upcoming Argot blog post introducing
 
 Site: <https://ethdebug.github.io/argot-post-2026-10/>
 
-- [planning/outline.md](planning/outline.md): the post's outline.
-- [planning/topic-sentences.md](planning/topic-sentences.md): one
-  sentence per planned paragraph.
 - [demos/debugger/](demos/debugger/): step through a transaction in
   the browser. Every tab steps the same contract, Arcade, and the same
   transaction: soldb, Walnut's debugger, for Solidity and Fe; ethdebug's
