@@ -232,7 +232,11 @@ test("optimized-locals: the stack opening, its popover one line",
     await page.setViewportSize({ width: 1216, height: 900 });
     await page.goto("./embed.html#scene=optimized-locals");
     const stack = page.locator(".view[data-location=stack]");
-    await expect(stack).toHaveAttribute("data-open", "true");
+    // (a cold first load: its run decoded, its pages laid out)
+    await expect(page.locator(".lens[data-settled]")).toHaveCount(1,
+      { timeout: 20_000 });
+    await expect(stack).toHaveAttribute("data-open", "true",
+      { timeout: 10_000 });
     await stack.locator(".ptab").click();
     await expect(stack).toHaveAttribute("data-open", "false");
     await page.waitForTimeout(600);
