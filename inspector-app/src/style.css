@@ -620,6 +620,10 @@ li.same > .row .name, li.same > .row .type { opacity: 0.55; }
 
 /* the slot popover under its address, arrow up */
 .addr.popped { z-index: 3; }
+/* (its popover under it, over the next row, popped too: over that row's
+   address, though later) */
+.wrow:has(> .addr.popped > .pop.under):has(+ .wrow > .addr.popped)
+  > .addr { z-index: 4; }
 /* a lit run's addresses, as one group: a soft rounded tint behind
    them, which the slot popover points at */
 .addr.grp::before {
