@@ -203,7 +203,7 @@ test("optimized-locals: How it was found for gained: the word it is in " +
   await choose(page, "gained");
   await walkThrough(page, async () => {
     const M = '.view[data-location="memory"]';
-    for (const w of ["0x0080", "0x03c0"]) {
+    for (const w of ["0x0080", "0x0680"]) {
       await expect(page.locator(`${M} .wrow[data-slot="${w}"]`))
         .toBeInViewport();
     }
