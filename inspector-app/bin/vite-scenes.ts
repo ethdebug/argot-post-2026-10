@@ -1,9 +1,12 @@
 // The scenes' snapshot files (addendum §1.6, §2.4; Vite plugin): each
 // scene's run, made here in Node by the engine's own code, cut to the
-// scene's moments. Built: dist/snapshots/<scene>.json, and the build
-// fails if a run's digest is not scenarios/<s>/digests.json's (the runs
-// drifted: a changed build, scenario or EVM). Dev: the same files at
-// <base>snapshots/<scene>.json, made on first ask.
+// scene's moments. Built: dist/snapshots/<scene>.<hash>.json, named by
+// its contents, the names in the app's code (virtual:snapshot-files), so
+// a page never reads another build's data (Pages caches every file 10
+// minutes, under a fixed name); the build fails if a run's digest is not
+// scenarios/<s>/digests.json's (the runs drifted: a changed build,
+// scenario or EVM). Dev: <base>snapshots/<scene>.json, made on first ask.
+import crypto from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -99,10 +102,40 @@ export function writeScene(dir: string, id: string, json: unknown):
   return file;
 }
 
+const FILES = "virtual:snapshot-files";
+// each scene's built file: its name, "snapshots/<scene>.<hash>.json",
+// and its text
+export const builtFile = (id: string, text: string) =>
+  `snapshots/${id}.${crypto.createHash("sha256").update(text)
+    .digest("hex").slice(0, 10)}.json`;
+
 export function scenesPlugin(): Plugin {
   let file: ReturnType<typeof snapshotter> | undefined;
+  let command = "serve";
+  // (built: every scene's file, made once, for its name and its emit)
+  let built: Promise<[string, string][]> | undefined;
+  const files = () => built ??= (async () => {
+    const make = snapshotter();
+    const out: [string, string][] = [];
+    for (const s of all) {
+      const text = await make(s.id);
+      out.push([builtFile(s.id, text), text]);
+    }
+    return out;
+  })();
   return {
     name: "scenes",
+    configResolved(c) {
+      command = c.command;
+    },
+    resolveId: (id) => (id === FILES ? `\0${FILES}` : undefined),
+    async load(id) {
+      if (id !== `\0${FILES}`) return undefined;
+      if (command !== "build") return "export default {};";
+      return `export default ${JSON.stringify(Object.fromEntries(
+        (await files()).map(([f], k) =>
+          [`snapshots/${all[k].id}.json`, f])))};`;
+    },
     configureServer(server) {
       const re = new RegExp(`^${server.config.base}snapshots/([^/]+)\\.json$`);
       // (authoring: POST /__scene/<id>, a scene's file written)
@@ -137,10 +170,8 @@ export function scenesPlugin(): Plugin {
       });
     },
     async generateBundle() {
-      const make = snapshotter();
-      for (const s of all) {
-        this.emitFile({ type: "asset", fileName: `snapshots/${s.id}.json`,
-          source: await make(s.id) });
+      for (const [fileName, source] of await files()) {
+        this.emitFile({ type: "asset", fileName, source });
       }
     },
   };

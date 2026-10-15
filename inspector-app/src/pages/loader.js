@@ -11,6 +11,10 @@
   // itself)
   const SIZES = /* sizes */{}/* end sizes */;
   const CODE = /* code */[]/* end code */;
+  // (built: each scene's snapshot as the build named it, by its
+  // contents: bin/vite-scenes.ts; a file is loaded by its own path)
+  const BUILT = /* built */{}/* end built */;
+  const built = (url) => BUILT[url] ?? url;
   const bar = document.getElementById("loadbar");
   const files = new Map(); // url -> { got, size, label, shown, promise }
   let failures = []; // { text, retry }
@@ -66,13 +70,13 @@
       }
       return f.promise;
     }
-    f = { got: 0, size: SIZES[url] ?? 0, label, shown: !quiet,
+    f = { got: 0, size: SIZES[built(url)] ?? 0, label, shown: !quiet,
       done: false };
     files.set(url, f);
     f.promise = (async () => {
       let res;
       try {
-        res = await fetch(url);
+        res = await fetch(built(url));
       } catch {
         throw new Error("the network request failed");
       }
