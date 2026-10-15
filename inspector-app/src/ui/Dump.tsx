@@ -987,8 +987,13 @@ export function Dump(p: { id: ViewId; location: Location; data: DataRef;
   // it is needed: something here related at the moment, drawn, in the
   // related view)
   // (none while the related rows are not known: not every page needed
-  // for an instant, as a moment's data comes)
-  const needed = !!only && only.rows.length > 0 && rows.length > 0;
+  // for an instant, as a moment's data comes; and, the related view on
+  // or off, a page whose bytes the selection lights, as drawn. A hover
+  // changes nothing: its light is not the selection's)
+  const selLit = useRef(false);
+  if (!link.hover) selLit.current = !!link.selection && litRows.length > 0;
+  const needed = (!!only && only.rows.length > 0 && rows.length > 0) ||
+    selLit.current;
   const chosen = useLensState((s) => s.pages?.[p.location]);
   const open = chosen ?? needed;
   // (its last: what a move holds, above)
