@@ -189,7 +189,12 @@ export function cut(change: () => void): void {
     cutting = false;
   }
 }
-export function animated(store: Store<LensState>): Store<LensState> {
+// (`pages`: a lens whose dumps are pages, which move their own heights
+// as their rows change (lenses/stepper.tsx): its change of rows is
+// theirs, in their one time and easing, the rest with it; no picture of
+// the page over them, moving on a clock of its own)
+export function animated(store: Store<LensState>,
+  o: { pages?: boolean } = {}): Store<LensState> {
   let pending: LensState | null = null;
   return { ...store, set(f) {
     const prev = pending ?? store.get();
@@ -199,7 +204,9 @@ export function animated(store: Store<LensState>): Store<LensState> {
       pending = next;
       return;
     }
-    if (cutting || !rowsChange(prev, next)) return store.set(() => next);
+    if (cutting || o.pages || !rowsChange(prev, next)) {
+      return store.set(() => next);
+    }
     pending = next;
     transition(() => {
       const s = pending!;
