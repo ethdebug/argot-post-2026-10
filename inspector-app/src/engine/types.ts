@@ -63,7 +63,10 @@ export interface TimelinePoint {
   // has none of its own: shown muted; engine/moment.ts)
   paused?: { step: number; op: string; of?: number;
     range?: { source: string; offset: number; length: number };
-    last?: true };
+    last?: true;
+    // (the call stack there, outermost first: run/types.ts Call)
+    calls?: { name: string; inline?: true;
+      site?: { source: string; offset: number; length: number } }[] };
 }
 // a local variable, as an instruction's context lists it: one with no
 // pointer has no location there
