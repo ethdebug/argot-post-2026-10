@@ -85,64 +85,222 @@ export async function pointAt(id: string, src: MomentSource, i: number,
 
 // ------------------------------------------------- the file
 
+// A replay holds every trace step, each mostly its step before's, so the
+// file holds each state, and each moment's facts, as its changes from
+// the moment before's, and each distinct ethdebug context once (a table
+// the timeline and the instructions share): gzip's window spans only a
+// few whole moments. The reader rebuilds every moment whole on load.
+
 const hexOf = (b: Uint8Array): Hex => `0x${[...b].map((x) =>
   x.toString(16).padStart(2, "0")).join("")}`;
 const bytesOf = (h: string) => Uint8Array.from(
   (h.slice(2).match(/../g) ?? []).map((b) => parseInt(b, 16)));
-const sorted = (m: ReadonlyMap<Hex, Hex>) => Object.fromEntries([...m]
-  .sort(([a], [b]) => (BigInt(a) < BigInt(b) ? -1 : 1)));
+const bySlot = (a: string, b: string) => (BigInt(a) < BigInt(b) ? -1 : 1);
+const sorted = (m: ReadonlyMap<Hex, Hex>) =>
+  Object.fromEntries([...m].sort(([a], [b]) => bySlot(a, b)));
 
-// as JSON: maps as objects (slots in order), bytes as 0x hex, sets as
-// arrays
+type Json = Record<string, any>;
+type Words = Record<string, string>;
+// (a state as JSON, whole: maps as objects (slots in order), bytes as
+// 0x hex)
+interface Whole {
+  storage: Words; memory?: string; stack?: string[]; calldata?: string;
+  transient?: Words;
+}
+const EMPTY: Whole = { storage: {} };
+
+// a map's changes: each slot set, or null if gone
+function wordsDiff(a: Words = {}, b: Words = {}): Words | undefined {
+  const d: Json = {};
+  for (const k in b) if (a[k] !== b[k]) d[k] = b[k];
+  for (const k in a) if (!(k in b)) d[k] = null;
+  return Object.keys(d).length ? d : undefined;
+}
+function wordsApply(a: Words = {}, d: Json): Words {
+  const o: Json = { ...a, ...d };
+  return Object.fromEntries(Object.keys(o).filter((k) => o[k] !== null)
+    .sort(bySlot).map((k) => [k, o[k]]));
+}
+// bytes' changes: the length, and each 32-byte word that differs from
+// the bytes before (zeros past their end), by its index
+const W = 64;
+function bytesDiff(a = "0x", b: string): [number, Words] {
+  const words: Words = {};
+  for (let o = 2; o < b.length; o += W) {
+    const w = b.slice(o, o + W);
+    if (w !== a.slice(o, o + W).padEnd(w.length, "0")) words[(o - 2) / W] = w;
+  }
+  return [(b.length - 2) / 2, words];
+}
+function bytesApply(a = "0x", [n, words]: [number, Words]): string {
+  let h = a.slice(0, 2 + 2 * n).padEnd(2 + 2 * n, "0");
+  for (const [k, w] of Object.entries(words)) {
+    const o = 2 + W * Number(k);
+    h = h.slice(0, o) + w + h.slice(o + w.length);
+  }
+  return h;
+}
+
+// a state's changes from the one before: a field left out is the same,
+// null is gone; the stack as [items popped, ...items pushed]
+function stateDiff(a: Whole, b: Whole): Json {
+  const d: Json = {};
+  const storage = wordsDiff(a.storage, b.storage);
+  if (storage) d.storage = storage;
+  const transient = wordsDiff(a.transient, b.transient);
+  if (transient) d.transient = transient;
+  for (const f of ["memory", "calldata"] as const) {
+    if (a[f] === b[f]) continue;
+    d[f] = b[f] === undefined ? null : bytesDiff(a[f], b[f]);
+  }
+  if (JSON.stringify(a.stack) !== JSON.stringify(b.stack)) {
+    if (!b.stack) d.stack = null;
+    else {
+      const s = a.stack ?? [];
+      let j = 0;
+      while (j < s.length && j < b.stack.length && s[j] === b.stack[j]) j++;
+      d.stack = [s.length - j, ...b.stack.slice(j)];
+    }
+  }
+  return d;
+}
+function stateApply(a: Whole, d: Json): Whole {
+  const b: Whole = { storage: d.storage ? wordsApply(a.storage, d.storage)
+    : a.storage };
+  for (const f of ["memory", "calldata"] as const) {
+    const v = f in d ? d[f] && bytesApply(a[f], d[f]) : a[f];
+    if (v !== null && v !== undefined) b[f] = v;
+  }
+  const stack = "stack" in d ? d.stack && [...(a.stack ?? [])
+    .slice(0, (a.stack?.length ?? 0) - d.stack[0]), ...d.stack.slice(1)]
+    : a.stack;
+  if (stack) b.stack = stack;
+  const transient = d.transient ? wordsApply(a.transient, d.transient)
+    : a.transient;
+  if (transient && Object.keys(transient).length) b.transient = transient;
+  return b;
+}
+
+// a moment's facts' changes from the last facts before it: its fields
+// that differ, the KECCAK256 inputs as [how many of the last's it
+// keeps, ...those it adds], and "-": fields gone
+function factsDiff(a: Json, b: Json): Json {
+  const d: Json = {};
+  const same = (x: unknown, y: unknown) =>
+    JSON.stringify(x) === JSON.stringify(y);
+  for (const k in b) {
+    if (k === "keccakInputs" && Array.isArray(a[k])) {
+      let j = 0;
+      while (j < a[k].length && j < b[k].length && same(a[k][j], b[k][j])) j++;
+      if (j !== a[k].length || j !== b[k].length) {
+        d[k] = [j, ...b[k].slice(j)];
+      }
+    } else if (!same(a[k], b[k])) d[k] = b[k];
+  }
+  const gone = Object.keys(a).filter((k) => !(k in b));
+  if (gone.length) d["-"] = gone;
+  return d;
+}
+function factsApply(a: Json, d: Json): Json {
+  const b: Json = { ...a };
+  for (const [k, v] of Object.entries(d)) {
+    if (k === "-") continue;
+    b[k] = k === "keccakInputs" && Array.isArray(a[k])
+      ? [...a[k].slice(0, v[0]), ...v.slice(1)] : v;
+  }
+  for (const k of d["-"] ?? []) delete b[k];
+  return b;
+}
+
+// as JSON: each distinct context once, in `contexts`, and in its place
+// its index; each state and facts as their changes (above)
 export function snapshotJson(f: SceneSnapshot): unknown {
+  const ids = new Map<string, number>();
+  const contexts: unknown[] = [];
+  const id = (c: unknown) => {
+    const k = JSON.stringify(c);
+    if (!ids.has(k)) ids.set(k, contexts.push(c) - 1);
+    return ids.get(k)!;
+  };
+  const indexed = <T extends { context?: unknown }>(x: T) =>
+    x.context === undefined ? x : { ...x, context: id(x.context) };
+  let state = EMPTY;
+  let facts: Json = {};
   return {
     ...f,
-    states: f.states.map((s) => ({
-      storage: sorted(s.storage),
-      ...(s.memory ? { memory: hexOf(s.memory) } : {}),
-      ...(s.stack ? { stack: s.stack } : {}),
-      ...(s.calldata ? { calldata: hexOf(s.calldata) } : {}),
-      ...(s.transient?.size ? { transient: sorted(s.transient) } : {}),
-    })),
-    facts: f.facts.map((x) => x && { ...x, reads: [...x.reads].sort(),
-      writes: [...x.writes].sort() }),
+    scene: { ...f.scene, timeline: f.scene.timeline.map(indexed) },
+    build: { ...f.build, instructions: Object.fromEntries(Object.entries(
+      f.build.instructions).map(([pc, x]) => [pc, indexed(x)])) },
+    contexts,
+    states: f.states.map((s) => {
+      const whole: Whole = {
+        storage: sorted(s.storage),
+        ...(s.memory ? { memory: hexOf(s.memory) } : {}),
+        ...(s.stack ? { stack: s.stack } : {}),
+        ...(s.calldata ? { calldata: hexOf(s.calldata) } : {}),
+        ...(s.transient?.size ? { transient: sorted(s.transient) } : {}),
+      };
+      const d = stateDiff(state, whole);
+      state = whole;
+      return d;
+    }),
+    facts: f.facts.map((x) => {
+      if (!x) return null;
+      const whole = { ...x, reads: [...x.reads].sort(),
+        writes: [...x.writes].sort() };
+      const d = factsDiff(facts, whole);
+      facts = whole;
+      return d;
+    }),
   };
 }
 
-type Json = Record<string, any>;
 export function snapshotOf(json: unknown): SceneSnapshot {
   const j = json as Json;
   if (!j?.scene || !Array.isArray(j.states) || typeof j.digest !== "string"
-    || !j.build?.compilations) {
+    || !j.build?.compilations || !Array.isArray(j.contexts)) {
     throw new Error("not a scene snapshot");
   }
+  const context = <T extends Json>(x: T): T =>
+    typeof x.context === "number"
+      ? { ...x, context: j.contexts[x.context] } : x;
+  const timeline = j.scene.timeline.map(context);
   // (its scene, less the annotations, is a scene file's)
-  const bare = sceneOf({ ...j.scene, timeline: j.scene.timeline.map(
+  const bare = sceneOf({ ...j.scene, timeline: timeline.map(
     ({ tx, step, label }: Json) => ({ tx, step,
       ...(label !== undefined ? { label } : {}) })) });
   if (j.states.length !== bare.timeline.length ||
     j.facts.length !== bare.timeline.length) {
     throw new Error(`snapshot ${bare.id}: one state a moment`);
   }
-  j.scene.timeline.forEach((m: Json, k: number) => {
-    if (k && order(j.scene.timeline[k - 1]) >= order(m as never)) {
+  timeline.forEach((m: Json, k: number) => {
+    if (k && order(timeline[k - 1]) >= order(m as never)) {
       throw new Error(`snapshot ${bare.id}: moments out of order`);
     }
   });
   const map = (o?: Record<string, string>) =>
     new Map(Object.entries(o ?? {}) as [Hex, Hex][]);
+  let state = EMPTY;
+  let facts: Json = {};
   return {
-    scene: { ...bare, timeline: j.scene.timeline },
-    build: j.build,
-    states: j.states.map((s: Json): Snapshot => ({
-      storage: map(s.storage),
-      ...(s.memory ? { memory: bytesOf(s.memory) } : {}),
-      ...(s.stack ? { stack: s.stack } : {}),
-      ...(s.calldata ? { calldata: bytesOf(s.calldata) } : {}),
-      transient: map(s.transient),
-    })),
-    facts: j.facts.map((x: Json | null) => x && { ...x,
-      reads: new Set(x.reads), writes: new Set(x.writes) }),
+    scene: { ...bare, timeline },
+    build: { ...j.build, instructions: Object.fromEntries(Object.entries(
+      j.build.instructions as Json).map(([pc, x]) => [pc, context(x)])) },
+    states: j.states.map((d: Json): Snapshot => {
+      const s = state = stateApply(state, d);
+      return {
+        storage: map(s.storage),
+        ...(s.memory ? { memory: bytesOf(s.memory) } : {}),
+        ...(s.stack ? { stack: s.stack as Hex[] } : {}),
+        ...(s.calldata ? { calldata: bytesOf(s.calldata) } : {}),
+        transient: map(s.transient),
+      };
+    }),
+    facts: j.facts.map((d: Json | null) => {
+      if (!d) return null;
+      const x = facts = factsApply(facts, d);
+      return { ...x, reads: new Set(x.reads), writes: new Set(x.writes) };
+    }),
     txs: Array.isArray(j.txs) ? j.txs : [],
     digest: j.digest,
   };
