@@ -11,23 +11,26 @@ import { PAUSE_STEPS, PAUSE_TX, STEPPER } from "./expect";
 export const testProject = (): Promise<Project> =>
   load(fsIo(), { scenes, builds, page, runs });
 
+// A scene's snapshot file, as the build makes it from the runs: its
+// JSON text, made once a test file (a replay's decodes every trace
+// step: seconds)
+const files = new Map<string, Promise<string>>();
+export function snapshotText(id: string): Promise<string> {
+  if (!files.has(id)) {
+    files.set(id, testProject().then((p) => sceneSnapshot(p,
+      scenes.find((s) => s.id === id)!)).then((f) =>
+      JSON.stringify(snapshotJson(f))));
+  }
+  return files.get(id)!;
+}
+
 // The project as the reader has it: each scene from its snapshot file
-// (made here from the runs, as the build makes it, through JSON)
+// (snapshotText's, through JSON)
 export async function readerProject(): Promise<Project> {
-  const authoring = await testProject();
-  const files = new Map<string, Promise<unknown>>();
-  const file = (id: string) => {
-    if (!files.has(id)) {
-      files.set(id, sceneSnapshot(authoring, scenes.find((s) =>
-        s.id === id)!).then((f) => JSON.parse(JSON.stringify(
-        snapshotJson(f)))));
-    }
-    return files.get(id)!;
-  };
   const io = fsIo();
-  return load({ ...io, json: <T>(p: string) => {
+  return load({ ...io, json: async <T>(p: string) => {
     const m = p.match(/^snapshots\/(.+)\.json$/);
-    return (m ? file(m[1]) : io.json(p)) as Promise<T>;
+    return (m ? JSON.parse(await snapshotText(m[1])) : io.json(p)) as T;
   } }, { scenes, builds, page });
 }
 
