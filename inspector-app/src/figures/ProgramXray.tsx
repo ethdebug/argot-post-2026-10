@@ -92,14 +92,14 @@ export function brief(text: string, from: number, to: number) {
 
 // A scalar as YAML: a plain word when it reads as the same string,
 // else double-quoted (JSON's escapes are YAML's)
-const scalar = (v: Json) => typeof v === "string" &&
+export const scalar = (v: Json) => typeof v === "string" &&
   !/^[A-Za-z_][\w./-]*$/.test(v) || /^(true|false|null|~|yes|no|on|off)$/i
   .test(String(v)) ? JSON.stringify(v) : String(v);
 // (a collection of scalars: in flow style where it fits)
-const flat = (v: Json) => v !== null && typeof v === "object" &&
+export const flat = (v: Json) => v !== null && typeof v === "object" &&
   Object.values(v).every((x) => x === null || typeof x !== "object");
 // an object's keys, in the format's order
-const ordered = (v: Record<string, Json>) => Object.keys(v).sort((a, b) =>
+export const ordered = (v: Record<string, Json>) => Object.keys(v).sort((a, b) =>
   (ORDER.indexOf(a) + 1 || 99) - (ORDER.indexOf(b) + 1 || 99));
 
 // One line of an entry's YAML: its text; its field names (where, and

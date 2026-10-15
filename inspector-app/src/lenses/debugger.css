@@ -269,6 +269,16 @@
 .lens.stepper .pagebox { position: relative; background: var(--panel);
   border: 1px solid var(--line); border-radius: 6px;
   padding: 4px 0; box-sizing: border-box; box-shadow: var(--tab-shadow); }
+/* (a sheet's bottom corners square, the next one over them; the last
+   one's, open or a shut tab, rounded; a phone's stack, the pages under
+   it, square) */
+.lens.stepper .pages .view:not([data-last="true"]) :is(.pagebox,
+  .view-name) { border-bottom-left-radius: 0;
+  border-bottom-right-radius: 0; }
+@media (max-width: 759.98px) {
+  .lens.stepper .stackcol .pagebox { border-bottom-left-radius: 0;
+    border-bottom-right-radius: 0; }
+}
 /* (a page's strip at its bottom, for the tab of the one under it) */
 .lens.stepper .pages .pagebox { padding-bottom: calc(4px + var(--tab-h)); }
 .lens.stepper .pagebox > .rows { border: 0; border-radius: 0;
@@ -424,22 +434,33 @@
 .lens.stepper .instrs .xrows .row.hl { position: relative;
   color: var(--fg); background: var(--mark); border-radius: 4px 0 0 4px;
   box-shadow: -4px 0 0 var(--mark); }
+/* (the fillets: a concave curve above and below where the row meets
+   the box's side, inside the box's height alone; where the row is level
+   with the box's top or bottom, none, the edge one line, and the box's
+   corner there square: ui/Instructions.tsx sets data-jt, data-jb) */
 .lens.stepper .instrs .xrows .row.hl::before,
 .lens.stepper .instrs .xrows .row.hl::after { content: "";
   position: absolute; right: 0; width: 6px; height: 6px;
-  pointer-events: none; }
-.lens.stepper .instrs .xrows .row.hl::before { bottom: 100%;
+  pointer-events: none; display: none; }
+.lens.stepper .instrs[data-jt="side"] .xrows .row.hl::before {
+  display: block; bottom: 100%;
   background: radial-gradient(circle at 0 0, transparent 5.5px,
     var(--mark) 6px); }
-.lens.stepper .instrs .xrows .row.hl::after { top: 100%;
+.lens.stepper .instrs[data-jb="side"] .xrows .row.hl::after {
+  display: block; top: 100%;
   background: radial-gradient(circle at 0 100%, transparent 5.5px,
     var(--mark) 6px); }
 /* (its entry: the row's yellow, close up; in it, the YAML on the
-   panel's paper, under a label saying what it is, scrolling inside) */
+   panel's paper, under a label saying what it is, scrolling inside;
+   level with the list's rows, top and bottom) */
 .lens.stepper .instrs .icall { flex: 1; min-width: 0;
-  margin: 6px 6px 6px 0; padding: 4px 6px 6px;
+  margin: 4px 6px 4px 0; padding: 4px 6px 6px;
   display: grid; grid-template-rows: auto minmax(0, 1fr);
   background: var(--mark); border-radius: 8px; }
+.lens.stepper .instrs:not([data-jt="side"]) .icall {
+  border-top-left-radius: 0; }
+.lens.stepper .instrs:not([data-jb="side"]) .icall {
+  border-bottom-left-radius: 0; }
 .lens.stepper .instrs .icall .plabel { margin: 0 0 4px 2px;
   color: var(--fg); opacity: 0.75; }
 .lens.stepper .instrs .icall .ptrbox { margin: 0; border: 0;
@@ -449,6 +470,22 @@
   font-size: var(--fs-meta); }
 .lens.stepper .instrs .icall .ptrlines code { display: block; padding: 0;
   background: none; border-radius: 0; font: inherit; }
+/* (a key with more under it: the tabs' chevron in the indent before it,
+   a button; folded, its summary muted) */
+.lens.stepper .instrs .icall .ptrlines code { padding-left: 2ch; }
+.lens.stepper .instrs .icall .line { position: relative; }
+.lens.stepper .instrs .icall .ychev { position: absolute; top: 0;
+  bottom: 0; left: calc((var(--ci) - 2) * 1ch); width: 2ch; margin: 0;
+  padding: 0; border: 0; background: none; color: var(--muted);
+  cursor: pointer; display: grid; place-items: center; font: inherit; }
+.lens.stepper .instrs .icall .ychev svg { width: 0.9em; height: 0.9em;
+  transition: transform 0.15s; }
+.lens.stepper .instrs .icall .ychev[aria-expanded="false"] svg {
+  transform: rotate(-90deg); }
+.lens.stepper .instrs .icall .ychev:is(:hover, :focus-visible) {
+  color: var(--fg); }
+.lens.stepper .instrs .icall .ysum, .lens.stepper .instrs .icall
+  .ysum span[style] { color: var(--muted) !important; }
 @media (prefers-reduced-motion: reduce) {
   .lens.stepper .instrs { transition: none; }
 }

@@ -306,3 +306,39 @@ test("optimized-locals: the locals in scope alone", async ({ page }) => {
   await expect(page.locator('li[data-path="mult"] .noloc'))
     .toHaveText(/no location/);
 });
+
+// The entry's YAML folds: context open, its code folded, its variables
+// open, each one's pointer folded; a chevron toggles; the next
+// instruction starts from the defaults again
+test("optimized-locals: the entry's YAML folds", async ({ page }) => {
+  await page.setViewportSize({ width: 1216, height: 900 });
+  await page.goto("./embed.html#scene=optimized-locals");
+  await page.locator('.mbar [role=tab][data-tx="12"]').click();
+  await page.locator('.mbar [data-t="next"]').click();
+  await expect(page.locator(".mbar")).toContainText("2 / 5",
+    { timeout: 10_000 });
+  await page.locator(".instrs .ptab").click();
+  const chev = (path: string) => page.locator(
+    `.icall .line[data-path="${path}"] > .ychev`);
+  await expect(chev("context")).toHaveAttribute("aria-expanded", "true");
+  await expect(chev("context.variables")).toHaveAttribute("aria-expanded",
+    "true");
+  await expect(chev("context.variables[0].pointer"))
+    .toHaveAttribute("aria-expanded", "false");
+  await expect(page.locator('.icall .line[data-path$=".code"]').first()
+    .locator(".ychev")).toHaveAttribute("aria-expanded", "false");
+  await expect(page.locator('.icall .line[data-path=' +
+    '"context.variables[0].pointer"] .ysum')).toBeVisible();
+  // (a toggle: the pointer open, its fields under it)
+  await chev("context.variables[0].pointer").click();
+  await expect(chev("context.variables[0].pointer"))
+    .toHaveAttribute("aria-expanded", "true");
+  await chev("context").click();
+  await expect(chev("context")).toHaveAttribute("aria-expanded", "false");
+  await expect(chev("context.variables")).toHaveCount(0);
+  // (the next instruction: the defaults)
+  await page.locator('.mbar [data-t="next"]').click();
+  await expect(page.locator(".mbar")).toContainText("3 / 5",
+    { timeout: 10_000 });
+  await expect(chev("context")).toHaveAttribute("aria-expanded", "true");
+});

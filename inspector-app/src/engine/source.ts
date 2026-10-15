@@ -17,6 +17,9 @@ export interface BuildSlice {     // a Build cut down to what a scene needs
   compilations: Compilation[];
   decodings: Decoding[];
   instructions: Record<number, Format.Program.Instruction>;   // pcs
+  // (a replay's: its runtime program's every instruction, "offset
+  // MNEMONIC args…" a line; ui/Instructions.tsx)
+  listing?: string;
   sources?: SourceFile[];
 }
 export interface SceneSnapshot {  // snapshots/<scene>.json

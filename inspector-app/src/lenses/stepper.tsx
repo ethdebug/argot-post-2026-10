@@ -181,6 +181,8 @@ function Wide({ children }: { children: ReactNode }) {
         Number(b.style.order));
       const pile = laid.find((v) => !next[loc(v)]);
       for (const v of laid) {
+        const last = String(v === laid[laid.length - 1]);
+        if (v.dataset.last !== last) v.dataset.last = last;
         const top = String(v === laid[0]);
         const pt = String(v === pile && v !== laid[0]);
         if (v.dataset.top !== top) v.dataset.top = top;

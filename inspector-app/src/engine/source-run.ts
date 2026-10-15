@@ -123,6 +123,11 @@ export async function snapshotFile(scene: Scene, src: MomentSource,
   const build = src.build as Build;
   const programs = [build.programs?.runtime, build.programs?.create];
   const instructions: BuildSlice["instructions"] = {};
+  // (a replay's: the runtime program's every instruction, a line each,
+  // its offset and operation, for the stepper's listing: a few KB)
+  const listing = scene.replay ? (build.programs?.runtime?.instructions ??
+    []).map((x) => [x.offset, x.operation?.mnemonic ?? "",
+    ...x.operation?.arguments ?? []].join(" ")).join("\n") : undefined;
   for (const m of src.moments) {
     const ins = m.pc === undefined ? undefined : programs.flatMap((p) =>
       p?.instructions ?? []).find((x) => x.offset === m.pc);
@@ -131,7 +136,7 @@ export async function snapshotFile(scene: Scene, src: MomentSource,
   return {
     scene: { ...scene, timeline: src.moments },
     build: { compilations: need.compilations, decodings: need.decodings,
-      instructions,
+      instructions, ...listing ? { listing } : {},
       ...(need.sources !== false ? { sources: build.sources } : {}) },
     states, facts: src.moments.map((_, i) => src.facts(i)),
     txs: src.txs,
