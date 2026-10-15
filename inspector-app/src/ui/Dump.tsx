@@ -574,7 +574,7 @@ export function Dump(p: { id: ViewId; location: Location; data: DataRef;
   const me = useRef<HTMLDivElement>(null);
   // (all-zero rows folded into the gaps, when the display asks: a row
   // after a folded one starts after a gap)
-  const rows = useMemo(() => {
+  const kept = useMemo(() => {
     let all: (Row & { second?: boolean })[] = l?.rows ?? [];
     if (disp.second && l2) {
       const mine = new Set(all.map((r) => r.address));
@@ -604,6 +604,14 @@ export function Dump(p: { id: ViewId; location: Location; data: DataRef;
     }
     return out;
   }, [l, l2, disp.second, disp.ends, disp.foldZero, snap, p.location]);
+  // (a stack's page: a row for each item it has now, none past its top;
+  // the rows past it, the scene's deepest, kept as blank paper under
+  // them, so the page's height stays: debugger.css)
+  const stackPage = !!disp.edges && p.location === "stack";
+  const rows = useMemo(() => !stackPage ? kept : kept.filter((r) =>
+    rowBytes(snap, p.location, r.address).some((b) => b !== undefined)),
+  [kept, stackPage, snap, p.location]);
+  const past = kept.length - rows.length;
   useFitDump(me, true, rows.length);
 
   // the annotated layer (display `annotate`): the values here, each in
@@ -1134,6 +1142,8 @@ export function Dump(p: { id: ViewId; location: Location; data: DataRef;
       className={`rows${more.up ? " more-up" : ""}${more.down
         ? " more-down" : ""}`}>{grouped.length ? grouped
         : <div className="gap" aria-hidden="true"><span>⋯</span></div>}
+        {past > 0 && !only && <div className="past" aria-hidden="true"
+          style={{ "--past": past } as CSSProperties} />}
       </div>{edge("up")}{edge("down")}
     </div> : <div ref={rowsBox} className="rows" style={disp.scale
       ? { fontSize: `${disp.scale}em` } : undefined}>{flow
