@@ -30,15 +30,16 @@ describe("the arcade scenario", () => {
       ["carol", `join("${NAME_C}")`],
       play("alice"), play("alice"), play("bob"), play("carol"),
       play("carol"), play("carol"), play("carol"), play("carol"),
-      play("alice"),
+      play("alice"), play("bob"),
       ["deployer", `setMotd("${MOTD[1]}")`],
     ]);
   });
-  it("rolls each play's outcome: carol's fifth play misses", () => {
+  it("rolls each play's outcome: carol's fifth and bob's second miss",
+    () => {
     const hits = s.transactions.flatMap((t) => t.label === "play()"
       ? [rolledHit(t.block.prevrandao, address(t.from))] : []);
     expect(hits).toEqual([true, true, true, true, true, true, true, false,
-      true]);
+      true, false]);
   });
   it("puts each transaction in its own block", () => {
     expect(blockOf(s, 0).number).toBe(s.genesis.number + 1n);

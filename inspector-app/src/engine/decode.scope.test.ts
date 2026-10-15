@@ -29,12 +29,12 @@ describe.each(["stepper-O0", "optimized-locals", "mid"])("%s's storage in scope"
       expect([A, B, C].map((x) => text(d, `${x}.lastBlock`)))
         .toEqual(lastBlock.mid);
     });
-    it("alice's third hit, and setMotd", async () => {
+    it("alice's third hit, and setMotd after bob's miss", async () => {
       const d = await at(scene, 12);
       for (const [path, , value] of expected.alice) {
         expect(text(d, path), path).toBe(value);
       }
-      const e = await at(scene, 13);
+      const e = await at(scene, 14);
       for (const [path, , value] of expected.motd) {
         expect(text(e, path), path).toBe(value);
       }

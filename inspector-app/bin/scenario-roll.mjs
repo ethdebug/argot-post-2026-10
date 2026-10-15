@@ -15,8 +15,10 @@ const app = path.dirname(path.dirname(fileURLToPath(import.meta.url)));
 const file = process.argv[2] ??
   path.join(app, "scenarios", "arcade", "scenario.json");
 // The story (README "How the builds and scenes are made"): alice hits;
-// alice hits; bob hits; carol hits four times, then misses; alice hits
-const HITS = [true, true, true, true, true, true, true, false, true];
+// alice hits; bob hits; carol hits four times, then misses; alice hits;
+// bob misses
+const HITS = [true, true, true, true, true, true, true, false, true,
+  false];
 
 const word = (h) => BigInt(h).toString(16).padStart(64, "0");
 const hit = (prevrandao, sender) => BigInt("0x" + sha3.keccak256(

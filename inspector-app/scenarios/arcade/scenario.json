@@ -190,6 +190,18 @@
       }
     },
     {
+      "label": "play()",
+      "from": "bob",
+      "kind": "call",
+      "call": {
+        "signature": "play()",
+        "args": []
+      },
+      "block": {
+        "prevrandao": "0xf27494d7b2251e4f50cac2856e0dc2ab7c1c607ea2f2492a04864c240393a226"
+      }
+    },
+    {
       "label": "setMotd(\"gl hf\")",
       "from": "deployer",
       "kind": "call",
@@ -200,7 +212,7 @@
         ]
       },
       "block": {
-        "prevrandao": "0xf27494d7b2251e4f50cac2856e0dc2ab7c1c607ea2f2492a04864c240393a226"
+        "prevrandao": "0x675cd252e0c2e6f765f7390a8993b07cb7fcff8b89dde592f9e60e37a0b14460"
       }
     }
   ]
