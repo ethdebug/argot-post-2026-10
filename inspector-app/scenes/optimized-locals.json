@@ -9,13 +9,13 @@
   "timeline": [
     {
       "tx": 3,
-      "step": 166,
+      "step": 122,
       "label": "Carol joins the game. `len`, the length of her name, sits on the stack. `name` isn't copied anywhere. The compiler's data points straight at the name's bytes in the call data, using their offset and length, saved in memory.",
       "select": "@locals"
     },
     {
       "tx": 3,
-      "step": 418,
+      "step": 374,
       "label": "Carol's join is done. Her name is in her record in storage: one slot holds its length, two hold its bytes.",
       "select": "players[0x90f79bf6eb2c4f870365e785982e1f101e93b906].name",
       "collapse": [
@@ -24,7 +24,7 @@
     },
     {
       "tx": 12,
-      "step": 307,
+      "step": 362,
       "label": "Alice plays. The code copies her player record from storage into memory, and `player` now lives there.",
       "select": "player",
       "collapse": [
@@ -33,25 +33,25 @@
     },
     {
       "tx": 12,
-      "step": 559,
+      "step": 680,
       "label": "The optimizer has inlined `_applyCombo`: its code runs right here, with no real call. The compiler's data still marks where the call begins, so only `_applyCombo`'s own variables are listed. `mult` has no location yet.",
       "select": "combo"
     },
     {
       "tx": 12,
-      "step": 564,
+      "step": 688,
       "label": "`mult` now has a location: 8 bytes of memory.",
       "select": "mult"
     },
     {
       "tx": 12,
-      "step": 576,
+      "step": 703,
       "label": "`mult = combo` doesn't copy anything. The compiler's data points `mult` at the same memory word as `combo`: `combo` uses the word's last 4 bytes, and `mult`, a wider type, uses its last 8.",
       "select": "mult"
     },
     {
       "tx": 12,
-      "step": 600,
+      "step": 742,
       "label": "Back in `play()`. `_applyCombo`'s variables are gone, and `gained`, the result it returned, now has a location in memory.",
       "select": "gained",
       "collapse": [

@@ -67,7 +67,7 @@ it("bugc's storage rows are named as solc's", async () => {
 // memory, each its own region, `player-score` …; alice before her third
 // hit is written back: the middle of the game's record, plays already
 // counted)
-it.each([["stepper-O0", 548], ["optimized-locals", 402]] as const)(
+it.each([["stepper-O0", 612], ["optimized-locals", 475]] as const)(
   "%s: play()'s player, a struct in memory, field by field",
   async (b, step) => {
     const p = await testProject();

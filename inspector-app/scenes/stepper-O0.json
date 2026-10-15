@@ -9,17 +9,17 @@
   "timeline": [
     {
       "tx": 3,
-      "step": 264,
+      "step": 205,
       "label": "the name's length, read from the call"
     },
     {
       "tx": 3,
-      "step": 318,
+      "step": 274,
       "label": "the name, sliced from the call"
     },
     {
       "tx": 3,
-      "step": 526,
+      "step": 491,
       "label": "the name, written to carol's record"
     },
     {
