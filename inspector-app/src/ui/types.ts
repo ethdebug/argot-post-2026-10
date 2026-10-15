@@ -57,6 +57,9 @@ export interface LensState {
   // (the stepper's instructions' column open: ui/Instructions.tsx; shut
   // on a show of the scene, a Reset)
   instrs?: true;
+  // (a call's site shown in the code, its frame chosen in the call
+  // stack: ui/CallStack.tsx; until the next moment)
+  site?: { source: string; offset: number; length: number };
   // (a figure's pages, open or shut to their tabs, as the reader chose
   // them, each by its location: until the next moment shown; else as
   // the moment has them, Dump.tsx)
@@ -174,6 +177,9 @@ export type ViewSpec = { id: ViewId; area: string; link?: LinkId;
     // (the program's instructions, the one at the moment lit, and its
     // entry, as YAML: ui/Instructions.tsx)
     | { kind: "instructions"; data: DataRef }
+    // (the call stack at the moment, a line, outermost first: its
+    // frames' call sites shown in the code on a click)
+    | { kind: "callstack"; data: DataRef }
     // the moment a point is, in a line, in plain words: `text`, or the
     // point's label
     | { kind: "moment"; data: DataRef; text?: string;

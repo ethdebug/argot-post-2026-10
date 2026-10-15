@@ -107,5 +107,10 @@ export interface Moment extends MomentRef {
   pc?: number; op?: string; depth?: number;
   range?: SourceRange;                    // the code panel's (§6)
   context?: Format.Program.Context;       // the instruction's (§6)
+  // (the call stack there, outermost first, from the program's invoke
+  // and return marks: each function, inlined or not, and where it was
+  // called, the call's range)
+  calls?: Call[];
 }
+export interface Call { name: string; inline?: true; site?: SourceRange }
 export type Timeline = Moment[];          // ordered by (tx, step); flat

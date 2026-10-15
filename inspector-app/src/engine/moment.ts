@@ -24,6 +24,7 @@ export function momentPoint(id: PointId, m: Moment, snapshot: Snapshot,
     ...(m.step === "end" ? {} : { paused: { step: m.step, op: m.op ?? "",
       ...(o.steps !== undefined ? { of: o.steps } : {}),
       ...(range ? { range } : {}),
+      ...(m.calls?.length ? { calls: m.calls } : {}),
       ...(!m.range && range ? { last: true as const } : {}) } }),
   };
 }

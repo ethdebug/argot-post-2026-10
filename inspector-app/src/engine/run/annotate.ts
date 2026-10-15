@@ -7,11 +7,13 @@ import {
   effectiveContextForStep,
 } from "@ethdebug/programs-react/dist/src/utils/effectiveContext.js";
 import {
-  extractVariablesFromInstruction,
+  buildCallStack, extractVariablesFromInstruction,
 } from "@ethdebug/programs-react/dist/src/utils/mockTrace.js";
 import type { SourceRange } from "../types";
 import type { Local } from "../types";
-import type { Build, Format, Moment, MomentRef, Run } from "./types";
+import type {
+  Build, Call, Format, Moment, MomentRef, Run,
+} from "./types";
 import { opName } from "./opcodes";
 
 type Context = Format.Program.Context;
@@ -44,6 +46,58 @@ export function locals(ctx: Context, build?: Build): Local[] {
   return all.filter((v) => !state.has(v.identifier));
 }
 
+type CallCtx = Ctx & { invoke?: { identifier?: string };
+  transform?: string[]; gather?: CallCtx[]; pick?: CallCtx[] };
+// a context's code ranges, each marked when it sits in an inlined body
+// (transform "inline"); and its invoke marks (demos/debugger/
+// ref-worker.js codes, invokes)
+function codes(ctx: CallCtx | undefined, inline = false,
+  out: (SourceRange & { inline: boolean })[] = []) {
+  if (!ctx) return out;
+  const here = inline || (ctx.transform ?? []).includes("inline");
+  if (ctx.code?.range && ctx.code.source) {
+    out.push({ source: String(ctx.code.source.id), ...ctx.code.range,
+      inline: here });
+  }
+  for (const c of [...ctx.gather ?? [], ...ctx.pick ?? []]) {
+    codes(c, false, out);
+  }
+  return out;
+}
+function invokes(ctx: CallCtx | undefined, out: string[] = []): string[] {
+  if (!ctx) return out;
+  if (ctx.invoke?.identifier) out.push(ctx.invoke.identifier);
+  for (const c of [...ctx.gather ?? [], ...ctx.pick ?? []]) invokes(c, out);
+  return out;
+}
+
+// The call stack at trace step i of a frame, outermost first, from the
+// program's invoke and return marks (programs-react's buildCallStack:
+// postconditions; a real call's invoke on its JUMP and JUMPDEST, one
+// frame; an inlined one's, marked; an inline mark with no invoke, none);
+// each frame's call site, the unmarked range of the instruction that
+// carries its invoke, just before it opens (ref-worker.js siteOf)
+function callsAt(trace: { pc: number }[], byPc: Map<number,
+  Format.Program.Instruction>, i: number, program: Format.Program): Call[] {
+  const frames = buildCallStack(trace as never, byPc, i,
+    program.context) as { identifier?: string; stepIndex: number;
+    isInline?: boolean }[];
+  return frames.map((f) => {
+    let site: SourceRange | undefined;
+    for (let j = f.stepIndex - 1; j >= Math.max(0, f.stepIndex - 4) &&
+      !site; j--) {
+      const ctx = byPc.get(trace[j].pc)?.context as CallCtx | undefined;
+      if (f.identifier && invokes(ctx).includes(f.identifier)) {
+        const c = codes(ctx).find((x) => !x.inline);
+        if (c) site = { source: c.source, offset: c.offset,
+          length: c.length };
+      }
+    }
+    return { name: f.identifier ?? "?", ...f.isInline ? { inline: true }
+      : {}, ...site ? { site } : {} } as Call;
+  });
+}
+
 // One run's annotator: each program's instructions by pc, made once
 export function annotator(run: Run, build: Build):
   (ref: MomentRef | Moment) => Moment {
@@ -55,11 +109,25 @@ export function annotator(run: Run, build: Build):
     }
     return maps.get(p)!;
   };
+  // (each frame's trace, its own steps, by transaction and frame)
+  const traces = new Map<string, { pc: number }[]>();
+  const traceOf = (tx: number, f: number) => {
+    const k = `${tx}:${f}`;
+    if (!traces.has(k)) {
+      const t = run.txs[tx];
+      const out: { pc: number }[] = [];
+      for (let j = t.frames[f].first; j <= t.frames[f].last; j++) {
+        if (t.frame[j] === f) out.push({ pc: t.pc[j] });
+      }
+      traces.set(k, out);
+    }
+    return traces.get(k)!;
+  };
   return (ref) => {
     const t = run.txs[ref.tx];
     if (!t) throw new Error(`no transaction ${ref.tx}`);
-    const { pc: _p, op: _o, depth: _d, range: _r, context: _c, ...m } =
-      ref as Moment;
+    const { pc: _p, op: _o, depth: _d, range: _r, context: _c, calls: _k,
+      ...m } = ref as Moment;
     if (ref.step === "end") return m;
     const i = ref.step;
     const frame = t.frames[t.frame[i]];
@@ -84,7 +152,13 @@ export function annotator(run: Run, build: Build):
     });
     if (!context) return out;
     const range = rangeOf(context as Ctx);
-    return { ...out, context, ...(range ? { range } : {}) };
+    // (the call stack there: the frame's trace to this step)
+    const trace = traceOf(ref.tx, t.frame[i]);
+    let k = 0;
+    for (let j = frame.first; j < i; j++) if (t.frame[j] === t.frame[i]) k++;
+    const calls = callsAt(trace, byPc, k, program);
+    return { ...out, context, ...(range ? { range } : {}),
+      ...calls.length ? { calls } : {} };
   };
 }
 

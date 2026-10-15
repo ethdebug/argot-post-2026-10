@@ -10,7 +10,7 @@ import {
   type ReactNode,
 } from "react";
 import { highlighter, withLang } from "./shiki";
-import { useCompilation, useLens, usePoint } from "./hooks";
+import { useCompilation, useLens, useLensState, usePoint } from "./hooks";
 import { useEdges } from "./PointerYaml";
 import type { DataRef, ViewId } from "./types";
 
@@ -141,14 +141,18 @@ export function Code(p: { id: ViewId; data: DataRef; domId?: string;
   const lens = useLens();
   const c = useCompilation(p.data);
   const paused = usePoint(p.data)?.paused;
-  const r = paused?.range;
+  // (a call's site, chosen in the call stack: shown in place of the
+  // step's range, ui/CallStack.tsx)
+  const site = useLensState((s) => p.pane ? s.site : undefined);
+  const r = site ?? paused?.range;
   const src = c?.sources.find((x) => x.id === r?.source) ?? c?.sources[0];
   const text = src?.text ?? "";
   const coloured = useColoured(text, c?.language ?? "");
   const ethdebug = c?.language !== "vyper";
   const mark = ethdebug && r && src?.id === r.source ? {
     from: charAt(text, r.offset), to: charAt(text, r.offset + r.length),
-    className: paused?.last ? "rng last" : "rng" } : undefined;
+    className: site ? "rng site" : paused?.last ? "rng last" : "rng" }
+    : undefined;
   const pre = useRef<HTMLPreElement>(null);
   // (the range in the middle of the box as it leaves it; a pane's in the
   // transitions' time, following a replay's steps so)
