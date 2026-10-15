@@ -1,14 +1,9 @@
 // Print the source lines a transaction ran, from an ethdebug program
-// and an anvil debug_traceTransaction struct log.
+// and a debug_traceTransaction struct log.
 //   node step.ts <program.json> <trace.json> <source-file>
 import { readFileSync } from "node:fs";
+import { Program } from "@ethdebug/format";
 
-type Code = {
-  source: { id: number };
-  range: { offset: number; length: number };
-};
-type Instruction = { offset: number; context?: { code?: Code } };
-type Program = { environment: string; instructions: Instruction[] };
 type Trace = { structLogs: { pc: number }[] };
 
 const [programFile, traceFile, sourceFile] = process.argv.slice(2);
@@ -24,13 +19,17 @@ const { instructions } = "programs" in file
   : file;
 
 // Core: pc -> source range, then print each new source line.
-const range = new Map(instructions.map((i) => [i.offset, i.context?.code]));
+const contexts = new Map(
+  instructions.map((i) => [Number(i.offset), i.context]),
+);
 let last;
 for (const { pc } of trace.structLogs) {
-  const code = range.get(pc);
-  if (code?.source.id !== 0) continue; // not in this file (Fe: std library)
-  if (code.range.length > source.length * 0.8) continue; // compiler glue
-  const line = source.slice(0, code.range.offset).split("\n").length;
+  const context = contexts.get(pc);
+  if (!Program.Context.isCode(context)) continue;
+  const { source: { id }, range } = context.code;
+  if (id !== 0 || !range) continue; // not in this file (Fe: std library)
+  if (Number(range.length) > source.length * 0.8) continue; // compiler glue
+  const line = source.slice(0, Number(range.offset)).split("\n").length;
   if (line !== last) console.log(line + ": " + lines[line - 1].trim());
   last = line;
 }

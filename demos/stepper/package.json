@@ -1,0 +1,7 @@
+{
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "@ethdebug/format": "0.1.0-draft.2"
+  }
+}
