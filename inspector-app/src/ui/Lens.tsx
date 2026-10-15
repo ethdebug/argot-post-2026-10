@@ -203,7 +203,8 @@ export function Lens(props: { spec: LensSpec; project: Project;
   const { spec, project, mount, onReady } = props;
   // (a change of the related view's rows animates: transition.ts)
   const [store] = useState(() => animated(createStore(initialState(spec,
-    project))));
+    project)), { pages: spec.views.some((v) => v.kind === "dump" &&
+    !!v.display?.edges) }));
   const key = useId();
   // (a scene whose related view is on while a walkthrough is open: on
   // as one opens, off again as it starts to close)

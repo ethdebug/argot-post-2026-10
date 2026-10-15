@@ -8,7 +8,8 @@
 // "3 / 9"), the steps as dots (each a jump); the step's caption; under
 // it, the pointer, the step's values and the focus picker. Every
 // part keeps its slot, used or empty: nothing moves but the details'
-// unfolding at entry and exit (280 ms; none with reduced motion).
+// unfolding at entry and exit (420 ms, the figure's; none with reduced
+// motion).
 //
 // One path in every context: the controller (useWalkModel) makes a
 // serializable model of the panel from the engine and the lens's link,
@@ -456,7 +457,8 @@ export function PanelView({ model: m, act, domId, compact }: {
     wr.classList.add("folding");
     // (shut while the page scrolls to the bar)
     if (open) wr.style.height = "0px";
-    const o2 = { duration: 280, easing: open ? "ease-out" : "ease-in" };
+    // (the transitions' time and easing: the figure's pages move with it)
+    const o2 = { duration: 420, easing: "cubic-bezier(0.4, 0, 0.2, 1)" };
     const hs = [{ height: "0px" }, { height: `${h}px` }];
     const ts = [{ transform: `translateY(${-h}px)` }, { transform: "none" }];
     if (!open) {
@@ -555,7 +557,7 @@ export function PanelView({ model: m, act, domId, compact }: {
     if (still() || !b.animate || Math.abs(from - to) < 1) return;
     b.animate([{ height: `${from}px`, overflow: "hidden" },
       { height: `${to}px`, overflow: "hidden" }],
-    { duration: 280, easing: "ease-out" });
+    { duration: 420, easing: "cubic-bezier(0.4, 0, 0.2, 1)" });
   }, [walk]);
   const exit = async () => {
     if (!walk || unfolding) return;
