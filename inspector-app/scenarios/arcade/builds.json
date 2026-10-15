@@ -13,13 +13,13 @@
   },
   "bug-O0": {
     "language": "bug",
-    "compiler": "bugc daf04e72c",
+    "compiler": "bugc 9c8d7ccb1",
     "compilation": "arcade-bug-O0",
     "ethdebug": true
   },
   "bug-O2": {
     "language": "bug",
-    "compiler": "bugc daf04e72c",
+    "compiler": "bugc 9c8d7ccb1",
     "compilation": "arcade-bug-O2",
     "ethdebug": true
   }

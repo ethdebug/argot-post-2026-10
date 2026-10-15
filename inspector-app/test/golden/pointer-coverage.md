@@ -24,9 +24,9 @@ in each location its pointer's regions are in.
 | ~difference | walks: schema 6, solc 4, bugc O0 scope 8, bugc O0 state 2, bugc O2 scope 8, bugc O2 state 2 |  |  |  |  |  |  |
 | ~keccak256 | walks: schema 4, solc 4, vyper rule 1, bugc O0 scope 12, bugc O0 state 3, bugc O2 scope 12, bugc O2 state 3 | walks: schema 1 |  |  |  |  |  |
 | ~product | walks: schema 5, solc 1 | walks: schema 3 | walks: schema 3 |  |  | walks: schema 1 |  |
-| ~quotient | walks: schema 4, solc 4, bugc O0 scope 8, bugc O0 state 2, bugc O2 scope 8, bugc O2 state 2 | walks: bugc O0 scope 4, bugc O2 scope 2 |  | walks: bugc O0 scope 4, bugc O2 scope 2 |  | walks: schema 1 |  |
+| ~quotient | walks: schema 4, solc 4, bugc O0 scope 8, bugc O0 state 2, bugc O2 scope 8, bugc O2 state 2 |  |  |  |  | walks: schema 1 |  |
 | ~read | walks: schema 3, solc 4, vyper rule 3, bugc O0 scope 12, bugc O0 state 3, bugc O2 scope 12, bugc O2 state 3 | walks: schema 4, bugc O0 scope 21, bugc O2 scope 19 | walks: schema 3 | walks: bugc O0 scope 4, bugc O2 scope 2 |  |  |  |
-| ~remainder | walks: schema 2, solc 4, bugc O0 scope 8, bugc O0 state 2, bugc O2 scope 8, bugc O2 state 2 | walks: bugc O0 scope 4, bugc O2 scope 2 |  | walks: bugc O0 scope 4, bugc O2 scope 2 |  |  |  |
+| ~remainder | walks: schema 2, solc 4, bugc O0 scope 8, bugc O0 state 2, bugc O2 scope 8, bugc O2 state 2 |  |  |  |  |  |  |
 | ~sizedN | walks: schema 2 |  |  |  |  |  |  |
 | ~sum | walks: schema 4, solc 4, vyper rule 3, bugc O0 scope 12, bugc O0 state 3, bugc O2 scope 12, bugc O2 state 3 | walks: schema 4, bugc O0 scope 19, bugc O2 scope 17 | walks: schema 2 | walks: bugc O0 scope 2 |  |  |  |
 | ~this | walks: schema 3 | walks: schema 2 | walks: schema 2 |  |  |  |  |
