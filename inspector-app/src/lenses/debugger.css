@@ -245,7 +245,7 @@
 .lens.stepper .pages .view { flex: 0 0 100%; min-width: 0; }
 .lens.stepper .pages .view[data-open="false"] { order: 2; }
 .lens.stepper .pages .view[data-open="false"][data-row="true"] {
-  flex: none; margin-top: 6px; }
+  flex: none; }
 .lens.stepper .pages .view[data-open="false"][data-row="true"]
   .view-name { margin-left: 0; }
 /* (the row of shut tabs: in from the sheets' edge, spaced, wrapping on
@@ -257,11 +257,22 @@
   flex-basis: calc(100% + var(--tab-in));
   margin-left: calc(-1 * var(--tab-in)); }
 .lens.stepper .pages .stackslot { display: none; order: 2; flex: none;
-  height: var(--tab-h); margin-top: 6px; }
-/* (an open sheet with the row, or nothing, under it: no strip for a tab
-   to stand on) */
-.lens.stepper .pages .view[data-next-row="true"] .pagebox {
-  padding-bottom: 4px; }
+  height: var(--tab-h); margin-top: calc(-1 * var(--tab-h)); }
+/* (an open sheet with nothing under it, no shut tab: no strip for a
+   tab to stand on) */
+.lens.stepper:not([data-stack-row]) .pages
+  .views:not(:has(> .view[data-row="true"])) .view[data-next-row="true"]
+  .pagebox { padding-bottom: 4px; }
+/* (its strip with the shut tabs on it: its "more below" at the strip's
+   right, past them; on a phone, its arrow alone) */
+.lens.stepper:is([data-stack-row], :has(.pages .view[data-row="true"]))
+  .pages .view[data-next-row="true"] .pedge.down {
+  place-items: center end; padding-right: 4px; }
+@media (max-width: 759.98px) {
+  .lens.stepper:is([data-stack-row], :has(.pages .view[data-row="true"]))
+    .pages .view[data-next-row="true"] .pedge.down button {
+    font-size: 0; gap: 0; }
+}
 /* (its box, no height, out of the row: the row's width still, so its
    rows keep the width every page's have, and the type fitted to them,
    ui/fit.ts) */
@@ -292,7 +303,7 @@
   height: calc(var(--tab-h) + 1px); box-shadow: var(--tab-shadow); }
 .lens.stepper :is(.pages, .stackcol) .view[data-open="false"] .view-name {
   margin-bottom: 0; height: var(--tab-h); border-bottom: 1px solid
-  var(--line); border-radius: 6px; }
+  var(--line); }
 .lens.stepper :is(.pages, .stackcol) .rows { border-top-left-radius: 0;
   box-sizing: border-box; overflow-y: auto; }
 /* (a page, and the variables' tree, scroll as the pointer's box does,
@@ -306,16 +317,13 @@
 .lens.stepper .pagebox { position: relative; background: var(--panel);
   border: 1px solid var(--line); border-radius: 6px;
   padding: 4px 0; box-sizing: border-box; box-shadow: var(--tab-shadow); }
-/* (a sheet's bottom corners square, the next one over them; the last
-   one's, open or a shut tab, rounded; a phone's stack, the pages under
-   it, square) */
-.lens.stepper .pages .view:not([data-last="true"]) :is(.pagebox,
-  .view-name) { border-bottom-left-radius: 0;
+/* (an open sheet with an open one under it: no bottom edge nor round
+   corners there, its paper running on to the next sheet's top edge,
+   which lies over it, its shadow over it. Else its bottom edge, rounded,
+   the shut tabs standing on it as an open sheet's on its strip) */
+.lens.stepper .pages .view[data-next-open="true"] .pagebox {
+  border-bottom-width: 0; border-bottom-left-radius: 0;
   border-bottom-right-radius: 0; }
-/* (an open sheet not the last: no bottom edge, its paper running on to
-   the next sheet's top edge, which lies over it, its shadow over it) */
-.lens.stepper .pages .view[data-open="true"]:not([data-last="true"])
-  .pagebox { border-bottom-width: 0; }
 /* (and its paper on under the open sheet under it, past that one's
    rounded corners and shadow, under every sheet: as stacked paper. A
    phone's stack, so under the top page) */
