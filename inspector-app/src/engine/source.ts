@@ -212,6 +212,11 @@ function factsApply(a: Json, d: Json): Json {
   return b;
 }
 
+// the file's format: a reader reads its own only (a page and the files
+// it fetches are one build's: bin/vite-scenes.ts names each file by its
+// contents; 1: whole moments, before `format`)
+export const FORMAT = 2;
+
 // as JSON: each distinct context once, in `contexts`, and in its place
 // its index; each state and facts as their changes (above)
 export function snapshotJson(f: SceneSnapshot): unknown {
@@ -227,6 +232,7 @@ export function snapshotJson(f: SceneSnapshot): unknown {
   let state = EMPTY;
   let facts: Json = {};
   return {
+    format: FORMAT,
     ...f,
     scene: { ...f.scene, timeline: f.scene.timeline.map(indexed) },
     build: { ...f.build, instructions: Object.fromEntries(Object.entries(
@@ -257,6 +263,11 @@ export function snapshotJson(f: SceneSnapshot): unknown {
 
 export function snapshotOf(json: unknown): SceneSnapshot {
   const j = json as Json;
+  if (j?.scene && (j.format ?? 1) !== FORMAT) {
+    throw new Error(`snapshot ${j.scene.id}: format ${j.format ?? 1}, ` +
+      `not ${FORMAT}, this page's (a page from before the site changed: ` +
+      "reload it)");
+  }
   if (!j?.scene || !Array.isArray(j.states) || typeof j.digest !== "string"
     || !j.build?.compilations || !Array.isArray(j.contexts)) {
     throw new Error("not a scene snapshot");
