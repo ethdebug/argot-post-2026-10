@@ -1,4 +1,4 @@
-# A ten-line stepper
+# A short stepper
 
 [`step.ts`](step.ts) prints the source lines a transaction ran. It reads
 an ethdebug program, the transaction's trace, and the source file. The
@@ -31,19 +31,21 @@ to each `cast send` below.
 solc writes the ethdebug program for the deployed code (via-IR; the
 optimizer is off by default):
 
-    solc --via-ir --experimental --ethdebug-program-runtime --bin -o out Calls.sol
+    solc --via-ir --experimental --ethdebug-program-runtime --bin \
+      --overwrite -o out inputs/solc/Calls.sol
 
 Fe writes the bytecode, then its ethdebug file. That file holds two
 programs; the script picks the `call` one.
 
-    fe build counter.fe --out-dir out -e bytecode
-    fe dev trace emit counter.fe --out out/counter.trace.jsonl
+    fe build inputs/fe/counter.fe --out-dir out -e bytecode
+    fe dev trace emit inputs/fe/counter.fe --out out/counter.trace.jsonl
     fe dev debug emit --format ethdebug --from out/counter.trace.jsonl --out out/counter.ethdebug.json
 
 ## 3. Deploy and send one transaction
 
 Deploy from anvil's first account, then call `run(5)`. For Fe, send
 `Bump { n: 7 }` as raw calldata: selector `0x00000001`, then `n`.
+Copy the contract address from the first command's output.
 
     key=0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80
     cast send --private-key $key --create $(cat out/Calls.bin)
@@ -55,10 +57,12 @@ The trace gives the program counter of each step.
 
     cast rpc debug_traceTransaction <transactionHash> > trace.json
 
+The transaction hash is in the output of the second `cast send`.
+
 ## 5. Step
 
     npm install
-    node step.ts out/Calls_ethdebug-runtime.json trace.json Calls.sol
+    node step.ts out/Calls_ethdebug-runtime.json trace.json inputs/solc/Calls.sol
 
 Output for the example inputs:
 
