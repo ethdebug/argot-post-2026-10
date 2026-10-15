@@ -363,7 +363,8 @@ test("optimized-locals: name's offset and length word consulted",
     await expect.poll(rel).toEqual(Array.from({ length: 32 },
       (_, i) => `0x00a0:${i}`));
     const note = page.locator(`${M} .pop`);
-    await expect(note).toContainText("(read to find name)");
+    await expect(note).toContainText(
+      "memory 0x00a0–0x00bf : (read to find name)");
     await page.locator(`${M} .wrow[data-slot="0x00a0"] .b[data-i="31"]`)
       .hover();
     await page.waitForTimeout(400);
@@ -421,4 +422,18 @@ test("optimized-locals: a pointer in a dump moves nothing", async ({
       expect(now.pops).toEqual(rest.pops);
     }
   }
+});
+
+// The locals selected, as the figure opens: their members' consulted
+// bytes too (a group has no pointer of its own: its members')
+test("optimized-locals: the locals' consulted bytes", async ({ page }) => {
+  await page.setViewportSize({ width: 1216, height: 900 });
+  await page.goto("./embed.html#scene=optimized-locals");
+  await expect(page.locator('li[data-path="@locals"] > .row.sel'))
+    .toBeVisible();
+  const M = ".view[data-location=memory]";
+  await expect(page.locator(`${M} .wrow[data-slot="0x00a0"] .b.rel`))
+    .toHaveCount(32);
+  await expect(page.locator(`${M} .pop`)).toContainText(
+    "memory 0x00a0–0x00bf : (read to find name)");
 });

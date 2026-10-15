@@ -187,18 +187,21 @@ function runName(rows: El[]): string {
 }
 
 // A run of an offset-addressed segment's rows, by the bytes it stands
-// for: the lit ones (else the one pointed at, else the rows), first to
-// last ("calldata 0x0024–0x0043"; one byte: "memory 0x00df"); one whole
-// row: its name
+// for: the lit ones (else those the selection consulted, else the one
+// pointed at, else the rows), first to last ("calldata 0x0024–0x0043";
+// one byte: "memory 0x00df"; a whole word: "memory 0x00a0–0x00bf")
 function rangeName(rows: El[], loc: string): string {
   const cells = rows.flatMap((r) => all(r, ":scope > .word .b[data-i]"));
   const pick = (f: (c: El) => boolean) => cells.filter(f);
   const on = pick((c) => byteLight(c).hl);
-  const at = on.length ? on : pick((c) => c.classList.contains("at"));
+  const rel = on.length ? on : pick((c) => c.classList.contains("rel"));
+  const at = rel.length ? rel : pick((c) => c.classList.contains("at"));
   const xs = (at.length ? at : cells).map((c) =>
     Number(BigInt(c.closest<El>(".word")!.dataset.slot!)) + +c.dataset.i!);
   const [a, b] = [Math.min(...xs), Math.max(...xs)];
-  if (rows.length === 1 && a % 32 === 0 && b - a === 31) {
+  // (a whole row, pointed at or none: its name)
+  if (!on.length && !rel.length && rows.length === 1 && a % 32 === 0 &&
+    b - a === 31) {
     return rows[0].dataset.name!;
   }
   return rangeText(loc as Location, a, b);

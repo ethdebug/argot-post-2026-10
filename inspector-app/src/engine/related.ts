@@ -35,6 +35,17 @@ export function roles(d: Decoded, path: Path, location: Location):
   const read: ResolvedRegion[] = [];
   const anchors = new Map<Hex, Path>();
   const starts = new Map<Hex, Path>();
+  // (a group of variables, "@locals": no variable's own graph; its
+  // members', each)
+  if (n && !g && n.children?.length) {
+    for (const c of n.children) {
+      const r = roles(d, c.path, location);
+      read.push(...r.read.filter((x) => !read.includes(x)));
+      r.anchors.forEach((v, k) => anchors.set(k, v));
+      r.starts.forEach((v, k) => starts.set(k, v));
+    }
+    return { read, anchors, starts };
+  }
   if (!n || !g) return { read, anchors, starts };
   // (the groups that hold the selection, below its variable, by the
   // first slot of their storage)
@@ -299,8 +310,9 @@ export function withRelated(light: Light, d: Decoded, l: Layout,
     const readOf = (x: Path) => reads0.get(x) ?? reads0.set(x,
       roles(d, x, l.location).read).get(x)!;
     for (const h of bare) {
-      const q = under.find((x) => readOf(x).some((r) =>
-        regionBytes(r).some(([row]) => row === h)));
+      // (the deepest that read it: a member before its group)
+      const q = [...under.slice(1), under[0]].find((x) => readOf(x).some(
+        (r) => regionBytes(r).some(([row]) => row === h)));
       if (q) because(h, { name: q, why: "read", of: q });
     }
   }
