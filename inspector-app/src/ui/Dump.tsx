@@ -920,8 +920,16 @@ export function Dump(p: { id: ViewId; location: Location; data: DataRef;
   // pointer staying put; nothing lit, a stack shows its top: its live
   // entries. Nothing else moves)
   const rowsBox = useRef<HTMLDivElement>(null);
-  // (none lit here: the rows it consulted, as lit ones)
-  const litKey = (litRows.length ? litRows : relRows).join(" ");
+  // (none lit here: the rows it consulted, as lit ones. A hover in a
+  // dump, on its bytes or a row, scrolls nothing: what is lit then is
+  // what was lit before it; a hover in the variables may)
+  const inDump = !!(link.hover?.bytes || link.hover?.row);
+  const litNow = (litRows.length ? litRows : relRows).join(" ");
+  const litHeld = useRef(litNow);
+  if (!inDump) litHeld.current = litNow;
+  const litKey = litHeld.current;
+  const inDumpRef = useRef(inDump);
+  inDumpRef.current = inDump;
   const litSel = litRows.length ? ".wrow.on" : ".wrow.rel";
   const top0 = p.location === "stack";
   // (a page's rows' box, its height set and moving to it (its page box's,
@@ -955,7 +963,8 @@ export function Dump(p: { id: ViewId; location: Location; data: DataRef;
     }
     // (once a move rests, not at each of its steps; not under the
     // pointer, its rows staying put)
-    if (moving || me.current?.matches(":hover")) return;
+    if (moving || inDumpRef.current || me.current?.matches(":hover"))
+      return;
     // (the lit rows in runs, each of rows lit side by side; their places
     // from the content's top)
     const vb = v.getBoundingClientRect();
@@ -1105,6 +1114,7 @@ export function Dump(p: { id: ViewId; location: Location; data: DataRef;
         <Ruler /></div>}
     </div>
     {disp.edges ? <div className="pagebox"><div ref={rowsBox}
+      data-lit={litKey}
       className={`rows${more.up ? " more-up" : ""}${more.down
         ? " more-down" : ""}`}>{grouped.length ? grouped
         : <div className="gap" aria-hidden="true"><span>⋯</span></div>}
