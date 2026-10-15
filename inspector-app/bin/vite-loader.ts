@@ -76,7 +76,14 @@ export function loaderPage(): Plugin {
       if (!page || page.type !== "asset" || !entry ||
         entry.type !== "chunk") return;
       const code = [...entry.imports, entry.fileName];
+      // (the scenes' snapshots, by the names the build gave them)
+      const built = Object.fromEntries(Object.keys(bundle).flatMap((f) => {
+        const m = f.match(/^snapshots\/(.+)\.[0-9a-f]{10}\.json$/);
+        return m ? [[`snapshots/${m[1]}.json`, f]] : [];
+      }));
       page.source = String(page.source)
+        .replace("/* built */{}/* end built */", () =>
+          `/* built */${JSON.stringify(built)}/* end built */`)
         .replace(/\s*<script type="module"[^>]*><\/script>/, "")
         .replace(/\s*<link rel="modulepreload"[^>]*>/g, "")
         .replace("/* code */[]/* end code */", () =>

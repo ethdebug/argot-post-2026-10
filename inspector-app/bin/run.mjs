@@ -24,6 +24,9 @@ const shot = (name) => path.join(demo, "screenshots", name);
 const scenes = [...fs.readFileSync(path.join(root, "index.html"), "utf8")
   .matchAll(/data-snapshot="([^"]+)"/g)].map((m) => m[1]);
 const FIRST = scenes[0];
+// (a built snapshot's name, "snapshots/<scene>.<hash>.json", as the page
+// asks for it, "snapshots/<scene>.json": bin/vite-scenes.ts)
+const asked = (name) => name.replace(/\.[0-9a-f]{10}\.json$/, ".json");
 
 let failed = 0;
 // The loader's file sizes are current (bin/sizes.mjs)
@@ -64,7 +67,8 @@ async function retryCheck(browser, url,
   const ctx = await browser.newContext({
     viewport: { width: 1280, height: 900 } });
   let broken = true;
-  await ctx.route(`**/${url}`, (route) => !broken ? route.continue()
+  await ctx.route((u) => asked(u.pathname).endsWith(`/${url}`),
+    (route) => !broken ? route.continue()
     : abort ? route.abort() : route.fulfill({ status: 503, body: "" }));
   const p = await ctx.newPage();
   if (throttle) await throttle(p);
@@ -169,18 +173,19 @@ async function slowLink(browser) {
       data: performance.getEntriesByType("resource")
         .filter((e) => e.startTime < usable &&
           /\/snapshots\//.test(e.name))
-        .map((e) => e.name.split("/inspector/")[1]).sort().join() };
+        .map((e) => e.name.split("/inspector/")[1]).sort() };
   });
   if (!(t.progress <= 1000)) out.push(`progress shown at ${t.progress} ms`);
   if (!(t.paint <= 1000)) out.push(`first paint at ${t.paint} ms`);
-  if (t.data !== `snapshots/${FIRST}.json`) {
-    out.push(`fetched before usable: ${t.data}`);
+  if (t.data.map(asked).join() !== `snapshots/${FIRST}.json`) {
+    out.push(`fetched before usable: ${t.data.join()}`);
   }
   // the others, idle-time
   const others = scenes.slice(1);
   await p.waitForFunction((ids) => ids.every((id) => performance
     .getEntriesByType("resource").some((e) =>
-      e.name.endsWith(`snapshots/${id}.json`))), others,
+      new RegExp(`snapshots/${id}(\\.[0-9a-f]{10})?\\.json$`)
+        .test(e.name))), others,
   { timeout: 30000 }).catch(() => out.push("no prefetch"));
   const shifts = await p.evaluate(() => window.shifts);
   if (shifts > 0.01) {
