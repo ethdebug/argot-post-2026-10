@@ -211,7 +211,8 @@
       border-width 420ms cubic-bezier(0.4, 0, 0.2, 1); }
 }
 @media (prefers-reduced-motion: reduce) {
-  .lens.stepper :is(.pages, .stackcol) .pagebox { transition: none; }
+  .lens.stepper[data-settled] :is(.pages, .stackcol) .pagebox {
+    transition: none; }
 }
 /* (a phone: the pages' area, its height what the stack's leaves, moving
    with it: together one height throughout) */
@@ -220,7 +221,7 @@
     transition: height 420ms cubic-bezier(0.4, 0, 0.2, 1); }
 }
 @media (max-width: 759.98px) and (prefers-reduced-motion: reduce) {
-  .lens.stepper > [data-area="wide"] { transition: none; }
+  .lens.stepper[data-settled] > [data-area="wide"] { transition: none; }
 }
 .lens.stepper .view[data-open="false"] .pedge { display: none; }
 /* (shut pages under the open ones, each in its order: a pile of tabs at
