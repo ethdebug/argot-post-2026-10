@@ -9,12 +9,12 @@
   "lens": "inspector",
   "timeline": [
     {
-      "tx": 12,
+      "tx": 13,
       "step": "end",
       "label": "before setMotd"
     },
     {
-      "tx": 13,
+      "tx": 14,
       "step": "end",
       "label": "after setMotd"
     }

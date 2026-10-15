@@ -55,7 +55,7 @@ cannot list its keys; `totalScore` and `totalHits` count all points
 and hits; `setMotd` sets the message of the day. The story: deploy
 with a 50-byte motd; alice, bob and carol join; alice hits twice, bob
 hits, carol hits four times (a best combo of 4), then misses (the
-middle of the game); alice hits a third time; then
+middle of the game); alice hits a third time; bob misses; then
 the motd becomes "gl hf". Each player is one of the scenario's
 accounts (`inspector-app/scenarios/arcade/scenario.json`).
 
@@ -232,7 +232,8 @@ site.sh`; the Pages workflow runs it), beside the files here.
    with the 50-byte motd; alice, bob and carol join (names "alice",
    "bob", "carol, the unstoppable combo queen"); alice hits; alice
    hits; bob hits; carol hits four times, then misses (the middle of
-   the game); alice hits (combo 3); `setMotd("gl hf")`. Each play's
+   the game); alice hits (combo 3); bob misses (combo back to 0);
+   `setMotd("gl hf")`. Each play's
    prevrandao is the scenario's own, chosen so the roll comes out as
    the story says (`inspector-app/bin/scenario-roll.mjs`).
 3. The runs: `@ethdebug/evm` runs the story for each build
