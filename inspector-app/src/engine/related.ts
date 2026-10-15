@@ -288,6 +288,22 @@ export function withRelated(light: Light, d: Decoded, l: Layout,
     }
   }
   const lit = new Set([...light.bytes].map((k) => k.split("|")[1]));
+  // (a row read for no reason above: read to find the value below the
+  // selection whose own regions needed it, the selection's own first)
+  const bare = [...new Set([...reads, ...rows])].filter((h) =>
+    !why.has(h) && !lit.has(h));
+  if (bare.length) {
+    const under = [path, ...[...d.byPath.keys()].filter((q) => q !== path &&
+      within(d.byPath, q, path) && d.byPath.get(q)!.regions.length)];
+    const reads0 = new Map<Path, ResolvedRegion[]>();
+    const readOf = (x: Path) => reads0.get(x) ?? reads0.set(x,
+      roles(d, x, l.location).read).get(x)!;
+    for (const h of bare) {
+      const q = under.find((x) => readOf(x).some((r) =>
+        regionBytes(r).some(([row]) => row === h)));
+      if (q) because(h, { name: q, why: "read", of: q });
+    }
+  }
   // (a group's start it used for its number, not its own: why, by the
   // group, "(start of players[0x90f7…b906])")
   for (const [h, q] of starts) {
