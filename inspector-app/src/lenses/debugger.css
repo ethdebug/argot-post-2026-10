@@ -160,16 +160,14 @@
    rows scroll inside it past its cap) */
 /* (the pages a stack of sheets: none apart, each one's tab standing on
    the bottom of the one above, over a strip there that holds nothing;
-   the top one's on the area's top; a shut one's on the shut one above
-   it, a line's overlap, as a pile (stepper.tsx marks the top ones); the
-   room theirs, top to bottom, stepper.tsx) */
+   the top one's on the area's top; the shut ones' tabs in one row, on
+   the last open one's strip (stepper.tsx marks the top ones); the room
+   theirs, top to bottom, stepper.tsx) */
 .lens.stepper { --tab-h: 22px; --tab-in: 12px;
   --tab-shadow: 0 -1px 3px rgb(0 0 0 / 0.08); }
 .lens.stepper .pages .views { row-gap: 0; padding-bottom: 0; }
 .lens.stepper .pages .view { margin-top: calc(-1 * var(--tab-h)); }
 .lens.stepper .pages .view:is([data-top="true"]) { margin-top: 0; }
-.lens.stepper .pages .view[data-open="false"]:not([data-pile-top="true"],
-  [data-top="true"]) { margin-top: -1px; }
 /* (a phone: the stack's sheet the first, then the pages', in one cell
    of the room's height (--pages-h): the stack's area at its top, the
    pages' at its bottom, their heights its own (stepper.tsx), so the
@@ -186,6 +184,15 @@
     padding-bottom: calc(4px + var(--tab-h)); }
   .lens.stepper .pages .view[data-top="true"] {
     margin-top: calc(-1 * var(--tab-h)); }
+  /* (the stack shut, its height gone: its tab in the row of shut tabs,
+     its place there the slot's, kept its tab's width (stepper.tsx moves
+     the tab onto it); the top sheet standing on nothing of the stack's) */
+  .lens.stepper[data-stack-row] .pages .view[data-top="true"] {
+    margin-top: 0; }
+  .lens.stepper[data-stack-row] .pages .stackslot { display: block;
+    width: var(--stack-tabw, 0px); }
+  .lens.stepper[data-stack-row] > .stackcol { position: relative;
+    z-index: 2; }
 }
 @media (min-width: 760px) {
   .lens.stepper > :is([data-area="wide"], .stackcol) {
@@ -229,9 +236,38 @@
    stepper.tsx) */
 @media (min-width: 760px) {
   .lens.stepper .pages :is(.panel, .views) { height: 100%; }
-  .lens.stepper .pages .views { display: flex; flex-direction: column; }
 }
+.lens.stepper .pages .views { display: flex; flex-flow: row wrap;
+  align-content: flex-start; }
+/* (a sheet the row's width; shut, once its height has gone (data-row,
+   stepper.tsx), its tab's, in the row of shut tabs: never narrowing as
+   it shuts, nor widening as it opens) */
+.lens.stepper .pages .view { flex: 0 0 100%; min-width: 0; }
 .lens.stepper .pages .view[data-open="false"] { order: 2; }
+.lens.stepper .pages .view[data-open="false"][data-row="true"] {
+  flex: none; margin-top: 6px; }
+.lens.stepper .pages .view[data-open="false"][data-row="true"]
+  .view-name { margin-left: 0; }
+/* (the row of shut tabs: in from the sheets' edge, spaced, wrapping on
+   a narrow page; a phone's shut stack's place first) */
+.lens.stepper .pages .views { column-gap: 8px;
+  padding-left: var(--tab-in); }
+.lens.stepper .pages .view[data-open="true"],
+.lens.stepper .pages .view[data-open="false"]:not([data-row="true"]) {
+  flex-basis: calc(100% + var(--tab-in));
+  margin-left: calc(-1 * var(--tab-in)); }
+.lens.stepper .pages .stackslot { display: none; order: 2; flex: none;
+  height: var(--tab-h); margin-top: 6px; }
+/* (an open sheet with the row, or nothing, under it: no strip for a tab
+   to stand on) */
+.lens.stepper .pages .view[data-next-row="true"] .pagebox {
+  padding-bottom: 4px; }
+/* (its box, no height, out of the row: the row's width still, so its
+   rows keep the width every page's have, and the type fitted to them,
+   ui/fit.ts) */
+.lens.stepper .pages .views { position: relative; }
+.lens.stepper .pages .view[data-open="false"][data-row="true"] .pagebox {
+  position: absolute; left: 0; right: 0; visibility: hidden; }
 /* (a tab: a button, the tree's chevron its cue; shut, muted) */
 .lens.stepper .ptab { cursor: pointer;
   display: inline-flex; align-items: center; gap: 4px; }
