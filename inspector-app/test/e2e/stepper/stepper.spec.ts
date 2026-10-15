@@ -120,7 +120,7 @@ test("optimized-locals: len selected lights its stack bytes",
     expect(gap).toBeLessThan(12);
   });
 
-// A moment's own groups shut or open on arriving there (alice's first
+// A moment's own groups shut or open on arriving there (alice's second
 // moment: `player` open, its fields' colours in memory); a group shut
 // colours its bytes as itself, never in its hidden fields' colours
 test("optimized-locals: player open on arriving; shut, one colour",
@@ -128,6 +128,9 @@ test("optimized-locals: player open on arriving; shut, one colour",
     await page.setViewportSize({ width: 1440, height: 1000 });
     await page.goto("./embed.html#scene=optimized-locals");
     await page.locator('.mbar [role=tab][data-tx="12"]').click();
+    await page.locator('.mbar [data-t="next"]').click();
+    await expect(page.locator(".mbar")).toContainText("2 / 7",
+      { timeout: 10_000 });
     const player = page.locator('li[data-path="player"]');
     await expect(player).not.toHaveClass(/collapsed/);
     await expect(page.locator('li[data-path="player.score"] > .row'))
@@ -145,7 +148,7 @@ test("optimized-locals: player open on arriving; shut, one colour",
 
 // A move is its own motion: no view transition during it or on its
 // arrival, and the selection held through its steps where the variable
-// has no location (alice's moments 1 to 2: `player` none for a few): the
+// has no location (alice's moments 2 to 3: `player` none for a few): the
 // tree keeps its rows in their places (the locals' row never moves), and
 // the panel's bar its selection, never the hint for none
 test("optimized-locals: a move, no transition; its selection held",
@@ -154,9 +157,14 @@ test("optimized-locals: a move, no transition; its selection held",
     await page.setViewportSize({ width: 1440, height: 1000 });
     await page.goto("./embed.html#scene=optimized-locals");
     await page.locator('.mbar [role=tab][data-tx="12"]').click();
+    const lens = page.locator(".lens");
+    await page.locator('.mbar [data-t="next"]').click();
+    await expect(page.locator(".mbar")).toContainText("2 / 7",
+      { timeout: 10_000 });
+    await expect(lens).not.toHaveAttribute("data-playing", "",
+      { timeout: 10_000 });
     await expect(page.locator('li[data-path="player"] > .row.sel'))
       .toBeVisible();
-    const lens = page.locator(".lens");
     await page.evaluate(() => {
       const w = window as unknown as { seen: string[] };
       w.seen = [];
@@ -184,14 +192,14 @@ test("optimized-locals: a move, no transition; its selection held",
     });
     await page.locator('.mbar [data-t="next"]').click();
     // (its arrival, at rest: the move may be over before a poll sees it)
-    await expect(page.locator(".mbar")).toContainText("2 / 5",
+    await expect(page.locator(".mbar")).toContainText("3 / 7",
       { timeout: 10_000 });
     await expect(lens).not.toHaveAttribute("data-playing", "",
       { timeout: 10_000 });
     await page.waitForTimeout(500);
     expect(await page.evaluate(() =>
       (window as unknown as { seen: string[] }).seen)).toEqual([]);
-    await expect(page.locator('li[data-path="combo"] > .row.sel'))
+    await expect(page.locator('li[data-path="hit"] > .row.sel'))
       .toBeVisible();
   });
 
@@ -333,7 +341,11 @@ test("optimized-locals: the locals in scope alone", async ({ page }) => {
   await expect.poll(names).toEqual(["len", "name"]);
   await page.locator('.mbar [role=tab][data-tx="12"]').click();
   await expect.poll(names).toEqual(["player"]);
-  await page.locator('.mbar [data-t="next"]').click();
+  for (let k = 2; k <= 4; k++) {
+    await page.locator('.mbar [data-t="next"]').click();
+    await expect(page.locator(".mbar")).toContainText(`${k} / 7`,
+      { timeout: 10_000 });
+  }
   await expect.poll(names, { timeout: 10_000 }).toEqual(["points", "combo",
     "mult"]);
   await expect(page.locator('li[data-path="@locals"] > .row .val'))
@@ -349,9 +361,12 @@ test("optimized-locals: the entry's YAML folds", async ({ page }) => {
   await page.setViewportSize({ width: 1216, height: 900 });
   await page.goto("./embed.html#scene=optimized-locals");
   await page.locator('.mbar [role=tab][data-tx="12"]').click();
-  await page.locator('.mbar [data-t="next"]').click();
-  await expect(page.locator(".mbar")).toContainText("2 / 5",
-    { timeout: 10_000 });
+  // (alice's fourth moment: _applyCombo's entry, its variables)
+  for (let k = 2; k <= 4; k++) {
+    await page.locator('.mbar [data-t="next"]').click();
+    await expect(page.locator(".mbar")).toContainText(`${k} / 7`,
+      { timeout: 10_000 });
+  }
   await page.locator(".instrs .ptab").click();
   const chev = (path: string) => page.locator(
     `.icall .line[data-path="${path}"] > .ychev`);
@@ -378,7 +393,7 @@ test("optimized-locals: the entry's YAML folds", async ({ page }) => {
   await expect(chev("context.variables")).toHaveCount(0);
   // (the next instruction: the defaults)
   await page.locator('.mbar [data-t="next"]').click();
-  await expect(page.locator(".mbar")).toContainText("3 / 5",
+  await expect(page.locator(".mbar")).toContainText("5 / 7",
     { timeout: 10_000 });
   await expect(chev("context")).toHaveAttribute("aria-expanded", "true");
 });
@@ -415,7 +430,7 @@ test("optimized-locals: a pointer in a dump moves nothing", async ({
   await page.setViewportSize({ width: 1216, height: 900 });
   await page.goto("./embed.html#scene=optimized-locals");
   await page.locator('.mbar [data-t="next"]').click();
-  await expect(page.locator(".mbar")).toContainText("2 / 2",
+  await expect(page.locator(".mbar")).toContainText("2 / 3",
     { timeout: 10_000 });
   await page.locator(".lens[data-settled]").waitFor();
   await page.locator('li[data-path^="players[0x90f7"]:not([data-path*="."])' +
