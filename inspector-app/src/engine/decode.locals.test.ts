@@ -70,11 +70,12 @@ it("O0: a real call: each local is found from the frame pointer, the "
     offset: 0x80, length: 32 })]);
 });
 
-it("O2: inlined: no frame; the locals at fixed offsets", async () => {
+it("O2: _applyCombo inlined into play(), a real call: each local is "
+  + "found from play()'s frame pointer, the word at 0x80", async () => {
   const d = await at("O2", "mult:0");
-  expect(d.byPath.get("points")!.regions[0]).toMatchObject({ offset: 344,
-    length: 8 });
-  expect(d.byPath.get("points")!.reads).toEqual([]);
+  const pts = d.byPath.get("points")!;
+  expect(pts.reads).toEqual([expect.objectContaining({ name: "-frame",
+    offset: 0x80, length: 32 })]);
 });
 
 it("O0, after mult = combo: mult's bytes are in combo's word", async () => {
