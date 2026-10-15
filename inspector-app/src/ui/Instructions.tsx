@@ -4,6 +4,7 @@
 // with a turned tab, shut at first (LensState.instrs), the one at the
 // moment lit and in view; beside them, joined to it, its entry, as
 // YAML, as the x-ray's.
+import { glide } from "./scroll";
 import {
   useEffect, useLayoutEffect, useMemo, useRef, useState,
 } from "react";
@@ -93,15 +94,22 @@ export function Instructions(p: { id: ViewId; data: DataRef;
   const entry = pc === undefined ? undefined
     : list.find((x) => x.offset === pc);
   const box = useRef<HTMLUListElement>(null);
-  // (the instruction at the moment, a third of the way down its list,
-  // as the moment changes, its entry beside it; the list's box scrolls,
-  // never the page)
+  // (the instruction at the moment in the middle of its list, as the
+  // moment changes, its entry beside it: at once as the list opens, else
+  // in the transitions' time; the list's box scrolls, never the page)
+  const shownAt = useRef(false);
   useLayoutEffect(() => {
     const b = box.current;
     const row = b?.querySelector<HTMLElement>("li > .row.hl");
-    if (!b || !row || !open) return;
-    const r = row.getBoundingClientRect(), bb = b.getBoundingClientRect();
-    b.scrollTop += r.top - bb.top - b.clientHeight / 3;
+    if (!b || !row || !open) {
+      shownAt.current = false;
+      return;
+    }
+    const top = row.getBoundingClientRect().top -
+      b.getBoundingClientRect().top + b.scrollTop;
+    glide(b, top - (b.clientHeight - row.offsetHeight) / 2,
+      !shownAt.current || undefined);
+    shownAt.current = true;
   }, [pc, open, list]);
   const lines = useMemo(() => {
     const out: Line[] = [];
@@ -124,6 +132,10 @@ export function Instructions(p: { id: ViewId; data: DataRef;
   // (the entry's box's edges: a button where there is more, the
   // pointer's)
   const ebox = useRef<HTMLDivElement>(null);
+  // (a new entry from its top)
+  useLayoutEffect(() => {
+    if (ebox.current) ebox.current.scrollTop = 0;
+  }, [text]);
   const { more, edge } = useEdges(ebox, open, [text, !!shown], {
     what: "the entry", band: "its lines" });
   const toggle = () => lens.store.set((s) => ({ ...s,

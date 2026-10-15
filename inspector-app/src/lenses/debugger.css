@@ -221,25 +221,17 @@
    PointerYaml.tsx: no scrollbar, so a page's rows keep the column's
    width; the content fading toward an edge with more past it, a button
    there) */
-/* (a page's paper and edge on its box, the rows inside it with neither:
-   its edges' buttons in the box's padding, over and under the rows, never
-   on a row's bytes; shut, the tab alone) */
+/* (a page's paper and edge on its box, the rows inside it with neither,
+   a dump's padding: its first row where any dump's is. Its edges'
+   buttons over the rows' faded edge where there is more, moving no row;
+   shut, the tab alone) */
 .lens.stepper .pagebox { position: relative; background: var(--panel);
   border: 1px solid var(--line); border-radius: 0 6px 6px 6px;
-  padding: 16px 0; box-sizing: border-box; }
+  padding: 4px 0; box-sizing: border-box; }
 .lens.stepper .pagebox > .rows { border: 0; border-radius: 0;
-  background: none; padding-top: 0; padding-bottom: 0;
-  -webkit-mask-image: none; mask-image: none; }
-/* (its edge where there is more: the box's padding there, faded into
-   the paper, over no row) */
-.lens.stepper .pagebox:has(> .rows.more-up) { box-shadow: inset 0 16px 8px
-  -8px color-mix(in srgb, var(--line) 60%, transparent); }
-.lens.stepper .pagebox:has(> .rows.more-down) { box-shadow: inset 0 -16px
-  8px -8px color-mix(in srgb, var(--line) 60%, transparent); }
-.lens.stepper .pagebox:has(> .rows.more-up):has(> .rows.more-down) {
-  box-shadow: inset 0 16px 8px -8px color-mix(in srgb, var(--line) 60%,
-  transparent), inset 0 -16px 8px -8px color-mix(in srgb, var(--line) 60%,
-  transparent); }
+  background: none; padding-top: 0; padding-bottom: 0; }
+.lens.stepper .view[data-open="false"] .pagebox { padding: 0;
+  border-width: 0; }
 .lens.stepper .view[data-open="false"] .pagebox { padding: 0;
   border-width: 0; }
 .lens.stepper :is(.pagebox > .rows, .vars > .tree) {

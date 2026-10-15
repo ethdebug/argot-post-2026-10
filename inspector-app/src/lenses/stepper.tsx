@@ -233,7 +233,23 @@ function Wide({ children }: { children: ReactNode }) {
       // (a page's least: its need, up to two rows', about)
       const floor = (v: HTMLElement) => Math.min(needOf(v), least +
         edges(v));
-      const fits = () => open.reduce((n, v) => n + floor(v), 0) <= avail;
+      // (a lit page's want: all its lit rows, a row about them, and its
+      // edges; at most its need)
+      const litWant = (v: HTMLElement) => {
+        const r = rowsOf(v);
+        const on = r ? [...r.querySelectorAll<HTMLElement>(".wrow.on")]
+          : [];
+        if (!r || !on.length) return floor(v);
+        const row = on[0].offsetHeight;
+        const span = on[on.length - 1].getBoundingClientRect().bottom -
+          on[0].getBoundingClientRect().top;
+        return Math.min(needOf(v), span + 3 * row + edges(v));
+      };
+      // (room short: the pages not lit shut, the least lately needed
+      // first, before a lit one has less than its lit rows; the others
+      // at least two rows only while there is room for that)
+      const fits = () => open.reduce((n, v) => n + (need(v) ? litWant(v)
+        : floor(v)), 0) <= avail;
       const spare = open.filter((v) => !need(v) && !byHand.has(loc(v)))
         .sort((a, b) =>
         (lately.get(loc(a)) ?? 0) - (lately.get(loc(b)) ?? 0));
