@@ -11,7 +11,9 @@ programs-react takes React 19 and shiki 3); from a detached worktree
 (#375's branch), d7cb421a3, ec7a81386.
 
 bugc (bin/build-arcade.sh's BUGC, the bug-O0 and bug-O2 builds):
-commit daf04e72c (ethdebug/format main: #383, string and bytes
+commit 9c8d7ccb1 (ethdebug/format main: #398, a calldata reference's
+offset and length as regions of their own, name-offset and name-length,
+which name-data reads). Before it: daf04e72c (#383, string and bytes
 calldata parameters, join's `name` and setMotd's `text`; after #378 at
 ab7910c7f, locals keep their pointers after a call; #379 at 031ab4198,
 string calldata references; #377 at a08698683, struct and string

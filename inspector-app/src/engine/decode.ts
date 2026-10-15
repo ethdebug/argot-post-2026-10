@@ -194,7 +194,16 @@ async function composite(c: Compilation, v: Local, node: ValueNode,
     const ids = await graphOf(c, id, pointer, state, [], graphs,
       async () => [...(await viewOf(pointer, state, c)).regions]);
     const scope = await instantiate(pointer, state, c2, ids);
-    const n = await walk(c2, scope, typeId, id, { ...node, type: typeId });
+    const n0 = await walk(c2, scope, typeId, id, { ...node, type: typeId });
+    // (a reference's length, in another location than the bytes it
+    // measures (a calldata string's, in memory): read to find them, as
+    // its offset is; not its own)
+    const at = new Set(n0.regions.filter((r) => r.role !== "length")
+      .map((r) => r.location));
+    const apart = (r: ResolvedRegion) => r.role === "length" &&
+      at.size > 0 && !at.has(r.location);
+    const n = n0.regions.some(apart) ? { ...n0,
+      regions: n0.regions.filter((r) => !apart(r)) } : n0;
     const own = new Set<string>();
     const visit = (x: ValueNode) => {
       x.regions.forEach((r) => own.add(`${r.instance}`));
