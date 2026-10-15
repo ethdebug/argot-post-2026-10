@@ -142,7 +142,12 @@ function Wide({ children }: { children: ReactNode }) {
       const s = store.get();
       const loc = (v: HTMLElement) => v.dataset.location!;
       const related = s.related !== undefined;
-      if (restoring) return;
+      // (put back: nothing decided anew until the pages have their rows
+      // back, the related view's gone from them)
+      if (restoring) {
+        if (views.some((v) => v.dataset.related !== undefined)) return;
+        restoring = false;
+      }
       const rowsAt = (v: HTMLElement) => v.querySelector<HTMLElement>(
         ".rows");
       // (its rows not in yet: nothing to decide)
@@ -164,7 +169,7 @@ function Wide({ children }: { children: ReactNode }) {
           const b = box(v), h = w.heights.get(loc(v));
           if (b && h && b.style.height !== h) b.style.height = h;
         }
-        restoring = Object.values(s.links).some((l) => !!l?.walk);
+        restoring = true;
         store.set((x) => ({ ...x, pages: w.pages }));
         return;
       }
@@ -279,9 +284,13 @@ function Wide({ children }: { children: ReactNode }) {
       // its edges' buttons are)
       // (as it is open: a shut page's box has none, and one just opened
       // may not be drawn open yet; the last seen open, or another's)
+      // (and not while they move: their padding and edge move with its
+      // height, debugger.css)
       const edgeOf = (v: HTMLElement) => {
         const b = box(v);
-        if (!b || v.dataset.open !== "true") return undefined;
+        if (!b || v.dataset.open !== "true" || b.getAnimations?.().some(
+          (a) => /padding|border/.test((a as CSSTransition)
+            .transitionProperty ?? ""))) return undefined;
         const cs = getComputedStyle(b);
         return parseFloat(cs.paddingTop) + parseFloat(cs.paddingBottom) +
           parseFloat(cs.borderTopWidth) + parseFloat(cs.borderBottomWidth);
@@ -456,19 +465,11 @@ function Wide({ children }: { children: ReactNode }) {
     let pre: Held | null = null;
     const unsub = store.subscribe(() => {
       const s = store.get();
-      const w = Object.values(s.links).some((l) => !!l?.walk);
+      const w = Object.values(s.links).some((l) => !!l?.walk &&
+        !l.walk.exit);
       if (w !== walked) {
         walked = w;
         pre = w && !rel ? now() : null;
-        // (a walkthrough gone that the pages were put back for: as they
-        // are now, decided again)
-        if (!w && restoring) {
-          // (once the pages have drawn the lights of no walkthrough)
-          requestAnimationFrame(() => setTimeout(() => {
-            restoring = false;
-            fit();
-          }));
-        }
       }
       const on = s.related !== undefined;
       if (on === rel) return;

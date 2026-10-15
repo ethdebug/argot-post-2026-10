@@ -474,7 +474,11 @@ export function useLight(id: string, filter?: Filter, at?: DataRef,
   compare?: DataRef): Light {
   const v = useViewSpec(id);
   const { d, l } = useLayout(id, filter, at, compare);
-  const [link] = useLink(v.link);
+  const [link0] = useLink(v.link);
+  // (a walkthrough on its way out, its exit asked for: the selection's
+  // resting light at once, with everything else its closing changes)
+  const link = useMemo(() => link0.walk?.exit ? { ...link0, walk: null }
+    : link0, [link0]);
   const collapsed = useCollapsed(v.link);
   const w = useWalkthrough(id, at);
   return useMemo(() => {
