@@ -199,7 +199,7 @@ test("optimized-locals: a move, no transition; its selection held",
     await page.waitForTimeout(500);
     expect(await page.evaluate(() =>
       (window as unknown as { seen: string[] }).seen)).toEqual([]);
-    await expect(page.locator('li[data-path="hit"] > .row.sel'))
+    await expect(page.locator('li[data-path="player"] > .row.sel'))
       .toBeVisible();
   });
 

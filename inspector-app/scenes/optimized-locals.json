@@ -1,6 +1,6 @@
 {
   "id": "optimized-locals",
-  "title": "carol joins, then alice plays, optimized",
+  "title": "carol joins, alice hits, bob misses, optimized",
   "run": {
     "scenario": "arcade",
     "build": "bug-O2"
@@ -10,22 +10,46 @@
     {
       "tx": 3,
       "step": 122,
-      "label": "Carol joins the game. `len`, the length of her name, sits on the stack. `name` isn't copied anywhere. The compiler's data points straight at the name's bytes in the call data, using their offset and length, saved in memory.",
+      "label": "Carol joins the game. The stack holds `len`, the length of her name. `name` isn't copied anywhere. The compiler's data points straight at the name's bytes in the call data. Memory holds their offset and length.",
       "select": "@locals"
     },
     {
       "tx": 3,
-      "step": 390,
-      "label": "Carol's join is done. Her name is in her record in storage: one slot holds its length, two hold its bytes.",
+      "step": 329,
+      "label": "Carol's name is now in her record in storage. One slot holds its length and two slots hold its bytes.",
       "select": "players[0x90f79bf6eb2c4f870365e785982e1f101e93b906].name",
       "collapse": [
         "player"
       ]
     },
     {
+      "tx": 3,
+      "step": 390,
+      "label": "Carol's join is done. `playerList` now holds her address as its third item.",
+      "select": "playerList",
+      "collapse": [
+        "player"
+      ]
+    },
+    {
+      "tx": 12,
+      "step": 105,
+      "label": "Alice plays. The code is now in `play()`. `player` has no location yet because nothing has been copied from storage.",
+      "select": "player"
+    },
+    {
       "tx": 12,
       "step": 348,
-      "label": "Alice plays. The code copies her player record from storage into memory, and `player` now lives there.",
+      "label": "The code has copied Alice's record from storage into memory. `player` now lives there.",
+      "select": "player",
+      "collapse": [
+        "@storage"
+      ]
+    },
+    {
+      "tx": 12,
+      "step": 513,
+      "label": "`play()` has counted this play and called `_turn` with its copy of the record. The roll gives a hit, so `_turn` skips its early return.",
       "select": "player",
       "collapse": [
         "@storage"
@@ -34,28 +58,73 @@
     {
       "tx": 12,
       "step": 701,
-      "label": "The optimizer has inlined `_applyCombo`: its code runs right here, with no real call. The compiler's data still marks where the call begins, so only `_applyCombo`'s own variables are listed. `mult` has no location yet.",
+      "label": "The hit has raised Alice's combo, hits, and best combo. The optimizer has inlined `_applyCombo` into `_turn`. Its code runs right here with no real call. The compiler's data still marks where the call begins, so only `_applyCombo`'s own variables are listed. `combo` is 3 and `mult` has no location yet.",
       "select": "combo"
     },
     {
       "tx": 12,
-      "step": 709,
-      "label": "`mult` now has a location: 8 bytes of memory.",
-      "select": "mult"
-    },
-    {
-      "tx": 12,
       "step": 724,
-      "label": "`mult = combo` doesn't copy anything. The compiler's data points `mult` at the same memory word as `combo`: `combo` uses the word's last 4 bytes, and `mult`, a wider type, uses its last 8.",
+      "label": "`mult = combo` doesn't copy anything. The compiler's data points `mult` at the same memory word as `combo`. `combo` uses the last 4 bytes of the word. `mult` has a wider type and uses the last 8.",
       "select": "mult"
     },
     {
       "tx": 12,
       "step": 763,
-      "label": "Back in `_turn`. `_applyCombo`'s variables are gone, and `gained`, the result it returned, now has a location in memory.",
+      "label": "Back in `_turn`. `_applyCombo`'s variables are gone. `gained` holds the result that `_applyCombo` returned and now has a location in memory.",
       "select": "gained",
       "collapse": [
         "@storage"
+      ]
+    },
+    {
+      "tx": 12,
+      "step": 1172,
+      "label": "`_turn` has added to `totalScore` and `totalHits`. `play()` has written Alice's record back to storage with score 60 and combo 3.",
+      "select": "players[0x70997970c51812dc3a010c7d01b50e0d17dc79c8]",
+      "collapse": [
+        "player"
+      ]
+    },
+    {
+      "tx": 13,
+      "step": 105,
+      "label": "Bob plays for the second time. The code is now in `play()`. `player` has no location yet.",
+      "select": "player"
+    },
+    {
+      "tx": 13,
+      "step": 348,
+      "label": "The code has copied Bob's record into memory. His combo is 1 from his first play.",
+      "select": "player",
+      "collapse": [
+        "@storage"
+      ]
+    },
+    {
+      "tx": 13,
+      "step": 518,
+      "label": "The roll gives a miss, so `_turn` returns early through `_resetCombo`. The optimizer has inlined `_resetCombo`, and its code is about to set `player.combo` to 0.",
+      "select": "player.combo",
+      "collapse": [
+        "@storage"
+      ]
+    },
+    {
+      "tx": 13,
+      "step": 546,
+      "label": "Back in `play()`. `_turn` has returned Bob's record with combo 0. So far only the copy in memory has changed.",
+      "select": "player",
+      "collapse": [
+        "@storage"
+      ]
+    },
+    {
+      "tx": 13,
+      "step": 820,
+      "label": "`play()` has written Bob's record back to storage. It now has combo 0 and plays 2. His score and best combo stay the same. A miss changes neither `totalScore` nor `totalHits`.",
+      "select": "players[0x3c44cdddb6a900fa2b585dd299e03d12fa4293bc]",
+      "collapse": [
+        "player"
       ]
     }
   ],
@@ -64,7 +133,8 @@
   "replay": true,
   "transactions": {
     "3": "Carol joins",
-    "12": "Alice plays and hits"
+    "12": "Alice plays and hits",
+    "13": "Bob plays and misses"
   },
   "initial": {
     "collapse": [
