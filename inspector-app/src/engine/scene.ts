@@ -29,8 +29,9 @@ export interface Scene {
               // not about)
               collapse?: Path[];
               // (the related view on: only the selection's rows and
-              // those consulted to find them, a row around each)
-              related?: boolean;
+              // those consulted to find them, a row around each;
+              // "walk": on while a walkthrough is open, off otherwise)
+              related?: boolean | "walk";
               // (false: no walkthrough, its bar not shown)
               walkthrough?: boolean };
   // (its storage dumps' rows: "touched" adds the slots the moment's

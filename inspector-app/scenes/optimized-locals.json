@@ -71,6 +71,6 @@
       "@storage",
       "player"
     ],
-    "related": false
+    "related": "walk"
   }
 }

@@ -138,39 +138,86 @@ test("optimized-locals: a long string lights its length and data slots",
     }
   });
 
-// "How it was found": the pages with nothing of the selection's shut,
-// the stack too; the others keep their rows and heights through its
-// steps; closed, every page as before it, folds, heights and scrolls
+// "How it was found": the related view on while it is open, the pages
+// its rows, a page with none of them shut (the stack too), unless no
+// page but the stack's has any; nothing moves through its steps; closed,
+// every page as before it: folds, heights and scrolls
+const walkState = (page: import("@playwright/test").Page) =>
+  page.evaluate(() => [...document.querySelectorAll<HTMLElement>(
+    ".view[data-location]")].map((v) => [v.dataset.location,
+    v.dataset.open, v.querySelector<HTMLElement>(".pagebox")?.style.height,
+    v.dataset.open === "true" ? v.querySelector(".rows")?.scrollTop : "-"]
+    .join(":")));
+const walkThrough = async (page: import("@playwright/test").Page,
+  steps: (s: string[]) => Promise<void> | void) => {
+  const before = await walkState(page);
+  await page.locator('button[data-r="start"]').click();
+  await page.waitForTimeout(1000);
+  const walking = await walkState(page);
+  await steps(walking);
+  const next = page.locator('.rbar:not(.mbar) button[data-r="next"]')
+    .first();
+  while (await next.isEnabled()) {
+    await next.click();
+    await page.waitForTimeout(400);
+    expect(await walkState(page)).toEqual(walking);
+  }
+  await page.locator('button[data-r="exit"]').click();
+  await expect.poll(() => walkState(page), { timeout: 5000 })
+    .toEqual(before);
+};
+const choose = async (page: import("@playwright/test").Page, path: string) => {
+  const row = page.locator(`li[data-path="@locals"] li[data-path="${path}"]` +
+    " > .row");
+  if (!await row.evaluate((r) => r.classList.contains("sel"))) {
+    await row.click();
+  }
+  await page.waitForTimeout(1200);
+};
 for (const width of [1216, 390]) {
-  test(`optimized-locals at ${width}px: a walkthrough folds what holds ` +
-    "nothing of it, and restores all as it closes", async ({ page }) => {
+  test(`optimized-locals at ${width}px: How it was found shows the ` +
+    "related rows and restores all as it closes", async ({ page }) => {
     await page.setViewportSize({ width, height: 900 });
     await page.goto("./embed.html#scene=optimized-locals");
     await page.locator(".lens[data-settled]").waitFor();
-    await page.locator('li[data-path="@locals"] li[data-path="name"] > .row')
-      .click();
-    await page.waitForTimeout(1200);
-    const state = () => page.evaluate(() => [...document.querySelectorAll<
-      HTMLElement>(".view[data-location]")].map((v) => [v.dataset.location,
-      v.dataset.open, v.querySelector<HTMLElement>(".pagebox")?.style.height,
-      v.querySelector(".rows")?.scrollTop].join(":")));
-    const before = await state();
-    await page.locator('button[data-r="start"]').click();
-    await expect(page.locator('.view[data-location="stack"]'))
-      .toHaveAttribute("data-open", "false");
-    await expect(page.locator('.view[data-location="calldata"]'))
-      .toHaveAttribute("data-open", "true");
-    await page.waitForTimeout(800);
-    const walking = await state();
-    const next = page.locator('.rbar:not(.mbar) button[data-r="next"]')
-      .first();
-    while (await next.isEnabled()) {
-      await next.click();
-      await page.waitForTimeout(500);
-      expect((await state()).map((x) => x.split(":").slice(0, 3)))
-        .toEqual(walking.map((x) => x.split(":").slice(0, 3)));
-    }
-    await page.locator('button[data-r="exit"]').click();
-    await expect.poll(state, { timeout: 5000 }).toEqual(before);
+    await choose(page, "name");
+    await walkThrough(page, async () => {
+      await expect(page.locator('.view[data-location="stack"]'))
+        .toHaveAttribute("data-open", "false");
+      await expect(page.locator('.view[data-location="memory"] .wrow'))
+        .not.toHaveCount(56);
+    });
   });
 }
+test("optimized-locals: How it was found for gained: the word it is in " +
+  "and the one read to find it", async ({ page }) => {
+  await page.setViewportSize({ width: 1216, height: 900 });
+  await page.goto("./embed.html#scene=optimized-locals");
+  await page.locator(".lens[data-settled]").waitFor();
+  await page.locator('.mbar [role=tab][data-tx="12"]').click();
+  for (let k = 0; k < 4; k++) {
+    await page.locator('.mbar [data-t="next"]').click();
+    await expect(page.locator(".mbar")).toContainText(`${k + 2} / 5`,
+      { timeout: 10_000 });
+  }
+  await choose(page, "gained");
+  await walkThrough(page, async () => {
+    const M = '.view[data-location="memory"]';
+    for (const w of ["0x0080", "0x03c0"]) {
+      await expect(page.locator(`${M} .wrow[data-slot="${w}"]`))
+        .toBeInViewport();
+    }
+  });
+});
+test("optimized-locals: How it was found for a stack value: the stack, " +
+  "the pages as they were", async ({ page }) => {
+  await page.setViewportSize({ width: 1216, height: 900 });
+  await page.goto("./embed.html#scene=optimized-locals");
+  await page.locator(".lens[data-settled]").waitFor();
+  await choose(page, "len");
+  const before = await open(page);
+  await walkThrough(page, async () => {
+    expect(await open(page)).toEqual(before);
+    expect(before.stack).toBe(true);
+  });
+});
