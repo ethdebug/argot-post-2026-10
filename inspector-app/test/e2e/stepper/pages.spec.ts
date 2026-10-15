@@ -81,7 +81,7 @@ test("optimized-locals: moves keep the needed pages' order; none shut " +
   "while there is room", async ({ page }) => {
   await go(page, 1216);
   const h = await height(page);
-  // (on to the join's end and back: storage needed there, at the top;
+  // (on to her name, stored, and back: storage needed there, at the top;
   // back, calldata and memory needed again, over it, in their order)
   await page.locator('.mbar [data-t="next"]').click();
   await rest(page);
@@ -91,9 +91,11 @@ test("optimized-locals: moves keep the needed pages' order; none shut " +
   const o = await order(page);
   expect(o.indexOf("calldata")).toBeLessThan(o.indexOf("memory"));
   expect(await open(page)).toMatchObject({ calldata: true, memory: true });
-  // (alice's moments: memory's alone; the others, still open, stay as
-  // long as there is room)
+  // (alice's moments, from her record's copy: memory's alone; the
+  // others, still open, stay as long as there is room)
   await page.locator('.mbar [role=tab][data-tx="12"]').click();
+  await rest(page);
+  await page.locator('.mbar [data-t="next"]').click();
   await rest(page);
   expect((await order(page))[0]).toBe("memory");
   const before = await open(page);
@@ -195,9 +197,9 @@ test("optimized-locals: How it was found for gained: the word it is in " +
   await page.goto("./embed.html#scene=optimized-locals");
   await page.locator(".lens[data-settled]").waitFor();
   await page.locator('.mbar [role=tab][data-tx="12"]').click();
-  for (let k = 0; k < 4; k++) {
+  for (let k = 0; k < 5; k++) {
     await page.locator('.mbar [data-t="next"]').click();
-    await expect(page.locator(".mbar")).toContainText(`${k + 2} / 5`,
+    await expect(page.locator(".mbar")).toContainText(`${k + 2} / 7`,
       { timeout: 10_000 });
   }
   await choose(page, "gained");

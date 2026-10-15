@@ -107,22 +107,22 @@ test("a click during a move goes on from where it is; ← → too; none " +
   "lost", async ({ page }) => {
   await page.emulateMedia({ reducedMotion: "no-preference" });
   await open(page, STEPPER.O2);
-  // (alice's play: five moments)
+  // (alice's play: seven moments)
   await page.locator('.mbar [role=tab][data-tx="12"]').click();
-  await expect(page.locator(".mbar .rcount")).toHaveText("1 / 5");
+  await expect(page.locator(".mbar .rcount")).toHaveText("1 / 7");
   const next = page.locator('.mbar [data-t="next"]');
   // (three presses, the next two during the first's move)
   await next.click();
   await next.click();
   await next.click();
   await still(page);
-  await expect(page.locator(".mbar .rcount")).toHaveText("4 / 5");
+  await expect(page.locator(".mbar .rcount")).toHaveText("4 / 7");
   await page.locator(".mbar").focus();
   await page.keyboard.press("ArrowRight");
   await page.keyboard.press("ArrowLeft");
   await page.keyboard.press("ArrowLeft");
   await still(page);
-  await expect(page.locator(".mbar .rcount")).toHaveText("3 / 5");
+  await expect(page.locator(".mbar .rcount")).toHaveText("3 / 7");
 });
 
 // The transactions, tabs across the figure's top: a tab, a cut to its
@@ -138,11 +138,13 @@ test("transactions: tabs; stepping stays inside one; Reset",
     const next = page.locator('.mbar [data-t="next"]');
     const prev = page.locator('.mbar [data-t="prev"]');
     await expect(tx(3)).toHaveAttribute("aria-selected", "true");
-    await expect(count).toHaveText("1 / 2");
+    await expect(count).toHaveText("1 / 3");
     await expect(prev).toBeDisabled();
     await next.click();
     await still(page);
-    await expect(count).toHaveText("2 / 2");
+    await next.click();
+    await still(page);
+    await expect(count).toHaveText("3 / 3");
     await expect(next).toBeDisabled();
     // (the arrow key at the end: no step into the next transaction)
     await page.locator(".mbar").focus();
@@ -150,36 +152,39 @@ test("transactions: tabs; stepping stays inside one; Reset",
     await page.keyboard.press("End");
     await still(page);
     await expect(tx(3)).toHaveAttribute("aria-selected", "true");
-    await expect(count).toHaveText("2 / 2");
+    await expect(count).toHaveText("3 / 3");
     // (the other transaction: a cut, its first moment; ◀ disabled)
     await record(page);
     await tx(12).click();
     await expect(tx(12)).toHaveAttribute("aria-selected", "true");
-    await expect(count).toHaveText("1 / 5");
+    await expect(count).toHaveText("1 / 7");
     await expect(prev).toBeDisabled();
     expect((await seen(page)).moments).toHaveLength(1);
     await page.locator(".mbar").focus();
     await page.keyboard.press("End");
     await still(page);
-    await expect(count).toHaveText("5 / 5");
+    await expect(count).toHaveText("7 / 7");
     await page.keyboard.press("Home");
     await still(page);
-    await expect(count).toHaveText("1 / 5");
+    await expect(count).toHaveText("1 / 7");
     await expect(tx(12)).toHaveAttribute("aria-selected", "true");
     // (← → on the tabs: the other transaction)
     await tx(12).focus();
     await page.keyboard.press("ArrowLeft");
     await expect(tx(3)).toHaveAttribute("aria-selected", "true");
-    await expect(count).toHaveText("1 / 2");
+    await expect(count).toHaveText("1 / 3");
     await page.keyboard.press("ArrowRight");
     await expect(tx(12)).toHaveAttribute("aria-selected", "true");
+    await expect(count).toHaveText("1 / 7");
+    await page.keyboard.press("ArrowRight");
+    await expect(tx(13)).toHaveAttribute("aria-selected", "true");
     await expect(count).toHaveText("1 / 5");
     // (Reset: the first transaction, its first moment)
     await next.click();
     await still(page);
     await page.locator(".reset").click();
     await expect(tx(3)).toHaveAttribute("aria-selected", "true");
-    await expect(count).toHaveText("1 / 2");
+    await expect(count).toHaveText("1 / 3");
   });
 
 test("reduced motion: a move is a jump, no flash", async ({ page }) => {
@@ -188,7 +193,7 @@ test("reduced motion: a move is a jump, no flash", async ({ page }) => {
   await page.locator('.mbar [role=tab][data-tx="12"]').click();
   await page.locator('.mbar [data-t="next"]').click();
   await page.locator('.mbar [data-t="next"]').click();
-  await expect(page.locator(".mbar .rcount")).toHaveText("3 / 5");
+  await expect(page.locator(".mbar .rcount")).toHaveText("3 / 7");
   const s = await seen(page);
   expect(s.moments).toHaveLength(3);
   expect(s.flashes).toBe(0);
