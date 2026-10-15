@@ -90,7 +90,8 @@ it("the record selected: its members in child colours; a local: its "
   const y = await pair("O0", "mult");
   const m = layout(y.d, "memory", {}, { compare: y.other, point: y.point,
     comparePoint: y.otherPoint });
-  // (a local selected: its bytes, and the frame word it is found from)
+  // (a local selected: its bytes; the frame word it is found from is
+  // consulted, not its own: engine/related.ts)
   const pts = forPath(y.d, m, "points", { selection: true });
-  expect(pts.bytes.has(byteKey("memory", "0x0080", 0))).toBe(true);
+  expect(pts.bytes.has(byteKey("memory", "0x0080", 0))).toBe(false);
 });
