@@ -234,9 +234,14 @@ function Wide({ children }: { children: ReactNode }) {
       const laid = [...pages].sort((a, b) => Number(a.style.order) -
         Number(b.style.order));
       const pile = laid.find((v) => !next[loc(v)]);
-      for (const v of laid) {
+      for (const [k, v] of laid.entries()) {
         const last = String(v === laid[laid.length - 1]);
         if (v.dataset.last !== last) v.dataset.last = last;
+        // (it and the one under it both open: a styling hook)
+        const after = laid[k + 1];
+        const nextOpen = String(!!next[loc(v)] && !!after &&
+          !!next[loc(after)]);
+        if (v.dataset.nextOpen !== nextOpen) v.dataset.nextOpen = nextOpen;
         const top = String(v === laid[0]);
         const pt = String(v === pile && v !== laid[0]);
         if (v.dataset.top !== top) v.dataset.top = top;
