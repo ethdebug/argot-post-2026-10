@@ -36,7 +36,7 @@ describe.each(Object.values(STEPPER))("%s's replay", (id) => {
     }
   });
   // (optimized-locals's two transactions' steps, carol's join to its
-  // name's storage writes: 111 KB; 88 KB until tx 12's span grew, when
+  // name's storage writes: 110 KB; 88 KB until tx 12's span grew, when
   // play() became a real call, too large to inline)
   it("its snapshot: under 120 KB gzipped", async () => {
     const file = await sceneSnapshot(await testProject(), s);
