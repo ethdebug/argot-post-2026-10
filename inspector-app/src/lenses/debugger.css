@@ -276,9 +276,15 @@
 .lens.stepper .pages .view:not([data-last="true"]) :is(.pagebox,
   .view-name) { border-bottom-left-radius: 0;
   border-bottom-right-radius: 0; }
+/* (an open sheet not the last: no bottom edge, its paper running on to
+   the next sheet's top edge, which lies over it, its shadow over it) */
+.lens.stepper .pages .view[data-open="true"]:not([data-last="true"])
+  .pagebox { border-bottom-width: 0; }
 @media (max-width: 759.98px) {
   .lens.stepper .stackcol .pagebox { border-bottom-left-radius: 0;
     border-bottom-right-radius: 0; }
+  .lens.stepper .stackcol .view[data-open="true"] .pagebox {
+    border-bottom-width: 0; }
 }
 /* (a page's strip at its bottom, for the tab of the one under it) */
 .lens.stepper .pages .pagebox { padding-bottom: calc(4px + var(--tab-h)); }
