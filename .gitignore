@@ -16,3 +16,5 @@ demos/stepper/counter.trace.jsonl
 !demos/debugger/screenshot-highlight-dark.png
 !demos/debugger/screenshot-fe-dark.png
 _site
+demos/stepper/out/
+demos/stepper/package-lock.json
