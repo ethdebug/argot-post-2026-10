@@ -386,9 +386,16 @@
 /* (the walkthrough's way in and out, at the foot of the variables: its
    room kept, one line or two, empty or not, so the list never moves; the
    name cut, never "How … is found") */
+.lens.stepper .vars:has(> .wslot) { --wslot-h: calc(2 * 1.5em + 16px); }
 .lens.stepper .vars > .wslot { flex: none; display: flex;
-  align-items: flex-end; height: calc(2 * 1.5em + 10px); padding-top: 6px;
+  align-items: flex-start; height: var(--wslot-h); padding-top: 8px;
   box-sizing: border-box; }
+/* (the list's edges, its hint and its button for lit rows, above the
+   button's room, never over it) */
+.lens.stepper .vars:has(> .wslot) > .pedge.down {
+  bottom: var(--wslot-h); }
+.lens.stepper .vars:has(> .wslot) .tedge.down {
+  bottom: calc(var(--wslot-h) + 6px); }
 .lens.stepper .vars > .wslot .wgo { display: inline-block; max-width: 100%;
   padding: 3px 12px; font-weight: 600; color: var(--bg);
   background: var(--accent); border-color: var(--accent); text-align: left;
@@ -397,7 +404,7 @@
   -webkit-line-clamp: 2; line-clamp: 2; }
 .lens.stepper .vars > .wslot .wgo:hover { filter: brightness(1.1); }
 .lens.stepper .vars > .wslot .wgo .rplay { font-size: 0.85em; }
-/* ("How" and "is found" whole; the name broken anywhere it must) */
+/* ("Find" whole; the name, last, broken anywhere it must) */
 .lens.stepper .vars > .wslot .wgo .wgo-how { white-space: nowrap; }
 .lens.stepper .vars > .wslot .wgo .wgo-name { overflow-wrap: anywhere;
   background: none; color: inherit; padding: 0; font-size: 0.95em; }
