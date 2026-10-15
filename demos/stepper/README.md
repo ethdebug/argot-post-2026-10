@@ -1,50 +1,43 @@
-# One stepper, two compilers
+# A ten-line stepper
 
-`step.mjs` prints the source lines a transaction executed, using only an
-ethdebug program and an anvil `debug_traceTransaction` struct log.
-Node standard library only.
-
-    node step.mjs <program.json> <trace.json> <source-file>
-
-## Inputs (real, produced here)
-- solc: PR #16990 build (viaIR, optimizer off, experimental, debugInfo
-  ethdebug). `node compile.cjs Calls.sol Calls`; program =
-  `evm.deployedBytecode.ethdebug` -> `solc-program.json`.
-- Fe 26.4.1: `fe build`, `fe dev trace emit`, `fe dev debug emit --format
-  ethdebug` -> `counter.ethdebug.json`.
-- `deploy.mjs` deploys on anvil (port 8547, `--steps-tracing`), sends one
-  tx, saves `solc-trace.json` / `fe-trace.json`.
+[`step.ts`](step.ts) prints the source lines a transaction ran. It reads
+only an ethdebug program, an anvil `debug_traceTransaction` struct log,
+and the source file. The same code works on solc's output and Fe's.
+It needs Node 22.18+ (it runs TypeScript as is) and no packages.
 
 ## Run
-    node step.mjs solc-program.json solc-trace.json Calls.sol
-    node step.mjs counter.ethdebug.json fe-trace.json counter.fe
 
-## Output (excerpt)
-    solc (Calls.run(5))                    Fe (Counter.Bump{n:7})
-    12: function run(uint256 x) external { 14: let doubled: u256 = x * 2
-    13: total = twice(x) + add(x, 1);      15: return doubled + 1
-    9: function twice(uint256 x) ...       24: if step > 10 {
-    10: return add(x, x);                  25: store.total = store.total + step
-    5: function add(...)                   29: store.last = step
-    7: return a + b;                       30: return store.total
-Full: `out-solc.txt`, `out-fe.txt`. Both follow the source in order
-(solc enters twice -> add -> add and returns; Fe takes the `if` branch).
+Solidity (`Calls.run(5)`):
 
-## Notes
-- Core: 10 lines (lines 13-22). Input normalization: 2 code lines
-  (9-10) plus 2 comment lines.
-- Fe-specific: (1) pick the `call` program from Fe's wrapper; (2) the
-  `source.id === 0` check. Fe maps steps in its std library (ids 1+,
-  e.g. calldata decoding) and the script has only one source file. solc
-  never leaves id 0, so the check is harmless there. Without it, Fe
-  output has a wrong line (`38:`) from a std file.
-- The core does not branch on compiler. The normalization does, in a
-  way: it checks for Fe's `programs` key.
-- Fe's extra instruction fields and missing `contract.definition` only
-  matter for schema validation; stepping needs no adapter.
-- Fe at O1 inlines `scale`, so no call-site line 23 appears; solc shows
-  the calls. Fe's step ranges are sub-expressions, deduped to lines.
-- The "compiler glue" filter (range > 80% of the file) matters for solc
-  (whole-contract range, ~85% of steps). Fe does not need it here.
-- One multi-source limit: this stepper handles only the user's file
-  (id 0). Real use needs a source id -> file map.
+    node step.ts inputs/solc/program.json inputs/solc/trace.json inputs/solc/Calls.sol
+    12: function run(uint256 x) external {
+    13: total = twice(x) + add(x, 1);
+    12: function run(uint256 x) external {
+    13: total = twice(x) + add(x, 1);
+    9: function twice(uint256 x) internal pure returns (uint256) {
+    10: return add(x, x);
+    ...
+
+Fe (`Counter` `Bump { n: 7 }`):
+
+    node step.ts inputs/fe/program.json inputs/fe/trace.json inputs/fe/counter.fe
+    14: let doubled: u256 = x * 2
+    15: return doubled + 1
+    24: if step > 10 {
+    25: store.total = store.total + step
+    29: store.last = step
+    30: return store.total
+
+## Inputs
+
+- [`inputs/solc/`](inputs/solc/): solc built from PR
+  [#16990](https://github.com/argotorg/solidity/pull/16990), via-IR,
+  optimizer off, `experimental`, `debugInfo: ["ethdebug", "ast-id"]`.
+  The program is `evm.deployedBytecode.ethdebug`.
+- [`inputs/fe/`](inputs/fe/): Fe 26.4.1 at `-O1`, `fe dev trace emit`
+  then `fe dev debug emit --format ethdebug`. The file holds two
+  programs; the script picks the `call` one.
+- The traces: [`scripts/deploy.mjs`](scripts/deploy.mjs) deploys on anvil
+  (`--steps-tracing --port 8547`), sends one transaction, and saves
+  its struct log. [`scripts/compile.cjs`](scripts/compile.cjs) makes
+  solc's output.
