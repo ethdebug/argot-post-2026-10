@@ -63,8 +63,8 @@
   "variables": "scope",
   "replay": true,
   "transactions": {
-    "3": "carol joins",
-    "12": "alice plays"
+    "3": "Carol joins",
+    "12": "Alice plays and hits"
   },
   "initial": {
     "collapse": [
