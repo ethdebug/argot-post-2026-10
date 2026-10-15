@@ -216,12 +216,24 @@ function Wide({ children }: { children: ReactNode }) {
       // rows' height, about)
       const least = 2 * Math.max(0, ...[...lens.querySelectorAll<
         HTMLElement>(".pages .rows .wrow")].map((r) => r.offsetHeight));
-      const needOf = (v: HTMLElement) => rowsOf(v) ? needRows(rowsOf(v)!)
-        : 0;
+      // (a page's need: its rows', and its box's padding and edge, where
+      // its edges' buttons are)
+      const edges = (v: HTMLElement) => {
+        const b = box(v);
+        if (!b) return 0;
+        const cs = getComputedStyle(b);
+        return parseFloat(cs.paddingTop) + parseFloat(cs.paddingBottom) +
+          parseFloat(cs.borderTopWidth) + parseFloat(cs.borderBottomWidth);
+      };
+      const needOf = (v: HTMLElement) => rowsOf(v) ? needRows(rowsOf(v)!) +
+        edges(v) : 0;
       // (too many to fit: the least lately needed of those not needed now
       // shut, one by one, until the rest do)
       const avail = room - fixed;
-      const fits = () => open.reduce((n, v) => n + needOf(v), 0) <= avail;
+      // (a page's least: its need, up to two rows', about)
+      const floor = (v: HTMLElement) => Math.min(needOf(v), least +
+        edges(v));
+      const fits = () => open.reduce((n, v) => n + floor(v), 0) <= avail;
       const spare = open.filter((v) => !need(v) && !byHand.has(loc(v)))
         .sort((a, b) =>
         (lately.get(loc(a)) ?? 0) - (lately.get(loc(b)) ?? 0));
@@ -236,7 +248,24 @@ function Wide({ children }: { children: ReactNode }) {
         store.set((x) => ({ ...x, pages: next }));
         return;
       }
-      const hs = share(avail, open.map(needOf), least);
+      // (pages lit: those not lit their least, the rest the lit ones',
+      // in equal parts when two or more, else the one's as it needs;
+      // what is left, the others', by need. None lit: each by need)
+      const lit = open.filter(need);
+      const hs = !lit.length ? share(avail, open.map(needOf), least)
+        : (() => {
+          const others = open.filter((v) => !need(v));
+          const left = Math.max(0, avail - others.reduce((a, v) =>
+            a + floor(v), 0));
+          const each = lit.length > 1 ? Math.floor(left / lit.length)
+            : Math.min(Math.ceil(needOf(lit[0])), left);
+          let odd = lit.length > 1 ? left - each * lit.length : 0;
+          const hl = lit.map(() => each + (odd-- > 0 ? 1 : 0));
+          const ho = share(avail - hl.reduce((a, b) => a + b, 0),
+            others.map(needOf), least);
+          return open.map((v) => need(v) ? hl[lit.indexOf(v)]
+            : ho[others.indexOf(v)]);
+        })();
       for (const v of group) {
         const b = box(v);
         const k = open.indexOf(v);
@@ -330,6 +359,5 @@ export const stepper: LensSpec = {
     { id: "instrs", kind: "instructions", area: "src", data: NOW },
     { id: "code", kind: "code", area: "src", data: NOW, domId: "scode",
       pane: true },
-    { id: "entry", kind: "entry", area: "side", data: NOW },
   ],
 };

@@ -1,5 +1,5 @@
 // The stepper's pages (lenses/stepper.tsx, ui/Dump.tsx): a page needed
-// (something here related, in the related view) opens on a new moment or
+// (the selection lights bytes in it) opens on a new moment or
 // selection, to the top of the pages, the needed ones keeping their
 // order; none shuts then; one shuts only when the open ones no longer
 // fit, one not needed first. A tab opens or shuts its page by hand; the
@@ -63,10 +63,9 @@ for (const width of [1216, 390]) {
     await expect.poll(() => open(page)).toMatchObject({ calldata: true,
       memory: true, storage: false });
     // (storage selected: its page opens, to the top; calldata and memory,
-    // not needed, shut for its room)
+    // not needed, at their least, or shut for its room)
     await pick(page, "@storage");
-    await expect.poll(() => open(page)).toMatchObject({ calldata: false,
-      memory: false, storage: true });
+    await expect.poll(() => open(page)).toMatchObject({ storage: true });
     expect((await order(page))[0]).toBe("storage");
     expect(await height(page)).toBe(h);
     // (Reset: as at first)

@@ -165,12 +165,6 @@ test("optimized-locals: a move, no transition; its selection held",
         if (document.documentElement.classList.contains("vt-run")) {
           w.seen.push("vt");
         }
-        // (storage as a group the related view leaves out, a shut row,
-        // is no part of it: shown, not every variable)
-        if (l?.hasAttribute("data-playing") && document.querySelector(
-          '.tree li[data-path="@storage"]:not(.aside)')) {
-          w.seen.push("storage");
-        }
         if (l?.hasAttribute("data-playing")) {
           const top = document.querySelector('.tree li[data-path="@locals"]' +
             " > .row")?.getBoundingClientRect().top;
@@ -255,10 +249,10 @@ test("optimized-locals: the stack opening, its popover one line",
   });
 
 // The program: the instructions' column shut at first, open by its tab,
-// the instruction at the moment lit, following a move; the instruction's
-// entry, as YAML, in a drawer under the variables; Reset shuts both; the
-// figure's height never changes
-test("optimized-locals: the instructions and the entry's drawer",
+// the instruction at the moment lit, following a move, read not chosen
+// (no act on a row); its entry, as YAML, in a box beside it; Reset shuts
+// it; the figure's height never changes
+test("optimized-locals: the instructions and the instruction's entry",
   async ({ page }) => {
     await page.setViewportSize({ width: 1216, height: 900 });
     await page.goto("./embed.html#scene=optimized-locals");
@@ -269,25 +263,25 @@ test("optimized-locals: the instructions and the entry's drawer",
     const h0 = await h();
     const col = page.locator(".instrs");
     await expect(col).toHaveAttribute("data-open", "false");
+    await expect(page.locator(".entrydrawer, .entrylink")).toHaveCount(0);
     await col.locator(".ptab").click();
     const lit = col.locator("li > .row.hl .type");
     await expect(lit).toHaveCount(1);
     const at = await lit.textContent();
+    await expect(col.locator(".icall .ptrlines")).toContainText(
+      `offset: ${at}`);
+    await expect(col.locator("li .row").first()).toHaveCSS("cursor",
+      "default");
     await page.locator('.mbar [data-t="next"]').click();
     await expect(page.locator(".lens")).not.toHaveAttribute("data-playing",
       "", { timeout: 10_000 });
     await expect(lit).not.toHaveText(at!);
-    // (the drawer: the instruction lit's entry)
-    await page.locator(".entrylink").click();
-    const title = page.locator(".entrydrawer .ptitle");
-    await expect(title).toHaveText(`Instruction at ${await lit
-      .textContent()}`);
-    await expect(page.locator(".entrydrawer .ptrlines")).toContainText(
+    await expect(col.locator(".icall .ptrlines")).toContainText(
+      `offset: ${await lit.textContent()}`);
+    await expect(col.locator(".icall .ptrlines")).toContainText(
       "operation:");
     expect(await h()).toBe(h0);
     await page.locator(".reset").click();
     await expect(col).toHaveAttribute("data-open", "false");
-    await expect(page.locator(".entrydrawer")).toHaveAttribute("data-open",
-      "false");
     expect(await h()).toBe(h0);
   });
