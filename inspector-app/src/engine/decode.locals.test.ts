@@ -29,10 +29,10 @@ const values = (ns: ValueNode[]) => Object.fromEntries(ns.map((n) =>
 
 for (const o of ["O0", "O2"] as const) {
   // (bugc #378: locals keep their pointers after a call, _rolledHit's)
-  it(`${o}: after the roll: player, _turn's copy of her record`,
+  it(`${o}: after the roll: hit, and player, _turn's copy of her record`,
     async () => {
       const d = await at(o, "roll");
-      expect(values(d.tree)).toEqual({ player: "7 fields" });
+      expect(values(d.tree)).toEqual({ hit: "true", player: "7 fields" });
       // (her copy, before this hit: her second hit's record, plays
       // already counted)
       expect(d.byPath.get("player.plays")?.value?.text).toBe("3");
@@ -46,12 +46,12 @@ for (const o of ["O0", "O2"] as const) {
       expect(values(b.tree)).toEqual({ points: "10", combo: "3",
         mult: "3" });
     });
-  it(`${o}: before the writes: gained 30; player located; `
+  it(`${o}: before the writes: gained 30; player and hit located; `
     + "alice's record, in storage", async () => {
     const d = await at(o, "writes");
-    expect(d.tree.map((n) => n.path).sort()).toEqual(["gained",
+    expect(d.tree.map((n) => n.path).sort()).toEqual(["gained", "hit",
       "player"]);
-    expect(values(d.tree)).toMatchObject({ gained: "30",
+    expect(values(d.tree)).toMatchObject({ hit: "true", gained: "30",
       player: "7 fields" });
     // (her record as the trace has it then: as her second hit left it;
     // play() writes its copy, player, back next)
