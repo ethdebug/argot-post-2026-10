@@ -5,7 +5,7 @@
 // line under them.
 import { useLayoutEffect, useRef, type ComponentProps } from "react";
 import { Tree } from "./Tree";
-import { useCompilation, useDecoded } from "./hooks";
+import { useCompilation, useDecoded, useLens } from "./hooks";
 import { useEdges } from "./PointerYaml";
 
 const NONE: Record<string, string> = {
@@ -16,6 +16,9 @@ const NONE: Record<string, string> = {
 export function Variables({ edges: scrolls, ...p }:
   Omit<ComponentProps<typeof Tree>, "align"> & { edges?: boolean }) {
   const c = useCompilation(p.data);
+  const { spec } = useLens();
+  const walkSlot = spec.views.some((v) => v.kind === "walkthrough" &&
+    v.button);
   const d = useDecoded(p.data);
   // (`edges`: the tree's box, scrolling inside the column; its edges'
   // buttons, and its classes for the fades)
@@ -41,5 +44,8 @@ export function Variables({ edges: scrolls, ...p }:
   return <div ref={me} id={p.domId} className="vars">
     <Tree {...p} domId={undefined} align={[]} />
     {none && <p className="muted small novars">{none}</p>}
-    {scrolls && <>{edge("up")}{edge("down")}</>}</div>;
+    {scrolls && <>{edge("up")}{edge("down")}</>}
+    {/* (the walkthrough's way in and out, its room kept: the panel
+      draws its button here, ui/WalkthroughPanel.tsx) */}
+    {walkSlot && <div className="wslot" />}</div>;
 }
