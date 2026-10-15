@@ -252,8 +252,12 @@ export function useLayout(id: string, filter?: Filter, at?: DataRef,
     { decoding: mine[0].decoding, point: d.point });
   const location = v.kind === "dump" ? v.location : "storage";
   const cmp = useDecoded(compare);
-  // (the "Related" view: the selection's related rows only)
+  // (the "Related" view: the selection's related rows only; a page
+  // with none of them, its rows as they are, muted, never an empty box:
+  // shut or kept by the pages' rule, lenses/stepper.tsx)
   const only = useRelated(id, location, data, compare);
+  const page = v.kind === "dump" && !!v.display?.edges;
+  const by = page && only && !only.rows.length ? undefined : only;
   // (its scene's rows: the union over its moments, so none appears or
   // goes as the moments change; addendum §4)
   const ms = useMoments(data);
@@ -273,7 +277,7 @@ export function useLayout(id: string, filter?: Filter, at?: DataRef,
       .sort((a, b) => BigInt(a) < BigInt(b) ? -1 : BigInt(a) > BigInt(b)
         ? 1 : 0) : union;
     const g = rows ? { ...f, rows } : f;
-    const out = layout(d, location, only ? { ...g, only } : g, { point,
+    const out = layout(d, location, by ? { ...g, only: by } : g, { point,
       ...(cmp ? { compare: cmp } : {}),
       others: o1 ? [{ d: o1, who: mine[0].who }] : [] });
     if (!replay || location !== "storage") return out;
@@ -283,7 +287,7 @@ export function useLayout(id: string, filter?: Filter, at?: DataRef,
       .map((r) => r.address));
     return { ...out, rows: out.rows.map((r) =>
       ({ ...r, room: hashed.has(r.address) })) };
-  }, [d, o1, point, location, f, mine[0]?.who, cmp, only, ms, union,
+  }, [d, o1, point, location, f, mine[0]?.who, cmp, by, ms, union,
     replay, marks]);
   return { d, l, only };
 }

@@ -41,7 +41,7 @@ import { blockOf, resolveTarget } from "../engine/target";
 import { noLight, retint } from "../engine/light";
 import { relClass } from "../engine/related";
 import { afterTransition, vtName } from "./transition";
-import { centring, glide } from "./scroll";
+import { centring, glide, stopGlide } from "./scroll";
 import { readWritten } from "../engine/timeline";
 import {
   addressText, addressing, hex4, nextRow, rowBytes,
@@ -956,6 +956,19 @@ export function Dump(p: { id: ViewId; location: Location; data: DataRef;
     if (to !== undefined && v.scrollTop > v.scrollHeight - h) {
       v.scrollTop = Math.max(0, v.scrollHeight - h);
     }
+    // (a scroll to put back, the related view gone: as it was, at once,
+    // once its rows are back; nothing brought into view over it)
+    const view = me.current;
+    if (view?.dataset.restore !== undefined) {
+      if (view.dataset.related !== undefined) return;
+      const y = Number(view.dataset.restore);
+      // (not yet room for it: its box still coming back to its height)
+      if (v.scrollHeight - v.clientHeight < y - 1) return;
+      delete view.dataset.restore;
+      stopGlide(v);
+      v.scrollTop = y;
+      return;
+    }
     if (v.scrollHeight <= h) return;
     if (!litKey) {
       if (top0) glide(v, 0);
@@ -999,7 +1012,8 @@ export function Dump(p: { id: ViewId; location: Location; data: DataRef;
   };
   const bringRef = useRef(bring);
   bringRef.current = bring;
-  useLayoutEffect(() => bring(), [litKey, top0, snap, moving]);
+  useLayoutEffect(() => bring(), [litKey, top0, snap, moving,
+    rows.length]);
   useEffect(() => {
     const v = me.current;
     if (!v) return;
@@ -1102,6 +1116,8 @@ export function Dump(p: { id: ViewId; location: Location; data: DataRef;
     data-view={`${lens.key}:${p.id}`} data-point={l?.point}
     data-open={disp.edges ? String(open) : undefined}
     data-needed={disp.edges ? String(needed) : undefined}
+    data-related={disp.edges && only ? String(only.rows.length > 0 &&
+      rows.length > 0) : undefined}
     data-location={p.location}
     data-exits={exiting(link) || undefined} {...handlers} {...hovering}
     {...layer ? { "data-units": layer.units.length } : {}}>

@@ -84,7 +84,8 @@ const bookmarkOf = (s: Scene): ProjectBookmark => ({
     (m) => m.collapse) } : {}),
   ...(s.initial?.walk ? { walk: { step: s.initial.walk.step } } : {}),
   ...(s.initial?.collapse ? { collapse: s.initial.collapse } : {}),
-  ...(s.initial?.related ? { related: true } : {}),
+  ...(s.initial?.related === true ? { related: true } : {}),
+  ...(s.initial?.related === "walk" ? { walkRelated: true } : {}),
   ...(s.timeline.length === 2 ? { side: s.initial?.moment === 0 ? "before"
     : "after" } : {}),
   // (more moments: the one it opens at, its first unless it says)
