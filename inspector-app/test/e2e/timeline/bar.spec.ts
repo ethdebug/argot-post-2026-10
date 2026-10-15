@@ -34,7 +34,7 @@ test("◀ ▶ step the moments, disabled at the ends; the line names the " +
   await page.locator(`${T} .tmark[data-k="1"]`).click();
   await expect.poll(() => cur(page)).toBe("1");
   // (the track: a segment a transaction, a dashed tail)
-  await expect(page.locator(`${T} .tseg`)).toHaveCount(14);
+  await expect(page.locator(`${T} .tseg`)).toHaveCount(15);
   await expect(page.locator(`${T} .ttail`)).toHaveCount(1);
 });
 
