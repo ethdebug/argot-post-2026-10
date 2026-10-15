@@ -97,8 +97,12 @@ function Wide({ children }: { children: ReactNode }) {
     // walkthrough lights. As it comes on, the pages as they were kept;
     // as it goes off, put back: folds and scrolls)
     type Held = { pages: Record<string, boolean>;
-      scroll: Map<string, number>; byHand: Set<string> };
+      scroll: Map<string, number>; byHand: Set<string>;
+      heights: Map<string, string> };
     let held: Held | null = null;
+    // (put back, while a walkthrough still folds away: nothing decided
+    // anew until it has, its steps' lights no longer the pages')
+    let restoring = false;
     // (each page's box's padding and edges, as last seen open)
     const seenEdges = new Map<string, number>();
     // (the pages' order, over the stack: their own, at first)
@@ -138,6 +142,7 @@ function Wide({ children }: { children: ReactNode }) {
       const s = store.get();
       const loc = (v: HTMLElement) => v.dataset.location!;
       const related = s.related !== undefined;
+      if (restoring) return;
       const rowsAt = (v: HTMLElement) => v.querySelector<HTMLElement>(
         ".rows");
       // (its rows not in yet: nothing to decide)
@@ -152,10 +157,14 @@ function Wide({ children }: { children: ReactNode }) {
         seen = `${s.scene}|${s.moment}|${s.links.st?.selection ?? ""}`;
         // (its pages' places and scrolls as before, once their heights
         // have come back)
-        // (each page's scroll as it was, once its rows are back: Dump.tsx)
+        // (each page's scroll as it was, once its rows are back: Dump.tsx;
+        // its height as it was, now, as its fold: one move together)
         for (const v of views) {
           v.dataset.restore = String(w.scroll.get(loc(v)) ?? 0);
+          const b = box(v), h = w.heights.get(loc(v));
+          if (b && h && b.style.height !== h) b.style.height = h;
         }
+        restoring = Object.values(s.links).some((l) => !!l?.walk);
         store.set((x) => ({ ...x, pages: w.pages }));
         return;
       }
@@ -438,6 +447,8 @@ function Wide({ children }: { children: ReactNode }) {
         v.dataset.location!, v.dataset.open === "true"])),
       scroll: new Map(views.map((v) => [v.dataset.location!,
         v.querySelector(".rows")?.scrollTop ?? 0])),
+      heights: new Map(views.map((v) => [v.dataset.location!,
+        v.querySelector<HTMLElement>(".pagebox")?.style.height ?? ""])),
       byHand: new Set(byHand) };
     };
     // (as a walkthrough opens, before its steps scroll anything: what
@@ -449,6 +460,15 @@ function Wide({ children }: { children: ReactNode }) {
       if (w !== walked) {
         walked = w;
         pre = w && !rel ? now() : null;
+        // (a walkthrough gone that the pages were put back for: as they
+        // are now, decided again)
+        if (!w && restoring) {
+          // (once the pages have drawn the lights of no walkthrough)
+          requestAnimationFrame(() => setTimeout(() => {
+            restoring = false;
+            fit();
+          }));
+        }
       }
       const on = s.related !== undefined;
       if (on === rel) return;

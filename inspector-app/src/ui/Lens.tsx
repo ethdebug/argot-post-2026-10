@@ -206,13 +206,16 @@ export function Lens(props: { spec: LensSpec; project: Project;
     project))));
   const key = useId();
   // (a scene whose related view is on while a walkthrough is open: on
-  // as one opens, off again as it closes)
+  // as one opens, off again as it starts to close)
   useEffect(() => {
     let was = false;
     return store.subscribe(() => {
       const s = store.get();
       const bm = project.bookmarks.find((b) => b.id === s.scene);
-      const now = Object.values(s.links).some((l) => !!l?.walk);
+      // (open: started, its exit not yet asked for; off as it folds away,
+      // with it)
+      const now = Object.values(s.links).some((l) => !!l?.walk &&
+        !l.walk.exit);
       if (now === was) return;
       was = now;
       if (!bm?.walkRelated) return;
