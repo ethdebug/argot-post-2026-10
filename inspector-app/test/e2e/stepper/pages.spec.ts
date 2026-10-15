@@ -117,3 +117,23 @@ test("optimized-locals: storage selected shows its slots", async ({
   expect(await page.locator(".view[data-location=storage] .b.hl").count())
     .toBeGreaterThan(0);
 });
+
+// The related view off: a long string's own bytes all lit, its length
+// slot and each of its data slots (carol's name at her join's end)
+test("optimized-locals: a long string lights its length and data slots",
+  async ({ page }) => {
+    await go(page, 1216);
+    await page.locator('.mbar [data-t="next"]').click();
+    await rest(page);
+    await expect(page.locator(
+      'li[data-path="players[0x90f7…b906].name"] > .row.sel, ' +
+      ".sidecol .row.sel")).not.toHaveCount(0);
+    const on = await page.locator(".view[data-location=storage] .wrow.on")
+      .evaluateAll((rs) => rs.map((r) => (r as HTMLElement).dataset.slot));
+    expect(on.length).toBe(3);
+    expect(on.some((s) => s!.endsWith("6988"))).toBe(true);
+    for (const s of on) {
+      await expect(page.locator(`.view[data-location=storage] ` +
+        `.wrow[data-slot="${s}"] .b.hl`).first()).toBeAttached();
+    }
+  });
