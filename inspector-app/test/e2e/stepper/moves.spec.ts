@@ -50,8 +50,10 @@ const still = (page: Page) => expect(page.locator(".lens"))
 const open = async (page: Page, id: string) => {
   await page.setViewportSize({ width: 1440, height: 1000 });
   await page.goto(`./embed.html#scene=${id}`);
+  // (a first load: the scene's run loaded, decoded; a cold browser's
+  // takes a while)
   await expect(page.locator(".mbar .dot.cur")).toHaveAttribute("data-k",
-    "0");
+    "0", { timeout: 20_000 });
   await expect(page.locator('.mbar [data-t="next"]')).toBeEnabled();
   // (settled: its fonts in, its type fitted to them, as the embed waits
   // before its first height)

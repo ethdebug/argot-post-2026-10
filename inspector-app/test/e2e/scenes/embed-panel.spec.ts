@@ -359,6 +359,8 @@ test("on demand: the panel opens with the walkthrough and closes with " +
       if (e.data?.type !== "ethdebug:height") return;
       const f = [...document.querySelectorAll("iframe")].find((x) =>
         x.contentWindow === e.source);
+      // (the page's own embed.html, before this content, may still post)
+      if (!f) return;
       log.push([f.id, e.data.height, e.data.open]);
       f.style.height = (f.id === "f" || e.data.open ? e.data.height : 0) +
         "px";
