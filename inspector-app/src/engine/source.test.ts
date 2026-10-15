@@ -79,3 +79,14 @@ describe.each([["runs", authoring], ["snapshots", reader]] as const)(
     expect(await at("alice", 1, A)).toBe(lastBlock.alice);
   });
 });
+
+describe("a snapshot of another format (a page's and its data's builds \
+apart)", () => {
+  it("is refused by name, never misread", async () => {
+    const j = JSON.parse(await snapshotText("mid"));
+    for (const format of [undefined, 1, 3]) {
+      expect(() => snapshotOf({ ...j, format }))
+        .toThrow(/^snapshot mid: format \d, not 2, .*reload it\)$/);
+    }
+  });
+});
