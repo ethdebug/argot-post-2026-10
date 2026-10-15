@@ -328,8 +328,11 @@ function Wide({ children }: { children: ReactNode }) {
       }
       const edges = (v: HTMLElement) => seenEdges.get(loc(v)) ??
         Math.max(0, ...seenEdges.values());
-      const needOf = (v: HTMLElement) => rowsOf(v) ? needRows(rowsOf(v)!) +
-        edges(v) : 0;
+      // (its rows', or the room its dump keeps for them, whichever is
+      // more: Dump.tsx data-reserve, px, the rows of every moment)
+      const needOf = (v: HTMLElement) => rowsOf(v) ? Math.max(needRows(
+        rowsOf(v)!), parseFloat(v.dataset.reserve ?? "") || 0) + edges(v)
+        : 0;
       // (too many to fit: the least lately needed of those not needed now
       // shut, one by one, until the rest do)
       const avail = room - fixed;
@@ -519,7 +522,7 @@ function Wide({ children }: { children: ReactNode }) {
       "[data-area=narrow])")) mo.observe(a, { childList: true,
       subtree: true, attributes: true,
       attributeFilter: ["data-open", "data-needed", "data-lit",
-        "data-related", "data-row", "data-next-row"] });
+        "data-related", "data-row", "data-next-row", "data-reserve"] });
     // (and the lens's type size, fit.ts --cell-fs: its rows' height with it)
     mo.observe(lens, { attributes: true, attributeFilter: ["data-playing",
       "style"] });
