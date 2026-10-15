@@ -92,6 +92,15 @@ function Wide({ children }: { children: ReactNode }) {
     // (what this last wrote, and the pages the reader opened since)
     let wrote: Record<string, boolean> = {};
     const byHand = new Set<string>();
+    // (a walkthrough ("How it was found") open: the pages as they were
+    // when it opened, kept: those with nothing of the selection's, the
+    // stack too, shut; the others' needs fixed, so its steps move
+    // nothing; as it closes, all as before it, folds and scrolls)
+    let walk: { pages: Record<string, boolean>; keep: Set<string>;
+      scroll: Map<string, number>; byHand: Set<string>;
+      hs?: Map<string, number> } | null = null;
+    // (the pages needed while no walkthrough is open: the selection's)
+    const before = new Map<string, boolean>();
     // (the pages' order, over the stack: their own, at first)
     const RANK = ["calldata", "memory", "storage"];
     let rank = [...RANK];
@@ -128,7 +137,42 @@ function Wide({ children }: { children: ReactNode }) {
       // that changes them, which lays them out again)
       const s = store.get();
       const loc = (v: HTMLElement) => v.dataset.location!;
-      const need = (v: HTMLElement) => v.dataset.needed === "true";
+      const walking = !!s.links.st?.walk;
+      const rowsAt = (v: HTMLElement) => v.querySelector<HTMLElement>(
+        ".rows");
+      if (walking && !walk) {
+        const keep = new Set(views.filter((v) => before.get(loc(v)))
+          .map(loc));
+        walk = { pages: Object.fromEntries(views.map((v) => [loc(v),
+          v.dataset.open === "true"])), keep,
+        scroll: new Map(views.map((v) => [loc(v),
+          rowsAt(v)?.scrollTop ?? 0])), byHand: new Set(byHand) };
+        const pages = Object.fromEntries(views.map((v) => [loc(v),
+          keep.has(loc(v))]));
+        wrote = { ...pages };
+        store.set((x) => ({ ...x, pages }));
+        return;
+      }
+      if (!walking && walk) {
+        const w = walk;
+        walk = null;
+        byHand.clear();
+        w.byHand.forEach((l) => byHand.add(l));
+        wrote = { ...w.pages };
+        // (its pages' places and scrolls as before, once their heights
+        // have come back)
+        setTimeout(() => {
+          for (const v of views) {
+            const r = rowsAt(v);
+            if (r) r.scrollTop = w.scroll.get(loc(v)) ?? r.scrollTop;
+          }
+        }, still() ? 50 : 500);
+        store.set((x) => ({ ...x, pages: w.pages }));
+        return;
+      }
+      const need = (v: HTMLElement) => walk ? walk.keep.has(loc(v))
+        : v.dataset.needed === "true";
+      if (!walk) for (const v of views) before.set(loc(v), need(v));
       const key = `${s.scene}|${s.moment}|${s.links.st?.selection ?? ""}`;
       const fresh = !s.pages;
       const next: Record<string, boolean> = Object.fromEntries(views.map(
@@ -317,10 +361,16 @@ function Wide({ children }: { children: ReactNode }) {
           return open.map((v) => need(v) ? hl[lit.indexOf(v)]
             : ho[others.indexOf(v)]);
         })();
+      // (a walkthrough's steps: the heights its first step had, kept)
+      if (walk && !walk.hs) {
+        walk.hs = new Map(group.map((v) => [loc(v),
+          open.indexOf(v) < 0 ? 0 : hs[open.indexOf(v)]]));
+      }
       for (const v of group) {
         const b = box(v);
         const k = open.indexOf(v);
-        const h = `${k < 0 ? 0 : hs[k]}px`;
+        const h = `${walk?.hs ? walk.hs.get(loc(v)) ?? 0
+          : k < 0 ? 0 : hs[k]}px`;
         if (b && b.style.height !== h) {
           b.style.height = h;
           // (its lit rows into view for the height it moves to: Dump.tsx)
@@ -376,12 +426,21 @@ function Wide({ children }: { children: ReactNode }) {
       subtree: true, attributes: true,
       attributeFilter: ["data-open", "data-needed", "data-lit"] });
     mo.observe(lens, { attributes: true, attributeFilter: ["data-playing"] });
+    // (and a walkthrough opening or closing)
+    let walked = !!store.get().links.st?.walk;
+    const unsub = store.subscribe(() => {
+      const now = !!store.get().links.st?.walk;
+      if (now === walked) return;
+      walked = now;
+      fit();
+    });
     addEventListener("resize", fit);
     return () => {
       ro.disconnect();
       mo.disconnect();
       clearTimeout(settle);
       clearTimeout(calm);
+      unsub();
       removeEventListener("resize", fit);
     };
   }, []);
