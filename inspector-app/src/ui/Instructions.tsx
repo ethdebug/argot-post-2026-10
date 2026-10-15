@@ -152,9 +152,11 @@ export function entryYaml(v: Record<string, Json>, isOpen: (path: string)
   }
   return out;
 }
-// (folded at first: a context's code, a variable's pointer)
-export const foldedFirst = (path: string) => /^context(\.|\[).*\bcode$|^context\.code$/
-  .test(path) || /\.pointer$/.test(path);
+// (folded at first: a context's code, each variable, a variable's
+// pointer)
+export const foldedFirst = (path: string) =>
+  /^context(\.|\[).*\bcode$|^context\.code$/.test(path) ||
+  /\.pointer$/.test(path) || /\bvariables\[\d+\]$/.test(path);
 
 // (a value that, while a replay plays, changes at most every `ms`: the
 // last one at rest)
