@@ -103,6 +103,8 @@ function Wide({ children }: { children: ReactNode }) {
     // (put back, while a walkthrough still folds away: nothing decided
     // anew until it has, its steps' lights no longer the pages')
     let restoring = false;
+    // (the shut pages waiting for their height to go, to join the row)
+    const rowAt = new Map<HTMLElement, ReturnType<typeof setTimeout>>();
     // (each page's box's padding and edges, as last seen open)
     const seenEdges = new Map<string, number>();
     // (the pages' order, over the stack: their own, at first)
@@ -122,8 +124,11 @@ function Wide({ children }: { children: ReactNode }) {
       const views = [...lens.querySelectorAll<HTMLElement>(
         ".view[data-location][data-open]")];
       const stack = views.find((v) => v.dataset.location === "stack");
-      // (the pages that share the room: on a phone, all four)
-      const group = phone() || !stack ? views
+      // (the pages that share the room: on a phone, all four, but the
+      // stack shut there, its tab in the row of shut tabs: debugger.css)
+      const joined = phone() && !!stack && stack.dataset.open === "false" &&
+        stack.dataset.row === "true";
+      const group = (phone() && !joined) || !stack ? views
         : views.filter((v) => v !== stack);
       // (a page's box, the rows' clip: its height set, the rows filling it)
       const box = (v: HTMLElement) => v.querySelector<HTMLElement>(
@@ -237,8 +242,12 @@ function Wide({ children }: { children: ReactNode }) {
       for (const [k, v] of laid.entries()) {
         const last = String(v === laid[laid.length - 1]);
         if (v.dataset.last !== last) v.dataset.last = last;
-        // (it and the one under it both open: a styling hook)
+        // (it and the one under it both open: a styling hook; and the one
+        // under it in the row of shut tabs, or none: no strip for a tab)
         const after = laid[k + 1];
+        const below = String(!!next[loc(v)] && (!after || (!next[loc(
+          after)] && after.dataset.row === "true")));
+        if (v.dataset.nextRow !== below) v.dataset.nextRow = below;
         const nextOpen = String(!!next[loc(v)] && !!after &&
           !!next[loc(after)]);
         if (v.dataset.nextOpen !== nextOpen) v.dataset.nextOpen = nextOpen;
@@ -275,7 +284,20 @@ function Wide({ children }: { children: ReactNode }) {
       // (a phone's stack in an area of its own, over the others, in one
       // cell with them: none between them, debugger.css)
       const between = 0;
-      const fixed = group.reduce((n, v) => n + own(v) + overlap(v), 0) +
+      // (the shut tabs in their row, one row or more, wrapping: the rows'
+      // height, from the first of them to the last, not a tab each)
+      const inRow = (v: HTMLElement) => v.dataset.open === "false" &&
+        v.dataset.row === "true" && v !== stack;
+      const slot = lens.querySelector<HTMLElement>(
+        ":scope > [data-area=wide] .stackslot");
+      const rowEls = [...group.filter(inRow), ...joined && slot ? [slot]
+        : []];
+      const rowH = rowEls.length ? Math.max(...rowEls.map((e) =>
+        e.getBoundingClientRect().bottom)) - Math.min(...rowEls.map((e) =>
+        e.getBoundingClientRect().top - (parseFloat(getComputedStyle(e)
+          .marginTop) || 0))) : 0;
+      const fixed = group.filter((v) => !inRow(v)).reduce((n, v) =>
+        n + own(v) + overlap(v), 0) + rowH +
         gap * Math.max(0, group.length - 1 - (stack && group.includes(stack)
           ? 1 : 0));
       void tabs;
@@ -390,6 +412,20 @@ function Wide({ children }: { children: ReactNode }) {
           return open.map((v) => need(v) ? hl[lit.indexOf(v)]
             : ho[others.indexOf(v)]);
         })();
+      // (a shut page joins the row of shut tabs once its height has gone:
+      // debugger.css; one opening leaves it at once; on a phone the stack
+      // too, its tab where the row's first is)
+      for (const v of phone() && stack ? [...pages, stack] : pages) {
+        if (next[loc(v)]) {
+          if (v.dataset.row) delete v.dataset.row;
+          rowAt.delete(v);
+        } else if (!v.dataset.row && !rowAt.has(v)) {
+          rowAt.set(v, setTimeout(() => {
+            rowAt.delete(v);
+            if (v.dataset.open === "false") v.dataset.row = "true";
+          }, still() || !lens.hasAttribute("data-settled") ? 0 : 440));
+        }
+      }
       for (const v of group) {
         const b = box(v);
         const k = open.indexOf(v);
@@ -420,6 +456,41 @@ function Wide({ children }: { children: ReactNode }) {
         const h = group.includes(stack!) ? `${room - sh - between}px` : "";
         if (wide.style.height !== h) wide.style.height = h;
       }
+      // (a phone's stack in the row: shut, no height; its tab where the
+      // row keeps it a place)
+      const sc = lens.querySelector<HTMLElement>(":scope > .stackcol");
+      if (joined && stack) {
+        const b = box(stack);
+        if (b && b.style.height !== "0px") b.style.height = "0px";
+      }
+      if (sc) {
+        let t = "";
+        const tabEl = stack?.querySelector<HTMLElement>(".view-name");
+        if (joined && slot && tabEl) {
+          const prev = sc.style.transform;
+          sc.style.transform = "";
+          const a = tabEl.getBoundingClientRect();
+          const z = slot.getBoundingClientRect();
+          sc.style.transform = prev;
+          t = `translate(${Math.round(z.left - a.left)}px, ${Math.round(
+            z.top - a.top)}px)`;
+        }
+        if (sc.style.transform !== t) sc.style.transform = t;
+      }
+      // (the stack's tab in the row, at the area's bottom; and the room
+      // for it kept in the row, its tab's width)
+      const row = joined ? "end" : undefined;
+      if (lens.dataset.stackRow !== row) {
+        if (row) lens.dataset.stackRow = row;
+        else delete lens.dataset.stackRow;
+      }
+      if (joined && stack) {
+        const w = `${Math.ceil(stack.querySelector(".view-name")
+          ?.getBoundingClientRect().width ?? 0)}px`;
+        if (lens.style.getPropertyValue("--stack-tabw") !== w) {
+          lens.style.setProperty("--stack-tabw", w);
+        }
+      }
     };
     fit();
     // (settled: no fit for a while since the figure first drew; from then
@@ -448,8 +519,10 @@ function Wide({ children }: { children: ReactNode }) {
       "[data-area=narrow])")) mo.observe(a, { childList: true,
       subtree: true, attributes: true,
       attributeFilter: ["data-open", "data-needed", "data-lit",
-        "data-related"] });
-    mo.observe(lens, { attributes: true, attributeFilter: ["data-playing"] });
+        "data-related", "data-row", "data-next-row"] });
+    // (and the lens's type size, fit.ts --cell-fs: its rows' height with it)
+    mo.observe(lens, { attributes: true, attributeFilter: ["data-playing",
+      "style"] });
     // (and the related view coming on or going off)
     let rel = store.get().related !== undefined;
     let walked = false;
@@ -484,17 +557,28 @@ function Wide({ children }: { children: ReactNode }) {
       fit();
     });
     addEventListener("resize", fit);
+    // (a page's padding or edge done moving: its edges, read again)
+    const settledEdge = (e: TransitionEvent) => {
+      if (/padding|border/.test(e.propertyName) &&
+        (e.target as Element).classList?.contains("pagebox")) fit();
+    };
+    lens.addEventListener("transitionend", settledEdge);
     return () => {
       ro.disconnect();
       mo.disconnect();
       clearTimeout(settle);
       clearTimeout(calm);
+      rowAt.forEach((t) => clearTimeout(t));
       unsub();
       removeEventListener("resize", fit);
+      lens.removeEventListener("transitionend", settledEdge);
     };
   }, []);
+  // (the slot in the row of shut tabs where a phone's shut stack's tab
+  // stands: debugger.css, fit above)
   return <div ref={me} style={{ display: "contents" }}><Pages>
-    {Children.toArray(children)}</Pages></div>;
+    {Children.toArray(children)}<div key="stackslot" className="stackslot"
+      aria-hidden="true" /></Pages></div>;
 }
 
 const NOW = { decoding: "$scene", moment: "current" } as const;
