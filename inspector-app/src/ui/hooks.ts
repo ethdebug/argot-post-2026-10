@@ -506,10 +506,18 @@ export function useLight(id: string, filter?: Filter, at?: DataRef,
         byteKey(l.location, row, b)));
       return { ...noLight, bytes, muted: true };
     }
+    // (bytes no value owns, pointed at: the rest as it is, nothing
+    // muted; only the bytes' own look and their "(unmapped)" popover)
+    const base0 = sel ? withRelated(forPath(d, l, sel, { ...o,
+      selection: true }), d, l, sel, w) : noLight;
+    if (hover?.bytes && !hover.path) {
+      const rest = sel ? { ...base0, cap: new Set([sel]) } : noLight;
+      return hover.bytes.location === l.location
+        ? { ...rest, at: hover.bytes, unmapped: true } : rest;
+    }
     if (sel) {
       // (and what it consulted: the related treatment)
-      const base = withRelated(forPath(d, l, sel, { ...o,
-        selection: true }), d, l, sel, w);
+      const base = base0;
       const lk = locked(hover, sel, d.byPath);
       const k = lk?.path && lk.path !== sel
         ? base.colours.get(lk.path) : undefined;

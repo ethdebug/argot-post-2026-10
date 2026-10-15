@@ -8,6 +8,7 @@ import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { drawOverlays, type ViewData } from "./overlays";
 import { drawNotes, hoverNotes } from "./notes";
 import { paintView, useRevealed } from "./reveal";
+import { touch, UNHOVER } from "./unhover";
 import {
   cellsOf, notesOf, onChainNames, unitsOf,
 } from "../engine/annotated";
@@ -499,7 +500,7 @@ export function Dump(p: { id: ViewId; location: Location; data: DataRef;
   const still = lens.spec.hover === false;
   const point = (e: PointerEvent | { target: EventTarget }) => {
     if ("clientX" in e) cursorAt(e);
-    if (still || lens.store.get().hush) return;
+    if (still || lens.store.get().hush || touch.on) return;
     setLink((s) => {
       const t = target(e, s.selection);
       return JSON.stringify(s.hover) === JSON.stringify(t) ? s
@@ -659,8 +660,15 @@ export function Dump(p: { id: ViewId; location: Location; data: DataRef;
   useEffect(() => {
     if (!revealed) setHover(null);
   }, [revealed]);
+  // (every hover ended: unhover.ts)
+  useEffect(() => {
+    const off = () => setHover(null);
+    addEventListener(UNHOVER, off);
+    return () => removeEventListener(UNHOVER, off);
+  }, []);
   const hovering = annot && revealed && !still ? {
     onPointerOver: (e: PointerEvent) => {
+      if (e.pointerType === "touch") return setHover(null);
       const t = e.target as Element;
       const u = t.closest<HTMLElement>("[data-unit]")?.dataset.unit ??
         t.closest<HTMLElement>(".pop.note")?.dataset.units?.split(" ")[0];

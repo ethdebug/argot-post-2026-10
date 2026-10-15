@@ -25,6 +25,7 @@ import {
   shiki, useEdges, wrapRange, yamlLines,
 } from "../ui/PointerYaml";
 import { ResetButton } from "../ui/Reset";
+import { UNHOVER } from "../ui/unhover";
 import data from "./xray-data.json" with { type: "json" };
 
 export type Json = null | boolean | number | string | Json[] |
@@ -210,6 +211,12 @@ export function ProgramXray() {
   const [lang, setLang] = useState<Lang>("sol");
   const [at, setAt] = useState<Partial<Record<Lang, number>>>({});
   const [hover, setHover] = useState<number>();
+  // (every hover ended: ui/unhover.ts)
+  useEffect(() => {
+    const off = () => setHover(undefined);
+    addEventListener(UNHOVER, off);
+    return () => removeEventListener(UNHOVER, off);
+  }, []);
   // (Fe's own fields: one line, or opened)
   const [extra, setExtra] = useState(false);
   const prog = PROGRAMS[lang];
