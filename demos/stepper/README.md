@@ -16,8 +16,15 @@ The node must serve `debug_traceTransaction` with a trace of each step.
 
     anvil --steps-tracing
 
-Hardhat: `npx hardhat node` serves the same method on the same port,
-with the same accounts, so the steps below work unchanged.
+Hardhat 3 serves the same method on the same port with the same
+accounts. It needs a local install and a config file.
+
+    npm install hardhat
+    echo 'export default {};' > hardhat.config.js
+    npx hardhat node
+
+Its gas estimate rejects cast's requests, so add `--gas-limit 3000000`
+to each `cast send` below.
 
 ## 2. Compile with ethdebug output
 
