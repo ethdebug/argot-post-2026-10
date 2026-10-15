@@ -498,6 +498,7 @@ export function PanelView({ model: m, act, domId, compact }: {
       600);
     const s = bar.current && scrollerOf(bar.current);
     back.current = s ? { box: s.box, top: s.box.scrollTop } : null;
+    barFrom.current = bar.current?.offsetHeight ?? null;
     act({ type: "start" });
   };
   // (once the details are drawn: bring the bar to the top of its scroll
@@ -542,9 +543,24 @@ export function PanelView({ model: m, act, domId, compact }: {
     if (head) ro.observe(head);
     return () => ro.disconnect();
   }, [walk]);
+  // (the bar, the resting one and the walkthrough's: its height moving
+  // from one to the other as the details unfold or fold, not at once)
+  const barFrom = useRef<number | null>(null);
+  useLayoutEffect(() => {
+    const b = bar.current;
+    const from = barFrom.current;
+    barFrom.current = null;
+    if (from === null || !b) return;
+    const to = b.offsetHeight;
+    if (still() || !b.animate || Math.abs(from - to) < 1) return;
+    b.animate([{ height: `${from}px`, overflow: "hidden" },
+      { height: `${to}px`, overflow: "hidden" }],
+    { duration: 280, easing: "ease-out" });
+  }, [walk]);
   const exit = async () => {
     if (!walk || unfolding) return;
     await fold(false);
+    barFrom.current = bar.current?.offsetHeight ?? null;
     act({ type: "exited" });
     exiting.current = false;
     // (the reader back where they pressed Start)
