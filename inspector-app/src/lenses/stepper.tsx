@@ -247,8 +247,11 @@ function Wide({ children }: { children: ReactNode }) {
       // edges; at most its need)
       const litWant = (v: HTMLElement) => {
         const r = rowsOf(v);
-        const on = r ? [...r.querySelectorAll<HTMLElement>(".wrow.on")]
-          : [];
+        // (the rows the selection lights, as the page holds them: not
+        // what a pointer in a dump lights, Dump.tsx)
+        const lit = new Set((r?.dataset.lit ?? "").split(" "));
+        const on = r ? [...r.querySelectorAll<HTMLElement>(".wrow[data-slot]")]
+          .filter((x) => lit.has(x.dataset.slot!)) : [];
         if (!r || !on.length) return floor(v);
         const row = on[0].offsetHeight;
         const span = on[on.length - 1].getBoundingClientRect().bottom -
@@ -371,7 +374,7 @@ function Wide({ children }: { children: ReactNode }) {
     for (const a of lens.querySelectorAll(":scope > :is([data-area=wide], " +
       "[data-area=narrow])")) mo.observe(a, { childList: true,
       subtree: true, attributes: true,
-      attributeFilter: ["data-open", "data-needed"] });
+      attributeFilter: ["data-open", "data-needed", "data-lit"] });
     mo.observe(lens, { attributes: true, attributeFilter: ["data-playing"] });
     addEventListener("resize", fit);
     return () => {
