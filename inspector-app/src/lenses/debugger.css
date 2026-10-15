@@ -280,6 +280,23 @@
    the next sheet's top edge, which lies over it, its shadow over it) */
 .lens.stepper .pages .view[data-open="true"]:not([data-last="true"])
   .pagebox { border-bottom-width: 0; }
+/* (and its paper on under the open sheet under it, past that one's
+   rounded corners and shadow, under every sheet: as stacked paper. A
+   phone's stack, so under the top page) */
+.lens.stepper .pages .view[data-next-open="true"] { position: relative; }
+.lens.stepper .pages .view[data-next-open="true"]::after,
+.lens.stepper .stackcol .view[data-open="true"]::after {
+  content: ""; position: absolute; left: 0; right: 0; top: 100%;
+  height: 10px; z-index: -1; pointer-events: none; box-sizing: border-box;
+  background: var(--panel); border: solid var(--line);
+  border-width: 0 1px; }
+.lens.stepper .stackcol .view[data-open="true"]::after { display: none; }
+@media (max-width: 759.98px) {
+  .lens.stepper:has(.pages .view[data-open="true"]) .stackcol
+    .view[data-open="true"] { position: relative; }
+  .lens.stepper:has(.pages .view[data-open="true"]) .stackcol
+    .view[data-open="true"]::after { display: block; }
+}
 @media (max-width: 759.98px) {
   .lens.stepper .stackcol .pagebox { border-bottom-left-radius: 0;
     border-bottom-right-radius: 0; }
