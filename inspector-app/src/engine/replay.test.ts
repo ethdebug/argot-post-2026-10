@@ -36,11 +36,12 @@ describe.each(Object.values(STEPPER))("%s's replay", (id) => {
     }
   });
   // (optimized-locals's two transactions' steps, carol's join to its
-  // name's storage writes: 88 KB)
-  it("its snapshot: under 96 KB gzipped", async () => {
+  // name's storage writes: 111 KB; 88 KB until tx 12's span grew, when
+  // play() became a real call, too large to inline)
+  it("its snapshot: under 120 KB gzipped", async () => {
     const file = await sceneSnapshot(await testProject(), s);
     const gz = zlib.gzipSync(JSON.stringify(snapshotJson(file))).length;
-    expect(gz).toBeLessThan(96 * 1024);
+    expect(gz).toBeLessThan(120 * 1024);
   }, 120_000);
 });
 
