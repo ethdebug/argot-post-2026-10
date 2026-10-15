@@ -70,9 +70,6 @@ no dates given · **[open]** = not decided · (~N) = prose word budget
      Tenderly, in its own documentation (archived via-IR page,
      Wayback copy of 2026-06-08): solc's AST and source maps "can hold
      only some of the data needed to write a quality debugger".
-     Tenderly is not an ethdebug user; we hope it will fund future solc
-     work for ethdebug, so quote it respectfully. Lea gives Tenderly
-     advance notice.
    - **Figure `reveal`:** the game's storage as a tool sees it, then as
      the compiler's data describes it.
    - The guessing never ends: compilers change, optimizers make rules

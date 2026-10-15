@@ -49,10 +49,8 @@ evidence) and its rough length. The intro and §2 are new (decided
 - **Compilers give these tools enough to succeed only with guesswork,
   and Tenderly said so in its own documentation.** *(Rules learned by
   watching the compiler; special cases per version; each new language
-  a new challenge. Quote Tenderly's archived via-IR page respectfully:
-  "can hold only some of the data needed to write a quality debugger".
-  Tenderly is not an ethdebug user; Lea gives it advance notice.
-  ~60)*
+  a new challenge. Quote Tenderly's archived via-IR page: "can hold
+  only some of the data needed to write a quality debugger". ~60)*
 - **A small game shows what a tool sees, and what the compiler's data
   adds.** *(Figure `reveal`. ~30)*
 - **Without good debug data, a tool guesses, and usually the guess is
