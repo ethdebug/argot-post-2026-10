@@ -919,8 +919,14 @@ export function Dump(p: { id: ViewId; location: Location; data: DataRef;
     const set = v.parentElement?.classList.contains("pagebox")
       ? parseFloat(v.parentElement.style.height) : NaN;
     const to = Number.isNaN(set) ? undefined : set;
+    // (the page box's own padding and edge, where its edges' buttons
+    // are: not the rows')
+    const pb = v.parentElement ? getComputedStyle(v.parentElement) : null;
+    const frame = pb ? parseFloat(pb.paddingTop) + parseFloat(
+      pb.paddingBottom) + parseFloat(pb.borderTopWidth) + parseFloat(
+      pb.borderBottomWidth) : 0;
     const h = to === undefined ? v.clientHeight
-      : Math.max(0, to - (v.offsetHeight - v.clientHeight));
+      : Math.max(0, to - frame - (v.offsetHeight - v.clientHeight));
     if (!h) return;
     // (no further down than the box as it will be lets it: the browser
     // would bring it back up as the box grows, a slide)
@@ -961,7 +967,29 @@ export function Dump(p: { id: ViewId; location: Location; data: DataRef;
     if (!v) return;
     const on = () => bringRef.current();
     v.addEventListener("ethdebug:fit", on);
-    return () => v.removeEventListener("ethdebug:fit", on);
+    // (and as its rows change height, their type fitted later, or its
+    // box comes to its height, a page opened: the lit ones where they
+    // come to, once it holds still)
+    let hs = "";
+    let t: ReturnType<typeof setTimeout> | undefined;
+    const ro = typeof ResizeObserver === "undefined" ? null
+      : new ResizeObserver(() => {
+        const r = rowsBox.current?.querySelector(".wrow");
+        const now = `${r?.getBoundingClientRect().height}|${
+          rowsBox.current?.clientHeight}`;
+        if (now === hs) return;
+        hs = now;
+        clearTimeout(t);
+        t = setTimeout(on, 80);
+      });
+    const first = rowsBox.current?.querySelector(".wrow");
+    if (first) ro?.observe(first);
+    if (rowsBox.current) ro?.observe(rowsBox.current);
+    return () => {
+      v.removeEventListener("ethdebug:fit", on);
+      clearTimeout(t);
+      ro?.disconnect();
+    };
   // (its box, once drawn: the first render may have none)
   }, [me.current]);
   // (an abbreviated dump's words cut to what fits, after each layout)
@@ -981,7 +1009,10 @@ export function Dump(p: { id: ViewId; location: Location; data: DataRef;
   }, [disp.abbreviate, rows.length]);
   const { more, edge } = useEdges(rowsBox, !!disp.edges, [rows.length,
     litKey, snap], { what: `the ${p.location}`, band: "its lit rows",
-    on: ".wrow.on" });
+    on: ".wrow.on",
+    // (a stack's rows past its top, empty: not more to show)
+    ...disp.abbreviate !== undefined ? { end: ".wrow:has(.word .b)" }
+      : {} });
   // (a page, `edges`: open or shut to its tab, as LensState.pages has it,
   // its owner's (the stepper's: lenses/stepper.tsx); none yet, open where
   // it is needed: something here related at the moment, drawn, in the

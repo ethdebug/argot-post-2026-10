@@ -193,7 +193,10 @@ export function PointerYaml({ domId, text: yaml, band, before, goal,
 // what the band is (a dump's: its lit rows, .wrow.on)
 export function useEdges(box: RefObject<HTMLElement | null>, can: boolean,
   deps: unknown[], o: { id?: (way: "up" | "down") => string;
-    what: string; band: string; on?: string }) {
+    what: string; band: string; on?: string;
+    // (what is content, when not all of it is: the last such one's end
+    // its end; past it, nothing to show, no edge)
+    end?: string }) {
   const band = o.on ?? ".line.on";
   const [more, setMore] = useState({ up: false, down: false, bandUp: false,
     bandDown: false });
@@ -203,9 +206,12 @@ export function useEdges(box: RefObject<HTMLElement | null>, can: boolean,
     const measure = () => {
       const on = root.querySelector(band)?.getBoundingClientRect();
       const b = root.getBoundingClientRect();
+      const ends = o.end ? root.querySelectorAll(o.end) : null;
+      const last = ends?.[ends.length - 1]?.getBoundingClientRect();
       const m = { up: can && root.scrollTop > 1,
-        down: can && root.scrollTop + root.clientHeight <
-          root.scrollHeight - 1,
+        down: can && (ends ? !!last && last.bottom > b.top +
+          root.clientTop + root.clientHeight + 1
+          : root.scrollTop + root.clientHeight < root.scrollHeight - 1),
         bandUp: !!on && on.bottom <= b.top + 1,
         bandDown: !!on && on.top >= b.bottom - 1 };
       setMore((x) => JSON.stringify(x) === JSON.stringify(m) ? x : m);

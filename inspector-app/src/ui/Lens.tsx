@@ -109,7 +109,6 @@ function shower(store: Store<LensState>, spec: LensSpec, project: Project,
       // transaction's; anew on a show of the scene, a Reset)
       pages: step || view?.step ? s.pages : undefined,
       instrs: step || view?.step ? s.instrs : undefined,
-      entry: step || view?.step ? s.entry : undefined,
       error: undefined, from: step ? s.moment : undefined,
       shows: (s.shows ?? 0) + (step ? 0 : 1),
       // (a scene with the related view on first)
