@@ -346,7 +346,12 @@
   padding-right: 0; }
 /* (a row's zebra to the sheet's edge: the rows' right padding its rows'
    own, inside their stripe) */
-.lens.stepper .pagebox > .rows :is(.wrow, .gap) { padding-right: 8px; }
+.lens.stepper .pagebox > :is(.rows, .reserve) :is(.wrow, .gap) {
+  padding-right: 8px; }
+/* (a word past the end, drawn unseen: its height, a page's reserve,
+   ui/Dump.tsx) */
+.lens.stepper .pagebox > .reserve { position: absolute; left: 0; right: 0;
+  top: 0; visibility: hidden; pointer-events: none; }
 .lens.stepper .view[data-open="false"] .pagebox { padding: 0;
   border-width: 0; box-shadow: none; }
 .lens.stepper .view[data-open="false"] .pagebox { padding: 0;
@@ -501,6 +506,18 @@
   .lens.stepper .stackcol .rows > .past {
     height: calc(var(--past) * var(--stack-row)); }
 }
+/* (memory's and calldata's pages: their words at the top, then paper
+   and the gutter to the box's foot, never past it: no scroll past the
+   last word; their height the scene's words', ui/Dump.tsx) */
+.lens.stepper .pages .view:is([data-location="memory"],
+  [data-location="calldata"]) .pagebox > .rows {
+  display: flex; flex-direction: column; }
+.lens.stepper .pages .view:is([data-location="memory"],
+  [data-location="calldata"]) .pagebox > .rows > * { flex: none; }
+.lens.stepper .pages .view:is([data-location="memory"],
+  [data-location="calldata"]) .pagebox > .rows::after {
+  content: ""; flex: 1 0 0; width: var(--gutter); box-sizing: border-box;
+  border-right: 1px solid var(--line); background: var(--panel); }
 /* (the gutter there: a row's address column, with no address) */
 .lens.stepper .stackcol .rows > .past { width: var(--gutter);
   box-sizing: border-box; border-right: 1px solid var(--line);
