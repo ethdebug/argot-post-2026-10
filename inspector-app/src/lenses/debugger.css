@@ -437,16 +437,23 @@
     border-radius: 6px 0 0 6px; height: auto; }
   .lens.stepper .stackcol .rows { border-top-left-radius: 6px;
     border-top-right-radius: 0; }
-  /* (its items at its bottom, the deepest the last, blank paper above
-     the top; past its height, the top at the top, scrolling down) */
+  /* (its items at its bottom, the deepest the last, paper and the
+     gutter above the top; past its height, the top at the top,
+     scrolling down) */
   .lens.stepper .stackcol .rows { display: flex; flex-direction: column; }
-  .lens.stepper .stackcol .rows > :first-child { margin-top: auto; }
-  .lens.stepper .stackcol .rows > .past { display: none; }
+  .lens.stepper .stackcol .rows > .past { order: -1; flex: 1 0 0; }
 }
 /* (a phone's stack page: its items from its top, the rows past its top
-   blank paper under them, the scene's deepest: its height kept) */
-.lens.stepper .stackcol .rows > .past {
-  height: calc(var(--past) * var(--stack-row)); flex: none; }
+   paper and the gutter under them, the scene's deepest: its height
+   kept) */
+@media (max-width: 759.98px) {
+  .lens.stepper .stackcol .rows > .past {
+    height: calc(var(--past) * var(--stack-row)); }
+}
+/* (the gutter there: a row's address column, with no address) */
+.lens.stepper .stackcol .rows > .past { width: var(--gutter);
+  box-sizing: border-box; border-right: 1px solid var(--line);
+  background: var(--panel); }
 @media (prefers-reduced-motion: reduce) {
   .lens.stepper > .stackcol { transition: none; }
 }
