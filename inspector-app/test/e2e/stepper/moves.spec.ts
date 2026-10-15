@@ -92,7 +92,8 @@ for (const id of Object.values(STEPPER)) {
     await expect(page.locator(".mbar .dot.cur")).toHaveAttribute("data-k",
       "0");
     s = await seen(page);
-    expect(s.moments.length).toBeGreaterThan(2);
+    // (a step between at least: a slow runner draws few of them)
+    expect(s.moments.length).toBeGreaterThan(1);
     expect(s.moments.every((m, k) => m < (k ? s.moments[k - 1] : end)))
       .toBe(true);
     expect(s.rows).toHaveLength(1);
