@@ -608,11 +608,39 @@ export function Dump(p: { id: ViewId; location: Location; data: DataRef;
   // the rows past it, the scene's deepest, kept as paper and gutter
   // under them, so the page's height stays: debugger.css)
   const stackPage = !!disp.edges && p.location === "stack";
-  const rows = useMemo(() => !stackPage ? kept : kept.filter((r) =>
-    rowBytes(snap, p.location, r.address).some((b) => b !== undefined)),
-  [kept, stackPage, snap, p.location]);
+  // (memory's and calldata's pages too: the words they have now, none
+  // past their end; the page's height the words of the whole scene's,
+  // `data-reserve` (lenses/stepper.tsx), the room under them paper and
+  // the gutter, no scroll: debugger.css)
+  const wordPage = !!disp.edges &&
+    (p.location === "memory" || p.location === "calldata");
+  const rows = useMemo(() => !stackPage && !wordPage ? kept
+    : kept.filter((r) => rowBytes(snap, p.location, r.address)
+      .some((b) => b !== undefined)),
+  [kept, stackPage, wordPage, snap, p.location]);
   const past = kept.length - rows.length;
   useFitDump(me, true, rows.length);
+  // (the reserve: its words' height now, and a word's past their end
+  // (one drawn unseen, .reserve) for each; none in the related view,
+  // its rows its own)
+  const pastRow = wordPage && !only && past > 0
+    ? kept.find((r) => !rows.includes(r)) : undefined;
+  useLayoutEffect(() => {
+    const v = me.current;
+    const box = v?.querySelector<HTMLElement>(".pagebox > .rows");
+    if (!v || !wordPage) return;
+    const kids = box ? [...box.children] as HTMLElement[] : [];
+    const row = past === 0 ? 0 : v.querySelector<HTMLElement>(
+      ".pagebox > .reserve > .wrow")?.getBoundingClientRect().height;
+    if (only || !kids.length || row === undefined) {
+      v.removeAttribute("data-reserve");
+      return;
+    }
+    const body = kids[kids.length - 1].getBoundingClientRect().bottom -
+      kids[0].getBoundingClientRect().top;
+    const h = String(Math.ceil(body + past * row));
+    if (v.dataset.reserve !== h) v.dataset.reserve = h;
+  });
 
   // the annotated layer (display `annotate`): the values here, each in
   // its tint, and the popovers that say what they are; keys by their
@@ -1144,7 +1172,16 @@ export function Dump(p: { id: ViewId; location: Location; data: DataRef;
         : <div className="gap" aria-hidden="true"><span>⋯</span></div>}
         {stackPage && <div className="past" aria-hidden="true"
           style={{ "--past": only ? 0 : past } as CSSProperties} />}
-      </div>{edge("up")}{edge("down")}
+      </div>{pastRow && l && <div className="reserve" aria-hidden="true">
+        <div className="wrow"><span className="addr"><span className="a">
+          {addressText(loc, pastRow.address)}</span></span>
+          <Word l={l} ls={tintOrder} loc={loc} row={pastRow.address}
+            mine={rowBytes(snap, loc, pastRow.address)}
+            theirs={rowBytes(snap, loc, pastRow.address)} side={order}
+            pair={!!p.compare} name={pastRow.how} light={lightMain}
+            groupsOf={groupsOf} bare={bare}
+            abbreviate={disp.abbreviate} /></div></div>}
+      {edge("up")}{edge("down")}
     </div> : <div ref={rowsBox} className="rows" style={disp.scale
       ? { fontSize: `${disp.scale}em` } : undefined}>{flow
         ? <Flow rows={rows} loc={loc} snap={snap}
