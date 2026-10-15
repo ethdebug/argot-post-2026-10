@@ -2,22 +2,21 @@ import { describe, expect, it } from "vitest";
 import zlib from "node:zlib";
 import { decode } from "./decode";
 import { pointOf, timelineOf } from "./scene";
-import { sceneSnapshot } from "./snapshots";
-import { fromSnapshot, snapshotJson, snapshotOf } from "./source";
+import { fromSnapshot, snapshotOf } from "./source";
 import { scenes } from "../scenes";
-import { readerProject, testProject } from "../../test/project";
+import {
+  readerProject, snapshotText, testProject,
+} from "../../test/project";
 import { expected, lastBlock, A, B, C } from "../../test/expect";
 
 const authoring = testProject();
 const reader = readerProject();
-const json = (f: unknown) => JSON.stringify(f);
 
 describe.each(scenes.map((s) => [s.id, s] as const))("%s", (_, scene) => {
   it("its snapshot reads back as its run", async () => {
     const p = await authoring;
-    const file = await sceneSnapshot(p, scene);
-    const back = fromSnapshot(snapshotOf(JSON.parse(json(
-      snapshotJson(file)))));
+    const back = fromSnapshot(snapshotOf(JSON.parse(await snapshotText(
+      scene.id))));
     const run = await p.source(scene.id);
     expect(back.moments).toEqual(run.moments);
     expect(await back.digest()).toBe(await run.digest());
@@ -47,8 +46,7 @@ describe.each(scenes.map((s) => [s.id, s] as const))("%s", (_, scene) => {
   // replay, every trace step its moment: replay.test.ts's budget)
   it("is under 6 KB gzip", async () => {
     if (scene.replay) return;
-    const file = await sceneSnapshot(await authoring, scene);
-    const size = zlib.gzipSync(json(snapshotJson(file))).length;
+    const size = zlib.gzipSync(await snapshotText(scene.id)).length;
     expect(size).toBeLessThan(6 * 1024);
   });
 });

@@ -5,10 +5,10 @@
 // to load with the figure
 import { describe, expect, it } from "vitest";
 import zlib from "node:zlib";
-import { readerProject, testProject } from "../../test/project";
+import {
+  readerProject, snapshotText, testProject,
+} from "../../test/project";
 import { scenes } from "../scenes";
-import { sceneSnapshot } from "./snapshots";
-import { snapshotJson } from "./source";
 import { STEPPER } from "../../test/expect";
 
 describe.each(Object.values(STEPPER))("%s's replay", (id) => {
@@ -39,8 +39,7 @@ describe.each(Object.values(STEPPER))("%s's replay", (id) => {
   // name's storage writes: 33 KB, each state and facts its changes and
   // each context once (source.ts); 120 KB as whole moments)
   it("its snapshot: under 120 KB gzipped", async () => {
-    const file = await sceneSnapshot(await testProject(), s);
-    const gz = zlib.gzipSync(JSON.stringify(snapshotJson(file))).length;
+    const gz = zlib.gzipSync(await snapshotText(id)).length;
     expect(gz).toBeLessThan(120 * 1024);
   }, 120_000);
 });
