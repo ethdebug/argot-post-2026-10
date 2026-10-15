@@ -285,3 +285,22 @@ test("optimized-locals: the instructions and the instruction's entry",
     await expect(col).toHaveAttribute("data-open", "false");
     expect(await h()).toBe(h0);
   });
+
+// The locals: those in scope at the moment alone, by the compiler's data
+// (one in scope with no location listed, muted); the count theirs
+test("optimized-locals: the locals in scope alone", async ({ page }) => {
+  await page.setViewportSize({ width: 1216, height: 900 });
+  await page.goto("./embed.html#scene=optimized-locals");
+  const names = () => page.locator('li[data-path="@locals"] > ul > li')
+    .evaluateAll((ls) => ls.map((l) => (l as HTMLElement).dataset.path));
+  await expect.poll(names).toEqual(["len", "name"]);
+  await page.locator('.mbar [role=tab][data-tx="12"]').click();
+  await expect.poll(names).toEqual(["player"]);
+  await page.locator('.mbar [data-t="next"]').click();
+  await expect.poll(names, { timeout: 10_000 }).toEqual(["points", "combo",
+    "mult"]);
+  await expect(page.locator('li[data-path="@locals"] > .row .val'))
+    .toHaveText("3 variables");
+  await expect(page.locator('li[data-path="mult"] .noloc'))
+    .toHaveText(/no location/);
+});
