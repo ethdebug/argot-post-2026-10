@@ -54,10 +54,9 @@ export interface LensState {
   // (the moment a move goes to, through the steps between: TimelineBar's
   // aim; none when there is no move)
   toward?: number;
-  // (the stepper's instructions' column open; its entry's drawer open:
-  // ui/Instructions.tsx; shut on a show of the scene, a Reset)
+  // (the stepper's instructions' column open: ui/Instructions.tsx; shut
+  // on a show of the scene, a Reset)
   instrs?: true;
-  entry?: true;
   // (a figure's pages, open or shut to their tabs, as the reader chose
   // them, each by its location: until the next moment shown; else as
   // the moment has them, Dump.tsx)
@@ -172,10 +171,9 @@ export type ViewSpec = { id: ViewId; area: string; link?: LinkId;
     // (`edges`: its tree scrolls inside its column, as the pointer's
     // box does: no scrollbar, a button on an edge with more past it)
     | { kind: "variables"; data: DataRef; edges?: boolean }
-    // (the program's instructions, the one at the moment lit; and its
+    // (the program's instructions, the one at the moment lit, and its
     // entry, as YAML: ui/Instructions.tsx)
     | { kind: "instructions"; data: DataRef }
-    | { kind: "entry"; data: DataRef }
     // the moment a point is, in a line, in plain words: `text`, or the
     // point's label
     | { kind: "moment"; data: DataRef; text?: string;
