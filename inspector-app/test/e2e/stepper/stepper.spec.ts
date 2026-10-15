@@ -183,7 +183,9 @@ test("optimized-locals: a move, no transition; its selection held",
       requestAnimationFrame(f);
     });
     await page.locator('.mbar [data-t="next"]').click();
-    await expect(lens).toHaveAttribute("data-playing", "");
+    // (its arrival, at rest: the move may be over before a poll sees it)
+    await expect(page.locator(".mbar")).toContainText("2 / 5",
+      { timeout: 10_000 });
     await expect(lens).not.toHaveAttribute("data-playing", "",
       { timeout: 10_000 });
     await page.waitForTimeout(500);

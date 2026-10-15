@@ -211,15 +211,12 @@ function Wide({ children }: { children: ReactNode }) {
         (box(v)?.getBoundingClientRect().height ?? 0);
       const overlap = (v: HTMLElement) => Math.min(0,
         parseFloat(getComputedStyle(v).marginTop) || 0);
-      // (a phone's stack in an area of its own, over the others: the
-      // space between the two areas, as laid out)
-      const narrowA = lens.querySelector(":scope > [data-area=narrow]");
-      const wideA = lens.querySelector(":scope > [data-area=wide]");
-      const between = stack && group.includes(stack) && narrowA && wideA
-        ? wideA.getBoundingClientRect().top -
-          narrowA.getBoundingClientRect().bottom : 0;
+      // (a phone's stack in an area of its own, over the others, in one
+      // cell with them: none between them, debugger.css)
+      const between = 0;
       const fixed = group.reduce((n, v) => n + own(v) + overlap(v), 0) +
-        gap * Math.max(0, group.length - 1 - (between ? 1 : 0)) + between;
+        gap * Math.max(0, group.length - 1 - (stack && group.includes(stack)
+          ? 1 : 0));
       void tabs;
       const rowsOf = (v: HTMLElement) => v.querySelector<HTMLElement>(
         ".rows");
@@ -325,7 +322,20 @@ function Wide({ children }: { children: ReactNode }) {
       }
     };
     fit();
-    const ro = new ResizeObserver(() => setTimeout(fit));
+    // (settled: no fit for a while since the figure first drew; from then
+    // on, heights move: debugger.css)
+    let calm: ReturnType<typeof setTimeout> | undefined;
+    const settled = () => {
+      clearTimeout(calm);
+      if (!lens.hasAttribute("data-settled")) {
+        calm = setTimeout(() => lens.setAttribute("data-settled", ""), 600);
+      }
+    };
+    settled();
+    const ro = new ResizeObserver(() => setTimeout(() => {
+      fit();
+      settled();
+    }));
     const watch = () => {
       ro.disconnect();
       for (const r of lens.querySelectorAll(".view .rows .run, " +
@@ -344,6 +354,7 @@ function Wide({ children }: { children: ReactNode }) {
       ro.disconnect();
       mo.disconnect();
       clearTimeout(settle);
+      clearTimeout(calm);
       removeEventListener("resize", fit);
     };
   }, []);
