@@ -17,6 +17,7 @@
 // and sends intents. On the page and in the shell the two meet here; in
 // the post, the figure's embed sends its model to a panel of its own
 // frame (embed-panel.html), over a channel (panel-port.ts).
+import { createPortal } from "react-dom";
 import {
   Fragment, useCallback, useContext, useEffect, useLayoutEffect, useMemo,
   useRef, useState, type ReactNode,
@@ -159,6 +160,8 @@ export interface PanelModel {
   // selection and the way in
   rest?: { info: Info | null } | { name: string; typeText: string;
     value?: string; parts?: string; side?: string; canStart: boolean;
+    // (a group of variables, "@locals": not one value)
+    group?: boolean;
     line2: string;
     // (its walkthrough open in a panel of its own, on demand: the way
     // out here, ✕ Exit, in place of the way in)
@@ -386,6 +389,7 @@ export function useWalkModel(p: { id: ViewId; data: DataRef;
       ...v !== undefined ? { value: v } : node.children
         ? { parts: `${n} ${partsWord(node.typeText, n)}` } : {},
       ...!single ? { side } : {}, canStart: !!w?.steps.length,
+      ...sel!.startsWith("@") ? { group: true } : {},
       line2: v === undefined && !node.children ? missing(d!, sel!)
         : `${otherText !== undefined && otherText !== v ? `${side ===
           "after" ? "before" : "after"}: ${otherText} · ` : ""}Esc clears ` +
@@ -428,9 +432,32 @@ export function useWalkModel(p: { id: ViewId; data: DataRef;
 // (`compact`: the post's panel, its own parts only, fewer: the controls
 // and the title on one line, the caption, the pointer; no worked values
 // (the dump's popovers say them), no construct line)
-export function PanelView({ model: m, act, domId, compact }: {
+// (the variables' slot for the walkthrough's button, in the same lens:
+// ui/Variables.tsx; found once drawn)
+function useSlot(near: React.RefObject<HTMLElement | null>, on: boolean) {
+  const [el, setEl] = useState<HTMLElement | null>(null);
+  useLayoutEffect(() => {
+    if (!on) return;
+    const find = () => near.current?.closest(".lens")
+      ?.querySelector<HTMLElement>(".vars > .wslot") ?? null;
+    const now = find();
+    if (now !== el) setEl(now);
+    if (now) return;
+    const t = setInterval(() => {
+      const x = find();
+      if (x) {
+        setEl(x);
+        clearInterval(t);
+      }
+    }, 100);
+    return () => clearInterval(t);
+  });
+  return el;
+}
+
+export function PanelView({ model: m, act, domId, compact, button }: {
   model: PanelModel; act: (i: Intent) => void; domId?: string;
-  compact?: boolean }) {
+  compact?: boolean; button?: boolean }) {
   // (its parts' ids, after its own: "details" → "dtext"; "mdetails" →
   // "mdtext", for a second panel on the page)
   const idOf = (k: string) => domId ? `${domId.replace(/details$/,
@@ -629,8 +656,8 @@ export function PanelView({ model: m, act, domId, compact }: {
     const title = <span className="rtitle">How the pointer finds <code>{
       wm.name}</code></span>;
     barBody = <>{!compact && <span className="rline1">{title}{wm.scene &&
-      <span className="rscene muted"> · {wm.scene}</span>}<span
-        className="rexit">{out}</span></span>}
+      <span className="rscene muted"> · {wm.scene}</span>}{!button && <span
+        className="rexit">{out}</span>}</span>}
       <span className="rline2"><span className="rctl"><button type="button"
         className="btn" data-r="first" aria-label="Back to the start"
         disabled={!wm.i}>⏮</button>
@@ -684,6 +711,23 @@ export function PanelView({ model: m, act, domId, compact }: {
     text = null;
   }
 
+  // (the way in and out as a button at the foot of the variables: in
+  // their slot, ui/Variables.tsx; for one value, not a group of them)
+  const r1 = !wm && r && "canStart" in r ? r : undefined;
+  const anchor = useRef<HTMLSpanElement>(null);
+  const slot = useSlot(anchor, !!button);
+  const own = button && slot ? createPortal(walk || r1?.open
+    ? <button type="button" className="btn rstart wgo" data-r="exit"
+      onClick={() => act({ type: "exit" })}>✕ Exit</button>
+    : r1 && r1.canStart && !r1.group
+      ? <button type="button" className="btn rstart wgo" data-r="start"
+        onClick={(e) => start({ x: e.clientX, y: e.clientY })}><span
+          className="rplay" aria-hidden="true">▶</span> <span
+          className="wgo-how">How</span> <code className="wgo-name">{
+          r1.name}</code> <span className="wgo-how">is found</span>
+        </button> : null, slot) : null;
+  // (at rest, with the button: no bar at all)
+  if (button && !walk) return <span ref={anchor} hidden>{own}</span>;
   const focus = wm?.focus;
   // (the pointer, and where its piece is)
   const chain = <span className="pchain">{m.yaml.chain.join(" › ")}</span>;
@@ -691,7 +735,8 @@ export function PanelView({ model: m, act, domId, compact }: {
     band={m.yaml.band} goal={m.yaml.goal} shown={walk}
     notes={m.yaml.notes} piece={m.yaml.piece} />;
   return <div ref={unit} className={`wpanel${walk ? " walking" : ""}${
-    compact ? " compact" : ""}`} data-view={m.key}>
+    compact ? " compact" : ""}`} data-view={m.key}><span ref={anchor}
+      hidden>{own}</span>
     <div ref={bar} id={domId} className={`rbar${walk ? " replaying" : ""}`}
       aria-live="polite" tabIndex={0}
       aria-label="The selected value; how it was found"
@@ -741,7 +786,7 @@ export function PanelView({ model: m, act, domId, compact }: {
 // in a figure of the post whose panel is a frame of its own, its model
 // to that frame, and the frame's intents back: nothing drawn here)
 export function WalkthroughPanel(p: { id: ViewId; data: DataRef;
-  link?: LinkId; domId?: string; compare?: DataRef;
+  link?: LinkId; domId?: string; compare?: DataRef; button?: boolean;
   others?: { decoding: string; who?: string }[] }) {
   const port = useContext(PanelPort);
   const { model, act, variants, local } = useWalkModel(p, port);
@@ -754,5 +799,5 @@ export function WalkthroughPanel(p: { id: ViewId; data: DataRef;
   // here, its walkthrough there)
   if (port && !port.onDemand) return null;
   return <PanelView model={port ? local : model} act={stable}
-    domId={p.domId} />;
+    domId={p.domId} button={p.button} />;
 }

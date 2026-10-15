@@ -195,33 +195,61 @@ test("optimized-locals: a move, no transition; its selection held",
       .toBeVisible();
   });
 
-// The panel's bar keeps two lines' room, the selection cut to them: its
-// second line starts at one place at every moment, under a long
-// selection (carol's record's name) or a short one
-test("optimized-locals: the bar's lines at one place at every moment",
-  async ({ page }) => {
-    await page.setViewportSize({ width: 1440, height: 1000 });
-    await page.goto("./embed.html#scene=optimized-locals");
-    const lens = page.locator(".lens");
-    const tops = new Set<number>();
-    const top = async () => tops.add(Math.round(await page.locator(
-      ".sidecol .wpanel .rline2").evaluate((t) =>
-      t.getBoundingClientRect().top)));
-    for (const tx of ["3", "12"]) {
-      await page.locator(`.mbar [role=tab][data-tx="${tx}"]`).click();
-      await page.waitForTimeout(300);
-      await top();
-      while (await page.locator('.mbar [data-t="next"]').isEnabled()) {
-        const at = await page.locator(".mbar .rcount").textContent();
-        await page.locator('.mbar [data-t="next"]').click();
-        await expect(page.locator(".mbar .rcount")).not.toHaveText(at!);
-        await expect(lens).not.toHaveAttribute("data-playing", "");
-        await page.waitForTimeout(300);
-        await top();
+// No selection box: the way in is a button at the foot of the variables,
+// "▶ How <name> is found", for one value selected, none for a group of
+// them; open, "✕ Exit" in its place; its room kept, so the tree's box
+// never moves, at any moment, with any selection
+test("optimized-locals: the walkthrough's button at the foot of the " +
+  "variables", async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 1000 });
+  await page.goto("./embed.html#scene=optimized-locals");
+  await expect(page.locator(".lens[data-settled]")).toHaveCount(1,
+    { timeout: 20_000 });
+  const lens = page.locator(".lens");
+  const go = page.locator(".vars > .wslot button");
+  const boxes = new Set<string>();
+  const box = async () => boxes.add(await page.locator(".vars > .tree")
+    .evaluate((t) => { const r = t.getBoundingClientRect();
+      return `${Math.round(r.top)}:${Math.round(r.height)}`; }));
+  await expect(page.locator(".sidecol .rbar")).toHaveCount(0);
+  for (const tab of await page.locator(".mbar [role=tab]").all()) {
+    await tab.click();
+    await page.waitForTimeout(300);
+    for (;;) {
+      await box();
+      const sel = page.locator(".sidecol .row.sel").first();
+      const path = await sel.evaluate((r) =>
+        (r.closest("li") as HTMLElement).dataset.path!).catch(() => null);
+      if (path?.startsWith("@")) await expect(go).toHaveCount(0);
+      else if (path) {
+        await expect(go).toContainText("How");
+        await expect(go).toContainText("is found");
       }
+      const next = page.locator('.mbar [data-t="next"]');
+      if (!await next.isEnabled()) break;
+      const at = await page.locator(".mbar .rcount").textContent();
+      await next.click();
+      await expect(page.locator(".mbar .rcount")).not.toHaveText(at!);
+      await expect(lens).not.toHaveAttribute("data-playing", "");
+      await page.waitForTimeout(300);
     }
-    expect([...tops]).toHaveLength(1);
-  });
+  }
+  // (one value: in, and out by the same button)
+  if (!await go.count()) {
+    await page.locator(".mbar").focus();
+    await page.keyboard.press("Escape");
+    await page.locator("li[data-path='@locals'] > ul > li > .row:visible")
+      .first().click();
+  }
+  await expect(go).toContainText("is found");
+  await box();
+  await go.click();
+  await expect(go).toHaveText("✕ Exit");
+  await go.click();
+  await expect(go).toContainText("is found");
+  await box();
+  expect([...boxes]).toHaveLength(1);
+});
 
 // A popover in a column that opens is laid out for the width it comes
 // to: the stack shut by hand, then `len` selected, the stack open again,
