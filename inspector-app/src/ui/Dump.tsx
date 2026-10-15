@@ -40,6 +40,7 @@ import { blockOf, resolveTarget } from "../engine/target";
 import { noLight, retint } from "../engine/light";
 import { relClass } from "../engine/related";
 import { afterTransition, vtName } from "./transition";
+import { centring, glide } from "./scroll";
 import { readWritten } from "../engine/timeline";
 import {
   addressText, addressing, hex4, nextRow, rowBytes,
@@ -935,33 +936,47 @@ export function Dump(p: { id: ViewId; location: Location; data: DataRef;
     }
     if (v.scrollHeight <= h) return;
     if (!litKey) {
-      if (top0) v.scrollTop = 0;
+      if (top0) glide(v, 0);
       return;
     }
-    if (me.current?.matches(":hover")) return;
-    const row = (a: string) => v.querySelector<HTMLElement>(
-      `.wrow[data-slot="${a}"]`)?.getBoundingClientRect();
-    const ks = litKey.split(" ");
-    const [a, z] = [row(ks[0]), row(ks[ks.length - 1])];
-    if (!a || !z) return;
+    // (once a move rests, not at each of its steps; not under the
+    // pointer, its rows staying put)
+    if (moving || me.current?.matches(":hover")) return;
+    // (the lit rows in runs, each of rows lit side by side; their places
+    // from the content's top)
+    const vb = v.getBoundingClientRect();
+    const at = (r: HTMLElement) => r.getBoundingClientRect().top - vb.top -
+      v.clientTop + v.scrollTop;
+    const runs: { top: number; bottom: number }[] = [];
+    let open = false;
+    for (const r of v.querySelectorAll<HTMLElement>(".wrow")) {
+      if (!r.classList.contains("on")) {
+        open = false;
+        continue;
+      }
+      const t = at(r), b = t + r.offsetHeight;
+      if (open) runs[runs.length - 1].bottom = b;
+      else runs.push({ top: t, bottom: b });
+      open = true;
+    }
+    if (!runs.length) return;
+    const row = v.querySelector<HTMLElement>(".wrow")?.offsetHeight ?? 20;
     const cs = getComputedStyle(v);
-    const b = v.getBoundingClientRect();
-    const top = b.top + v.clientTop + (parseFloat(cs.paddingTop) || 0);
-    const bottom = b.top + v.clientTop + h -
-      (parseFloat(cs.paddingBottom) || 0);
-    // (a popover's line: about half a word's row)
-    const pop = Math.min(a.height, 1.8 * (parseFloat(cs.fontSize) || 12));
-    const need = z.bottom - a.top + pop;
-    if (a.top >= top - 0.5 && z.bottom + pop <= bottom + 0.5) return;
-    const room = bottom - top - need;
-    const want = v.scrollTop + a.top - top - (room >= a.height ? a.height
-      : Math.max(0, room));
-    v.scrollTop = to === undefined ? want
-      : Math.min(want, Math.max(0, v.scrollHeight - h));
+    // (a popover's line under them: about half a word's row)
+    const pop = Math.min(row, 1.8 * (parseFloat(cs.fontSize) || 12));
+    // (all of them, when they fit clear of the edges; else the first, the
+    // edge's button pointing to the rest)
+    const clear = Math.max(row / 2, 18);
+    const all = { top: runs[0].top,
+      bottom: runs[runs.length - 1].bottom + pop };
+    const run = all.bottom - all.top <= h - 2 * clear ? all
+      : { top: runs[0].top, bottom: runs[0].bottom + pop };
+    const y = centring(v, run, { row, clear, h });
+    if (y !== undefined) glide(v, y);
   };
   const bringRef = useRef(bring);
   bringRef.current = bring;
-  useLayoutEffect(() => bring(), [litKey, top0, snap]);
+  useLayoutEffect(() => bring(), [litKey, top0, snap, moving]);
   useEffect(() => {
     const v = me.current;
     if (!v) return;
