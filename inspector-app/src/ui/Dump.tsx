@@ -605,8 +605,8 @@ export function Dump(p: { id: ViewId; location: Location; data: DataRef;
     return out;
   }, [l, l2, disp.second, disp.ends, disp.foldZero, snap, p.location]);
   // (a stack's page: a row for each item it has now, none past its top;
-  // the rows past it, the scene's deepest, kept as blank paper under
-  // them, so the page's height stays: debugger.css)
+  // the rows past it, the scene's deepest, kept as paper and gutter
+  // under them, so the page's height stays: debugger.css)
   const stackPage = !!disp.edges && p.location === "stack";
   const rows = useMemo(() => !stackPage ? kept : kept.filter((r) =>
     rowBytes(snap, p.location, r.address).some((b) => b !== undefined)),
@@ -1142,8 +1142,8 @@ export function Dump(p: { id: ViewId; location: Location; data: DataRef;
       className={`rows${more.up ? " more-up" : ""}${more.down
         ? " more-down" : ""}`}>{grouped.length ? grouped
         : <div className="gap" aria-hidden="true"><span>⋯</span></div>}
-        {past > 0 && !only && <div className="past" aria-hidden="true"
-          style={{ "--past": past } as CSSProperties} />}
+        {stackPage && <div className="past" aria-hidden="true"
+          style={{ "--past": only ? 0 : past } as CSSProperties} />}
       </div>{edge("up")}{edge("down")}
     </div> : <div ref={rowsBox} className="rows" style={disp.scale
       ? { fontSize: `${disp.scale}em` } : undefined}>{flow
