@@ -34,10 +34,12 @@ describe.each(Object.values(STEPPER))("%s's replay", (id) => {
         .toEqual(s.timeline.map((m) => m.label));
       expect(bm.moment).toBe(bm.marks![0]);
     }
-  });
-  // (optimized-locals's two transactions' steps, carol's join to its
-  // name's storage writes: 33 KB, each state and facts its changes and
-  // each context once (source.ts); 120 KB as whole moments)
+    // (the first to ask for a replay's file waits for it made: every
+    // trace step decoded, optimized-locals's 2053: over 15s on CI)
+  }, 60_000);
+  // (optimized-locals's three transactions' steps, carol's join, alice's
+  // hit and bob's miss: 56 KB, each state and facts its changes and each
+  // context once (source.ts); 315 KB as whole moments)
   it("its snapshot: under 120 KB gzipped", async () => {
     const gz = zlib.gzipSync(await snapshotText(id)).length;
     expect(gz).toBeLessThan(120 * 1024);
