@@ -39,7 +39,8 @@ for (const id of Object.values(STEPPER)) {
 }
 
 // The figure fills its frame at every width a host gives it, nothing
-// past its right edge (the code's long lines wrap in their pane)
+// past its right edge (the code's long lines wrap in their pane; the
+// transactions' tabs scroll sideways in their row, which fits)
 for (const id of Object.values(STEPPER)) {
   for (const width of [358, 960, 1216]) {
     test(`${id} at ${width}px: nothing wider than the frame`,
@@ -50,6 +51,7 @@ for (const id of Object.values(STEPPER)) {
         await expect(page.locator("pre.src .line").first()).toBeVisible();
         const over = await page.evaluate(() => [...document
           .querySelectorAll("#embed *")].filter((e) =>
+          !e.closest(".xtabs > *") &&
           e.getBoundingClientRect().right > innerWidth + 0.5)
           .map((e) => `${e.tagName}.${e.className}`).slice(0, 5));
         expect(over).toEqual([]);
