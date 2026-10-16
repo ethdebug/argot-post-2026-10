@@ -78,7 +78,7 @@
     },
     {
       "tx": 12,
-      "step": 1172,
+      "step": 1171,
       "label": "Alice's record is back in storage, with score 60 and combo 3. `_turn` has also added to `totalScore` and `totalHits`.",
       "select": "players[0x70997970c51812dc3a010c7d01b50e0d17dc79c8]",
       "collapse": [
@@ -120,7 +120,7 @@
     },
     {
       "tx": 13,
-      "step": 820,
+      "step": 819,
       "label": "Bob's record is back in storage, with combo 0 and plays 2. His score and best combo stay the same, and a miss changes neither `totalScore` nor `totalHits`.",
       "select": "players[0x3c44cdddb6a900fa2b585dd299e03d12fa4293bc]",
       "collapse": [
