@@ -69,7 +69,8 @@ export function vyper({ vyper = "vyper", file }) {
 
 // bugc (a built packages/bugc of an ethdebug/format checkout) at -O
 // `level`: the create and runtime programs, their sources named `rel`
-// (bugc names a source by the path it is given)
+// (bugc names a source by the path it is given), and its info resources
+// (the pointer templates its programs' pointers refer to)
 export async function bug({ bugc, file, rel, level }) {
   if (!bugc) throw new Error("set BUGC to a built packages/bugc");
   const { compile } = await import(pathToFileURL(path.join(bugc, "dist",
@@ -87,5 +88,6 @@ export async function bug({ bugc, file, rel, level }) {
     file: rel, source, commit, compiler: `bugc ${commit.slice(0, 9)}`,
     create: hex(b.create), runtime: hex(b.runtime),
     programs: { create: b.createProgram, runtime: b.runtimeProgram },
+    ...(b.resources ? { resources: b.resources } : {}),
   };
 }

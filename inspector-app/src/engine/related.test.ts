@@ -121,11 +121,12 @@ it("a slot's role: read (its bytes), anchor (its number), or both",
     expect(p.anchors.get(S3)).toBe("players");
   });
 
-it("a record's first slot, used for its number: its record's start, "
-  + "not the mapping's anchor; the mapping's own slot: its anchor",
-  async () => {
-    // (carol's join, done, optimized: her name's slot is found from her
-    // record's first slot, keccak(0x90f7…b906, slot 4))
+it("bugc's record's name, as solc's: its slot found by a template "
+  + "from the record's first slot, which is not related; the mapping's "
+  + "own slot: its anchor", async () => {
+    // (carol's join, done, optimized: her name's slot is the template
+    // storage-bytes's input, record slot + 1, as solc's t_string_storage
+    // takes it in its Player)
     const p = await testProject();
     const d = await decode(p, p.decodings["optimized-locals"],
       "optimized-locals:252");
@@ -135,9 +136,7 @@ it("a record's first slot, used for its number: its record's start, "
       .address;
     const name = withRelated(forPath(d, l, `${C}.name`,
       { selection: true }), d, l, `${C}.name`, null);
-    expect(name.related!.has(rec)).toBe(true);
+    expect(name.related!.has(rec)).toBe(false);
     expect(name.anchors!.get(S4)).toBe("players");
     expect(name.anchors!.has(rec)).toBe(false);
-    expect(name.relWhy!.get(rec)).toEqual([{ name: C, why: "start", of: C,
-      who: "carol" }]);
   });
