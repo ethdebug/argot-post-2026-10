@@ -46,7 +46,7 @@ export const debuggerLens: LensSpec = {
     { id: "storage", kind: "dump", area: "wide", location: "storage",
       link: "dbg", data: NOW },
     dump("stack", "Stack", "narrow", { display: { ruler: false,
-      abbreviate: 3 } }),
+      abbreviate: 3, keep: true } }),
     dump("calldata", "Calldata", "wide"),
     dump("memory", "Memory", "wide"),
   ],
