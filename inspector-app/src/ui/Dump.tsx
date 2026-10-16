@@ -1143,7 +1143,7 @@ export function Dump(p: { id: ViewId; location: Location; data: DataRef;
     ...s.pages, [p.location]: !open } }));
   // (nothing of this location to show here: no dump; a page keeps its
   // tab and a gap row)
-  if (l && !rows.length && !disp.edges) return null;
+  if (l && !rows.length && !disp.edges && !disp.keep) return null;
   // (bare: the bytes only, nothing to point at or click)
   const handlers = bare ? {} : {
     onPointerOver: point, onPointerMove: point, onFocus: point,
