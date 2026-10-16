@@ -972,6 +972,8 @@ export function Dump(p: { id: ViewId; location: Location; data: DataRef;
   // lenses/stepper.tsx, which says "ethdebug:fit" when it sets one): the
   // scroll for the box as it will be, so its rows do not slide as it
   // grows; a page shut, its box no height: none, until it opens)
+  const restoredFor = useRef<string | null>(null);
+  const restoring = useRef<{ y: number; until: number } | null>(null);
   const bring = () => {
     const v = rowsBox.current;
     if (!v || !/auto|scroll/.test(getComputedStyle(v).overflowY)) return;
@@ -998,12 +1000,30 @@ export function Dump(p: { id: ViewId; location: Location; data: DataRef;
     if (view?.dataset.restore !== undefined) {
       if (view.dataset.related !== undefined) return;
       const y = Number(view.dataset.restore);
-      // (not yet room for it: its box still coming back to its height)
-      if (v.scrollHeight - v.clientHeight < y - 1) return;
       delete view.dataset.restore;
-      stopGlide(v);
-      v.scrollTop = y;
-      return;
+      // (held a moment: the pages settle their heights and strips after
+      // their rows come back, the browser clamping the scroll as they do;
+      // put back again, each fit, until they have)
+      restoring.current = { y, until: performance.now() + 700 };
+      restoredFor.current = litKey;
+    }
+    const r0 = restoring.current;
+    if (r0) {
+      if (performance.now() > r0.until) restoring.current = null;
+      else {
+        stopGlide(v);
+        if (v.scrollHeight - v.clientHeight >= r0.y - 1 &&
+          Math.abs(v.scrollTop - r0.y) > 0.5) v.scrollTop = r0.y;
+        const again = () => bringRef.current();
+        requestAnimationFrame(again);
+        return;
+      }
+    }
+    // (put back: as it was, for the rows lit then; brought into view
+    // again only for other lit rows)
+    if (restoredFor.current !== null) {
+      if (restoredFor.current === litKey) return;
+      restoredFor.current = null;
     }
     if (v.scrollHeight <= h) return;
     if (!litKey) {
