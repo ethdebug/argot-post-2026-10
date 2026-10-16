@@ -504,3 +504,41 @@ test("optimized-locals: name's walkthrough counts its places",
     await expect(page.locator(".sidecol .rbar:not(.mbar)")).toContainText(
       "These 2 places find name: one holds it; one is read to find it.");
   });
+
+// A value's popover in memory names its bytes and only what is in them:
+// no unmapped run of the word outside them (combo, 4 bytes of its word)
+test("optimized-locals: a value's memory popover, its bytes alone",
+  async ({ page }) => {
+    await page.setViewportSize({ width: 1216, height: 1000 });
+    await page.goto("./embed.html#scene=optimized-locals");
+    await expect(page.locator(".lens[data-settled]")).toHaveCount(1,
+      { timeout: 20_000 });
+    const M = ".view[data-location=memory]";
+    for (const tab of await page.locator("[role=tab]").all()) {
+      await tab.click();
+      await page.waitForTimeout(300);
+      for (;;) {
+        const sel = page.locator(".sidecol .row.sel");
+        if (await sel.count()) {
+          const path = await sel.first().evaluate((r) =>
+            (r.closest("li") as HTMLElement).dataset.path!);
+          const own = page.locator(`${M} .b[data-owners="${path}"]`);
+          if (!path.startsWith("@") && await own.count()) {
+            for (const t of await page.locator(`${M} .pop`).allInnerTexts()) {
+              if (t.includes(` ${path}`) && /0x[0-9a-f]+–0x/.test(t)) {
+                expect(t, path).not.toContain("(unmapped)");
+              }
+            }
+          }
+        }
+        const next = page.locator('.mbar [data-t="next"]');
+        if (!await next.isEnabled()) break;
+        const at = await page.locator(".mbar .rcount").textContent();
+        await next.click();
+        await expect(page.locator(".mbar .rcount")).not.toHaveText(at!);
+        await expect(page.locator(".lens")).not.toHaveAttribute(
+          "data-playing", "");
+        await page.waitForTimeout(400);
+      }
+    }
+  });
