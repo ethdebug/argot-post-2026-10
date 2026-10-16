@@ -9,8 +9,7 @@ import { test, expect, ready } from "../../page";
 import { pick } from "../../pick";
 import { PAUSE_STEPS, STEPPER, pauses } from "../../expect";
 
-// (the "mult" pause's two trace steps, either side of `mult = combo`)
-const first = { step: PAUSE_STEPS.O0[1], range: pauses[1].range };
+// (the "mult" pause, after `mult = combo`)
 const mult = { step: PAUSE_STEPS.O0[2], range: pauses[2].range! };
 
 const D = ".dbgpane";
@@ -29,16 +28,19 @@ const marked = (page: Page) => page.locator(`${D} .code`).evaluate((c) => {
 const at = (page: Page) => page.locator(`${D} .moves .mat`)
   .getAttribute("data-moment");
 
+// (at -O2, the step before _applyCombo's inlined entry has no range;
+// at -O0, since bugc gives a called function's entry its range, none
+// after the first)
 test("the code panel marks the moment's range; a trace " +
   "step with none, the last one, muted; the box keeps its size",
 async ({ page }) => {
-  await open(page, "stepper-O0", `12:${mult.step}`);
+  const ranged = { step: PAUSE_STEPS.O2[2], range: pauses[2].range! };
+  await open(page, STEPPER.O2, `12:${ranged.step}`);
   await expect.poll(() => marked(page))
-    .toEqual({ text: mult.range.replace(/\n/g, ""), last: false });
+    .toEqual({ text: ranged.range.replace(/\n/g, ""), last: false });
   const box = await page.locator(`${D} .code`).boundingBox();
-  expect(first.range).toBeUndefined();
   await page.goto("about:blank");
-  await open(page, "stepper-O0", `12:${first.step}`);
+  await open(page, STEPPER.O2, "12:700");
   await expect.poll(async () => (await marked(page)).last).toBe(true);
   expect(await page.locator(`${D} .code`).boundingBox()).toEqual(box);
 });

@@ -75,6 +75,7 @@ for (const level of [0, 2]) {
   write(`bug-O${level}`, {
     language: "bug", compiler: b.compiler, create: b.create,
     programs: b.programs,
+    ...(b.resources ? { resources: b.resources } : {}),
     sources: [{ id: b.file, path: b.file, text: b.source }],
     compilation: `arcade-bug-O${level}`,
   });

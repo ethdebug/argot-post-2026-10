@@ -13,11 +13,11 @@ const TX = 12;
 
 describe("a trace step with no range of its own", () => {
   it("shows the last range before it, muted", async () => {
-    const run = await runOf("bug-O0");
-    const build = s.builds["bug-O0"];
-    // (the bug-O0 scene's "mult" pause, its first moment: its JUMPDEST's
-    // context has no code)
-    const at = 927;
+    const run = await runOf("bug-O2");
+    const build = s.builds["bug-O2"];
+    // (at -O2, the step before _applyCombo's inlined entry: its context
+    // has no code)
+    const at = 700;
     const m = annotate(run, build, { tx: TX, step: at });
     expect(m.range).toBeUndefined();
     const last = lastRange(run, build, m)!;

@@ -59,13 +59,15 @@ const baseSlot = (v: Variable): Hex => {
     in?: { slot?: string } };
   return slotHex(toBig(String(p.slot ?? p.define?.slot ?? p.in?.slot)));
 };
-// A variable's own pointer to its value (bugc's: a collection, its
-// templates in it), or none: solc's, a region or a reference, its type's
+// A variable's own pointer to its value (bugc's: a collection, or a
+// reference to a template other than its type's, in a scope, `define`
+// its slot), or none: solc's, a region or a reference, its type's
 // template from its base slot
 const ownPointer = (v: Variable) => {
   const p = v.pointer as unknown as Record<string, unknown>;
-  return ["templates", "group", "list", "if"].some((k) => k in p)
-    ? v.pointer : undefined;
+  const to = (p.in as { template?: string } | undefined)?.template;
+  return ["templates", "group", "list", "if"].some((k) => k in p) ||
+    (to !== undefined && to !== typeIdOf(v)) ? v.pointer : undefined;
 };
 
 async function decodeAt(p: Project, d: Decoding, point: PointId):
@@ -292,15 +294,21 @@ async function variable(c: Compilation, v: Variable, state: State,
   if (isValueType(type, c.types)) {
     return contextValue(node, v, type, c.types, state, graphs);
   }
-  // (bugc's: its pointer as it is; a mapping's, its entries by its own
-  // template, from its base slot)
-  const own = ownPointer(v) as { templates?: Record<string, unknown> } |
+  // (bugc's: its pointer as it is; a mapping's, its entries by the
+  // template its own templates, or the compilation's template it refers
+  // to, define for them, from its base slot)
+  const own = ownPointer(v) as { templates?: Record<string, unknown>;
+    define?: Record<string, unknown>; in?: { template?: string } } |
     undefined;
-  const entry = own?.templates && Object.keys(own.templates)[0];
+  const ref = own?.in?.template !== undefined
+    ? (c.templates[own.in.template] as { for: { templates?:
+      Record<string, unknown> } } | undefined)?.for.templates : undefined;
+  const inner = own?.templates ?? ref;
+  const entry = inner && Object.keys(inner)[0];
   const base = own && !entry ? "0x" as Hex : baseSlot(v);
+  // (a reference's: its template's own, the slot its scope defines)
   const at = (d: Record<string, unknown>) => (own && !entry ? own
-    : own ? { templates: own.templates, in: { define: d,
-      in: { template: entry } } }
+    : own ? { templates: inner, in: { define: d, in: { template: entry } } }
       : { define: d, in: { template: typeId } }) as unknown as Pointer;
   const root = at({ slot: base });
   if (as(type).kind === "mapping") {

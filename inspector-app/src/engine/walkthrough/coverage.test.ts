@@ -232,17 +232,19 @@ describe("every pointer in our builds", async () => {
       const state = machineState(run.stateAt(end));
       const vars = ((build.programs?.runtime.context as Any)?.variables ??
         []) as { identifier: string; pointer?: Pointer }[];
+      // (the templates its pointers refer to: its info resources')
+      const templates = (build.resources?.pointers ?? {}) as Any;
       let n = 0;
       for (const v of vars.filter((y) => y.pointer)) {
-        const g = await walkGraph(v.pointer!, { state, templates: {},
+        const g = await walkGraph(v.pointer!, { state, templates,
           inputs: [], root: "example" });
         const view = await (await dereference(v.pointer!, { state,
-          templates: {} })).view(state);
+          templates })).view(state);
         sameAsLibrary(g, [...view.regions]);
         const x = exampleInput(g);
         check(walkthrough({ ...x, snap: run.stateAt(end) }, "example"),
           regionsOf(g));
-        note(formsOf(v.pointer), locationsOf(regionsOf(g)),
+        note(formsOf(v.pointer, templates), locationsOf(regionsOf(g)),
           `bugc ${o} state`);
         n++;
       }
@@ -278,8 +280,8 @@ describe("every pointer in our builds", async () => {
             keys: { from: "trace" } }, v.identifier);
           check(w, [...node.regions, ...node.reads ?? []]);
           const g = d.graphs.get(v.identifier)!;
-          note(formsOf(g.pointer), locationsOf(regionsOf(g)),
-            `bugc ${o} scope`);
+          note(formsOf(g.pointer, c.templates as Any),
+            locationsOf(regionsOf(g)), `bugc ${o} scope`);
           n++;
         }
       }

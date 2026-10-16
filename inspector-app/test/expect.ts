@@ -71,7 +71,7 @@ export const lastBlock = { mid: ["6", "7", "12"], alice: "13" };
 
 // Inside one play (alice's third hit, transaction 12, in the bug runs):
 // four pauses, each its trace step at -O0 and -O2, its source range
-// (none: the last one, muted) and the locals its context lists: in
+// and the locals its context lists: in
 // _turn, after the roll; inside _applyCombo, the two steps around `mult
 // = combo`; before the writes (totalScore's, in _turn)
 export const PAUSE_TX = 12;
@@ -81,7 +81,8 @@ export const PAUSE_STEPS = { O0: [652, 927, 928, 1011],
 export const STEPPER = { O0: "stepper-O0", O2: "optimized-locals" } as const;
 export const pauses: { range?: string; locals: string[] }[] = [
   { range: "!hit", locals: ["player", "hit"] },
-  { locals: ["points", "combo", "mult"] },
+  { range: "if (combo < 5) {\n      mult = combo;\n    }",
+    locals: ["points", "combo", "mult"] },
   { range: "if (combo < 5) {\n      mult = combo;\n    }",
     locals: ["points", "combo", "mult"] },
   { range: "totalScore", locals: ["player", "hit", "gained"] }];
