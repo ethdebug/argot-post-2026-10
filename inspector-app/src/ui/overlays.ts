@@ -242,6 +242,26 @@ function whatIn(root: El, rowsIn: El[]): Item[] {
     }
     return os;
   });
+  // (memory, calldata, the stack: a run named by the bytes it stands
+  // for, rangeName; no unmapped run outside them, which the name does
+  // not take in. Storage names whole slots: all its runs)
+  const loc = data(rows[0])?.l.location;
+  if (loc && addressing(loc) === "offset") {
+    const cells = rows.flatMap((r) => all(r, ":scope > .word .b[data-i]"));
+    const named = cells.filter((c) => byteLight(c).hl);
+    const shown = named.length ? named : cells.filter((c) =>
+      c.classList.contains("rel") || c.classList.contains("at"));
+    if (shown.length) {
+      const at = new Set(shown);
+      const pos = (c: El) => cells.indexOf(c);
+      const [lo, hi] = [Math.min(...shown.map(pos)),
+        Math.max(...shown.map(pos))];
+      perRow.forEach((os, k) => {
+        perRow[k] = os.filter((o) => !o.free || o.cells.some((c) =>
+          at.has(c) || (pos(c) >= lo && pos(c) <= hi)));
+      });
+    }
+  }
   const owners = perRow.flat().filter((o) => !o.free);
   // (a slot the selection consulted for its number, its anchor: a note;
   // only that, if its bytes were not read)
