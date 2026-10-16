@@ -1189,6 +1189,9 @@ export function Dump(p: { id: ViewId; location: Location; data: DataRef;
       data-lit={litKey}
       className={`rows${more.up ? " more-up" : ""}${more.down
         ? " more-down" : ""}`}>{grouped.length ? grouped
+        // (a stack with no items: "empty", where its rows would be)
+        : stackPage && !only ? <div className="gap nil"><span />
+          <span className="none">empty</span></div>
         : <div className="gap" aria-hidden="true"><span>⋯</span></div>}
         {stackPage && <div className="past" aria-hidden="true"
           style={{ "--past": only ? 0 : past } as CSSProperties} />}
