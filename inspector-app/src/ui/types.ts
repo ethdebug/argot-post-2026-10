@@ -79,6 +79,10 @@ export interface Display {
   // "strip": a tall, narrow column (a word's four groups of eight one
   // under another; with `abbreviate`, a line a word)
   shape?: "rows" | "strip";
+  // (its place kept: drawn, its box and its reserved rows, when nothing
+  // of its location is to show at a moment: the debugger's stack, whose
+  // place the code and the variables under it keep)
+  keep?: boolean;
   // (set: a word's cells on one line, its low end at the right, cut from
   // the left to what fits, a "…" cell for those cut: ui/Dump.tsx
   // fitAbbr; the number is not read)
