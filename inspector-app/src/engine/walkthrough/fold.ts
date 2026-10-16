@@ -29,6 +29,7 @@ import {
   type X,
 } from "./hooks";
 import { annotatorsFor } from "./annotators";
+import { solidity } from "./solidity";
 
 export type Tok = string | { code: string } | { gloss: string } |
   { prose: string } | { question: string } | { field: Path; text: string };
@@ -205,7 +206,15 @@ export function walkthrough(x: WalkInput, path: Path, focus?: string):
     const p = `${block}|${at.join(".")}`;
     const i = lines.findIndex((l) => l.pos === p || (at.length > 0 &&
       l.pos.startsWith(p + ".")));
-    return i < 0 ? Infinity : i;
+    if (i >= 0) return i;
+    // (a place inside a line in flow style, `define: { offset: 160,
+    // length: 32 }`: that line, the longest that holds it)
+    let best = -1;
+    lines.forEach((l, k) => {
+      if (p.startsWith(l.pos + ".") && (best < 0 ||
+        l.pos.length > lines[best].pos.length)) best = k;
+    });
+    return best < 0 ? Infinity : best;
   };
 
   // a rule node's place, as vanilla names it: its block ("" for the
@@ -221,9 +230,42 @@ export function walkthrough(x: WalkInput, path: Path, focus?: string):
     if (n.kind === "conditional") at.push("if");
     return { block, at };
   };
+  // (inside a template entered by a reference that `yields`: its
+  // regions' names as the reference renames them, the innermost
+  // reference first; in names and in the expressions that read them.
+  // Not for a language whose annotators read its templates' own names:
+  // solc's)
+  const ownNames = hs.includes(solidity);
+  const renamer = (i: Instance) => {
+    if (ownNames) return (x: string) => x;
+    const ms = (i.within ?? []).map((w) => byId.get(w))
+      .map((w) => w && (g.nodes.get(w.node)!.ast as Any)?.yields)
+      .filter(Boolean) as Record<string, string>[];
+    return (x: string) => ms.reduceRight((y, m) =>
+      Object.hasOwn(m, y) ? m[y] : y, x);
+  };
+  // (an expression with its names renamed: the same object where
+  // nothing changes, and one copy per object, so an operand stays the
+  // one its operation holds)
+  const copies = new WeakMap<object, Any>();
+  const renamed = (e: unknown, f: (x: string) => string): Any => {
+    if (!e || typeof e !== "object") return e;
+    if (copies.has(e)) return copies.get(e);
+    let changed = false;
+    const out: Any = Array.isArray(e) ? [] : {};
+    for (const [k, v] of Object.entries(e)) {
+      const w = (k === "~read" || /^\.(slot|offset|length)$/.test(k)) &&
+        typeof v === "string" ? f(v) : renamed(v, f);
+      if (w !== v) changed = true;
+      out[k] = w;
+    }
+    const r = changed ? out : e;
+    copies.set(e, r);
+    return r;
+  };
   // what vanilla's replay() step held, from the instance
   const sOf = (n: RuleNode, i: Instance, leaf: ValueNode): Any => {
-    const ast = n.ast as Any;
+    const ast = (ownNames ? n.ast : renamed(n.ast, renamer(i))) as Any;
     if (n.kind === "template") {
       const name = ast.template as string;
       const expect = (pointers[name]?.expect ?? []) as string[];
@@ -251,7 +293,12 @@ export function walkthrough(x: WalkInput, path: Path, focus?: string):
       return { index: String(toBig(r?.bindings[each] ?? "0x0")), each,
         count: ast.list.count };
     }
-    return { name: ast.name, fields: i.fields, bindings: i.bindings };
+    const f = renamer(i);
+    return { name: ownNames ? ast.name : i.region?.name ?? ast.name,
+      fields: ownNames ? i.fields : i.fields?.map((x) => ({ ...x,
+        expr: renamed(x.expr, f), ...x.args ? { args: x.args.map((y) =>
+          ({ ...y, expr: renamed(y.expr, f) })) } : {} })),
+      bindings: i.bindings };
   };
 
   // What reads a region: the graph's edges (an instance's `uses`), never
@@ -266,7 +313,8 @@ export function walkthrough(x: WalkInput, path: Path, focus?: string):
     for (const u of i.uses) {
       if (!isRegion(u)) continue;
       const n = g.nodes.get(byId.get(u)!.node)!;
-      readRegions.add(`${placeOf(n).block}|${(n.ast as Any).name}`);
+      readRegions.add(`${placeOf(n).block}|${!ownNames &&
+        byId.get(u)!.region?.name || (n.ast as Any).name}`);
     }
   }
   const reads = (block: string, name: string) =>

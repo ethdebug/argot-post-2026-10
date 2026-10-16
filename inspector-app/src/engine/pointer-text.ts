@@ -47,10 +47,14 @@ export function pointerText(c: Compilation, variable: string,
   pointer?: unknown): { lines: PointerLine[]; names: Record<string,
   string> } {
   const types = c.types as Record<string, Format.Type>;
-  // (a variable whose pointer brings its own templates, bugc's: the
-  // pointer walked, which leads into one of them by a key)
+  // (a variable whose pointer brings its own templates, or refers to a
+  // template not its type's, bugc's: the pointer walked, which leads
+  // into one of them by a key)
   const listed = c.stateVariables.find((x) => x.identifier === variable);
-  const v = pointer && (!listed || "templates" in (listed.pointer as object))
+  const lp = listed?.pointer as Any;
+  const to = lp?.in?.template;
+  const v = pointer && (!listed || "templates" in lp ||
+    (to !== undefined && to !== (listed.type as { id?: string }).id))
     ? { identifier: variable, pointer, type: {} } : listed;
   if (!v) return { lines: [], names: {} };
   // (and the templates a pointer defines for itself, inline)
