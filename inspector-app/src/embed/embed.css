@@ -74,7 +74,7 @@ html, body { margin: 0; overflow: hidden; background: transparent; }
 /* (but the stepper's variables scroll inside their column, as tall as
    its pages: lenses/debugger.css) */
 #embed .lens.stepper .sidecol .tree { overflow-y: auto !important;
-  height: 100% !important; }
+  height: auto !important; }
 /* (and the stepper's instructions: the code's height, scrolling inside;
    lenses/debugger.css) */
 #embed .lens.stepper .instrs .xrows { overflow: hidden !important;

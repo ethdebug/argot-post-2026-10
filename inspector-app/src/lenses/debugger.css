@@ -392,9 +392,11 @@
 .lens.stepper > .sidecol:has(> .wpanel.walking) { position: static;
   align-self: stretch; }
 .lens.stepper .sidecol .vars { position: relative; min-height: 0;
-  flex: 1 1 0; }
+  flex: 0 1 auto; }
 .lens.stepper .sidecol .vars { display: flex; flex-direction: column; }
-.lens.stepper .sidecol .vars > .tree { flex: 1 1 0; min-height: 0;
+/* (the list as tall as its rows, up to the column's room, scrolling
+   past it; the button right under it) */
+.lens.stepper .sidecol .vars > .tree { flex: 0 1 auto; min-height: 0;
   overflow-y: auto; }
 /* (the walkthrough's way in and out, at the foot of the variables: its
    room kept, one line or two, empty or not, so the list never moves; the

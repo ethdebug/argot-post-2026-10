@@ -218,10 +218,14 @@ test("optimized-locals: the walkthrough's button at the foot of the " +
     { timeout: 20_000 });
   const lens = page.locator(".lens");
   const go = page.locator(".vars > .wslot button");
-  const boxes = new Set<string>();
-  const box = async () => boxes.add(await page.locator(".vars > .tree")
-    .evaluate((t) => { const r = t.getBoundingClientRect();
-      return `${Math.round(r.top)}:${Math.round(r.height)}`; }));
+  // (right under the list: its top within a little of the list's foot)
+  const box = async () => {
+    if (!await go.count()) return;
+    const [t, g] = await Promise.all([page.locator(".vars > .tree"), go]
+      .map((x) => x.boundingBox()));
+    expect(g!.y).toBeGreaterThanOrEqual(t!.y + t!.height - 0.5);
+    expect(g!.y).toBeLessThan(t!.y + t!.height + 24);
+  };
   await expect(page.locator(".sidecol .rbar")).toHaveCount(0);
   for (const tab of await page.locator(".mbar [role=tab]").all()) {
     await tab.click();
@@ -261,10 +265,6 @@ test("optimized-locals: the walkthrough's button at the foot of the " +
   await go.click();
   await expect(go).toContainText("Find");
   await box();
-  expect([...boxes]).toHaveLength(1);
-  const [t, g] = await Promise.all([page.locator(".vars > .tree"),
-    go].map((x) => x.boundingBox()));
-  expect(g!.y).toBeGreaterThanOrEqual(t!.y + t!.height - 0.5);
 });
 
 // A popover in a column that opens is laid out for the width it comes
