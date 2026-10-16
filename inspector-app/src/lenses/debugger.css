@@ -533,6 +533,15 @@
   [data-location="calldata"]) .pagebox > .rows::after {
   content: ""; flex: 1 0 0; width: var(--gutter); box-sizing: border-box;
   border-right: 1px solid var(--line); background: var(--panel); }
+/* (a stack with no items: its gap row's line "empty", the gutter on
+   through it) */
+.lens.stepper .stackcol .gap.nil { opacity: 1; }
+.lens.stepper .stackcol .gap.nil::after { content: none; }
+.lens.stepper .stackcol .gap.nil > :first-child { align-self: stretch;
+  justify-self: stretch; padding: 0; border-right: 1px solid var(--line);
+  background: var(--panel); }
+.lens.stepper .stackcol .gap.nil > .none { justify-self: start;
+  padding: 0; font-style: italic; opacity: 0.7; }
 /* (the gutter there: a row's address column, with no address) */
 .lens.stepper .stackcol .rows > .past { width: var(--gutter);
   box-sizing: border-box; border-right: 1px solid var(--line);
