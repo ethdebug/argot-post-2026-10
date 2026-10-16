@@ -46,9 +46,43 @@ export async function sceneSnapshot(p: Project, scene: Scene):
     d.timeline === timeline);
   const compilations = await Promise.all([...new Set(ds.map((d) =>
     d.compilation))].map((c) => p.compilation(c)));
-  return snapshotFile(scene, await p.source(scene.id), {
+  const src = await p.source(scene.id);
+  // (the slots read at a moment depend on its transaction, its storage,
+  // the mapping keys seen so far and the variables there whose pointers
+  // read storage: decoded once for each of those, not at every one of a
+  // replay's moments)
+  const once = new Map<string, Promise<Set<Hex>>>();
+  const keyOf = async (i: number) => {
+    const m = src.moment(i);
+    const st = await src.state(i);
+    const vars: unknown[] = [];
+    const walk = (c: unknown) => {
+      if (!c || typeof c !== "object") return;
+      if (Array.isArray(c)) return c.forEach(walk);
+      const o = c as Record<string, unknown>;
+      if (Array.isArray(o.variables)) {
+        for (const v of o.variables) {
+          if (JSON.stringify(v).includes('"storage"')) vars.push(v);
+        }
+      }
+      for (const [k, x] of Object.entries(o)) if (k !== "variables") walk(x);
+    };
+    walk(m.context);
+    // (and the mapping keys seen so far: the hashes' inputs)
+    const f = src.facts(i);
+    return JSON.stringify([m.tx, [...st.storage].sort(([a], [b]) =>
+      a < b ? -1 : 1), vars, f?.keccakInputs ?? null,
+    f ? [...f.reads, ...f.writes] : null]);
+  };
+  return snapshotFile(scene, src, {
     compilations, decodings: ds,
-    slots: async (i) => slotsRead(await Promise.all(ds.map((d) =>
-      decode(p, d, pointOf(scene.id, i))))),
+    slots: async (i) => {
+      const k = await keyOf(i);
+      if (!once.has(k)) {
+        once.set(k, (async () => slotsRead(await Promise.all(ds.map((d) =>
+          decode(p, d, pointOf(scene.id, i))))))());
+      }
+      return once.get(k)!;
+    },
   });
 }
