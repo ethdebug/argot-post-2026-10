@@ -293,6 +293,19 @@ export function TimelineBar(p: { id: ViewId; domId?: string;
       s!.txs[m.tx]?.label ?? "", LABEL)} · ${m.step === "end"
       ? "after the transaction" : `step ${m.step}`}`;
     const first = mk[mine[0]] ?? mk[0];
+    // (the tabs one line, scrolling sideways where they do not fit: the
+    // shown one brought into view as it comes, not again while it stays,
+    // so a reader's own scroll holds)
+    const showTab = (el: HTMLElement | null) => {
+      const row = el?.parentElement;
+      if (!el || !row || row.dataset.shown === String(tx)) return;
+      row.dataset.shown = String(tx);
+      const left = el.offsetLeft, right = left + el.offsetWidth;
+      if (left < row.scrollLeft) row.scrollLeft = left;
+      else if (right > row.scrollLeft + row.clientWidth) {
+        row.scrollLeft = right - row.clientWidth;
+      }
+    };
     // (another transaction: a cut to its first moment)
     const toTx = (t: number) => {
       if (!bm || !s || t === tx) return;
@@ -317,6 +330,7 @@ export function TimelineBar(p: { id: ViewId; domId?: string;
         }}>{tabs.map((t, k) => <button key={t} type="button" role="tab"
         id={`${view}-tx-${t}`} data-tx={t} aria-selected={t === tx}
         aria-controls={`${view}-txp`} tabIndex={t === tx ? 0 : -1}
+        ref={t === tx ? showTab : undefined}
         disabled={!s} onClick={() => toTx(t)}>
         {sc?.transactions?.[t] ?? `Transaction ${k + 1}`}
       </button>)}</div>}

@@ -440,8 +440,13 @@
    style of their own) */
 .rbar.mbar .xpanel { display: contents; }
 .rbar.mbar .xtabs { display: flex; align-items: flex-end;
-  margin-bottom: 8px; }
-.rbar.mbar .xtabs::after { content: ""; flex: 1; align-self: stretch;
+  margin-bottom: 8px; position: relative; overflow-x: auto;
+  overflow-y: hidden; scrollbar-width: none; }
+.rbar.mbar .xtabs::-webkit-scrollbar { display: none; }
+/* (each tab one line; the row scrolls sideways past its width,
+   TimelineBar.tsx brings the shown tab into view) */
+.rbar.mbar .xtabs [role="tab"] { flex: none; white-space: nowrap; }
+.rbar.mbar .xtabs::after { content: ""; flex: 1 0 0; align-self: stretch;
   border-bottom: 1px solid var(--line); }
 .rbar.mbar .xtabs [role="tab"] { font: inherit; font-weight: 600;
   padding: 6px 14px; cursor: pointer; color: var(--muted);
