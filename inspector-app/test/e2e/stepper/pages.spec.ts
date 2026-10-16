@@ -148,8 +148,9 @@ const walkState = (page: import("@playwright/test").Page) =>
   page.evaluate(() => [...document.querySelectorAll<HTMLElement>(
     ".view[data-location]")].map((v) => [v.dataset.location,
     v.dataset.open, v.querySelector<HTMLElement>(".pagebox")?.style.height,
-    v.dataset.open === "true" ? v.querySelector(".rows")?.scrollTop : "-"]
-    .join(":")));
+    // (whole pixels: a browser may keep a scroll a fraction off)
+    v.dataset.open === "true" ? Math.round(v.querySelector(".rows")
+      ?.scrollTop ?? 0) : "-"].join(":")));
 const walkThrough = async (page: import("@playwright/test").Page,
   steps: (s: string[]) => Promise<void> | void) => {
   const before = await walkState(page);
