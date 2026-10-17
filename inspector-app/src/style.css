@@ -1465,6 +1465,21 @@ main:not([data-lens]) #rawscene { display: none; }
 :is(#tree, .tree) .row { padding: 0.15em 0;
   gap: 0.15em 0.7em; }
 :is(#tree, .tree) li.top { padding: 0.25em 0; }
+/* (a heading, "storage", "locals": its name whole on one line, always;
+   its count the room left, its words dropped where the row is narrow,
+   then the count itself (Tree.tsx), the row's height one) */
+:is(#tree, .tree) li.top > .row { container-type: inline-size;
+  flex-wrap: nowrap; }
+:is(#tree, .tree) li.top > .row > .name { flex: none; white-space: nowrap;
+  overflow-wrap: normal; }
+:is(#tree, .tree) li.top > .row > .val.sum { min-width: 0;
+  white-space: nowrap; overflow: hidden; }
+@container (max-width: 15.75em) {
+  :is(#tree, .tree) li.top > .row > .val.sum .sumw { display: none; }
+}
+@container (max-width: 10.75em) {
+  :is(#tree, .tree) li.top > .row > .val.sum { visibility: hidden; }
+}
 :is(#tree, .tree) ul { padding-left: 1.15em; }
 :is(#tree, .tree) > ul { padding-left: 0; }
 :is(#tree, .tree) li > .chev { width: 1.9em; height: 1.9em;
