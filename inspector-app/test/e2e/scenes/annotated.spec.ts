@@ -79,8 +79,11 @@ for (const width of [1360, 1024, 390]) {
     await expect.poll(() => page.locator(".lens").evaluate((e) =>
       getComputedStyle(e).getPropertyValue("--hand").trim()),
     { timeout: 5000 }).toBe("1");
-    await expect(page.locator(".moment-note")).toContainText(
-      "written by hand for this post");
+    await expect(page.locator('[data-area="moment"] .moment-note'))
+      .toContainText("hand-written for this post");
+    // (and under storage: where its data comes from, the same badge)
+    await expect(page.locator('[data-area="snote"] .moment-note .handmade'))
+      .toHaveText("ethdebug data for storage comes straight from solc.");
     const on = await geometry(page);
     expect(on.rows).toEqual(raw.rows);
     expect([on.width, on.height]).toEqual([raw.width, raw.height]);
