@@ -47,6 +47,15 @@
 .lens.raw .view.flow .word .bytes { column-gap: 0;
   grid-template-columns: repeat(var(--per, 16), 2.4ch); }
 .lens.raw .view.flow .b { text-align: center; }
+/* (annotated: a line under storage, its badge saying where its data
+   comes from, in its own row; its room kept from the start) */
+.lens.raw-hero.noted { grid-template-areas: "storage" "snote" "stack"
+  "memory" "moment"; }
+@media (min-width: 910px) {
+  .lens.raw-hero.noted { grid-template-rows: auto auto 1fr auto;
+    grid-template-areas: "storage stack" "storage memory" "storage moment"
+      "snote moment"; }
+}
 /* (no memory: storage and the stack's column alone) */
 .lens.raw-hero.no-memory { grid-template-areas: "storage" "stack" "moment"; }
 @media (min-width: 860px) {

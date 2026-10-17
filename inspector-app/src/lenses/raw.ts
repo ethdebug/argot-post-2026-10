@@ -29,7 +29,7 @@ const base = { timelines: [], decodings: [], links: [],
   // (storage fits its column; the stack and memory hug their content,
   // in its cell size)
   areas: { storage: "dump", memory: "raw-col", stack: "raw-col",
-    moment: "raw-col" } };
+    moment: "raw-col", snote: "raw-col" } };
 
 // The composition: `moment`, a quiet line naming the moment in plain
 // words (default: none, the post's prose gives it); `memory` (default:
@@ -37,8 +37,10 @@ const base = { timelines: [], decodings: [], links: [],
 export const MOMENT = "while carol plays: right after her combo resets";
 // the annotated figure's disclaimer: its stack and memory pointers are
 // the scene's, not solc's
-export const HAND = "ethdebug data for stack and memory was written by " +
-  "hand for this post. Support is in progress.";
+export const HAND = "ethdebug data for stack, memory, and function " +
+  "calls was hand-written for this post. Support is in progress.";
+// (and its storage's: solc's own)
+export const SOLC = "ethdebug data for storage comes straight from solc.";
 export const rawLens = (o: { moment?: string | false; memory?: boolean } =
   {}): LensSpec => ({
   ...base, id: "raw-hero", title: "Raw bytes",
@@ -67,6 +69,8 @@ export const rawHero = rawLens();
 const hand = { decoding: "$hand", moment: "current" } as const;
 export const annotated = (l: LensSpec): LensSpec => ({ ...l,
   id: "reveal", title: "Raw bytes, annotated",
+  // (a line under storage for where its data comes from: raw.css)
+  layout: `${l.layout ?? ""} noted`,
   // (the host's scroll drives it: nothing under the pointer changes)
   hover: false,
   // (raw-hero's layout as it is: "reveal", the class, is its toggle's)
@@ -78,6 +82,9 @@ export const annotated = (l: LensSpec): LensSpec => ({ ...l,
   // under the stack and memory; shown after the reveal: ui/reveal.ts)
   { id: "hand", kind: "moment", area: "moment", data, badge: true,
     text: HAND },
+  // (and under storage, in the same badge: where its data comes from)
+  { id: "solc", kind: "moment", area: "snote", data, badge: true,
+    text: SOLC },
   { id: "reveal", kind: "reveal", area: "moment" }] });
 export const reveal = annotated(rawHero);
 
