@@ -544,3 +544,35 @@ test("optimized-locals: a value's memory popover, its bytes alone",
       }
     }
   });
+
+// The variables' headings, "storage" and "locals", whole on one line at
+// every width the post's frames give the figure, at every moment of
+// every transaction: their counts take only the room left (Tree.tsx)
+for (const width of [1116, 1024, 960, 896, 836, 790, 358]) {
+  test(`optimized-locals at ${width}px: the variables' headings on one ` +
+    "line", async ({ page }) => {
+    await page.setViewportSize({ width, height: 820 });
+    await page.goto("./embed.html#scene=optimized-locals");
+    await expect(page.locator(".mbar .dot.cur")).toHaveCount(1);
+    const lines = () => page.evaluate(() => [...document.querySelectorAll(
+      ".vars li.top > .row > .name")].map((n) => {
+      const r = document.createRange();
+      r.selectNodeContents(n);
+      const tops = new Set([...r.getClientRects()].map((x) =>
+        Math.round(x.top)));
+      return `${n.textContent}:${tops.size}`;
+    }));
+    const tabs = page.locator(".mbar [role=tab]");
+    for (let t = 0; t < await tabs.count(); t++) {
+      await tabs.nth(t).click();
+      for (;;) {
+        await expect(page.locator(".lens")).not.toHaveAttribute(
+          "data-playing", "", { timeout: 10_000 });
+        expect(await lines()).toEqual(["storage:1", "locals:1"]);
+        const next = page.locator('.mbar [data-t="next"]');
+        if (!await next.isEnabled()) break;
+        await next.click();
+      }
+    }
+  });
+}
