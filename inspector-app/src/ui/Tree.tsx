@@ -45,6 +45,13 @@ const ARROW = (d: string) => <svg viewBox="0 0 16 16" aria-hidden="true">
   <path d={d} fill="none" stroke="currentColor" strokeWidth="2"
     strokeLinecap="round" strokeLinejoin="round" /></svg>;
 
+// (a group's count, "5 variables": its words apart from its number, so
+// a narrow row drops them first, then the count, never its name's room:
+// style.css)
+const countOf = (t?: string) => {
+  const m = t?.match(/^(\d+)( .+)$/);
+  return m ? <>{m[1]}<span className="sumw">{m[2]}</span></> : t;
+};
 // (a gap row's label: "2 variables not shown")
 const more = (k: number) => `${k} variable${k === 1 ? "" : "s"} not shown`;
 
@@ -136,9 +143,9 @@ function Row({ n, top, c, inBlk, local }: { n: ValueNode; top?: boolean;
         <span data-full={ADDR.test(n.value?.text ?? "") ? n.value!.text
           : undefined}>{addrLabel(n.value?.text ?? n.summary ?? "",
           c.names)}</span></span>
-        : group ? <span className="val sum">{n.path === "@locals"
+        : group ? <span className="val sum">{countOf(n.path === "@locals"
           ? `${c.scope.size} ${c.scope.size === 1 ? "variable"
-            : "variables"}` : n.summary}</span>
+            : "variables"}` : n.summary)}</span>
           : n.note ? <span className="muted">{n.note}</span> : null}
     </div>
     {group && <button type="button" className="chev"
