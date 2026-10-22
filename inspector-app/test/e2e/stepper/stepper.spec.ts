@@ -301,12 +301,13 @@ test("optimized-locals: the stack opening, its popover one line",
 // The program: the instructions' column shut at first, open by its tab,
 // the instruction at the moment lit, following a move, read not chosen
 // (no act on a row); its entry, as YAML, in a box beside it; Reset shuts
-// it; the figure's height never changes
+// it; the code's row's height never changes (the variables', as tall as
+// their rows, may)
 test("optimized-locals: the instructions and the instruction's entry",
   async ({ page }) => {
     await page.setViewportSize({ width: 1216, height: 900 });
     await page.goto("./embed.html#scene=optimized-locals");
-    const h = () => page.locator("#embed").evaluate((e) =>
+    const h = () => page.locator(".lens > .srcrow").evaluate((e) =>
       Math.ceil(e.getBoundingClientRect().height));
     await expect(page.locator(".mbar .dot.cur")).toBeVisible();
     await page.waitForTimeout(800);
