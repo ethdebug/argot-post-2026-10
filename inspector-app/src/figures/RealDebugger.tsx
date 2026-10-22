@@ -22,7 +22,7 @@ import {
   soldb, type Loaded, type Progress,
 } from "./soldb";
 
-const LANGS = [["sol", "Solidity"], ["fe", "Fe"]] as const;
+const LANGS = [["sol", "solc"], ["fe", "Fe"]] as const;
 type Lang = typeof LANGS[number][0];
 // The step each language opens at: the same operation in both, play()
 // counting the play, early in its body: Solidity's `player.plays += 1`
