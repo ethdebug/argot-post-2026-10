@@ -124,7 +124,7 @@
 
 /* The bugc stepper (lenses/stepper.tsx): the moments' bar, a plain row;
    the stack's column, the pages and the variables, side by side (one
-   column on a phone: the stack a page over the others); the code under
+   column on a phone: the variables, then the stack a page over the others); the code under
    them, the walkthrough's pointer box. The debugger lens's gaps, 18px
    and 28px, between every block. Every box one size at every moment:
    the pages share one room (--pages-h), open or shut to their tabs; the
@@ -133,7 +133,7 @@
 .lens.stepper { display: grid; gap: 18px 28px; align-items: start;
   --pages-h: 457px;
   grid-template-columns: minmax(0, 1fr);
-  grid-template-areas: "moves" "src" "narrow" "wide" "side"; }
+  grid-template-areas: "moves" "src" "side" "narrow" "wide"; }
 @media (min-width: 760px) {
   /* (the stack a narrow column at the left, as tall as the pages beside
      it (--stack-w, --stack-tab); the pages 68% of the
@@ -168,15 +168,16 @@
 .lens.stepper .pages .views { row-gap: 0; padding-bottom: 0; }
 .lens.stepper .pages .view { margin-top: calc(-1 * var(--tab-h)); }
 .lens.stepper .pages .view:is([data-top="true"]) { margin-top: 0; }
-/* (a phone: the stack's sheet the first, then the pages', in one cell
+/* (a phone: the variables over the pages; the stack's sheet the first,
+   then the pages', in one cell
    of the room's height (--pages-h): the stack's area at its top, the
    pages' at its bottom, their heights its own (stepper.tsx), so the
    figure's height is the room's whatever they do as they move; the
    stack's strip for the tab of the top page, which stands on it,
    reaching up out of its area) */
 @media (max-width: 759.98px) {
-  .lens.stepper { grid-template-rows: auto auto var(--pages-h) auto;
-    grid-template-areas: "moves" "src" "narrow" "side"; }
+  .lens.stepper { grid-template-rows: auto auto auto var(--pages-h);
+    grid-template-areas: "moves" "src" "side" "narrow"; }
   .lens.stepper > .stackcol { align-self: start; }
   .lens.stepper > [data-area="wide"] { grid-area: narrow !important;
     align-self: end; }
