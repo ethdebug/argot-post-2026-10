@@ -38,7 +38,7 @@ interface Program { compiler: string; file: string; list: string;
   source: { path: string; text: string }; at: number; total: number;
   instructions: Entry[] }
 
-const LANGS = [["sol", "Solidity"], ["fe", "Fe"]] as const;
+const LANGS = [["sol", "solc"], ["fe", "Fe"]] as const;
 type Lang = typeof LANGS[number][0];
 const PROGRAMS = data as Record<Lang, Program>;
 // The instruction each compiler opens at: play()'s plays update, as the
