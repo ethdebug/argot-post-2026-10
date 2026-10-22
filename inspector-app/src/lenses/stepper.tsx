@@ -117,8 +117,32 @@ function Wide({ children }: { children: ReactNode }) {
     let settle: ReturnType<typeof setTimeout> | undefined;
     const still = () =>
       matchMedia("(prefers-reduced-motion: reduce)").matches;
+    // (the variables' column: on a phone its height set, its content's,
+    // so it moves as the pages' do, held while a move runs as theirs
+    // (debugger.css); else its own)
+    const side = () => lens.querySelector<HTMLElement>(":scope > .sidecol");
+    const fitSide = () => {
+      const c = side();
+      if (!c) return;
+      const kids = [...c.children].map((k) => k.getBoundingClientRect())
+        .filter((b) => b.height);
+      // (a group opening or shutting, ui/Tree.tsx: its height as it will
+      // be, so the column moves once, to where it ends)
+      const to = (c.getAnimations?.({ subtree: true }) ?? []).reduce((n,
+        a) => {
+        const e = a.effect as KeyframeEffect | null;
+        const t = e?.target as HTMLElement | null | undefined;
+        const end = e?.getKeyframes().at(-1)?.height;
+        return t && t !== c && end ? n + parseFloat(String(end)) -
+          t.getBoundingClientRect().height : n;
+      }, 0);
+      const h = phone() && kids.length ? `${Math.ceil(kids[kids.length - 1]
+        .bottom - kids[0].top + to)}px` : "";
+      if (c.style.height !== h) c.style.height = h;
+    };
     const fit = () => {
       if (lens.hasAttribute("data-playing")) return;
+      fitSide();
       const room = parseFloat(getComputedStyle(lens)
         .getPropertyValue("--pages-h")) || 0;
       const views = [...lens.querySelectorAll<HTMLElement>(
@@ -513,7 +537,7 @@ function Wide({ children }: { children: ReactNode }) {
     const watch = () => {
       ro.disconnect();
       for (const r of lens.querySelectorAll(".view .rows .run, " +
-        ".view .rows > .gap")) ro.observe(r);
+        ".view .rows > .gap, :scope > .sidecol > *")) ro.observe(r);
       fit();
     };
     watch();
@@ -523,6 +547,9 @@ function Wide({ children }: { children: ReactNode }) {
       subtree: true, attributes: true,
       attributeFilter: ["data-open", "data-needed", "data-lit",
         "data-related", "data-row", "data-next-row", "data-reserve"] });
+    // (and what the variables' column holds)
+    const sc0 = side();
+    if (sc0) mo.observe(sc0, { childList: true });
     // (and the lens's type size, fit.ts --cell-fs: its rows' height with it)
     mo.observe(lens, { attributes: true, attributeFilter: ["data-playing",
       "style"] });
@@ -616,7 +643,7 @@ export const stepper: LensSpec = {
       button: true,
       domId: "sdetails", data: NOW },
     { id: "vars", kind: "variables", area: "side", data: NOW, link: "st",
-      domId: "svars", edges: true },
+      domId: "svars" },
     { id: "instrs", kind: "instructions", area: "src", data: NOW },
     { id: "code", kind: "code", area: "src", data: NOW, domId: "scode",
       pane: true },

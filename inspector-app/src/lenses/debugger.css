@@ -128,8 +128,8 @@
    them, the walkthrough's pointer box. The debugger lens's gaps, 18px
    and 28px, between every block. Every box one size at every moment:
    the pages share one room (--pages-h), open or shut to their tabs; the
-   variables' column as tall, the tree scrolling inside it; the code
-   pane a fixed number of lines. */
+   code pane a fixed number of lines. The variables' column alone as
+   tall as its rows, never scrolling. */
 .lens.stepper { display: grid; gap: 18px 28px; align-items: start;
   --pages-h: 457px;
   grid-template-columns: minmax(0, 1fr);
@@ -365,25 +365,27 @@
   border-width: 0; box-shadow: none; }
 .lens.stepper .view[data-open="false"] .pagebox { padding: 0;
   border-width: 0; }
-.lens.stepper :is(.pagebox > .rows, .vars > .tree) {
+.lens.stepper .pagebox > .rows {
   scrollbar-width: none; --mu: 0px; --md: 0px;
   -webkit-mask-image: linear-gradient(to bottom, transparent 0,
     #000 var(--mu), #000 calc(100% - var(--md)), transparent 100%);
   mask-image: linear-gradient(to bottom, transparent 0, #000 var(--mu),
     #000 calc(100% - var(--md)), transparent 100%); }
-.lens.stepper :is(.pagebox > .rows, .vars > .tree)::-webkit-scrollbar {
-  display: none; }
-.lens.stepper :is(.pagebox > .rows, .vars > .tree).more-up { --mu: 18px; }
-.lens.stepper :is(.pagebox > .rows, .vars > .tree).more-down {
-  --md: 18px; }
-/* (the variables: as tall as the pages, the tree scrolling inside; on a
-   phone a fixed height, the walkthrough a panel of its own in the post,
-   on demand: no room kept for it here) */
+.lens.stepper .pagebox > .rows::-webkit-scrollbar { display: none; }
+.lens.stepper .pagebox > .rows.more-up { --mu: 18px; }
+.lens.stepper .pagebox > .rows.more-down { --md: 18px; }
+/* (the variables: all their rows, beside the pages, the row as tall as
+   the taller; on a phone as tall as its rows, its height set
+   (stepper.tsx) and moving with the pages', clipped as it moves) */
 .lens.stepper .sidecol { display: flex; flex-direction: column;
-  gap: 18px; min-width: 0; align-self: stretch; height: 23em;
-  contain: size; }
-@media (min-width: 760px) {
-  .lens.stepper .sidecol { height: auto; }
+  gap: 18px; min-width: 0; align-self: stretch; }
+@media (max-width: 759.98px) {
+  .lens.stepper .sidecol { overflow-y: clip; }
+  .lens.stepper[data-settled] > .sidecol {
+    transition: height 420ms cubic-bezier(0.4, 0, 0.2, 1); }
+}
+@media (max-width: 759.98px) and (prefers-reduced-motion: reduce) {
+  .lens.stepper[data-settled] > .sidecol { transition: none; }
 }
 /* (the pointer's label in that narrow column: its title alone) */
 .lens.stepper .dpanel .pnote { display: none; }
@@ -392,13 +394,10 @@
    stuck to the top, as the inspector's panel is) */
 .lens.stepper > .sidecol:has(> .wpanel.walking) { position: static;
   align-self: stretch; }
-.lens.stepper .sidecol .vars { position: relative; min-height: 0;
-  flex: 0 1 auto; }
-.lens.stepper .sidecol .vars { display: flex; flex-direction: column; }
-/* (the list as tall as its rows, up to the column's room, scrolling
-   past it; the button right under it) */
-.lens.stepper .sidecol .vars > .tree { flex: 0 1 auto; min-height: 0;
-  overflow-y: auto; }
+.lens.stepper .sidecol .vars { position: relative; flex: none;
+  display: flex; flex-direction: column; }
+/* (the list as tall as its rows; the button right under it) */
+.lens.stepper .sidecol .vars > .tree { flex: none; }
 /* (the walkthrough's way in and out, at the foot of the variables: its
    room kept, one line or two, empty or not, so the list never moves; the
    name cut, never "How … is found") */
@@ -406,12 +405,6 @@
 .lens.stepper .vars > .wslot { flex: none; display: flex;
   align-items: flex-start; justify-content: flex-end; justify-content: flex-end;
   height: var(--wslot-h); padding-top: 8px; box-sizing: border-box; }
-/* (the list's edges, its hint and its button for lit rows, above the
-   button's room, never over it) */
-.lens.stepper .vars:has(> .wslot) > .pedge.down {
-  bottom: var(--wslot-h); }
-.lens.stepper .vars:has(> .wslot) .tedge.down {
-  bottom: calc(var(--wslot-h) + 6px); }
 .lens.stepper .vars > .wslot .wgo { display: inline-block; max-width: 100%;
   padding: 3px 12px; font-weight: 600; color: var(--bg);
   background: var(--accent); border-color: var(--accent); text-align: left;
@@ -472,9 +465,6 @@
 .lens.stepper .rbar:not(.mbar) .rsel { overflow-wrap: anywhere; }
 .lens.stepper .rbar:not(.mbar) .rsel:not(.muted) { display: -webkit-box;
   -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-clamp: 2; }
-/* (the tree's edge labels at its right: the tree's own button for its
-   lit rows takes the middle) */
-.lens.stepper .vars > .pedge { place-items: center end; }
 /* (the stack's column, beside the pages: its view a row, its box then
    its tab, on the side facing the other pages) */
 @media (min-width: 760px) {
