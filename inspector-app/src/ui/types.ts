@@ -175,9 +175,7 @@ export type ViewSpec = { id: ViewId; area: string; link?: LinkId;
     // or ("moments") as the walkthrough's bar: ⏮ ◀ ▶, a dot a moment,
     // "n / N" and the moment's caption
     | { kind: "timeline"; bar?: "moments" }
-    // (`edges`: its tree scrolls inside its column, as the pointer's
-    // box does: no scrollbar, a button on an edge with more past it)
-    | { kind: "variables"; data: DataRef; edges?: boolean }
+    | { kind: "variables"; data: DataRef }
     // (the program's instructions, the one at the moment lit, and its
     // entry, as YAML: ui/Instructions.tsx)
     | { kind: "instructions"; data: DataRef }

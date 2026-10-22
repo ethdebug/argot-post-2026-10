@@ -54,9 +54,12 @@ for (const width of [390, 1024]) {
 
 // The stepper's moves (TimelineBar.tsx): each transaction's moments,
 // first to last, through every trace step between, and from one
-// transaction to the other, the frame's posted height holds
+// transaction to the other, the frame's posted height follows its
+// content once each rests (the variables' column as tall as its rows:
+// lenses/debugger.css), never clipping it, no gap under it but the few
+// pixels a shrink no one caused keeps (embed/main.tsx NOISE)
 for (const width of [390, 1024]) {
-  test(`optimized-locals at ${width}px: its moves, one height`,
+  test(`optimized-locals at ${width}px: its moves, the frame fits`,
     async ({ page, browserName }) => {
       test.skip(browserName !== "chromium", "one browser: a timing run");
       await page.emulateMedia({ reducedMotion: "no-preference" });
@@ -71,11 +74,28 @@ for (const width of [390, 1024]) {
       await expect.poll(() => posted.length, { timeout: 20_000 })
         .toBeGreaterThan(0);
       await page.waitForTimeout(1500);
-      const ready = posted.at(-1)!;
-      const from = posted.length;
+      // (the content's height, the root's min-height aside)
+      const fit = () => page.locator("#embed").evaluate((e) => {
+        const r = e as HTMLElement;
+        const m = r.style.minHeight;
+        r.style.minHeight = "";
+        const h = Math.ceil(r.getBoundingClientRect().height);
+        r.style.minHeight = m;
+        return h;
+      });
+      const heights = new Set<number>();
+      // (at rest, its heights' move done: the last posted, the content's,
+      // or at most 4px more)
+      const rest = async () => {
+        await expect(page.locator(".lens")).not.toHaveAttribute(
+          "data-playing", "", { timeout: 10_000 });
+        await page.waitForTimeout(600);
+        const h = await fit();
+        await expect.poll(() => posted.at(-1)! - h).toBeGreaterThanOrEqual(0);
+        expect(posted.at(-1)! - h).toBeLessThanOrEqual(4);
+        heights.add(h);
+      };
       // (every moment of each transaction, then back to the first)
-      const rest = () => expect(page.locator(".lens")).not
-        .toHaveAttribute("data-playing", "", { timeout: 10_000 });
       for (const [tx, n] of [[3, 3], [12, 7], [13, 5]] as const) {
         await page.locator(`.mbar [role=tab][data-tx="${tx}"]`).click();
         await expect(page.locator(".mbar .rcount")).toHaveText(`1 / ${n}`);
@@ -88,15 +108,9 @@ for (const width of [390, 1024]) {
         }
       }
       await page.locator('.mbar [data-t="first"]').click();
-      await expect(page.locator(".lens")).not.toHaveAttribute(
-        "data-playing", "", { timeout: 10_000 });
-      await page.waitForTimeout(500);
-      expect([...new Set(posted.slice(from))].filter((h) => h !== ready),
-        `${ready}: ${posted.join(" ")}`)
-        .toEqual([]);
-      expect(await page.evaluate(() => Math.ceil(document.querySelector(
-        "#embed")!.getBoundingClientRect().height))).toBeLessThanOrEqual(
-        ready);
+      await rest();
+      // (the variables' rows change its height: it follows them)
+      expect(heights.size).toBeGreaterThan(1);
     });
 }
 
