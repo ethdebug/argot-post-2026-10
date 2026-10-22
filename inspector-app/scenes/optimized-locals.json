@@ -19,7 +19,9 @@
       "label": "Carol's name is now in her record in storage. One slot holds its length and two slots hold its bytes.",
       "select": "players[0x90f79bf6eb2c4f870365e785982e1f101e93b906].name",
       "collapse": [
-        "player"
+        "player",
+        "players[0x70997970c51812dc3a010c7d01b50e0d17dc79c8]",
+        "players[0x3c44cdddb6a900fa2b585dd299e03d12fa4293bc]"
       ]
     },
     {
@@ -28,7 +30,10 @@
       "label": "Carol's join is done. `playerList` now holds her address as its third item.",
       "select": "playerList",
       "collapse": [
-        "player"
+        "player",
+        "players[0x70997970c51812dc3a010c7d01b50e0d17dc79c8]",
+        "players[0x3c44cdddb6a900fa2b585dd299e03d12fa4293bc]",
+        "players[0x90f79bf6eb2c4f870365e785982e1f101e93b906]"
       ]
     },
     {
@@ -82,7 +87,9 @@
       "label": "Alice's record is back in storage, with score 60 and combo 3. `_turn` has also added to `totalScore` and `totalHits`.",
       "select": "players[0x70997970c51812dc3a010c7d01b50e0d17dc79c8]",
       "collapse": [
-        "player"
+        "player",
+        "players[0x3c44cdddb6a900fa2b585dd299e03d12fa4293bc]",
+        "players[0x90f79bf6eb2c4f870365e785982e1f101e93b906]"
       ]
     },
     {
@@ -124,7 +131,9 @@
       "label": "Bob's record is back in storage, with combo 0 and plays 2. His score and best combo stay the same, and a miss changes neither `totalScore` nor `totalHits`.",
       "select": "players[0x3c44cdddb6a900fa2b585dd299e03d12fa4293bc]",
       "collapse": [
-        "player"
+        "player",
+        "players[0x70997970c51812dc3a010c7d01b50e0d17dc79c8]",
+        "players[0x90f79bf6eb2c4f870365e785982e1f101e93b906]"
       ]
     }
   ],
