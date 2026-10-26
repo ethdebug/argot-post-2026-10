@@ -12,7 +12,6 @@
 //   load(dataset)    "sol" or "fe": a Loaded (see engine.js), for
 //                    Arcade, alice's second play()
 //   state(dataset, i) soldb's state(i): the contract's state at step i
-//   run(job)         "bug-check" or "replay": a soldb-only check
 //   requests()       this worker's resource timing entries
 // Each load fetches all its files at once, so a slow link pays its
 // round trip once.
@@ -119,7 +118,7 @@ const transfer = (steps) =>
   [steps.pcs.buffer, steps.spans.buffer, steps.lineNo.buffer,
     steps.depths.buffer];
 
-// Both data sets and the BUG check use the same lean module. A failed
+// Both data sets use the same lean module. A failed
 // load is not kept, so a retry starts over.
 let lean;
 const loadLean = (io) => lean ??= (async () => {
@@ -248,56 +247,6 @@ async function loadFe(io) {
     transfer(steps)];
 }
 
-// BUG: Tally on anvil, bugc's ethdebug program. soldb is fed as for Fe;
-// the page adapts the file layout (bugc writes no resources file) and,
-// for the second run, the source id (soldb reads numeric ids only).
-const BUG = "bug";
-async function bugCheck(io) {
-  const times = [];
-  const node = "the node's saved responses";
-  const [{ mod }, dbg, tx, receipt, programText, bug] = await timed(times,
-    "fetch node responses + bugc program", () => Promise.all([
-      loadLean(io),
-      io.text(`${BUG}/tx.debug-trace.json`, node),
-      io.text(`${BUG}/tx.transaction.json`, node),
-      io.text(`${BUG}/tx.receipt.json`, node),
-      io.text(`${BUG}/tally.program.json`, "bugc's ethdebug program"),
-      io.text(`${BUG}/tally.bug`, "the source"),
-    ]));
-  const trace = await timed(times, "Trace.fromTransaction (parse)", () =>
-    mod.Trace.fromTransaction(dbg, tx, receipt));
-  // What soldb reports, over every step.
-  const report = (id, program) => {
-    trace.attachEthdebug(JSON.stringify({ name: "Tally", program,
-      metadata: { compilation: { sources: [{ id, path: "tally.bug" }] } },
-      sources: id === 0 ? { 0: bug } : {} }));
-    const r = { spans: 0, withVariables: 0, decoded: 0 };
-    const fns = new Set(), vars = new Set();
-    for (let i = 0; i < trace.stepCount(); i++) {
-      const s = JSON.parse(trace.step(i));
-      if (s.source) r.spans++;
-      if (s.function) fns.add(s.function.name);
-      if (s.variables.length) r.withVariables++;
-      for (const v of s.variables) {
-        vars.add(`${v.name}: ${v.ty} (${v.location.kind}[` +
-          `${v.location.offset}], ${v.value.status})`);
-        if (v.value.status === "decoded") r.decoded++;
-      }
-    }
-    const info = JSON.parse(trace.summary()).debugInfo;
-    return { ...r, functions: [...fns], variables: [...vars],
-      pcsWithVariables: info.pcsWithVariables };
-  };
-  const asEmitted = report("tally.bug", JSON.parse(programText));
-  const numeric = report(0, JSON.parse(
-    programText.replaceAll('"id": "tally.bug"', '"id": 0')));
-  const summary = JSON.parse(trace.summary());
-  const r = { ok: true, times: Object.fromEntries(times),
-    traceBytes: dbg.length, steps: trace.stepCount(),
-    success: summary.success, asEmitted, numeric };
-  return [r];
-}
-
 const loaders = { sol: loadSolidity, fe: loadFe };
 
 // soldb's state(i): the contract's state at step i.
@@ -305,64 +254,11 @@ function state(key, i) {
   return JSON.parse(traces[key].state(i)).variables;
 }
 
-// The replay build: re-execute Token.transfer offline, from a file.
-async function replay(io) {
-  const times = [];
-  const dir = "./art/walnut10-Token";
-  const [mod, wasm, file, metadata, program, sol] = await timed(times,
-    "fetch JS glue, wasm, replay file, ethdebug", () => Promise.all([
-      import("./pkg-replay/soldb_wasm.js"),
-      io.get("./pkg-replay/soldb_wasm_bg.wasm",
-        "soldb's replay build (WebAssembly)"),
-      io.json("./replay/transfer.json", "the replay file"),
-      io.json(`${dir}/ethdebug_resources.json`, "solc's ethdebug data"),
-      io.json(`${dir}/Token_ethdebug-runtime.json`, "solc's ethdebug data"),
-      io.text(`${dir}/Token.sol`, "the source"),
-    ]));
-  const out = await timed(times, "compile + instantiate wasm", () =>
-    mod.default({ module_or_path: wasm }));
-  if (!mod.replayAvailable()) throw new Error("replay build has no Replay");
-  const s = JSON.stringify;
-  const rp = await timed(times, "Replay.prepare", () =>
-    mod.Replay.prepare(s(file.transaction), s(file.receipt), s(file.block),
-      String(file.chainId)));
-  let rounds = 0;
-  let status = JSON.parse(rp.status());
-  await timed(times, "provideState + run (EVM)", () => {
-    while (status.status === "needsState") {
-      if (rounds++ > 0) {
-        throw new Error("replay file lacks state: " + s(status.requests));
-      }
-      rp.provideState(s(file.state));
-      status = JSON.parse(rp.run());
-    }
-  });
-  if (status.status !== "complete") throw new Error(s(status));
-  const trace = await timed(times, "finish", () => rp.finish());
-  await timed(times, "attachEthdebug", () => trace.attachEthdebug(
-    JSON.stringify({ name: "Token", metadata, program, sources: { 0: sol } })));
-  const { steps, counts } = await timed(times,
-    "step() every step + JSON.parse", () =>
-      walk(trace, { 0: source(0, sol) }));
-  const summary = JSON.parse(trace.summary());
-  const r = {
-    ok: true, times: Object.fromEntries(times), rounds,
-    version: mod.version(), steps: steps.n, ...counts,
-    backend: summary.backend, success: summary.status ?? summary.success,
-    debugInfo: summary.debugInfo,
-    wasmMemory: out.memory.buffer.byteLength,
-  };
-  return [r];
-}
-
-const jobs = { "bug-check": bugCheck, replay };
-
 const requests = () => [performance.getEntriesByType("resource")
   .map((e) => ({ name: e.name, transferSize: e.transferSize }))];
 
 serve({
   load: (report, dataset) => loaders[dataset](io(report)),
   state: (report, dataset, i) => [state(dataset, i)],
-  run: (report, job) => jobs[job](io(report)),
   requests,
 });

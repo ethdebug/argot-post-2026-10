@@ -225,26 +225,10 @@ names its engine. The page only shows what the engine reports.</p>
       <button role="tab" data-ds="sol"
         aria-selected="true">Solidity</button>
       <button role="tab" data-ds="fe" aria-selected="false">Fe</button>
-      <button role="tab" data-ds="bug" aria-selected="false">BUG
-        (preview)</button>
-      <button role="tab" data-ds="old" aria-selected="false">The old
-        way</button>
-    </div>
-    <div class="picker levels" data-about="bug" hidden role="radiogroup"
-      aria-label="optimization level">
-      <button role="radio" data-lvl="O0" aria-checked="true">-O0: no
-        inlining</button>
-      <button role="radio" data-lvl="O2" aria-checked="false">-O2:
-        helpers inlined</button>
     </div>
   </div>
   <p class="engine" data-about="sol fe">Engine: soldb, Walnut's
   debugger</p>
-  <p class="engine" data-about="bug" hidden>Engine: ethdebug's
-  reference implementation, not soldb</p>
-  <p class="engine" data-about="old" hidden>Engine: a source map
-  stepper on this page (<code>srcmap-worker.js</code>), with no
-  ethdebug</p>
 </div>
 
 <div id="stepper" class="loading" aria-busy="true">
@@ -379,72 +363,6 @@ The page loads the node's saved responses with soldb's
 Solidity tab.</p>
 </div>
 
-<div class="about" data-about="bug" hidden>
-<p class="muted">This tab runs ethdebug's reference implementation,
-not soldb: <code>@ethdebug/pointers</code>, <code>@ethdebug/evm</code>
-and the trace reconstruction from
-<code>@ethdebug/programs-react</code>. Compiler: bugc, BUG's compiler,
-from ethdebug/format main; the local variables come from it. Only the
-decoding of values is a stand-in, for the format's planned
-interpretation layer.</p>
-<p><code>Arcade</code> in BUG (<a href="bug/arcade.bug">arcade.bug</a>),
-statement for statement as in Arcade.sol where BUG allows. It differs
-in three ways: BUG has one entry point, so <code>join</code> and
-<code>setMotd</code> are dispatched by hand; BUG has no
-<code>require</code>, so <code>join</code> and <code>play</code> check
-nothing; and the reset is written inline. The roll is the same as in
-Solidity. Look for: <code>playerList</code> (the three players),
-<code>motd</code> (a 50-byte string), <code>totalScore</code> going from
-140 to 170; at -O0, the calls to <code>_rolledHit</code> and
-<code>_applyCombo(points: 10, combo: 3)</code> in the call stack; at
--O2, the inlined <code>_applyCombo</code>, with its local <code>mult</code>
-going from 5 to 3, then <code>gained</code> (30). The tab has the same
-program at two optimization levels.</p>
-<p class="muted">At both levels, bugc gives a local variable a pointer
-where its value is in memory. Where a local has no location (its value
-is not stored yet, or the optimizer folded it), bugc lists it by type
-only: the format cannot yet say "the value is this expression"
-(ethdebug/format#291). At -O2, bugc inlines <code>_rolledHit</code> and
-<code>_applyCombo</code>. The inlined instructions carry
-<code>transform: ["inline"]</code> and keep the source range of the
-call. The locals of an inlined function are marked "inline". They are
-listed from the step after the inlined call starts to the step of the
-instruction that returns from it; the next step lists the caller's
-variables again. In the inlined body, the storage variables stay
-listed. The pointer for <code>players</code>, a mapping, names only its
-base slot, so the page shows no entries. bugc's pointer for a string
-names only its slot; the page reads the text by Solidity's string rule
-(part of the decoding stand-in).</p>
-</div>
-
-<div class="about" data-about="old" hidden>
-<p>No ethdebug on this tab. Compiler: stock solc 0.8.37 (the official
-build), with <code>--via-ir --optimize</code>, on the same
-<code>Arcade</code>. The tab has what tools had before ethdebug: the
-bytecode, its source map and the AST, from <code>solc
---combined-json</code>. A source map gives each instruction one entry,
-<code>s:l:f:j</code>: the start and length of a source range, a file
-index (-1: no source), and a jump type: <code>i</code> into a function,
-<code>o</code> out of one, <code>-</code> neither. The stepper on this
-page highlights each step's range and shows its entry. It builds the
-call stack as older debuggers did, from the <code>i</code> and
-<code>o</code> jumps, and names a frame by the AST function that holds
-the jump's target.</p>
-<p>The transaction: 484 steps; 325 map to the whole contract, 95 to no
-source and 64 to a smaller range. solc inlined <code>_rolledHit</code>,
-<code>_applyCombo</code> and <code>_resetCombo</code> into the functions
-that call them. Look for: the step just before the roll (line 40),
-which pushes the <code>3</code> of <code>% 3</code> and shows
-<code>players</code> on line 26; and the call stack while
-<code>_rolledHit</code> and <code>_applyCombo</code> run.</p>
-</div>
-
-<p class="muted" data-about="bug old" hidden>"over" and "out"
-use the call stack depth. "over" steps over a call<span
-data-about="bug"> or an inlined body</span>. "out" runs until the call
-stack is one frame shorter.</p>
-<p class="muted" data-about="bug" hidden>Shiki has no BUG grammar, so
-the code is coloured as Rust.</p>
 <p class="muted" data-about="sol fe">The page computes each
 step from two fields that soldb reports: the source span and the EVM
 call depth. "into" goes to the next new span. "over" goes to the next
@@ -481,15 +399,13 @@ Solidity. It reports no variables, because Fe emits none.</p>
 </div>
 
 <details>
-<summary>Details: timings, offline replay, requests</summary>
+<summary>Details: timings, requests</summary>
 <p class="muted">Each engine runs in a Web Worker, so the page stays
 responsive. The workers measure the times below.</p>
 
-<p class="muted">Each tab, and each check below, loads its files when
-it first opens. Once the Solidity tab is ready, the page loads the
-other tabs, one at a time, when the browser is idle, and fetches the
-replay build. It does not on a connection that asks to save data or is
-2G.</p>
+<p class="muted">Each tab loads its files when it first opens. Once the
+Solidity tab is ready, the page loads the other tab when the browser is
+idle. It does not on a connection that asks to save data or is 2G.</p>
 
 <h3>Solidity: lean build, saved trace</h3>
 <p class="status" id="a-status">Running...</p>
@@ -498,45 +414,6 @@ replay build. It does not on a connection that asks to save data or is
 <h3>Fe: lean build, node responses</h3>
 <p class="status" id="fe-status">Loads with the Fe tab.</p>
 <table id="fe-times"></table>
-
-<h3>BUG: ethdebug's reference implementation</h3>
-<p>The BUG tab's engine (<code>ref-worker.js</code>) is
-ethdebug/format's packages, bundled in
-<code>vendor/ethdebug-ref.js</code> (<code>make-ref-vendor.sh</code>).
-When it loads, it maps each step and builds its call stack. It reads
-variables and call arguments when the page shows a step.</p>
-<p class="status" id="ref-status">Loads with the BUG tab.</p>
-<table id="ref-times"></table>
-
-<h3>The old way: a source map stepper</h3>
-<p>The old way's engine (<code>srcmap-worker.js</code>, about 150 lines)
-reads solc's bytecode, source map and AST, and the node's trace. It
-reads no ethdebug.</p>
-<p class="status" id="old-status">Loads with the tab "The old
-way".</p>
-<table id="old-times"></table>
-
-<h3>BUG: soldb check, lean build, node responses</h3>
-<p>A saved transaction of <code>Tally</code>
-(<a href="bug/tally.bug">tally.bug</a>, bugc at -O2). soldb gets it as
-on the Fe tab (<code>Trace.fromTransaction</code>, then
-<code>attachEthdebug</code>). Two changes: bugc writes no resources
-file, so the page gives <code>metadata</code> as
-<code>{compilation: {sources: [{id, path}]}}</code>. bugc's source id is
-the string <code>"tally.bug"</code>, and soldb reads numeric ids only,
-so the second row gives the id as <code>0</code>.</p>
-<p class="status" id="bug-status">Runs when this section
-opens.</p>
-<table id="bug-times"></table>
-
-<h3>Replay build: re-run a transaction offline</h3>
-<p>The replay module (1,092 KB) contains an EVM. It re-runs a
-<code>Token.transfer</code> transaction from a 6.5 KB replay file. It
-contacts no node: soldb requests only static files from this
-server.</p>
-<p class="status" id="b-status">Runs when this section
-opens.</p>
-<table id="b-times"></table>
 
 <h3>Requests from this page</h3>
 <p class="muted">From the browser's resource timing list. Each entry
