@@ -153,7 +153,7 @@ comes from <code>debug_traceTransaction</code> on anvil, Foundry's
 local node, started with <code>--steps-tracing</code>. The script needs
 only Node's standard library. The core is 10 lines (lines 13 to 22);
 two more lines pick out Fe's program. Source:
-<a href="../demos/stepper/step.mjs">step.mjs</a>.</p>
+<a href="../demos/stepper/step.ts">step.ts</a>.</p>
 <pre><code class="language-javascript">import { readFileSync as read } from "fs";
 const [programFile, traceFile, sourceFile] = process.argv.slice(2);
 const json = (f) =&gt; JSON.parse(read(f, "utf8"));
