@@ -1,6 +1,6 @@
-/* Shared look for the ethdebug post appendix: the storage inspector
-   (demos/inspector/), the companion page (companion/) and the
-   debugger demo (demos/debugger/). Design tokens first, then shared components.
+/* Shared look for the ethdebug post's pages: the storage inspector
+   (demos/inspector/) and the landing page. Design tokens first, then
+   shared components.
    Each page keeps a small stylesheet for what only it has. */
 
 :root {
@@ -207,7 +207,7 @@ th {
 td.n { text-align: right; font-variant-numeric: tabular-nums;
   white-space: nowrap; }
 
-/* Long-form text (companion, soldb). It sits left-aligned in the same
+/* Long-form text (the landing page). It sits left-aligned in the same
    frame as the inspector, in a reading column. Sections open with a
    rule, as the inspector's notes do. */
 .doc > * { max-width: 50rem; }

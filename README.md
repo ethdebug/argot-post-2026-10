@@ -8,9 +8,9 @@ Site: <https://ethdebug.github.io/argot-post-2026-10/>
 
 - [inspector-app/](inspector-app/): the post's figures. The site
   serves them at `demos/inspector/embed.html`.
-- [demos/debugger/](demos/debugger/): step through a transaction in
-  the browser with soldb, Walnut's debugger, for Solidity and Fe. The
-  real-debugger figure loads its engine and data from here. Its saved
+- [demos/debugger/](demos/debugger/): soldb, Walnut's debugger, for
+  Solidity and Fe. The real-debugger figure loads its engine and data
+  from here. Its saved
   Solidity trace leaves out the flat copies of each step's state, which
   soldb drops on reading; see
   [SOURCE.md](demos/debugger/SOURCE.md#the-saved-trace-one-change).
@@ -18,7 +18,6 @@ Site: <https://ethdebug.github.io/argot-post-2026-10/>
   each variable's bytes, found through solc's ethdebug pointers.
 - [demos/stepper/](demos/stepper/): a source stepper in about ten lines
   of code, with its output for Solidity and Fe.
-- [companion/](companion/): the companion page, with more detail.
 
 ## Run locally
 
