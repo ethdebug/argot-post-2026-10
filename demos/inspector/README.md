@@ -134,9 +134,7 @@ copy of the caller's record in memory, decoded field by field.
 
 ### Credits and links
 
-Part of the ethdebug post appendix, with "ethdebug in depth"
-(`../../companion/`) and "Step through a transaction"
-(`../debugger/`).
+Part of the figures and demos for the ethdebug post.
 
 ## Scenes
 
