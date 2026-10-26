@@ -3,24 +3,19 @@
 // engine reports. Every tab steps the same contract, Arcade, and the
 // same transaction, alice's second play(). One viewer steps every
 // data set with the same code: the Solidity build (solc's ethdebug) and
-// the Fe build (Fe's ethdebug), by soldb-wasm; the BUG build at two
-// optimization levels (bugc's ethdebug), by ethdebug's reference
-// implementation; and an optimized Solidity build with no ethdebug, by
-// a source-map stepper ("The old way"). The details run a soldb check on another BUG
-// transaction. Part B (details) replays a transaction with the replay
-// build. Results go to the DOM and to window.results.
+// the Fe build (Fe's ethdebug), by soldb-wasm. Results go to the DOM
+// and to window.results.
 //
-// Loading: only the default tab (Solidity) loads at first. Each other
-// tab, each BUG level and the details load when first opened, and, once
-// the default tab is ready, in idle time (see prefetch). While a tab
+// Loading: only the default tab (Solidity) loads at first. The other
+// tab loads when first opened, and, once the default tab is ready, in
+// idle time (see prefetch). While a tab
 // loads, the debugger keeps its layout: a skeleton, a progress bar and
 // a status line, from the engine's progress reports; on failure, the
 // reason and a retry button.
 
-import { soldbEngine, refEngine, sourceMapEngine } from "./engine.js";
+import { soldbEngine } from "./engine.js";
 
-const results = { env: {}, a: null, fe: null, ref: null, old: null,
-  bug: null, b: null, shiki: null, tabs: {} };
+const results = { env: {}, a: null, fe: null, shiki: null, tabs: {} };
 window.results = results;
 
 const $ = (id) => document.getElementById(id);
@@ -468,8 +463,6 @@ const viewer = (() => {
 window.walked = {};
 
 const engine = soldbEngine();
-const ref = refEngine();
-const srcmap = sourceMapEngine();
 const entries = (times) => Object.entries(times);
 
 // Solidity: Arcade play(), soldb's saved trace, the ethdebug output of
@@ -534,110 +527,14 @@ async function loadSoldb(key, part, onProgress) {
   return ds;
 }
 
-// BUG: Arcade on anvil, at optimization level 0 or 2, by bugc from
-// ethdebug/format main; debugged by ethdebug's reference
-// implementation (ref-worker.js), not soldb.
-const refRows = { times: [], rows: [] };
-async function loadRef(lvl, onProgress) {
-  const ds = await load(`bug-${lvl}`, ref, onProgress)
-    .catch((e) => { bad($("ref-status"), e); throw e; });
-  const s = ds.summary;
-  results.ref = { ...results.ref, ok: true, [lvl]: s };
-  for (const [k, v] of entries(s.times)) {
-    refRows.times.push([`-${lvl}: ${k}`, v]);
-  }
-  refRows.rows.push([`-${lvl}: trace`, `${kb(s.traceBytes)}, ${s.steps} ` +
-    `steps, ${s.instructions} instructions; call stack up to ` +
-    `${s.maxDepth} frames; ${s.withInline} steps in an inlined body`]);
-  showTimes($("ref-times"), refRows.times, refRows.rows);
-  ok($("ref-status"), `Works. ethdebug/format at ${s.commit.slice(0, 9)}.`);
-  return ds;
-}
-
-// The old way: Arcade, stock solc 0.8.37 --via-ir --optimize, stepped
-// with its source map only (srcmap-worker.js).
-async function loadOld(onProgress) {
-  const ds = await load("old", srcmap, onProgress)
-    .catch((e) => { bad($("old-status"), e); throw e; });
-  const s = ds.summary;
-  results.old = s;
-  showTimes($("old-times"), entries(s.times), [["trace",
-    `${kb(s.traceBytes)}, ${s.steps} steps: ${s.whole} map to the whole ` +
-    `contract, ${s.none} to no source (-1), ${s.specific} to a smaller ` +
-    `range; ${s.into} jumps marked i, ${s.outOf} marked o`]]);
-  ok($("old-status"), "Works. No ethdebug.");
-  return ds;
-}
-
-// BUG: Tally on anvil, bugc's ethdebug program. soldb is fed as for Fe;
-// the engine adapts the file layout (bugc writes no resources file)
-// and, for the second run, the source id (soldb reads numeric ids only).
-async function bugCheck(onProgress) {
-  const r = await engine.run("bug-check", onProgress);
-  results.bug = r;
-  const row = (x) => `${x.spans} steps with a span; functions: ` +
-    `${x.functions.join(", ") || "none"}; variables at ` +
-    `${x.pcsWithVariables} pcs, on ${x.withVariables} steps, ` +
-    `${x.decoded} decoded; as ${x.variables.join("; ") || "none"}`;
-  showTimes($("bug-times"), entries(r.times), [
-    ["trace", `${kb(r.traceBytes)}, ${r.steps} steps`],
-    ["source id \"tally.bug\" (as emitted)", row(r.asEmitted)],
-    ["source id 0", row(r.numeric)],
-  ]);
-  ok($("bug-status"), "Works.");
-}
-
-// Part B: the replay build re-executes Token.transfer offline.
-async function partB(onProgress) {
-  const r = await engine.run("replay", onProgress);
-  results.b = r;
-  showTimes($("b-times"), entries(r.times), [
-    ["module", `soldb ${r.version}, replayAvailable() = true`],
-    ["replay", `${r.rounds} run(s), ${r.steps} steps, ` +
-      `${r.mapped} with a source line (${r.generated} compiler-generated, ` +
-      `whole-contract span), ${r.lineChanges} line changes`],
-    ["WebAssembly memory after", kb(r.wasmMemory)],
-  ]);
-  ok($("b-status"), "Works. No node was contacted.");
-}
-
-// A failed check in the details: its reason and a retry button.
-function fail(part, e) {
-  results[part] = { ok: false, error: String(e && e.stack || e) };
-  const el = $(`${part}-status`);
-  el.textContent = `Failed: ${e.message ?? e}. `;
-  el.className = "status bad";
-  el.append(retryButton(() => ensure("details").catch(() => {})));
-  console.error(e);
-}
-
-// The details' two soldb checks. Both run; the section fails if either
-// does, so a retry runs both again.
-async function details(onProgress) {
-  let failed = null;
-  for (const [part, run] of [["bug", bugCheck], ["b", partB]]) {
-    $(`${part}-status`).textContent = "Running...";
-    $(`${part}-status`).className = "status";
-    try { await run(onProgress); } catch (e) { fail(part, e); failed = e; }
-  }
-  if (failed) throw failed;
-}
-
-// What loads on demand, by key: each data set the debugger shows, and
-// the details. `start` names the first thing that happens, before any
+// What loads on demand, by key: each data set the debugger shows.
+// `start` names the first thing that happens, before any
 // file arrives.
 const SECTIONS = {
   sol: { tab: "sol", start: "Starting soldb, Walnut's debugger",
     load: (p) => loadSoldb("sol", "a", p) },
   fe: { tab: "fe", start: "Starting soldb, Walnut's debugger",
     load: (p) => loadSoldb("fe", "fe", p) },
-  "bug-O0": { tab: "bug", start: "Starting ethdebug's reference " +
-    "implementation", load: (p) => loadRef("O0", p) },
-  "bug-O2": { tab: "bug", start: "Starting ethdebug's reference " +
-    "implementation", load: (p) => loadRef("O2", p) },
-  old: { tab: "old", start: "Starting the source map stepper",
-    load: loadOld },
-  details: { load: details },
 };
 
 // Each section's load, once: its promise and value, and its progress
@@ -751,20 +648,9 @@ function drawLoader() {
   });
 }
 
-function retryButton(onclick) {
-  const b = document.createElement("button");
-  b.className = "btn";
-  b.textContent = "Retry";
-  b.onclick = onclick;
-  return b;
-}
-
-// Show a tab, loading its data set first if needed. The BUG tab shows
-// one of two data sets, picked below the tabs: the same program at
-// optimization level 0 or 2.
-const variant = { bug: "O0" };
+// Show a tab, loading its data set first if needed.
 async function select(tab) {
-  const key = variant[tab] ? `${tab}-${variant[tab]}` : tab;
+  const key = tab;
   current = key;
   for (const t of document.querySelectorAll("[role=tab]")) {
     t.setAttribute("aria-selected", String(t.dataset.ds === tab));
@@ -804,27 +690,11 @@ loader.retry.onclick = () =>
 for (const t of document.querySelectorAll("[role=tab]")) {
   t.onclick = () => select(t.dataset.ds);
 }
-for (const b of document.querySelectorAll("[data-lvl]")) {
-  b.onclick = () => {
-    const tab = b.closest("[data-about]").dataset.about;
-    variant[tab] = b.dataset.lvl;
-    for (const c of b.parentElement.querySelectorAll("[data-lvl]")) {
-      c.setAttribute("aria-checked", String(c === b));
-    }
-    return select(tab);
-  };
-}
 window.select = select;
-window.selectLevel = (lvl) =>
-  document.querySelector(`[data-lvl=${lvl}]`).onclick();
 
 window.stateReady = () => viewer.settled();
 
-// The details run their checks when opened.
 const more = document.querySelector("details");
-more.addEventListener("toggle", () => {
-  if (more.open) ensure("details").catch(() => {});
-});
 
 // The page's own requests and the engine's (the worker's fetches).
 async function listRequests() {
@@ -832,8 +702,7 @@ async function listRequests() {
   el.innerHTML = "";
   const seen = new Set();
   const reqs = [...performance.getEntriesByType("resource"),
-    ...await engine.requests(), ...await ref.requests(),
-    ...await srcmap.requests()]
+    ...await engine.requests()]
     .filter((e) => !e.name.endsWith("/events")
     && !seen.has(e.name) && seen.add(e.name));
   results.requests = reqs.map((e) => e.name);
@@ -866,25 +735,20 @@ async function maybeDone() {
   document.body.dataset.done = "1";
 }
 
-// Load everything now (the checks use it): every tab and the details.
+// Load everything now: every tab, and open the details.
 window.loadAll = async () => {
   more.open = true;
   await Promise.allSettled(Object.keys(SECTIONS).map(ensure));
 };
 
-// After the default tab is ready: the other tabs' data and the replay
-// build, one at a time, in idle time, and only while nothing the user
-// opened is loading. Not on a connection that asks to save data or is
-// 2G. The tabs load as when opened (each in its engine's worker); for
-// the details, only the replay build's WebAssembly is fetched, into
-// the HTTP cache, so its checks still run when the section opens.
+// After the default tab is ready: the other tab's data, in idle time,
+// and only while nothing the user opened is loading. Not on a
+// connection that asks to save data or is 2G. The tab loads as when
+// opened (in its engine's worker).
 function prefetch() {
   const c = navigator.connection;
   if (c && (c.saveData || /2g/.test(c.effectiveType ?? ""))) return;
-  const queue = [() => ensure("fe"), () => ensure("bug-O0"),
-    () => ensure("bug-O2"), () => ensure("old"),
-    () => fetch("pkg-replay/soldb_wasm_bg.wasm", { priority: "low" })
-      .then((r) => r.arrayBuffer())];
+  const queue = [() => ensure("fe")];
   const idle = (f) => window.requestIdleCallback
     ? requestIdleCallback(f, { timeout: 2000 }) : setTimeout(f, 300);
   const next = () => idle(() => {

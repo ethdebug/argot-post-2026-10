@@ -1,10 +1,7 @@
 // The interface between the page and a debugger engine. The page (UI,
 // highlighting, stepping) talks only to an Engine; the engine does all
 // the debugging. soldbEngine() runs soldb-wasm in a Web Worker
-// (soldb-worker.js); refEngine() runs ethdebug's reference
-// implementation in another (ref-worker.js), for the BUG tab;
-// sourceMapEngine() runs a source-map stepper, with no ethdebug, in a
-// third (srcmap-worker.js), for the tab "The old way".
+// (soldb-worker.js).
 //
 // An engine loads a dataset and returns every step at once, so the page
 // steps and highlights with no round trip. Anything per step that is
@@ -137,8 +134,6 @@
  *   [variables]  the variables in scope (storage and locals)
  * @property {(dataset: string, i: number) => Promise<Frame[]>}
  *   [callStack]
- * @property {(job: string, onProgress?: OnProgress) => Promise<Object>}
- *   [run]  engine-specific checks (soldb: "bug-check", "replay")
  * @property {() => Promise<{name: string, transferSize: number}[]>}
  *   requests  resource timing entries of the engine's own fetches
  */
@@ -214,52 +209,6 @@ export function soldbEngine() {
     },
     load: (dataset, onProgress) => call("load", [dataset], onProgress),
     state: (dataset, i) => call("state", [dataset, i]),
-    run: (job, onProgress) => call("run", [job], onProgress),
-    requests: async () => call.started() ? call("requests", []) : [],
-  };
-}
-
-/**
- * @returns {Engine} ethdebug's reference implementation (pointers, evm,
- * programs-react's trace reconstruction), in a module Web Worker.
- * Data sets "bug-O0" and "bug-O2".
- */
-export function refEngine() {
-  const call = client("reference", "./ref-worker.js");
-  return {
-    name: "reference",
-    whyNot: {
-      "bug-O0": { inline: "No inlining: at -O0, bugc inlines nothing.",
-        library: { text: "Library code: none in BUG" } },
-      "bug-O2": { library: { text: "Library code: none in BUG" } },
-    },
-    load: (dataset, onProgress) => call("load", [dataset], onProgress),
-    variables: (dataset, i) => call("variables", [dataset, i]),
-    callStack: (dataset, i) => call("callStack", [dataset, i]),
-    requests: async () => call.started() ? call("requests", []) : [],
-  };
-}
-
-/**
- * @returns {Engine} a source-map stepper, with no ethdebug: solc's
- * bytecode, source map and AST, in a module Web Worker. Data set
- * "old".
- */
-export function sourceMapEngine() {
-  const call = client("the source map stepper", "./srcmap-worker.js");
-  const no = {
-    variables: "No variables: a source map has none. solc writes no " +
-      "output that says where a local variable is at a step.",
-    inline: "No inlining: a source map has no inline marker. Here " +
-      "solc inlined _rolledHit, _resetCombo and _applyCombo; their steps " +
-      "carry only their own ranges.",
-    library: { text: "Library code: none in this contract" },
-  };
-  return {
-    name: "the source map stepper",
-    whyNot: { old: no },
-    load: (dataset, onProgress) => call("load", [dataset], onProgress),
-    callStack: (dataset, i) => call("callStack", [dataset, i]),
     requests: async () => call.started() ? call("requests", []) : [],
   };
 }
