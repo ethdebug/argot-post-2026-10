@@ -1,7 +1,8 @@
-// The parity page, as the e2e specs drive it: its ready signals
-// (window.results: src/pages/parity.tsx) and its
-// hooks (window.select), in one place
+// The embed (embed.html: one scene, by its lens alone), as the e2e
+// specs drive it: its ready signal and a reader's selection, in one
+// place
 import { test as base, expect, type Page } from "@playwright/test";
+import { pick } from "./pick";
 
 // Every spec's page: no request leaves the page's host (the page is
 // self-contained, as GitHub Pages serves it), and nothing logs an error
@@ -39,32 +40,44 @@ export { expect };
 
 export type Win = Window & typeof globalThis & {
   fitDumps(): void;
+  embedReady?: boolean;
 };
 
 // The storage dump at the moment shown (a scene of two: the later)
 export const V = '#panel .view[data-side=after]';
 
-// Opens the page (with `hash`, at `width` x `height`) and waits until
-// its first scene is usable
-export async function ready(page: Page, { hash = "", width, height = 900 }:
-  { hash?: string; width?: number; height?: number } = {}) {
+// Opens scene `scene`'s embed (embed.html#scene=<scene>, and `hash`:
+// "&theme=dark", …; at `width` x `height`) and waits until it posts its
+// first ready height (src/embed/main.tsx: drawn, its fonts in)
+export async function ready(page: Page, { scene = "pitfall-nesting",
+  hash = "", width, height = 900 }: { scene?: string; hash?: string;
+  width?: number; height?: number } = {}) {
   if (width) await page.setViewportSize({ width, height });
-  await page.goto("./" + (hash && !hash.startsWith("#") ? "#" : "") + hash);
-  await usable(page);
+  await page.addInitScript(() => addEventListener("message", (e) => {
+    if (e.data?.type === "ethdebug:height" && e.data.ready) {
+      (window as Win).embedReady = true;
+    }
+  }));
+  // (a new page each time: the embed reads its hash once)
+  await page.goto("about:blank");
+  await page.goto(`./embed.html#scene=${scene}${hash}`);
+  await page.waitForFunction(() => (window as Win).embedReady);
 }
 
-// Waits until the page's first scene is usable
-export const usable = (page: Page) => page.waitForFunction(() =>
-  (window as Win).results?.done);
-
-// Shows scene `id` as a link would (with `sel` selected; at its first
-// moment with `mode` "before", else its last; without, the scene's
-// defaults), once drawn
-export const select = (page: Page, id: string, sel?: string | null,
-  mode?: string) => page.evaluate(([i, s, m]) =>
-  (window as Win).select(i, { ...s === undefined ? {} : { sel: s },
-    ...m === "before" ? { moment: 0 } : {} }),
-  [id, sel, mode] as const);
+// Selects `sel` in the storage tree as a reader does, a click (null:
+// none, Escape on the selected row; and first, for a row the related
+// view leaves out of the tree); nothing if it is so already
+export async function select(page: Page, sel: string | null) {
+  if (await selected(page) === sel) return;
+  if (sel === null || !await row(page, sel).count()) {
+    await page.locator("#tree .row.sel").focus();
+    await page.keyboard.press("Escape");
+    await expect.poll(() => selected(page)).toBe(null);
+  }
+  if (sel === null) return;
+  await pick(row(page, sel));
+  await expect.poll(() => selected(page)).toBe(sel);
+}
 
 // The storage tree's row for `path`
 export const row = (page: Page, path: string) =>

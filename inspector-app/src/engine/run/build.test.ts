@@ -10,7 +10,7 @@ const read = (id: string) => JSON.parse(fs.readFileSync(path.join(app,
   "scenarios", "arcade", "builds", id, "build.json"), "utf8"));
 const contract = (f: string) => fs.readFileSync(path.join(app, "..",
   "demos", "inspector", f), "utf8");
-const builds = Object.fromEntries(["sol", "vy", "bug-O0", "bug-O2"]
+const builds = Object.fromEntries(["sol", "vy", "bug-O2"]
   .map((id) => [id, buildOf(read(id))]));
 const motdArg = encodeCall("f(string)", [MOTD[0]]).slice(10);
 
@@ -28,8 +28,8 @@ describe("the arcade builds", () => {
     expect(json).not.toMatch(/"\$[a-z]/);
     expect(json).toMatch(/"~keccak256"/);
   });
-  it("bug-O0, bug-O2: instructions carry variables", () => {
-    for (const id of ["bug-O0", "bug-O2"]) {
+  it("bug-O2: instructions carry variables", () => {
+    for (const id of ["bug-O2"]) {
       const ins = builds[id].programs!.runtime.instructions;
       const vars = ins.filter((i) =>
         (i.context as { variables?: unknown[] })?.variables?.length);
@@ -43,7 +43,7 @@ describe("the arcade builds", () => {
   it("sol and vy create with the first motd; bug sets it itself", () => {
     expect(builds.sol.create.endsWith(motdArg)).toBe(true);
     expect(builds.vy.create.endsWith(motdArg)).toBe(true);
-    expect(builds["bug-O0"].create.endsWith(motdArg)).toBe(false);
+    expect(builds["bug-O2"].create.endsWith(motdArg)).toBe(false);
   });
   it("keeps the sources as they are", () => {
     expect(builds.sol.sources[0].text).toBe(contract("contracts/Arcade.sol"));

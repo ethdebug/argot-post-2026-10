@@ -29,9 +29,9 @@ describe("a trace step with no range of its own", () => {
     expect(point.paused).toMatchObject({ range: last, last: true });
   });
   it("a moment with a range is not muted", async () => {
-    const run = await runOf("bug-O0");
-    const build = s.builds["bug-O0"];
-    const m = annotate(run, build, { tx: TX, step: 652 });
+    const run = await runOf("bug-O2");
+    const build = s.builds["bug-O2"];
+    const m = annotate(run, build, { tx: TX, step: 499 });
     expect(lastRange(run, build, m)).toEqual(m.range);
     const point = momentPoint("x", m, run.stateAt(m), { build,
       last: lastRange(run, build, m) });
@@ -41,8 +41,8 @@ describe("a trace step with no range of its own", () => {
 
 describe("a local on the stack", () => {
   it("join's len: read from the stack at the moment", async () => {
-    const run = await runOf("bug-O0");
-    const build = s.builds["bug-O0"];
+    const run = await runOf("bug-O2");
+    const build = s.builds["bug-O2"];
     // (bob's join: the first trace step whose context gives len a
     // stack slot)
     const tx = s.transactions.findIndex((t) => t.label.startsWith("join"));

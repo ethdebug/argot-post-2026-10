@@ -11,7 +11,7 @@ import type { Decoded, Layout } from "./types";
 const at = {} as { d: Decoded; l: Layout };
 beforeAll(async () => {
   const p = await testProject();
-  at.d = await decode(p, p.decodings["mid"], "mid:0");
+  at.d = await decode(p, p.decodings["pitfall-nesting"], "pitfall-nesting:0");
   at.l = layout(at.d, "storage", { rows: "values" });
 });
 
@@ -115,20 +115,6 @@ it("a gutter address lights its row's 32 bytes as pointed at", () => {
     location: "storage" });
   expect(g.bytes.size + g.rows.size).toBe(0);
 });
-
-it("motd's old data at motd:after lights nothing there",
-  async () => {
-    const p = await testProject();
-    const d = p.decodings["motd"];
-    const before = await decode(p, d, "motd:0");
-    const after = await decode(p, d, "motd:1");
-    const old = before.byPath.get("motd")!.regions.find((r) =>
-      r.role === "value")!.slot!;
-    const la = layout(after, "storage", { rows: [slotHex(old)] });
-    const g = forPath(after, la, "motd");
-    expect([...g.bytes].some((k) => k.includes(slotHex(old)))).toBe(false);
-    expect(() => forPath(after, la, "motd.data")).not.toThrow();
-  });
 
 it("a string's data and its length part light apart", () => {
   const [, bob] = at.d.byPath.get("players")!.children!;

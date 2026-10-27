@@ -4,11 +4,9 @@ import {
   render, screen, fireEvent, cleanup, act, waitFor,
 } from "@testing-library/react";
 import { Lens } from "./Lens";
-import { useLink, type LensContextValue } from "./hooks";
+import { useLink } from "./hooks";
 import type { LensSpec } from "./types";
 import type { Project } from "../engine/project";
-import { slotHex } from "../engine/hex";
-import { testProject } from "../../test/project";
 import { inspector, mount, slow } from "../../test/lens";
 import { A } from "../../test/expect";
 
@@ -69,89 +67,6 @@ it("lays its views out in its grid's areas", () => {
   expect(grid.style.gridTemplateAreas).toBe('"a b c"');
   expect([...grid.children].map((c) => (c as HTMLElement).style.gridArea))
     .toEqual(["a", "b", "c"]);
-});
-
-describe("with real data", () => {
-  const val = (c: HTMLElement, path: string) => c.querySelector(
-    `li[data-path="${path}"] .val`)?.textContent;
-
-  it("a lens brings its own decoding", async () => {
-    const project = await testProject();
-    const spec: LensSpec = {
-      id: "own", title: "Own", timelines: ["scene:alice"], grid: '"t"',
-      decodings: [{ id: "mine", compilation: "arcade-sol",
-        timeline: "scene:alice", variables: "state",
-        keys: { from: "list", path: "playerList" } }],
-      links: ["s"],
-      views: [{ id: "t", kind: "tree", area: "t", link: "s",
-        data: { decoding: "mine", point: "alice:0" } }],
-    };
-    expect(project.decodings.mine).toBeUndefined();
-    const { container } = render(<Lens spec={spec} project={project} />);
-    await waitFor(() => expect(val(container, "totalScore")).toBe("140"), slow);
-  });
-
-  it("moments of the scene: current and previous; previous at moment 0 " +
-    "is idle", async () => {
-    const project = await testProject();
-    const at = (moment: "current" | "previous") =>
-      ({ decoding: "$scene", moment });
-    const spec: LensSpec = {
-      id: "moments", title: "Moments", timelines: [], decodings: [],
-      grid: '"a" "b"', links: ["s"], initial: { scene: "alice" },
-      views: [
-        { id: "a", kind: "dump", area: "a", location: "storage",
-          link: "s", data: at("previous") },
-        { id: "b", kind: "dump", area: "b", location: "storage",
-          link: "s", data: at("current") },
-      ],
-    };
-    let lens: LensContextValue | undefined;
-    const { container } = render(<Lens spec={spec} project={project}
-      onReady={(x) => void (lens = x)} />);
-    const word = (v: Element) => [...v.querySelectorAll(
-      `.wrow[data-slot="${slotHex(2n)}"] .b`)].map((b) => b.textContent)
-      .join("").slice(-2);
-    // (moment 1, after alice's hit: before it 140, after 170)
-    await waitFor(() => expect([...container.querySelectorAll(".view")]
-      .map(word)).toEqual(["8c", "aa"]), slow);
-    await act(async () => void await lens!.show("alice",
-      { moment: 0 }));
-    await waitFor(() => expect([...container.querySelectorAll(".view")]
-      .map(word)).toEqual(["", "8c"]), slow);
-    expect(container.querySelectorAll('.view[data-view$=":a"] .wrow' +
-      "[data-slot]")).toHaveLength(0);
-  });
-
-  it("two dumps at two literal points, uncompared: both shown, each the " +
-    "later of none",
-    async () => {
-      const project = await testProject();
-      const at = (point: string) => ({ decoding: "alice",
-        point });
-      const spec: LensSpec = {
-        id: "two", title: "Two", timelines: ["scene:alice"],
-        decodings: ["alice"], grid: '"a" "b"', links: ["s"],
-        views: [
-          { id: "a", kind: "dump", area: "a", location: "storage",
-            link: "s", data: at("alice:0") },
-          { id: "b", kind: "dump", area: "b", location: "storage",
-            link: "s", data: at("alice:1") },
-        ],
-      };
-      const { container } = render(<Lens spec={spec} project={project} />);
-      const word = (v: Element) => [...v.querySelectorAll(
-        `.wrow[data-slot="${slotHex(2n)}"] .b`)].map((b) => b.textContent)
-        .join("").slice(-2);
-      // (totalScore: 140 before, 170 after)
-      await waitFor(() => expect([...container.querySelectorAll(".view")]
-        .map(word)).toEqual(["8c", "aa"]), slow);
-      const views = [...container.querySelectorAll(".view")];
-      expect(views.map((v) => v.hasAttribute("hidden")))
-        .toEqual([false, false]);
-      expect(views.map((v) => v.getAttribute("data-side")))
-        .toEqual(["after", "after"]);
-    });
 });
 
 // Keys and clicks act on the lens they are in (two lenses of the full
@@ -228,10 +143,10 @@ describe("keys and clicks, per lens", () => {
     expect(r.link(0).walk).toBe(null);
   });
 
-  it("a bookmark change ends a walkthrough", async () => {
+  it("the scene shown again (its Reset) ends a walkthrough", async () => {
     const r = await two();
     walk(r, 0, { step: 3, n: 12 });
-    await act(async () => void await r.lenses[0].show("alice"));
+    await act(async () => void await r.lenses[0].show("pitfall-nesting"));
     expect(r.link(0).walk).toBe(null);
   });
 });

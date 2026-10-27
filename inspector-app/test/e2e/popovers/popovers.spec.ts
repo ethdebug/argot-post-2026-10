@@ -1,22 +1,27 @@
 // Mirrors bin/run.mjs's dump checks (vanilla d235617): popovers, the
 // pointed-at run in both views, gutters, root-slot tint, one line
 import type { Page } from "@playwright/test";
-import { test, expect, ready, select, stable, type Win } from "../../page";
+import { test, expect, ready, select } from "../../page";
 import { A, B, C } from "../../expect";
 
 const pops = (page: Page) => page.locator(
   "#panel .view[data-side=after] .pop").allInnerTexts();
 const SLOT2 = "0x" + "2".padStart(64, "0");
+// (pitfall-nesting, nothing selected: every value shown; the pointer
+// moved, so a hover shows again after the Escape that cleared it)
+const rest = async (page: Page) => {
+  await ready(page);
+  await select(page, null);
+  await page.mouse.move(40, 1, { steps: 4 });
+  await page.mouse.move(1, 1, { steps: 4 });
+};
 
-test("a value's popover: how : what · what the transaction did",
+test("a value's popover: how : what",
   async ({ page }) => {
-    await ready(page);
-    await select(page, "alice", null);
+    await rest(page);
     await page.locator('#tree li[data-path="totalHits"] > .row').hover();
     await expect.poll(() => pops(page))
-      .toEqual([
-        "slot 2 : (unmapped) · totalHits · totalScore · read, written"]);
-    await select(page, "mid", null);
+      .toEqual(["slot 2 : (unmapped) · totalHits · totalScore"]);
     await page.locator(`#panel .word[data-side=after][data-slot="${
       SLOT2}"] .b[data-i="31"]`).hover();
     await expect.poll(() => pops(page))
@@ -25,8 +30,7 @@ test("a value's popover: how : what · what the transaction did",
 
 test("a byte pointed at: its run outlined",
   async ({ page }) => {
-    await ready(page);
-    await select(page, "alice", null);
+    await rest(page);
     for (const [from, to] of [["after", "after"]]) {
       await page.locator(`#panel .word[data-side="${from}"][data-slot="${
         SLOT2}"] .b[data-i="14"]`).hover();
@@ -68,33 +72,32 @@ test("popovers: black; a badge only for what is lit; one line, inside "
       tall: pop.getBoundingClientRect().height >
         parseFloat(getComputedStyle(pop).lineHeight) * 1.4 + 4 };
   }, how);
-  await select(page, "mid", `${A}.score`);
+  await select(page, `${A}.score`);
   await page.mouse.move(1, 1);
   const sc = await popOf("keccak(0x7099…79c8, slot 3)");
   expect(sc!.parts.at(-1)).toBe("[score]");
   const black = await page.evaluate(() =>
     getComputedStyle(document.body).color);
   expect(sc!.bg).toBe(black);
-  await select(page, "mid", "players");
+  await select(page, "players");
   await page.mouse.move(1, 1);
   const pl = await popOf("keccak(0x90f7…b906, slot 3)");
   expect(pl!.parts).toEqual(["[players[0x90f7…b906]]"]);
   for (const wd of [1280, 1440, 1920, 659]) {
     await page.setViewportSize({ width: wd, height: 900 });
-    await select(page, "mid", A);
+    await select(page, A);
     await page.mouse.move(1, 1);
+    // (the related view: the record by its name, over its two slots)
     await expect.poll(() => popOf("keccak(0x7099…79c8, slot 3)")
-      .then((x) => x?.parts[0])).toBe("[lastBlock]");
+      .then((x) => x?.parts)).toEqual(["[players[0x7099…79c8]]"]);
     const x = (await popOf("keccak(0x7099…79c8, slot 3)"))!;
-    expect(x.parts.at(-1), `${wd}`).toBe("[name.length]");
     expect(x.text!.endsWith(", 2 slots"), `${wd}: ${x.text}`).toBe(true);
-    expect(x.text).toContain(" / ");
     expect([x.over, x.out, x.tall], `${wd}: ${x.text}`)
       .toEqual([false, false, false]);
   }
   await page.setViewportSize({ width: 1280, height: 720 });
   // (bob's name's bytes pointed at: `name` a badge, its length plain)
-  await select(page, "mid", null);
+  await select(page, null);
   await page.locator(
     `#panel .view[data-side=after] .b[data-owners="${B}.name"]`).first()
     .hover();
@@ -111,7 +114,7 @@ test("a selection inside a mapping tints its root slot's gutter",
     const r3 = `#panel .view[data-side=after] .wrow[data-slot="0x${
       "0".repeat(63)}3"]`;
     for (const x of [A, `${B}.plays`]) {
-      await select(page, "mid", x);
+      await select(page, x);
       await page.mouse.move(1, 1);
       await expect(page.locator(`${r3}.gut`)).toHaveCount(1);
       await expect(page.locator(`${r3} .pop`)).toHaveCount(1);
@@ -119,16 +122,13 @@ test("a selection inside a mapping tints its root slot's gutter",
     }
   });
 
-test("a gutter address outlines its word; window.fitDumps fits the row",
+test("a gutter address outlines its word; the dump fits the row",
   async ({ page }) => {
-    await ready(page);
-    await select(page, "mid", null);
+    await rest(page);
     await page.locator(`#panel .view[data-side=after] .wrow[data-slot="${
       SLOT2}"] > .addr`).hover();
     await expect(page.locator(`#panel .view[data-side=after] .wrow[data-slot="${
       SLOT2}"] .b.at`)).toHaveCount(32);
-    expect(await page.evaluate(() => typeof (window as Win)
-      .fitDumps)).toBe("function");
     const fits = await page.evaluate(() => {
       const row = document.querySelector<HTMLElement>(
         "#panel .view[data-side=after] .rows > .run > .wrow")!;
@@ -139,9 +139,10 @@ test("a gutter address outlines its word; window.fitDumps fits the row",
     expect(fits).toBe(true);
   });
 
-test("hovering and clicking move nothing", async ({ page }) => {
+// (a selection in the related view shows its own rows: only a hover is
+// checked here)
+test("hovering moves nothing", async ({ page }) => {
   await ready(page);
-  await select(page, "alice", A);
   // (in the page's coordinates: pointing may scroll the window)
   const boxes = () => page.locator(
     "#panel .view[data-side=after] .wrow:not(.cmp *), #tree .row")
@@ -152,42 +153,25 @@ test("hovering and clicking move nothing", async ({ page }) => {
     }));
   await page.mouse.move(1, 1);
   // (at rest: the same boxes twice)
-  let rest = await boxes();
+  let was = await boxes();
   await expect.poll(async () => {
-    const was = rest;
-    rest = await boxes();
-    return JSON.stringify(rest) === JSON.stringify(was);
+    const before = was;
+    was = await boxes();
+    return JSON.stringify(was) === JSON.stringify(before);
   }).toBe(true);
-  await page.locator(`#panel .view[data-side=after] .b[data-owners="${C}.plays"]`)
+  await page.locator(`#panel .view[data-side=after] .b[data-owners="${A}.plays"]`)
     .first().hover();
-  await expect.poll(boxes).toEqual(rest);
-  await page.locator('#tree li[data-path="totalScore"] > .row').click();
-  await expect.poll(boxes).toEqual(rest);
+  await expect.poll(boxes).toEqual(was);
+  await page.locator(`#tree li[data-path="${A}.combo"] > .row`).hover();
+  await expect.poll(boxes).toEqual(was);
 });
-
-test("motd After: its cleared data named as Before; one popover",
-  async ({ page }) => {
-    await ready(page);
-    await select(page, "motd", "motd", "after");
-    await page.mouse.move(1, 1);
-    const names = await page.locator(
-      '#panel .view[data-side=after] .wrow[data-name]').evaluateAll((rs) =>
-      rs.map((r) => (r as HTMLElement).dataset.name));
-    expect(names).toContain("keccak(slot 1)");
-    expect(names).toContain("keccak(slot 1) + 1");
-    expect(names.filter((n) => n!.startsWith("slot 0x"))).toEqual([]);
-    await expect.poll(() => pops(page)).toContain(
-      "keccak(slot 1), 2 slots · cleared (written to zero)");
-  });
 
 test("popovers scale with the dump; the arrow's tip on its address",
   async ({ page }) => {
     const seen: { wd: number; ratio: number; gaps: number[] }[] = [];
     for (const wd of [1280, 1440, 1920, 760, 390]) {
-      await page.setViewportSize({ width: wd, height: 900 });
-      await page.goto("./#ex=mid&sel=playerList");
-      await page.waitForFunction(() =>
-        (window as Win).results?.done);
+      await ready(page, { width: wd });
+      await select(page, "playerList");
       await page.mouse.move(1, 1);
       await expect(page.locator("#panel .view[data-side=after] .pop").first())
         .toBeAttached();
@@ -224,10 +208,8 @@ test("popovers scale with the dump; the arrow's tip on its address",
 test("slot 0's popover: under row 0, inside the dump, never empty",
   async ({ page }) => {
     for (const wd of [1280, 390]) {
-      await page.setViewportSize({ width: wd, height: 900 });
-      await page.goto("./#ex=mid&sel=playerList");
-      await page.waitForFunction(() =>
-        (window as Win).results?.done);
+      await ready(page, { width: wd });
+      await select(page, "playerList");
       await page.mouse.move(1, 1);
       const x = await page.evaluate(() => {
         const row = [...document.querySelectorAll<HTMLElement>(
@@ -246,7 +228,8 @@ test("slot 0's popover: under row 0, inside the dump, never empty",
     }
     // (and nothing outside the dump box: no popover over the ruler)
     const out = await page.evaluate(() => {
-      const box = document.querySelector("#dump")!.getBoundingClientRect();
+      const box = document.querySelector("#panel")!.closest(".dump")!
+        .getBoundingClientRect();
       return [...document.querySelectorAll("#panel .pop")].filter((p) => {
         const r = p.getBoundingClientRect();
         return r.top < box.top - 1 || r.bottom > box.bottom + 1 ||
@@ -256,25 +239,10 @@ test("slot 0's popover: under row 0, inside the dump, never empty",
     expect(out).toBe(0);
   });
 
-test("the dump fits the same opened at Before or After (one measure for "
-  + "the box)", async ({ page }) => {
-  const fs: string[] = [];
-  for (const h of ["#ex=alice&mode=before", "#ex=alice&mode=after",
-    "#ex=motd&mode=before"]) {
-    await page.goto("./" + h);
-    await page.waitForFunction(() => (window as Win).results?.done);
-    await page.evaluate(() => document.fonts.ready);
-    fs.push(await stable(() => page.evaluate(() => getComputedStyle(document
-      .querySelector("#panel .view[data-side=after]")!).fontSize)));
-  }
-  expect(new Set(fs).size, fs.join()).toBe(1);
-});
-
 test("at rest: no popover, nothing steps back, the dump only hex",
   async ({ page }) => {
-    await ready(page);
-    await select(page, "alice", null);
-    await page.locator("h1").hover();
+    await rest(page);
+    await page.mouse.move(1, 1);
     expect(await pops(page)).toEqual([]);
     await expect(page.locator("#panel.active, #tree.active")).toHaveCount(0);
     // (names live in the tree)
@@ -284,8 +252,7 @@ test("at rest: no popover, nothing steps back, the dump only hex",
 
 test("an address focused from the keyboard shows its popover",
   async ({ page }) => {
-    await ready(page);
-    await select(page, "alice", null);
+    await rest(page);
     const addr = page.locator(
       '#panel .view[data-side=after] .wrow [tabindex]').first();
     // (in view first: a scroll after the focus would move the pointer)
@@ -298,10 +265,8 @@ test("an address focused from the keyboard shows its popover",
 test("no popover covers a lit byte, another row's address, or another "
   + "popover", async ({ page }) => {
   await ready(page);
-  for (const [id, sel] of [["mid", "players"], ["mid", "playerList[1]"],
-    ["mid", A], ["mid", "motd"], ["motd", "motd"], ["vyper", `${A}.score`],
-    ["alice", A]]) {
-    await select(page, id, sel);
+  for (const sel of ["players", "playerList[1]", A, "motd"]) {
+    await select(page, sel);
     await page.mouse.move(1, 1);
     const cover = await page.evaluate(() => {
       const v = document.querySelector("#panel .view[data-side=after]")!;
@@ -329,6 +294,6 @@ test("no popover covers a lit byte, another row's address, or another "
       });
       return out;
     });
-    expect(cover, `${id} ${sel}`).toEqual([]);
+    expect(cover, sel).toEqual([]);
   }
 });

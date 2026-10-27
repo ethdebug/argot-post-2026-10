@@ -4,9 +4,10 @@ import type { Page } from "@playwright/test";
 import { test, expect, ready, select } from "../../page";
 import { A, B, C } from "../../expect";
 
-const at = async (page: Page, width: number, scene: string) => {
+// (pitfall-nesting, nothing selected: every value shown)
+const at = async (page: Page, width: number) => {
   await ready(page, { width });
-  await select(page, scene, null);
+  await select(page, null);
 };
 // each owner's tint classes (at rest, and lit by its selection)
 const tints = (page: Page, panel: string) => page.evaluate((q) => {
@@ -23,9 +24,9 @@ const one = (by: Record<string, string[]>) =>
   Object.entries(by).filter(([, ks]) => ks.length !== 1);
 
 test("storage, 16 bytes a line: each value one tint", async ({ page }) => {
-  await at(page, 390, "mid");
+  await at(page, 390);
   expect(one(await tints(page, "#panel"))).toEqual([]);
-  await select(page, "mid", "players[0x70997970c51812dc3a010c7d01b50e0d17dc79c8]");
+  await select(page, "players[0x70997970c51812dc3a010c7d01b50e0d17dc79c8]");
   expect(one(await tints(page, "#panel"))).toEqual([]);
 });
 
@@ -54,8 +55,8 @@ const agree = (c: Awaited<ReturnType<typeof colours>>) => Object.entries(
 test("a composite selected: its children apart, the same colour in the "
   + "tree and the dump; the selection's own colour never a child's",
   async ({ page }) => {
-    await at(page, 1280, "mid");
-    await select(page, "mid", "players");
+    await at(page, 1280);
+    await select(page, "players");
     await page.mouse.move(1, 1);
     let c = await colours(page);
     const byEntry = [A, B, C].map((p) => new Set(Object.entries(c.tree)
@@ -66,7 +67,7 @@ test("a composite selected: its children apart, the same colour in the "
     expect(c.tree.players).toBe("pk0");
     expect(agree(c)).toEqual([]);
     // (a record: its seven members)
-    await select(page, "mid", A);
+    await select(page, A);
     await page.mouse.move(1, 1);
     c = await colours(page);
     const members = Object.entries(c.tree).filter(([q]) => q !== A)
@@ -75,7 +76,7 @@ test("a composite selected: its children apart, the same colour in the "
     expect(members).not.toContain("pk0");
     expect([c.tree[A], agree(c)]).toEqual(["pk0", []]);
     // (an array: its length in the selection's colour, its items apart)
-    await select(page, "mid", "playerList");
+    await select(page, "playerList");
     await page.mouse.move(1, 1);
     c = await colours(page);
     expect([c.tree.playerList, c.dump.playerList]).toEqual(["pk0", "pk0"]);
@@ -84,7 +85,7 @@ test("a composite selected: its children apart, the same colour in the "
     }
     expect(agree(c)).toEqual([]);
     // (a leaf: one colour)
-    await select(page, "mid", `${A}.combo`);
+    await select(page, `${A}.combo`);
     await page.mouse.move(1, 1);
     expect(Object.values((await colours(page)).tree)).toEqual(["pk0"]);
   });

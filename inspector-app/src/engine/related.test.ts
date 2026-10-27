@@ -11,9 +11,9 @@ import { walkthrough } from "./walkthrough/fold";
 
 const mid = async () => {
   const p = await testProject();
-  const dc = p.decodings["mid"];
-  const d = await decode(p, dc, "mid:0");
-  const t = await p.timeline("scene:mid");
+  const dc = p.decodings["pitfall-nesting"];
+  const d = await decode(p, dc, "pitfall-nesting:0");
+  const t = await p.timeline("scene:pitfall-nesting");
   const c = await p.compilation(dc.compilation);
   const snap = t.points.find((x) => x.id === d.point)!.snapshot;
   const w = (path: string) => walkthrough({ d, c, snap, keys: dc.keys },

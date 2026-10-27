@@ -13,7 +13,7 @@ import { A } from "../../test/expect";
 // `mult = combo`)
 const PAUSE: Record<string, number[]> = { roll: [0], mult: [1, 2],
   writes: [3] };
-const pair = async (o: "O0" | "O2", pt: string, k = 1) => {
+const pair = async (o: "O2", pt: string, k = 1) => {
   const p = await testProject();
   const at = await Promise.all(PAUSE[pt].map((i) => pauseOf(p, o, i)));
   const d = at[0].decoding;
@@ -25,9 +25,9 @@ const pair = async (o: "O0" | "O2", pt: string, k = 1) => {
       : undefined };
 };
 
-it("O0 inside _applyCombo: the frame pointer's word, and the locals' "
+it("inside _applyCombo: the frame pointer's word, and the locals' "
   + "words at either step, by offset", async () => {
-  const x = await pair("O0", "mult");
+  const x = await pair("O2", "mult");
   const l = layout(x.d, "memory", {}, { compare: x.other, point: x.point,
     comparePoint: x.otherPoint });
   // (the whole segment, every word from 0x0000 to its end, no gap;
@@ -37,7 +37,7 @@ it("O0 inside _applyCombo: the frame pointer's word, and the locals' "
     (_, k) => `0x${(k * 32).toString(16).padStart(4, "0")}`));
   expect(l.rows.every((r) => !r.gapBefore)).toBe(true);
   expect(l.more).toBe(false);
-  for (const a of ["0x0080", "0x0980", "0x09a0", "0x09e0"]) {
+  for (const a of ["0x0080", "0x0600", "0x0640", "0x06e0"]) {
     expect(l.rows.find((r) => r.address === a)!.how).toBe(`memory ${a}`);
   }
   // (the frame pointer's word: read to find the locals, owned by none)
@@ -45,12 +45,12 @@ it("O0 inside _applyCombo: the frame pointer's word, and the locals' "
     .toBe("memory 0x0080");
   // (the related view: the selection's words and near ones, gaps between)
   const only = layout(x.d, "memory", { only: { rows: ["0x0080",
-    "0x09e0"] } }, { compare: x.other, point: x.point,
+    "0x06e0"] } }, { compare: x.other, point: x.point,
     comparePoint: x.otherPoint });
-  expect(only.rows.map((r) => r.address)).toEqual(["0x0080", "0x09e0"]);
+  expect(only.rows.map((r) => r.address)).toEqual(["0x0080", "0x06e0"]);
   expect(only.rows.map((r) => !!r.gapBefore)).toEqual([true, true]);
   // (after mult = combo, mult's last 4 bytes are combo's: two owners)
-  expect([...l.cover.get(byteKey("memory", "0x09e0", 31))!].sort())
+  expect([...l.cover.get(byteKey("memory", "0x06e0", 31))!].sort())
     .toEqual(["combo", "mult"]);
 });
 
@@ -65,7 +65,7 @@ it("O2 inside _applyCombo (inlined into _turn, a real call): the "
 
 it("before the writes: gained's word in memory; alice's record slot, in "
   + "storage, its own dump's", async () => {
-  const x = await pair("O0", "writes", 0);
+  const x = await pair("O2", "writes", 0);
   const l = layout(x.d, "memory", {}, { point: x.point });
   const gained = x.d.byPath.get("gained")!.regions[0];
   expect(l.rows.find((r) => r.address === `0x${(gained.offset & ~31)
@@ -81,13 +81,13 @@ it("before the writes: gained's word in memory; alice's record slot, in "
 it("the record selected: its members in child colours; a local: its "
   + "bytes and the frame word it is found from", async () => {
   const { forPath } = await import("./light");
-  const x = await pair("O0", "writes", 0);
+  const x = await pair("O2", "writes", 0);
   const l = layout(x.d, "storage", {}, { point: x.point });
   const g = forPath(x.d, l, A, { selection: true });
   const ks = x.d.byPath.get(A)!.children!.slice(0, 6).map((c) =>
     g.colours.get(c.path));
   expect(ks).toEqual([1, 2, 3, 4, 5, 6]);
-  const y = await pair("O0", "mult");
+  const y = await pair("O2", "mult");
   const m = layout(y.d, "memory", {}, { compare: y.other, point: y.point,
     comparePoint: y.otherPoint });
   // (a local selected: its bytes; the frame word it is found from is

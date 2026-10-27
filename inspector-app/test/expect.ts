@@ -29,56 +29,36 @@ export const mid: [string, string][] = [
   ["playerList[2]", "0x90f79bf6eb2c4f870365e785982e1f101e93b906"],
   ["motd", `"${MOTD[0]}"`], ["totalScore", "140"], ["totalHits", "7"],
 ];
+// [path, before, after] for each scene. The post's storage scenes are
+// at one moment, carol's miss (transaction 11, its writes done): the
+// middle of the game
 export const expected: Record<string, Row[]> = {
-  mid: same2(mid),
-  alice: [
-    [`${A}.score`, "30", "60"],
-    [`${A}.combo`, "2", "3"],
-    [`${A}.bestCombo`, "2", "3"],
-    [`${A}.plays`, "2", "3"],
-    [`${A}.hits`, "2", "3"],
-    [`${A}.name`, '"alice"', '"alice"'],
-    [`${B}.score`, "10", "10"],
-    ["totalScore", "140", "170"],
-    ["totalHits", "7", "8"],
-  ],
-  motd: [
-    ["motd", `"${MOTD[0]}"`, `"${MOTD[1]}"`],
-    [`${A}.score`, "60", "60"],
-    // (bob's miss, transaction 13, just before: his combo back to 0)
-    [`${B}.combo`, "0", "0"],
-    [`${B}.plays`, "2", "2"],
-    [`${C}.name`, `"${NAME_C}"`, `"${NAME_C}"`],
-    ["totalScore", "170", "170"],
-    ["totalHits", "8", "8"],
-  ],
+  "pitfall-nesting": same2(mid),
   // Solidity's rule, applied to the Vyper contract's storage
-  vyper: same2([A, B, C].flatMap((p): [string, string][] =>
+  "pitfall-compiler": same2([A, B, C].flatMap((p): [string, string][] =>
     [[`${p}.score`, "0"], [`${p}.combo`, "0"], [`${p}.name`, '""']])),
 };
 // Each scene's defaults: the mode shown and the variable selected
 export const defaults: Record<string, [string, string]> = {
-  mid: ["after", A],
-  alice: ["after", A],
-  motd: ["after", "motd"],
-  vyper: ["after", `${A}.score`],
+  "pitfall-nesting": ["after", A],
+  "pointer-walkthrough": ["after", "players"],
+  "pitfall-compiler": ["after", `${A}.score`],
 };
 // players' lastBlock in the arcade scenario's runs (genesis block 0, one
 // transaction a block: transaction k in block k + 1): alice, bob and
 // carol in the middle of the game (their last plays: transactions 5, 6
-// and 11), and alice after her third hit (transaction 12).
-export const lastBlock = { mid: ["6", "7", "12"], alice: "13" };
+// and 11)
+export const lastBlock = ["6", "7", "12"];
 
 // Inside one play (alice's third hit, transaction 12, in the bug runs):
-// four pauses, each its trace step at -O0 and -O2, its source range
+// four pauses, each its trace step at -O2, its source range
 // and the locals its context lists: in
 // _turn, after the roll; inside _applyCombo, the two steps around `mult
 // = combo`; before the writes (totalScore's, in _turn)
 export const PAUSE_TX = 12;
-export const PAUSE_STEPS = { O0: [652, 927, 928, 1011],
-  O2: [499, 723, 724, 795] } as const;
-// (the stepper's scene at each level)
-export const STEPPER = { O0: "stepper-O0", O2: "optimized-locals" } as const;
+export const PAUSE_STEPS = { O2: [499, 723, 724, 795] } as const;
+// (the stepper's scene)
+export const STEPPER = { O2: "optimized-locals" } as const;
 export const pauses: { range?: string; locals: string[] }[] = [
   { range: "!hit", locals: ["player", "hit"] },
   { range: "if (combo < 5) {\n      mult = combo;\n    }",

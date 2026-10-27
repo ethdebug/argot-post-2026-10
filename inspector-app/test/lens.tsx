@@ -22,7 +22,7 @@ export const inspector = (...only: string[]): LensSpec => ({
 
 // `n` lenses of `spec`, each in its own [data-mount], each showing
 // scene `id` (with `sel`, if given)
-export async function mount(spec: LensSpec, { n = 1, id = "mid", sel }:
+export async function mount(spec: LensSpec, { n = 1, id = "pitfall-nesting", sel }:
   { n?: number; id?: string; sel?: string | null } = {}) {
   const project = await testProject();
   const got: LensContextValue[] = [];

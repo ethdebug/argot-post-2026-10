@@ -8,7 +8,7 @@ import { runScenario } from "../src/engine/run/run";
 import type { BuildId, Run, Scenario } from "../src/engine/run/types";
 import type { Runs } from "../src/engine/project";
 
-export const BUILDS = ["sol", "vy", "bug-O0", "bug-O2"] as const;
+export const BUILDS = ["sol", "vy", "bug-O2"] as const;
 const dir = path.join(__dirname, "..", "scenarios", "arcade");
 const json = (p: string) =>
   JSON.parse(fs.readFileSync(path.join(dir, p), "utf8"));

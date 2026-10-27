@@ -1,12 +1,12 @@
-// The shell's Phase 2 fit lenses get the same interaction rules as the
-// page: hover a plain fill (no caps), the rest steps back, caps on a
-// selection; chevrons at the row's right end
+// The vyper lens (scene pitfall-compiler) gets the same interaction
+// rules as the storage inspector: hover a plain fill (no caps), the rest
+// steps back, caps on a selection
 import type { Page } from "@playwright/test";
-import { test, expect, stable } from "../../page";
+import { test, expect, ready, stable } from "../../page";
 
 const A = "players[0x70997970c51812dc3a010c7d01b50e0d17dc79c8]";
-const open = async (page: Page, lens: string) => {
-  await page.goto(`./shell.html#lens=${lens}`);
+const open = async (page: Page) => {
+  await ready(page, { scene: "pitfall-compiler" });
   await expect(page.locator(".view .b[data-owners]").first())
     .toBeAttached();
 };
@@ -22,49 +22,33 @@ const look = (page: Page) => page.evaluate(() => {
       +getComputedStyle(b).opacity < 0.5) };
 });
 
-for (const lens of ["alice-plays", "vyper"]) {
-  test(`${lens}: hover plain, the rest steps back; a selection capped`,
-    async ({ page }) => {
-      await open(page, lens);
-      // (vyper's scene opens with alice's score selected: cleared first)
-      // (empty space at the tree's corner: in WebKit, with the tree's
-      // type at the cell size, the lens's own, under its negative margin)
-      await page.locator(".tree").first().click({ position: { x: 1, y: 1 },
-        force: true });
-      await page.keyboard.press("Escape");
-      await expect(page.locator(".view .b.on, .tree .row.on")).toHaveCount(0);
-      await page.locator(`.tree li[data-path="${A}.score"] > .row`).first()
-        .hover();
-      const h = await look(page);
-      expect(h.lit).toBeGreaterThan(0);
-      expect([h.capped, h.back]).toEqual([0, true]);
-      await page.locator(`.tree li[data-path="${A}.score"] > .row`).first()
-        .click();
-      await page.mouse.move(1, 1);
-      const s = await look(page);
-      expect(s.capped).toBe(s.lit);
-    });
-
-  test(`${lens}: a chevron at its row's right end`, async ({ page }) => {
-    // (the compilers' pitfall has none: one path, both sides one)
-    test.skip(lens === "vyper", "no chevrons in the vyper lens");
-    await open(page, lens);
-    const g = await page.evaluate((a) => {
-      const li = document.querySelector(`.tree li[data-path="${a}"]`)!;
-      const r = li.querySelector(":scope > .row")!.getBoundingClientRect();
-      const c = li.querySelector(":scope > .chev")!.getBoundingClientRect();
-      return { right: r.right - c.right < 20, middle: Math.abs((c.top +
-        c.bottom) / 2 - (r.top + r.bottom) / 2) < 2 };
-    }, A);
-    expect(g).toEqual({ right: true, middle: true });
+test("pitfall-compiler: hover plain, the rest steps back; a selection "
+  + "capped", async ({ page }) => {
+    await open(page);
+    // (the scene opens with alice's score selected: cleared first)
+    // (empty space at the tree's corner: in WebKit, with the tree's
+    // type at the cell size, the lens's own, under its negative margin)
+    await page.locator(".tree").first().click({ position: { x: 1, y: 1 },
+      force: true });
+    await page.keyboard.press("Escape");
+    await expect(page.locator(".view .b.on, .tree .row.on")).toHaveCount(0);
+    await page.locator(`.tree li[data-path="${A}.score"] > .row`).first()
+      .hover();
+    const h = await look(page);
+    expect(h.lit).toBeGreaterThan(0);
+    expect([h.capped, h.back]).toEqual([0, true]);
+    await page.locator(`.tree li[data-path="${A}.score"] > .row`).first()
+      .click();
+    await page.mouse.move(1, 1);
+    const s = await look(page);
+    expect(s.capped).toBe(s.lit);
   });
-}
 
 // (the scene, on the storage inspector's lens: its tree, its dump, the
 // rows Related shows)
 test("pointer-walkthrough: opens at step 0 of players, and walks",
   async ({ page }) => {
-  await page.goto("./shell.html#scene=pointer-walkthrough");
+  await ready(page, { scene: "pointer-walkthrough" });
   const count = page.locator(".rbar .rcount");
   await expect(count).toHaveText("start");
   await expect(page.locator(".view .b.hl")).not.toHaveCount(0);
@@ -98,29 +82,15 @@ const fit = (page: Page) => page.evaluate(() => {
   return { wide, over, gaps };
 });
 
-for (const lens of ["alice-plays", "vyper"]) {
-  for (const width of [1280, 1440]) {
-    test(`${lens} at ${width}: each dump fits its box; each tree as tall `
-      + "as its dumps; no sideways scroll", async ({ page }) => {
-      await page.setViewportSize({ width, height: 900 });
-      await open(page, lens);
-      const f = await stable(() => fit(page));
-      expect(f.wide).toBe(false);
-      expect(f.over).toBe(0);
-      expect(f.gaps.length).toBe(lens === "vyper" ? 2 : 1);
-      for (const g of f.gaps) expect(Math.abs(g)).toBeLessThanOrEqual(2);
-    });
-  }
+for (const width of [1280, 1440]) {
+  test(`pitfall-compiler at ${width}: each dump fits its box; each tree `
+    + "as tall as its dumps; no sideways scroll", async ({ page }) => {
+    await page.setViewportSize({ width, height: 900 });
+    await open(page);
+    const f = await stable(() => fit(page));
+    expect(f.wide).toBe(false);
+    expect(f.over).toBe(0);
+    expect(f.gaps.length).toBe(2);
+    for (const g of f.gaps) expect(Math.abs(g)).toBeLessThanOrEqual(2);
+  });
 }
-
-for (const ex of ["vyper", "motd", "mid"]) test(`the parity page opened at `
-  + `${ex}: the tree as tall as the storage dump`, async ({ page }) => {
-  await page.setViewportSize({ width: 1280, height: 900 });
-  await page.goto(`./#ex=${ex}`);
-  await page.waitForFunction(() =>
-    (window as unknown as { results?: { done: boolean } }).results?.done);
-  const g = await stable(() => page.evaluate(() =>
-    document.querySelector("#dump")!.getBoundingClientRect().bottom -
-    document.querySelector("#tree")!.getBoundingClientRect().bottom));
-  expect(Math.abs(g)).toBeLessThanOrEqual(2);
-});

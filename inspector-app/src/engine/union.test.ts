@@ -7,37 +7,38 @@ import { decode } from "./decode";
 import { layout } from "./layout";
 import { A } from "../../test/expect";
 
-const at = async (scene: string) => {
+// (two of the optimized stepper's moments, alice's third hit: after the
+// roll, and before the writes, test/expect.ts PAUSE_STEPS)
+const at = async () => {
   const p = await testProject();
-  const bm = p.bookmarks.find((b) => b.id === scene)!;
-  const t = await p.timeline(bm.timeline);
-  const pts = bm.points.map((id) => t.points.find((x) => x.id === id)!);
-  const ds = await Promise.all(bm.points.map((id) =>
-    decode(p, p.decodings[bm.decoding], id)));
-  return { p, bm, pts, ds };
+  const xs = await Promise.all([0, 3].map((k) => pauseOf(p, "O2", k)));
+  const pts = await Promise.all(xs.map((x) => p.point(x.decoding.timeline,
+    x.point)));
+  const ds = await Promise.all(xs.map((x) => decode(p, x.decoding,
+    x.point)));
+  return { pts, ds };
 };
 
 describe("unionRows", () => {
-  it("motd: the old long text's rows at both moments", async () => {
-    const { pts, ds } = await at("motd");
-    const ls = ds.map((d, k) => layout(d, "storage", {}, { point: pts[k] }));
+  it("memory: each moment's rows, in address order", async () => {
+    const { pts, ds } = await at();
+    const ls = ds.map((d, k) => layout(d, "memory", {}, { point: pts[k] }));
     const [a, b] = ls.map((l) => l.rows.map((r) => r.address));
-    // (the long text's data rows: at moment 0 only)
-    const gone = a.filter((x) => !b.includes(x));
-    expect(gone.length).toBeGreaterThan(0);
+    // (rows at one moment only)
+    expect(a).not.toEqual(b);
     const u = unionRows(ls);
     expect(u).toEqual([...new Set([...a, ...b])].sort((x, y) =>
       BigInt(x) < BigInt(y) ? -1 : 1));
     // (each moment's layout, with the union: the same rows)
-    const again = ds.map((d, k) => layout(d, "storage", { rows: u },
+    const again = ds.map((d, k) => layout(d, "memory", { rows: u },
       { point: pts[k] }).rows.map((r) => r.address));
     expect(again[0]).toEqual(again[1]);
   });
 });
 
 describe("unionTree", () => {
-  it("alice: the same tree rows at both moments", async () => {
-    const { ds } = await at("alice");
+  it("the same tree rows at both moments", async () => {
+    const { ds } = await at();
     const paths = ds.map((d) => [...unionTree(d, ds).byPath.keys()]);
     expect(paths[0]).toEqual(paths[1]);
     expect(paths[0]).toContain(`${A}.score`);
@@ -46,7 +47,7 @@ describe("unionTree", () => {
     const p = await testProject();
     // (the roll: hit, player; the writes' moment, gained too)
     const [roll, writes] = await Promise.all([0, 3].map(async (k) => {
-      const at = await pauseOf(p, "O0", k);
+      const at = await pauseOf(p, "O2", k);
       return decode(p, at.decoding, at.point);
     }));
     const u = unionTree(roll, [roll, writes]);

@@ -6,8 +6,8 @@ import { A } from "../../test/expect";
 
 it("a member: its struct; a variable: its declaration", async () => {
   const p = await testProject();
-  const dc = p.decodings["alice"];
-  const d = await decode(p, dc, "alice:1");
+  const dc = p.decodings["pitfall-nesting"];
+  const d = await decode(p, dc, "pitfall-nesting:0");
   const c = await p.compilation(dc.compilation);
   const text = c.sources[0].text;
   const at = (q: string) => {

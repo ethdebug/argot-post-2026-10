@@ -17,8 +17,8 @@ import { forStep } from "../light";
 import { walkthrough } from "./fold";
 import type { WalkInput } from "./fold";
 
-// (the curated storage scenes)
-export const SCENES = ["mid", "alice", "motd", "vyper"];
+// (the post's storage walkthrough)
+export const SCENES = ["pointer-walkthrough"];
 const FILE = path.resolve(__dirname, "../../../test/golden/walkthroughs.json");
 const big = (_: string, v: unknown) => typeof v === "bigint" ? String(v)
   : v instanceof Map ? Object.fromEntries([...v].map(([k, x]) =>

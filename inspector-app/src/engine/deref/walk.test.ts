@@ -4,8 +4,8 @@ import { A, B, C } from "../../../test/expect";
 import { decode } from "../decode";
 import type { DerefGraph, Decoded, RuleNode } from "../types";
 
-const scenes = { mid: ["after"], alice: ["before", "after"],
-  motd: ["before", "after"], vyper: ["after"] } as const;
+const scenes = { "pitfall-nesting": ["after"],
+  "pitfall-compiler": ["after"] } as const;
 
 async function at(bm: string, side: string): Promise<Decoded> {
   const p = await testProject();
@@ -13,7 +13,7 @@ async function at(bm: string, side: string): Promise<Decoded> {
   return decode(p, p.decodings[b.decoding],
     b.points[side === "before" ? 0 : b.points.length - 1]);
 }
-const mid = () => at("mid", "after");
+const mid = () => at("pitfall-nesting", "after");
 const nodes = (g: DerefGraph) => [...g.nodes.values()];
 const byKind = (g: DerefGraph, k: RuleNode["kind"]) =>
   nodes(g).filter((n) => n.kind === k);
@@ -114,7 +114,7 @@ it("NodeIds are template + JSON path; order is pre-order", async () => {
   expect(g.nodes.get("t_string_storage#/for/group/1")!.kind)
     .toBe("conditional");
   expect(g.nodes.get("t_string_storage#")!.kind).toBe("template");
-  // mid's motd is long: the else branch's nodes, no then
+  // the motd is long: the else branch's nodes, no then
   expect(g.nodes.has("t_string_storage#/for/group/1/else/group/0"))
     .toBe(true);
   expect(g.nodes.has("t_string_storage#/for/group/1/then/define/length"))

@@ -5,11 +5,11 @@ import { decode } from "./decode";
 import { keccak } from "./run/abi";
 import type { ValueNode } from "./types";
 
-const POINT = "vyper:0";
+const POINT = "pitfall-compiler:0";
 
 it("vyRule: carol's name is 34 bytes over two words", async () => {
   const p = await testProject();
-  const d = await decode(p, p.decodings["vyper/rule"], POINT);
+  const d = await decode(p, p.decodings["pitfall-compiler/rule"], POINT);
   const n = d.byPath.get(`${C}.name`)!;
   expect(n.value!.text).toBe(`"${NAME_C}"`);
   const data = n.regions.find((r) => r.role === "value")!;
@@ -19,17 +19,17 @@ it("vyRule: carol's name is 34 bytes over two words", async () => {
 it("the compilation is badged hand-written; keys from the trace",
   async () => {
     const p = await testProject();
-    const c = await p.compilation(p.decodings["vyper/rule"].compilation);
+    const c = await p.compilation(p.decodings["pitfall-compiler/rule"].compilation);
     expect([c.id, c.language, c.provenance])
       .toEqual(["arcade-vy-rule", "vyper", "hand-written"]);
     expect(c.stateVariables.map((v) => v.identifier)).toEqual(["playerList",
       "motd", "totalScore", "totalHits", "players"]);
-    const d = await decode(p, p.decodings["vyper/rule"], POINT);
+    const d = await decode(p, p.decodings["pitfall-compiler/rule"], POINT);
     expect(d.graphs.get("players")!.inputs[0].values.map((v) => v.value))
       .toEqual([A, B, C].map((x) =>
         "0x" + x.slice(10, 50).padStart(64, "0")));
-    expect(p.bookmarks.find((b) => b.id === "vyper")!.decoding)
-      .toBe("vyper");
+    expect(p.bookmarks.find((b) => b.id === "pitfall-compiler")!.decoding)
+      .toBe("pitfall-compiler");
   });
 
 // Every Vyper storage variable, decoded by the hand-written layout, and
@@ -39,8 +39,8 @@ it("the compilation is badged hand-written; keys from the trace",
 // keccak256(slot . key)); and every word the run holds owned by them
 it("vyRule: every variable, as the run stores it", async () => {
   const p = await testProject();
-  const [point] = (await p.timeline("scene:vyper")).points;
-  const d = await decode(p, p.decodings["vyper/rule"], point.id);
+  const [point] = (await p.timeline("scene:pitfall-compiler")).points;
+  const d = await decode(p, p.decodings["pitfall-compiler/rule"], point.id);
   const text = (path: string) => d.byPath.get(path)?.value?.text;
   const keys = [A, B, C].map((x) => x.slice(8, -1));
   expect(d.tree.map((n) => n.path)).toEqual(["playerList", "motd",

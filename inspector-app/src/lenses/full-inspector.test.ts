@@ -15,12 +15,8 @@ it("$scene and its moments resolve to the scene's points", async () => {
     return ref ? resolveRef(ref, s, p) : undefined;
   };
   // (one moment: none before it to compare with)
-  expect(at("after", "mid")).toEqual({ decoding: "mid", point: "mid:0" });
-  expect(at("after", "mid", true)).toBeUndefined();
-  expect(at("tree", "mid")).toEqual(at("after", "mid"));
-  // (two: the current, compared with the previous)
-  expect(at("after", "alice", true)).toEqual({ decoding: "alice",
-    point: "alice:0" });
-  expect(at("after", "alice")).toEqual({ decoding: "alice",
-    point: "alice:1" });
+  const S = "pitfall-nesting";
+  expect(at("after", S)).toEqual({ decoding: S, point: `${S}:0` });
+  expect(at("after", S, true)).toBeUndefined();
+  expect(at("tree", S)).toEqual(at("after", S));
 });

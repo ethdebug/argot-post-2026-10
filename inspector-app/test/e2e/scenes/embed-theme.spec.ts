@@ -1,10 +1,11 @@
 import { test, expect } from "../../page";
 import type { Page } from "@playwright/test";
 
-// The walkthrough's start button ("How it was found") readable in every
-// theme the host may ask for: its ink against its fill, at least 4.5:1
-// (WCAG AA), by the OS's preference and by the host's theme= over it;
-// in the figure's frame and in the panel's own frame.
+// The walkthrough's start button ("How it was found", optimized-locals's
+// way into a walkthrough) readable in every theme the host may ask for:
+// its ink against its fill, at least 4.5:1 (WCAG AA), by the OS's
+// preference and by the host's theme= over it; and the walkthrough
+// panel's own frame (pointer-walkthrough's) in the host's theme.
 
 const lum = (c: string) => {
   const [r, g, b] = c.match(/[\d.]+/g)!.slice(0, 3).map((v) => {
@@ -19,6 +20,8 @@ const ratio = (a: string, b: string) => {
 };
 const contrast = async (page: Page, url: string) => {
   await page.goto(url);
+  // (`name` selected: a walkthrough's way in)
+  await page.locator('li[data-path="name"] > .row').click();
   const b = page.locator('button[data-r="start"]');
   await expect(b).toBeVisible({ timeout: 20_000 });
   const [ink, fill] = await b.evaluate((e) => {
@@ -36,21 +39,16 @@ for (const [os, theme] of [["light", ""], ["dark", ""], ["light", "dark"],
     (theme ? `, host ${theme}` : ""), async ({ page }) => {
     await page.emulateMedia({ colorScheme: os });
     const t = theme ? `&theme=${theme}` : "";
-    expect(await contrast(page, `./embed.html#scene=mid${t}`))
+    expect(await contrast(page, `./embed.html#scene=optimized-locals${t}`))
       .toBeGreaterThanOrEqual(4.5);
     // (the panel's own frame: its figure's frame sends it the model)
     await page.setContent(`<iframe src="${new URL(
-      `./embed-panel.html#scene=mid&channel=t${t}`, page.url())}"></iframe>` +
-      `<iframe src="${new URL(`./embed.html#scene=mid&panel=external` +
+      `./embed-panel.html#scene=pointer-walkthrough&channel=t${t}`, page.url())}"></iframe>` +
+      `<iframe src="${new URL(`./embed.html#scene=pointer-walkthrough&panel=external` +
       `&channel=t${t}`, page.url())}"></iframe>`);
     const panel = page.frameLocator("iframe").first();
-    const b = panel.locator('.pshown button[data-r="start"]');
-    await expect(b).toBeVisible({ timeout: 20_000 });
-    const [ink, fill] = await b.evaluate((e) => {
-      const c = getComputedStyle(e);
-      return [c.color, c.backgroundColor];
-    });
-    expect(ratio(ink, fill)).toBeGreaterThanOrEqual(4.5);
+    await expect(panel.locator(".pshown .rbar")).toBeVisible({
+      timeout: 20_000 });
     // (and its text the host's theme: dark text on a dark host is not)
     const want = (theme || os) === "dark";
     expect(lum(await panel.locator("body").evaluate((e) =>

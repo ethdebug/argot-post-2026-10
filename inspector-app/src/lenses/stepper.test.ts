@@ -7,8 +7,8 @@ import { NAME_C } from "../../test/expect";
 
 const NAME_HEX = `0x${Buffer.from(NAME_C, "utf8").toString("hex")}`;
 
-// (the moment `name` is sliced from the call: a mark of each replay)
-describe.each([["stepper-O0", 1], ["optimized-locals", 0]] as const)(
+// (the moment `name` is sliced from the call: a mark of the replay)
+describe.each([["optimized-locals", 0]] as const)(
   "%s", (scene, mark) => {
   it("everything in scope; the name, sliced from the call, is its " +
     "calldata bytes, NAME_C", async () => {
