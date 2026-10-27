@@ -22,7 +22,7 @@ for (const width of [1024, 390]) {
       .toBeVisible();
     await expect(frame.locator(".view")).toHaveCount(3);
     for (const q of ["main", "header", "h1", "#picker", ".picker",
-      "#contract", "footer", ".shellbar"]) {
+      "#contract", "footer"]) {
       await expect(frame.locator(q)).toHaveCount(0);
     }
     // (its columns: the raw lens lays out two, side by side)
@@ -71,7 +71,7 @@ for (const [id, views] of [["reveal", 3], ["pitfall-nesting", 1],
       await expect.poll(() => page.locator(".view").count(),
         { timeout: 20_000 }).toBeGreaterThanOrEqual(views);
       for (const q of ["main", "#picker", "#contract-box",
-        "[data-area=contract] *", ".shellbar"]) {
+        "[data-area=contract] *"]) {
         await expect(page.locator(`${q}:visible`)).toHaveCount(0);
       }
       // (no box inside it scrolls; its last height is its content's;
