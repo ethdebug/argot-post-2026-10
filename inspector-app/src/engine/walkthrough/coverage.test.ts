@@ -1,7 +1,7 @@
 // The walkthrough's coverage of the pointer schema: every pointer
 // example in ethdebug/format's schemas, and every pointer in our builds
 // (solc's storage, the hand-written Vyper rule, bugc's storage and
-// locals at -O0 and -O2, at the memory section's pauses), is walked (deref/walk.ts,
+// locals at -O2, at the memory section's pauses), is walked (deref/walk.ts,
 // its regions the library's) and folded into steps: without an error,
 // each step lighting a region or naming a value, the steps' regions
 // together the resolved regions. The table of forms by location is
@@ -196,8 +196,9 @@ async function walkAll(x: WalkInput, who: string) {
 
 describe("every pointer in our builds", async () => {
   const p = await testProject();
-  for (const [scene, who] of [["mid", "solc"], ["vyper", "solc"],
-    ["vyper/rule", "vyper rule"]] as const) {
+  const builds = [["pitfall-nesting", "solc"], ["pitfall-compiler", "solc"],
+    ["pitfall-compiler/rule", "vyper rule"]] as const;
+  for (const [scene, who] of builds) {
     it(`${who}: ${scene}'s values walk`, async () => {
       const dc = p.decodings[scene];
       const t = await p.timeline(dc.timeline);
@@ -208,7 +209,7 @@ describe("every pointer in our builds", async () => {
         who)).toBeGreaterThan(0);
     });
   }
-  for (const o of ["O0", "O2"] as const) {
+  for (const o of ["O2"] as const) {
     it(`bugc -${o}: everything in scope at alice's pauses walks`,
       async () => {
       let n = 0;

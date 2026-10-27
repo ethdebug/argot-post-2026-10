@@ -108,11 +108,3 @@ async ({ page }) => {
   await expect.poll(async () => Number(await step(page))).toBe(open);
   await expect(page.locator(".reset")).not.toHaveAttribute("data-shown");
 });
-
-test("the shell lists it as a scene; soldb is never in the app's code",
-  async ({ page }) => {
-    await page.goto("./shell.html#scene=real-debugger");
-    await expect(page.locator(F)).toHaveCount(1);
-    // (the worker and its files come from ../debugger/, on first view)
-    await expect(page.locator(`${F}[data-loaded]`)).toHaveCount(1, LOAD);
-  });

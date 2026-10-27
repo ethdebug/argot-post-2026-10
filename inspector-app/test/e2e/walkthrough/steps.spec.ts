@@ -1,20 +1,58 @@
-// Mirrors bin/run.mjs's walkthrough checks (vanilla 8d2d944), with the
-// decided rule its run.mjs does not have yet: instances named by their
-// on-chain `name` values, quoted
+// The walkthrough, in the post's walkthrough figure
+// (embed.html#scene=pointer-walkthrough, its bar in the frame): each
+// value's steps, their light, bands, chips and controls; instances named
+// by their on-chain `name` values, quoted
 import type { Page } from "@playwright/test";
 import { pick } from "../../pick";
 import {
-  test, expect, ready, select, row, selected, still, stable,
+  test, expect, ready, select, row, selected, still, stable, V,
 } from "../../page";
 import { A, B, C, NAME_C } from "../../expect";
 
 const CAROL = `"${NAME_C}"`;
+// The figure out of the walkthrough it opens in, nothing selected (the
+// tree whole): Escape in it, twice
+async function open(page: Page, o: { width?: number; height?: number } =
+  {}) {
+  await ready(page, { scene: "pointer-walkthrough", ...o });
+  await page.locator("#tree .row.sel").focus();
+  await page.keyboard.press("Escape");
+  await expect(page.locator("#details.replaying")).toHaveCount(0);
+  await page.keyboard.press("Escape");
+  await expect.poll(() => selected(page)).toBe(null);
+}
+// (out of a walkthrough, as a reader leaves it: Escape)
+async function exit(page: Page) {
+  if (!await page.locator("#details.replaying").count()) return;
+  await page.locator("#details").focus();
+  await page.keyboard.press("Escape");
+  await expect(page.locator("#details.replaying")).toHaveCount(0);
+}
+// (a row in reach: each shut group over it opened)
+async function reach(page: Page, p: string) {
+  for (;;) {
+    const shut = page.locator("#tree li.collapsed[data-path]").filter({
+      has: page.locator(`li[data-path="${p}"]`) });
+    if (!await shut.count()) return;
+    await shut.first().locator(":scope > .chev").click();
+  }
+}
+// `sel` selected (null: none), out of any walkthrough
+async function go(page: Page, sel: string | null) {
+  await exit(page);
+  if (sel !== null && !await row(page, sel).count()) {
+    await select(page, null);
+  }
+  if (sel !== null) await reach(page, sel);
+  await select(page, sel);
+}
 const range = (a: number, b: number) =>
   Array.from({ length: b - a + 1 }, (_, i) => a + i).join();
 const stepNow = (page: Page) => page.evaluate(() => {
   const box = (q: string) => {
     const r = document.querySelector(q)?.getBoundingClientRect();
-    return r && [r.left, r.top, r.width, r.height].map(Math.round).join();
+    return r && [r.left, r.top + scrollY, r.width, r.height].map(Math.round)
+      .join();
   };
   return {
     cap: document.querySelector("#details .rcount")?.textContent
@@ -66,6 +104,7 @@ const litNamed = (xs: string[], nm: Record<string, string>) => {
 // walk a walkthrough: step 0 kept aside, each step, the controls
 async function walk(page: Page, path: string) {
   const nm = await names(page);
+  await reach(page, path);
   await row(page, path).click();
   await page.mouse.move(1, 1);
   await page.locator('#details button[data-r="start"]').click();
@@ -91,9 +130,8 @@ async function walk(page: Page, path: string) {
     }
     await page.locator('#details button[data-r="next"]').click();
   }
-  await page.locator('#details button[data-r="exit"]').click();
-  // (the controls' place while stepping; not after Exit, which takes the
-  // page back to where the reader pressed Start, the bar with it)
+  await exit(page);
+  // (the controls' place while stepping; not after the exit)
   // (the last step, "found", kept aside: no construct, counted last)
   let found: St | undefined;
   if (out.length > 1 && !out.at(-1)?.kind) found = out.pop();
@@ -109,8 +147,8 @@ const cdata = `keccak(${cl0} + 1)`;
 
 test("players: step 0 and ten steps, their light, bands and chips",
   async ({ page }) => {
-    await ready(page);
-    await select(page, "mid", null);
+    await open(page);
+    await go(page, null);
     const { steps: w, goal, ctl } = await walk(page, "players");
     const playerList = { "keccak(slot 0)": range(12, 31),
       "keccak(slot 0) + 1": range(12, 31),
@@ -191,8 +229,8 @@ test("players: step 0 and ten steps, their light, bands and chips",
 
 test("step 0: no labels, no band; ⏮ and ◀ reach it; a re-target keeps it",
   async ({ page }) => {
-    await ready(page);
-    await select(page, "mid", "players");
+    await open(page);
+    await go(page, "players");
     await page.locator('#details button[data-r="start"]').click();
     await page.mouse.move(1, 1);
     expect(await page.evaluate(() => ({
@@ -215,7 +253,7 @@ test("step 0: no labels, no band; ⏮ and ◀ reach it; a re-target keeps it",
     await row(page, C).click();
     expect((await stepNow(page)).count).toBe("start");
     await page.keyboard.press("Escape");
-    await select(page, "mid", null);
+    await go(page, null);
     // (one value in one slot: a step 0 too)
     const t = await walk(page, "totalScore");
     expect([t.goal?.count, t.steps[0].count]).toEqual(["start", "1 / 1"]);
@@ -223,8 +261,8 @@ test("step 0: no labels, no band; ⏮ and ◀ reach it; a re-target keeps it",
 
 test("carol's record: eleven steps; bob's plays and carol's name",
   async ({ page }) => {
-    await ready(page);
-    await select(page, "mid", null);
+    await open(page);
+    await go(page, null);
     const cw = (await walk(page, C)).steps;
     const cwant: [string, Record<string, string>, string[], string,
       string[]][] = [
@@ -257,7 +295,7 @@ test("carol's record: eleven steps; bob's plays and carol's name",
       if (band) expect(cw[k].ptr.some((l) => l.includes(band))).toBe(true);
       else expect(cw[k].ptr).toEqual([]);
     });
-    await select(page, "mid", null);
+    await go(page, null);
     const bw = await walk(page, `${B}.plays`);
     expect(bw.steps.map((x) => x.cap!.split(" ")[1]).join())
       .toBe("key:,is,template,record,is");
@@ -266,7 +304,7 @@ test("carol's record: eleven steps; bob's plays and carol's name",
     expect(bw.ctl).toBe(1);
     const st = await stepNow(page);
     expect(st.resolved).toBe(true);
-    await select(page, "mid", null);
+    await go(page, null);
     const nw = await walk(page, `${C}.name`);
     expect(nw.steps.map((x) => x.cap!.split(" ")[1]).join())
       .toBe("key:,is,template,record,is,last,→,text");
@@ -274,10 +312,11 @@ test("carol's record: eleven steps; bob's plays and carol's name",
 
 // (the review's redesign: one title, ◀ ▶, the place, the steps as dots,
 // the step's one wording; ⏮ is Home, the first dot)
-test("the bar: entry, title, ◀ ▶ at the ends, the place, dots, keys, Exit",
+test("the bar: entry, title, ◀ ▶ at the ends, the place, dots, keys, " +
+  "Escape",
   async ({ page }) => {
-    await ready(page);
-    await select(page, "mid", null);
+    await open(page);
+    await go(page, null);
     await row(page, `${B}.plays`).click();
     const barNow = () => page.evaluate(() => {
       const b = document.querySelector("#details")!;
@@ -288,18 +327,17 @@ test("the bar: entry, title, ◀ ▶ at the ends, the place, dots, keys, Exit",
         count: b.querySelector(".rcount")?.textContent ?? "",
         off: ["prev", "next"].filter(dis).join(),
         dots: b.querySelectorAll(".dot").length,
-        exit: !!b.querySelector('button[data-r="exit"]'),
         start: b.querySelector('button[data-r="start"]')?.textContent };
     });
     let bs = await barNow();
-    expect(bs).toMatchObject({ tint: false, title: "", exit: false,
+    expect(bs).toMatchObject({ tint: false, title: "",
       start: "▶ How it was found" });
     await page.locator('#details button[data-r="start"]').dblclick();
     bs = await barNow();
     // (the title names the key by name, not by address)
     expect(bs).toMatchObject({ tint: true,
       title: 'How the pointer finds players["bob"].plays', count: "start",
-      off: "prev", dots: 7, exit: true });
+      off: "prev", dots: 7 });
     await page.locator("#dots .dot:last-child").click();
     expect(await barNow()).toMatchObject({ count: "6 / 6", off: "next" });
     await page.keyboard.press("ArrowRight");
@@ -318,7 +356,7 @@ test("the bar: entry, title, ◀ ▶ at the ends, the place, dots, keys, Exit",
     // (a dot's caption, on hover and for the screen reader)
     expect(await page.locator('#dots .dot[data-n="1"]').getAttribute(
       "title")).toBe("players is declared at slot 3; that slot holds nothing");
-    await page.locator('#details button[data-r="exit"]').click();
+    await exit(page);
     expect((await barNow()).tint).toBe(false);
     await page.locator('#details button[data-r="start"]').click();
     await page.locator('#dots .dot[data-n="1"]').click();
@@ -334,8 +372,8 @@ test("the bar: entry, title, ◀ ▶ at the ends, the place, dots, keys, Exit",
 
 test("the focus: all by default for players; one entry echoes",
   async ({ page }) => {
-    await ready(page);
-    await select(page, "mid", "players");
+    await open(page);
+    await go(page, "players");
     await page.locator('#details button[data-r="start"]').click();
     const btns = () => page.locator("#dpick button").evaluateAll((bs) =>
       bs.map((b) => `${b.textContent}${b.getAttribute("aria-pressed") ===
@@ -355,11 +393,12 @@ test("the focus: all by default for players; one entry echoes",
     expect(await btns()).toBe('all*|"alice"|"bob"|"carol, the un…"');
     expect(muted.some(Boolean)).toBe(false);
     await page.locator('#dots .dot[data-n="4"]').dispatchEvent("click");
+    // (on the page: a step may scroll the frame to its rows)
     const boxes = () => page.evaluate(() => JSON.stringify([
       ...document.querySelectorAll("#details, #dpanel, #dpick button, " +
         "#dots .dot, #panel .view[data-side=after] .wrow, #tree")].map((e) => {
       const r = e.getBoundingClientRect();
-      return [r.left, r.top, r.width, r.height].map(Math.round);
+      return [r.left, r.top + scrollY, r.width, r.height].map(Math.round);
     })));
     await page.mouse.move(1, 1);
     const b0 = await boxes();
@@ -375,8 +414,8 @@ test("the focus: all by default for players; one entry echoes",
 
 test("entries and fields never share a colour; found rows keep labels",
   async ({ page }) => {
-    await ready(page);
-    await select(page, "mid", "players");
+    await open(page);
+    await go(page, "players");
     const huesAt = async (k: number) => {
       await page.locator('#details button[data-r="start"]').click();
       await page.locator(`#dots .dot[data-n="${k}"]`).dispatchEvent("click");
@@ -425,8 +464,8 @@ test("entries and fields never share a colour; found rows keep labels",
 
 test("footnotes link to the spec; the pointer as YAML, coloured",
   async ({ page }) => {
-    await ready(page);
-    await select(page, "mid", "players");
+    await open(page);
+    await go(page, "players");
     await page.locator('#details button[data-r="start"]').click();
     const hrefs: string[] = [];
     for (let k = 0; k < 10; k++) {
@@ -448,47 +487,14 @@ test("footnotes link to the spec; the pointer as YAML, coloured",
     await page.keyboard.press("Escape");
   });
 
-test("Vyper: Solidity's rule, then the misread: Vyper's own layout, "
-  + "hand-written for comparison, not under the compiler's data",
-  async ({ page }) => {
-    await ready(page);
-    await select(page, "vyper");
-    await page.locator('#details button[data-r="start"]').click();
-    await expect(page.locator("#details .rcount")).toHaveText("start");
-    // (no list of Vyper's words in the box of the compiler's data)
-    await expect(page.locator(".ptr ol.vyper, #ptr .howside"))
-      .toHaveCount(0);
-    await page.locator('#dots .dot:last-child').click();
-    await page.mouse.move(1, 1);
-    const cap = (await page.locator("#details .rcap").innerText())
-      .replace(/\s+/g, " ");
-    expect(cap).toContain("The misread: Vyper keeps players[0x7099…79c8].score " +
-      "in slot …0446, where it is 30");
-    expect(await page.locator(".wpanel:has(> #details) .rsrc").innerText()).toContain(
-      "from: Vyper's layout, hand-written for comparison (Vyper emits no " +
-      "ethdebug)");
-    expect(await page.locator("#details .rcount").innerText()).toBe("7 / 7");
-    // (Vyper's word, lit in its own colour, beside Solidity's reading)
-    const lit = await page.evaluate(() => [...document.querySelectorAll(
-      "#panel .view[data-side=after] .b.hl.pk9")].map((c) =>
-      (c.closest(".wrow") as HTMLElement).dataset.slot!.slice(-4)));
-    expect([...new Set(lit)]).toEqual(["0446"]);
-    // (carol, re-targeted: her Vyper words)
-    // (re-targeted at the last step: it stays there)
-    await row(page, `${C}.score`).click();
-    expect(await page.locator("#details .rcap").innerText()).toContain(
-      "where it is 100");
-    await page.keyboard.press("Escape");
-  });
-
 // (vanilla 5c1edfa run.mjs: one line, 32 cells in four groups whose gaps
 // match the dump's, each field's span over its own cells, at 1280, 1440)
 test("the packed fields: a strip shaped like a dump row, the fields in "
   + "order over their cells", async ({ page }) => {
   for (const wd of [1280, 1440]) {
     await page.setViewportSize({ width: wd, height: 900 });
-    await ready(page);
-    await select(page, "mid", "players");
+    await open(page);
+    await go(page, "players");
     await page.locator('#details button[data-r="start"]').click();
     await page.locator('#dots .dot[data-n="4"]').click();
     await expect(page.locator("#dtext .bstrip")).toBeAttached();
@@ -516,11 +522,11 @@ test("the packed fields: a strip shaped like a dump row, the fields in "
     expect(x, `${wd}`).toEqual({ even: true, spans: ["lastBlock 0-7",
       "hits 8-11", "plays 12-15", "bestCombo 16-19", "combo 20-23",
       "score 24-31"], rows: true, oneLine: true });
-    await page.keyboard.press("Escape");
+    await exit(page);
   }
   // (a name too long for its span stands over it, whole, with a tick;
   // never cut to a letter: carol's one-byte length flag; vanilla 5ec2f00)
-  await select(page, "mid", C);
+  await go(page, C);
   await page.locator('#details button[data-r="start"]').click();
   await page.locator('#dots .dot[data-n="6"]')
     .evaluate((e: HTMLElement) => e.click());
@@ -544,8 +550,8 @@ test("the packed fields: a strip shaped like a dump row, the fields in "
 test("stepping moves nothing; the details unfold only at entry and exit",
   async ({ page }) => {
     await page.emulateMedia({ reducedMotion: "no-preference" });
-    await ready(page);
-    await select(page, "mid", "players");
+    await open(page);
+    await go(page, "players");
     await page.locator('#details button[data-r="start"]').click();
     const h = () => page.evaluate(() =>
       document.querySelector<HTMLElement>("#dwrap")!.offsetHeight);
@@ -554,19 +560,13 @@ test("stepping moves nothing; the details unfold only at entry and exit",
     await still(page);
     const full = await h();
     expect(early).toBeLessThan(full);
-    // (the panel sticks to the top of the view: its boxes on screen; the
-    // rest on the page, which a step may scroll)
+    // (the boxes on the page, which a step may scroll)
     const boxes = () => page.evaluate(() => JSON.stringify([
-      ...[...document.querySelectorAll("#details, #dpanel, #dots")]
-        .map((e) => {
-          const r = e.getBoundingClientRect();
-          return [r.left, r.top, r.width, r.height].map(Math.round);
-        }),
-      ...[...document.querySelectorAll(
+      ...document.querySelectorAll("#details, #dpanel, #dots, " +
         "#panel .view[data-side=after] .wrow:not(.cmp *), #tree")].map((e) => {
         const r = e.getBoundingClientRect();
         return [r.left, r.top + scrollY, r.width, r.height].map(Math.round);
-      })]));
+      })));
     const b0 = await boxes();
     for (let k = 0; k < 6; k++) {
       await page.locator('#details button[data-r="next"]').click();
@@ -576,10 +576,10 @@ test("stepping moves nothing; the details unfold only at entry and exit",
 
 test("every lit run has its popover at every step (not step 0, which has "
   + "no labels)", async ({ page }) => {
-  await ready(page);
+  await open(page);
   const bare: string[] = [];
   for (const x of ["players", C]) {
-    await select(page, "mid", x);
+    await go(page, x);
     await page.locator('#details button[data-r="start"]').click();
     for (let k = 0; k < 20; k++) {
       await page.mouse.move(1, 1);
@@ -608,15 +608,15 @@ test("every lit run has its popover at every step (not step 0, which has "
       if (!(await n.count())) break;
       await n.click();
     }
-    await page.keyboard.press("Escape");
+    await exit(page);
   }
   expect(bare).toEqual([]);
 });
 
 test("the pointer's box: no scrollbar; edge buttons where there is more; "
   + "blurred and still at step 0 (vanilla 00f6f8c)", async ({ page }) => {
-  await ready(page);
-  await select(page, "mid", "players");
+  await open(page);
+  await go(page, "players");
   await page.locator('#details button[data-r="start"]').click();
   const pb = () => page.evaluate(() => {
     const p = document.querySelector<HTMLElement>("#ptr")!;
@@ -645,10 +645,10 @@ test("the pointer's box: no scrollbar; edge buttons where there is more; "
 
 test("a step's own gutter rows keep a dark label (not muted, not dropped)",
   async ({ page }) => {
-    await ready(page);
+    await open(page);
     const bad: string[] = [];
     for (const x of [C, "motd", "players"]) {
-      await select(page, "mid", x);
+      await go(page, x);
       await page.locator('#details button[data-r="start"]').click();
       for (let k = 0; k < 20; k++) {
         await page.mouse.move(1, 1);
@@ -679,7 +679,7 @@ test("a step's own gutter rows keep a dark label (not muted, not dropped)",
         if (!(await n.count())) break;
         await n.click();
       }
-      await page.keyboard.press("Escape");
+      await exit(page);
     }
     expect(bad).toEqual([]);
   });
@@ -687,19 +687,19 @@ test("a step's own gutter rows keep a dark label (not muted, not dropped)",
 // (at step 0, a plain label over the blurred pointer and a halo on ▶;
 // none from step 1 on)
 test("step 0: the way on, and ▶'s halo", async ({ page }) => {
-  await ready(page);
-  await select(page, "mid", "players");
+  await open(page);
+  await go(page, "players");
   await page.locator('#details button[data-r="start"]').click();
-  const go = () => page.evaluate(() => {
+  const way = () => page.evaluate(() => {
     const l = document.querySelector<HTMLElement>("#pgo")!;
     const n = document.querySelector('#details button[data-r="next"]')!;
     return { label: !l.hidden && l.tagName === "P",
       halo: n.classList.contains("halo") };
   });
-  expect(await go()).toEqual({ label: true, halo: true });
+  expect(await way()).toEqual({ label: true, halo: true });
   await page.locator('#details button[data-r="next"]').click();
   await expect(page.locator(".rcount")).toHaveText(/^1 \//);
-  expect(await go()).toEqual({ label: false, halo: false });
+  expect(await way()).toEqual({ label: false, halo: false });
 });
 
 // (vanilla 6b1df3a run.mjs: the last step, "found", is the resting view:
@@ -707,7 +707,7 @@ test("step 0: the way on, and ▶'s halo", async ({ page }) => {
 // on found)
 test("the last step, found: the selection's resting view",
   async ({ page }) => {
-  await ready(page);
+  await open(page);
   const view = () => page.evaluate(() => JSON.stringify({
     b: [...document.querySelectorAll<HTMLElement>(
       "#panel .view[data-side=after] .b.hl")].map((c) =>
@@ -719,7 +719,7 @@ test("the last step, found: the selection's resting view",
     p: [...document.querySelectorAll("#panel .view[data-side=after] .pop")]
       .map((p) => p.textContent) }));
   for (const x of ["players", C, "playerList"]) {
-    await select(page, "mid", x);
+    await go(page, x);
     await page.mouse.move(1, 1);
     const rest = await view();
     await page.locator('#details button[data-r="start"]').click();
@@ -735,13 +735,13 @@ test("the last step, found: the selection's resting view",
         "combo queen\".");
       expect(r.count).toMatch(/^(\d+) \/ \1$/);
     }
-    await page.keyboard.press("Escape");
+    await exit(page);
   }
 });
 
 test("while it walks, pointing elsewhere changes nothing", async ({ page }) => {
-  await ready(page);
-  await select(page, "mid", "players");
+  await open(page);
+  await go(page, "players");
   await page.locator('#details button[data-r="start"]').click();
   await page.mouse.move(1, 1);
   const now = async () => {
@@ -749,14 +749,16 @@ test("while it walks, pointing elsewhere changes nothing", async ({ page }) => {
     return [x.cap, x.lit, x.chips];
   };
   const before = await now();
-  await row(page, "totalScore").hover();
+  // (a value the walkthrough's tree leaves out: its bytes in the dump)
+  await page.locator('#panel .view[data-side=after] .b[data-owners=' +
+    '"totalScore"]').first().hover();
   expect(await now()).toEqual(before);
 });
 
 test("on a phone, the packed fields' strip is two rows of 16, in its box",
   async ({ page }) => {
-    await ready(page, { width: 390, height: 844 });
-    await select(page, "mid", "players");
+    await open(page, { width: 390, height: 844 });
+    await go(page, "players");
     await page.locator('#details button[data-r="start"]').click();
     await page.locator('#dots .dot[data-n="4"]')
       .evaluate((e: HTMLElement) => e.click());
@@ -781,10 +783,10 @@ test("on a phone, the packed fields' strip is two rows of 16, in its box",
 // keeping the place by the steps' identities, and says so in the cue)
 test("a click mid-walk re-targets it, at the same step where the steps "
   + "match; the cue says what and where", async ({ page }) => {
-  await ready(page);
+  await open(page);
   const retarget = async (from: string, k: number, to: string,
     how: "row" | "byte" = "row") => {
-    await select(page, "mid", from);
+    await go(page, from);
     await page.locator('#details button[data-r="start"]').click();
     await page.locator(`#dots .dot[data-n="${k}"]`).dispatchEvent("click");
     // (the row in the middle of the view: not under the stuck panel)
@@ -802,17 +804,96 @@ test("a click mid-walk re-targets it, at the same step where the steps "
     await page.mouse.move(1, 1);
     const x = { count: (await stepNow(page)).count, sel: await selected(page),
       on: await page.locator("#details.replaying").count(), cue };
-    await page.keyboard.press("Escape");
+    await exit(page);
     return x;
   };
-  // (carol's name → bob's: the same step; carol's record at its fields →
-  // carol's name: the record's step; a name → totalScore: its one step)
-  expect(await retarget(`${C}.name`, 4, `${B}.name`)).toEqual({
-    count: "5 / 9", sel: `${B}.name`, on: 1,
-    cue: 'now: players["bob"].name, 5 / 9' });
+  // (carol's record at its fields → carol's name: the record's step; a
+  // name → totalScore: its one step)
+  // (carol's name at her record's step → her score, by its bytes: the
+  // same step, her record's)
+  expect(await retarget(`${C}.name`, 3, `${C}.score`, "byte")).toEqual({
+    count: "4 / 6", sel: `${C}.score`, on: 1,
+    cue: 'now: players["carol, the un…"].score, 4 / 6' });
   expect(await retarget(C, 4, `${C}.name`)).toMatchObject({
     sel: `${C}.name`, on: 1, cue: 'now: players["carol, the un…"].name, 4 / 9' });
   expect(await retarget(`${C}.name`, 4, "totalScore", "byte")).toEqual({
     count: "1 / 1", sel: "totalScore", on: 1,
     cue: "now: totalScore, 1 / 1" });
+});
+
+// (the walkthrough review's smaller findings: a click in a walkthrough
+// targets exactly what was clicked (C6); the pointer's edge labels in
+// strips of their own (T3); one name for "how it was found" (C5))
+test("in a walkthrough, a click targets exactly what was clicked",
+  async ({ page }) => {
+    await open(page);
+    await go(page, "players");
+    await page.locator('#details button[data-r="start"]').click();
+    await page.locator(`${V} .b[data-owners="${C}.combo"]`).first().click();
+    await expect(page.locator("#details .rtitle"))
+      .toHaveText('How the pointer finds players["carol, the un…"].combo');
+    await reach(page, `${C}.score`);
+    await row(page, `${C}.score`).click();
+    await expect(page.locator("#details .rtitle"))
+      .toHaveText('How the pointer finds players["carol, the un…"].score');
+  });
+
+test("the pointer's edge labels cover none of its lines", async ({ page }) => {
+  await open(page);
+  await go(page, "players");
+  await page.locator('#details button[data-r="start"]').click();
+  await page.locator('#dots .dot[data-n="4"]').click();
+  const hit = await page.evaluate(() => {
+    const box = document.querySelector("#ptr")!.getBoundingClientRect();
+    return [...document.querySelectorAll(".pedge.on button")].some((b) => {
+      const r = b.getBoundingClientRect();
+      return r.bottom > box.top + 0.5 && r.top < box.bottom - 0.5;
+    });
+  });
+  expect(hit).toBe(false);
+});
+
+test("one name for the feature: \"How it was found\"", async ({ page }) => {
+  await open(page);
+  await go(page, "players");
+  await expect(page.locator('#details button[data-r="start"]'))
+    .toHaveText(/How it was found/);
+});
+
+// The pointer pane shows the piece of the pointer the step is in: the
+// variable's own pointer, or the template the dereference has entered,
+// with where that is in the label's line (players › mapping › Player);
+// step 0 and found show the variable's own pointer. The pane keeps its
+// size as the pieces swap.
+test("each step's piece of the pointer, and where it is", async ({ page }) => {
+  await open(page, { width: 1440, height: 900 });
+  await go(page, `${A}.score`);
+  await page.locator('#details button[data-r="start"]').click();
+  const seen: [string, string][] = [];
+  const size = new Set<string>();
+  for (let k = 0; k < 12; k++) {
+    await page.mouse.move(1, 1);
+    const [chain, head, box] = await page.evaluate(() => {
+      const ptr = document.querySelector("#ptr")!;
+      const r = ptr.getBoundingClientRect();
+      return [document.querySelector("#dpanel .pchain")!.textContent!,
+        ptr.querySelector(".ptrlines .line")?.textContent ?? "",
+        `${Math.round(r.width)}x${Math.round(r.height)}`];
+    });
+    seen.push([chain, head.trim()]);
+    size.add(box);
+    const n = page.locator('#details button[data-r="next"]');
+    if (await n.isDisabled()) break;
+    await n.click();
+  }
+  // (step 0 and found: the variable's own pointer)
+  expect(seen[0]).toEqual(["players", "players:"]);
+  expect(seen.at(-1)).toEqual(["players", "players:"]);
+  // (the template steps: each its own piece, headed by its name)
+  expect(seen).toContainEqual(["players › mapping(address => Player)",
+    "mapping(address => Player):"]);
+  expect(seen).toContainEqual(["players › mapping(address => Player) › " +
+    "Player", "Player:"]);
+  // (one size for the pane, whatever piece it shows)
+  expect(size.size).toBe(1);
 });

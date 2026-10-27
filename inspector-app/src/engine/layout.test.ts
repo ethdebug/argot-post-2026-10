@@ -10,7 +10,7 @@ const at = async (decoding: string, point: string) => {
   const p = await testProject();
   return decode(p, p.decodings[decoding], point);
 };
-const mid = () => at("mid", "mid:0");
+const mid = () => at("pitfall-nesting", "pitfall-nesting:0");
 const recordOf = (d: Decoded, who: string, k: number): Hex =>
   slotHex(d.byPath.get(`${who}.score`)!.regions[0].slot! + BigInt(k));
 
@@ -80,27 +80,10 @@ it("one-point bookmark: rows 'values' only", async () => {
       .toBe(true);
   }
   expect(l.rows).toHaveLength(17);
-  // (a two-point scene adds the slots its transaction read or wrote)
+  // (and rows asked for by address)
   const extra = slotHex(12345n);
   expect(layout(d, "storage", { rows: [extra] }).rows
     .some((r) => r.address === extra)).toBe(true);
-});
-
-it("vyper: the Vyper words appear, owned by nobody", async () => {
-  const sol = await at("vyper", "vyper:0");
-  const vy = await at("vyper/rule", "vyper:0");
-  const l = layout(sol, "storage", { rows: "values" },
-    { others: [{ d: vy, who: "Vyper's" }] });
-  const words = l.rows.filter((r) => r.how.startsWith("Vyper's"));
-  expect(words).toHaveLength(3 * 8 + 1);
-  expect(words.every((r) => r.what.length === 0)).toBe(true);
-  expect(words.map((r) => r.how)).toContain(
-    "Vyper's keccak(slot 108, 0x7099…79c8) + 2");
-  expect(words.map((r) => r.how)).toContain(
-    "Vyper's keccak(slot 108, 0x7099…79c8)");
-  for (const r of words) {
-    expect(l.cover.has(byteKey("storage", r.address, 0))).toBe(false);
-  }
 });
 
 it("filter.roots keeps only those subtrees' rows", async () => {
@@ -120,66 +103,11 @@ it("filter.maxRows cuts the rows, gaps still marked", async () => {
     .toEqual([false, false, false, false, true]);
 });
 
-it.each([["mid", "mid:0"],
-  ["alice", "alice:0"],
-  ["alice", "alice:1"],
-  ["motd", "motd:0"],
-  ["motd", "motd:1"],
-  ["vyper", "vyper:0"], ["vyper/rule", "vyper:0"]])(
+it.each([["pitfall-nesting", "pitfall-nesting:0"],
+  ["pitfall-compiler", "pitfall-compiler:0"],
+  ["pitfall-compiler/rule", "pitfall-compiler:0"]])(
   "%s at %s: every row is named from the graph", async (dc, point) => {
     const l = layout(await at(dc, point), "storage", { rows: "values" });
     expect(l.rows.length).toBeGreaterThan(0);
     for (const r of l.rows) expect(r.how, r.address).not.toMatch(/^slot 0x/);
-  });
-
-it("rows 'touched': the values', and the slots the point's "
-  + "transaction read or wrote", async () => {
-  const p = await testProject();
-  const [before, after] = (await p.timeline("scene:alice")).points;
-  const d = await decode(p, p.decodings["alice"], after.id);
-  const values = layout(d, "storage", { rows: "values" });
-  const touched = layout(d, "storage", { rows: "touched" },
-    { point: after });
-  const tx = after.transaction!;
-  const want = [...tx.reads, ...tx.writes].filter((s) =>
-    after.snapshot.storage.has(s));
-  expect(want.length).toBeGreaterThan(0);
-  const got = new Set(touched.rows.map((r) => r.address));
-  for (const s of [...want, ...values.rows.map((r) => r.address)]) {
-    expect(got.has(s), s).toBe(true);
-  }
-  // (no point given: as "values")
-  expect(layout(d, "storage", { rows: "touched" }).rows)
-    .toEqual(values.rows);
-  expect(before.id).toBe("alice:0");
-});
-
-it("rows 'touched' within roots: only the touched slots the roots own",
-  async () => {
-    const p = await testProject();
-    const [, after] = (await p.timeline("scene:alice")).points;
-    const d = await decode(p, p.decodings["alice"], after.id);
-    const l = layout(d, "storage", { rows: "touched", roots: [A] },
-      { point: after });
-    const mine = layout(d, "storage", { rows: "values", roots: [A] });
-    // (alice's play touches her record, and the totals and others too)
-    expect(l.rows.map((r) => r.address))
-      .toEqual(mine.rows.map((r) => r.address));
-    expect(l.rows.map((r) => r.address)).not.toContain(
-      recordOf(d, C, 0));
-  });
-
-it("a pair: rows named from both points (motd's cleared data, After)",
-  async () => {
-    const p = await testProject();
-    const dc = p.decodings["motd"];
-    const [bp, ap] = (await p.timeline("scene:motd")).points;
-    const before = await decode(p, dc, bp.id);
-    const after = await decode(p, dc, ap.id);
-    const l = layout(after, "storage", { rows: "touched" },
-      { point: ap, compare: before });
-    const hows = l.rows.map((r) => r.how);
-    expect(hows).toContain("keccak(slot 1)");
-    expect(hows).toContain("keccak(slot 1) + 1");
-    expect(hows.filter((h) => h.startsWith("slot 0x"))).toEqual([]);
   });

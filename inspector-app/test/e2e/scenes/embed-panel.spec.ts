@@ -66,12 +66,14 @@ test("the panel in a frame of its own: sticky in its figure, ▶ steps " +
 async ({ page, baseURL }) => {
   await page.setViewportSize({ width: 1440, height: 900 });
   await page.goto("./embed.html");
-  await page.setContent(host(baseURL!, "mid"));
+  await page.setContent(host(baseURL!, "pointer-walkthrough"));
   const pa = page.frameLocator("#a .panel");
   const pb = page.frameLocator("#b .panel");
-  // (at rest: the selection and the way in, in each panel)
-  await expect(pa.locator('#details button[data-r="start"]')).toBeEnabled();
-  await expect(pb.locator('#details button[data-r="start"]')).toBeEnabled();
+  // (the scene opens its walkthrough at its start, in each panel)
+  for (const p of [pa, pb]) {
+    await expect(p.locator("#details.replaying")).toHaveCount(1);
+    await expect(p.locator("#details .rcount")).toHaveText("start");
+  }
   // (each frame posts its height; the figure draws no panel of its own.
   // A figure posts once it is drawn, its dumps filled and its height
   // still: under load, some seconds)
@@ -88,14 +90,12 @@ async ({ page, baseURL }) => {
     scrollTo(0, scrollY + a.top - 100);
   });
   const b0 = await lit(page, "b");
-  await pa.locator('#details button[data-r="start"]').click();
-  await expect(pa.locator("#details.replaying")).toHaveCount(1);
-  // (the other figure's panel: still at rest)
-  await expect(pb.locator("#details.replaying")).toHaveCount(0);
   const l0 = await lit(page, "a");
   await pa.locator('#details button[data-r="next"]').click();
   await expect(pa.locator("#details .rcount")).toHaveText(/^1 \//);
   await expect.poll(() => lit(page, "a")).not.toBe(l0);
+  // (the other figure's panel: still at its start)
+  await expect(pb.locator("#details .rcount")).toHaveText("start");
   expect(await lit(page, "b")).toBe(b0);
   // (the panel not stuck: no step asks the host to scroll)
   expect(await page.evaluate(() => (window as unknown as
@@ -136,10 +136,9 @@ for (const stuck of [false, true]) {
     browserName }) => {
     await page.setViewportSize({ width: 1440, height: 900 });
     await page.goto("./embed.html");
-    await page.setContent(host(baseURL!, "mid"));
+    await page.setContent(host(baseURL!, "pointer-walkthrough"));
     const pa = page.frameLocator("#a .panel");
-    await expect(pa.locator('#details button[data-r="start"]'))
-      .toBeEnabled();
+    await expect(pa.locator("#details.replaying")).toHaveCount(1);
     // (the figure drawn, at its height)
     await expect.poll(() => page.locator("#a .figure").evaluate((f) =>
       f.getBoundingClientRect().height)).toBeGreaterThan(600);
@@ -155,13 +154,7 @@ for (const stuck of [false, true]) {
     const p0 = await page.locator("#a .panel").evaluate((f) =>
       f.getBoundingClientRect().top);
     expect(p0 === 0, `stuck: top ${p0}`).toBe(stuck);
-    const [sx, sy] = await at('#details button[data-r="start"]');
-    await page.mouse.click(sx, sy);
-
-    await expect(pa.locator("#details .rcount")).toHaveText(/^(start|1 \/)/);
-    await expect(pa.locator("#details.replaying")).toHaveCount(1);
-    // (once the details have unfolded)
-    await page.waitForTimeout(400);
+    await expect(pa.locator("#details .rcount")).toHaveText("start");
     const [x, y] = await at('#details button[data-r="next"]');
     const place = () => pa.locator("#details .rcount").textContent();
     const n0 = parseInt((await place())!) || 0;
@@ -235,21 +228,24 @@ test("the post's structure: stuck, scrolled by the wheel over the panel, " +
 async ({ page, baseURL }) => {
   await page.setViewportSize({ width: 1280, height: 900 });
   await page.goto("./embed.html");
-  await page.setContent(post(baseURL!, "mid"));
+  await page.setContent(post(baseURL!, "pointer-walkthrough"));
   const pf = page.frameLocator(".panel");
-  await expect(pf.locator('#details button[data-r="start"]')).toBeEnabled();
+  await expect(pf.locator("#details.replaying")).toHaveCount(1);
   await expect.poll(() => page.locator(".figure").evaluate((f) =>
     f.getBoundingClientRect().height)).toBeGreaterThan(600);
-  await pf.locator('#details button[data-r="start"]').click();
-  await expect(pf.locator("#details.replaying")).toHaveCount(1);
+  // (a first step: the walkthrough under way)
+  await pf.locator('#details button[data-r="next"]').click();
+  await expect(pf.locator("#details .rcount")).toHaveText(/^1 \//);
   // (stuck: the figure's top above the view; then the wheel, over ▶)
+  // (the figure, about 730px tall here, leaves the panel about 300px
+  // of stuck travel: small wheel steps)
   await page.evaluate(() => scrollTo(0, scrollY +
     document.querySelector("figure")!.getBoundingClientRect().top + 50));
   const nb = (await pf.locator('#details button[data-r="next"]')
     .boundingBox())!;
   const [x, y] = [nb.x + nb.width / 2, nb.y + nb.height / 2];
   await page.mouse.move(x, y);
-  for (let k = 0; k < 3; k++) await page.mouse.wheel(0, 120);
+  for (let k = 0; k < 3; k++) await page.mouse.wheel(0, 30);
   await expect.poll(() => page.locator(".panel").evaluate((f) =>
     f.getBoundingClientRect().top)).toBe(0);
   const place = async () => parseInt((await pf.locator("#details .rcount")
@@ -259,7 +255,7 @@ async ({ page, baseURL }) => {
     await page.mouse.click(x, y);
     await expect(pf.locator("#details .rcount"), `click ${k}`)
       .toHaveText(new RegExp(`^${n0 + k} /`));
-    await page.mouse.wheel(0, 100);
+    await page.mouse.wheel(0, 20);
   }
   // (near the figure's end: the panel has let go RELEASE above it)
   const g = await page.evaluate(() => {

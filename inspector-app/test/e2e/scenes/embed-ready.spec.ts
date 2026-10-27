@@ -4,7 +4,7 @@
 // before the fit pass, was once 399 for 1718), on a slowed CPU
 import { test, expect } from "../../page";
 
-test("embed.html#scene=alice: 30 loads, one ready height",
+test("embed.html#scene=pitfall-nesting: 30 loads, one ready height",
   async ({ browser, baseURL, browserName }) => {
     test.skip(browserName !== "chromium", "one browser: a stress run");
     test.setTimeout(240_000);
@@ -23,7 +23,7 @@ test("embed.html#scene=alice: 30 loads, one ready height",
         window.parent.postMessage = (m: unknown) =>
           (window as never as { posted?(m: unknown): void }).posted?.(m);
       });
-      await page.goto(`${baseURL}embed.html#scene=alice&theme=light`);
+      await page.goto(`${baseURL}embed.html#scene=pitfall-nesting&theme=light`);
       seen.push(await ready);
       // (and it stays: the height drawn a moment later is the same)
       await page.waitForTimeout(300);

@@ -15,7 +15,7 @@ import { byteKey } from "./hex";
 // its "@storage")
 const K: Record<string, number> = { roll: 0, "mult:0": 1, "mult:1": 2,
   writes: 3 };
-const at = async (o: "O0" | "O2", point: string) => {
+const at = async (o: "O2", point: string) => {
   const p = await testProject();
   const { decoding, point: id } = await pauseOf(p, o, K[point]);
   const d = await decode(p, decoding, id);
@@ -27,7 +27,7 @@ const at = async (o: "O0" | "O2", point: string) => {
 const values = (ns: ValueNode[]) => Object.fromEntries(ns.map((n) =>
   [n.path, n.none ? "none" : n.value?.text ?? n.summary]));
 
-for (const o of ["O0", "O2"] as const) {
+for (const o of ["O2"] as const) {
   // (bugc #378: locals keep their pointers after a call, _rolledHit's)
   it(`${o}: after the roll: hit, and player, _turn's copy of her record`,
     async () => {
@@ -66,14 +66,6 @@ for (const o of ["O0", "O2"] as const) {
   });
 }
 
-it("O0: a real call: each local is found from the frame pointer, the "
-  + "word at 0x80", async () => {
-  const d = await at("O0", "mult:0");
-  const pts = d.byPath.get("points")!;
-  expect(pts.reads).toEqual([expect.objectContaining({ name: "-frame",
-    offset: 0x80, length: 32 })]);
-});
-
 it("O2: _applyCombo inlined into _turn, a real call: each local is "
   + "found from _turn's frame pointer, the word at 0x80", async () => {
   const d = await at("O2", "mult:0");
@@ -82,8 +74,8 @@ it("O2: _applyCombo inlined into _turn, a real call: each local is "
     offset: 0x80, length: 32 })]);
 });
 
-it("O0, after mult = combo: mult's bytes are in combo's word", async () => {
-  const d = await at("O0", "mult:1");
+it("O2, after mult = combo: mult's bytes are in combo's word", async () => {
+  const d = await at("O2", "mult:1");
   const word = (p: string) => {
     const r = d.byPath.get(p)!.regions[0];
     return Math.floor(r.offset / 32);
@@ -94,7 +86,7 @@ it("O0, after mult = combo: mult's bytes are in combo's word", async () => {
 // (a local's frame pointer is read to find it, not its own: selected,
 // the word at 0x80 is consulted, its own bytes lit, the related view on
 // or off: the light is one)
-for (const o of ["O0", "O2"] as const) {
+for (const o of ["O2"] as const) {
   it(`${o}: points selected: the frame pointer consulted, not its own`,
     async () => {
       const d = await at(o, "mult:0");

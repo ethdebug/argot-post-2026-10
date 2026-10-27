@@ -3,13 +3,13 @@
 import { test, expect } from "../../page";
 
 for (const width of [1024, 390]) {
-  test(`embed.html#scene=raw at ${width}px: storage, the stack and memory, no page ` +
-    "chrome; its height to the host", async ({ page, baseURL }) => {
+  test(`embed.html#scene=reveal at ${width}px: storage, the stack and ` +
+    "memory, no page chrome; its height to the host", async ({ page, baseURL }) => {
     await page.setViewportSize({ width, height: 900 });
     await page.goto("./embed.html");
     // (a host page: the embed in a frame, sized by its messages)
     await page.setContent(`<body style="margin:0">
-      <iframe id="f" src="${baseURL}embed.html#scene=raw"
+      <iframe id="f" src="${baseURL}embed.html#scene=reveal"
         style="border:0;width:100%;height:50px;display:block"></iframe>
       <script>addEventListener("message", (e) => {
         if (e.data?.type !== "ethdebug:height") return;
@@ -49,15 +49,10 @@ for (const width of [1024, 390]) {
   });
 }
 
-test("embed.html: moment=0 leaves the moment out", async ({ page }) => {
-  await page.goto("./embed.html#scene=raw&moment=0");
-  await expect(page.locator(".view")).toHaveCount(3);
-  await expect(page.locator(".moment")).toHaveCount(0);
-});
-
 // Any scene of the registry, by its id, drawn by its lens alone
-for (const [id, views] of [["raw-named", 1], ["mid", 1], ["vyper", 1],
-  ["pointer-walkthrough", 1], ["optimized-locals", 1]] as const) {
+for (const [id, views] of [["reveal", 3], ["pitfall-nesting", 1],
+  ["pitfall-compiler", 1], ["pointer-walkthrough", 1],
+  ["optimized-locals", 1]] as const) {
   test(`embed.html#scene=${id}: its lens alone, its height posted`,
     async ({ page }) => {
       const heights: number[] = [];
@@ -101,40 +96,24 @@ test("embed.html: an unknown scene says so", async ({ page }) => {
   await expect(page.locator("[role=alert]")).toContainText("nope");
 });
 
-test("embed.html: raw-named is the raw moment, named: every score, " +
-  "carol's whole name", async ({ page }) => {
-  await page.setViewportSize({ width: 1024, height: 900 });
-  await page.goto("./embed.html#scene=raw-named");
-  const C = "players[0x90f79bf6eb2c4f870365e785982e1f101e93b906]";
-  const val = (p: string) => page.locator(`.tree li[data-path="${p}"] ` +
-    "> .row .val");
-  await expect(page.locator(".tree")).toContainText("3 entries",
-    { timeout: 20_000 });
-  await expect(val(`${C}.score`)).toHaveText("100");
-  await expect(val(`${C}.combo`)).toHaveText("0");
-  await expect(val(`${C}.name`))
-    .toHaveText('"carol, the unstoppable combo queen"');
-  // (carol's record selected and open; alice's and bob's shut)
-  await expect(page.locator(`.tree li[data-path="${C}"] > .row.sel`))
-    .toHaveCount(1);
-  for (const k of ["0x70997970c51812dc3a010c7d01b50e0d17dc79c8",
-    "0x3c44cdddb6a900fa2b585dd299e03d12fa4293bc"]) {
-    await expect(page.locator(`.tree li[data-path="players[${k}]"]`))
-      .toHaveClass(/collapsed/);
-  }
-  // (a popover's "how" readable: its ink is not its fill)
-  await page.locator('.view:not([hidden]) .wrow[data-slot] > .addr')
-    .first().hover();
-  const pop = page.locator(".pop .phow").first();
-  const [ink, fill] = await pop.evaluate((h) => [
-    getComputedStyle(h).color, getComputedStyle(h.closest(".pop")!)
-      .backgroundColor]);
-  expect(ink).not.toBe(fill);
-});
+// (a popover's "how" readable: its ink is not its fill)
+test("embed.html#scene=pitfall-nesting: a popover's how, readable",
+  async ({ page }) => {
+    await page.setViewportSize({ width: 1024, height: 900 });
+    await page.goto("./embed.html#scene=pitfall-nesting");
+    await page.locator('.view:not([hidden]) .wrow[data-slot] > .addr')
+      .first().hover();
+    const pop = page.locator(".pop .phow").first();
+    const [ink, fill] = await pop.evaluate((h) => [
+      getComputedStyle(h).color, getComputedStyle(h.closest(".pop")!)
+        .backgroundColor]);
+    expect(ink).not.toBe(fill);
+  });
 
 // The columns each post scene lays out (the host's figure width)
-for (const [id, n] of [["raw-hero", 2], ["mid", 2], ["vyper", 2],
-  ["pointer-walkthrough", 2], ["optimized-locals", 2]] as const) {
+for (const [id, n] of [["reveal", 2], ["pitfall-nesting", 2],
+  ["pitfall-compiler", 2], ["pointer-walkthrough", 2],
+  ["optimized-locals", 2]] as const) {
   test(`embed.html#scene=${id} posts columns: ${n}`, async ({ page }) => {
     const cols: number[] = [];
     await page.exposeFunction("postedCols", (c: number) => cols.push(c));
@@ -159,7 +138,8 @@ test("pointer-walkthrough at 680px: one column, nothing past its edge",
   });
 
 // A phone: the two-column scenes in one column; no two areas overlap
-for (const id of ["vyper", "raw-named", "optimized-locals", "mid"]) {
+for (const id of ["pitfall-compiler", "pitfall-nesting", "optimized-locals",
+  "pointer-walkthrough"]) {
   test(`embed.html#scene=${id} at 360px: one column, no area over another`,
     async ({ page }) => {
       await page.setViewportSize({ width: 360, height: 800 });
@@ -188,7 +168,8 @@ for (const id of ["vyper", "raw-named", "optimized-locals", "mid"]) {
 
 // The height only once the scene is drawn: the first message says
 // ready, and the height is the same on every load
-for (const id of ["raw-hero", "mid", "optimized-locals", "pointer-walkthrough"]) {
+for (const id of ["reveal", "pitfall-nesting", "optimized-locals",
+  "pointer-walkthrough"]) {
   test(`embed.html#scene=${id}: one ready height, the same each load`,
     async ({ page, browserName }) => {
       test.skip(browserName !== "chromium", "one browser: a measure");
@@ -258,7 +239,7 @@ test("embed.html#scene=pitfall-compiler: Solidity's rule 0, Vyper's layout " +
 // with no storage dump
 // (not optimized-locals: its storage page is shut at its first moment,
 // no local reading storage there; no rows, no pitch)
-for (const [id, has] of [["mid", true], ["raw-hero", true],
+for (const [id, has] of [["pitfall-nesting", true], ["reveal", true],
   ["pitfall-compiler", true]] as const) {
   test(`embed.html#scene=${id}: its height message's row pitch`,
     async ({ page }) => {

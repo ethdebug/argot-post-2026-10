@@ -7,9 +7,9 @@ import { constructOf, FOOT, footOf, placeOf } from "./words";
 it("each step: its construct, its place, at most one spec page",
   async () => {
     const p = await testProject();
-    const dc = p.decodings["mid"];
-    const d = await decode(p, dc, "mid:0");
-    const t = await p.timeline("scene:mid");
+    const dc = p.decodings["pointer-walkthrough"];
+    const d = await decode(p, dc, "pointer-walkthrough:0");
+    const t = await p.timeline("scene:pointer-walkthrough");
     const w = walkthrough({ d, c: await p.compilation(dc.compilation),
       snap: t.points[0].snapshot, keys: dc.keys }, "players")!;
     // (one axis for what a step is about; its place, start to the end,

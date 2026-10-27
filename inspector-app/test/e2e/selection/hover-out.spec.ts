@@ -3,10 +3,10 @@
 // "ethdebug:pointer-out" }), ends it; a touch's tap selects with no
 // hover; bytes no value owns, pointed at, mute nothing
 import type { Page } from "@playwright/test";
-import { test, expect } from "../../page";
+import { test, expect, ready } from "../../page";
 
 const host = (base: string) => `<body style="margin:0">
-  <iframe id="f" src="${base}embed.html#scene=mid"
+  <iframe id="f" src="${base}embed.html#scene=pitfall-nesting"
     style="border:0;width:1100px;height:700px;display:block"></iframe>
   <div style="height:300px"></div></body>`;
 
@@ -46,8 +46,10 @@ test.describe("touch", () => {
   test.use({ hasTouch: true });
   test("a tap selects, and leaves no hover", async ({ page, browserName }) => {
     test.skip(browserName === "firefox", "no touch emulation");
-    await page.goto("./shell.html#scene=mid");
+    await ready(page);
     const row = page.locator('#tree li[data-path="totalScore"] > .row');
+    // (the scene selects alice's record; a tap on it clears, every value
+    // shown)
     await page.locator("#tree .row.sel").tap();
     await expect(page.locator("#tree .row.sel")).toHaveCount(0);
     await row.tap();
@@ -62,7 +64,7 @@ test.describe("touch", () => {
 
 test("bytes no value owns, pointed at, mute nothing: with the "
   + "selection, and with none", async ({ page }) => {
-  await page.goto("./shell.html#scene=pitfall-nesting");
+  await ready(page);
   const free = page.locator(".view:not([hidden]) .wrow:has(" +
     ".b[data-owners]) .b[data-g]:not([data-owners])").first();
   await free.waitFor();

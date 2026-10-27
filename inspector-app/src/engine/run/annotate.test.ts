@@ -18,7 +18,7 @@ describe("annotate", () => {
     expect([lineOf(text, m.range!.offset),
       lineOf(text, m.range!.offset + m.range!.length)]).toEqual([4, 46]);
   });
-  it.each(["O0", "O2"] as const)("bug-%s at alice's third hit's pauses: " +
+  it.each(["O2"] as const)("bug-%s at alice's third hit's pauses: " +
     "its range and locals (test/expect.ts)", async (o) => {
     const b = `bug-${o}`;
     const run = await runOf(b);

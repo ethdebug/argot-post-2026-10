@@ -47,7 +47,7 @@ it("a new selection opens the path to it", async () => {
   act(() => void fireEvent.click(
     li("players").querySelector(":scope > .chev")!));
   expect(li("players").classList.contains("collapsed")).toBe(true);
-  await act(async () => void await lens.show("mid", { sel: `${A}.score` }));
+  await act(async () => void await lens.show("pitfall-nesting", { sel: `${A}.score` }));
   await waitFor(() => expect(li("players").classList.contains("collapsed"))
     .toBe(false), slow);
 });

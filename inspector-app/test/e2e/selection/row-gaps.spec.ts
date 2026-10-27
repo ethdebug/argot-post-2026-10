@@ -5,9 +5,10 @@
 import type { Page } from "@playwright/test";
 import { test, expect, ready, select, settle, box, V } from "../../page";
 
-const at = async (page: Page, scene: string) => {
+// (pitfall-nesting, nothing selected: every value shown)
+const at = async (page: Page) => {
   await ready(page);
-  await select(page, scene, null);
+  await select(page, null);
 };
 // the row whose bytes `a` (byte 7) and `b` (byte 8) own
 const rowOf = (page: Page, a: string, b: string) => page.evaluate(
@@ -36,7 +37,7 @@ const rects = (page: Page) => page.evaluate((v) => JSON.stringify(
 
 test("a gap between two values, and the row's ends: the address's hover",
   async ({ page }) => {
-    await at(page, "alice");
+    await at(page);
     const slot = await rowOf(page, "lastBlock", "hits");
     expect(slot).toBeTruthy();
     const row = `${V} .wrow[data-slot="${slot}"]`;
@@ -95,7 +96,7 @@ test("a gap between two values, and the row's ends: the address's hover",
 
 test("a gap inside one value is that value's (slot 0: `length`)",
   async ({ page }) => {
-    await at(page, "mid");
+    await at(page);
     const slot = "0x" + "0".repeat(64);
     const row = `${V} .wrow[data-slot="${slot}"]`;
     const b0 = await box(page, `${row} .b[data-i="0"]`);
@@ -114,7 +115,7 @@ test("a gap inside one value is that value's (slot 0: `length`)",
   });
 
 test("between two rows there is no point with no hover", async ({ page }) => {
-  await at(page, "mid");
+  await at(page);
   const rows = page.locator(`${V} .wrow[data-slot]`);
   const a = (await rows.nth(0).boundingBox())!;
   const x = a.x + a.width - 1;
@@ -127,7 +128,7 @@ test("between two rows there is no point with no hover", async ({ page }) => {
 
 test("a gap inside one value is clickable as its bytes, with their cursor",
   async ({ page }) => {
-    await at(page, "mid");
+    await at(page);
     const row = `${V} .wrow[data-slot="0x${"1".padStart(64, "0")}"]`;
     const owners = await page.locator(`${row} .b[data-i="7"]`)
       .getAttribute("data-owners");
@@ -146,7 +147,7 @@ test("a gap inside one value is clickable as its bytes, with their cursor",
 test("16 bytes a line: 2px between a word's lines where two values meet; " +
   "joined where one goes on", async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
-  await at(page, "mid");
+  await at(page);
   const geo = (slot: string, i: number) => page.evaluate(([v, s, i]) => {
     const r = document.querySelector(`${v} .wrow[data-slot$="${s}"]`)!;
     const a = r.querySelector(`.b[data-i="${i}"]`)!;

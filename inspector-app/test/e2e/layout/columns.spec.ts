@@ -1,14 +1,12 @@
-// The storage section in two columns (the dump | the variables) from
-// 660px: a phone in landscape and the blog's 1024px frame get them; a
-// phone upright, one. The dump's bytes a line come from its own width
-// (16 in a narrow column), never the window's
+// The storage inspector's figure in two columns (the dump | the
+// variables) from 910px, where the dump keeps 580px; narrower, the tree
+// over the dump, each the frame's width (embed.css). The dump's bytes a
+// line come from its own width, never the window's
 import type { Page } from "@playwright/test";
-import { test, expect, type Win } from "../../page";
+import { test, expect, ready } from "../../page";
 
 const look = async (page: Page, w: number, h: number) => {
-  await page.setViewportSize({ width: w, height: h });
-  await page.goto("./");
-  await page.waitForFunction(() => (window as Win).results?.done);
+  await ready(page, { width: w, height: h });
   return page.evaluate(() => {
     const d = document.querySelector("#panel")!.getBoundingClientRect();
     const t = document.querySelector("#tree")!.getBoundingClientRect();
@@ -23,9 +21,9 @@ const look = async (page: Page, w: number, h: number) => {
   });
 };
 
-for (const [w, h, two, perLine] of [[844, 390, true, 16],
-  [667, 375, true, 16], [1024, 900, true, 16], [1600, 900, true, 32],
-  [659, 900, false, 32], [390, 844, false, 16]] as const) {
+for (const [w, h, two, perLine] of [[390, 844, false, 16],
+  [790, 900, false, 32], [909, 900, false, 32], [910, 900, true, 32],
+  [1216, 900, true, 32], [1600, 900, true, 32]] as const) {
   test(`${w}x${h}: ${two ? "two columns" : "one column"}, ${perLine} ` +
     "bytes a line", async ({ page }) => {
     expect(await look(page, w, h)).toEqual({ two, perLine,

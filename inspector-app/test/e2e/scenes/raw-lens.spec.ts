@@ -1,10 +1,11 @@
-// The raw lens in a real browser: storage, the stack and memory, bare,
-// on one grid, at the page's width, the blog figure's (1024px) and a
-// phone's. One cell size
+// The raw lens's composition in a real browser (scene reveal, the raw
+// figure annotated): storage, the stack and memory on one grid, at the
+// page's width, the blog figure's (1024px) and a phone's. One cell size
 // (one font, one row height, one width for every panel), edges aligned,
-// every panel as wide as its column, one row pitch; bare bytes, which a hover leaves as they are
+// every panel as wide as its column, one row pitch; bytes a hover leaves
+// as they are
 import type { Page } from "@playwright/test";
-import { test, expect, settle } from "../../page";
+import { test, expect, ready, settle } from "../../page";
 
 // (the stack at the moment: 4 items)
 const STACK = 4;
@@ -77,56 +78,17 @@ const rules = async (page: Page, q: string, width: number) => {
 };
 
 for (const width of [1360, 1024, 390]) {
-  test(`raw-hero at ${width}px: one cell size, one grid; bare`,
-    async ({ page }) => {
-      await page.setViewportSize({ width, height: 900 });
-      await page.goto("./shell.html#lens=raw-hero");
-      await expect(page.locator(
-        '.view[data-view$=":stack"] .wrow[data-slot]')).toHaveCount(STACK);
-      // (again until it holds: the cell size settles by timers)
-      await expect(() => rules(page, ".lens", width)).toPass();
-      const before = await page.locator(".lens").innerHTML();
-      await page.locator('.view[data-view$=":storage"] .b').nth(40).hover();
-      await settle(page);
-      expect(await page.locator(".lens").innerHTML()).toBe(before);
-      expect(await page.locator(".pop, .b.hl, .b[data-owners]").count())
-        .toBe(0);
-    });
-}
-
-// The main page's "Raw bytes" scene: first among the scenes, the raw
-// lens in place of the storage inspector; the hash keeps it; a storage
-// scene brings the inspector back
-for (const width of [1360, 390]) {
-  test(`the main page's Raw bytes scene at ${width}px`, async ({ page }) => {
-    await page.setViewportSize({ width, height: 900 });
-    await page.goto("./");
-    await page.waitForFunction(() => (window as unknown as
-      { results: { done: boolean } }).results?.done);
-    const first = page.locator("#picker button").first();
-    await expect(first).toHaveAttribute("data-id", "raw");
-    await first.click();
-    await expect(page.locator("main")).toHaveAttribute("data-lens", "");
+  test(`reveal at ${width}px: one cell size, one grid; a hover changes `
+    + "nothing", async ({ page }) => {
+    await ready(page, { scene: "reveal", width });
     await expect(page.locator(
-      '#rawscene .view[data-view$=":stack"] .wrow[data-slot]'))
-      .toHaveCount(STACK);
-    await expect(() => rules(page, "#rawscene", width)).toPass();
-    expect(await page.evaluate(() => location.hash)).toContain("scene=raw");
-    // (the inspector's parts step out; the scene picker stays)
-    for (const q of ["#panel", "#tree", "#memory", "#contract"]) {
-      await expect(page.locator(q)).toBeHidden();
-    }
-    await expect(page.locator("#picker button").first()).toBeVisible();
-    // (its URL opens it again; in a second page: a reload would cut the
-    // first one's prefetches short, which WebKit reports)
-    const again = await page.context().newPage();
-    await again.goto(page.url());
-    await expect(again.locator("#rawscene .lens.raw-hero")).toBeVisible();
-    await again.close();
-    await page.locator('#picker button[data-id="mid"]').click();
-    await expect(page.locator("main")).not.toHaveAttribute("data-lens");
-    await expect(page.locator("#panel")).toBeVisible();
-    await expect(page.locator("#rawscene .lens")).toHaveCount(0);
+      '.view[data-view$=":stack"] .wrow[data-slot]')).toHaveCount(STACK);
+    // (again until it holds: the cell size settles by timers)
+    await expect(() => rules(page, ".lens", width)).toPass();
+    const before = await page.locator(".lens").innerHTML();
+    await page.locator('.view[data-view$=":storage"] .b').nth(40).hover();
+    await settle(page);
+    expect(await page.locator(".lens").innerHTML()).toBe(before);
   });
 }
 
@@ -137,7 +99,7 @@ test("the raw storage dump: a word a row, beside the right column or " +
   "alone", async ({ page }) => {
     for (const width of [1440, 1280, 1024, 910, 760]) {
       await page.setViewportSize({ width, height: 900 });
-      await page.goto(`./embed.html?w=${width}#scene=raw-hero`);
+      await page.goto(`./embed.html?w=${width}#scene=reveal`);
       const row = page.locator('.view[data-view$=":storage"] ' +
         ".wrow[data-slot]").first();
       await expect(row).toBeVisible({ timeout: 20_000 });
@@ -150,12 +112,12 @@ test("the raw storage dump: a word a row, beside the right column or " +
     }
   });
 
-// In a 1024px frame (the post's figure at 1440×900), the figure (and the
-// annotated one, its composition) is at most 720px tall: a host can pin
-// it on a laptop's screen. (In a host's frame, as the host gets it: its
-// height message; the annotated figure's Raw | Annotated toggle is for
-// a page that stands alone, not a frame)
-for (const id of ["raw-hero", "reveal"]) {
+// In a 1024px frame (the post's figure at 1440×900), the annotated
+// figure is at most 720px tall: a host can pin it on a laptop's screen.
+// (In a host's frame, as the host gets it: its height message; the
+// figure's Raw | Annotated toggle is for a page that stands alone, not
+// a frame)
+for (const id of ["reveal"]) {
   test(`${id} in a 1024px frame: at most 720px tall`,
     async ({ page, baseURL }) => {
       for (const width of [1024]) {
@@ -181,9 +143,9 @@ for (const id of ["raw-hero", "reveal"]) {
 
 // The figure's storage folds its all-zero rows into its gaps; the stack
 // keeps every item; the inspector's storage keeps its zero rows
-test("raw-hero folds storage's zero rows, nothing else's", async ({ page }) => {
+test("reveal folds storage's zero rows, nothing else's", async ({ page }) => {
   await page.setViewportSize({ width: 1360, height: 900 });
-  await page.goto("./embed.html#scene=raw-hero");
+  await page.goto("./embed.html#scene=reveal");
   const words = (v: string) => page.locator(`.view[data-view$=":${v}"] ` +
     ".wrow[data-slot]").evaluateAll((rs) => rs.map((r) =>
     [...r.querySelectorAll(".b, .ab")].map((b) => b.textContent).join("")));
@@ -195,7 +157,7 @@ test("raw-hero folds storage's zero rows, nothing else's", async ({ page }) => {
   // (no two gaps in a row)
   expect(await page.locator('.view[data-view$=":storage"] .gap + .gap')
     .count()).toBe(0);
-  await page.goto("./#ex=mid");
+  await ready(page);
   await expect(page.locator('#panel .view[data-side=after] ' +
     '.wrow[data-slot$="0003"]')).toHaveCount(1);
 });

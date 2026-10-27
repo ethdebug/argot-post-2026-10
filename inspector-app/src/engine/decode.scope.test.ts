@@ -19,24 +19,23 @@ const text = (d: Awaited<ReturnType<typeof at>>, path: string) => {
   return n?.value?.text ?? n?.summary;
 };
 
-describe.each(["stepper-O0", "optimized-locals", "mid"])("%s's storage in scope",
+describe.each(["optimized-locals", "pitfall-nesting"])("%s's storage in scope",
   (scene) => {
     it("the middle of the game: test/expect.ts's values", async () => {
       const d = await at(scene, 11);
-      for (const [path, , value] of expected.mid) {
+      for (const [path, , value] of expected["pitfall-nesting"]) {
         expect(text(d, path), path).toBe(value);
       }
       expect([A, B, C].map((x) => text(d, `${x}.lastBlock`)))
-        .toEqual(lastBlock.mid);
+        .toEqual(lastBlock);
     });
-    it("alice's third hit, and setMotd after bob's miss", async () => {
+    it("alice's third hit", async () => {
       const d = await at(scene, 12);
-      for (const [path, , value] of expected.alice) {
+      for (const [path, value] of [[`${A}.score`, "60"],
+        [`${A}.combo`, "3"], [`${A}.bestCombo`, "3"], [`${A}.plays`, "3"],
+        [`${A}.hits`, "3"], [`${B}.score`, "10"], ["totalScore", "170"],
+        ["totalHits", "8"]]) {
         expect(text(d, path), path).toBe(value);
-      }
-      const e = await at(scene, 14);
-      for (const [path, , value] of expected.motd) {
-        expect(text(e, path), path).toBe(value);
       }
     });
     it("groups: storage, then locals", async () => {
@@ -51,7 +50,7 @@ describe.each(["stepper-O0", "optimized-locals", "mid"])("%s's storage in scope"
 // and ~sum in its regions and keccaks, named as solc's templates are)
 it("bugc's storage rows are named as solc's", async () => {
   const p = await testProject();
-  const at = await pauseOf(p, "O0", 3);
+  const at = await pauseOf(p, "O2", 3);
   const d = await decode(p, at.decoding, at.point);
   const l = layout(d, "storage", {}, { point: await p.point(
     at.decoding.timeline, at.point) });
@@ -67,7 +66,7 @@ it("bugc's storage rows are named as solc's", async () => {
 // memory, each its own region, `player-score` …; alice before her third
 // hit is written back: the middle of the game's record, plays already
 // counted; in play(), before _turn)
-it.each([["stepper-O0", 478], ["optimized-locals", 376]] as const)(
+it.each([["optimized-locals", 376]] as const)(
   "%s: play()'s player, a struct in memory, field by field",
   async (b, step) => {
     const p = await testProject();

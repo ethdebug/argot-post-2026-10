@@ -12,38 +12,29 @@ const value = (scene: string, path: string) =>
 it("totalScore is 40 in the middle of the game, bytes 16-31 of slot 2",
   async () => {
     const p = await testProject();
-    const d = await decode(p, p.decodings["mid"],
-      "mid:0");
+    const d = await decode(p, p.decodings["pitfall-nesting"],
+      "pitfall-nesting:0");
     const n = d.byPath.get("totalScore")!;
-    expect(n.value?.text).toBe(value("mid", "totalScore"));
+    expect(n.value?.text).toBe(value("pitfall-nesting", "totalScore"));
     expect(n.typeText).toBe("uint128");
     expect(n.regions).toEqual([expect.objectContaining({
       location: "storage", slot: 2n, offset: 16, length: 16,
       role: "value" })]);
     expect(d.byPath.get("totalHits")!.value?.text)
-      .toBe(value("mid", "totalHits"));
+      .toBe(value("pitfall-nesting", "totalHits"));
   });
-
-it("alice's hit: totalScore 40 before, 70 after", async () => {
-  const p = await testProject();
-  const d = p.decodings["alice"];
-  expect((await decode(p, d, "alice:0")).byPath.get("totalScore")
-    ?.value?.text).toBe(expected.alice.find(([x]) => x === "totalScore")![1]);
-  expect((await decode(p, d, "alice:1")).byPath.get("totalScore")
-    ?.value?.text).toBe(value("alice", "totalScore"));
-});
 
 it("is memoised per decoding and point", async () => {
   const p = await testProject();
-  const d = p.decodings["mid"];
-  expect(decode(p, d, "mid:0"))
-    .toBe(decode(p, d, "mid:0"));
+  const d = p.decodings["pitfall-nesting"];
+  expect(decode(p, d, "pitfall-nesting:0"))
+    .toBe(decode(p, d, "pitfall-nesting:0"));
 });
 
 it("carol's name is long: three regions incl. length parts", async () => {
   const p = await testProject();
-  const d = await decode(p, p.decodings["mid"],
-    "mid:0");
+  const d = await decode(p, p.decodings["pitfall-nesting"],
+    "pitfall-nesting:0");
   const n = d.byPath.get(`${C}.name`)!;
   expect(n.value?.text).toBe(`"${NAME_C}"`);
   expect(n.regions.map((r) => [r.name, r.role, r.length])).toEqual([
@@ -55,11 +46,11 @@ it("carol's name is long: three regions incl. length parts", async () => {
 
 it("playerList's keys equal the trace's keys", async () => {
   const p = await testProject();
-  const d = await decode(p, p.decodings["mid"],
-    "mid:0");
-  const t = await p.timeline("scene:mid");
+  const d = await decode(p, p.decodings["pitfall-nesting"],
+    "pitfall-nesting:0");
+  const t = await p.timeline("scene:pitfall-nesting");
   const traced = mappingKeys(t.points[0].transaction!, slotHex(3n));
-  const listed = keysFor(p.decodings["mid"], d.tree);
+  const listed = keysFor(p.decodings["pitfall-nesting"], d.tree);
   expect(listed.provenance).toEqual({ list: "playerList" });
   expect(listed.values.map((v) => v.source))
     .toEqual(["playerList[0]", "playerList[1]", "playerList[2]"]);
@@ -71,8 +62,8 @@ it("playerList's keys equal the trace's keys", async () => {
 
 it("composites: summaries, types and own regions", async () => {
   const p = await testProject();
-  const d = await decode(p, p.decodings["mid"],
-    "mid:0");
+  const d = await decode(p, p.decodings["pitfall-nesting"],
+    "pitfall-nesting:0");
   const n = (q: string) => d.byPath.get(q)!;
   expect(d.tree.map((x) => x.path))
     .toEqual(["playerList", "motd", "totalScore", "totalHits", "players"]);

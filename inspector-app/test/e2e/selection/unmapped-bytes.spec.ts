@@ -6,9 +6,10 @@ import type { Page } from "@playwright/test";
 import { test, expect, ready, select, settle, box, V } from "../../page";
 
 const ROW = `${V} .wrow[data-slot$="7528"]`;
+// (pitfall-nesting, nothing selected: every value shown)
 const at = async (page: Page) => {
   await ready(page);
-  await select(page, "mid", null);
+  await select(page, null);
 };
 // the popover's names: [text, classes]
 const names = (page: Page) => page.evaluate(() =>
@@ -104,10 +105,18 @@ const unmappedShown = (page: Page) => page.evaluate((r) => [
   document.querySelectorAll(`${r} .b.fl`).length,
   document.querySelector("#panel .pop .pname.pfree")?.className], ROW);
 
+// (a field of the record whose name ROW holds: ROW stays in the related
+// view, its run unlit)
+const field = async (page: Page) => {
+  const name = (await page.locator(`${ROW} .b[data-i="0"]`)
+    .getAttribute("data-owners"))!;
+  await select(page, name.replace(/\.name$/, ".score"));
+};
+
 test("with a selection, a click on unmapped bytes clears it; no hover " +
   "until a move, then the run's", async ({ page }) => {
   await at(page);
-  await select(page, "mid", "totalScore");
+  await field(page);
   const c = page.locator(`${ROW} .b[data-i="10"]`);
   await c.scrollIntoViewIfNeeded();
   const b = (await c.boundingBox())!;
@@ -115,7 +124,11 @@ test("with a selection, a click on unmapped bytes clears it; no hover " +
   await settle(page);
   expect(await sel(page)).toBe(null);
   expect(await unmappedShown(page)).toEqual([0, undefined]);
-  await page.mouse.move(b.x + b.width / 2 + 5, b.y + b.height / 2,
+  // (every value shown now, the rows moved: a move onto the run where it
+  // is now)
+  await c.scrollIntoViewIfNeeded();
+  const n = (await c.boundingBox())!;
+  await page.mouse.move(n.x + n.width / 2 + 5, n.y + n.height / 2,
     { steps: 2 });
   await settle(page);
   expect(await unmappedShown(page)).toEqual([28,
@@ -138,7 +151,7 @@ test("with nothing selected, a click on unmapped bytes changes nothing: " +
 test("with a selection, a click in a gap of the run clears it; no hover " +
   "until a move", async ({ page }) => {
   await at(page);
-  await select(page, "mid", "totalScore");
+  await field(page);
   await page.locator(ROW).scrollIntoViewIfNeeded();
   const b7 = await box(page, `${ROW} .b[data-i="7"]`);
   const b8 = await box(page, `${ROW} .b[data-i="8"]`);
@@ -147,8 +160,14 @@ test("with a selection, a click in a gap of the run clears it; no hover " +
   await settle(page);
   expect(await sel(page)).toBe(null);
   expect(await unmappedShown(page)).toEqual([0, undefined]);
-  await page.mouse.move(x, y + 5, { steps: 2 });
-  await page.mouse.move(x, y, { steps: 2 });
+  // (every value shown now, the rows moved: a move onto the gap where it
+  // is now)
+  await page.locator(ROW).scrollIntoViewIfNeeded();
+  const n7 = await box(page, `${ROW} .b[data-i="7"]`);
+  const n8 = await box(page, `${ROW} .b[data-i="8"]`);
+  const [nx, ny] = [(n7.x + n7.width + n8.x) / 2, n7.y + n7.height / 2];
+  await page.mouse.move(nx, ny + 5, { steps: 2 });
+  await page.mouse.move(nx, ny, { steps: 2 });
   await settle(page);
   expect(await unmappedShown(page)).toEqual([28,
     "pname pfree pbadge pnone"]);
@@ -162,14 +181,8 @@ test("every popover lists a row's unmapped run: the selection's",
   async ({ page }) => {
     await at(page);
     await page.setViewportSize({ width: 1600, height: 900 });
-    // (the record, two slots: the run between the name's text and its
-    // length is kept; other names are cut first)
-    await select(page, "mid", REC);
-    await settle(page);
-    const p = (await pops(page)).find((t) => t.includes("2 slots"));
-    expect(p).toContain("/ name · (unmapped) · name.length, 2 slots");
     // (its name, one slot: it fits; not lit: plain)
-    await select(page, "mid", `${REC}.name`);
+    await select(page, `${REC}.name`);
     await settle(page);
     expect(await pops(page)).toContain(
       "keccak(0x3c44…93bc, slot 3) + 1 : name · (unmapped) · name.length");
@@ -177,14 +190,12 @@ test("every popover lists a row's unmapped run: the selection's",
       .getAttribute("class")).toBe("pname pfree");
   });
 
-// (not in a walkthrough, which is about where bytes are: the review's W7)
+// (not in a walkthrough, which is about where bytes are: the review's W7;
+// pointer-walkthrough's, players: bob's record among them)
 test("a walkthrough step's popovers list no unmapped run",
   async ({ page }) => {
-    await at(page);
-    await page.setViewportSize({ width: 1600, height: 900 });
-    await page.locator(`#tree li[data-path="${REC}"] > .row`).click();
+    await ready(page, { scene: "pointer-walkthrough", width: 1600 });
     await page.mouse.move(1, 1);
-    await page.locator('#details button[data-r="start"]').click();
     const seen: string[] = [];
     // (all but the last step, found: the resting view, which has them)
     for (let k = 0; k < 20; k++) {
@@ -199,9 +210,10 @@ test("a walkthrough step's popovers list no unmapped run",
 
 test("a row no value owns is one unmapped run: its gutter, gaps or bytes "
   + "pointed at, the popover badges (unmapped), no fill", async ({ page }) => {
-  // (the stepper's memory, nothing selected)
+  // (the stepper's memory; its locals selected, what they consulted
+  // kept in a popover of its own)
   await page.setViewportSize({ width: 1440, height: 900 });
-  await page.goto("./embed.html#scene=stepper-O0");
+  await page.goto("./embed.html#scene=optimized-locals");
   const M = '[data-view$=":memory"]';
   // (its page open: shut when nothing of it is related here; once the
   // scene has landed (its point drawn), not before: a slow first load
@@ -223,11 +235,12 @@ test("a row no value owns is one unmapped run: its gutter, gaps or bytes "
     await page.locator(on).hover();
     await settle(page);
     // (its popover: drawn once the pages' heights have moved)
-    await expect(page.locator(`${M} .pop`), on).toHaveCount(1);
+    await expect(page.locator(`${M} .pop:not(.kept)`), on).toHaveCount(1);
     const got = await page.evaluate(([r, m]) => ({
-      pop: [...document.querySelectorAll<HTMLElement>(`${m} .pop`)]
+      pop: [...document.querySelectorAll<HTMLElement>(
+        `${m} .pop:not(.kept)`)]
         .map((p) => p.querySelector(".pop-how")!.textContent!.trim()),
-      badge: document.querySelector(`${m} .pop .pname.pfree`)
+      badge: document.querySelector(`${m} .pop:not(.kept) .pname.pfree`)
         ?.className,
       fl: document.querySelectorAll(`${r} .b.fl`).length,
       fill: getComputedStyle(document.querySelector(`${r} .b`)!)

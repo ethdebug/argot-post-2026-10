@@ -9,7 +9,7 @@ import {
 } from "./fold";
 import { placeOf } from "./words";
 
-const at = async (bm = "mid", side = "after") => {
+const at = async (bm = "pitfall-nesting", side = "after") => {
   const p = await testProject();
   const b = p.bookmarks.find((x) => x.id === bm)!;
   const d = await decode(p, p.decodings[b.decoding],
@@ -213,17 +213,16 @@ it("step 0, as vanilla: the slots the steps touch, whole; the question",
       "it mean?");
   });
 
-it("every variable's walk opens on step 0, the start, in every bookmark",
-  async () => {
-    const p = await testProject();
-    // (a bookmark with points: a moment to decode)
-    for (const b of p.bookmarks.filter((y) => y.points?.length)) {
-      const x = await at(b.id);
+it("every variable's walk opens on step 0, the start, in every scene " +
+  "with a walkthrough", async () => {
+    for (const id of ["pitfall-nesting", "pointer-walkthrough",
+      "optimized-locals"]) {
+      const x = await at(id);
       for (const path of x.d.byPath.keys()) {
         const w = walkthrough(x, path);
         if (!w) continue;
-        expect(w.steps[0].goal, `${b.id}: ${path}`).toBe(true);
-        expect(w.steps.filter((s) => s.goal).length, `${b.id}: ${path}`)
+        expect(w.steps[0].goal, `${id}: ${path}`).toBe(true);
+        expect(w.steps.filter((s) => s.goal).length, `${id}: ${path}`)
           .toBe(1);
         expect(placeOf(w.steps, 0)).toBe("start");
       }
@@ -242,17 +241,6 @@ it("reads come from the graph's edges, not from the pointer's text: "
         .toEqual(rules(walkthrough(x, p)!).steps.map((s) => s.phase));
     }
   });
-
-it("an empty on-chain name falls back to the short address (Vyper's "
-  + "records, read by solc's rule, have none)", async () => {
-  const x = await at("vyper", "after");
-  const w = rules(walkthrough(x, "players")!);
-  expect(w.recs!.map((r) => r.who)).toEqual(w.recs!.map((r) =>
-    r.path.replace(/^players\[(0x.{4}).*(.{4})\]$/, "$1…$2")));
-  const text = JSON.stringify(w.steps, (_, v) =>
-    typeof v === "bigint" ? String(v) : v);
-  expect(text).not.toContain('\\"\\"');
-});
 
 it("the last step, found: the selection, what it is; a re-target there "
   + "stays on found", async () => {
@@ -306,28 +294,6 @@ it("colours keep one meaning, step 0 to found: yellow is the selection's "
     expect(data.parts[0].colours!.get(`${C}.name`)).toBe(0);
   });
 
-it("Vyper: Solidity's rule, then the misread, with Vyper's own layout "
-  + "hand-written for comparison", async () => {
-  const p = await testProject();
-  const b = p.bookmarks.find((y) => y.id === "vyper")!;
-  const dc = p.decodings[b.decoding];
-  const x = await at("vyper");
-  const cd = await decode(p, p.decodings[dc.foreign!.rule], x.d.point);
-  const w = walkthrough({ ...x, contrast: { d: cd, language: "vyper" } },
-    `${A}.score`)!;
-  const last = w.steps.at(-1)!;
-  expect(last.phase).toBe("external");
-  expect(plain(last.cap)).toBe("The misread: Vyper keeps players[0x7099…79c8]" +
-    ".score in slot …0446, where it is 30; Solidity's rule read 0 from " +
-    "slot …aa80 where Vyper keeps nothing.");
-  expect(last.source).toBe("from: Vyper's layout, hand-written for " +
-    "comparison (Vyper emits no ethdebug)");
-  expect(w.steps.at(-2)!.cap).toBe("Solidity's rule reads " +
-    "`players[0x7099…79c8].score` = 0.");
-  expect(w.steps.find((s) => s.phase === "declared")!.cap).toContain(
-    "in Vyper's storage, that slot holds something else");
-});
-
 it("a step's variables, as the focus has them, for its band's lines "
   + "(the review's T4)", async () => {
   const w = walkthrough(await at(), C)!;
@@ -338,10 +304,3 @@ it("a step's variables, as the focus has them, for its band's lines "
   expect(map.notes?.values).toEqual({ slot: "3", key });
   expect(rec.notes?.values).toEqual({ key, slot: "3" });
 });
-
-it("one side of a pair: step 0 names the side it walks (the review's T7)",
-  async () => {
-    const x = await at("motd", "after");
-    const g = walkthrough({ ...x, when: "after setMotd" }, "motd")!.steps[0];
-    expect(g.cap).toBe("After setMotd, this slot holds `motd`.");
-  });

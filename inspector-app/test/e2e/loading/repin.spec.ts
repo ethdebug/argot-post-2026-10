@@ -12,7 +12,8 @@ import path from "node:path";
 // touching the real one would restart every dev server on this
 // checkout.
 const PORT = process.env.REPIN_PORT ?? "5190";
-const URL = `http://localhost:${PORT}/demos/inspector/`;
+const URL = `http://localhost:${PORT}/demos/inspector/embed.html` +
+  "#scene=pitfall-nesting";
 // (its page is on another port: another host, to the error check)
 test.use({ quiet: false });
 
@@ -20,19 +21,15 @@ async function loads(page: Page) {
   const errors: string[] = [];
   page.on("console", (m) => m.type() === "error" && errors.push(m.text()));
   page.on("pageerror", (e) => errors.push(String(e)));
-  // (the page writes its hash as it loads: a navigation of its own,
-  // before the load event; waiting for the commit only)
-  await page.goto(URL, { waitUntil: "commit" });
-  await page.waitForFunction(() =>
-    (window as unknown as { results?: { done: boolean } }).results?.done);
-  const r = await page.evaluate(() => (window as unknown as
-    { results: { errors: string[]; decoded: object } }).results);
-  expect([...errors, ...r.errors]).toEqual([]);
-  expect(Object.keys(r.decoded).length).toBeGreaterThan(0);
+  await page.goto(URL);
+  // (drawn: its tree's values, decoded by the library)
+  await expect(page.locator("#tree li[data-path] > .row .val").first())
+    .toBeVisible({ timeout: 30_000 });
+  expect(errors).toEqual([]);
 }
 
 // (one server, one browser)
-test("a re-pin restarts the dev server; the page loads clean after",
+test("a re-pin restarts the dev server; the embed loads clean after",
   { tag: ["@chromium", "@slow"] }, async ({ page }) => {
     test.setTimeout(90_000);
     // (not in test-results/, which Vite does not watch)

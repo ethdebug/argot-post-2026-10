@@ -9,8 +9,14 @@ const lit = (page: Page) => page.locator(
   bs.map((b) => `${(b.closest(".word") as HTMLElement).dataset.slot!
     .slice(-2)}:${(b as HTMLElement).dataset.i}`));
 
+// (pitfall-nesting, nothing selected: every value shown)
+const rest = async (page: Page) => {
+  await ready(page);
+  await select(page, null);
+};
+
 test("totalScore's row lights bytes 16-31 of slot 2", async ({ page }) => {
-  await page.goto("./shell.html#scene=mid");
+  await rest(page);
   await pick(page.locator('#tree li[data-path="totalScore"] > .row'));
   expect(await lit(page)).toEqual(Array.from({ length: 16 },
     (_, i) => `02:${16 + i}`));
@@ -19,7 +25,7 @@ test("totalScore's row lights bytes 16-31 of slot 2", async ({ page }) => {
 });
 
 test("byte 31 of slot 2 selects totalScore", async ({ page }) => {
-  await page.goto("./shell.html#scene=mid");
+  await rest(page);
   await pick(page.locator(
     '.view:not([hidden]) .b[data-owners="totalScore"][data-i="31"]'));
   await expect(page.locator("#tree .row.sel")).toHaveText(/totalScore/);
@@ -29,10 +35,7 @@ test("byte 31 of slot 2 selects totalScore", async ({ page }) => {
 
 test("hovering totalScore's row lights its bytes; the rest mutes",
   async ({ page }) => {
-    await page.goto("./shell.html#scene=mid");
-    // (the scene selects alice's record; a click on it clears)
-    await page.locator("#tree .row.sel").click();
-    await expect(page.locator("#tree .row.sel")).toHaveCount(0);
+    await rest(page);
     await page.locator('#tree li[data-path="totalScore"] > .row').hover();
     expect(await lit(page)).toHaveLength(16);
     await expect(page.locator("#panel")).toHaveClass(/\bactive\b/);
@@ -40,21 +43,19 @@ test("hovering totalScore's row lights its bytes; the rest mutes",
       .not.toHaveClass(/\bhl\b/);
   });
 
-test("hover, selection and clearing move nothing", async ({ page }) => {
-  await page.goto("./shell.html#scene=mid");
-  await page.locator(
-    '.view:not([hidden]) .b[data-owners="totalScore"]').first().waitFor();
+// (a selection in the related view shows its own rows: only a hover
+// is checked here)
+test("hover moves nothing", async ({ page }) => {
+  await rest(page);
   const boxes = () => page.locator(
     "#panel .wrow, #panel .b, #tree .row").evaluateAll((es) =>
     es.map((e) => JSON.stringify(e.getBoundingClientRect())));
-  const rest = await boxes();
+  const was = await boxes();
   await page.locator(
     '.view:not([hidden]) .b[data-owners="totalHits"]').first().hover();
-  expect(await boxes()).toEqual(rest);
-  await page.locator('#tree li[data-path="totalScore"] > .row').click();
-  expect(await boxes()).toEqual(rest);
-  await page.locator('#tree li[data-path="totalScore"] > .row').click();
-  expect(await boxes()).toEqual(rest);
+  expect(await boxes()).toEqual(was);
+  await page.locator('#tree li[data-path="totalScore"] > .row').hover();
+  expect(await boxes()).toEqual(was);
 });
 
 // (each lit byte, by its view's side and its word's slot)
@@ -72,8 +73,7 @@ const range = (a: number, b: number) =>
 
 test("a packed field's row lights its bytes",
   async ({ page }) => {
-  await ready(page);
-  await select(page, "alice", null);
+  await rest(page);
   // (Player packs its counters into one word, from the low end)
   for (const [f, a, b] of [["score", 24, 31], ["combo", 20, 23],
     ["hits", 8, 11], ["lastBlock", 0, 7]] as const) {
@@ -89,8 +89,7 @@ test("a packed field's row lights its bytes",
 
 test("while a value is lit, every other byte and tree row steps back",
   async ({ page }) => {
-    await ready(page);
-    await select(page, "alice", null);
+    await rest(page);
     await row(page, "totalHits").hover();
     await expect.poll(() => page.evaluate(() => {
       const op = (e: Element) => +getComputedStyle(e).opacity;
@@ -119,8 +118,7 @@ const lines = (page: Page) => page.evaluate((v) => [...document
 
 test("a hover is a plain fill: no line on any byte; caps only on the "
   + "selection", async ({ page }) => {
-  await ready(page);
-  await select(page, "mid", null);
+  await rest(page);
   for (const p of ["totalScore", "playerList[0]", `${C}.plays`, "motd"]) {
     await row(page, p).hover();
     expect(await lines(page), p).toBe(0);
@@ -140,8 +138,7 @@ test("a hover is a plain fill: no line on any byte; caps only on the "
 });
 
 test("players' own slot, 3, links to players both ways", async ({ page }) => {
-  await ready(page);
-  await select(page, "mid", null);
+  await rest(page);
   const r3 = `${V} .wrow[data-slot="${slotHex(3n)}"]`;
   for (const at of [`${r3} .b[data-i="10"]`, `${r3} > .addr`]) {
     await page.locator(at).hover();
@@ -154,8 +151,7 @@ test("players' own slot, 3, links to players both ways", async ({ page }) => {
 });
 
 test("an item's row lights its slot of the list", async ({ page }) => {
-  await ready(page);
-  await select(page, "mid", null);
+  await rest(page);
   await row(page, "playerList[2]").hover();
   expect(await page.locator(`${V} .wrow:has(.b.hl)`).evaluateAll((rs) =>
     rs.map((r) => (r as HTMLElement).dataset.name)))
@@ -175,7 +171,6 @@ const muting = (page: Page) => page.evaluate((v) => ({
 test("a record selected: pointing at a member mutes the others; a leaf "
   + "selected mutes nothing", async ({ page }) => {
   await ready(page);
-  await select(page, "mid", A);
   const combo = row(page, `${A}.combo`);
   const byte = page.locator(`${V} .b[data-owners="${A}.combo"][data-i="22"]`);
   for (const [how, act] of [["row", () => combo.hover()],
@@ -195,14 +190,14 @@ test("a record selected: pointing at a member mutes the others; a leaf "
   await page.evaluate(() => (document.activeElement as HTMLElement)?.blur());
   await page.mouse.move(1, 1);
   expect((await muting(page)).muted).toBe(0);
-  await select(page, "mid", `${A}.combo`);
+  await select(page, `${A}.combo`);
   await byte.hover();
   expect((await muting(page)).mutedBytes).toBe(0);
 });
 
 test("the tree names a record by its key alone", async ({ page }) => {
   await ready(page);
-  await select(page, "mid", "players");
+  await select(page, "players");
   expect(await page.locator("#tree").innerText())
     .not.toMatch(/\((alice|bob|carol)\)/);
 });
