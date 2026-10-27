@@ -1,8 +1,6 @@
 // Timeline facts (vanilla main.js merge; panel.js read/written)
-import type { Bookmark, Decoded, Hex, Path, PointId, TimelinePoint }
+import type { Decoded, Hex, Path, TimelinePoint }
   from "./types";
-
-export const pointsOf = (bm: Bookmark): PointId[] => [...bm.points];
 
 // A value differs between two decodings: its text, its summary, or
 // anything under it (a value only one has differs)

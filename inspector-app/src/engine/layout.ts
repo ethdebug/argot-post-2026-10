@@ -5,7 +5,7 @@
 // with its inputs), not from a guess by nearby hashes.
 import type {
   ByteKey, Decoded, DerefGraph, Filter, Hex, Instance, Layout, Location,
-  Path, ResolvedRegion, Row, TimelinePoint, ValueNode,
+  Path, Row, TimelinePoint, ValueNode,
 } from "./types";
 import { byteKey, short, slotHex, toBig } from "./hex";
 import {

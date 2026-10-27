@@ -5,7 +5,7 @@
 import type { Chain, TxResult } from "./evm";
 import type { Hex, Snapshot } from "../types";
 import type {
-  BuildId, Frame, Journal, MomentRef, Run, Scenario, TxRun,
+  BuildId, Journal, MomentRef, Run, Scenario, TxRun,
 } from "./types";
 import { blockOf } from "./scenario";
 import { inputOf } from "./abi";

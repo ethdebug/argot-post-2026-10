@@ -55,7 +55,6 @@ const PLAIN = 1n << 32n;
 // "slot 1" or "slot 0x7230…a723"
 const slotRef = (s: Hex) => BigInt(s) < PLAIN ? `slot ${BigInt(s)}`
   : `slot ${short(s)}`;
-const tail = (s: Hex) => `…${s.slice(-4)}`;
 // accounts[0xf39fd6…92266].nonce -> accounts[0xf39f…2266].nonce
 const shortKeys = (path: string) =>
   path.replace(/\[(0x[0-9a-fA-F]{16,})\]/g, (_, h) => `[${short(h)}]`);
