@@ -1,13 +1,16 @@
-// Nothing drawn is cut at the frame's sides: in every scene's embed, no
+// Nothing drawn is cut at the frame's sides: in every scene's embed (a
+// scene with a run: the figures with data of their own aside), no
 // box with a fill, a border or an outer shadow, nor a box that clips
 // (a tree's, whose room reaches out of its column for its rows' bars),
-// reaches past the document's sides (the root keeps that room)
+// reaches past the document's sides (the root keeps that room); a box
+// inside a scroller is taken as far as the scroller shows it
 import fs from "node:fs";
 import path from "node:path";
-import { test, expect } from "../../page";
+import { test, expect, ready } from "../../page";
 
 const ids = fs.readdirSync(path.resolve("scenes"))
-  .filter((f) => f.endsWith(".json")).map((f) => f.slice(0, -5));
+  .filter((f) => f.endsWith(".json") && JSON.parse(fs.readFileSync(
+    path.resolve("scenes", f), "utf8")).run).map((f) => f.slice(0, -5));
 
 for (const width of [838, 390]) {
   test(`every embed scene at ${width}px: nothing cut at the sides`,
@@ -15,9 +18,7 @@ for (const width of [838, 390]) {
       test.setTimeout(30_000 + ids.length * 15_000);
       await page.setViewportSize({ width, height: 900 });
       for (const id of ids) {
-        await page.goto(`./embed.html#scene=${id}`);
-        await expect(page.locator("#embed .view").first())
-          .toBeVisible({ timeout: 20_000 });
+        await ready(page, { scene: id });
         await page.waitForTimeout(500);
         const cut = await page.evaluate(() => {
           const cw = document.documentElement.clientWidth;
@@ -41,6 +42,13 @@ for (const width of [838, 390]) {
             }
             if (!r.width || !r.height) continue;
             let [l, rt] = [r.left, r.right];
+            // (what a scroller around it shows of it)
+            for (let p = e.parentElement; p && p.id !== "embed";
+              p = p.parentElement) {
+              if (getComputedStyle(p).overflowX === "visible") continue;
+              const q = p.getBoundingClientRect();
+              [l, rt] = [Math.max(l, q.left), Math.min(rt, q.right)];
+            }
             // (an outer shadow: its offset, blur and spread)
             for (const s of c.boxShadow === "none" ? [] :
               c.boxShadow.split(/,(?![^(]*\))/)) {
