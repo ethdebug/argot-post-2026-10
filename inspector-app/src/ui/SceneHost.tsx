@@ -14,7 +14,7 @@ export function SceneHost(p: { scene: Scene; project: Project;
   const lens = p.lenses.find((l) => l.id === p.scene.lens);
   // (the scene, shown first; a lens with scenes of its own to pick from
   // that are not this one shows it as its one scene, when it is a
-  // bookmark (raw-named, the storage inspector's); else its own, until it
+  // bookmark (the storage inspector's); else its own, until it
   // reads scenes: §8 4)
   const first = p.scene.id;
   const own = p.project.bookmarks.some((b) => b.id === first);

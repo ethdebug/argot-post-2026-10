@@ -42,6 +42,6 @@ the @ethdebug entries from package-lock.json and
 node_modules/@ethdebug, then npm install (else npm keeps the old
 integrity); npm test. A running dev server restarts
 and pre-bundles the library again when this file or the lockfile
-changes (vite.config.ts repin; test/e2e/repin.spec.ts); without that,
-its cache keeps the old library and the page fails ("failure to
+changes (vite.config.ts repin; test/e2e/loading/repin.spec.ts); without
+that, its cache keeps the old library and the embed fails ("failure to
 recognize kind of expression").
