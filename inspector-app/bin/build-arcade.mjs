@@ -1,10 +1,10 @@
 // Writes the arcade scenario's builds, scenarios/arcade/builds/<id>/
 // build.json (src/engine/run/build.ts buildOf reads them): Arcade.sol by
 // Walnut's solc (SOLC), Arcade.vy by vyper (VYPER), arcade.bug by bugc
-// at -O 0 and -O 2 (BUGC). Compiling only: the runner executes them.
+// at -O 2 (BUGC). Compiling only: the runner executes them.
 // The creation code carries the constructor's argument, the first motd
 // (BUG's create block sets it itself). Run by bin/build-arcade.sh.
-// ONLY=bug: the bugc builds alone (BUGC only), the others kept as they
+// ONLY=bug: the bugc build alone (BUGC only), the others kept as they
 // are.
 import fs from "node:fs";
 import path from "node:path";
@@ -69,7 +69,7 @@ if (!only) {
   });
 }
 
-for (const level of [0, 2]) {
+for (const level of [2]) {
   const b = await bug({ bugc: process.env.BUGC, level,
     file: path.join(demo, "bug", "arcade.bug"), rel: "bug/arcade.bug" });
   write(`bug-O${level}`, {

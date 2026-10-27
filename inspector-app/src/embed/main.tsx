@@ -1,7 +1,6 @@
 // The embed entry (spec §7): one scene from the scene registry, by the
-// hash (embed.html#scene=<id>, ids as in scenes/*.json; the page's
-// "raw" is raw-hero), drawn by its lens alone: no page chrome. The
-// raw lens's moment line: moment=0 leaves it out. It posts its content
+// hash (embed.html#scene=<id>, ids as in scenes/*.json), drawn by its
+// lens alone: no page chrome. It posts its content
 // height to the host page (below: ethdebug:height), and takes the host's
 // theme (theme=, ethdebug:theme).
 // panel=external (with channel=<id>): the walkthrough's panel is not
@@ -27,7 +26,6 @@ import { load } from "../engine/project";
 import { SceneHost } from "../ui/SceneHost";
 import { columnsOf } from "../ui/columns";
 import { lenses } from "../lenses";
-import { rawLens } from "../lenses/raw";
 import { builds, figures, scenes } from "../scenes";
 import { PanelPort, channelName, figurePort } from "../ui/panel-port";
 import { setProgress, setRevealed } from "../ui/reveal";
@@ -49,14 +47,7 @@ addEventListener("message", (e) => {
   }
   else setRevealed(!!e.data.on);
 });
-// (and the memory section's old scenes, the post's figure until it
-// names the stepper's: the stepper, at the same level)
-const ALIAS: Record<string, string> = { raw: "raw-hero",
-  "bug-O0": "stepper-O0", "bug-O2": "optimized-locals" };
-const id = ALIAS[hash.get("scene") ?? ""] ?? hash.get("scene") ?? "";
-// (every lens a scene may name; the raw lens with or without its moment)
-const all = lenses.map((l) => l.id === "raw-hero" && hash.get("moment")
-  === "0" ? rawLens({ moment: false }) : l);
+const id = hash.get("scene") ?? "";
 const root = document.getElementById("embed")!;
 
 // The content's height, to the host: { type: "ethdebug:height", height,
@@ -230,7 +221,7 @@ const project = await load(fetchIo(import.meta.env.BASE_URL),
 const scene = project.scenes.find((s) => s.id === id);
 // (or a figure: its lens's own page, with its own data)
 const figure = figures.find((f) => f.id === id);
-const lens = all.find((l) => l.id === (scene ?? figure)?.lens);
+const lens = lenses.find((l) => l.id === (scene ?? figure)?.lens);
 if (lens) columns = columnsOf(lens);
 reveals = !!lens?.views.some((v) => v.kind === "dump" &&
   v.display?.annotate);
@@ -247,6 +238,6 @@ createRoot(root).render(figure && lens?.page
   ? <lens.page spec={lens} project={project} />
   : scene
   ? <PanelPort.Provider value={port}><SceneHost scene={scene}
-    project={project} lenses={all} /></PanelPort.Provider>
+    project={project} lenses={lenses} /></PanelPort.Provider>
   : <p className="embed-none" role="alert">No scene “{id}” to embed
     {" "}(scenes: {project.scenes.map((s) => s.id).join(", ")}).</p>);

@@ -5,7 +5,7 @@ import { it, expect, afterEach } from "vitest";
 import { render, fireEvent, cleanup, waitFor } from "@testing-library/react";
 import { Lens } from "../ui/Lens";
 import { testProject } from "../../test/project";
-import { rawLenses } from "./raw";
+import { rawHero } from "./raw";
 import type { LensSpec } from "../ui/types";
 
 afterEach(cleanup);
@@ -13,7 +13,7 @@ afterEach(cleanup);
 // its calldata)
 const moment = async () => {
   const p = await testProject();
-  const { snapshot: s } = (await p.timeline("scene:raw-hero")).points[0];
+  const { snapshot: s } = (await p.timeline("scene:reveal")).points[0];
   const hex = (b: Uint8Array) => `0x${Buffer.from(b).toString("hex")}`;
   return { stack: s.stack!, storage: Object.fromEntries(s.storage),
     calldata: hex(s.calldata!) };
@@ -22,7 +22,7 @@ const slow = { timeout: 5000 };
 const view = (c: HTMLElement, l: string) =>
   c.querySelector<HTMLElement>(`.view[data-view$=":${l}"]`);
 
-for (const spec of rawLenses) {
+for (const spec of [rawHero]) {
   it(`${spec.id}: three bare dumps; the stack top first`, async () => {
     const project = await testProject();
     const json = await moment();
@@ -85,7 +85,7 @@ it("the display parameters: scale, perLine, rows shape", async () => {
   const project = await testProject();
   const json = await moment();
   const spec: LensSpec = { id: "p", title: "P", timelines: [],
-    decodings: [], links: [], initial: { scene: "raw-hero" }, grid: '"a b"', views: [
+    decodings: [], links: [], initial: { scene: "reveal" }, grid: '"a b"', views: [
       { id: "a", kind: "dump", area: "a", location: "calldata",
         data: { decoding: "$scene", moment: "current" }, filter: { rows: "all" },
         display: { bare: true, density: "flow", perLine: 8, scale: 2 } },

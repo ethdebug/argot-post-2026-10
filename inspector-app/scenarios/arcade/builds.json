@@ -11,12 +11,6 @@
     "compilation": "arcade-vy-rule",
     "ethdebug": false
   },
-  "bug-O0": {
-    "language": "bug",
-    "compiler": "bugc 16246cd8b",
-    "compilation": "arcade-bug-O0",
-    "ethdebug": true
-  },
   "bug-O2": {
     "language": "bug",
     "compiler": "bugc 16246cd8b",
