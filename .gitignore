@@ -3,7 +3,6 @@ node_modules
 *.bak*
 .DS_Store
 demos/*/screenshots/*
-!demos/inspector/screenshots/desktop-packed.png
 demos/debugger/screenshot-*.png
 demos/debugger/results.json
 demos/debugger/run.log
