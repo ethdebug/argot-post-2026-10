@@ -1,28 +1,19 @@
 // The scene registry: every scene, in post order;
-// and what the page knows of each scenario's builds
+// and what the embed knows of each scenario's builds
 import { sceneOf, type BuildInfo, type Scene } from "../engine/scene";
 import arcade from "../../scenarios/arcade/builds.json";
-import rawHero from "../../scenes/raw-hero.json";
 import reveal from "../../scenes/reveal.json";
-import rawNamed from "../../scenes/raw-named.json";
 import carolRecord from "../../scenes/pitfall-nesting.json";
-import mid from "../../scenes/mid.json";
-import alice from "../../scenes/alice.json";
-import motd from "../../scenes/motd.json";
-import vyper from "../../scenes/vyper.json";
 import pointerWalkthrough from "../../scenes/pointer-walkthrough.json";
-import alicePlays from "../../scenes/alice-plays.json";
 import vyperRules from "../../scenes/pitfall-compiler.json";
-import stepperO0 from "../../scenes/stepper-O0.json";
 import stepperO2 from "../../scenes/optimized-locals.json";
 import realDebugger from "../../scenes/real-debugger.json";
 import programXray from "../../scenes/program-xray.json";
 
-// (in Vite, every scene file, the ones authoring adds too, after these;
-// Node, the snapshot build: these)
-const listed = [rawHero, reveal, rawNamed, carolRecord, mid, alice,
-  motd, vyper, pointerWalkthrough, alicePlays, vyperRules, stepperO0, stepperO2]
-  .map(sceneOf);
+// (in Vite, every scene file, after these; Node, the snapshot build:
+// these)
+const listed = [reveal, carolRecord, pointerWalkthrough, vyperRules,
+  stepperO2].map(sceneOf);
 const globbed = typeof import.meta.glob === "function"
   ? Object.values(import.meta.glob<unknown>("../../scenes/*.json",
     { eager: true, import: "default" })) : [];

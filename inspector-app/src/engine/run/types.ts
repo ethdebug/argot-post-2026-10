@@ -46,7 +46,7 @@ export interface TxSpec {
 
 // ------------------------------------------------- 1.2 Build
 
-export type BuildId = string;     // "sol", "vy", "bug-O0", "bug-O2"
+export type BuildId = string;     // "sol", "vy", "bug-O2"
 export interface Build {
   language: "solidity" | "vyper" | "bug";
   compiler: string;               // "solc 0.8.38-develop… (walnut #10)"

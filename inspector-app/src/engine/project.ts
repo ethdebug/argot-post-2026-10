@@ -42,7 +42,7 @@ export interface Project {
   scenes: Scene[];
   // (every scene, as a bookmark: a scene's moments are its points)
   bookmarks: ProjectBookmark[];
-  decodings: Record<DecodingId, Decoding>;   // "mid", "vyper/rule", …
+  decodings: Record<DecodingId, Decoding>;   // "pitfall-nesting", "pitfall-compiler/rule", …
   source(scene: SceneId): Promise<MomentSource>;     // memoised
   // (authoring: a scene's run, every trace step and transaction end a
   // moment: "run:<scene>", its bookmark's points filled once it ran)

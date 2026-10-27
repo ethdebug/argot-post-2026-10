@@ -56,14 +56,6 @@
     grid-template-areas: "storage stack" "storage memory" "storage moment"
       "snote moment"; }
 }
-/* (no memory: storage and the stack's column alone) */
-.lens.raw-hero.no-memory { grid-template-areas: "storage" "stack" "moment"; }
-@media (min-width: 860px) {
-  .lens.raw-hero.no-memory { grid-template-columns: minmax(0, 1fr)
-    max-content;
-    grid-template-rows: auto 1fr;
-    grid-template-areas: "storage stack" "storage moment"; }
-}
 /* One row pitch for every panel, in whole pixels: a line's height the
    cell size's 1.85, rounded (so rows, their tints and the gaps between
    them meet on device pixels, with no seams), and each row's 1px above
