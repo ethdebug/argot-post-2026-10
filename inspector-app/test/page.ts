@@ -74,6 +74,8 @@ export async function select(page: Page, sel: string | null) {
     await expect.poll(() => selected(page)).toBe(null);
   }
   if (sel === null) return;
+  // (the rows at rest first: a click while they move may miss)
+  await still(page);
   await pick(row(page, sel));
   await expect.poll(() => selected(page)).toBe(sel);
 }
