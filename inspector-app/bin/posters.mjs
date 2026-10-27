@@ -85,7 +85,7 @@ async function postersOf(scene) {
         { hash: `${shown}&theme=${theme}`, context: {
           deviceScaleFactor: scaleAt(width), colorScheme: theme } });
       // (its height: a first drawing's, at the poster's scale (at twice
-      // the pixels, a few px off heights.json's, at once); the poster,
+      // the pixels, a few px off a drawing at once's); the poster,
       // a second's, and once more if that differs: a rare early ready,
       // seen once in about a hundred loads)
       const first = await at();
