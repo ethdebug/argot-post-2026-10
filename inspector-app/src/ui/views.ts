@@ -9,7 +9,6 @@ import { ContractSource } from "./ContractSource";
 import { Moment } from "./Moment";
 import { Code } from "./Code";
 import { Variables } from "./Variables";
-import { Moves } from "./Moves";
 import { Reveal } from "./RevealToggle";
 import { TimelineBar } from "./TimelineBar";
 import { Instructions } from "./Instructions";
@@ -18,6 +17,6 @@ import { CallStack } from "./CallStack";
 export const viewKinds: Partial<Record<ViewKind, ComponentType<any>>> = {
   dump: Dump, tree: Tree, picker: Picker, walkthrough: WalkthroughPanel,
   contract: ContractSource, moment: Moment, code: Code,
-  variables: Variables, callstack: CallStack, moves: Moves, reveal: Reveal,
+  variables: Variables, callstack: CallStack, reveal: Reveal,
   timeline: TimelineBar, instructions: Instructions,
 };

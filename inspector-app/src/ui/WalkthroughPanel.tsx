@@ -14,7 +14,7 @@
 // One path in every context: the controller (useWalkModel) makes a
 // serializable model of the panel from the engine and the lens's link,
 // and acts on the reader's intents; the view (PanelView) draws a model
-// and sends intents. On the page and in the shell the two meet here; in
+// and sends intents. With the bar in the figure the two meet here; in
 // the post, the figure's embed sends its model to a panel of its own
 // frame (embed-panel.html), over a channel (panel-port.ts).
 import { createPortal } from "react-dom";

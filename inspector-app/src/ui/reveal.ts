@@ -26,7 +26,7 @@ import { createStore } from "./store";
 // each value at once, on or off, at the middle of its entrance. The
 // disclaimer: from `afterAt` of the host's hold after the reveal (its
 // `after`), or `afterMs` after the progress reaches 1 (a host with no
-// `after`, the toggle). (private/reveal-score.md: the score, in words)
+// `after`, the toggle).
 export const REVEAL = {
   score: {
     // (playerList, motd, slot 2's two, carol, bob, alice)

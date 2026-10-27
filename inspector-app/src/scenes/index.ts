@@ -1,4 +1,4 @@
-// The scene registry: every scene, in post order (the shell's list);
+// The scene registry: every scene, in post order;
 // and what the page knows of each scenario's builds
 import { sceneOf, type BuildInfo, type Scene } from "../engine/scene";
 import arcade from "../../scenarios/arcade/builds.json";

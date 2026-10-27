@@ -166,8 +166,6 @@ export type ViewSpec = { id: ViewId; area: string; link?: LinkId;
     // walkthrough's pointer box, PointerYaml.tsx: lines outside the
     // range muted, a label over it, its edges' buttons)
     | { kind: "code"; data: DataRef; pane?: boolean }
-    // the debugger's moves (Moves.tsx)
-    | { kind: "moves" }
     // the annotated layer's toggle, Raw | Annotated (ui/reveal.ts), when
     // the figure stands alone
     | { kind: "reveal" }
@@ -197,10 +195,8 @@ export type ViewKind = ViewSpec["kind"];
 
 export interface LensSpec {     // a composition for one post section
   id: string; title: string;
-  // (a lens for the developers only: the shell lists it in "dev")
-  dev?: boolean;
-  // (a dev lens that makes its own data: the shell draws this in place
-  // of a Lens of the spec, on the shell's project)
+  // (a lens that makes its own data: the embed draws this in place of
+  // a Lens of the spec)
   page?: ComponentType<{ spec: LensSpec; project: Project }>;
   timelines: TimelineId[];
   // its decodings: the Project's (by id), or its own

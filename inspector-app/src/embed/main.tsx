@@ -247,6 +247,6 @@ createRoot(root).render(figure && lens?.page
   ? <lens.page spec={lens} project={project} />
   : scene
   ? <PanelPort.Provider value={port}><SceneHost scene={scene}
-    project={project} lenses={all} mode="reader" /></PanelPort.Provider>
+    project={project} lenses={all} /></PanelPort.Provider>
   : <p className="embed-none" role="alert">No scene “{id}” to embed
     {" "}(scenes: {project.scenes.map((s) => s.id).join(", ")}).</p>);

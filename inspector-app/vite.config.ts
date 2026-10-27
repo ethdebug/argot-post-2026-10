@@ -44,7 +44,7 @@ export default defineConfig(({ command }) => ({
   // (the run's worker: a module, its EVM chunk split out)
   worker: { format: "es" },
   build: {
-    rollupOptions: { input: { index: "index.html", shell: "shell.html",
+    rollupOptions: { input: { index: "index.html",
       embed: "embed.html", "embed-panel": "embed-panel.html" },
       // (the decoder bundle: one chunk the loader fetches with progress)
       output: {

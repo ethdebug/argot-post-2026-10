@@ -10,7 +10,7 @@ programs-react takes React 19 and shiki 3); from a detached worktree
 (yarn install --frozen-lockfile builds them). Earlier pins: 7a1f5531d
 (#375's branch), d7cb421a3, ec7a81386.
 
-bugc (bin/build-arcade.sh's BUGC, the bug-O0 and bug-O2 builds):
+bugc (bin/build-arcade.sh's BUGC, the bug-O2 build):
 commit 9c8d7ccb1 (ethdebug/format main: #398, a calldata reference's
 offset and length as regions of their own, name-offset and name-length,
 which name-data reads). Before it: daf04e72c (#383, string and bytes
@@ -30,20 +30,9 @@ cd943343e5a7a9a825880a5972fdcf61af7b20230d843e3df2563cb5a4f7ee03  ethdebug-forma
 programs-react: only its utils (dist/src/utils/effectiveContext.js,
 mockTrace.js), deep-imported by src/engine/run/annotate.ts.
 
-Re-pin: see timeline-phase-plan (Vendoring) and "To re-pin" below.
+Re-pin: see "To re-pin" below.
 After a preview release with #375 and #374: the file: entries become the
 released versions, the tarballs go, and this file says so.
-
-Decision (gnidan, 2026-10-07): the pin need not be byte-equal to
-vanilla's bundle; "parity is dependent on behavior, not bundle bytes".
-The gate is src/engine/lib.parity.test.ts (in npm test): vanilla's
-vendor/pointers.js at sync-base against lib.ts, for every state
-variable and every players[key] of the four fixtures at both points
-(48 dereferences; solc's "$" read as "~" first, as the page does):
-identical regions (name, location, slot, offset, length) and identical
-bytes read; and some expressions evaluate the same. Vanilla's bundle
-at sync-base embeds the commit it was built from (d7cb421a3, the pin
-before this one; the test checks it).
 
 To re-pin: in a detached ethdebug/format worktree at the commit, yarn
 install --frozen-lockfile; npm pack packages/format,
@@ -51,7 +40,7 @@ packages/pointers, packages/evm and packages/programs-react into
 vendor/ (replace the .tgz); update this file (commit, sha256); drop
 the @ethdebug entries from package-lock.json and
 node_modules/@ethdebug, then npm install (else npm keeps the old
-integrity); npm test (the parity gate). A running dev server restarts
+integrity); npm test. A running dev server restarts
 and pre-bundles the library again when this file or the lockfile
 changes (vite.config.ts repin; test/e2e/repin.spec.ts); without that,
 its cache keeps the old library and the page fails ("failure to

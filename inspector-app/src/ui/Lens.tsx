@@ -419,7 +419,7 @@ export function Lens(props: { spec: LensSpec; project: Project;
         return;
       }
       if (t.closest?.("#picker, .rbar, .dwrap, .addr, .tray, a, " +
-        "button, summary, details, input, label, .shellbar, .how, " +
+        "button, summary, details, input, label, .how, " +
         ".details")) return;
       if (String(window.getSelection?.() ?? "")) return;
       const scope = scopeOf(t);
