@@ -39,7 +39,6 @@ export const test = base.extend<{ quiet: boolean }>({
 export { expect };
 
 export type Win = Window & typeof globalThis & {
-  fitDumps(): void;
   embedReady?: boolean;
 };
 

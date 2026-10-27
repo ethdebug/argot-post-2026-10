@@ -26,15 +26,13 @@ export function SceneHost(p: { scene: Scene; project: Project;
   [lens, own, first]);
   // (the scene's rows: its storage dumps' filter, "touched")
   // (and its roots: every tree's and storage dump's)
-  // (and no walkthrough, its bar not drawn, where the scene says so;
-  // no controls, "controls": "none": no pickers either, its rows the
-  // scene's alone)
+  // (and no walkthrough, its bar not drawn, where the scene says so; no
+  // controls, "controls": "none": its rows the scene's alone)
   const quiet = p.scene.initial?.walkthrough === false;
   const bare = p.scene.controls === "none";
   const shown = useMemo(() => !spec || (!p.scene.rows && !p.scene.roots &&
     !quiet && !bare) ? spec : { ...spec, views: spec.views.filter((v) =>
-      (!quiet || v.kind !== "walkthrough") &&
-      (!bare || v.kind !== "picker")).map((v) => (v.kind === "dump" &&
+      !quiet || v.kind !== "walkthrough").map((v) => (v.kind === "dump" &&
       v.location === "storage") || v.kind === "tree" ? { ...v, filter: {
         ...v.filter, ...p.scene.rows && v.kind === "dump"
           ? { rows: p.scene.rows } : {},

@@ -1,7 +1,6 @@
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 import path from "node:path";
-import { isEvm, isLibrary, loaderPage } from "./bin/vite-loader";
 import { scenesPlugin } from "./bin/vite-scenes";
 import { debuggerDemo } from "./bin/vite-debugger";
 
@@ -29,24 +28,33 @@ const repin = {
   },
 };
 
+// the library's modules (and theirs): one chunk, vendor/pointers.js; the
+// EVM's (@ethdebug/evm, ethereumjs and its curves), never the figures':
+// a chunk of their own, the runs' (isEvm)
+const isEvm = (id: string) =>
+  /node_modules\/(@ethdebug\/evm|@ethereumjs|@noble\/curves)\//.test(id) ||
+  (/node_modules\/ethereum-cryptography\//.test(id) &&
+    !/ethereum-cryptography\/(esm\/)?(keccak|utils)\.js/.test(id));
+const isLibrary = (id: string) => !isEvm(id) &&
+  /node_modules\/(@ethdebug|ethereum-cryptography|@noble|yaml|json-schema-typed)\//
+    .test(id);
+
 // The dev server serves the app at /demos/inspector/ (the post's path;
 // the local proxy depends on it), with the demo's own files beside it
-// (its contracts, screenshots, README). The build is relative ("./"):
+// (its contracts, README). The build is relative ("./"):
 // Pages serves the site under the repo's name; bin/site.sh puts dist at demos/inspector/, over those files.
 export default defineConfig(({ command }) => ({
   base: command === "build" ? "./" : "/demos/inspector/",
   publicDir: command === "build" ? false : "../demos/inspector",
-  plugins: [react(), repin, loaderPage(), scenesPlugin(), debuggerDemo()],
+  plugins: [react(), repin, scenesPlugin(), debuggerDemo()],
   // (every interface: the HMR socket is reached at the host the page
   // came from, e.g. over a VPN)
   server: { port: 5180, strictPort: true, host: true, fs: { allow: [".."] },
     hmr: { clientPort: port } },
-  // (the run's worker: a module, its EVM chunk split out)
-  worker: { format: "es" },
   build: {
-    rollupOptions: { input: { index: "index.html",
-      embed: "embed.html", "embed-panel": "embed-panel.html" },
-      // (the decoder bundle: one chunk the loader fetches with progress)
+    rollupOptions: { input: { embed: "embed.html",
+      "embed-panel": "embed-panel.html" },
+      // (the decoder bundle: one chunk)
       output: {
         manualChunks: (id) => isLibrary(id) ? "pointers"
           : isEvm(id) ? "evm" : undefined,

@@ -7,23 +7,20 @@ The post introduces [ethdebug/format](https://github.com/ethdebug/format).
 Site: <https://ethdebug.github.io/argot-post-2026-10/>
 
 - [inspector-app/](inspector-app/): the post's figures. The site
-  serves them at `demos/inspector/embed.html`.
+  serves them at `demos/inspector/embed.html`; see
+  [demos/inspector/README.md](demos/inspector/README.md).
 - [demos/debugger/](demos/debugger/): soldb, Walnut's debugger, for
   Solidity and Fe. The real-debugger figure loads its engine and data
   from here. Its saved
   Solidity trace leaves out the flat copies of each step's state, which
   soldb drops on reading; see
   [SOURCE.md](demos/debugger/SOURCE.md#the-saved-trace-one-change).
-- [demos/inspector/](demos/inspector/): a storage inspector that shows
-  each variable's bytes, found through solc's ethdebug pointers.
 - [demos/stepper/](demos/stepper/): a source stepper in about ten lines
   of code, with its output for Solidity and Fe.
 
 ## Run locally
 
-The demo pages are static. Serve the repo root over HTTP:
-
-    python3 -m http.server
-
-Then open <http://localhost:8000/>. The figures need a build first; see
-the scripts in [inspector-app/package.json](inspector-app/package.json).
+The figures: in `inspector-app/`, run `npm ci` and `npm run dev`, then
+open <http://localhost:5180/demos/inspector/embed.html#scene=reveal>
+(or another scene in `inspector-app/scenes/`). See the other scripts in
+[inspector-app/package.json](inspector-app/package.json).

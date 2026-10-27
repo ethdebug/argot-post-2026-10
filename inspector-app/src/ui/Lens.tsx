@@ -1,17 +1,13 @@
-// A lens: one store per mount, its views laid out in its grid's areas
-// (or, on the parity page, in the page's elements). The lens decides
+// A lens: one store per mount, its views laid out in its grid's areas. The lens decides
 // what each view shows: its data, and for Phase 1's pair of dumps,
 // which side is shown and what it is called.
 import {
   useEffect, useId, useMemo, useState, type ComponentType,
   type CSSProperties, type ReactNode,
 } from "react";
-import { createPortal } from "react-dom";
 import { narrowAreas } from "./narrow";
 import type { Project } from "../engine/project";
 import { decode } from "../engine/decode";
-import { fromHash, toHash } from "../engine/hash";
-import { readHash, writeHash, type Pending } from "./hash";
 import { createStore, type Store } from "./store";
 import { animated, cut, transition } from "./transition";
 import {
@@ -49,9 +45,7 @@ export function initialState(spec: LensSpec, project: Project): LensState {
 // Show a scene: its moment (its first, or `view.moment`), and its
 // selection (or `view.sel`; one the tree does not have is none), in
 // every link group. Waits for its data; a later call wins.
-// (`onFail`: the page's report of a load that failed, with a retry)
-function shower(store: Store<LensState>, spec: LensSpec, project: Project,
-  onFail?: (e: unknown, again: () => void) => void) {
+function shower(store: Store<LensState>, spec: LensSpec, project: Project) {
   let wanted = 0;
   const show: LensContextValue["show"] = async (id, view) => {
     const ticket = ++wanted;
@@ -80,8 +74,7 @@ function shower(store: Store<LensState>, spec: LensSpec, project: Project,
     } catch (e) {
       if (ticket !== wanted) return false;
       store.set((s) => ({ ...s, error: String((e as Error)?.message ?? e) }));
-      if (onFail) onFail(e, () => void show(id, view));
-      else console.error(e);
+      console.error(e);
       return false;
     }
     if (ticket !== wanted) return true; // another was asked for since
@@ -193,15 +186,11 @@ function useWhen(point: string): string | undefined {
 }
 
 export function Lens(props: { spec: LensSpec; project: Project;
-  hash?: boolean; kinds?: Kinds; mount?: Record<string, Element>;
-  // the page's handle on the lens (the parity page's window.select),
-  // and when its first view is shown
-  onReady?: (lens: LensContextValue, ready: Promise<boolean>) => void;
-  onFail?: (e: unknown, again: () => void) => void;
-  // (its part of the page: Escape after a press there, and a click on
-  // empty space there, are its own; default: its views)
-  within?: (el: Element) => boolean }) {
-  const { spec, project, mount, onReady } = props;
+  kinds?: Kinds;
+  // the host's handle on the lens (its Reset), and when its first view
+  // is shown
+  onReady?: (lens: LensContextValue, ready: Promise<boolean>) => void }) {
+  const { spec, project, onReady } = props;
   // (a change of the related view's rows animates: transition.ts)
   const [store] = useState(() => animated(createStore(initialState(spec,
     project)), { pages: spec.views.some((v) => v.kind === "dump" &&
@@ -226,8 +215,8 @@ export function Lens(props: { spec: LensSpec; project: Project;
     });
   }, [store, project]);
   const value = useMemo(() => ({ spec, project, store, key,
-    show: shower(store, spec, project, props.onFail) }),
-  [spec, project, store, key, props.onFail]);
+    show: shower(store, spec, project) }),
+  [spec, project, store, key]);
   // pointing anywhere but at this lens's views (or a tree's edge button,
   // which is for what is lit) ends its hovers (vanilla onOver)
   useEffect(() => {
@@ -278,47 +267,15 @@ export function Lens(props: { spec: LensSpec; project: Project;
       document.removeEventListener("focusout", out);
     };
   }, [key, store, spec]);
-  // the first bookmark, with its defaults (unless the page shows one)
-  // the view the URL hash asks for (`hash`), or the first bookmark with
-  // its defaults; then (with `hash`) every change goes back into it
-  const [pending] = useState<Pending>({});
+  // the first bookmark, with its defaults
   useEffect(() => {
     const { store: st, show } = value;
-    const want = props.hash ? fromHash(spec, readHash(), project.bookmarks)
-      : undefined;
-    if (want) {
-      st.set((s) => ({ ...s, related: want.related === undefined
-        ? undefined : { context: RELATED_CONTEXT } }));
-    }
-    const id = want?.bookmark ?? st.get().scene;
-    // (a hash that names no scene of the lens: the scene's own view)
+    const id = st.get().scene;
     const at = spec.initial?.moment;
-    const ready = id ? show(id, want?.bookmark ? { sel: want.selection }
-      : at !== undefined ? { moment: at } : undefined)
-      : Promise.resolve(true);
-    let live = true;
-    const unsub = props.hash ? (() => {
-      let off = () => {};
-      void ready.then(() => {
-        if (!live) return;
-        const write = () => {
-          const s = st.get();
-          writeHash(toHash(spec, { bookmark: s.scene,
-            selection: s.links[spec.links[0]]?.selection ?? null,
-            related: s.related?.context },
-          project.bookmarks), pending);
-        };
-        write();
-        off = st.subscribe(write);
-      });
-      return () => off();
-    })() : () => {};
+    const ready = id ? show(id, at !== undefined ? { moment: at }
+      : undefined) : Promise.resolve(true);
     onReady?.(value, ready);
-    return () => {
-      live = false;
-      unsub();
-    };
-  }, [value, onReady, props.hash, spec, project, pending]);
+  }, [value, onReady, spec]);
 
   // Escape (in this lens: the focus is in it, or, with nothing focused,
   // the pointer was last pressed in it): exits a walkthrough first, then
@@ -329,8 +286,7 @@ export function Lens(props: { spec: LensSpec; project: Project;
       `[data-view^="${key}:"]`);
     const other = (el: Element | null) => !!el?.closest?.("[data-view]") &&
       !mine(el);
-    const here0 = (el: Element | null) => !!el &&
-      (props.within ? props.within(el) : mine(el));
+    const here0 = (el: Element | null) => !!el && mine(el);
     // (a link group of its own part of the page: Escape and a click on
     // empty space there clear it alone; elsewhere, the others)
     const scopeOf = (el: Element | null) => el?.closest?.(
@@ -414,8 +370,7 @@ export function Lens(props: { spec: LensSpec; project: Project;
     };
     const click = (e: MouseEvent) => {
       const t = e.target as Element;
-      if ((e as MouseEvent & { acted?: boolean }).acted || other(t) ||
-        (props.within && !props.within(t))) {
+      if ((e as MouseEvent & { acted?: boolean }).acted || other(t)) {
         return;
       }
       if (t.closest?.("#picker, .rbar, .dwrap, .addr, .tray, a, " +
@@ -450,7 +405,7 @@ export function Lens(props: { spec: LensSpec; project: Project;
       document.removeEventListener("keydown", keyed);
       document.removeEventListener("click", click);
     };
-  }, [key, store, spec, props.within, project, value]);
+  }, [key, store, spec, project, value]);
   const kinds: Kinds = { ...viewKinds, ...props.kinds };
   const areas: Record<string, ReactNode[]> = {};
   for (const v of spec.views) {
@@ -462,10 +417,7 @@ export function Lens(props: { spec: LensSpec; project: Project;
     const Wrap = spec.wrap?.[a];
     return [a, Wrap ? <Wrap key={a}>{ns}</Wrap> : ns];
   }));
-  const body = mount
-    ? Object.entries(wrapped).map(([a, n]) => mount[a]
-      ? createPortal(n, mount[a], a) : null)
-    : <div className={["lens", spec.layout].filter(Boolean).join(" ")}
+  const body = <div className={["lens", spec.layout].filter(Boolean).join(" ")}
       style={spec.grid ? { display: "grid", gridTemplateAreas: spec.grid,
         "--narrow-areas": narrowAreas(spec.grid, spec.areas) } as
         CSSProperties : undefined}>

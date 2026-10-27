@@ -23,7 +23,7 @@ export default defineConfig({
   },
   webServer: process.env.PAGE ? undefined : {
     command: `npm run dev -- --port ${PORT} --strictPort`,
-    url: `http://localhost:${PORT}/demos/inspector/`,
+    url: `http://localhost:${PORT}/demos/inspector/embed.html`,
     reuseExistingServer: !process.env.CI,
   },
   projects: [

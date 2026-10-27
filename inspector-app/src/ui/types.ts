@@ -157,8 +157,6 @@ export type ViewSpec = { id: ViewId; area: string; link?: LinkId;
       // (its selection's light in child colour `tint`, not yellow; keys
       // named by `names`'s on-chain names, another decoding's)
       tint?: Colour; names?: DataRef }
-    | { kind: "picker";
-      of: "bookmarks" | "related" }
     // the contract's source, its selection's declaration marked
     | { kind: "contract"; data: DataRef }
     // a moment's source, its range marked; the locals in scope there
@@ -211,7 +209,6 @@ export interface LensSpec {     // a composition for one post section
   views: ViewSpec[];
   links: LinkId[];
   initial?: Partial<LensState>; // incl. a started walkthrough
-  hash?: { prefix: string; legacy?: boolean };
   // Phase 1 parity: an area's own wrapper (the dumps' #panel, in the
   // run.mjs contract), and its grid cell's class (vanilla's box)
   wrap?: Record<string, ComponentType<{ children: ReactNode }>>;
