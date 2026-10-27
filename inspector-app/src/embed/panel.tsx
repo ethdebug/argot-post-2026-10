@@ -49,7 +49,7 @@ addEventListener("message", (e) => {
 // walkthrough, at this width (each drawn, unseen, from the figure's
 // `variants`), so the frame never changes height as the reader steps,
 // nor as the panel loads; posted once known ({ ready: true }), then on a
-// change of width. Until then, nothing: the host keeps the room heights.json says.
+// change of width. Until then, nothing: the host keeps the room it reserved.
 // (ondemand=1: shown only while a walkthrough runs; its height message
 // says so, `open`, the host's room for it 0 meanwhile)
 const onDemand = hash.get("ondemand") === "1";

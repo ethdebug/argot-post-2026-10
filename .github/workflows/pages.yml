@@ -24,13 +24,10 @@ jobs:
       - run: npm run build
         working-directory: inspector-app
       - run: sh inspector-app/bin/site.sh
-      # (the embed's heights, every scene at each width: heights.json)
+      # (the embeds' posters, each scene at the post's frame widths, light and
+      # dark: posters/, for the post's readers without the live figures)
       - run: npx playwright install --with-deps chromium
         working-directory: inspector-app
-      - run: node bin/heights.mjs ../_site
-        working-directory: inspector-app
-      # (and their posters, each scene at the post's frame widths, light and
-      # dark: posters/, for the post's readers without the live figures)
       - run: node bin/posters.mjs ../_site
         working-directory: inspector-app
       - uses: actions/configure-pages@v5
