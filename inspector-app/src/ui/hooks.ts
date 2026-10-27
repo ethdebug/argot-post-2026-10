@@ -5,7 +5,7 @@ import { createContext, useContext, useEffect, useMemo, useRef, useState,
 import type { Project } from "../engine/project";
 import type {
   Compilation, Decoded, Decoding, Filter, Hex, Layout, Light, Location,
-  PointId, Snapshot, TimelinePoint,
+  PointId, TimelinePoint,
 } from "../engine/types";
 import { decode } from "../engine/decode";
 import { layout } from "../engine/layout";
@@ -69,7 +69,7 @@ export function useLensState<T>(pick: (s: LensState) => T): T {
   return useSyncExternalStore(store.subscribe, () => pick(store.get()));
 }
 
-// (a load that failed is the lens's to report, once, with Retry: Lens
+// (a load that failed is the lens's to report, once: Lens
 // show; here it is left out, and anything else is logged)
 const quiet = (e: unknown) => {
   if (!String((e as Error)?.message ?? e).startsWith("Could not load")) {
@@ -650,9 +650,6 @@ export function usePointAt(ref: DataRef | undefined):
   if (out) last.current = out;
   return out ?? (playing ? last.current : undefined);
 }
-
-export const useSnapshot = (ref: DataRef | undefined): Snapshot | undefined =>
-  usePoint(ref)?.snapshot;
 
 // Where the pointer is (the lens's listener keeps it)
 export const pointer = { x: 0, y: 0 };

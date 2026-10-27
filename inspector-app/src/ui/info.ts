@@ -217,11 +217,3 @@ export function infoOf(x: Sides, t: Target | null): Info | null {
   }
   return null;
 }
-
-// "where" a selected value is (the rest bar's details): its regions,
-// in the side shown
-export function whereOf(x: Sides, path: string): Part[] {
-  const info = ownerInfo(x, path);
-  return info.find(([k]) => k === "Where" || k === "Where after")?.[1]
-    ?? [];
-}

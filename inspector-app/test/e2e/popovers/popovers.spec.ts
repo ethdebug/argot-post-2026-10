@@ -2,7 +2,7 @@
 // pointed-at run in both views, gutters, root-slot tint, one line
 import type { Page } from "@playwright/test";
 import { test, expect, ready, select } from "../../page";
-import { A, B, C } from "../../expect";
+import { A, B } from "../../expect";
 
 const pops = (page: Page) => page.locator(
   "#panel .view[data-side=after] .pop").allInnerTexts();

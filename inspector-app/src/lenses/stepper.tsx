@@ -177,8 +177,6 @@ function Wide({ children }: { children: ReactNode }) {
         if (views.some((v) => v.dataset.related !== undefined)) return;
         restoring = false;
       }
-      const rowsAt = (v: HTMLElement) => v.querySelector<HTMLElement>(
-        ".rows");
       // (its rows not in yet: nothing to decide)
       if (related && views.some((v) => v.dataset.related === undefined))
         return;

@@ -14,7 +14,7 @@ import { keysFor } from "./keys";
 import { hoist } from "./run/build";
 import { walk as walkGraph } from "./deref/walk";
 import { regionsOf, sameAsLibrary } from "./deref/check";
-import { short, slotHex, toBig, toHex } from "./hex";
+import { slotHex, toBig, toHex } from "./hex";
 
 type Types = Record<string, Format.Type>;
 type State = ReturnType<typeof machineState>;
@@ -171,8 +171,6 @@ export async function decodeLocals(c: Compilation, at: TimelinePoint,
   const tree = await localsAt(c, at, machineState(at.snapshot), graphs);
   return decoded(decoding, at.id, tree, graphs);
 }
-
-const hex4 = (n: number) => "0x" + n.toString(16).padStart(4, "0");
 
 // The locals an instruction's context lists at a point (vanilla decode.js
 // decodeLocals, mem.js sideTree, recordNode): each one dereferenced by

@@ -153,7 +153,6 @@ test("players: step 0 and ten steps, their light, bands and chips",
     const playerList = { "keccak(slot 0)": range(12, 31),
       "keccak(slot 0) + 1": range(12, 31),
       "keccak(slot 0) + 2": range(12, 31) };
-    const rows3 = [al, rec, cl0];
     // (cap, lit, a line of the band, the gutters, the slots outlined)
     const want: [string, Record<string, string>, string | null,
       string[], string[]][] = [

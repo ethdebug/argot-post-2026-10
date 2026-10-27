@@ -19,7 +19,7 @@ import { load, type Runs } from "../src/engine/project";
 import type { Io } from "../src/engine/io";
 import { sceneSnapshot } from "../src/engine/snapshots";
 import { snapshotJson } from "../src/engine/source";
-import { sceneOf, type Scene } from "../src/engine/scene";
+import type { Scene } from "../src/engine/scene";
 import { builds, scenes as all } from "../src/scenes";
 
 const app = path.dirname(path.dirname(fileURLToPath(import.meta.url)));

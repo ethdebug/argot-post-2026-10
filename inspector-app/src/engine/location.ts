@@ -161,9 +161,3 @@ export function regionHex(s: Snapshot | undefined, r: ResolvedRegion):
   }
   return `0x${out.join("")}`;
 }
-
-// "memory 0x00b8–0x00bf" (rangeText); a storage region: "bytes 24–31
-// of the slot"
-export const spanText = (r: ResolvedRegion) => r.location === "storage"
-  ? `bytes ${r.offset}–${r.offset + r.length - 1} of the slot`
-  : rangeText(r.location, r.offset, r.offset + r.length - 1);

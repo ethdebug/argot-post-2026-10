@@ -3,7 +3,7 @@
 // type and its value; groups collapse by their chevron; linked to the
 // dumps. A run of lit rows in one colour is one block (li.blk).
 import {
-  useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode,
+  useEffect, useLayoutEffect, useMemo, useRef, useState,
 } from "react";
 import type { KeyboardEvent, MouseEvent, PointerEvent } from "react";
 import type { Colour, Decoded, Filter, Light, ValueNode } from
@@ -591,10 +591,7 @@ export function Tree(p: { id: ViewId; data: DataRef; filter?: Filter;
         {lang[0]?.toUpperCase() + lang.slice(1)} doesn't emit ethdebug, so
         we wrote this by hand
       </p>}
-      {error && !shown ? <p className="error">{error}{" "}
-        <button type="button" className="btn" onClick={() =>
-          (window as { loading?: { retry(): void } }).loading?.retry()}>
-          Retry</button></p>
+      {error && !shown ? <p className="error">{error}</p>
         : shown ? <ul>{shown.map((n) => <Row key={n.path} n={n} top c={c} />)}
         {hidden > 0 && <li data-vt={c.vt?.("tree gap")}>
           <button type="button" className="gap" onClick={deselect}
