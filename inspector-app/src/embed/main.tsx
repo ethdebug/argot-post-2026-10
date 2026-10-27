@@ -28,7 +28,7 @@ import { SceneHost } from "../ui/SceneHost";
 import { columnsOf } from "../ui/columns";
 import { lenses } from "../lenses";
 import { rawLens } from "../lenses/raw";
-import { builds, figures, page, scenes } from "../scenes";
+import { builds, figures, scenes } from "../scenes";
 import { PanelPort, channelName, figurePort } from "../ui/panel-port";
 import { setProgress, setRevealed } from "../ui/reveal";
 import { followPointerOut } from "../ui/unhover";
@@ -226,7 +226,7 @@ async function whenDrawn() {
 }
 
 const project = await load(fetchIo(import.meta.env.BASE_URL),
-  { scenes, builds, page });
+  { scenes, builds });
 const scene = project.scenes.find((s) => s.id === id);
 // (or a figure: its lens's own page, with its own data)
 const figure = figures.find((f) => f.id === id);

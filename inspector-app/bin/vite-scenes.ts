@@ -20,7 +20,7 @@ import type { Io } from "../src/engine/io";
 import { sceneSnapshot } from "../src/engine/snapshots";
 import { snapshotJson } from "../src/engine/source";
 import { sceneOf, type Scene } from "../src/engine/scene";
-import { builds, page, scenes as all } from "../src/scenes";
+import { builds, scenes as all } from "../src/scenes";
 
 const app = path.dirname(path.dirname(fileURLToPath(import.meta.url)));
 const read = (...p: string[]) =>
@@ -68,7 +68,7 @@ export function snapshotter(o: { scenes?: Scene[];
   const scenes = o.scenes ?? all;
   const digests = o.digests ??
     ((id: string) => read(app, "scenarios", id, "digests.json"));
-  const project = load(demoIo(), { scenes, builds, page, runs: nodeRuns() });
+  const project = load(demoIo(), { scenes, builds, runs: nodeRuns() });
   const files = new Map<string, Promise<string>>();
   return (id: string): Promise<string> => {
     if (!files.has(id)) {

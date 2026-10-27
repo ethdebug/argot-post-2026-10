@@ -35,13 +35,6 @@ export const scenes: Scene[] = [...listed.map((s) =>
 
 export const builds: Record<string, Record<string, BuildInfo>> = { arcade };
 
-// The reader page's scenes, in its order: the storage inspector's, and
-// "Raw bytes", the raw lens's (its picker's buttons, index.html)
-export const page: { id: string; title: string; lens: string }[] = [
-  { id: "raw", title: "Raw bytes", lens: "raw" },
-  ...["mid", "alice", "motd", "vyper"].map((id) => ({ id,
-    title: listed.find((s) => s.id === id)!.title, lens: "inspector" }))];
-
 // The figures: scenes whose lens brings its own data (real-debugger:
 // soldb's), each its id, title, caption and lens; no run, no moments
 export interface Figure { id: string; title: string; caption?: string;

@@ -26,7 +26,7 @@ export interface Runs {
 }
 
 // A scene as a bookmark: its timeline, the decoding it shows, its
-// caption for the page's summary line
+// caption
 export type ProjectBookmark = Bookmark &
   { timeline: TimelineId; decoding: DecodingId; summary?: string;
     // (a replay's: its points every trace step, once its source loads;
@@ -42,9 +42,6 @@ export interface Project {
   scenes: Scene[];
   // (every scene, as a bookmark: a scene's moments are its points)
   bookmarks: ProjectBookmark[];
-  // the page's scenes, in order (src/scenes page), each by the lens
-  // that shows it ("inspector": the storage inspector's bookmarks)
-  page: { id: string; title: string; lens: string }[];
   decodings: Record<DecodingId, Decoding>;   // "mid", "vyper/rule", …
   source(scene: SceneId): Promise<MomentSource>;     // memoised
   // (authoring: a scene's run, every trace step and transaction end a
@@ -55,8 +52,6 @@ export interface Project {
   // the engine's results (decode), per project
   memo: Map<string, Promise<unknown>>;
 }
-
-interface PageScene { id: string; title: string; lens: string }
 
 // (a promise kept until it fails: the next ask tries again)
 function memoised<T>(f: (k: string) => Promise<T>) {
@@ -97,22 +92,15 @@ const bookmarkOf = (s: Scene): ProjectBookmark => ({
 });
 
 export async function load(io: Io, o: { scenes: Scene[];
-  builds: Record<ScenarioId, Record<BuildId, BuildInfo>>; runs?: Runs;
-  page?: PageScene[] }): Promise<Project> {
-  const page = o.page ?? [];
+  builds: Record<ScenarioId, Record<BuildId, BuildInfo>>; runs?: Runs }):
+  Promise<Project> {
   const scenes = o.scenes;
-  // (the storage inspector's scenes the page shows: src/scenes page's;
-  // raw-named, an embed's, is not one)
-  const shown = scenes.filter((s) => s.lens === "inspector" &&
-    page.some((x) => x.id === s.id));
   // (every scene)
   const bookmarks = scenes.map(bookmarkOf);
   const decodings: Record<DecodingId, Decoding> = {};
   // (the scenes whose decodings read a compilation)
   const scenesOf = new Map<CompilationId, SceneId[]>();
-  // (the storage inspector's first: a compilation is fetched with the
-  // first of its scenes the page shows)
-  for (const s of [...shown, ...scenes.filter((x) => !shown.includes(x))]) {
+  for (const s of scenes) {
     if (!o.builds[s.run.scenario]?.[s.run.build]) continue;
     for (const d of decodingsOf(s, o.builds[s.run.scenario])) {
       decodings[d.id] = d;
@@ -217,7 +205,6 @@ export async function load(io: Io, o: { scenes: Scene[];
   });
   return {
     scenes, bookmarks, decodings, memo: new Map(),
-    page,
     source: async (id) => id.startsWith(RUN) ? runOf(id)
       : (await loaded(id)).src,
     point: async (tl, id) => tl.startsWith(RUN) ? runPoint(id)

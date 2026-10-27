@@ -1,5 +1,5 @@
 import { load, type Project } from "../src/engine/project";
-import { builds, page, scenes } from "../src/scenes";
+import { builds, scenes } from "../src/scenes";
 import { fsIo } from "./io";
 import { runs } from "./run";
 import { sceneSnapshot } from "../src/engine/snapshots";
@@ -9,7 +9,7 @@ import { PAUSE_STEPS, PAUSE_TX, STEPPER } from "./expect";
 
 // The project, its scenes from their runs (authoring)
 export const testProject = (): Promise<Project> =>
-  load(fsIo(), { scenes, builds, page, runs });
+  load(fsIo(), { scenes, builds, runs });
 
 // A scene's snapshot file, as the build makes it from the runs: its
 // JSON text, made once a test file (a replay's decodes every trace
@@ -31,7 +31,7 @@ export async function readerProject(): Promise<Project> {
   return load({ ...io, json: async <T>(p: string) => {
     const m = p.match(/^snapshots\/(.+)\.json$/);
     return (m ? JSON.parse(await snapshotText(m[1])) : io.json(p)) as T;
-  } }, { scenes, builds, page });
+  } }, { scenes, builds });
 }
 
 // A pause of alice's third hit (test/expect.ts PAUSE_STEPS) in a bug
