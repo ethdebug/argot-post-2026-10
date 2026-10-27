@@ -543,6 +543,8 @@ test("optimized-locals: a value's memory popover, its bytes alone",
 for (const width of [1116, 1024, 960, 896, 836, 790, 358]) {
   test(`optimized-locals at ${width}px: the variables' headings on one ` +
     "line", async ({ page }) => {
+    // (every moment of every transaction: on CI's WebKit, over 90 s)
+    test.slow();
     await page.setViewportSize({ width, height: 820 });
     await page.goto("./embed.html#scene=optimized-locals");
     await expect(page.locator(".mbar .dot.cur")).toHaveCount(1);
